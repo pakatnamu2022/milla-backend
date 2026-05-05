@@ -61,6 +61,12 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
+      'discount_percentage' => [
+        'nullable',
+        'numeric',
+        'min:0',
+        'max:100',
+      ],
       'work_order_id' => [
         'required',
         'integer',
@@ -75,6 +81,11 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'sometimes',
         'integer',
         'min:1',
+      ],
+      'quotation_detail_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_order_quotation_details,id',
       ],
     ];
   }
@@ -94,6 +105,10 @@ class StoreWorkOrderLabourRequest extends StoreRequest
       'hourly_rate.numeric' => 'La tarifa por hora debe ser un número.',
       'hourly_rate.min' => 'La tarifa por hora no puede ser negativa.',
 
+      'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
+      'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
+      'discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
+
       'work_order_id.required' => 'La orden de trabajo es obligatoria.',
       'work_order_id.integer' => 'La orden de trabajo debe ser un entero.',
       'work_order_id.exists' => 'La orden de trabajo seleccionada no existe.',
@@ -103,6 +118,9 @@ class StoreWorkOrderLabourRequest extends StoreRequest
 
       'group_number.integer' => 'El número de grupo debe ser un entero.',
       'group_number.min' => 'El número de grupo debe ser al menos 1.',
+
+      'quotation_detail_id.integer' => 'El detalle de cotización debe ser un entero.',
+      'quotation_detail_id.exists' => 'El detalle de cotización seleccionado no existe.',
     ];
   }
 }

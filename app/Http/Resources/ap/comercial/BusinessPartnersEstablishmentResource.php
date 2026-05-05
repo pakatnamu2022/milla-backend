@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Models\gp\gestionsistema\District;
@@ -16,6 +17,7 @@ class BusinessPartnersEstablishmentResource extends JsonResource
   public function toArray(Request $request): array
   {
     $districtData = $this->getDistrictData();
+    $physicalWarehouse = Warehouse::getPhysicalWarehouseForPostsale($this->sede_id);
 
     return [
       'id' => $this->id,
@@ -33,6 +35,7 @@ class BusinessPartnersEstablishmentResource extends JsonResource
       'business_partner_id' => $this->business_partner_id,
       'sede_id' => $this->sede_id ?? "",
       'sede' => $this->sede->abreviatura ?? "",
+      'warehouse_id' => $physicalWarehouse?->id,
       'status' => $this->status,
     ];
   }

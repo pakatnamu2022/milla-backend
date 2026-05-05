@@ -40,6 +40,8 @@ class SnapshotCommercialManagerBrandGroupPeriods extends Command
     $assignments = DB::table('ap_commercial_manager_brand_group_periods')
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
+      ->where('status', true)
+      ->whereNull('deleted_at')
       ->get();
 
     if ($assignments->isEmpty()) {
@@ -51,6 +53,7 @@ class SnapshotCommercialManagerBrandGroupPeriods extends Command
     $alreadyExists = DB::table('ap_commercial_manager_brand_group_periods')
       ->where('year', $currentYear)
       ->where('month', $currentMonth)
+      ->whereNull('deleted_at')
       ->exists();
 
     if ($alreadyExists) {

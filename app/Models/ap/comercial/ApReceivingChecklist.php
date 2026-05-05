@@ -17,6 +17,11 @@ class ApReceivingChecklist extends Model
     'receiving_id',
     'shipping_guide_id',
     'quantity',
+    'kilometers',
+  ];
+
+  protected $attributes = [
+    'quantity' => 1,
   ];
 
   const filters = [

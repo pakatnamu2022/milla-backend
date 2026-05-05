@@ -21,6 +21,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Exception;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
@@ -40,7 +41,7 @@ class ElectronicDocument extends BaseModel
     'full_number',
     'is_advance_payment',
     'sunat_concept_transaction_type_id',
-    'origin_module',
+    'area_id',
     'origin_entity_type',
     'origin_entity_id',
     'ap_vehicle_movement_id',
@@ -58,6 +59,7 @@ class ElectronicDocument extends BaseModel
     'cliente_email_1',
     'cliente_email_2',
     'fecha_de_emision',
+    'fecha_nota_debito',
     'fecha_de_vencimiento',
     'sunat_concept_currency_id',
     'tipo_de_cambio',
@@ -100,6 +102,7 @@ class ElectronicDocument extends BaseModel
     'financing_type',
     'placa_vehiculo',
     'orden_compra_servicio',
+    'orden_compra_servicio_url',
     'codigo_unico',
     'enviar_automaticamente_a_la_sunat',
     'enviar_automaticamente_al_cliente',
@@ -118,6 +121,9 @@ class ElectronicDocument extends BaseModel
     'codigo_hash',
     'status',
     'migration_status',
+    'was_dyn_requested',
+    'is_accounted',
+    'is_annulled',
     'error_message',
     'sent_at',
     'migrated_at',
@@ -125,10 +131,14 @@ class ElectronicDocument extends BaseModel
     'cancelled_at',
     'created_by',
     'updated_by',
+    'card_last4',
+    'internal_note',
+    'consolidation_type'
   ];
 
   protected $casts = [
     'fecha_de_emision' => 'date',
+    'fecha_nota_debito' => 'date',
     'fecha_de_vencimiento' => 'date',
     'tipo_de_cambio' => 'decimal:3',
     'porcentaje_de_igv' => 'decimal:2',
@@ -155,6 +165,9 @@ class ElectronicDocument extends BaseModel
     'enviar_automaticamente_al_cliente' => 'boolean',
     'generado_por_contingencia' => 'boolean',
     'aceptada_por_sunat' => 'boolean',
+    'was_dyn_requested' => 'boolean',
+    'is_accounted' => 'boolean',
+    'is_annulled' => 'boolean',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
     'migrated_at' => 'datetime',
@@ -168,7 +181,7 @@ class ElectronicDocument extends BaseModel
     'sunat_concept_document_type_id' => '=',
     'serie' => '=',
     'numero' => '=',
-    'origin_module' => '=',
+    'area_id' => 'in_or_equal',
     'origin_entity_type' => '=',
     'origin_entity_id' => '=',
     'ap_vehicle_movement_id' => '=',
@@ -182,6 +195,8 @@ class ElectronicDocument extends BaseModel
     'anulado' => '=',
     'fecha_de_emision' => '=',
     'created_by' => '=',
+    'seriesModel.sede_id' => '=',
+    'consolidation_type' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
@@ -199,9 +214,9 @@ class ElectronicDocument extends BaseModel
   const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
-  // Módulos de origen
-  const MODULE_COMERCIAL = 'comercial';
-  const MODULE_POSVENTA = 'posventa';
+  // Consolidation types
+  const string CONSOLIDATION_SIMPLE = 'simple';
+  const string CONSOLIDATION_MASSIVE = 'massive';
 
   /**
    * Booted
@@ -215,7 +230,9 @@ class ElectronicDocument extends BaseModel
     });
 
     static::saved(function ($model) {
-      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      if ($model->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED
+        && $model->area_id === ApMasters::AREA_COMERCIAL
+        && $model->purchaseRequestQuote) {
         $quote = $model->purchaseRequestQuote;
         $opportunity = Opportunity::find($quote->opportunity_id);
         $opportunity->update([
@@ -230,18 +247,44 @@ class ElectronicDocument extends BaseModel
 
   /**
    * Relaciones
+   * @throws Exception
    */
   public function warehouse()
   {
-    if ($this->ap_vehicle_movement_id) {
-      $series = AssignSalesSeries::find($this->series_id);
-      $ap_vehicle_movement = $this->vehicleMovement;
-      $model = $ap_vehicle_movement->vehicle->model;
-      $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('status', 1)->where('is_received', 1)->where('sede_id', $series->sede_id)->first();
-      return $warehouse->dyn_code;
+    $series = AssignSalesSeries::find($this->series_id);
+    $sedeId = $series->sede_id;
+    if ($this->area_id == ApMasters::AREA_COMERCIAL) {
+      // Si es nota de crédito/débito sin vehicle movement, usar el del documento original
+      $vehicleMovementId = $this->ap_vehicle_movement_id
+        ?? ($this->original_document_id ? $this->originalDocument?->ap_vehicle_movement_id : null);
+
+      if ($vehicleMovementId) {
+        $ap_vehicle_movement = $this->vehicleMovement ?? $this->originalDocument?->vehicleMovement;
+        $model = $ap_vehicle_movement->vehicle->model;
+        $warehouse = Warehouse::where('article_class_id', $model->class_id)->where('sede_id', $sedeId)
+          ->active()->received()->first();
+        return $warehouse->dyn_code;
+      } else if (!$this->purchaseRequestQuote) {
+        $warehouse = Warehouse::where('sede_id', $sedeId)
+          ->commercial()->received()->active()->first();
+        return $warehouse->dyn_code;
+      } else if (!$this->purchaseRequestQuote->has_vehicle) {
+        $warehouse = Warehouse::where('sede_id', $sedeId)
+          ->commercial()->received()->active()->first();
+        return $warehouse->dyn_code;
+      } else {
+        throw new Exception("No se pudo determinar el almacén para el documento electrónico ID: {$this->id}");
+      }
     } else {
-      throw new Exception("El documento no tiene asociado un movimiento de vehículo.");
+      $warehouse = Warehouse::where('sede_id', $sedeId)
+        ->postSale()->active()->received()->first();
+      return $warehouse->dyn_code;
     }
+  }
+
+  public function inventoryMovement()
+  {
+    return $this->belongsTo(VehicleMovement::class, 'ap_vehicle_movement_id');
   }
 
   public function getSedeIdAttribute()
@@ -268,6 +311,11 @@ class ElectronicDocument extends BaseModel
   public function originalDocument(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'original_document_id');
+  }
+
+  public function referencingItems(): HasMany
+  {
+    return $this->hasMany(ElectronicDocumentItem::class, 'reference_document_id');
   }
 
   public function debitNote(): BelongsTo
@@ -352,6 +400,11 @@ class ElectronicDocument extends BaseModel
     return $this->hasMany(NubefactLog::class, 'ap_billing_electronic_document_id');
   }
 
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
+  }
+
   public function creator(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
@@ -387,12 +440,22 @@ class ElectronicDocument extends BaseModel
 
   public function scopeComercial($query)
   {
-    return $query->where('origin_module', self::MODULE_COMERCIAL);
+    return $query->where('area_id', ApMasters::AREA_COMERCIAL);
   }
 
-  public function scopePosventa($query)
+  public function scopePostventa($query)
   {
-    return $query->where('origin_module', self::MODULE_POSVENTA);
+    return $query->whereIn('area_id', ApMasters::AREAS_POSVENTA);
+  }
+
+  public function scopeTaller($query)
+  {
+    return $query->where('area_id', ApMasters::AREA_TALLER);
+  }
+
+  public function scopeMeson($query)
+  {
+    return $query->where('area_id', ApMasters::AREA_MESON);
   }
 
   public function scopeAccepted($query)
@@ -411,9 +474,9 @@ class ElectronicDocument extends BaseModel
     return $query->where('is_advance_payment', true);
   }
 
-  public function scopeByOriginEntity($query, string $module, string $entityType, int $entityId)
+  public function scopeByOriginEntity($query, int $areaId, string $entityType, int $entityId)
   {
-    return $query->where('origin_module', $module)
+    return $query->where('area_id', $areaId)
       ->where('origin_entity_type', $entityType)
       ->where('origin_entity_id', $entityId);
   }
@@ -426,6 +489,16 @@ class ElectronicDocument extends BaseModel
   public function scopeNotCancelled($query)
   {
     return $query->where('anulado', false);
+  }
+
+  public function scopeConsolidated($query)
+  {
+    return $query->whereNotNull('consolidation_type');
+  }
+
+  public function scopeConsolidatedWorkOrders($query)
+  {
+    return $query->where('consolidation_type', self::CONSOLIDATION_MASSIVE);
   }
 
   /**
@@ -485,6 +558,11 @@ class ElectronicDocument extends BaseModel
   {
     $client = $this->client;
     return $client ? $client->phone : null;
+  }
+
+  public function getIsConsolidatedAttribute(): bool
+  {
+    return !is_null($this->consolidation_type);
   }
 
   /**
@@ -559,6 +637,13 @@ class ElectronicDocument extends BaseModel
     ]);
   }
 
+  public function markAsFailed(): void
+  {
+    $this->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+    ]);
+  }
+
   public function markAsLocalCancelled(string $reason = null): void
   {
     $this->update([
@@ -613,6 +698,19 @@ class ElectronicDocument extends BaseModel
     })->exists();
   }
 
+  /**
+   * Helper methods for consolidated invoices
+   */
+  public function isConsolidated(): bool
+  {
+    return !is_null($this->consolidation_type);
+  }
+
+  public function isWorkOrdersConsolidation(): bool
+  {
+    return $this->consolidation_type === self::CONSOLIDATION_MASSIVE;
+  }
+
   public function purchaseRequestQuote(): HasOne
   {
     return $this->hasOne(PurchaseRequestQuote::class, 'id', 'purchase_request_quote_id');
@@ -626,6 +724,21 @@ class ElectronicDocument extends BaseModel
   public function workOrder(): HasOne
   {
     return $this->hasOne(ApWorkOrder::class, 'id', 'work_order_id');
+  }
+
+  public function area(): HasOne
+  {
+    return $this->hasOne(ApMasters::class, 'id', 'area_id');
+  }
+
+  public function internalNotes(): BelongsToMany
+  {
+    return $this->belongsToMany(
+      ApInternalNote::class,
+      'electronic_document_internal_notes',
+      'electronic_document_id',
+      'internal_note_id'
+    )->withTimestamps();
   }
 
   /**

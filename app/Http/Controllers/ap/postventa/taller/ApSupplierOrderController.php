@@ -65,15 +65,6 @@ class ApSupplierOrderController extends Controller
     }
   }
 
-  public function markAsTaken($id)
-  {
-    try {
-      return $this->service->markAsTaken($id);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function updateStatus(Request $request, $id)
   {
     try {
@@ -84,6 +75,33 @@ class ApSupplierOrderController extends Controller
       }
 
       return $this->service->updateStatus($id, $status);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function pendingProducts($id)
+  {
+    try {
+      return $this->success($this->service->getPendingProducts($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function approve($id)
+  {
+    try {
+      return $this->success($this->service->approve($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function generatePDF($id)
+  {
+    try {
+      return $this->service->generateSupplierOrderPDF($id);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

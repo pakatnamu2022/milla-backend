@@ -27,19 +27,7 @@ class TransferReceptionDetailResource extends JsonResource
       'updated_at' => $this->updated_at,
 
       // Relationships
-      'product' => $this->whenLoaded('product', function () {
-        // Return null if product_id is null (SERVICIO type)
-        if (!$this->product_id || !$this->product) {
-          return null;
-        }
-        return [
-          'id' => $this->product->id,
-          'code' => $this->product->code,
-          'name' => $this->product->name,
-          'description' => $this->product->description,
-          'unit_type' => $this->product->unit_type,
-        ];
-      }),
+      'product' => new ProductsResource($this->whenLoaded('product')),
 
       // Calculated attributes
       'quantity_accepted' => $this->quantity_accepted,

@@ -21,7 +21,9 @@ class SalesDocumentDynamicsResource extends JsonResource
   {
     // Determinar el TipoComprobanteId
     $tipoComprobanteId = match ($this->sunat_concept_document_type_id) {
-      ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO => 'FAC',
+      ElectronicDocument::TYPE_FACTURA => 'FAC',
+      ElectronicDocument::TYPE_NOTA_CREDITO => 'NCR',
+      ElectronicDocument::TYPE_NOTA_DEBITO => 'NDB',
       ElectronicDocument::TYPE_BOLETA => 'BOL',
       default => 'FAC',
     };
@@ -31,7 +33,7 @@ class SalesDocumentDynamicsResource extends JsonResource
     // Generar el DocumentoId con formato: TipoId-Serie-Correlativo
     $documentoId = "{$this->full_number}";
 
-    // Generar el LoteId (usando el VAT del usuario autenticado) o de TODO:quien creo el documento
+    // Generar el LoteId del creador del documento (puede ser el VAT o un identificador único)
     $loteId = $this->creator->person->vat;
 
     // Obtener el cliente
@@ -81,10 +83,10 @@ class SalesDocumentDynamicsResource extends JsonResource
       'TasaCambio' => $tasaCambio,
       'PlanImpuestoId' => $planImpuestoId,
 //      TODO: PREGUNTAR BIEN
-      'TipoOperacionDetraccionId' => $this->sunat_concept_detraction_type_id
-        ? str_pad($this->sunat_concept_detraction_type_id, 2, '0', STR_PAD_LEFT)
+      'TipoOperacionDetraccionId' => $this->detraccion ? '01' : '',
+      'CategoriaDetraccionId' => $this->sunat_concept_detraction_type_id
+        ? str_pad($this->detractionType->iso_code, 2, '0', STR_PAD_LEFT)
         : '01',
-      'CategoriaDetraccionId' => $this->detraccion ? '001' : '',
       'SitioPredeterminadoId' => $sitioPredeterminadoId,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,

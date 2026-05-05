@@ -12,25 +12,16 @@ class UpdateApSupplierOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'order_number' => [
+      'order_number_external' => [
         'sometimes',
-        'required',
+        'nullable',
         'string',
-        Rule::unique('ap_supplier_order', 'order_number')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('supplierOrder')),
       ],
       'supplier_id' => [
         'sometimes',
         'required',
         'integer',
         'exists:business_partners,id',
-      ],
-      'sede_id' => [
-        'sometimes',
-        'required',
-        'integer',
-        'exists:config_sede,id',
       ],
       'warehouse_id' => [
         'sometimes',
@@ -53,11 +44,7 @@ class UpdateApSupplierOrderRequest extends StoreRequest
         'sometimes',
         'required',
         'string',
-        'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LIMA . ',' . ApSupplierOrder::IMPORTACION,
-      ],
-      'is_take' => [
-        'sometimes',
-        'boolean',
+        'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LOCAL . ',' . ApSupplierOrder::CENTRAL . ',' . ApSupplierOrder::IMPORTACION,
       ],
       'status' => [
         'sometimes',
@@ -110,10 +97,6 @@ class UpdateApSupplierOrderRequest extends StoreRequest
       'supplier_id.integer' => 'El proveedor debe ser un entero.',
       'supplier_id.exists' => 'El proveedor seleccionado no es válido.',
 
-      'sede_id.required' => 'La sede es obligatoria.',
-      'sede_id.integer' => 'La sede debe ser un entero.',
-      'sede_id.exists' => 'La sede seleccionada no es válida.',
-
       'warehouse_id.required' => 'El almacén es obligatorio.',
       'warehouse_id.integer' => 'El almacén debe ser un entero.',
       'warehouse_id.exists' => 'El almacén seleccionado no es válido.',
@@ -126,9 +109,7 @@ class UpdateApSupplierOrderRequest extends StoreRequest
       'order_date.date' => 'La fecha de orden debe ser una fecha válida.',
 
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LIMA o IMPORTACION.',
-
-      'is_take.boolean' => 'El campo is_take debe ser verdadero o falso.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, CENTRAL o IMPORTACION.',
 
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved, rejected o completed.',

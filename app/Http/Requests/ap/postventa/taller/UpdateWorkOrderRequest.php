@@ -9,6 +9,8 @@ class UpdateWorkOrderRequest extends StoreRequest
 {
   public function rules(): array
   {
+    $workOrderId = $this->route('workOrder');
+
     return [
       'vehicle_inspection_id' => [
         'nullable',
@@ -63,12 +65,28 @@ class UpdateWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'num_doc_contact' => [
+        'sometimes',
+        'required',
+        'integer',
+        'digits:8',
+      ],
+      'full_contact_name' => [
+        'sometimes',
+        'required',
+        'string',
+      ],
+      'phone_contact' => [
+        'sometimes',
+        'required',
+        'string',
+      ],
       'opening_date' => [
         'sometimes',
         'required',
         'date',
       ],
-      'estimated_delivery_date' => [
+      'estimated_delivery_time' => [
         'sometimes',
         'nullable',
         'date',
@@ -156,6 +174,39 @@ class UpdateWorkOrderRequest extends StoreRequest
         'string',
         'max:100',
       ],
+
+      // Items
+      'items' => [
+        'nullable',
+        'array',
+        function ($attribute, $value, $fail) use ($workOrderId) {
+          // Verificar si la orden ya está recepcionada
+          $workOrder = \App\Models\ap\postventa\taller\ApWorkOrder::find($workOrderId);
+          if ($workOrder && $workOrder->vehicle_inspection_id) {
+            $fail('No se pueden actualizar los items de una orden de trabajo que ya ha sido recepcionada.');
+          }
+        },
+      ],
+      'items.*.group_number' => [
+        'required_with:items',
+        'integer',
+        'min:1',
+      ],
+      'items.*.type_planning_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('type_planning_work_order', 'id'),
+      ],
+      'items.*.type_operation_id' => [
+        'required_with:items',
+        'integer',
+        Rule::exists('ap_masters', 'id')
+          ->where('type', 'TIPO_OPERACION_CITA'),
+      ],
+      'items.*.description' => [
+        'required_with:items',
+        'string',
+      ],
     ];
   }
 
@@ -164,7 +215,7 @@ class UpdateWorkOrderRequest extends StoreRequest
     return [
       'vehicle_inspection_id.integer' => 'La inspección del vehículo debe ser un entero.',
       'vehicle_inspection_id.exists' => 'La inspección del vehículo seleccionada no es válida.',
-      
+
       'appointment_planning_id.integer' => 'La cita debe ser un entero.',
       'appointment_planning_id.exists' => 'La cita seleccionada no es válida.',
 
@@ -189,10 +240,20 @@ class UpdateWorkOrderRequest extends StoreRequest
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
+      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
+      'num_doc_contact.integer' => 'El número de documento del contacto debe ser un entero.',
+      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
+
+      'full_contact_name.required' => 'El nombre del contacto es obligatorio.',
+      'full_contact_name.string' => 'El nombre del contacto debe ser una cadena de texto.',
+
+      'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
+      'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
+
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
-      'estimated_delivery_date.date' => 'La fecha estimada de entrega debe ser una fecha válida.',
+      'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
 
       'actual_delivery_date.date' => 'La fecha real de entrega debe ser una fecha válida.',
 
@@ -229,6 +290,20 @@ class UpdateWorkOrderRequest extends StoreRequest
       'description_recall.max' => 'La descripción del recall no debe exceder los 500 caracteres.',
       'type_recall.string' => 'El tipo de recall debe ser una cadena de texto.',
       'type_recall.max' => 'El tipo de recall no debe exceder los 100 caracteres.',
+
+      // Items validation messages
+      'items.array' => 'Los items deben ser un arreglo.',
+      'items.*.group_number.required_with' => 'El número de grupo es obligatorio cuando se envían items.',
+      'items.*.group_number.integer' => 'El número de grupo debe ser un entero.',
+      'items.*.group_number.min' => 'El número de grupo debe ser al menos 1.',
+      'items.*.type_planning_id.required_with' => 'El tipo de planificación es obligatorio cuando se envían items.',
+      'items.*.type_planning_id.integer' => 'El tipo de planificación debe ser un entero.',
+      'items.*.type_planning_id.exists' => 'El tipo de planificación seleccionado no es válido.',
+      'items.*.type_operation_id.required_with' => 'El tipo de operación es obligatorio cuando se envían items.',
+      'items.*.type_operation_id.integer' => 'El tipo de operación debe ser un entero.',
+      'items.*.type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
+      'items.*.description.required_with' => 'La descripción es obligatoria cuando se envían items.',
+      'items.*.description.string' => 'La descripción debe ser una cadena de texto.',
     ];
   }
 }

@@ -40,7 +40,7 @@ class ResendPurchaseOrderRequest extends StorePurchaseOrderRequest
           $rules['vin'] = [
             'required',
             'string',
-            'max:17',
+            'max:20',
             Rule::unique('ap_vehicles', 'vin')
               ->whereNull('deleted_at')
               ->where('status', 1)

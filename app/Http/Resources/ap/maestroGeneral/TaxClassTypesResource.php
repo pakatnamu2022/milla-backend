@@ -14,6 +14,13 @@ class TaxClassTypesResource extends JsonResource
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
       'tax_class' => $this->tax_class,
+      'igv' => $this->igv,
+      'type_detraction_id' => $this->type_detraction_id,
+      'type_detraction' => $this->whenLoaded('typeDetraction', fn() => [
+        'id' => $this->typeDetraction->id,
+        'description' => $this->typeDetraction->description,
+        'code_nubefact' => $this->typeDetraction->code_nubefact,
+      ]),
       'type' => $this->type,
       'status' => $this->status,
     ];

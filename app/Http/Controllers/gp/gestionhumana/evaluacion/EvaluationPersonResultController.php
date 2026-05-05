@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonResultRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\ReportEvaluationPersonResultByEvaluationsRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonResultRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonResultRequest;
 use App\Http\Requests\PersonEvaluationRequest;
@@ -164,6 +165,34 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
+   * Reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function reportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
+  {
+    try {
+      return $this->success($this->service->reportByEvaluations($request->validated('evaluaciones_id')));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Descarga Excel del reporte consolidado por persona para múltiples evaluaciones
+   * @param ReportEvaluationPersonResultByEvaluationsRequest $request
+   * @return \Illuminate\Http\JsonResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportReportByEvaluations(ReportEvaluationPersonResultByEvaluationsRequest $request)
+  {
+    try {
+      return $this->service->exportReportByEvaluations($request->validated('evaluaciones_id'));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Regenera la evaluación de una persona
    * @param int $personId
    * @param int $evaluationId
@@ -173,6 +202,22 @@ class EvaluationPersonResultController extends Controller
   {
     try {
       return $this->success($this->service->regeneratePersonEvaluation($personId, $evaluationId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Preview de qué pasará al regenerar la evaluación de una persona
+   * Sin hacer cambios reales en la base de datos
+   * @param int $personId
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function previewRegenerate(int $personId, int $evaluationId)
+  {
+    try {
+      return $this->success($this->service->previewRegeneratePersonEvaluation($personId, $evaluationId));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -194,15 +239,31 @@ class EvaluationPersonResultController extends Controller
   }
 
   /**
-   * Obtiene los líderes con el estado de evaluación para una evaluación específica
+   * Obtiene los líderes con el estado de las evaluaciones que están haciendo a su equipo
+   * @param Request $request
    * @param int $evaluationId
    * @return \Illuminate\Http\JsonResponse
    */
-  public function getLeadersEvaluationStatus(int $evaluationId)
+  public function getLeadersEvaluationStatus(Request $request, int $evaluationId)
   {
     try {
-      $data = $this->service->getLeadersWithEvaluationStatus($evaluationId);
-      return $this->success($data);
+      return $this->service->getLeadersWithEvaluationStatus($evaluationId, $request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Obtiene los miembros del equipo de un líder específico
+   * @param Request $request
+   * @param int $evaluationId
+   * @param int $leaderId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getLeaderTeamMembers(Request $request, int $evaluationId, int $leaderId)
+  {
+    try {
+      return $this->service->getLeaderTeamMembers($evaluationId, $leaderId, $request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

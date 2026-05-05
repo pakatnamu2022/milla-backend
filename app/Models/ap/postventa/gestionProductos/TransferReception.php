@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use App\Traits\HasReceptionBehavior;
@@ -63,6 +64,10 @@ class TransferReception extends Model
   const STATUS_APPROVED = 'APPROVED';
   const STATUS_REJECTED = 'REJECTED';
 
+  //Types constants
+  const ITEM_TYPE_PRODUCT = 'PRODUCTO';
+  const ITEM_TYPE_SERVICE = 'SERVICIO';
+
   // Boot method
   protected static function boot()
   {
@@ -72,6 +77,11 @@ class TransferReception extends Model
     static::deleting(function ($reception) {
       $reception->details()->delete();
     });
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
   }
 
   // Mutators

@@ -5,13 +5,19 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -21,15 +27,24 @@ use Illuminate\Support\Facades\DB;
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
   protected DigitalFileService $digitalFileService;
+  protected EmailService $emailService;
+  protected ApOrderQuotationDetailsService $quotationDetailsService;
 
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
     'customer_signature' => '/ap/postventa/taller/cotizaciones/firmas-cliente/',
+    'customer_signature_delivery' => '/ap/postventa/taller/cotizaciones/firmas-entrega/',
   ];
 
-  public function __construct(DigitalFileService $digitalFileService)
+  public function __construct(
+    DigitalFileService             $digitalFileService,
+    EmailService                   $emailService,
+    ApOrderQuotationDetailsService $quotationDetailsService
+  )
   {
     $this->digitalFileService = $digitalFileService;
+    $this->emailService = $emailService;
+    $this->quotationDetailsService = $quotationDetailsService;
   }
 
   public function list(Request $request)
@@ -43,9 +58,39 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     );
   }
 
+  public function listForPurchaseRequest(Request $request)
+  {
+    // Query base con las condiciones requeridas para solicitudes de compra
+    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
+    $query = ApOrderQuotations::query()
+      ->where(function ($query) {
+        $query->where(function ($q) {
+          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
+          $q->where('area_id', ApMasters::AREA_TALLER)
+            ->where(function ($q2) {
+              $q2->whereNotNull('chief_approval_by')
+                ->orWhereNotNull('manager_approval_by');
+            });
+        })
+          ->orWhereHas('workOrders', function ($q) {
+            // Condición 2: Cotizaciones asociadas a OT con factura generada
+            $q->where('has_invoice_generated', true);
+          });
+      });
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApOrderQuotations::filters,
+      ApOrderQuotations::sorts,
+      ApOrderQuotationsResource::class
+    );
+  }
+
   public function find($id)
   {
     $quotation = ApOrderQuotations::with([
+      'invoiceTo',
       'vehicle',
       'createdBy',
       'details'
@@ -77,10 +122,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      $data['quotation_number'] = $this->generateNextQuotationNumber();
+      $data['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($data['sede_id']);
       $data['subtotal'] = 0;
       $data['discount_amount'] = 0;
-      $data['tax_amount'] = Constants::VAT_TAX;
+      $data['tax_amount'] = 0;
       $data['total_amount'] = 0;
       $data['exchange_rate'] = $exchangeRate->rate;
 
@@ -89,6 +134,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
+
+      //Obtenemos el kilometraje de su ultima OT
+      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
 
       $quotation = ApOrderQuotations::create($data);
 
@@ -104,14 +152,39 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
+      $vehicle = Vehicles::find($data['vehicle_id']);
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
+      if ($vehicle->customer_id === null) {
+        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+      }
+
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
+      }
+
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        // Validar precio de venta al público
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto ({$detail['description']}): {$validation['message']}"
+          );
+        }
       }
 
       // Calculate validity days
@@ -119,27 +192,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
 
-      // Calculate totals from details
-      $subtotal = 0;
-      $discount_amount = 0;
-
-      foreach ($data['details'] as $detail) {
-        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
-        $itemDiscount = $itemSubtotal - $detail['total_amount'];
-
-        $subtotal += $itemSubtotal;
-        $discount_amount += $itemDiscount;
-      }
-
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
-      $total_amount = $subtotal_after_discount + $igv_amount;
-
-      // Calculate discount percentage based on total discount amount and subtotal
-      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
-
-      // Prepare quotation data
+      // Prepare quotation data (initialize totals as 0, will be calculated after creating details)
       $quotationData = [
         'area_id' => $data['area_id'],
         'vehicle_id' => $data['vehicle_id'] ?? null,
@@ -149,16 +202,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
         'created_by' => $data['created_by'],
-        'quotation_number' => $this->generateNextQuotationNumber(),
-        'subtotal' => $subtotal,
-        'discount_percentage' => $discount_percentage,
-        'discount_amount' => $discount_amount,
-        'tax_amount' => $igv_amount,
-        'total_amount' => $total_amount,
+        'quotation_number' => ApOrderQuotations::generateNextQuotationNumber($data['sede_id']),
+        'subtotal' => 0,
+        'discount_percentage' => 0,
+        'discount_amount' => 0,
+        'tax_amount' => 0,
+        'total_amount' => 0,
         'validity_days' => $validation_days,
         'exchange_rate' => $exchangeRate->rate,
         'currency_id' => $data['currency_id'],
-        'supply_type' => $data['supply_type'] ?? null,
         'collection_date' => $data['collection_date'] ?? null,
       ];
 
@@ -180,8 +232,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
+          'supply_type' => $detail['supply_type'] ?? null,
         ]);
       }
+
+      // Recalculate totals using centralized method in model
+      $quotation->calculateTotals();
+      $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
@@ -195,7 +252,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
     $quotation->load('advancesOrderQuotation');
-    return (new ApOrderQuotationsResource($quotation))->additional(['checkStock' => true]);
+
+    $additionalData = [
+      'checkStock' => true,
+      'includeConfirmationData' => true  // Flag para mostrar datos de confirmación
+    ];
+
+    // Incluir cost_man_hours solo si es área de taller
+    if ($quotation->area_id === ApMasters::AREA_TALLER) {
+      $additionalData['includeCostManHours'] = true;
+    }
+
+    return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
   }
 
 
@@ -215,12 +283,31 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
       }
 
+      if ($quotation->is_take === true) {
+        throw new Exception('No se puede actualizar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+      }
+
+      if ($quotation->area_id === ApMasters::AREA_TALLER) {
+        if ($quotation->quotation_date) {
+          $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+          $today = Carbon::now()->startOfDay();
+
+          // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+          if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+            throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+          }
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
       $data['exchange_rate'] = $exchangeRate->rate;
+
+      //Obtenemos el kilometraje de su ultima OT
+      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
 
       $quotation->update($data);
 
@@ -268,32 +355,32 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
+      // Validar precios de venta al público para cada producto en details
+      foreach ($data['details'] as $index => $detail) {
+        $productId = $detail['product_id'];
+        $unitPrice = $detail['unit_price'];
+        $sedeId = $data['sede_id'];
+
+        // Validar precio de venta al público
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $sedeId,
+          $unitPrice
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto #{$productId} ({$detail['description']}): {$validation['message']}"
+          );
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
 
-      // Calculate totals from details
-      $subtotal = 0;
-      $discount_amount = 0;
-
-      foreach ($data['details'] as $detail) {
-        $itemSubtotal = $detail['quantity'] * $detail['unit_price'];
-        // Calcular el descuento basándose en el total_amount ya redondeado para evitar diferencias de centavos
-        $itemDiscount = $itemSubtotal - $detail['total_amount'];
-
-        $subtotal += $itemSubtotal;
-        $discount_amount += $itemDiscount;
-      }
-
-      $subtotal_after_discount = $subtotal - $discount_amount;
-      $igv_amount = $subtotal_after_discount * (Constants::VAT_TAX / 100);
-      $total_amount = $subtotal_after_discount + $igv_amount;
-
-      // Calculate discount percentage based on total discount amount and subtotal
-      $discount_percentage = $subtotal > 0 ? ($discount_amount / $subtotal) * 100 : 0;
-
-      // Update quotation data
+      // Update quotation data (totals will be recalculated after updating details)
       $quotation->update([
         'area_id' => $data['area_id'],
         'vehicle_id' => $vehicleId,
@@ -302,11 +389,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quotation_date' => $data['quotation_date'],
         'expiration_date' => $data['expiration_date'],
         'observations' => $data['observations'] ?? null,
-        'subtotal' => $subtotal,
-        'discount_percentage' => $discount_percentage,
-        'discount_amount' => $discount_amount,
-        'tax_amount' => $igv_amount,
-        'total_amount' => $total_amount,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
         'exchange_rate' => $exchangeRate->rate,
@@ -331,8 +413,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
+          'supply_type' => $detail['supply_type'] ?? null,
         ]);
       }
+
+      // Reload details relation to ensure fresh data for calculations
+      $quotation->load('details');
+
+      // Recalculate totals using centralized method in model
+      $quotation->calculateTotals();
+      $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
@@ -356,6 +446,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
       throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
+    }
+
+    if ($quotation->is_take === true) {
+      throw new Exception('No se puede eliminar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+    }
+
+    if ($quotation->area_id === ApMasters::AREA_TALLER) {
+      if ($quotation->quotation_date) {
+        $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+        $today = Carbon::now()->startOfDay();
+
+        // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+        if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+          throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+        }
+      }
     }
 
     DB::transaction(function () use ($quotation) {
@@ -408,32 +514,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
-  /**
-   * Genera el siguiente número de cotización en formato COT-YYYY-MM-XXXX
-   *
-   * @return string
-   */
-  public function generateNextQuotationNumber(): string
-  {
-    $year = date('Y');
-    $month = date('m');
-
-    $lastQuotation = ApOrderQuotations::withTrashed()
-      ->where('quotation_number', 'like', "COT-{$year}-{$month}-%")
-      ->orderBy('quotation_number', 'desc')
-      ->first();
-
-    if ($lastQuotation) {
-      $lastNumber = (int)substr($lastQuotation->quotation_number, -4);
-      $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-    } else {
-      $newNumber = '0001';
-    }
-
-    return "COT-{$year}-{$month}-{$newNumber}";
-  }
-
-  public function generateQuotationPDF($id)
+  public function generateQuotationPDF($id, $showCodes = true)
   {
     $quotation = ApOrderQuotations::with([
       'vehicle.model.family.brand',
@@ -454,11 +535,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'expiration_date' => $quotation->expiration_date,
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
+      'show_codes' => $showCodes,
+      'sede' => $quotation->sede,
     ];
 
     // Datos del cliente
-    if ($quotation->vehicle && $quotation->vehicle->customer) {
-      $customer = $quotation->vehicle->customer;
+    if ($quotation->client) {
+      $customer = $quotation->client;
       $data['customer_name'] = $customer->full_name;
       $data['customer_document'] = $customer->num_doc ?? 'N/A';
       $data['customer_address'] = $customer->direction ?? 'N/A';
@@ -478,7 +561,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
       $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -496,7 +579,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ? $vehicle->model->family->brand->name
         : 'N/A';
       $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
-      $data['vehicle_km'] = 0;
+      $data['vehicle_km'] = $quotation->mileage;
     } else {
       $data['vehicle_plate'] = 'N/A';
       $data['vehicle_vin'] = 'N/A';
@@ -511,9 +594,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $details = $quotation->details;
 
     // Detalles de la cotización
-    $data['details'] = $details->map(function ($detail) {
+    $data['details'] = $details->map(function ($detail) use ($showCodes) {
       return [
-        'code' => $detail->product ? $detail->product->code : '-',
+        'code' => $showCodes && $detail->product ? $detail->product->code : '',
         'description' => $detail->description,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
@@ -525,21 +608,45 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ];
     });
 
-    // Calcular totales según el parámetro with_labor
-    $totalLabor = $quotation->details->where('item_type', 'labor')->sum('total_amount');
-    $totalParts = $quotation->details->where('item_type', 'part')->sum('total_amount');
-    $totalDiscounts = $quotation->details->sum('discount_percentage');
+    // Calcular totales correctamente
+    $totalLabor = 0;
+    $totalParts = 0;
+    $totalDiscounts = 0;
 
-    // Recalcular subtotal y total si no se incluye mano de obra
-    $subtotal = $quotation->subtotal;
-    $total_amount = $quotation->total_amount;
+    foreach ($quotation->details as $detail) {
+      $itemSubtotal = $detail->quantity * $detail->unit_price;
+      $itemDiscount = $itemSubtotal - $detail->total_amount;
+
+      // Total mano de obra (LABOR) - sin descuento
+      if ($detail->item_type === 'LABOR') {
+        $totalLabor += $itemSubtotal;
+      }
+
+      // Total recambios/repuestos (PRODUCT) - sin descuento
+      if ($detail->item_type === 'PRODUCT') {
+        $totalParts += $itemSubtotal;
+      }
+
+      // Total descuentos en monto (dinero)
+      $totalDiscounts += $itemDiscount;
+    }
+
+    // Calcular base imponible (base propuesta): mano de obra + recambios - descuento
+    $baseImponible = $totalLabor + $totalParts - $totalDiscounts;
+
+    // Calcular IGV: 18% sobre la base imponible
+    $igv_amount = $baseImponible * (Constants::VAT_TAX / 100);
+
+    // Calcular total: base imponible + IGV
+    $total_amount = $baseImponible + $igv_amount;
 
     $data['total_labor'] = $totalLabor;
     $data['total_parts'] = $totalParts;
     $data['total_discounts'] = $totalDiscounts;
-    $data['subtotal'] = $subtotal;
-    $data['tax_amount'] = $quotation->tax_amount;
+    $data['base_imponible'] = $baseImponible;
+    $data['tax_amount'] = $igv_amount;
     $data['total_amount'] = $total_amount;
+    $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;
@@ -559,7 +666,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     return $pdf->download($fileName);
   }
-
 
   public function generateQuotationRepuestoPDF($id, $showCodes = true)
   {
@@ -584,8 +690,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'observations' => $quotation->observations ?? '',
       'validity_days' => $quotation->validity_days,
       'show_codes' => $showCodes,
-      'sede_name' => $quotation->sede ? $quotation->sede->abreviatura : 'N/A',
+      'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
+      'status' => $quotation->status,
     ];
 
     // Datos del cliente
@@ -595,12 +702,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['customer_district'] = $quotation->client->district ? $quotation->client->district->name : 'N/A';
     $data['customer_email'] = $quotation->client->email ?? 'N/A';
     $data['customer_phone'] = $quotation->client->phone ?? 'N/A';
+    $data['customer_activity'] = $quotation->client->activityEconomic->description ?? 'N/A';
 
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
       $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->email ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -635,12 +743,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       return [
         'code' => $showCodes && $detail->product ? $detail->product->code : '',
         'description' => $detail->description,
+        'unit_measure' => $detail->unit_measure,
         'observations' => $detail->observations ?? '',
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
         'total_amount' => $detail->total_amount,
+        'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
         'item_type' => $detail->item_type,
+        'supply_type' => $detail->supply_type,
       ];
     });
 
@@ -649,6 +760,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['subtotal'] = $quotation->subtotal;
     $data['tax_amount'] = $quotation->tax_amount;
     $data['total_amount'] = $quotation->total_amount;
+    $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
 
     // Calcular pagos realizados (anticipos no anulados)
     $totalPagado = $quotation->advancesOrderQuotation
@@ -678,9 +790,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return $pdf->download($fileName);
   }
 
-  /**
-   * Confirma una cotización guardando la firma del cliente y cambiando el estado a "Por Facturar"
-   */
   public function confirm(mixed $data)
   {
     return DB::transaction(function () use ($data) {
@@ -706,6 +815,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
+        'confirmed_at' => Carbon::now(),
+        'confirmation_channel' => 'presencial',
+        'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
 
@@ -724,9 +836,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
    * - Jefe de Taller (143) → chief_approval_by
    * - Gerente de Taller (142) → manager_approval_by
    */
-  public function approve(int $id)
+  public function approve($data)
   {
-    return DB::transaction(function () use ($id) {
+    return DB::transaction(function () use ($data) {
+      $id = $data['id'];
       $quotation = $this->find($id);
       $user = auth()->user();
 
@@ -736,18 +849,26 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       $positionId = $user->person?->position?->id;
 
-      if ($positionId === Position::POSITION_JEFE_TALLER_ID) {
-        if ($quotation->chief_approval_by) {
-          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+      // Validar aprobación de gerente
+      if (isset($data['manager_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+          throw new Exception('Solo los Gerentes de Taller pueden aprobar.');
         }
-        $quotation->update(['chief_approval_by' => $user->id]);
-      } elseif ($positionId === Position::POSITION_GERENTE_TALLER_ID) {
         if ($quotation->manager_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
         }
         $quotation->update(['manager_approval_by' => $user->id]);
-      } else {
-        throw new Exception('Solo los Jefes de Taller o Gerentes de Taller pueden aprobar cotizaciones.');
+      }
+
+      // Validar aprobación de jefe
+      if (isset($data['chief_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
+          throw new Exception('Solo los Jefes de Taller pueden aprobar.');
+        }
+        if ($quotation->chief_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+        }
+        $quotation->update(['chief_approval_by' => $user->id]);
       }
 
       $quotation->load([
@@ -760,6 +881,199 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       return new ApOrderQuotationsResource($quotation);
     });
+  }
+
+  public function updateDeliveryInfo(int $id, array $data)
+  {
+    return DB::transaction(function () use ($id, $data) {
+      $quotation = $this->find($id);
+
+      // Actualizar número de documento de entrega si se proporciona
+      if (isset($data['delivery_document_number'])) {
+        $quotation->delivery_document_number = $data['delivery_document_number'];
+      }
+
+      // Procesar firma de entrega si se proporciona
+      if (isset($data['customer_signature_delivery_url'])) {
+        $this->processDeliverySignature($quotation, $data['customer_signature_delivery_url']);
+      }
+
+      // Guardar cambios si no se procesó firma (si se procesó, ya se guardó en processDeliverySignature)
+      if (!isset($data['customer_signature_delivery_url']) && isset($data['delivery_document_number'])) {
+        $quotation->save();
+      }
+
+      return new ApOrderQuotationsResource($quotation->fresh([
+        'vehicle',
+        'createdBy',
+        'details'
+      ]));
+    });
+  }
+
+  /**
+   * Envía notificación por correo al jefe y gerente de taller sobre una cotización
+   * que ha sido solicitada por gerencia
+   */
+  public function sendQuotationNotificationEmail($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = ApOrderQuotations::with([
+        'vehicle.model.family.brand',
+        'vehicle.customer',
+        'client',
+        'createdBy.person',
+        'details.product',
+        'sede',
+        'typeCurrency',
+        'area'
+      ])->find($id);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización tenga is_requested_by_management = true
+      if (!$quotation->is_requested_by_management) {
+        throw new Exception('Esta cotización no ha sido solicitada por gerencia.');
+      }
+
+      // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
+      $chiefUsers = User::whereHas('person', function ($query) {
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      $managerUsers = User::whereHas('person', function ($query) {
+        $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      // Preparar datos para el correo
+      $emailData = [
+        'quotation_number' => $quotation->quotation_number,
+        'quotation_date' => $quotation->quotation_date ? $quotation->quotation_date->format('d/m/Y') : 'N/A',
+        'expiration_date' => $quotation->expiration_date ? $quotation->expiration_date->format('d/m/Y') : 'N/A',
+        'validity_days' => $quotation->validity_days,
+        'observations' => $quotation->observations ?? '',
+
+        // Cliente
+        'customer_name' => $quotation->client->full_name ?? $quotation->vehicle?->customer?->full_name ?? 'N/A',
+        'customer_document' => $quotation->client->num_doc ?? $quotation->vehicle?->customer?->num_doc ?? 'N/A',
+        'customer_phone' => $quotation->client->phone ?? $quotation->vehicle?->customer?->phone ?? 'N/A',
+        'customer_email' => $quotation->client->email ?? $quotation->vehicle?->customer?->email ?? 'N/A',
+
+        // Vehículo
+        'vehicle_plate' => $quotation->vehicle?->plate ?? 'N/A',
+        'vehicle_brand' => $quotation->vehicle?->model?->family?->brand?->name ?? 'N/A',
+        'vehicle_model' => $quotation->vehicle?->model?->version ?? 'N/A',
+
+        // Sede y moneda
+        'sede_name' => $quotation->sede?->abreviatura ?? 'N/A',
+        'currency' => $quotation->typeCurrency?->code ?? 'PEN',
+        'area' => $quotation->area?->description ?? 'N/A',
+
+        // Asesor
+        'advisor_name' => $quotation->createdBy?->person?->nombre_completo ?? 'N/A',
+        'advisor_email' => $quotation->createdBy?->person?->email2 ?? 'N/A',
+        'advisor_phone' => $quotation->createdBy?->person?->cel_personal ?? 'N/A',
+
+        // Totales
+        'subtotal' => $quotation->subtotal,
+        'discount_percentage' => $quotation->discount_percentage,
+        'discount_amount' => $quotation->discount_amount,
+        'tax_amount' => $quotation->tax_amount,
+        'total_amount' => $quotation->total_amount,
+
+        // Detalles de productos/servicios
+        'details' => $quotation->details->map(function ($detail) {
+          return [
+            'code' => $detail->product?->code ?? 'N/A',
+            'description' => $detail->description,
+            'quantity' => $detail->quantity,
+            'unit_measure' => $detail->unit_measure,
+            'unit_price' => $detail->unit_price,
+            'discount_percentage' => $detail->discount_percentage,
+            'total_amount' => $detail->total_amount,
+            'item_type' => $detail->item_type,
+            'observations' => $detail->observations ?? '',
+          ];
+        }),
+
+        // URL del frontend
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/cotizacion-taller/aprobar/' . $quotation->id,
+      ];
+
+      $subject = 'Nueva Cotización solicitada por Gerencia - ' . $quotation->quotation_number;
+      $emailsSentCount = 0;
+
+      // Enviar correo a los Jefes de Taller
+      foreach ($chiefUsers as $chief) {
+        if ($chief->person && $chief->person->email2) {
+          try {
+            $this->emailService->queue([
+              'to' => $chief->person->email2,
+              'subject' => $subject,
+              'template' => 'emails.quotation-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
+                'recipient_role' => 'Jefe de Taller',
+              ]),
+            ]);
+            $emailsSentCount++;
+          } catch (Exception $e) {
+            \Log::error('Error al enviar correo al Jefe de Taller: ' . $e->getMessage());
+          }
+        }
+      }
+
+      // Enviar correo a los Gerentes de Taller
+      foreach ($managerUsers as $manager) {
+        if ($manager->person && $manager->person->email2) {
+          try {
+            $this->emailService->queue([
+              'to' => $manager->person->email2,
+              'subject' => $subject,
+              'template' => 'emails.quotation-notification',
+              'data' => array_merge($emailData, [
+                'recipient_name' => $manager->person->nombre_completo ?? 'Gerente de Taller',
+                'recipient_role' => 'Gerente de Taller',
+              ]),
+            ]);
+            $emailsSentCount++;
+          } catch (Exception $e) {
+            \Log::error('Error al enviar correo al Gerente de Taller: ' . $e->getMessage());
+          }
+        }
+      }
+
+      // Incrementar el contador de emails enviados
+      $quotation->increment('emails_sent_count', $emailsSentCount);
+
+      return [
+        'message' => 'Notificaciones enviadas correctamente',
+        'emails_sent' => $emailsSentCount,
+        'quotation' => new ApOrderQuotationsResource($quotation->fresh())
+      ];
+    });
+  }
+
+  /**
+   * Procesa y guarda la firma de entrega del cliente en base64
+   */
+  private function processDeliverySignature($quotation, string $base64Signature): void
+  {
+    $signatureFile = Helpers::base64ToUploadedFile($base64Signature, "customer_signature_delivery.png");
+
+    $path = self::FILE_PATHS['customer_signature_delivery'];
+    $model = $quotation->getTable();
+
+    $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
+
+    $quotation->customer_signature_delivery_url = $digitalFile->url;
+    $quotation->save();
   }
 
   /**
@@ -780,5 +1094,218 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Actualizar la cotización con la URL de la firma
     $quotation->customer_signature_url = $digitalFile->url;
     $quotation->save();
+  }
+
+  /**
+   * Duplica una cotización existente con todos sus detalles
+   * Genera un nuevo correlativo y resetea campos específicos
+   */
+  public function duplicate($id)
+  {
+    return DB::transaction(function () use ($id) {
+      // 1. Obtener la cotización original con sus detalles
+      $originalQuotation = $this->find($id);
+
+      if ($originalQuotation->area_id !== ApMasters::AREA_TALLER) {
+        throw new Exception('Solo se pueden duplicar cotizaciones del área de Taller.');
+      }
+
+      // 2. Convertir a array y preparar datos para la nueva cotización
+      $newQuotationData = $originalQuotation->toArray();
+
+      // 3. Remover campos que no se deben copiar (auto-generados)
+      unset($newQuotationData['id']);
+      unset($newQuotationData['quotation_number']);
+      unset($newQuotationData['created_at']);
+      unset($newQuotationData['updated_at']);
+      unset($newQuotationData['deleted_at']);
+
+      // 4. Generar nuevo número de cotización
+      $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
+
+      // 5. Resetear campos específicos según tus requerimientos
+      $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
+      $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
+      $newQuotationData['status'] = ApOrderQuotations::STATUS_APERTURADO;
+      $newQuotationData['created_by'] = auth()->check() ? auth()->user()->id : null;
+      $newQuotationData['chief_approval_by'] = null;
+      $newQuotationData['manager_approval_by'] = null;
+      $newQuotationData['has_invoice_generated'] = false;
+      $newQuotationData['is_take'] = false;
+      $newQuotationData['customer_signature_url'] = null;
+      $newQuotationData['customer_signature_delivery_url'] = null;
+      $newQuotationData['delivery_document_number'] = null;
+      $newQuotationData['discard_reason_id'] = null;
+      $newQuotationData['discarded_note'] = null;
+      $newQuotationData['discarded_by'] = null;
+      $newQuotationData['discarded_at'] = null;
+      $newQuotationData['is_fully_paid'] = false;
+      $newQuotationData['emails_sent_count'] = 0;
+
+      // 6. Crear la nueva cotización
+      $newQuotation = ApOrderQuotations::create($newQuotationData);
+
+      // 7. Duplicar todos los detalles
+      foreach ($originalQuotation->details as $detail) {
+        $newDetailData = $detail->toArray();
+
+        // Remover campos auto-generados del detalle
+        unset($newDetailData['id']);
+        unset($newDetailData['order_quotation_id']);
+        unset($newDetailData['created_at']);
+        unset($newDetailData['updated_at']);
+        unset($newDetailData['deleted_at']);
+
+        // Crear el nuevo detalle asociado a la nueva cotización
+        $newQuotation->details()->create($newDetailData);
+      }
+
+      // 8. Retornar la nueva cotización con sus relaciones cargadas
+      return new
+      ApOrderQuotationsResource($newQuotation->load([
+        'vehicle',
+        'createdBy',
+        'details.product'
+      ]));
+    });
+  }
+
+  /**
+   * Genera el token de confirmación virtual y envía el link por correo al cliente
+   */
+  public function sendVirtualConfirmationLink($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = ApOrderQuotations::with([
+        'vehicle.model.family.brand',
+        'client',
+        'createdBy.person',
+        'sede',
+        'typeCurrency',
+        'details.product'
+      ])->find($id);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización esté en estado válido
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
+      }
+
+      if ($quotation->has_invoice_generated) {
+        throw new Exception('Esta cotización ya tiene una factura generada.');
+      }
+
+      if ($quotation->isConfirmed()) {
+        throw new Exception('Esta cotización ya fue confirmada anteriormente.');
+      }
+
+      // Validar que haya un email del cliente
+      if (!$quotation->client || !$quotation->client->email) {
+        throw new Exception('El cliente no tiene un correo electrónico registrado.');
+      }
+
+      // Generar o regenerar el token
+      $confirmationLink = $quotation->getConfirmationLink();
+
+      // Preparar datos para el correo
+      $emailData = [
+        'quotation_number' => $quotation->quotation_number,
+        'quotation_date' => $quotation->quotation_date ? $quotation->quotation_date->format('d/m/Y') : 'N/A',
+        'expiration_date' => $quotation->expiration_date ? $quotation->expiration_date->format('d/m/Y') : 'N/A',
+        'total_amount' => $quotation->total_amount,
+        'currency' => $quotation->typeCurrency?->code ?? 'PEN',
+
+        // Cliente
+        'customer_name' => $quotation->client->full_name,
+        'customer_email' => $quotation->client->email,
+
+        // Vehículo
+        'vehicle_plate' => $quotation->vehicle?->plate ?? 'N/A',
+        'vehicle_brand' => $quotation->vehicle?->model?->family?->brand?->name ?? 'N/A',
+        'vehicle_model' => $quotation->vehicle?->model?->version ?? 'N/A',
+
+        // Asesor
+        'advisor_name' => $quotation->createdBy?->person?->nombre_completo ?? 'N/A',
+        'advisor_email' => $quotation->createdBy?->person?->email2 ?? 'N/A',
+        'advisor_phone' => $quotation->createdBy?->person?->cel_personal ?? 'N/A',
+
+        // Sede
+        'sede_name' => $quotation->sede?->razon_social ?? 'N/A',
+
+        // Link de confirmación
+        'confirmation_link' => $confirmationLink,
+        'token_expires_at' => $quotation->confirmation_token_expires_at?->format('d/m/Y H:i'),
+      ];
+
+      // Enviar correo al cliente
+      $this->emailService->queue([
+        'to' => 'wsuclupef@automotorespakatnamu.com',//$quotation->client->email,
+        'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
+        'template' => 'emails.quotation-virtual-confirmation',
+        'data' => $emailData,
+      ]);
+
+      // Incrementar contador de emails enviados
+      $quotation->increment('emails_sent_count');
+
+      return [
+        'success' => true,
+        'message' => 'Link de confirmación enviado exitosamente al correo del cliente.',
+        'confirmation_link' => $confirmationLink,
+        'sent_to' => $quotation->client->email,
+        'expires_at' => $quotation->confirmation_token_expires_at,
+        'quotation' => new ApOrderQuotationsResource($quotation->fresh())
+      ];
+    });
+  }
+
+  /**
+   * Regenera el token de confirmación si ha expirado
+   */
+  public function regenerateConfirmationToken($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $quotation = $this->find($id);
+
+      if ($quotation->isConfirmed()) {
+        throw new Exception('No se puede regenerar el token de una cotización ya confirmada.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede regenerar el token de una cotización descartada.');
+      }
+
+      // Generar nuevo token
+      $quotation->generateConfirmationToken();
+
+      return [
+        'message' => 'Token regenerado exitosamente.',
+        'confirmation_link' => $quotation->getConfirmationLink(),
+        'expires_at' => $quotation->confirmation_token_expires_at,
+        'quotation' => new ApOrderQuotationsResource($quotation)
+      ];
+    });
+  }
+
+  public function invoiceTo(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $apOrderQuotations = $this->find($data['id']);
+
+      if (!$apOrderQuotations) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      if ($apOrderQuotations->has_invoice_generated) {
+        throw new Exception('No se puede generar una orden de trabajo a partir de una cotización que ya tiene una factura generada.');
+      }
+      // Update work order
+      $apOrderQuotations->update($data);
+
+      return new ApOrderQuotationsResource($apOrderQuotations);
+    });
   }
 }

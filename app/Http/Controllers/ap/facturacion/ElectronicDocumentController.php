@@ -12,8 +12,10 @@ use App\Http\Requests\ap\facturacion\StoreElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\UpdateCreditNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
+use App\Http\Requests\ap\facturacion\StoreConsolidatedInvoiceRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Jobs\SyncAccountingStatusJob;
 use App\Http\Traits\HasApiResponse;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -70,7 +72,6 @@ class ElectronicDocumentController extends Controller
   public function store(StoreElectronicDocumentRequest $request): JsonResponse
   {
     try {
-//      throw new Exception(json_encode($request->validated()));
       return $this->success($this->service->store($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -182,7 +183,6 @@ class ElectronicDocumentController extends Controller
   {
     try {
       $data = $request->validated();
-      $data['original_document_id'] = $id;
 
       $creditNote = $this->service->createCreditNote($id, $data);
 
@@ -260,10 +260,10 @@ class ElectronicDocumentController extends Controller
   /**
    * Get documents by origin entity
    */
-  public function getByOriginEntity($module, $entityType, $entityId): JsonResponse
+  public function getByOriginEntity($areaId, $entityType, $entityId): JsonResponse
   {
     try {
-      return $this->service->getByOriginEntity($module, $entityType, $entityId);
+      return $this->service->getByOriginEntity($areaId, $entityType, $entityId);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -312,6 +312,30 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->success($this->service->syncToDynamics($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   */
+  public function dispatchAll(): JsonResponse
+  {
+    try {
+      return $this->success($this->service->dispatchAll());
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Despacha manualmente el job de sincronización (útil para reintentar fallidos)
+   */
+  public function dispatchMigration(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->dispatchMigration($id));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -452,6 +476,16 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Sync accounting status (is_accounted, is_annulled) from Dynamics for all
+   * documents that have been requested to Dynamics and whose migration is completed.
+   */
+  public function syncAccountingStatus(): JsonResponse
+  {
+    SyncAccountingStatusJob::dispatch();
+    return $this->success(['message' => 'Sincronización de estados contables iniciada en segundo plano.']);
+  }
+
+  /**
    * Generate report of electronic documents
    */
   public function report(ElectronicDocumentReportRequest $request): JsonResponse
@@ -493,6 +527,37 @@ class ElectronicDocumentController extends Controller
         'total' => $reportData->count(),
         'columns' => array_values(array_map(fn($col) => $col['label'], $columns)),
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a consolidated invoice from multiple work orders' internal notes
+   */
+  public function createConsolidatedInvoice(StoreConsolidatedInvoiceRequest $request): JsonResponse
+  {
+    try {
+      $result = $this->service->createConsolidatedInvoice($request->validated());
+
+      return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Get invoice with internal notes and their work orders
+   *
+   * @param int $id Invoice ID
+   * @return JsonResponse
+   */
+  public function getInvoiceWithWorkOrders(int $id): JsonResponse
+  {
+    try {
+      $result = $this->service->getInvoiceWithWorkOrders($id);
+
+      return $this->success($result);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

@@ -5,6 +5,8 @@ namespace App\Models\gp\tics;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\tics\EquipmentAssigment;
+use App\Models\gp\tics\EquipmentItemAssigment;
 
 class Equipment extends BaseModel
 {
@@ -45,6 +47,7 @@ class Equipment extends BaseModel
     'status_id' => '=',
     'tipo_adquisicion' => '=',
     'estado_uso' => '=',
+    'isAssigned' => 'accessor_bool',
   ];
 
   const sorts = [
@@ -70,6 +73,28 @@ class Equipment extends BaseModel
   public function equipmentType()
   {
     return $this->hasOne(EquipmentType::class, 'id', 'tipo_equipo_id');
+  }
+
+  /**
+   * Asignación activa del equipo (status_deleted = false significa activo/no desasignado).
+   * Carga el worker sin global scope para poder detectar si está de baja.
+   */
+  public function activeAssignment()
+  {
+    return $this->hasOneThrough(
+      EquipmentAssigment::class,
+      EquipmentItemAssigment::class,
+      'equipo_id',     // FK en EquipmentItemAssigment → Equipment.id
+      'id',            // PK de EquipmentAssigment
+      'id',            // PK de Equipment
+      'asig_equipo_id' // FK en EquipmentItemAssigment → EquipmentAssigment.id
+    )->where('help_asig_equipos.status_deleted', false)
+      ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
+  }
+
+  public function getIsAssignedAttribute()
+  {
+    return $this->activeAssignment()->exists();
   }
 
 }

@@ -5,18 +5,24 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\repuestos\ApprovedAccessories;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,10 +31,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
-use PHPUnit\TextUI\Configuration\Constant;
 use Throwable;
-use function dd;
-use function json_encode;
 
 class PurchaseRequestQuoteService extends BaseService implements BaseServiceInterface
 {
@@ -40,8 +43,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $workerService = new WorkerService();
     $worker = $workerService->getAuthenticatedWorkerWithArea();
     $purchaseRequestQuoteQuery = $this->getPurchaseRequestQuoteQuery($worker, $request);
-
-//    throw new Exception(json_encode($purchaseRequestQuoteQuery->pluck('id')->toArray()));
 
     return $this->getFilteredResults(
       $purchaseRequestQuoteQuery,
@@ -127,7 +128,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'type_document' => $data['type_document'],
         'opportunity_id' => $data['opportunity_id'],
         'comment' => $data['comment'] ?? null,
-        'warranty' => $data['warranty'] ?? null,
+        'warranty_years' => $data['warranty_years'],
+        'warranty_km' => $data['warranty_km'],
         'holder_id' => $data['holder_id'],
         'vehicle_color_id' => $data['vehicle_color_id'],
         'ap_models_vn_id' => $data['ap_models_vn_id'],
@@ -138,7 +140,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'base_selling_price' => $data['base_selling_price'],
         'sale_price' => $data['sale_price'],
         'doc_sale_price' => $data['doc_sale_price'],
+        'down_payment' => $data['down_payment'] ?? null,
         'sede_id' => $data['sede_id'] ?? null,
+        'quote_deadline' => $data['quote_deadline'] ?? null,
       ];
 
       // Crear el registro principal
@@ -156,13 +160,20 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
       }
 
+      // Enviar correo de notificación
+      $this->sendQuoteCreatedEmail($purchaseRequestQuote->fresh()->load([
+        'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+        'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+        'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+      ]));
+
       return new PurchaseRequestQuoteResource($purchaseRequestQuote);
     });
   }
 
   public function show($id)
   {
-    return new PurchaseRequestQuoteResource($this->find($id));
+    return (new PurchaseRequestQuoteResource($this->find($id)))->showExtra();
   }
 
   public function update(mixed $data)
@@ -249,6 +260,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote->ap_vehicle_id = null;
       $purchaseRequestQuote->save();
 
+
       $movementService = new VehicleMovementService();
       $isInInventory = $vehicle->vehicleMovements()
         ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
@@ -264,7 +276,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         // Registrar movimiento de regreso a inventario
         $movementService->storeInventoryVehicleMovement($vehicle->id);
       } elseif ($isInTransit) {
-        $movementService->storeInTransitVehicleMovement($vehicle->id);
+        $movementService->storeInTransitVehicleMovement($purchaseRequestQuote->id);
       }
 
       $purchaseRequestQuote->desactivate();
@@ -281,6 +293,125 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       DB::rollBack();
       throw $e;
     }
+  }
+
+
+  public function swapVehicle(int $quoteId, int $newVehicleId): JsonResource
+  {
+    return DB::transaction(function () use ($quoteId, $newVehicleId) {
+      $quote = $this->find($quoteId);
+      $oldVehicle = $quote->vehicle;
+
+      if (!$oldVehicle) {
+        throw new Exception('La cotización no tiene un vehículo asignado actualmente.');
+      }
+
+      if ($oldVehicle->id === $newVehicleId) {
+        throw new Exception('El vehículo nuevo debe ser diferente al vehículo actual.');
+      }
+
+      $newVehicle = Vehicles::find($newVehicleId);
+      if (!$newVehicle) {
+        throw new Exception('Vehículo no encontrado.');
+      }
+
+      // Bloquear si hay documentos de venta final aceptados
+      $hasFinalSale = $quote->electronicDocuments()
+        ->where('is_advance_payment', false)
+        ->where('aceptada_por_sunat', 1)
+        ->where('anulado', 0)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($hasFinalSale) {
+        throw new Exception('No se puede cambiar el vehículo: la cotización tiene documentos de venta final aceptados.');
+      }
+
+      // Obtener IDs de movimientos FACTURADO vinculados a anticipos de esta cotización
+      $anticipoMovementIds = $quote->electronicDocuments()
+        ->where('is_advance_payment', true)
+        ->where('anulado', 0)
+        ->whereNotNull('ap_vehicle_movement_id')
+        ->pluck('ap_vehicle_movement_id');
+
+      $hasAnticipos = $anticipoMovementIds->isNotEmpty();
+
+      // Migrar movimientos FACTURADO al nuevo vehículo
+      if ($hasAnticipos) {
+        VehicleMovement::whereIn('id', $anticipoMovementIds)
+          ->update(['ap_vehicle_id' => $newVehicleId]);
+      }
+
+      // --- Vehículo VIEJO: revertir estado ---
+      $revertToInventory = $oldVehicle->vehicleMovements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($revertToInventory) {
+        $warehouse = Warehouse::where('is_received', 1)
+          ->where('article_class_id', $oldVehicle->warehouse->article_class_id)
+          ->where('sede_id', $oldVehicle->warehouse->sede_id)
+          ->where('type_operation_id', $oldVehicle->warehouse->type_operation_id)
+          ->where('status', 1)
+          ->first();
+
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::INVENTORY,
+          'ap_vehicle_id' => $oldVehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'movement_date' => now(),
+          'observation' => 'Vehículo regresado a inventario por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'created_by' => auth()->id(),
+        ]);
+
+        $oldVehicle->update([
+          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'warehouse_id' => $warehouse
+            ? $warehouse->id
+            : throw new Exception('No se encontró almacén válido para devolver el vehículo anterior.'),
+        ]);
+      } else {
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::IN_TRANSIT,
+          'ap_vehicle_id' => $oldVehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'movement_date' => now(),
+          'observation' => 'Vehículo regresado a tránsito por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'created_by' => auth()->id(),
+        ]);
+
+        $oldVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA]);
+      }
+
+      // --- Vehículo NUEVO: asignar ---
+      $quote->ap_vehicle_id = $newVehicleId;
+      $quote->save();
+
+      // Solo si hay anticipos: registrar movimiento FACTURADO y actualizar estado.
+      // Sin anticipos: el vehículo conserva su estado actual (EN_TRÁNSITO o INVENTARIO_VN),
+      // igual que en el assignVehicle normal que no toca el estado del vehículo.
+      if ($hasAnticipos) {
+        VehicleMovement::create([
+          'movement_type' => VehicleMovement::INVOICED,
+          'ap_vehicle_id' => $newVehicleId,
+          'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+          'movement_date' => now(),
+          'observation' => 'Vehículo con anticipos migrados por cambio en cotización #' . $quote->correlative,
+          'previous_status_id' => $newVehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::FACTURADO,
+          'created_by' => auth()->id(),
+        ]);
+
+        $newVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
+      }
+
+      return PurchaseRequestQuoteResource::make($quote->fresh());
+    });
   }
 
 
@@ -312,9 +443,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['phone'] = $purchaseRequestQuote->opportunity->client->phone ?? null;
     $dataArray['class'] = $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
     $dataArray['brand'] = $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
+    $dataArray['ap_model_vn'] = $purchaseRequestQuote->apModelsVn->version ?? null;
     $dataArray['engine_number'] = $purchaseRequestQuote->vehiclePurchaseOrders->engine_number ?? null;
     $dataArray['vin'] = $purchaseRequestQuote->vehiclePurchaseOrders->vin ?? null;
-    $dataArray['model_year'] = $purchaseRequestQuote->apModelsVn->model_year ?? null;
+    $vehicle = $purchaseRequestQuote->vehicle;
+    $dataArray['model_year'] = ($vehicle && $vehicle->year)
+      ? $vehicle->year
+      : ($purchaseRequestQuote->apModelsVn->model_year ?? null);
+    $dataArray['down_payment'] = $purchaseRequestQuote->down_payment ?? null;
     $dataArray['selling_price_soles'] = round($purchaseRequestQuote->sale_price * ($purchaseRequestQuote->exchangeRate->rate ?? 1), 2);
 
     // Definir el título según el type_document
@@ -452,6 +588,136 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
   /**
+   * Metodo público para enviar el correo de una cotización existente (útil para pruebas)
+   */
+  public function sendQuoteEmail(int $id): array
+  {
+    $quote = $this->find($id);
+    $quote->load([
+      'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+      'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+      'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+    ]);
+
+    $this->sendQuoteCreatedEmail($quote);
+
+    $recipients = $this->getQuoteRecipients($quote);
+
+    return [
+      'message' => 'Correo enviado a la cola correctamente.',
+      'recipients' => array_values(array_unique($recipients)),
+    ];
+  }
+
+  /**
+   * Devuelve los destinatarios según la ciudad de la sede de la cotización.
+   * Piura/Jaén → John Timaná; Cajamarca/Chiclayo → Adolfo Ramírez.
+   */
+  private function getQuoteRecipients($quote): array
+  {
+    $ciudad = strtolower(trim($quote->sede?->ciudad ?? ''));
+
+    if (str_contains($ciudad, 'piura') || str_contains($ciudad, 'jaen') || str_contains($ciudad, 'jaén')) {
+      return (array) config('mail.recipients.purchase_quote.piura_jaen', []);
+    }
+
+    if (str_contains($ciudad, 'cajamarca') || str_contains($ciudad, 'chiclayo')) {
+      return (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', []);
+    }
+
+    // Si la ciudad no coincide, enviar a todos
+    return array_merge(
+      (array) config('mail.recipients.purchase_quote.piura_jaen', []),
+      (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', [])
+    );
+  }
+
+  /**
+   * Envía correo de notificación al guardar una cotización/solicitud de compra
+   */
+  private function sendQuoteCreatedEmail($quote): void
+  {
+    try {
+      $recipients = $this->getQuoteRecipients($quote);
+
+      if (empty($recipients)) {
+        return;
+      }
+
+      $vehicle = $quote->vehicle;
+      $modelYear = ($vehicle && $vehicle->year)
+        ? $vehicle->year
+        : ($quote->apModelsVn->model_year ?? null);
+
+      $documentType = $quote->type_document === 'COTIZACION' ? 'COTIZACIÓN' : 'SOLICITUD DE COMPRA';
+
+      $emailData = [
+        // Layout base
+        'title' => ($quote->type_document === 'COTIZACION' ? 'Nueva Cotización' : 'Nueva Solicitud de Compra') . ' — N° ' . $quote->correlative,
+        'subtitle' => ($quote->sede?->abreviatura ?? '') . ' · ' . $quote->created_at->format('d/m/Y H:i'),
+        'company_name' => 'Grupo Pakatnamu',
+        // Template
+        'document_type' => $quote->type_document,
+        'quote_number' => $quote->correlative,
+        'quote_date' => $quote->created_at->format('d/m/Y H:i'),
+        'quote_deadline' => $quote->quote_deadline
+          ? \Carbon\Carbon::parse($quote->quote_deadline)->format('d/m/Y')
+          : null,
+        // Titular
+        'holder_name' => $quote->holder->full_name ?? '-',
+        'holder_doc' => $quote->holder->num_doc ?? null,
+        'holder_phone' => $quote->holder->phone ?? null,
+        'holder_email' => $quote->holder->email ?? null,
+        // Asesor
+        'advisor_name' => $quote->opportunity?->worker?->nombre_completo ?? '-',
+        'sede' => $quote->sede?->abreviatura ?? null,
+        // Vehículo
+        'brand' => $quote->apModelsVn?->family?->brand?->name ?? '-',
+        'model' => $quote->apModelsVn?->version ?? '-',
+        'color' => $quote->vehicleColor?->description ?? null,
+        'model_year' => $modelYear,
+        'warranty_years' => $quote->warranty_years,
+        'warranty_km' => $quote->warranty_km,
+        // Precios
+        'currency' => $quote->typeCurrency?->code ?? 'PEN',
+        'base_selling_price' => $quote->base_selling_price,
+        'sale_price' => $quote->sale_price,
+        'down_payment' => $quote->down_payment,
+        'doc_currency' => $quote->docTypeCurrency?->code ?? null,
+        'doc_sale_price' => $quote->doc_sale_price,
+        // Descuentos y accesorios
+        'discounts' => $quote->discountCoupons->map(function ($d) {
+          return [
+            'description' => $d->description,
+            'type' => $d->type,
+            'precio_unitario' => $d->precio_unitario,
+            'is_negative' => $d->is_negative,
+          ];
+        })->toArray(),
+        'accessories' => $quote->accessories->map(function ($a) {
+          return [
+            'description' => $a->approvedAccessory ? $a->approvedAccessory->description : '-',
+            'quantity' => $a->quantity,
+            'total' => $a->total,
+            'type_currency_code' => $a->typeCurrency ? $a->typeCurrency->code : 'PEN',
+          ];
+        })->toArray(),
+        // Comentario
+        'comment' => $quote->comment,
+      ];
+
+      (new EmailService())->queue([
+        'to' => array_unique($recipients),
+        'subject' => $documentType . ' N° ' . $quote->correlative . ' — ' . ($quote->holder->full_name ?? ''),
+        'template' => 'emails.purchase-request-quote-created',
+        'data' => $emailData,
+      ]);
+    } catch (\Exception $e) {
+      \Log::error('Error al enviar correo de cotización: ' . $e->getMessage());
+    }
+  }
+
+  /**
    * Guarda los accesorios en la tabla DetailsApprovedAccessoriesQuote
    */
   private function saveAccessories($purchaseRequestQuoteId, $accessories)
@@ -467,14 +733,17 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $type = $accessory['type'];
       $quantity = $accessory['quantity'];
       $price = $approvedAccessory->price;
-      $total = $quantity * $price;
+      $additionalPrice = max(0, $accessory['additional_price'] ?? 0);
+      $total = $quantity * ($price + $additionalPrice);
 
       DetailsApprovedAccessoriesQuote::create([
         'approved_accessory_id' => $accessory['accessory_id'],
         'type' => $type,
         'quantity' => $quantity,
         'price' => $price,
+        'additional_price' => $additionalPrice,
         'total' => $total,
+        'type_currency_id' => $approvedAccessory->type_currency_id,
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
@@ -486,9 +755,34 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @return \Illuminate\Http\JsonResponse
    * @throws Exception
    */
+  public function export(Request $request)
+  {
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, PurchaseRequestQuote::class);
+  }
+
   public function getInvoices(int $purchaseRequestQuoteId)
   {
     $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);
+
+    // Consultar estado en Nubefact para los documentos pendientes antes de retornar
+    $electronicDocumentService = new ElectronicDocumentService();
+    $pendingDocuments = $purchaseRequestQuote->electronicDocuments()
+      ->whereNull('credit_note_id')
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
+      ->where('anulado', false)
+      ->get(['id']);
+
+    foreach ($pendingDocuments as $doc) {
+      try {
+        $electronicDocumentService->queryFromNubefact($doc->id);
+      } catch (Exception $e) {
+        // Continuar con los demás documentos si uno falla
+      }
+    }
 
     // Obtener los documentos electrónicos con sus relaciones
     $documents = $purchaseRequestQuote->electronicDocuments()
@@ -508,6 +802,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       })
       ->where('anulado', false)
       ->where('aceptada_por_sunat', true)
+      ->where('is_accounted', true)
       ->orderBy('fecha_de_emision', 'desc')
       ->get();
 

@@ -49,17 +49,17 @@ return [
         'ProcesoError' => 0,
 
         'Cliente' => fn($data) => $data['num_doc'] ?? '',
-        'Nombre' => fn($data) => $data['full_name'] ?? '',
-        'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 50),
+        'Nombre' => fn($data) => substr($data['full_name'] ?? '', 0, 200),
+        'NombreCorto' => fn($data) => substr($data['full_name'] ?? '', 0, 100),
         'full_name' => 'RazonSocial',
         'TipoDocumento' => fn($data) => ApMasters::find($data['document_type_id'])?->description ?? '',
         'ClaseCliente' => fn($data) => TaxClassTypes::find($data['tax_class_type_id'])?->dyn_code ?? '',
         'num_doc' => 'NumeroDocumento',
         'Contribuyente' => fn($data) => ApMasters::find($data['type_person_id'])?->code ?? '01',
-        'ApellidoPaterno' => fn($data) => $data['paternal_surname'] ?? '',
-        'ApellidoMaterno' => fn($data) => $data['maternal_surname'] ?: '',
-        'PrimerNombre' => fn($data) => $data['first_name'] ?? '',
-        'SegundoNombre' => fn($data) => $data['middle_name'] ?? '',
+        'ApellidoPaterno' => fn($data) => substr($data['paternal_surname'] ?? '', 0, 50),
+        'ApellidoMaterno' => fn($data) => substr($data['maternal_surname'] ?? '', 0, 50),
+        'PrimerNombre' => fn($data) => substr($data['first_name'] ?? '', 0, 50),
+        'SegundoNombre' => fn($data) => substr($data['middle_name'] ?? '', 0, 50),
       ],
 
       // Columnas opcionales: solo se sincronizan si existen en los datos
@@ -109,7 +109,7 @@ return [
         'ClaseId' => fn($data) => substr(TaxClassTypes::find($data['supplier_tax_class_id'])?->dyn_code ?? '', 0, 50),
         'CondicionPagoId' => fn($data) => 'CONTADO',
         'DireccionId' => fn($data) => 'FISCAL',
-        'TipoDocumentoId' => fn($data) => substr(ApMasters::find($data['document_type_id'])?->description ?? '', 0, 50),
+        'TipoDocumentoId' => fn($data) => substr(trim((string)(ApMasters::find($data['document_type_id'])?->description ?? '')), 0, 3),
         'NumeroDocumento' => fn($data) => substr($data['num_doc'], 0, 50),
         'TipoContribuyenteId' => fn($data) => substr(ApMasters::find($data['type_person_id'])?->code ?? '01', 0, 50),
         'RazonSocial' => fn($data) => substr($data['full_name'], 0, 200),
@@ -293,8 +293,8 @@ return [
       ],
       'optional_mapping' => [
       ],
-      'sync_mode' => 'insert',
-      'unique_key' => 'OrdenCompraId',
+      'sync_mode' => 'upsert',
+      'unique_key' => ['EmpresaId', 'OrdenCompraId', 'Linea'],
       'actions' => [
         'create' => true,
         'update' => true,
@@ -438,6 +438,57 @@ return [
         'create' => true,
         'update' => false,
         'delete' => false, // Por ejemplo, no sincronizar eliminaciones
+      ],
+    ]
+  ],
+
+//  ENVIAR UN PRODUCT_ARTICLE_RESOURCE A 'neInTbArticulo'
+  'article_product' => [
+    'dbtp' => [
+      'enabled' => env('SYNC_DBTP_ENABLED', false),
+      'connection' => 'dbtp',
+      'table' => 'neInTbArticulo',
+      'mapping' => [
+        'EmpresaId' => fn($data) => Company::AP_DYNAMICS,
+        'Articulo' => fn($data) => $data['code'],
+        'Nombre' => fn($data) => substr($data['name'], 0, 100),
+        'DescripcionBreve' => fn($data) => substr($data['description'] ?? $data['name'], 0, 100),
+        'DescripcionGenerica' => fn($data) => substr($data['description'] ?? $data['name'], 0, 200),
+        'Nota' => fn($data) => '',
+        'ClaseArticulo' => fn($data) => $data['class_dyn'] ?? '',
+        'PlanUnidadMedida' => fn($data) => $data['unit_measurement_description'] ?? 'UNIDAD',
+        'CostoEstandar' => fn($data) => 0,
+        'CostoActual' => fn($data) => 0,
+        'PesoEnvio' => 0,
+        'Seguimiento' => 1, // PARA VEHICULOS ES 2 Y PARA REPUESTOS/PRODUCTOS ES 1
+        'Sitio' => fn($data) => '',
+        'UnidadMedidaCompra' => fn($data) => $data['unit_measurement'] ?? 'UND',
+        'MetodoPrecio' => 1,
+        'UnidadMedidaVenta' => fn($data) => $data['unit_measurement'] ?? 'UND',
+        'NivelPrecio' => fn($data) => 'LISTA',
+        'GrupoPrecio' => fn($data) => 'GRUPO',
+        'CategoriaArticulo1' => fn($data) => $data['brand_dyn'] ?? '',
+        'CategoriaArticulo2' => fn($data) => $data['category'] ?? '',
+        'CategoriaArticulo3' => fn($data) => '',
+        'CategoriaArticulo4' => fn($data) => '',
+        'CategoriaArticulo5' => fn($data) => '',
+        'CategoriaArticulo6' => fn($data) => '',
+        'CodigoABC' => 1,
+        'TipoArticulo' => 1,
+        'DetraccionId' => fn($data) => '',
+        'CuentaInventario' => fn($data) => '',
+        'CuentaContrapartida' => fn($data) => '',
+        'ProcesoEstado' => 0,
+        'ProcesoError' => fn($data) => '',
+      ],
+      'optional_mapping' => [
+      ],
+      'sync_mode' => 'insert',
+      'unique_key' => 'Articulo',
+      'actions' => [
+        'create' => true,
+        'update' => false,
+        'delete' => false,
       ],
     ]
   ],

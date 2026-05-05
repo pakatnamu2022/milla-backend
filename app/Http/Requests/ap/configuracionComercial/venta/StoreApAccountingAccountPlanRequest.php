@@ -14,8 +14,6 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('ap_accounting_account_plan', 'account')
-          ->whereNull('deleted_at'),
       ],
       'code_dynamics' => [
         'required',
@@ -29,10 +27,9 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         Rule::unique('ap_accounting_account_plan', 'description')
           ->whereNull('deleted_at'),
       ],
-      'accounting_type_id' => [
-        'required',
-        'integer',
-        'exists:ap_masters,id',
+      'is_detraction' => [
+        'nullable',
+        'boolean',
       ],
     ];
   }
@@ -43,16 +40,13 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
       'account.required' => 'La cuenta es obligatoria.',
       'account.string' => 'La cuenta debe ser una cadena de texto.',
       'account.max' => 'La cuenta no debe exceder los 20 caracteres.',
-      'account.unique' => 'La cuenta ingresada ya existe en los registros.',
 
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 255 caracteres.',
       'description.unique' => 'La descripción ingresada ya existe en los registros.',
 
-      'accounting_type_id.required' => 'Debe seleccionar un tipo de account contable',
-      'accounting_type_id.integer' => 'El campo tipo de account contable es obligatorio.',
-      'accounting_type_id.exists' => 'El tipo de account contable seleccionado no existe',
+      'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
     ];
   }
 }

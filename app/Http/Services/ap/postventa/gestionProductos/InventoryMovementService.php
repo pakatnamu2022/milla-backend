@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
@@ -12,11 +13,13 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
@@ -27,13 +30,53 @@ class InventoryMovementService extends BaseService
 {
   protected $stockService;
 
-  public function __construct()
+  public function __construct(ProductWarehouseStockService $stockService)
   {
-    $this->stockService = new ProductWarehouseStockService();
+    $this->stockService = $stockService;
   }
 
   public function list(Request $request)
   {
+    $query = InventoryMovement::query();
+
+    // Si hay búsqueda, agregar la búsqueda en la relación polimórfica reference
+    if ($request->has('search') && !empty($request->search)) {
+      $search = $request->search;
+      $query->where(function ($q) use ($search) {
+        // Búsqueda en campos directos del modelo
+        $q->where('movement_number', 'like', '%' . $search . '%')
+          // Búsqueda en relación user
+          ->orWhereHas('user', function ($userQuery) use ($search) {
+            $userQuery->where('name', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en relación warehouse
+          ->orWhereHas('warehouse', function ($warehouseQuery) use ($search) {
+            $warehouseQuery->where('dyn_code', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en relación warehouseDestination
+          ->orWhereHas('warehouseDestination', function ($warehouseQuery) use ($search) {
+            $warehouseQuery->where('dyn_code', 'like', '%' . $search . '%');
+          })
+          // Búsqueda en la relación polimórfica reference (ShippingGuides.document_number)
+          ->orWhereHasMorph('reference', [ShippingGuides::class], function ($referenceQuery) use ($search) {
+            $referenceQuery->where('document_number', 'like', '%' . $search . '%')
+              ->orWhere('dyn_series', 'like', '%' . $search . '%');
+          });
+      });
+
+      // Remover el parámetro search para evitar que se procese de nuevo en getFilteredResults
+      $modifiedRequest = clone $request;
+      $modifiedRequest->query->remove('search');
+
+      return $this->getFilteredResults(
+        $query,
+        $modifiedRequest,
+        array_diff_key(InventoryMovement::filters, ['search' => '']),
+        InventoryMovement::sorts,
+        InventoryMovementResource::class,
+      );
+    }
+
     return $this->getFilteredResults(
       InventoryMovement::class,
       $request,
@@ -63,15 +106,27 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // Get currency and exchange rate from Purchase Order
+      $purchaseOrder = $reception->purchaseOrder;
+      $currencyId = $purchaseOrder->currency_id ?? TypeCurrency::PEN_ID;  // Default to PEN if not set
+
+      // Get exchange rate value (the numeric value, not the ID)
+      $exchangeRateValue = 1.0;  // Default for PEN
+      if ($purchaseOrder->exchangeRate) {
+        $exchangeRateValue = $purchaseOrder->exchangeRate->rate ?? 1.0;
+      }
+
       // Create movement header
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_PURCHASE_RECEPTION,
         'movement_date' => $reception->reception_date,
         'warehouse_id' => $reception->warehouse_id,
+        'currency_id' => $currencyId,              // Currency from purchase order
+        'exchange_rate' => $exchangeRateValue,      // Exchange rate value for conversion
         'reference_type' => PurchaseReception::class,
         'reference_id' => $reception->id,
-        'user_id' => Auth::id(),
+        'user_id' => $reception->received_by,
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Ingreso por recepción {$reception->reception_number} de {$reception->purchaseOrder->number}",
         'total_items' => 0,
@@ -88,12 +143,24 @@ class InventoryMovementService extends BaseService
         $quantityReceived = $detail->quantity_received;
 
         if ($quantityReceived > 0) {
+          // Get order item data (source of truth for invoiced amounts)
+          $orderItem = $detail->purchaseOrderItem;
+          $quantityOrdered = $orderItem->quantity ?? $quantityReceived;
+          $unitPriceOrdered = $orderItem->unit_price ?? 0;
+
+          // Calculate adjusted unit cost based on total invoiced cost
+          // Example: If ordered 10 units at $100 each but received only 8:
+          // - Total invoiced: 10 × $100 = $1,000
+          // - Adjusted unit cost: $1,000 / 8 = $125 per unit
+          $totalInvoicedCost = $quantityOrdered * $unitPriceOrdered;
+          $adjustedUnitCost = $quantityReceived > 0 ? $totalInvoicedCost / $quantityReceived : $unitPriceOrdered;
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $detail->product_id,
             'quantity' => $quantityReceived,
-            'unit_cost' => $detail->unit_cost ?? 0,
-            'total_cost' => $quantityReceived * ($detail->unit_cost ?? 0),
+            'unit_cost' => $adjustedUnitCost,  // Adjusted cost reflecting actual invoiced amount
+            'total_cost' => $totalInvoicedCost,  // Total invoiced cost (what you actually pay)
             'notes' => $detail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED
               ? "Item de - {$detail->product->name}"
               : "{$detail->reception_type} - {$detail->product->name}",
@@ -250,17 +317,38 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Create warehouse transfer with shipping guide
-   * Creates TRANSFER_OUT movement and shipping guide (NOT sent to Nubefact yet)
-   * Stock moves to quantity_in_transit
-   * TRANSFER_IN will be created when reception is done
-   *
-   * @param array $transferData Transfer and shipping guide data
-   * @param array $details Product details
-   * @return array [movement, shipping_guide]
-   * @throws Exception
-   */
+  public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
+  {
+    try {
+      // Ejecutar el stored procedure PaStockArticulo en SQL Server (conexión dbtest)
+      // EXEC es la sintaxis correcta para SQL Server
+      $result = DB::connection('dbtest')
+        ->select("EXEC PaStockArticulo '{$productCode}', '{$warehouseCode}'");
+
+      // Validar que se obtuvo un resultado
+      if (empty($result)) {
+        throw new Exception(
+          "No se encontró stock para el producto '{$productCode}' en el almacén '{$warehouseCode}' en el sistema dynamics"
+        );
+      }
+
+      // Convertir el primer resultado a array
+      $stockData = (array)$result[0];
+
+      return $stockData;
+    } catch (Exception $e) {
+      \Log::error('Error al consultar stock en sistema dynamics', [
+        'product_code' => $productCode,
+        'warehouse_code' => $warehouseCode,
+        'error' => $e->getMessage()
+      ]);
+
+      throw new Exception(
+        "Error al consultar stock en sistema dynamics para producto '{$productCode}' en almacén '{$warehouseCode}': " . $e->getMessage()
+      );
+    }
+  }
+
   public function createTransfer(array $transferData, array $details): array
   {
     DB::beginTransaction();
@@ -276,12 +364,13 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate warehouses
-      if (!isset($transferData['warehouse_origin_id']) || !isset($transferData['warehouse_destination_id'])) {
-        throw new Exception('Debe especificar almacén de origen y destino');
+      if (!isset($transferData['transmitter_id']) || !isset($transferData['receiver_id'])) {
+        throw new Exception('Debe especificar ubicación de origen y destino');
       }
 
-      if ($transferData['warehouse_origin_id'] === $transferData['warehouse_destination_id']) {
-        throw new Exception('El almacén de origen y destino deben ser diferentes');
+      // Siempre deben ser diferentes (tanto PRODUCTO como SERVICIO)
+      if ($transferData['transmitter_id'] === $transferData['receiver_id']) {
+        throw new Exception('La ubicación de origen y destino deben ser diferentes');
       }
 
       // Validate details
@@ -289,10 +378,54 @@ class InventoryMovementService extends BaseService
         throw new Exception('Debe proporcionar al menos un producto');
       }
 
-      // Validate stock availability in origin warehouse (only for PRODUCTO type)
+      // Get item type (PRODUCTO or SERVICIO)
       $itemType = $transferData['item_type'] ?? 'PRODUCTO';
 
+      // Get Sede Transmitter and Receiver to determine physical warehouses for transfer
+      $transmitter = BusinessPartnersEstablishment::findOrFail($transferData['transmitter_id']);
+      $receiver = BusinessPartnersEstablishment::findOrFail($transferData['receiver_id']);
+
+      // Solo obtener y validar almacenes físicos si es PRODUCTO
       if ($itemType === 'PRODUCTO') {
+        $warehouseOrigin = Warehouse::getPhysicalWarehouseForPostsale($transmitter->sede->id);
+        $warehouseDestination = Warehouse::getPhysicalWarehouseForPostsale($receiver->sede->id);
+
+        $transferData['warehouse_origin_id'] = $warehouseOrigin->id;
+        $transferData['warehouse_destination_id'] = $warehouseDestination->id;
+
+        // Validar stock en sistema dynamics antes de las validaciones locales
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          $product = Products::find($detail['product_id']);
+          if (!$product || !$product->dyn_code) {
+            continue; // Si no tiene dyn_code, solo validamos con stock local
+          }
+
+          if (!$warehouseOrigin->dyn_code) {
+            continue; // Si el almacén no tiene dyn_code, solo validamos con stock local
+          }
+
+          // Validar stock en sistema dynamics
+          $externalStock = $this->validateStockInExternalSystem($product->dyn_code, $warehouseOrigin->dyn_code);
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantity = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantity < $detail['quantity']) {
+            throw new Exception(
+              "Stock insuficiente en sistema dynamics para producto '{$product->name}'. " .
+              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail['quantity']}"
+            );
+          }
+        }
+
+        // Validate stock availability in origin warehouse
         foreach ($details as $detail) {
           // Skip validation if it's a service (description instead of product_id)
           if (!isset($detail['product_id'])) {
@@ -316,18 +449,48 @@ class InventoryMovementService extends BaseService
             );
           }
         }
+
+        // Validate that all products have warehouse assignment in destination
+        foreach ($details as $detail) {
+          // Skip validation if it's a service (description instead of product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          $destinationStock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_destination_id']);
+          $product = Products::find($detail['product_id']);
+          $productName = $product ? $product->name : "ID {$detail['product_id']}";
+
+          if (!$destinationStock) {
+            throw new Exception(
+              "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
+            );
+          }
+        }
+      } else {
+        // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
+        // Transmitter siempre tiene sede, intentar obtener su almacén
+        $warehouseOrigin = Warehouse::where('sede_id', $transmitter->sede->id)
+          ->where('is_physical_warehouse', 1)
+          ->where('status', 1)
+          ->first();
+
+        // Receiver puede no tener sede, solo buscar almacén si tiene sede
+        $warehouseDestination = null;
+        if ($receiver->sede?->id) {
+          $warehouseDestination = Warehouse::where('sede_id', $receiver->sede->id)
+            ->where('is_physical_warehouse', 1)
+            ->where('status', 1)
+            ->first();
+        }
+
+        $transferData['warehouse_origin_id'] = $warehouseOrigin?->id ?? null;
+        $transferData['warehouse_destination_id'] = $warehouseDestination?->id ?? null;
       }
 
       // Get info for shipping guide
-      $business_partner = BusinessPartners::find($transferData['transmitter_origin_id']);
-      $sede_transmitter = Warehouse::find($transferData['warehouse_origin_id'])->sede;
-      $sede_receiver = Warehouse::find($transferData['warehouse_destination_id'])->sede;
-      $transmitter = BusinessPartnersEstablishment::where('sede_id', $sede_transmitter->id)
-        ->where('business_partner_id', $business_partner->id)
-        ->first();
-      $receiver = BusinessPartnersEstablishment::where('sede_id', $sede_receiver->id)
-        ->where('business_partner_id', $business_partner->id)
-        ->first();
+      $receiver_destination = BusinessPartners::find($transferData['receiver_destination_id']);
+
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
       $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
@@ -353,16 +516,16 @@ class InventoryMovementService extends BaseService
       // Create Shipping Guide (NOT sent to Nubefact yet)
       $shippingGuide = ShippingGuides::create([
         'document_type' => $transferData['document_type'],
-        'issuer_type' => ShippingGuides::ISSUER_TYPE_AUTOMOTORES,
+        'issuer_type' => ShippingGuides::ISSUER_TYPE_SYSTEM,
         'document_number' => $documentNumber,
         'document_series_id' => $transferData['document_series_id'],
         'series' => $assignedSeries->series,
         'correlative' => $correlative,
-        'issue_date' => $transferData['movement_date'] ?? now(),
+        'issue_date' => $transferData['issue_date'] ?? now(),
         'requires_sunat' => true,
         'is_sunat_registered' => false, // NOT sent yet
-        'sede_transmitter_id' => $sede_transmitter->id,
-        'sede_receiver_id' => $sede_receiver->id,
+        'sede_transmitter_id' => $transmitter->sede->id,
+        'sede_receiver_id' => $receiver->sede->id ?? $transmitter->sede->id,
         'transmitter_id' => $transmitter ? $transmitter->id : null,
         'receiver_id' => $receiver ? $receiver->id : null,
         'driver_name' => $transferData['driver_name'],
@@ -374,26 +537,27 @@ class InventoryMovementService extends BaseService
         'transport_company_id' => $transferData['transport_company_id'] ?? null,
         'total_packages' => $transferData['total_packages'] ?? null,
         'total_weight' => $transferData['total_weight'] ?? null,
-        'origin_ubigeo' => $sede_transmitter ? $sede_transmitter->district->ubigeo : null,
-        'origin_address' => $sede_transmitter ? $sede_transmitter->direccion : null,
-        'destination_ubigeo' => $sede_receiver ? $sede_receiver->district->ubigeo : null,
-        'destination_address' => $sede_receiver ? $sede_receiver->direccion : null,
+        'origin_ubigeo' => $transmitter ? $transmitter->sede->district->ubigeo : null,
+        'origin_address' => $transmitter ? $transmitter->sede->direccion : null,
+        'destination_ubigeo' => $receiver->sede?->district?->ubigeo ?? $receiver_destination->district->ubigeo ?? null,
+        'destination_address' => $receiver->sede?->direccion ?? $receiver_destination->direction ?? null,
         'ruc_transport' => $transport_company->num_doc ?? null,
         'company_name_transport' => $transport_company->full_name ?? null,
         'notes' => $transferData['notes'] ?? null,
         'status' => true,
         'created_by' => Auth::id(),
         'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
+        'area_id' => ApMasters::AREA_POSVENTA,
       ]);
 
-      // Create TRANSFER_OUT movement (stock goes to in_transit)
+      // Create TRANSFER_OUT movement (stock goes to in_transit for PRODUCTO)
       $movementOut = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_TRANSFER_OUT,
         'item_type' => $itemType,
         'movement_date' => $transferData['movement_date'] ?? now(),
-        'warehouse_id' => $transferData['warehouse_origin_id'],
-        'warehouse_destination_id' => $transferData['warehouse_destination_id'],
+        'warehouse_id' => $transferData['warehouse_origin_id'] ?? null,
+        'warehouse_destination_id' => $transferData['warehouse_destination_id'] ?? null,
         'reason_in_out_id' => $transferData['reason_in_out_id'] ?? null,
         'reference_type' => ShippingGuides::class,
         'reference_id' => $shippingGuide->id,
@@ -449,15 +613,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Update warehouse transfer with simple fields
-   * Only updates movement and shipping guide metadata (NOT products/details)
-   *
-   * @param array $transferData Updated transfer data
-   * @param int $movementId Movement ID
-   * @return array [movement, shipping_guide]
-   * @throws Exception
-   */
   public function updateTransfer(array $transferData, int $movementId): array
   {
     DB::beginTransaction();
@@ -507,7 +662,7 @@ class InventoryMovementService extends BaseService
       $shippingGuideData = [];
 
       if (isset($transferData['movement_date'])) {
-        $shippingGuideData['issue_date'] = $transferData['movement_date'];
+        $shippingGuideData['issue_date'] = $transferData['issue_date'];
       }
 
       if (isset($transferData['driver_name'])) {
@@ -575,15 +730,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Delete warehouse transfer
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   * Reverses stock from in_transit back to available
-   *
-   * @param int $movementId Movement ID
-   * @return void
-   * @throws Exception
-   */
   public function destroyTransfer(int $movementId): void
   {
     DB::beginTransaction();
@@ -612,8 +758,8 @@ class InventoryMovementService extends BaseService
       $movement->load('details');
 
       // Reverse stock: move from in_transit back to available quantity
-      // Only reverse stock for PRODUCTO type, not for SERVICIO
-      if ($movement->item_type === 'PRODUCTO') {
+      // Only reverse stock for PRODUCTO type with warehouse_id, not for SERVICIO
+      if ($movement->item_type === 'PRODUCTO' && $movement->warehouse_id) {
         foreach ($movement->details as $detail) {
           $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_id);
 
@@ -688,14 +834,17 @@ class InventoryMovementService extends BaseService
         // Reverse the stock change
         // If it was an INBOUND movement (added stock), we need to REMOVE it
         // If it was an OUTBOUND movement (removed stock), we need to ADD it back
-        if ($movement->is_inbound) {
-          // INBOUND: Remove the stock that was added
-          $stock = $this->stockService->removeStock($productId, $movement->warehouse_id, abs($quantity));
-          $updatedStocks[] = $stock;
-        } else {
-          // OUTBOUND: Add back the stock that was removed
-          $stock = $this->stockService->addStock($productId, $movement->warehouse_id, abs($quantity));
-          $updatedStocks[] = $stock;
+        // Only reverse stock if warehouse_id is not null (PRODUCTO items)
+        if ($movement->warehouse_id) {
+          if ($movement->is_inbound) {
+            // INBOUND: Remove the stock that was added
+            $stock = $this->stockService->removeStock($productId, $movement->warehouse_id, abs($quantity));
+            $updatedStocks[] = $stock;
+          } else {
+            // OUTBOUND: Add back the stock that was removed
+            $stock = $this->stockService->addStock($productId, $movement->warehouse_id, abs($quantity));
+            $updatedStocks[] = $stock;
+          }
         }
 
         // Handle transfers (TRANSFER_OUT and TRANSFER_IN)
@@ -716,16 +865,6 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Get movement history for a specific product in a warehouse
-   * Returns all inventory movements for a product in a specific warehouse
-   * Includes quantity_in, quantity_out, and balance (running balance)
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with filters
-   * @return \Illuminate\Http\JsonResponse
-   */
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     // Base query: get all movements that have details for this product in this warehouse
@@ -866,13 +1005,6 @@ class InventoryMovementService extends BaseService
     ]);
   }
 
-  /**
-   * Get kardex of all inventory movements
-   * Returns all inventory movements with optional warehouse filter
-   *
-   * @param Request $request Request with filters (warehouse_id optional)
-   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getKardex(Request $request)
   {
     // Base query: get all movements
@@ -932,68 +1064,6 @@ class InventoryMovementService extends BaseService
     return InventoryMovementResource::collection($movements);
   }
 
-  public function createWorkOrderPartOutbound($workOrderPart): InventoryMovement
-  {
-    DB::beginTransaction();
-    try {
-      // Validar que hay stock disponible
-      $stock = $this->stockService->getStock($workOrderPart->product_id, $workOrderPart->warehouse_id);
-
-      if (!$stock) {
-        throw new Exception('No se encontró registro de stock para el producto en el almacén especificado');
-      }
-
-      if ($stock->available_quantity < $workOrderPart->quantity_used) {
-        throw new Exception(
-          "Stock insuficiente. Disponible: {$stock->available_quantity}, Requerido: {$workOrderPart->quantity_used}"
-        );
-      }
-
-      // Crear movimiento de inventario de salida
-      $movement = InventoryMovement::create([
-        'movement_number' => InventoryMovement::generateMovementNumber(),
-        'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
-        'movement_date' => now(),
-        'warehouse_id' => $workOrderPart->warehouse_id,
-        'reference_type' => get_class($workOrderPart),
-        'reference_id' => $workOrderPart->id,
-        'user_id' => Auth::id(),
-        'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Salida por uso en Orden de Trabajo #{$workOrderPart->workOrder->correlative} - {$workOrderPart->product->name}",
-        'total_items' => 1,
-        'total_quantity' => $workOrderPart->quantity_used,
-      ]);
-
-      // Crear detalle del movimiento
-      InventoryMovementDetail::create([
-        'inventory_movement_id' => $movement->id,
-        'product_id' => $workOrderPart->product_id,
-        'quantity' => $workOrderPart->quantity_used,
-        'unit_cost' => $workOrderPart->unit_cost,
-        'total_cost' => $workOrderPart->quantity_used * $workOrderPart->unit_cost,
-        'notes' => "Repuesto usado en OT #{$workOrderPart->workOrder->correlative}",
-      ]);
-
-      // Actualizar el stock (restar la cantidad usada)
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
-
-      DB::commit();
-      return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
-
-  /**
-   * Create sale outbound movement from quotation
-   * Creates SALE movement referencing an ApOrderQuotation
-   * Updates stock automatically
-   *
-   * @param int $quotationId Quotation ID
-   * @return InventoryMovement
-   * @throws Exception
-   */
   public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
@@ -1012,8 +1082,8 @@ class InventoryMovementService extends BaseService
 
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
-        ->where('is_physical_warehouse', 1)
-        ->where('status', 1)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
         ->first();
 
       if (!$warehouse) {
@@ -1021,7 +1091,7 @@ class InventoryMovementService extends BaseService
       }
 
       // Filter only product items (exclude labor)
-      $productDetails = $quotation->details->where('item_type', '!=', 'labor')->where('product_id', '!=', null);
+      $productDetails = $quotation->details->where('item_type', '!=', 'LABOR')->where('product_id', '!=', null);
 
       if ($productDetails->isEmpty()) {
         throw new Exception('La cotización no contiene productos para generar salida de inventario');
@@ -1053,7 +1123,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApOrderQuotations::class,
         'reference_id' => $quotation->id,
-        'user_id' => Auth::id(),
+        'user_id' => $quotation->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Cotización {$quotation->quotation_number}",
         'total_items' => 0,
@@ -1098,15 +1168,110 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  /**
-   * Get purchase history for a specific product in a warehouse
-   * Returns all purchase receptions with their prices for a product
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return array
-   */
+  public function createSaleFromWorkOrder(int $workOrderId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Find work order with parts
+      $workOrder = ApWorkOrder::with(['parts.product', 'sede'])->find($workOrderId);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validamos que la orden de trabajo no haya generado ya una salida de almacén
+      if ($workOrder->output_generation_warehouse) {
+        throw new Exception('La orden de trabajo ya ha generado una salida de almacén previamente');
+      }
+
+      // Get warehouse from sede
+      $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén asociado a la sede de la orden de trabajo');
+      }
+
+      // Filter only product items (exclude services/labor)
+      $productParts = $workOrder->parts->where('product_id', '!=', null);
+
+      if ($productParts->isEmpty()) {
+        throw new Exception('La orden de trabajo no contiene repuestos para generar salida de inventario');
+      }
+
+      // Validate stock availability for all products
+      foreach ($productParts as $part) {
+        $stock = $this->stockService->getStock($part->product_id, $warehouse->id);
+
+        if (!$stock) {
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$part->product->name}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $part->quantity) {
+          throw new Exception(
+            "Stock insuficiente para producto '{$part->product->name}'. " .
+            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity}"
+          );
+        }
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'reference_type' => ApWorkOrder::class,
+        'reference_id' => $workOrder->id,
+        'user_id' => $workOrder->created_by ?? Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($productParts as $part) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $part->product_id,
+          'quantity' => $part->quantity,
+          'unit_cost' => $part->unit_price,
+          'total_cost' => $part->total_amount,
+          'notes' => "Venta orden de trabajo {$workOrder->correlative} - {$part->product->name}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $part->quantity;
+      }
+
+      // Update movement totals
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update ApWorkOrder output_generation_warehouse
+      $workOrder->update(['output_generation_warehouse' => true]);
+
+      // Update stock automatically
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
   public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): array
   {
     // Validate product exists
@@ -1231,14 +1396,6 @@ class InventoryMovementService extends BaseService
     ];
   }
 
-  /**
-   * Export movement history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-   */
   public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     // Validate product exists
@@ -1373,14 +1530,6 @@ class InventoryMovementService extends BaseService
     return Excel::download($export, $filename);
   }
 
-  /**
-   * Export purchase history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request Request with date filters (date_from, date_to)
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-   */
   public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
   {
     // Validate product exists
@@ -1473,5 +1622,98 @@ class InventoryMovementService extends BaseService
     $export = new GeneralExport($exportData, $columns, $title);
 
     return Excel::download($export, $filename);
+  }
+
+  public function createReturnOutFromCreditNote($creditNote): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que la nota de crédito exista y tenga detalles
+      if (!$creditNote) {
+        throw new Exception('Nota de crédito no encontrada');
+      }
+
+      $creditNote->load(['details', 'purchaseReception']);
+
+      if ($creditNote->details->isEmpty()) {
+        throw new Exception('La nota de crédito no contiene productos para generar salida de inventario');
+      }
+
+      // Obtener el almacén de la recepción original
+      $reception = $creditNote->purchaseReception;
+      if (!$reception || !$reception->warehouse_id) {
+        throw new Exception('No se encontró la recepción o el almacén asociado a la nota de crédito');
+      }
+
+      $warehouseId = $reception->warehouse_id;
+
+      // Validar que hay stock disponible para todos los productos
+      foreach ($creditNote->details as $detail) {
+        $stock = $this->stockService->getStock($detail->product_id, $warehouseId);
+
+        if (!$stock) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$productName}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $detail->quantity) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "Stock insuficiente para producto '{$productName}'. " .
+            "Disponible: {$stock->available_quantity}, Cantidad a devolver: {$detail->quantity}"
+          );
+        }
+      }
+
+      // Crear movimiento de inventario de salida
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_RETURN_OUT,
+        'movement_date' => $creditNote->credit_note_date ?? now(),
+        'warehouse_id' => $warehouseId,
+        'reference_type' => get_class($creditNote),
+        'reference_id' => $creditNote->id,
+        'user_id' => $creditNote->approved_by ?? Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por devolución a proveedor - Nota de Crédito {$creditNote->credit_note_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Crear detalles del movimiento
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($creditNote->details as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->subtotal,
+          'notes' => "Devolución NC {$creditNote->credit_note_number} - {$detail->notes}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      // Actualizar totales del movimiento
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Actualizar stock automáticamente (resta las cantidades devueltas)
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

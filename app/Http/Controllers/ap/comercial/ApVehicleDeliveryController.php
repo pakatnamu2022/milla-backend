@@ -72,11 +72,11 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       $data = $request->validate([
-        'driver_doc' => 'nullable|integer|max_digits:11|min_digits:8',
+        'driver_doc' => 'nullable|string|max_digits:11|min_digits:8',
         'license' => 'nullable|string|max:20',
         'plate' => 'nullable|string|max:20',
         'driver_name' => 'nullable|string|max:100',
-        'transfer_modality_id' => 'required|integer|exists:ap_masters,id',
+        'transfer_modality_id' => 'required|string|exists:ap_masters,id',
         'carrier_ruc' => 'nullable|string|max:11|min:11',
         'company_name_transport' => 'nullable|string|max:100',
       ]);

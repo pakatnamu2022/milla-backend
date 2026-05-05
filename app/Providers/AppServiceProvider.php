@@ -8,6 +8,7 @@ use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,12 +28,25 @@ class AppServiceProvider extends ServiceProvider
    */
   public function boot(): void
   {
+    // Permitir acceso a la documentación de la API en todos los entornos
+    Gate::define('viewApiDocs', fn () => true);
+
     // Configurar Scramble con autenticación Sanctum
     Scramble::extendOpenApi(function (OpenApi $openApi) {
       $openApi->secure(
         SecurityScheme::http('bearer', 'sanctum')
       );
     });
+
+    // Optimización: Filtrar solo rutas API (excluir rutas de autenticación, etc.)
+    if (!$this->app->runningInConsole()) {
+      Scramble::routes(function ($route) {
+        return str_starts_with($route->uri, 'api/')
+          && !str_contains($route->uri, 'sanctum')
+          && !str_contains($route->uri, 'login')
+          && !str_contains($route->uri, 'register');
+      });
+    }
 
     // Registrar Blade Directives personalizados para permisos
     $this->registerPermissionBladeDirectives();

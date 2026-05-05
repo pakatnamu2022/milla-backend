@@ -21,7 +21,6 @@ class AssignSalesSeries extends Model
     'type_operation_id',
     'sede_id',
     'status',
-    'is_advance'
   ];
 
   const filters = [
@@ -32,7 +31,6 @@ class AssignSalesSeries extends Model
     'type_operation_id' => '=',
     'sede_id' => '=',
     'status' => '=',
-    'is_advance' => '=',
   ];
 
   const sorts = [
@@ -47,7 +45,6 @@ class AssignSalesSeries extends Model
 
   protected $casts = [
     'status' => 'boolean',
-    'is_advance' => 'boolean',
   ];
 
   const string PURCHASE = 'PURCHASE';

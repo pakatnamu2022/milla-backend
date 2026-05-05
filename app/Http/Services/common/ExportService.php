@@ -24,7 +24,8 @@ class ExportService
 
     $filename = $this->generateFilename($title, 'xlsx');
 
-    $export = new GeneralExport($data, $columns, $title, $styles);
+    $colorRules = method_exists($model, 'getReportColorRules') ? $model->getReportColorRules() : [];
+    $export = new GeneralExport($data, $columns, $title, $styles, $colorRules);
 
     return Excel::download($export, $filename);
   }

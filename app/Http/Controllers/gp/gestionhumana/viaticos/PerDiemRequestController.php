@@ -402,28 +402,64 @@ class PerDiemRequestController extends Controller
   }
 
   /**
-   * Upload deposit voucher for a per diem request
+   * Upload deposit voucher(s) for a per diem request
+   * Each voucher can have a description for context
+   * Maximum 3 vouchers per request
+   *
+   * Expected request (multipart/form-data):
+   * - vouchers[]: array of files (required) - The voucher files (images or PDFs)
+   * - descriptions[]: array of strings (optional) - Descriptions for each voucher
+   *
+   * Example:
+   * vouchers[0]: file1.pdf
+   * descriptions[0]: "Transferencia del 50%"
+   * vouchers[1]: file2.jpg
+   * descriptions[1]: "Pago en efectivo"
    */
   public function agregarDeposito(int $id, Request $request)
   {
     try {
-      // Validate that a file was uploaded
-      if (!$request->hasFile('voucher')) {
-        return $this->error('No se ha proporcionado ningún archivo de voucher');
-      }
-
-      $voucherFile = $request->file('voucher');
-
-      // Validate file type (images and PDFs)
+      // Validate files and descriptions
       $request->validate([
-        'voucher' => 'required|file|mimes:jpeg,jpg,png,pdf|max:10240' // Max 10MB
+        'vouchers' => 'required|array|min:1|max:3',
+        'vouchers.*' => 'required|file|mimes:jpeg,jpg,png,pdf|max:10240', // Max 10MB each
+        'descriptions' => 'nullable|array',
+        'descriptions.*' => 'nullable|string|max:500',
       ]);
 
-      $perDiemRequest = $this->service->agregarDeposito($id, $voucherFile);
+      $voucherFiles = $request->file('vouchers');
+      $descriptions = $request->input('descriptions', []);
+
+      $perDiemRequest = $this->service->agregarDeposito($id, $voucherFiles, $descriptions);
+
+      $count = count($voucherFiles);
+      $message = $count === 1
+        ? 'Comprobante de depósito agregado exitosamente'
+        : "{$count} comprobantes de depósito agregados exitosamente";
 
       return $this->success([
         'data' => $perDiemRequest,
-        'message' => 'Voucher de depósito agregado exitosamente'
+        'message' => $message
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Remove a deposit voucher from a per diem request
+   *
+   * @param int $requestId Per diem request ID
+   * @param int $fileId Digital file ID to remove
+   */
+  public function eliminarDeposito(int $requestId, int $fileId)
+  {
+    try {
+      $perDiemRequest = $this->service->eliminarDeposito($requestId, $fileId);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Comprobante de depósito eliminado exitosamente'
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -454,6 +490,42 @@ class PerDiemRequestController extends Controller
       $pdf = $this->service->generateExpenseTotalWithEvidencePDF($id);
       $filename = "liquidacion-gastos-evidencias-{$id}.pdf";
       return $pdf->download($filename);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Regenerate budgets from current rates and recalculate all expenses.
+   * Only allowed when status is 'in_progress'.
+   */
+  public function regenerateBudgets(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->regenerateBudgetsAll($id);
+
+      return $this->success([
+        'data' => $perDiemRequest,
+        'message' => 'Presupuestos regenerados y gastos recalculados exitosamente.',
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Reset approvals for a per diem request
+   * Creates missing boss approvals and resets approved/rejected ones to pending
+   */
+  public function resetApprovals(int $id)
+  {
+    try {
+      $perDiemRequest = $this->service->resetApprovals($id);
+
+      return $this->success([
+        'data' => new PerDiemRequestResource($perDiemRequest),
+        'message' => 'Aprobaciones restablecidas exitosamente'
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

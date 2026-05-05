@@ -29,6 +29,8 @@ class PhoneLine extends BaseModel
     'line_number' => 'like',
     'status' => '=',
     'is_active' => '=',
+    'telephoneAccount.company_id' => '=',
+    'isAssigned' => 'accessor_bool',
   ];
 
   const sorts = [
@@ -36,6 +38,11 @@ class PhoneLine extends BaseModel
     'line_number' => 'asc',
     'status' => 'asc',
   ];
+
+  public function getIsAssignedAttribute(): bool
+  {
+    return $this->activeAssignment()->exists();
+  }
 
   /**
    * Relación con la cuenta telefónica
@@ -74,6 +81,8 @@ class PhoneLine extends BaseModel
 
   public function activeAssignment()
   {
-    return $this->hasOne(PhoneLineWorker::class, 'phone_line_id')->where('active', true);
+    return $this->hasOne(PhoneLineWorker::class, 'phone_line_id')
+      ->where('active', true)
+      ->with(['worker' => fn($q) => $q->withoutGlobalScopes(), 'equipment']);
   }
 }

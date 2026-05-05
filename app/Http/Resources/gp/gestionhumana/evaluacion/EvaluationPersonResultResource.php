@@ -48,7 +48,7 @@ class EvaluationPersonResultResource extends JsonResource
       $response['finalParameter'] = new EvaluationParameterResource($this->evaluation->finalParameter);
       $response['objectiveParameter'] = new EvaluationParameterResource($this->evaluation->objectiveParameter);
       $response['competenceParameter'] = new EvaluationParameterResource($this->evaluation->competenceParameter);
-      $response['hasObjectives'] = (bool)$this->person->position->hierarchicalCategory->hasObjectives;
+      $response['hasObjectives'] = (bool)$this->hasObjectives;
     }
 
     return $response;
@@ -98,13 +98,13 @@ class EvaluationPersonResultResource extends JsonResource
         'max_score' => round((new EvaluationParameterResource($this->evaluation->competenceParameter))->details->last()->to, 2),
       ],
       'objectives' => [
-        'index_range_result' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateIndexRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->count() - 1,
-        'label_range' => $this->person->position->hierarchicalCategory->hasObjectives ? $this->calculateLabelRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->last()->label,
+        'index_range_result' => $this->hasObjectives ? $this->calculateIndexRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->count() - 1,
+        'label_range' => $this->hasObjectives ? $this->calculateLabelRangeResult($this->objectivesResult, $this->evaluation->objectiveParameter) : $this->evaluation->objectiveParameter->details->last()->label,
         'completion_rate' => $objectiveCompletionRate,
         'completed' => $completedObjectives,
         'total' => $totalObjectives,
         'average_score' => round($objectives->where('result', '>', 0)->avg('result'), 2),
-        'max_score' => $this->person->position->hierarchicalCategory->hasObjectives ? round((new EvaluationParameterResource($this->evaluation->objectiveParameter))->details->last()->to, 2) : 0,
+        'max_score' => $this->hasObjectives ? round((new EvaluationParameterResource($this->evaluation->objectiveParameter))->details->last()->to, 2) : 0,
       ],
       'final' => [
         'index_range_result' => $this->calculateIndexRangeResult($this->result, $this->evaluation->finalParameter),

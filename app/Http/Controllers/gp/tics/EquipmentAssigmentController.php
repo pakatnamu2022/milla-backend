@@ -4,10 +4,12 @@ namespace App\Http\Controllers\gp\tics;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\IndexEquipmentAssigmentRequest;
+use Illuminate\Http\Request;
 use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
 use App\Http\Services\gp\tics\EquipmentAssigmentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 
 class EquipmentAssigmentController extends Controller
@@ -99,6 +101,54 @@ class EquipmentAssigmentController extends Controller
       return $this->success($this->service->historyByEquipment($equipoId));
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
+    }
+  }
+
+  public function linkPhoneLine(Request $request, $id)
+  {
+    try {
+      $validated = $request->validate([
+        'phone_line_id' => 'nullable|exists:phone_line,id',
+      ]);
+      return $this->success(
+        $this->service->linkPhoneLine($id, $validated['phone_line_id'] ?? null)
+      );
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function downloadAssignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadAssignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function downloadUnassignmentPdf($id)
+  {
+    try {
+      return $this->service->downloadUnassignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function previewEquipmentAssignment($id)
+  {
+    try {
+      $assignment = $this->service->find($id);
+      $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
+
+//      return response()->view('exports.equipment-assignment', compact('assignment'))
+//        ->header('Content-Type', 'text/html');
+
+      return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
+        ->stream($filename);
+    } catch (Throwable $e) {
+      return response()->json(['error' => $e->getMessage()], 404);
     }
   }
 }

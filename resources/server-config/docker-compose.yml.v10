@@ -1,0 +1,253 @@
+services:
+    app:
+        build: .
+        working_dir: /var/www/html
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        ports:
+            - "127.0.0.1:9000:9000"
+        environment:
+            APP_ENV: production
+
+    # Worker para dashboards de evaluación
+    queue:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=evaluation-dashboards --sleep=1 --tries=3 --timeout=60"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker para establecimientos
+    queue-establishments:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=establishments,update-establishments --sleep=1 --tries=3 --timeout=60"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker para validación de documentos
+    queue-validate-documents:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=validate-potential-buyers-documents --sleep=1 --tries=3 --timeout=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker para emails
+    mail:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=mail --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker existente para documentos electrónicos (mantener compatibilidad)
+    queue-electronic-documents-legacy:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=electronic_documents --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # ========================================
+    # NUEVOS WORKERS - COLAS SEPARADAS v8
+    # ========================================
+
+    # Worker 1 para documentos electrónicos (alta prioridad - 3 workers)
+    queue-electronic-documents-1:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=electronic_documents --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 2 para documentos electrónicos
+    queue-electronic-documents-2:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=electronic_documents --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 3 para documentos electrónicos
+    queue-electronic-documents-3:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=electronic_documents --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 1 para órdenes de compra (2 workers)
+    queue-purchase-orders-1:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=purchase_orders --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 2 para órdenes de compra
+    queue-purchase-orders-2:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=purchase_orders --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 1 para guías de remisión (2 workers)
+    queue-shipping-guides-1:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=shipping_guides --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 2 para guías de remisión
+    queue-shipping-guides-2:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=shipping_guides --sleep=1 --tries=2 --timeout=300 --backoff=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 1 para sincronización de facturas (2 workers)
+    queue-invoice-sync-1:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=invoice_sync --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 2 para sincronización de facturas
+    queue-invoice-sync-2:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=invoice_sync --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 1 para sincronización de notas de crédito (2 workers)
+    queue-credit-note-sync-1:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=credit_note_sync --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker 2 para sincronización de notas de crédito
+    queue-credit-note-sync-2:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=credit_note_sync --sleep=1 --tries=3 --timeout=300"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    # Worker para procesamiento de imágenes de inspecciones de vehículos
+    queue-images-vehicle-inspections:
+        build: .
+        working_dir: /var/www/html
+        command: bash -lc "php artisan queue:work --queue=images-vehicle-inspections --sleep=1 --tries=3 --timeout=120"
+        volumes:
+            - ./app:/var/www/html
+            - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+        environment:
+            APP_ENV: production
+        restart: unless-stopped
+        depends_on:
+            - app

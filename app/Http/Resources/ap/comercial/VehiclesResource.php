@@ -22,6 +22,7 @@ class VehiclesResource extends JsonResource
       'vin' => $this->vin,
       'plate' => $this->plate,
       'year' => $this->year,
+      'year_delivery' => $this->year_delivery,
       'engine_number' => $this->engine_number,
       'ap_models_vn_id' => $this->ap_models_vn_id,
       'vehicle_color_id' => $this->vehicle_color_id,
@@ -45,6 +46,7 @@ class VehiclesResource extends JsonResource
       'type_operation_id' => $this->type_operation_id,
       'owner' => BusinessPartnersResource::make($this->customer),
       'owner_name' => $this->customer?->full_name,
+      'is_heavy' => $this->is_heavy,
     ];
   }
 }

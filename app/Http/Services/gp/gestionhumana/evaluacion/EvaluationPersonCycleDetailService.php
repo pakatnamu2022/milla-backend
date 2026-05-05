@@ -3,7 +3,6 @@
 namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailResource;
-use App\Http\Resources\gp\gestionhumana\personal\PersonResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
@@ -12,24 +11,26 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use function Pest\Laravel\json;
+use Illuminate\Support\Facades\Log;
 
 class EvaluationPersonCycleDetailService extends BaseService
 {
+  protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService;
+  protected EvaluationPersonService $evaluationPersonService;
 
-  public function __construct(
-    protected EvaluationCategoryObjectiveDetailService $categoryObjectiveDetailService,
-    protected EvaluationPersonService                  $evaluationPersonService
-  )
+  public function __construct()
   {
+    $this->categoryObjectiveDetailService = new EvaluationCategoryObjectiveDetailService();
+    $this->evaluationPersonService = new EvaluationPersonService();
   }
-
 
   public function list(Request $request, int $id)
   {
@@ -87,6 +88,9 @@ class EvaluationPersonCycleDetailService extends BaseService
 
         foreach ($objectives as $objective) {
           $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+            ->whereHas('objective', function ($query) use ($objective) {
+              $query->where('active', 1);
+            })
             ->where('category_id', $categoryId)
             ->where('person_id', $person->id)
             ->where('active', 1)
@@ -110,6 +114,9 @@ class EvaluationPersonCycleDetailService extends BaseService
 
             if ($goal === 0) {
               $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+                ->whereHas('objective', function ($query) use ($objective) {
+                  $query->where('active', 1);
+                })
                 ->where('category_id', $categoryId)
                 ->where('person_id', $person->id)
                 ->whereNull('deleted_at')
@@ -236,6 +243,9 @@ class EvaluationPersonCycleDetailService extends BaseService
       foreach ($objectives as $objective) {
         // Verificar si la persona tiene un EvaluationCategoryObjectiveDetail activo para este objetivo
         $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+          ->whereHas('objective', function ($query) use ($objective) {
+            $query->where('active', 1);
+          })
           ->where('category_id', $hierarchicalCategory->id)
           ->where('person_id', $person->id)
           ->where('active', 1)
@@ -321,86 +331,95 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   public function revalidateAllPersonsInCycle(int $cycleId)
   {
-    // 1. Buscar el ciclo
-    $cycle = EvaluationCycle::find($cycleId);
-    if (!$cycle) {
-      throw new Exception('Ciclo no encontrado');
-    }
+    try {
+      // 1. Buscar el ciclo
+      $cycle = EvaluationCycle::find($cycleId);
+      if (!$cycle) {
+        throw new Exception('Ciclo no encontrado');
+      }
 
-    // 2. Buscar todas las categorías del ciclo
-    $categoryDetails = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)
-      ->whereNull('deleted_at')
-      ->get();
-
-    $results = [];
-
-    foreach ($categoryDetails as $categoryDetail) {
-      $categoryId = $categoryDetail->hierarchical_category_id;
-
-      // 3. Buscar todas las personas que YA ESTÁN en esta categoría del ciclo
-      $existingPersonDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
-        ->where('category_id', $categoryId)
+      // 2. Buscar todas las categorías del ciclo
+      $categoryDetails = EvaluationCycleCategoryDetail::where('cycle_id', $cycleId)
         ->whereNull('deleted_at')
         ->get();
 
-      $category = HierarchicalCategory::find($categoryId);
-      if (!$category) continue;
+      $results = [];
 
-      // 4. Obtener las posiciones válidas para esta categoría
-      $validPositions = $category->children()->pluck('position_id')->toArray();
+      foreach ($categoryDetails as $categoryDetail) {
+        $categoryId = $categoryDetail->hierarchical_category_id;
 
-      $revalidatedCount = 0;
-      $removedCount = 0;
+        // 3. Buscar todas las personas que YA ESTÁN en esta categoría del ciclo
+        $existingPersonDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+          ->where('category_id', $categoryId)
+          ->whereNull('deleted_at')
+          ->get();
 
-      foreach ($existingPersonDetails->groupBy('person_id') as $personId => $personDetails) {
-        $person = Worker::find($personId);
+        $category = HierarchicalCategory::find($categoryId);
+        if (!$category) continue;
 
-        if (!$person) {
-          // Persona no existe: eliminar todos sus detalles
-          foreach ($personDetails as $detail) {
-            $detail->delete();
-            $removedCount++;
+        // 4. Obtener las posiciones válidas para esta categoría
+        $validPositions = $category->children()->pluck('position_id')->toArray();
+
+        $revalidatedCount = 0;
+        $removedCount = 0;
+
+        foreach ($existingPersonDetails->groupBy('person_id') as $personId => $personDetails) {
+          $person = Worker::find($personId);
+
+          if (!$person) {
+            // Persona no existe: eliminar todos sus detalles
+            foreach ($personDetails as $detail) {
+              $detail->delete();
+              $removedCount++;
+            }
+            continue;
           }
-          continue;
+
+          // 5. Verificar si la persona aún cumple las validaciones originales
+          $stillValid = $this->validatePersonForCycle($person, $cycle, $validPositions);
+
+          if (!$stillValid) {
+            // Persona ya no cumple criterios: eliminar todos sus detalles y evaluaciones asociadas
+            // 1. Limpiar evaluaciones asociadas antes de eliminar
+            $this->cleanupAssociatedEvaluationsForPerson($personId, $personDetails);
+
+            // 2. Ahora sí eliminar los EvaluationPersonCycleDetail (los EvaluationPerson se eliminan por CASCADE)
+            foreach ($personDetails as $detail) {
+              $detail->delete();
+              $removedCount++;
+            }
+          } else {
+            // Persona aún es válida: revalidar sus objetivos
+            $this->revalidatePersonObjectives($person, $cycle, $category, $personDetails);
+            $revalidatedCount++;
+          }
         }
 
-        // 5. Verificar si la persona aún cumple las validaciones originales
-        $stillValid = $this->validatePersonForCycle($person, $cycle, $validPositions);
-
-        if (!$stillValid) {
-          // Persona ya no cumple criterios: eliminar todos sus detalles y evaluaciones asociadas
-          // 1. Limpiar evaluaciones asociadas antes de eliminar
-          $this->cleanupAssociatedEvaluationsForPerson($personId, $personDetails);
-
-          // 2. Ahora sí eliminar los EvaluationPersonCycleDetail (los EvaluationPerson se eliminan por CASCADE)
-          foreach ($personDetails as $detail) {
-            $detail->delete();
-            $removedCount++;
-          }
-        } else {
-          // Persona aún es válida: revalidar sus objetivos
-          $this->revalidatePersonObjectives($person, $cycle, $category, $personDetails);
-          $revalidatedCount++;
-        }
+        $results[] = [
+          'category_id' => $categoryId,
+          'category_name' => $category->name,
+          'revalidated_persons' => $revalidatedCount,
+          'removed_persons' => $removedCount
+        ];
       }
 
-      $results[] = [
-        'category_id' => $categoryId,
-        'category_name' => $category->name,
-        'revalidated_persons' => $revalidatedCount,
-        'removed_persons' => $removedCount
+      // Después de todas las validaciones, limpiar registros huérfanos que puedan haber quedado
+      $orphanedCount = $this->cleanupOrphanedEvaluationRecords($cycleId);
+
+      return [
+        'cycle_id' => $cycleId,
+        'message' => 'Revalidación completada',
+        'results' => $results,
+        'orphaned_records_cleaned' => $orphanedCount
+      ];
+    } catch (Exception $e) {
+      Log::error('Error en revalidación de personas en ciclo: ' . $e->getMessage(), ['cycle_id' => $cycleId]);
+      return [
+        'cycle_id' => $cycleId,
+        'message' => 'Error durante la revalidación: ' . $e->getMessage(),
+        'results' => []
       ];
     }
-
-    // Después de todas las validaciones, limpiar registros huérfanos que puedan haber quedado
-    $orphanedCount = $this->cleanupOrphanedEvaluationRecords($cycleId);
-
-    return [
-      'cycle_id' => $cycleId,
-      'message' => 'Revalidación completada',
-      'results' => $results,
-      'orphaned_records_cleaned' => $orphanedCount
-    ];
   }
 
   /**
@@ -423,9 +442,9 @@ class EvaluationPersonCycleDetailService extends BaseService
       $orphanedEvalPersons = DB::table('gh_evaluation_person as ep')
         ->leftJoin('gh_evaluation_person_cycle_detail as pcd', 'ep.person_cycle_detail_id', '=', 'pcd.id')
         ->where('ep.evaluation_id', $evaluationId)
-        ->where(function($query) {
+        ->where(function ($query) {
           $query->whereNotNull('pcd.deleted_at')  // detail está eliminado
-                ->orWhereNull('pcd.id');           // detail no existe
+          ->orWhereNull('pcd.id');           // detail no existe
         })
         ->whereNull('ep.deleted_at')  // pero EvaluationPerson está activo
         ->select('ep.id', 'ep.person_id', 'ep.person_cycle_detail_id', 'pcd.person_id as pcd_person_id', 'pcd.cycle_id', 'pcd.objective_id')
@@ -574,6 +593,9 @@ class EvaluationPersonCycleDetailService extends BaseService
     foreach ($currentObjectives as $objective) {
       // Verificar si la persona tiene un EvaluationCategoryObjectiveDetail activo para este objetivo
       $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', true);
+        })
         ->where('category_id', $category->id)
         ->where('person_id', $person->id)
         ->where('active', 1)
@@ -636,6 +658,9 @@ class EvaluationPersonCycleDetailService extends BaseService
     // Si no hay goal, buscar en EvaluationCategoryObjectiveDetail
     if ($goal === 0) {
       $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', true);
+        })
         ->where('category_id', $category->id)
         ->where('person_id', $person->id)
         ->whereNull('deleted_at')
@@ -719,6 +744,9 @@ class EvaluationPersonCycleDetailService extends BaseService
     DB::transaction(function () use ($personCycleDetail) {
       // Actualizar EvaluationCategoryObjectiveDetail
       $categoryObjectiveDetail = EvaluationCategoryObjectiveDetail::where('objective_id', $personCycleDetail->objective_id)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', true);
+        })
         ->where('category_id', $personCycleDetail->category_id)
         ->where('person_id', $personCycleDetail->person_id)
         ->whereNull('deleted_at')
@@ -772,16 +800,27 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->get();
 
     $fixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === true);
-    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false);
+    $nonFixedObjectives = $allObjectives->filter(fn($obj) => (bool)$obj->fixedWeight === false)->values();
 
     $usedWeight = $fixedObjectives->sum('weight');
-    $remaining = max(0, 100 - $usedWeight); // evitar negativos
+    $remaining = max(0, 100 - $usedWeight);
     $count = $nonFixedObjectives->count();
-    $weight = $count > 0 ? round($remaining / $count, 2) : 0;
 
-    foreach ($nonFixedObjectives as $objective) {
+    // Cada objetivo activo debe tener peso >= 1
+    $baseWeight = $count > 0 ? max(1.0, round($remaining / $count, 2)) : 0;
+
+    // Calcular la diferencia de redondeo (ej: 33.33 × 3 = 99.99 → diff = 0.01)
+    $distributed = round($baseWeight * $count, 2);
+    $diff = round($remaining - $distributed, 2);
+
+    foreach ($nonFixedObjectives as $index => $objective) {
+      // El último objetivo absorbe la diferencia de redondeo para sumar exactamente 100
+      $objectiveWeight = ($index === $count - 1 && $diff != 0)
+        ? max(1.0, round($baseWeight + $diff, 2))
+        : $baseWeight;
+
       $objective->update([
-        'weight' => $weight,
+        'weight' => $objectiveWeight,
         'fixedWeight' => false,
       ]);
     }
@@ -796,8 +835,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     DB::transaction(function () use ($personCycleDetail) {
       $clone = $personCycleDetail->replicate();
 
-      // Limpiar evaluaciones asociadas antes de eliminar
-      $this->cleanupAssociatedEvaluations($personCycleDetail);
+      // Solo eliminar el EvaluationPerson específico de este detalle
+      // NO eliminar EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+      // ya que la persona puede tener otros objetivos en el mismo ciclo
+      $this->cleanupSingleDetailEvaluation($personCycleDetail);
 
       $personCycleDetail->delete();
       $this->recalculateWeights($clone->id, $clone);
@@ -841,6 +882,34 @@ class EvaluationPersonCycleDetailService extends BaseService
   }
 
   /**
+   * Elimina solo el EvaluationPerson asociado a un detalle específico
+   * NO elimina EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+   *
+   * Se usa cuando se elimina MANUALMENTE un objetivo de una persona.
+   * La persona puede tener otros objetivos en el ciclo, por lo que no se debe
+   * eliminar toda su información de evaluación.
+   *
+   * @param EvaluationPersonCycleDetail $detail
+   * @return void
+   */
+  private function cleanupSingleDetailEvaluation(EvaluationPersonCycleDetail $detail)
+  {
+    // 1. Obtener todas las evaluaciones de este ciclo
+    $evaluationIds = Evaluation::where('cycle_id', $detail->cycle_id)
+      ->pluck('id');
+
+    // 2. Eliminar SOLO el EvaluationPerson de este detalle específico
+    foreach ($evaluationIds as $evaluationId) {
+      EvaluationPerson::where('person_cycle_detail_id', $detail->id)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+    }
+
+    // NO eliminamos EvaluationPersonResult ni EvaluationPersonCompetenceDetail
+    // porque la persona puede tener otros objetivos activos en el mismo ciclo
+  }
+
+  /**
    * Limpia todas las evaluaciones asociadas a múltiples EvaluationPersonCycleDetail
    *
    * @param int $personId
@@ -876,6 +945,591 @@ class EvaluationPersonCycleDetailService extends BaseService
       EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
         ->where('person_id', $personId)
         ->delete();
+    }
+  }
+
+  /**
+   * Devuelve una vista previa del estado de pesos por persona en un ciclo,
+   * sin realizar ninguna modificación.
+   * Agrupa en: needs_update (suma != 100) y ok (suma == 100).
+   *
+   * @param int $cycleId
+   * @return array
+   * @throws Exception
+   */
+  public function previewWeightsByCycle(int $cycleId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $personGroups = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->select('person_id', 'category_id')
+      ->distinct()
+      ->get();
+
+    $needsUpdate = [];
+
+    foreach ($personGroups as $group) {
+      $objectives = EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+        ->where('cycle_id', $cycleId)
+        ->where('category_id', $group->category_id)
+        ->whereNull('deleted_at')
+        ->get(['id', 'person_id', 'person', 'category_id', 'category', 'objective_id', 'objective', 'weight', 'fixedWeight']);
+
+      if ($objectives->isEmpty()) {
+        continue;
+      }
+
+      $totalWeight = round($objectives->sum('weight'), 2);
+      $hasLowWeight = $objectives->contains(fn($o) => $o->weight < 1);
+
+      if ($totalWeight == 100.00 && !$hasLowWeight) {
+        continue;
+      }
+
+      $reasons = [];
+      if ($totalWeight != 100.00) $reasons[] = "suma_incorrecta ({$totalWeight})";
+      if ($hasLowWeight) $reasons[] = 'peso_menor_a_1';
+
+      $first = $objectives->first();
+
+      $needsUpdate[] = [
+        'person_id' => $first->person_id,
+        'person' => $first->person,
+        'category_id' => $first->category_id,
+        'category' => $first->category,
+        'total_weight' => $totalWeight,
+        'reasons' => $reasons,
+        'objectives' => $objectives->map(fn($o) => [
+          'id' => $o->id,
+          'objective' => $o->objective,
+          'weight' => $o->weight,
+          'fixedWeight' => (bool)$o->fixedWeight,
+        ])->values(),
+      ];
+    }
+
+    return [
+      'cycle_id' => $cycleId,
+      'needs_update_count' => count($needsUpdate),
+      'needs_update' => $needsUpdate,
+    ];
+  }
+
+  /**
+   * Regenera los pesos de personas en un ciclo cuya suma no es 100.
+   * Omite a quienes ya tienen sus pesos correctamente asignados (suma = 100).
+   * Para cada grupo persona+categoría que no sume 100, redistribuye los pesos
+   * respetando los objetivos con fixedWeight y distribuyendo el resto equitativamente.
+   *
+   * @param int $cycleId
+   * @return array
+   * @throws Exception
+   */
+  public function regenerateWeightsByCycle(int $cycleId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $personGroups = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->select('person_id', 'category_id')
+      ->distinct()
+      ->get();
+
+    $updated = [];
+    $skipped = [];
+
+    foreach ($personGroups as $group) {
+      $objectives = EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+        ->where('cycle_id', $cycleId)
+        ->where('category_id', $group->category_id)
+        ->whereNull('deleted_at')
+        ->get();
+
+      if ($objectives->isEmpty()) {
+        continue;
+      }
+
+      $totalWeight = round($objectives->sum('weight'), 2);
+      $hasLowWeight = $objectives->contains(fn($o) => $o->weight < 1);
+      $personName = $objectives->first()->person;
+      $categoryName = $objectives->first()->category;
+
+      if ($totalWeight == 100.00 && !$hasLowWeight) {
+        $skipped[] = [
+          'person_id' => $group->person_id,
+          'person' => $personName,
+          'category' => $categoryName,
+          'total_weight' => $totalWeight,
+        ];
+        continue;
+      }
+
+      // Redistribuir pesos: respeta fixedWeight, distribuye el resto equitativamente
+      $this->recalculateWeights($objectives->first()->id);
+
+      $newTotal = round(
+        EvaluationPersonCycleDetail::where('person_id', $group->person_id)
+          ->where('cycle_id', $cycleId)
+          ->where('category_id', $group->category_id)
+          ->whereNull('deleted_at')
+          ->sum('weight'),
+        2
+      );
+
+      $updated[] = [
+        'person_id' => $group->person_id,
+        'person' => $personName,
+        'category' => $categoryName,
+        'previous_total_weight' => $totalWeight,
+        'new_total_weight' => $newTotal,
+      ];
+    }
+
+    return [
+      'cycle_id' => $cycleId,
+      'updated_count' => count($updated),
+      'skipped_count' => count($skipped),
+      'updated' => $updated,
+      'skipped' => $skipped,
+    ];
+  }
+
+  /**
+   * Retorna los workers elegibles para un ciclo que aún no están asignados.
+   * Criterios: activo, fecha_inicio <= cut_off_date, sin evaluationDetails,
+   * con supervisor asignado, con categoría jerárquica en su cargo, y con al
+   * menos un objetivo pendiente de insertar (o sin objetivos pero apto).
+   * No restringe por las categorías ya configuradas en el ciclo.
+   *
+   * @param int $cycleId
+   * @return \Illuminate\Support\Collection<Worker>
+   * @throws Exception
+   */
+  public function previewEligibleWorkers(int $cycleId)
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $excludedWorkerIds = EvaluationPersonDetail::whereNull('deleted_at')
+      ->pluck('person_id')
+      ->unique();
+
+    // Objetivos ya insertados en el ciclo por persona: person_id => [objective_ids]
+    $objectivesInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->get(['person_id', 'objective_id'])
+      ->groupBy('person_id')
+      ->map(fn($rows) => $rows->pluck('objective_id'));
+
+    $workers = Worker::whereNotIn('id', $excludedWorkerIds)
+      ->where('fecha_inicio', '<=', $cycle->cut_off_date)
+      ->where('status_id', 22)
+      ->whereDoesntHave('evaluationDetails')
+      ->whereNotNull('supervisor_id')
+      ->whereHas('position.hierarchicalCategory', fn($q) => $q
+        ->where('excluded_from_evaluation', false)
+        ->where('hasObjectives', true)
+      )
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede'])
+      ->get();
+
+    // Incluir workers aptos: sin objetivos asignados aún, o con al menos uno pendiente de insertar
+    return $workers->filter(function (Worker $worker) use ($objectivesInCycle) {
+      $category = $worker->position?->hierarchicalCategory;
+      if (!$category) {
+        return false;
+      }
+
+      // Objetivos que el worker debería tener (tiene EvaluationCategoryObjectiveDetail activo)
+      $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+        ->where('person_id', $worker->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->pluck('objective_id');
+
+      // Sin objetivos personales asignados: no puede entrar al ciclo
+      if ($shouldHaveIds->isEmpty()) {
+        return false;
+      }
+
+      // Objetivos que ya tiene en el ciclo
+      $hasIds = $objectivesInCycle->get($worker->id, collect());
+
+      // Es elegible si le falta al menos uno
+      return $shouldHaveIds->diff($hasIds)->isNotEmpty();
+    })->values();
+  }
+
+  /**
+   * Valida si una persona es elegible para entrar a un ciclo.
+   * Retorna el resultado de cada condición y si es elegible globalmente.
+   *
+   * @param int $cycleId
+   * @param int $workerId
+   * @return array
+   * @throws Exception
+   */
+  public function validateWorkerForCycle(int $cycleId, int $workerId): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $checks = [];
+
+    // Worker existe con global scope (status_deleted=1, b_empleado=1)
+    $worker = Worker::find($workerId);
+    $checks['worker_activo'] = [
+      'pass'    => (bool) $worker,
+      'message' => $worker ? 'Trabajador activo y empleado' : 'Trabajador no encontrado, inactivo o no es empleado',
+    ];
+
+    if (!$worker) {
+      return ['eligible' => false, 'checks' => $checks];
+    }
+
+    // status_id = 22
+    $checks['status'] = [
+      'pass'    => $worker->status_id == 22,
+      'message' => $worker->status_id == 22 ? 'Estado activo (22)' : "Estado inválido ({$worker->status_id}), se requiere 22",
+    ];
+
+    // fecha_inicio <= cut_off_date
+    $checks['fecha_inicio'] = [
+      'pass'    => $worker->fecha_inicio <= $cycle->cut_off_date,
+      'message' => $worker->fecha_inicio <= $cycle->cut_off_date
+        ? "Fecha de inicio ({$worker->fecha_inicio}) dentro del corte ({$cycle->cut_off_date})"
+        : "Fecha de inicio ({$worker->fecha_inicio}) posterior al corte ({$cycle->cut_off_date})",
+    ];
+
+    // Tiene supervisor
+    $checks['supervisor'] = [
+      'pass'    => !is_null($worker->supervisor_id),
+      'message' => $worker->supervisor_id ? "Supervisor asignado (ID {$worker->supervisor_id})" : 'Sin supervisor asignado',
+    ];
+
+    // No tiene EvaluationPersonDetail (excluido global)
+    $isExcluded = EvaluationPersonDetail::whereNull('deleted_at')->where('person_id', $workerId)->exists();
+    $checks['no_excluido'] = [
+      'pass'    => !$isExcluded,
+      'message' => !$isExcluded ? 'No está en la lista de excluidos' : 'Está registrado en EvaluationPersonDetail (excluido)',
+    ];
+
+    // No tiene evaluationDetails
+    $hasEvalDetails = $worker->evaluationDetails()->exists();
+    $checks['sin_evaluation_detail'] = [
+      'pass'    => !$hasEvalDetails,
+      'message' => !$hasEvalDetails ? 'Sin registros de evaluation detail' : 'Ya tiene evaluation details asignados',
+    ];
+
+    // Categoría jerárquica válida
+    $category = $worker->position?->hierarchicalCategory;
+    $validCategory = $category
+      && !$category->excluded_from_evaluation
+      && $category->hasObjectives
+      && !$category->trashed();
+
+    $checks['categoria_valida'] = [
+      'pass'    => $validCategory,
+      'message' => $validCategory
+        ? "Categoría válida: {$category->name} (ID {$category->id})"
+        : (!$category
+          ? 'El cargo no tiene categoría jerárquica asignada'
+          : ($category->excluded_from_evaluation
+            ? "Categoría '{$category->name}' está excluida de evaluación"
+            : (!$category->hasObjectives
+              ? "Categoría '{$category->name}' no tiene objetivos configurados"
+              : "Categoría '{$category->name}' está eliminada"))),
+    ];
+
+    // Objetivos pendientes de insertar en el ciclo
+    $pendingObjectives = 0;
+    $totalObjectives   = 0;
+    $alreadyInCycle    = 0;
+
+    if ($validCategory) {
+      $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+        ->where('person_id', $workerId)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->pluck('objective_id');
+
+      $hasIds = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+        ->whereNull('deleted_at')
+        ->where('person_id', $workerId)
+        ->pluck('objective_id');
+
+      $totalObjectives   = $shouldHaveIds->count();
+      $alreadyInCycle    = $shouldHaveIds->intersect($hasIds)->count();
+      $pendingObjectives = $shouldHaveIds->diff($hasIds)->count();
+    }
+
+    $checks['objetivos'] = [
+      'pass'              => $validCategory && $pendingObjectives > 0,
+      'total'             => $totalObjectives,
+      'ya_en_ciclo'       => $alreadyInCycle,
+      'pendientes'        => $pendingObjectives,
+      'message'           => !$validCategory
+        ? 'No aplica (categoría inválida)'
+        : ($totalObjectives === 0
+          ? 'Sin objetivos personales asignados en su categoría, no puede entrar al ciclo'
+          : ($pendingObjectives > 0
+            ? "{$pendingObjectives} objetivo(s) pendientes de insertar"
+            : 'Todos los objetivos ya están en el ciclo')),
+    ];
+
+    $eligible = collect($checks)->every(fn($c) => $c['pass']);
+
+    return [
+      'eligible' => $eligible,
+      'worker'   => [
+        'id'             => $worker->id,
+        'nombre'         => $worker->nombre_completo,
+        'cargo_id'       => $worker->cargo_id,
+        'categoria'      => $category?->name,
+        'categoria_id'   => $category?->id,
+      ],
+      'cycle_id' => $cycleId,
+      'checks'   => $checks,
+    ];
+  }
+
+  /**
+   * Inserta múltiples workers en un ciclo individualmente.
+   * Devuelve resumen de agregados y errores.
+   *
+   * @param int $cycleId
+   * @param array $workerIds
+   * @return array
+   * @throws Exception
+   */
+  public function storeManyByWorker(int $cycleId, array $workerIds): array
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $added = [];
+    $errors = [];
+
+    foreach ($workerIds as $workerId) {
+      try {
+        $this->storeByWorkerAndCycle($cycleId, $workerId);
+        $added[] = $workerId;
+      } catch (Exception $e) {
+        $errors[] = ['worker_id' => $workerId, 'message' => $e->getMessage()];
+      }
+    }
+
+    return [
+      'added' => $added,
+      'errors' => $errors,
+      'summary' => [
+        'added_count' => count($added),
+        'errors_count' => count($errors),
+      ],
+    ];
+  }
+
+  /**
+   * Inserta un worker individual en un ciclo, creando sus EvaluationPersonCycleDetail
+   * por cada objetivo activo de su categoría jerárquica.
+   *
+   * @param int $cycleId
+   * @param int $workerId
+   * @throws Exception
+   */
+  public function storeByWorkerAndCycle(int $cycleId, int $workerId): void
+  {
+    $cycle = EvaluationCycle::find($cycleId);
+    if (!$cycle) {
+      throw new Exception('Ciclo no encontrado');
+    }
+
+    $person = Worker::find($workerId);
+    if (!$person) {
+      throw new Exception("Persona con ID {$workerId} no encontrada");
+    }
+
+    $hierarchicalCategory = $person->position?->hierarchicalCategory;
+    if (!$hierarchicalCategory) {
+      throw new Exception("La persona {$person->nombre_completo} no tiene una categoría jerárquica asignada.");
+    }
+
+    if ($hierarchicalCategory->excluded_from_evaluation) {
+      throw new Exception("La categoría '{$hierarchicalCategory->name}' está excluida de evaluación.");
+    }
+
+    if (!$hierarchicalCategory->hasObjectives) {
+      throw new Exception("La categoría '{$hierarchicalCategory->name}' no tiene objetivos configurados.");
+    }
+
+    // Si la categoría no está en el ciclo, agregarla automáticamente (restaurando si fue soft-deleted)
+    $cycleCategoryDetail = EvaluationCycleCategoryDetail::withTrashed()
+      ->where('cycle_id', $cycleId)
+      ->where('hierarchical_category_id', $hierarchicalCategory->id)
+      ->first();
+
+    if ($cycleCategoryDetail) {
+      if ($cycleCategoryDetail->trashed()) {
+        $cycleCategoryDetail->restore();
+      }
+    } else {
+      EvaluationCycleCategoryDetail::create([
+        'cycle_id' => $cycleId,
+        'hierarchical_category_id' => $hierarchicalCategory->id,
+      ]);
+    }
+
+    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    if (!$evaluatorId) {
+      throw new Exception("La persona {$person->nombre_completo} no tiene un evaluador asignado.");
+    }
+
+    $chief = Worker::find($evaluatorId);
+    $objectives = $hierarchicalCategory->objectives()->get();
+    $previousCycle = EvaluationCycle::where('id', '<', $cycleId)->orderBy('id', 'desc')->first();
+
+    // Pre-cargar los objective_ids que el worker ya tiene en este ciclo para no repetir consultas
+    $existingObjectiveIds = EvaluationPersonCycleDetail::where('person_id', $person->id)
+      ->where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->pluck('objective_id');
+
+    foreach ($objectives as $objective) {
+      // Saltar si este objetivo ya está insertado en el ciclo para esta persona
+      if ($existingObjectiveIds->contains($objective->id)) {
+        continue;
+      }
+
+      $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->where('category_id', $hierarchicalCategory->id)
+        ->where('person_id', $person->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->first();
+
+      if (!$categoryObjective) {
+        continue;
+      }
+
+      $goal = 0;
+      $weight = 0;
+
+      if ($previousCycle) {
+        $prev = EvaluationPersonCycleDetail::where('person_id', $person->id)
+          ->where('cycle_id', $previousCycle->id)
+          ->where('category_id', $hierarchicalCategory->id)
+          ->where('objective_id', $objective->id)
+          ->whereNull('deleted_at')
+          ->first();
+        $goal = $prev?->goal ?? 0;
+        $weight = $prev?->weight ?? 0;
+      }
+
+      if ($goal === 0) {
+        $goal = $categoryObjective->goal ?? 0;
+        if ($weight === 0) {
+          $weight = $categoryObjective->weight ?? 0;
+        }
+      }
+
+      if ($goal === 0) {
+        $goal = $objective->goalReference;
+        if ($weight === 0) {
+          $weight = round(100 / $objectives->count(), 2);
+        }
+      }
+
+      EvaluationPersonCycleDetail::create([
+        'person_id' => $person->id,
+        'chief_id' => $evaluatorId,
+        'position_id' => $person->cargo_id,
+        'sede_id' => $person->sede_id,
+        'area_id' => $person->area_id,
+        'cycle_id' => $cycleId,
+        'category_id' => $hierarchicalCategory->id,
+        'objective_id' => $objective->id,
+        'isAscending' => $objective->isAscending,
+        'person' => $person->nombre_completo,
+        'chief' => $chief?->nombre_completo ?? '',
+        'position' => $person->position?->name ?? '',
+        'sede' => $person->sede?->abreviatura ?? '',
+        'area' => $person->position?->area?->name ?? '',
+        'category' => $hierarchicalCategory->name,
+        'objective' => $objective->name,
+        'goal' => $goal,
+        'weight' => $weight,
+        'metric' => $objective->metric?->name
+          ?? throw new Exception("El objetivo {$objective->name} no tiene una métrica asignada."),
+        'end_date_objectives' => $cycle->end_date_objectives,
+      ]);
+    }
+
+    // Verificar que se haya creado al menos un registro
+    $createdCount = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('person_id', $person->id)
+      ->whereNull('deleted_at')
+      ->count();
+
+    if ($createdCount === 0) {
+      throw new Exception("No se pudieron crear registros para {$person->nombre_completo}. La persona no tiene objetivos asignados en su categoría '{$hierarchicalCategory->name}'.");
+    }
+
+    // Recalcular pesos para esta persona en el ciclo
+    $firstDetail = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('person_id', $person->id)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if ($firstDetail) {
+      $this->recalculateWeights($firstDetail->id);
+    }
+
+    // Reflejar al trabajador en las evaluaciones ya existentes del ciclo
+    $evaluations = Evaluation::where('cycle_id', $cycleId)->get();
+
+    if ($evaluations->isNotEmpty()) {
+      $personCycleDetails = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+        ->where('person_id', $person->id)
+        ->whereNull('deleted_at')
+        ->get();
+
+      foreach ($evaluations as $evaluation) {
+        foreach ($personCycleDetails as $detail) {
+          $exists = EvaluationPerson::where('evaluation_id', $evaluation->id)
+            ->where('person_cycle_detail_id', $detail->id)
+            ->exists();
+
+          if (!$exists) {
+            EvaluationPerson::create([
+              'person_id'             => $detail->person_id,
+              'chief_id'              => $detail->chief_id,
+              'chief'                 => $detail->chief,
+              'person_cycle_detail_id' => $detail->id,
+              'evaluation_id'         => $evaluation->id,
+              'result'                => 0,
+              'compliance'            => 0,
+              'qualification'         => 0,
+              'wasEvaluated'          => 0,
+            ]);
+          }
+        }
+      }
     }
   }
 

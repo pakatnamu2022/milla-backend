@@ -54,12 +54,29 @@ class SunatConcepts extends Model
   // IDs específicos de tipos de transacción (basados en query)
   const ID_VENTA_INTERNA = 33;                // Venta Interna (code: 01)
   const ID_VENTA_INTERNA_ANTICIPOS = 36;      // Venta Interna - Anticipos (code: 04)
+  const ID_SUJETA_DETRACCION = 129;
 
   // IDs específicos de tipos de IGV (basados en query)
   const ID_IGV_GRAVADO_ONEROSA = 49;          // Gravado - Operación Onerosa (code: 10, tribute: 1000) - SUNAT
   const ID_IGV_EXPORTACION = 67;              // Exportación de Bienes o Servicios (code: 40, tribute: 9995)
   const ID_IGV_ANTICIPO_GRAVADO = 49;        // Gravado - Operación Onerosa (code: 1, tribute: 1000) - Código Nubefact para anticipos
   // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
+
+  // IDs específicos de tipos de notas de crédito (BILLING_CREDIT_NOTE_TYPE, status=1)
+  const ID_CREDIT_NOTE_ANULACION = 68;            // Anulación de la operación (code: 01)
+  const ID_CREDIT_NOTE_DESCUENTO_GLOBAL = 71;     // Descuento global (code: 04)
+  const ID_CREDIT_NOTE_DEVOLUCION_TOTAL = 73;     // Devolución total (code: 06)
+  const ID_CREDIT_NOTE_DEVOLUCION_ITEM = 74;      // Devolución por ítem (code: 07)
+
+  // Códigos de tipos de notas de crédito (code_nubefact)
+  const CODE_CREDIT_NOTE_ANULACION = '01';
+  const CODE_CREDIT_NOTE_DESCUENTO_GLOBAL = '04';
+  const CODE_CREDIT_NOTE_DEVOLUCION_TOTAL = '06';
+  const CODE_CREDIT_NOTE_DEVOLUCION_ITEM = '07';
+
+  // IDs Detraction Types (basados en query)
+  const ID_DETRACTION_SERVICIOS = 120;         // Servicios (code: 037)
+  const ID_DETRACTION_MANTENIMIENTO_REPACION = 105; // Mantenimiento y Reparación de Bienes (code: 020)
 
   const filters = [
     'id' => '=',
@@ -86,6 +103,8 @@ class SunatConcepts extends Model
   const TRANSFER_REASON_TRASLADO_SEDE = 17;
   const TRANSFER_REASON_COMPRA = 15;
   const TRANSFER_REASON_VENTA = 14;
+  const TRANSFER_REASON_CONSIGNACION = 18;
+  const TRANSFER_REASON_OTROS = 23;
 
   // IDs especificos de TYPE_TRANSPORTATION
   const TYPE_TRANSPORTATION_PUBLICO = 27;

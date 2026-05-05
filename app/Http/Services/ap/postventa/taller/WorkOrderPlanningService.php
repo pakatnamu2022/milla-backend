@@ -58,9 +58,27 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Calcular planned_end_datetime si es necesario
     $data = $this->calculatePlannedEndDatetime($data);
 
-    // Ejecutar validaciones antes de crear
-    $this->validateWorkerSchedule($data);
+    // Para tipo 'internal', dividir automáticamente si cruza almuerzo o excede horario laboral
+    if ($data['type'] === 'internal') {
+      $timeBlocks = $this->splitIntoTimeBlocks($data);
 
+      // Validar cada bloque antes de crear
+      foreach ($timeBlocks as $block) {
+        $this->validateWorkerSchedule($block);
+      }
+
+      // Crear todos los bloques
+      $plannings = [];
+      foreach ($timeBlocks as $block) {
+        $plannings[] = ApWorkOrderPlanning::create($block);
+      }
+
+      // Retornar el primer planning creado con su relación
+      return new WorkOrderPlanningResource($plannings[0]->load(['worker', 'workOrder']));
+    }
+
+    // Para tipo 'external', crear normalmente
+    $this->validateWorkerSchedule($data);
     $planning = ApWorkOrderPlanning::create($data);
     return new WorkOrderPlanningResource($planning->load(['worker', 'workOrder']));
   }
@@ -77,6 +95,110 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     }
 
     return $data;
+  }
+
+  /**
+   * Divide un rango horario en múltiples bloques si cruza almuerzo o excede horario laboral
+   */
+  private function splitIntoTimeBlocks(array $data): array
+  {
+    $start = Carbon::parse($data['planned_start_datetime']);
+    $end = Carbon::parse($data['planned_end_datetime']);
+    $currentDate = $start->format('Y-m-d');
+
+    // Construir los límites de horarios usando las constantes
+    $lunchStart = Carbon::parse($currentDate . ' ' . ApWorkOrderPlanning::LUNCH_START_TIME);
+    $lunchEnd = Carbon::parse($currentDate . ' ' . ApWorkOrderPlanning::LUNCH_END_TIME);
+    $workEnd = Carbon::parse($currentDate . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
+    $nextDayWorkStart = Carbon::parse($start->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_START_TIME)->addDay();
+
+    $blocks = [];
+    $currentStart = $start->copy();
+
+    // Caso 1: El rango no cruza almuerzo ni excede horario - retornar tal cual
+    if ($end <= $lunchStart || ($currentStart >= $lunchEnd && $end <= $workEnd)) {
+      return [$data];
+    }
+
+    // Caso 2: Cruza almuerzo
+    if ($currentStart < $lunchStart && $end > $lunchStart) {
+      // Calcular minutos totales solicitados
+      $totalMinutes = $currentStart->diffInMinutes($end);
+
+      // Calcular minutos del primer bloque (antes del almuerzo)
+      $block1Minutes = $currentStart->diffInMinutes($lunchStart);
+
+      // Calcular minutos restantes después del primer bloque
+      $remainingMinutes = $totalMinutes - $block1Minutes;
+
+      // Calcular el verdadero end time después del almuerzo
+      $actualEnd = $lunchEnd->copy()->addMinutes($remainingMinutes);
+
+      // Verificar si el verdadero end time excede el horario laboral
+      if ($actualEnd <= $workEnd) {
+        // Caso 2a: Cruza almuerzo pero no excede horario laboral - dividir en 2 bloques
+        $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
+
+        if ($remainingMinutes > 0) {
+          $blocks[] = $this->createBlock($data, $lunchEnd, $actualEnd);
+        }
+
+        return $blocks;
+      } else {
+        // Caso 2b: Cruza almuerzo Y excede horario laboral - dividir en 3 bloques
+        // Bloque 1: desde inicio hasta inicio de almuerzo
+        $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
+
+        // Bloque 2: desde fin de almuerzo hasta fin de jornada (6pm)
+        $blocks[] = $this->createBlock($data, $lunchEnd, $workEnd);
+
+        // Calcular minutos del bloque 2
+        $block2Minutes = $lunchEnd->diffInMinutes($workEnd);
+
+        // Calcular minutos restantes para el día siguiente
+        $nextDayMinutes = $remainingMinutes - $block2Minutes;
+
+        // Bloque 3: las horas restantes van al día siguiente desde 8am
+        if ($nextDayMinutes > 0) {
+          $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($nextDayMinutes);
+          $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
+        }
+
+        return $blocks;
+      }
+    }
+
+    // Caso 3: No cruza almuerzo pero excede horario laboral
+    if (($currentStart >= $lunchEnd || $end <= $lunchStart) && $end > $workEnd) {
+      // Bloque 1: desde inicio hasta fin de jornada (6pm)
+      $blocks[] = $this->createBlock($data, $currentStart, $workEnd);
+
+      // Bloque 2: las horas restantes van al día siguiente desde 8am
+      $remainingMinutes = $workEnd->diffInMinutes($end);
+      $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($remainingMinutes);
+      $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
+
+      return $blocks;
+    }
+
+    // Por defecto, retornar el bloque original si no entra en ningún caso
+    return [$data];
+  }
+
+  /**
+   * Crea un bloque de planificación con las fechas y horas especificadas
+   */
+  private function createBlock(array $baseData, Carbon $start, Carbon $end): array
+  {
+    $block = $baseData;
+    $block['planned_start_datetime'] = $start->format('Y-m-d H:i:s');
+    $block['planned_end_datetime'] = $end->format('Y-m-d H:i:s');
+
+    // Calcular estimated_hours basado en la diferencia de tiempo
+    $minutes = $start->diffInMinutes($end);
+    $block['estimated_hours'] = round($minutes / 60, 2);
+
+    return $block;
   }
 
   /**
@@ -157,33 +279,54 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       );
     }
 
-    // 2. Verificar que no tenga ya un trabajo "external" ese día (solo 1 por día)
-    $hasExternalWork = $workerPlannings->where('type', 'external')->count() > 0;
-    if ($hasExternalWork) {
-      throw new Exception(
-        'El trabajador ya tiene un trabajo excepcional asignado para este día. ' .
-        'Solo se permite 1 trabajo externo por día.'
-      );
-    }
+    // 2. Obtener trabajos "external" existentes ese día
+    $externalWorks = $workerPlannings->where('type', 'external');
 
-    // 3. Obtener el último trabajo "internal" del día
-    $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya está ordenado por planned_end_datetime desc
+    if ($externalWorks->count() > 0) {
+      // Si ya hay trabajos excepcionales, validar que el nuevo comience después del último
+      $lastExternalWork = $externalWorks->first(); // Ya está ordenado por planned_end_datetime desc
 
-    if ($lastInternalWork) {
-      $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
-      $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' 18:00:00'); // 6pm
-
-      // 4. Verificar si aún le falta tiempo hasta las 6pm
-      if ($lastEndTime->lt($endOfWorkDay)) {
-        $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay);
-        $remainingHours = round($remainingMinutes / 60, 2);
-
+      // Validar que el último trabajo excepcional esté completado
+      if ($lastExternalWork->status !== 'completed') {
         throw new Exception(
-          "El trabajador terminó su último trabajo a las {$lastEndTime->format('H:i')}. " .
-          "Aún tiene {$remainingHours} horas disponibles hasta las 18:00 (fin de jornada). " .
-          "Debe asignarle trabajos con normalidad en el rango de {$lastEndTime->format('H:i')} a 18:00 " .
-          "antes de poder asignar trabajo de tipo excepcional."
+          "No se puede asignar un nuevo trabajo excepcional. " .
+          "El último trabajo excepcional (desde las {$lastExternalWork->planned_start_datetime->format('H:i')} " .
+          "hasta las {$lastExternalWork->planned_end_datetime->format('H:i')}) aún no ha sido completado. " .
+          "Debe completar el trabajo excepcional actual antes de asignar uno nuevo."
         );
+      }
+
+      $lastExternalEndTime = Carbon::parse($lastExternalWork->planned_end_datetime);
+
+      // El nuevo trabajo excepcional debe comenzar desde la hora fin del último trabajo excepcional en adelante
+      if ($plannedStart->lt($lastExternalEndTime)) {
+        throw new Exception(
+          "El nuevo trabajo excepcional debe comenzar a partir de las {$lastExternalEndTime->format('H:i')} " .
+          "(hora fin del último trabajo excepcional). " .
+          "El horario asignado comienza a las {$plannedStart->format('H:i')}."
+        );
+      }
+    } else {
+      // Si no hay trabajos excepcionales previos, validar con el último trabajo "internal"
+      // 3. Obtener el último trabajo "internal" del día
+      $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya está ordenado por planned_end_datetime desc
+
+      if ($lastInternalWork) {
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+        $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
+
+        // 4. Verificar que el último trabajo termine exactamente a las 6pm
+        if (!$lastEndTime->equalTo($endOfWorkDay)) {
+          $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay);
+          $remainingHours = round($remainingMinutes / 60, 2);
+
+          throw new Exception(
+            "El trabajador terminó su último trabajo a las {$lastEndTime->format('H:i')}. " .
+            "Para asignar trabajo excepcional, el último trabajo del día debe terminar exactamente a las " . ApWorkOrderPlanning::WORK_END_TIME . " (fin de jornada). " .
+            "Actualmente hay una diferencia de {$remainingHours} horas. " .
+            "Debe asignarle trabajos con normalidad hasta completar la jornada antes de poder asignar trabajo de tipo excepcional."
+          );
+        }
       }
     }
   }
@@ -196,32 +339,22 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $startTime = $plannedStart->format('H:i');
     $endTime = $plannedEnd->format('H:i');
 
-    // Horarios válidos para type "internal":
-    // - Mañana: 08:00 - 13:00 (1pm)
-    // - Tarde: 14:24 - 18:00 (6pm)
-
-    $morningStart = '08:00';
-    $morningEnd = '13:00';
-    $afternoonStart = '14:24';
-    $afternoonEnd = '18:00';
+    // Usar constantes del modelo
+    $morningStart = ApWorkOrderPlanning::WORK_START_TIME;
+    $morningEnd = ApWorkOrderPlanning::LUNCH_START_TIME;
+    $afternoonStart = ApWorkOrderPlanning::LUNCH_END_TIME;
+    $afternoonEnd = ApWorkOrderPlanning::WORK_END_TIME;
 
     $isInMorningShift = $startTime >= $morningStart && $endTime <= $morningEnd;
     $isInAfternoonShift = $startTime >= $afternoonStart && $endTime <= $afternoonEnd;
 
     // Validar que el horario esté dentro de los rangos permitidos
+    // Ya no validamos si cruza turnos porque ahora se divide automáticamente
     if (!$isInMorningShift && !$isInAfternoonShift) {
       throw new Exception(
         "Los trabajos deben estar dentro de los horarios permitidos: " .
-        "Mañana (08:00 - 13:00) o Tarde (14:24 - 18:00). " .
+        "Mañana ({$morningStart} - {$morningEnd}) o Tarde ({$afternoonStart} - {$afternoonEnd}). " .
         "El horario asignado ({$startTime} - {$endTime}) está fuera de estos rangos."
-      );
-    }
-
-    // Validar que no cruce entre turnos (mañana -> tarde)
-    if ($startTime < $morningEnd && $endTime > $afternoonStart) {
-      throw new Exception(
-        "El horario asignado ({$startTime} - {$endTime}) cruza entre el turno de mañana y tarde. " .
-        "Debe crear trabajos separados para cada turno."
       );
     }
   }
@@ -269,6 +402,15 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   public function destroy($id)
   {
     $planning = $this->find($id);
+
+    // Validar que el trabajo no haya sido iniciado
+    if ($planning->status !== 'pending') {
+      throw new Exception(
+        'No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo. ' .
+        'Solo se pueden eliminar planificaciones que aún no han comenzado.'
+      );
+    }
+
     $planning->delete();
     return response()->json(['message' => 'Planificación eliminada correctamente']);
   }
@@ -307,18 +449,31 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $statuses = $items->pluck('status')->unique();
       $groupStatus = $this->determineGroupStatus($statuses);
 
-      // Obtener información de trabajadores
-      $workers = $items->map(function ($item) {
+      // Obtener información de trabajadores agrupados por worker_id (sin duplicados)
+      $workersByWorkerId = $items->groupBy('worker_id');
+
+      $workers = $workersByWorkerId->map(function ($workerItems, $workerId) {
+        // Sumar las horas del mismo trabajador
+        $totalWorkerEstimatedHours = $workerItems->sum('estimated_hours');
+        $totalWorkerActualHours = $workerItems->sum('actual_hours');
+
+        // Tomar el primer item para obtener datos generales
+        $firstItem = $workerItems->first();
+
+        // Determinar el estado del trabajador
+        $workerStatuses = $workerItems->pluck('status')->unique();
+        $workerStatus = $this->determineGroupStatus($workerStatuses);
+
         return [
-          'worker_id' => $item->worker_id,
-          'worker_name' => $item->worker ? $item->worker->nombre_completo : 'N/A',
-          'estimated_hours' => $item->estimated_hours,
-          'actual_hours' => $item->actual_hours,
-          'status' => $item->status,
-          'planned_start_datetime' => $item->planned_start_datetime,
-          'planned_end_datetime' => $item->planned_end_datetime,
-          'actual_start_datetime' => $item->actual_start_datetime,
-          'actual_end_datetime' => $item->actual_end_datetime,
+          'worker_id' => $workerId,
+          'worker_name' => $firstItem->worker ? $firstItem->worker->nombre_completo : 'N/A',
+          'estimated_hours' => round($totalWorkerEstimatedHours, 2),
+          'actual_hours' => round($totalWorkerActualHours, 2),
+          'status' => $workerStatus,
+          'planned_start_datetime' => $firstItem->planned_start_datetime,
+          'planned_end_datetime' => $workerItems->last()->planned_end_datetime,
+          'actual_start_datetime' => $firstItem->actual_start_datetime,
+          'actual_end_datetime' => $workerItems->last()->actual_end_datetime,
         ];
       })->values();
 
@@ -330,7 +485,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         'remaining_hours' => round($totalEstimatedHours - $totalActualHours, 2),
         'progress_percentage' => $progressPercentage,
         'status' => $groupStatus,
-        'workers_count' => $items->count(),
+        'workers_count' => $workersByWorkerId->count(),
         'workers' => $workers,
       ];
     }

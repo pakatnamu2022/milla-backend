@@ -31,10 +31,13 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     $hierarchicalCategory = HierarchicalCategory::findOrFail($id);
     $workers = $hierarchicalCategory->workers()->get();
 
-//    agrupar objetivos por person_id y dentro de la persona que este los objetivos
-    $workersWithObjectives = $workers->map(function ($worker) use ($id) {
+//  Agrupar objetivos por person_id y dentro de la persona que este los objetivos
+    return $workers->map(function ($worker) use ($id) {
       $objectives = EvaluationCategoryObjectiveDetail::where('category_id', $id)
         ->where('person_id', $worker->id)
+        ->whereHas('objective', function ($query) {
+          $query->where('active', true);
+        })
         ->whereNull('deleted_at')
         ->get();
       return [
@@ -42,14 +45,13 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         'objectives' => EvaluationCategoryObjectiveDetailResource::collection($objectives),
       ];
     });
-
-    return $workersWithObjectives;
   }
 
   public function recalculateWeights($categoryId, $personId)
   {
     $allObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
       ->where('person_id', $personId)
+      ->where('active', 1)
       ->whereNull('deleted_at');
 
     $activeObjectives = (clone $allObjectives)->where('active', true)->get();
@@ -117,6 +119,9 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         // Verificar el estado actual del trabajador
         $existingObjectivesCount = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
           ->where('person_id', $workerId)
+          ->whereHas('objective', function ($query) {
+            $query->where('active', true);
+          })
           ->count();
 
         $hasActiveObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
@@ -155,6 +160,58 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
         $this->recalculateWeights($category->id, $workerId);
       }
     }
+  }
+
+  public function regeneratePersonObjectives(int $categoryId, int $personId)
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $objectives = $category->objectives()->pluck('gh_evaluation_objective.id')->toArray();
+
+    foreach ($objectives as $objectiveId) {
+      $exists = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->where('objective_id', $objectiveId)
+        ->exists();
+
+      if (!$exists) {
+        $objective = EvaluationObjective::findOrFail($objectiveId);
+        EvaluationCategoryObjectiveDetail::create([
+          'objective_id' => $objectiveId,
+          'category_id' => $categoryId,
+          'person_id' => $personId,
+          'goal' => $objective->goalReference,
+          'fixedWeight' => false,
+          'weight' => 0,
+          'active' => 1,
+        ]);
+      }
+    }
+
+    $this->recalculateWeights($categoryId, $personId);
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->whereNull('deleted_at')
+        ->get()
+    );
+  }
+
+  public function recalculateHomogeneousWeights(int $categoryId, int $personId)
+  {
+    EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at')
+      ->update(['fixedWeight' => false, 'weight' => 0]);
+
+    $this->recalculateWeights($categoryId, $personId);
+
+    return EvaluationCategoryObjectiveDetailResource::collection(
+      EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->whereNull('deleted_at')
+        ->get()
+    );
   }
 
   public function find($id)

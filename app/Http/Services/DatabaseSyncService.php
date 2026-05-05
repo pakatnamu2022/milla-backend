@@ -4,7 +4,6 @@ namespace App\Http\Services;
 
 use Exception;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class DatabaseSyncService
 {
@@ -32,7 +31,7 @@ class DatabaseSyncService
       }
 
       $result = $this->syncToDatabase($connectionName, $syncConfig, $data, $action);
-      Log::info("Sincronización exitosa a {$connectionName} para la entidad {$entity} con acción {$action}");
+
       $results[$connectionName] = [
         'success' => true,
         'result' => $result,
@@ -164,10 +163,15 @@ class DatabaseSyncService
     if ($syncMode === 'upsert' && isset($config['unique_key'])) {
       // Usar upsert si está configurado
       $uniqueKey = $config['unique_key'];
-      return $connection->table($table)->updateOrInsert(
-        [$uniqueKey => $data[$uniqueKey]],
-        $data
-      );
+
+      // Soportar clave compuesta (array) o clave simple (string)
+      if (is_array($uniqueKey)) {
+        $uniqueCondition = array_intersect_key($data, array_flip($uniqueKey));
+      } else {
+        $uniqueCondition = [$uniqueKey => $data[$uniqueKey]];
+      }
+
+      return $connection->table($table)->updateOrInsert($uniqueCondition, $data);
     }
 
     // Insert normal

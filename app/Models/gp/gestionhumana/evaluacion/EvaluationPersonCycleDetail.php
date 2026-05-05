@@ -41,7 +41,7 @@ class EvaluationPersonCycleDetail extends BaseModel
   ];
 
   const filters = [
-    'search' => ['person'],
+    'search' => ['person', 'chief', 'position', 'sede', 'area', 'category', 'objective'],
     'person_id' => '=',
     'chief_id' => '=',
     'position_id' => '=',

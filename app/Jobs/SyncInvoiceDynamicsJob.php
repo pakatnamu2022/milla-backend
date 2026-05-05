@@ -2,12 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehicleMovementService;
+use App\Http\Services\ap\compras\PurchaseOrderService;
+use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -129,7 +133,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
           'migration_status' => 'updated_with_nc',
-          'status' => !empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt) // Si son iguales, marcar como false (anulada)
+          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) // Si son iguales, marcar como false (anulada)
         ]);
 
         return;
@@ -152,6 +156,28 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'receipt_dynamics' => $newReceipt
         ]);
 
+        if ($purchaseOrder->reception) {
+          $purchaseReceptionService = new PurchaseReceptionService();
+          $purchaseReceptionService->processReceptionStock($purchaseOrder);
+        }
+
+        // Solo si la factura no está anulada (invoice != receipt)
+        $isNotVoided = $newInvoice !== $newReceipt;
+
+        /**
+         * Asignar vehículo a la cotización una vez contabilizada la factura
+         */
+        if ($isNotVoided && $purchaseOrder->quotation_id && $purchaseOrder->vehicle) {
+          try {
+            $quoteService = new PurchaseRequestQuoteService();
+            $quoteService->assignVehicle([
+              'id' => $purchaseOrder->quotation_id,
+              'ap_vehicle_id' => $purchaseOrder->vehicle->id,
+            ]);
+          } catch (Throwable $e) {
+            Log::error("Error al asignar vehículo a cotización para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
+        }
 
         /**
          * Crear movimiento de vehículo en tránsito
@@ -160,15 +186,29 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           try {
             $vehicleMovementService = new VehicleMovementService();
             $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
-          } catch (\Exception $e) {
+          } catch (Throwable $e) {
+            Log::error("Error al crear movimiento de vehículo en tránsito para OC #{$purchaseOrder->id}: {$e->getMessage()}");
           }
         }
+
+        /**
+         * Vincular anticipos de la cotización al vehículo
+         */
+        try {
+          app(PurchaseOrderService::class)->linkAnticipationsToVehicle($purchaseOrder);
+        } catch (Throwable $e) {
+          Log::error("Error al vincular anticipos al vehículo para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+        }
+
         return;
       }
 
-      $hasInTransitMovement = $purchaseOrder->vehicle()->vehicleMovements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-        ->exists();
+      $vehicle = $purchaseOrder->vehicle;
+      $hasInTransitMovement = $vehicle
+        ? $vehicle->vehicleMovements()
+          ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
+          ->exists()
+        : false;
 
       /**
        * CASO 3: OC con factura pero sin movimiento (recuperación)

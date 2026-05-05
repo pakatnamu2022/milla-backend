@@ -105,5 +105,47 @@ class DigitalFileService extends BaseService
     return Storage::disk('s3')->url($fileName);
   }
 
+  /**
+   * Sube contenido raw (ej. PDF generado en memoria) a S3 y registra en gp_digital_files.
+   *
+   * @param string      $content    Contenido binario del archivo
+   * @param string      $filename   Nombre base del archivo (ej. "assignment_1_2026-01-01.pdf")
+   * @param string      $path       Directorio en S3 (con slash al final)
+   * @param string      $visibility 'public' | 'private'
+   * @param string      $mimeType   MIME type del archivo
+   * @param string|null $model      Nombre de la tabla relacionada
+   * @param int         $idModel    ID del registro relacionado
+   */
+  public function storeFromContent(
+    string  $content,
+    string  $filename,
+    string  $path = '/gp/files/',
+    string  $visibility = 'public',
+    string  $mimeType = 'application/pdf',
+    ?string $model = null,
+    int     $idModel = 0
+  ): DigitalFile {
+    $s3Path = $path . time() . '_' . $filename;
+
+    Storage::disk('s3')->put($s3Path, $content, ['visibility' => $visibility]);
+
+    $url = Storage::disk('s3')->url($s3Path);
+
+    $digitalFile = DigitalFile::create([
+      'name'     => $s3Path,
+      'model'    => $model ?? (new DigitalFile())->getTable(),
+      'id_model' => $idModel ?: 0,
+      'url'      => $url,
+      'mimeType' => $mimeType,
+    ]);
+
+    if ($idModel === 0) {
+      $digitalFile->id_model = $digitalFile->id;
+      $digitalFile->save();
+    }
+
+    return $digitalFile;
+  }
+
 
 }

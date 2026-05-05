@@ -3,13 +3,25 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\Dynamics\AccountingEntryHeaderDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
+use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
+use App\Http\Services\ap\facturacion\AccountingEntryService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
+use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -49,7 +61,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     );
   }
 
-  public function find($id)
+  /**
+   * @param $id
+   * @return ShippingGuides
+   * @throws Exception
+   */
+  public function find($id): ShippingGuides
   {
     $document = ShippingGuides::find($id);
 
@@ -101,7 +118,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $documentNumber = null;
       $documentSeriesId = null;
 
-      if ($data['issuer_type'] == 'NOSOTROS') {
+      if ($data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         if (empty($data['document_series_id'])) {
           throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
         }
@@ -109,11 +126,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         // Generar automáticamente la serie y correlativo
         $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
         $series = $assignSeries->series;
-        $correlativeStart = $assignSeries->correlative_start;
 
-        // Contar documentos existentes con la misma serie
-        $existingCount = ShippingGuides::where('document_series_id', $data['document_series_id'])->count();
-        $correlativeNumber = $correlativeStart + $existingCount + 1;
+        $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->max('correlative');
+        $correlativeNumber = $maxCorrelative !== null
+          ? ((int)$maxCorrelative) + 1
+          : $assignSeries->correlative_start + 1;
 
         $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
         $documentNumber = $series . '-' . $correlative;
@@ -135,11 +153,26 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 4. Manejar type_voucher_id para guías de remisión
       $typeVoucherId = null;
-      if ($data['document_type'] == 'GUIA_REMISION') {
+      if ($data['document_type'] == ShippingGuides::DOCUMENT_TYPE_GR) {
         $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
-      // 5. Crear la guía de remisión
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $rucTransport = null;
+      $companyNameTransport = null;
+      if (
+        isset($data['transfer_modality_id']) &&
+        (int)$data['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($data['transport_company_id'])
+      ) {
+        $transportCompany = BusinessPartners::find($data['transport_company_id']);
+        if ($transportCompany) {
+          $rucTransport = $transportCompany->num_doc;
+          $companyNameTransport = $transportCompany->full_name;
+        }
+      }
+
+      // 6. Crear la guía de remisión
       $documentData = [
         'document_type' => $data['document_type'],
         'type_voucher_id' => $typeVoucherId,
@@ -158,6 +191,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'transmitter_id' => $data['transmitter_id'],
         'receiver_id' => $data['receiver_id'],
         'transport_company_id' => $data['transport_company_id'] ?? null,
+        'ruc_transport' => $rucTransport,
+        'company_name_transport' => $companyNameTransport,
         'driver_doc' => $data['driver_doc'] ?? null,
         'license' => $data['license'] ?? null,
         'plate' => $data['plate'] ?? null,
@@ -172,9 +207,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'origin_address' => $origin->address ?? '-',
         'destination_ubigeo' => $destination->ubigeo ?? '-',
         'destination_address' => $destination->address ?? '-',
+        'send_dynamics' => $data['send_dynamics'] ?? true,
+        'is_consignment' => $data['is_consignment'] ?? false,
       ];
 
       $document = ShippingGuides::create($documentData);
+
+      // Notificar al responsable de recepción en la fecha de entrega
+      $this->notify(
+        title: 'Guía de remisión programada',
+        body: "Se ha generado la guía {$document->document_number}. Recuerde recibirla en la fecha de traslado.",
+        type: 'shipping_guide.created',
+        userIds: [auth()->user()->id], // Aquí podrías agregar lógica para notificar a usuarios específicos responsables de la recepción
+        source: $document,
+        data: ['shipping_guide_id' => $document->id, 'document_number' => $document->document_number],
+        route: config('frontend.routes.shipments_receptions_checklist') . "/{$document->id}",
+        scheduledAt: $document->issue_date,
+      );
 
       // 6. Si hay archivo, subirlo usando DigitalFileService
       if ($file) {
@@ -195,9 +244,164 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     });
   }
 
+  public function storeConsignment(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      if (empty($data['ap_vehicle_id'])) {
+        throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
+      }
+
+      $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
+      $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
+
+      // Manejar la carga del archivo si existe
+      $file = null;
+      if (isset($data['file']) && $data['file'] instanceof UploadedFile) {
+        $file = $data['file'];
+        unset($data['file']);
+      }
+
+      // Manejar series y correlativo según issuer_type
+      $series = null;
+      $correlative = null;
+      $documentNumber = null;
+      $documentSeriesId = null;
+
+      if ($data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
+        if (empty($data['document_series_id'])) {
+          throw new Exception('El campo document_series_id es obligatorio cuando el emisor es AUTOMOTORES');
+        }
+
+        $assignSeries = AssignSalesSeries::findOrFail($data['document_series_id']);
+        $series = $assignSeries->series;
+
+        $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->max('correlative');
+        $correlativeNumber = $maxCorrelative !== null
+          ? ((int)$maxCorrelative) + 1
+          : $assignSeries->correlative_start + 1;
+
+        $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+        $documentNumber = $series . '-' . $correlative;
+        $documentSeriesId = $data['document_series_id'];
+      } elseif ($data['issuer_type'] == 'PROVEEDOR') {
+        if (empty($data['series'])) {
+          throw new Exception('El campo series es obligatorio cuando el emisor es PROVEEDOR');
+        }
+        if (empty($data['correlative'])) {
+          throw new Exception('El campo correlative es obligatorio cuando el emisor es PROVEEDOR');
+        }
+
+        $series = $data['series'];
+        $correlative = $data['correlative'];
+        $documentNumber = $series . '-' . $correlative;
+      }
+
+      $typeVoucherId = null;
+      if ($data['document_type'] = ShippingGuides::DOCUMENT_TYPE_GR) {
+        $typeVoucherId = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
+      }
+
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $rucTransport = null;
+      $companyNameTransport = null;
+      if (
+        isset($data['transfer_modality_id']) &&
+        (int)$data['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($data['transport_company_id'])
+      ) {
+        $transportCompany = BusinessPartners::find($data['transport_company_id']);
+        if ($transportCompany) {
+          $rucTransport = $transportCompany->num_doc;
+          $companyNameTransport = $transportCompany->full_name;
+        }
+      }
+
+      // Crear el movimiento de vehículo de consignación
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideConsignmentVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        $data['notes'] ?? "Vehículo en consignación - {$documentNumber}",
+        $data['issue_date']
+      );
+
+      $documentData = [
+        'document_type' => $data['document_type'],
+        'type_voucher_id' => $typeVoucherId,
+        'issuer_type' => $data['issuer_type'],
+        'document_series_id' => $documentSeriesId,
+        'series' => $series,
+        'correlative' => $correlative,
+        'document_number' => $documentNumber,
+        'issue_date' => $data['issue_date'],
+        'requires_sunat' => $data['requires_sunat'] ?? false,
+        'total_packages' => $data['total_packages'] ?? null,
+        'total_weight' => $data['total_weight'] ?? null,
+        'vehicle_movement_id' => $vehicleMovement->id,
+        'sede_transmitter_id' => $data['sede_transmitter_id'],
+        'sede_receiver_id' => $data['sede_receiver_id'],
+        'transmitter_id' => $data['transmitter_id'],
+        'receiver_id' => $data['receiver_id'],
+        'transport_company_id' => $data['transport_company_id'] ?? null,
+        'ruc_transport' => $rucTransport,
+        'company_name_transport' => $companyNameTransport,
+        'driver_doc' => $data['driver_doc'] ?? null,
+        'license' => $data['license'] ?? null,
+        'plate' => $data['plate'] ?? null,
+        'driver_name' => $data['driver_name'] ?? null,
+        'notes' => $data['notes'] ?? null,
+        'status' => $data['status'] ?? true,
+        'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
+        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
+        'created_by' => Auth::id(),
+        'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
+        'origin_ubigeo' => $origin->ubigeo ?? '-',
+        'origin_address' => $origin->address ?? '-',
+        'destination_ubigeo' => $destination->ubigeo ?? '-',
+        'destination_address' => $destination->address ?? '-',
+        'send_dynamics' => false,
+        'is_consignment' => true,
+      ];
+
+      $document = ShippingGuides::create($documentData);
+
+      if ($file) {
+        $digitalFile = $this->digitalFileService->store(
+          $file,
+          self::FILE_PATH,
+          'public',
+          $document->getTable()
+        );
+
+        $document->update([
+          'file_url' => $digitalFile->url,
+        ]);
+      }
+
+      // Crear accesorios de consignación si se enviaron
+      if (!empty($data['accessories'])) {
+        foreach ($data['accessories'] as $accessory) {
+          ShippingGuideAccessory::create([
+            'shipping_guide_id' => $document->id,
+            'description' => $accessory['description'],
+            'quantity' => $accessory['quantity'],
+            'unit_measurement_id' => $accessory['unit_measurement_id'] ?? null,
+          ]);
+        }
+      }
+
+      return new ShippingGuidesResource($document);
+    });
+  }
+
   public function show($id)
   {
-    $document = ShippingGuides::with(['receivingChecklists.receiving'])->findOrFail($id);
+    $document = ShippingGuides::with([
+      'receivingChecklists.receiving',
+      'vehicleMovement.vehicle.model',
+      'inventoryMovement.details.product.unitMeasurement',
+    ])->findOrFail($id);
     return new ShippingGuidesResource($document);
   }
 
@@ -235,7 +439,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 2. Recalcular serie y correlativo si cambió el document_series_id y el emisor es NOSOTROS
-      if (isset($data['issuer_type']) && $data['issuer_type'] == 'NOSOTROS') {
+      if (isset($data['issuer_type']) && $data['issuer_type'] == ShippingGuides::ISSUER_TYPE_SYSTEM) {
         $needsRecalculation = false;
         $seriesId = $data['document_series_id'] ?? $document->document_series_id;
 
@@ -289,7 +493,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 3. Manejar type_voucher_id para guías de remisión
-      if (isset($data['document_type']) && $data['document_type'] == 'GUIA_REMISION') {
+      if (isset($data['document_type']) && $data['document_type'] == ShippingGuides::DOCUMENT_TYPE_GR) {
         $data['type_voucher_id'] = SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE;
       }
 
@@ -345,6 +549,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['cancelled_by'],
         $data['cancelled_at']
       );
+
+      // Resolver RUC y nombre de empresa de transporte si es modalidad pública
+      $transferModalityId = $data['transfer_modality_id'] ?? $document->transfer_modality_id;
+      $transportCompanyId = $data['transport_company_id'] ?? $document->transport_company_id;
+      if (
+        (int)$transferModalityId === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO &&
+        !empty($transportCompanyId)
+      ) {
+        $transportCompany = BusinessPartners::find($transportCompanyId);
+        if ($transportCompany) {
+          $data['ruc_transport'] = $transportCompany->num_doc;
+          $data['company_name_transport'] = $transportCompany->full_name;
+        }
+      } else {
+        $data['ruc_transport'] = null;
+        $data['company_name_transport'] = null;
+      }
 
       $document->update($data);
 
@@ -449,7 +670,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('Debe esperar al menos 30 minutos antes de reenviar la guía a SUNAT');
       }
 
-      if ($guide->document_type != 'GUIA_REMISION' || $guide->type_voucher_id != SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE) {
+      if ($guide->document_type != ShippingGuides::DOCUMENT_TYPE_GR || $guide->type_voucher_id != SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE) {
         throw new Exception('El tipo de documento o comprobante no es válido para envío a SUNAT');
       }
 
@@ -518,7 +739,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           $guide->markAsAccepted($responseData);
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
-
         } elseif (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && $guide->aceptada_por_sunat) {
           // CASO 2: Ya estaba aceptada (consulta posterior)
           $guide->update([
@@ -541,7 +761,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           ]);
           $message = 'Estado consultado. La guía aún no ha sido aceptada por SUNAT.';
         }
-
       } else {
         $message = 'Error al consultar: ' . ($response['error'] ?? 'Error desconocido');
       }
@@ -570,8 +789,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede marcar como recepcionada una guía anulada');
       }
 
-      if ($guide->document_type === 'GUIA_REMISION') {
-        VerifyAndMigrateShippingGuideJob::dispatchSync($guide->id);
+      if ($guide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
       }
 
       $guide->update([
@@ -613,16 +832,234 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function nextDocumentNumber(int $documentSeriesId): array
+  {
+    $assignSeries = AssignSalesSeries::findOrFail($documentSeriesId);
+    $series = $assignSeries->series;
+
+    $maxCorrelative = ShippingGuides::where('document_series_id', $documentSeriesId)
+      ->max('correlative');
+
+    $correlativeNumber = $maxCorrelative !== null
+      ? ((int)$maxCorrelative) + 1
+      : $assignSeries->correlative_start + 1;
+
+    $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+    $documentNumber = $series . '-' . $correlative;
+
+    return [
+      'series' => $series,
+      'correlative' => $correlative,
+      'document_number' => $documentNumber,
+    ];
+  }
+
   public function checkResources($id)
   {
     $shippingGuide = $this->find($id);
 
     $vehicle = $shippingGuide->vehicleMovement?->vehicle;
 
+    $result = [
+      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
+    ];
+
+    // Para guías de VENTA incluir también el preview del asiento contable,
+    // tal como lo hace SyncAccountingEntryJob al sincronizar con Dynamics.
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
+      $result['accounting_entry'] = $this->buildAccountingEntryPreview($shippingGuide);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Construye el preview del asiento contable que se enviará a Dynamics
+   * para una guía de remisión de venta.
+   *
+   * - Área COMERCIAL: usa la lógica de ApClassArticleAccountMapping (cuentas por clase de artículo).
+   * - Área POSVENTA:  usa las cuentas fijas de accesorios 4961700 → 7011118.
+   *                   Solo cuando se vendió un accesorio con código V0000016.
+   */
+  private function buildAccountingEntryPreview(ShippingGuides $shippingGuide): array
+  {
+    if (!$shippingGuide->vehicleMovement?->vehicle?->vin) {
+      return ['error' => 'La guía no tiene vehículo asociado'];
+    }
+
+    $electronicDocument = ElectronicDocument::with([
+      'items.accountPlan',
+      'creator.person',
+      'currency',
+      'seriesModel.sede',
+      'vehicleMovement.vehicle.model.classArticle',
+      'vehicle',
+    ])
+      ->where('is_advance_payment', 0)
+      ->whereHas('vehicle', function ($query) use ($shippingGuide) {
+        $query->where('vin', $shippingGuide->vehicleMovement->vehicle->vin);
+      })
+      ->first();
+
+    if (!$electronicDocument) {
+      return ['error' => 'No se encontró documento electrónico asociado a la guía'];
+    }
+
+    $accountingService = new AccountingEntryService();
+
+    // Número de asiento de previsualización (sin bloquear la secuencia real)
+    $maxAsiento = DB::connection('dbtp')->table('neInTbIntegracionAsientoCab')->max('Asiento');
+    $asientoNumber = $maxAsiento ? ($maxAsiento + 1) : 1;
+
+    $header = new AccountingEntryHeaderDynamicsResource(
+      $electronicDocument,
+      $shippingGuide->issue_date,
+      $asientoNumber
+    );
+
+    $isPosventa = in_array($shippingGuide->area_id, ApMasters::AREAS_POSVENTA);
+
+    try {
+      if ($isPosventa) {
+        // Solo posventa: asiento de entrega de accesorios 4961700 → 7011118
+        $lines = $accountingService->generatePostventaAccessoryLines($electronicDocument, $asientoNumber);
+      } else {
+        // Comercial: asiento por clase de artículo (ApClassArticleAccountMapping)
+        $lines = $accountingService->generateAccountingLines($electronicDocument, $asientoNumber);
+      }
+    } catch (Exception $e) {
+      $lines = ['error' => $e->getMessage()];
+    }
+
     return [
-      'header' => new \App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource($shippingGuide),
-      'detail' => $vehicle ? new \App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
-      'series' => new \App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource($shippingGuide),
+      'header' => $header->toArray(request()),
+      'lines' => $lines,
+    ];
+  }
+
+  public function syncWithDynamics($id)
+  {
+    $shippingGuide = $this->find($id);
+
+    if (!$shippingGuide->document_number) {
+      throw new Exception('La guía de remisión no tiene número de documento asignado');
+    }
+
+    // Despachar el job para sincronizar con Dynamics
+    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
+
+    return [
+      'message' => 'Job de sincronización con Dynamics despachado exitosamente',
+      'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
+    ];
+  }
+
+
+  public function dispatchMigration(int $id): array
+  {
+    $guide = $this->find($id);
+
+    if ($guide->migration_status === 'completed') {
+      throw new Exception('La guía ya está migrada completamente');
+    }
+
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
+    VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+
+    return [
+      'message' => "Job de migración despachado para la guía {$guide->document_number}",
+      'resets' => $resetActions,
+    ];
+  }
+
+  /**
+   * Despacha jobs de migración para todas las guías de remisión no completadas
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ShippingGuides::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ShippingGuides $guide) use (&$dispatched) {
+        $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+
+        $dispatched[] = [
+          'id' => $guide->id,
+          'number' => $guide->document_number,
+          'migration_status' => $guide->migration_status,
+          'reason' => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched' => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type' => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps' => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type' => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps' => [],
+      ];
+    }
+
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
     ];
   }
 }

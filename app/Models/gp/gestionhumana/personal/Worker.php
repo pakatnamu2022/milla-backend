@@ -11,6 +11,7 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
 use App\Models\gp\tics\PhoneLine;
 use App\Models\gp\tics\PhoneLineWorker;
 use App\Models\User;
@@ -27,17 +28,20 @@ class Worker extends BaseModel
     'nombre_completo',
     'sede_id',
     'jefe_id',
+    'second_boss_id',
     'supervisor_id',
     'fecha_inicio',
     'email',
     'email2',
     'email3',
     'tel_referencia_3',
+    'sueldo',
+    'horas_jornada',
   ];
 
   const filters = [
     'id' => '=',
-    'search' => ['nombre_completo', 'vat'],
+    'search' => ['nombre_completo', 'vat', 'position.name'],
     'vat' => 'like',
     'sede.empresa_id' => '=',
     'nombre_completo' => 'like',
@@ -95,7 +99,10 @@ class Worker extends BaseModel
   public function objectives()
   {
     return $this->hasMany(EvaluationCategoryObjectiveDetail::class, 'person_id')
-      ->where('active', true);
+      ->where('active', true)
+      ->whereHas('objective', function ($query) {
+        $query->where('active', true);
+      });
   }
 
   public function competences()
@@ -122,6 +129,11 @@ class Worker extends BaseModel
   public function boss()
   {
     return $this->hasOne(Worker::class, 'id', 'jefe_id');
+  }
+
+  public function secondBoss()
+  {
+    return $this->hasOne(Worker::class, 'id', 'second_boss_id');
   }
 
   public function evaluator()
@@ -160,5 +172,42 @@ class Worker extends BaseModel
   public function phoneLineAssignments()
   {
     return $this->hasMany(PhoneLineWorker::class, 'worker_id');
+  }
+
+  /**
+   * Reglas de asistencia permitidas para esta persona.
+   * Si no tiene ninguna asociada, puede usar cualquier código (sin restricción).
+   */
+  public function allowedAttendanceRules()
+  {
+    return $this->belongsToMany(
+      AttendanceRule::class,
+      'worker_attendance_rule',
+      'worker_id',
+      'attendance_rule_code',
+      'id',
+      'code'
+    )->withTimestamps();
+  }
+
+  /**
+   * Indica si el código de asistencia está permitido para este worker.
+   * Retorna true si no tiene restricciones o si el código está en su lista.
+   */
+  public function isAttendanceCodeAllowed(string $code): bool
+  {
+    $allowedCodes = $this->allowedAttendanceRules()->pluck('code')->toArray();
+    if (empty($allowedCodes)) {
+      return true;
+    }
+    return in_array($code, $allowedCodes);
+  }
+
+  /**
+   * Relación con la firma del trabajador
+   */
+  public function signature()
+  {
+    return $this->hasOne(WorkerSignature::class, 'worker_id', 'id');
   }
 }

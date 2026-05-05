@@ -13,7 +13,15 @@ class UpdatePurchaseOrderRequest extends StoreRequest
     return [
       // Información de la Factura (Cabecera) - Todos opcionales en update
       'invoice_series' => ['sometimes', 'string', 'max:10'],
-      'invoice_number' => ['sometimes', 'string', 'max:20'],
+      'invoice_number' => [
+        'sometimes',
+        'string',
+        'max:20',
+        Rule::unique('ap_purchase_order')
+          ->where('invoice_series', $this->invoice_series)
+          ->ignore($this->route('vehiclePurchaseOrder'))
+          ->whereNull('deleted_at')
+      ],
       'emission_date' => ['sometimes', 'date', 'date_format:Y-m-d'],
       'due_date' => ['sometimes', 'nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:emission_date'],
 
@@ -33,6 +41,14 @@ class UpdatePurchaseOrderRequest extends StoreRequest
 
       // Movimiento de Vehículo (opcional)
       'vehicle_movement_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
+
+      // Cotización asociada (opcional)
+      'quotation_id' => [
+        'sometimes',
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')->whereNull('deleted_at')
+      ],
 
       // Tipo de Operación (opcional)
       'type_operation_id' => ['sometimes', 'nullable', 'integer', Rule::exists('ap_masters', 'id')->where('status', 1)->whereNull('deleted_at')],
@@ -77,6 +93,7 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'exchange_rate_id' => 'Tipo de Cambio',
       'warehouse_id' => 'Almacén',
       'vehicle_movement_id' => 'Movimiento de Vehículo',
+      'quotation_id' => 'Cotización',
 
       // Items
       'items' => 'Items de la Orden',
@@ -99,6 +116,7 @@ class UpdatePurchaseOrderRequest extends StoreRequest
       'items.min' => 'Debe agregar al menos un item a la orden de compra',
       'due_date.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
       'migration_status.in' => 'El estado de migración debe ser uno de: pending, in_progress, completed, failed, updated_with_nc',
+      'invoice_number.unique' => 'Ya existe una factura con la serie :invoice_series y el número :input',
     ];
   }
 }

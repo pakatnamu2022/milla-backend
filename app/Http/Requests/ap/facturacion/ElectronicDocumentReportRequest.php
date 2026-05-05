@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\ap\facturacion;
 
+use App\Models\ap\ApMasters;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ElectronicDocumentReportRequest extends FormRequest
 {
@@ -38,7 +41,12 @@ class ElectronicDocumentReportRequest extends FormRequest
       'sunat_concept_identity_document_type_id' => 'nullable|integer|exists:gp_sunat_concepts,id',
 
       // Filtros de origen
-      'origin_module' => 'nullable|string|in:comercial,posventa',
+//      'area_id' => 'nullable|string|in:comercial,posventa',
+      'area_id' => [
+        'nullable',
+        'string',
+        Rule::in(ApMasters::ALL_AREAS)
+      ],
       'origin_entity_type' => 'nullable|string',
       'origin_entity_id' => 'nullable|integer',
 
@@ -68,14 +76,40 @@ class ElectronicDocumentReportRequest extends FormRequest
     ];
   }
 
-  public function messages(): array
+  public function attributes(): array
   {
     return [
-      'fecha_de_emision_to.after_or_equal' => 'La fecha de emisión final debe ser posterior o igual a la fecha inicial',
-      'fecha_de_vencimiento_to.after_or_equal' => 'La fecha de vencimiento final debe ser posterior o igual a la fecha inicial',
-      'total_max.gte' => 'El total máximo debe ser mayor o igual al total mínimo',
-      'status.in' => 'El estado debe ser uno de: draft, sent, accepted, rejected, cancelled',
-      'origin_module.in' => 'El módulo de origen debe ser: comercial o posventa',
+      'full_number' => 'número completo',
+      'serie' => 'serie',
+      'numero' => 'número',
+      'sunat_concept_document_type_id' => 'tipo de documento',
+      'status' => 'estado',
+      'aceptada_por_sunat' => 'aceptada por SUNAT',
+      'anulado' => 'anulado',
+      'fecha_de_emision' => 'fecha de emisión',
+      'fecha_de_emision_from' => 'fecha de emisión desde',
+      'fecha_de_emision_to' => 'fecha de emisión hasta',
+      'fecha_de_vencimiento' => 'fecha de vencimiento',
+      'fecha_de_vencimiento_from' => 'fecha de vencimiento desde',
+      'fecha_de_vencimiento_to' => 'fecha de vencimiento hasta',
+      'cliente_numero_de_documento' => 'número de documento del cliente',
+      'cliente_denominacion' => 'denominación del cliente',
+      'client_id' => 'cliente',
+      'sunat_concept_identity_document_type_id' => 'tipo de documento de identidad del cliente',
+      'area_id' => 'área de origen',
+      'origin_entity_type' => 'tipo de entidad de origen',
+      'origin_entity_id' => 'ID de entidad de origen',
+      'purchase_request_quote_id' => 'cotización de solicitud de compra',
+      'order_quotation_id' => 'cotización de pedido',
+      'work_order_id' => 'orden de trabajo',
+      'ap_vehicle_movement_id' => 'movimiento vehicular',
+      'original_document_id' => 'documento original',
+      'sunat_concept_currency_id' => 'moneda',
+      'total_min' => 'total mínimo',
+      'total_max' => 'total máximo',
+      'is_advance_payment' => 'es anticipo',
+      'created_by' => 'creado por',
+      'series_id' => 'serie asignada'
     ];
   }
 
@@ -230,11 +264,11 @@ class ElectronicDocumentReportRequest extends FormRequest
     }
 
     // Filtros de origen
-    if ($this->filled('origin_module')) {
+    if ($this->filled('area_id')) {
       $filters[] = [
-        'column' => 'origin_module',
+        'column' => 'area_id',
         'operator' => '=',
-        'value' => $this->input('origin_module'),
+        'value' => $this->input('area_id'),
       ];
     }
 

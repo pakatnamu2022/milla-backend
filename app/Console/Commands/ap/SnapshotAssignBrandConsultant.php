@@ -40,6 +40,8 @@ class SnapshotAssignBrandConsultant extends Command
     $assignments = DB::table('ap_assign_brand_consultant')
       ->where('year', $previousYear)
       ->where('month', $previousMonthNumber)
+      ->where('status', true)
+      ->whereNull('deleted_at')
       ->get();
 
     if ($assignments->isEmpty()) {

@@ -36,13 +36,9 @@ class NubefactApiService
   {
     $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
-    $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
-    // Log temporal para debugging
-    Log::info('Payload enviado a Nubefact', [
-      'document_id' => $document->id,
-      'payload' => $payload,
-    ]);
+//    throw new Exception(json_encode($payload));
+//    $endpoint = $this->getEndpointForDocumentType($document->documentType->code_nubefact);
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
@@ -54,20 +50,13 @@ class NubefactApiService
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
         'Content-Type' => 'application/json',
-      ])->post($this->apiUrl . $endpoint, $payload);
+      ])->post($this->apiUrl, $payload);
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();
 
       $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
       $logData['http_status_code'] = $httpStatusCode;
-
-      // Log raw response for debugging
-      Log::info('Nubefact API Response', [
-        'status' => $httpStatusCode,
-        'response' => $responseData,
-        'endpoint' => $endpoint,
-      ]);
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
         $logData['success'] = true;
@@ -94,11 +83,6 @@ class NubefactApiService
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
-
-      Log::error('Error en NubefactApiService::generateDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
 
       throw $e;
     }
@@ -136,12 +120,6 @@ class NubefactApiService
 
       $responseData = $response->json();
       $httpStatusCode = $response->status();
-//
-//      Log::info($this->apiUrl . $endpoint);
-//      Log::info($body);
-//      Log::info($httpStatusCode);
-//      Log::info($responseData);
-
 
       $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
       $logData['http_status_code'] = $httpStatusCode;
@@ -161,23 +139,12 @@ class NubefactApiService
         $this->logRequest($logData);
 
         throw new Exception($errorMessage);
-
-//        return [
-//          'success' => false,
-//          'error' => $errorMessage,
-//          'data' => $responseData,
-//        ];
       }
     } catch (Exception $e) {
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
-
-      Log::error('Error en NubefactApiService::queryDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
 
       throw $e;
     }
@@ -247,11 +214,6 @@ class NubefactApiService
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
 
-      Log::error('Error en NubefactApiService::cancelDocument', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
-
       throw $e;
     }
   }
@@ -316,11 +278,6 @@ class NubefactApiService
       $logData['http_status_code'] = 0;
       $this->logRequest($logData);
 
-      Log::error('Error en NubefactApiService::queryCancellation', [
-        'document_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
-
       throw $e;
     }
   }
@@ -360,6 +317,8 @@ class NubefactApiService
       'enviar_automaticamente_a_la_sunat' => $document->enviar_automaticamente_a_la_sunat,
       'enviar_automaticamente_al_cliente' => $document->enviar_automaticamente_al_cliente,
       'codigo_unico' => $document->codigo_unico ?? uniqid('DOC_'),
+      'observaciones' => $document->observaciones ?? '',
+//      'formato_de_pdf' => 'TICKET'
     ];
 
     // Agregar emails adicionales si existen
@@ -397,7 +356,7 @@ class NubefactApiService
 
     // Medio de pago
     if ($document->medio_de_pago) {
-      $payload['medio_de_pago'] = $document->medio_de_pago;
+      $payload['medio_de_pago'] = $document->medio_de_pago === 'contado' ? $document->condiciones_de_pago ?? '' : $document->medio_de_pago;
     }
 
     // Placa de vehículo
@@ -426,15 +385,17 @@ class NubefactApiService
     }
 
     // Detracción
-    if ($document->detraccion) {
+    if ($document->detraccion == 1) {
       $payload['detraccion'] = true;
-      $payload['codigo_tipo_operacion'] = $document->detractionType->code_nubefact ?? null;
+      $payload['detraccion_tipo'] = $document->detractionType->code_nubefact ?? null;
       $payload['detraccion_total'] = $document->detraccion_total;
       $payload['detraccion_porcentaje'] = $document->detraccion_porcentaje;
 
       if ($document->medio_de_pago_detraccion) {
         $payload['medio_de_pago_detraccion'] = $document->medio_de_pago_detraccion;
       }
+    } else {
+      $payload['detraccion'] = false;
     }
 
     // ISC
@@ -461,6 +422,11 @@ class NubefactApiService
     // Items del comprobante
     $payload['items'] = [];
     $isAnticipo = $document->sunat_concept_transaction_type_id == SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    $isVehiculo = !empty($document->ap_vehicle_movement_id);
+    // Si el documento tiene algún ítem de regularización de anticipo, es una factura de regularización.
+    // En ese caso, solo el ítem de anticipo usa code_dynamics; los productos usan su propio código.
+    // Si no tiene ítems de regularización, es un anticipo puro y todos los ítems usan code_dynamics.
+    $hasAnticipoRegularizacion = $document->items->contains('anticipo_regularizacion', true);
 
     foreach ($document->items as $index => $item) {
       $tipoIgv = $item->igvType->code_nubefact;
@@ -476,9 +442,19 @@ class NubefactApiService
         // $igvItem mantiene su valor calculado normalmente
       }
 
+      // Determinar el código a usar:
+      // - Documento de vehículo: todos los ítems usan code_dynamics
+      // - Anticipo puro (sin ítems de regularización): todos los ítems usan code_dynamics
+      // - Factura de regularización (tiene ítems con anticipo_regularizacion=true):
+      //   solo el ítem de anticipo usa code_dynamics, los productos usan su propio código
+      $usarCodeDynamics = $isVehiculo
+        || $item->anticipo_regularizacion
+        || ($isAnticipo && !$hasAnticipoRegularizacion);
+      $codigo = $usarCodeDynamics ? $item->accountPlan->code_dynamics : $item->codigo;
+
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $item->accountPlan->code_dynamics,
+        'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
         'valor_unitario' => $item->valor_unitario,

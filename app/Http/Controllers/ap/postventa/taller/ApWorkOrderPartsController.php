@@ -8,6 +8,7 @@ use App\Http\Requests\ap\postventa\taller\StoreApWorkOrderPartsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreBulkFromQuotationRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApWorkOrderPartsRequest;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderPartsService;
+use Illuminate\Http\Request;
 
 class ApWorkOrderPartsController extends Controller
 {
@@ -65,11 +66,6 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  /**
-   * Guardar masivamente repuestos desde una cotización
-   * POST /api/ap-work-order-parts/store-bulk-from-quotation
-   * Body: { quotation_id, work_order_id, warehouse_id, group_number, quotation_detail_ids[] }
-   */
   public function storeBulkFromQuotation(StoreBulkFromQuotationRequest $request)
   {
     try {
@@ -80,14 +76,51 @@ class ApWorkOrderPartsController extends Controller
     }
   }
 
-  /**
-   * Realizar la salida de almacén para un repuesto específico
-   * POST /api/ap/postventa/workOrderParts/{id}/warehouse-output
-   */
-  public function warehouseOutput($id)
+  public function assignToTechnician($id, Request $request)
   {
     try {
-      return $this->success($this->service->warehouseOutput($id));
+      $data = $request->validate([
+        'delivered_to' => 'required|integer|exists:rrhh_persona,id',
+        'delivered_quantity' => 'required|numeric|min:0.01',
+      ]);
+
+      return $this->success($this->service->assignToTechnician($id, $data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function confirmReceipt(Request $request)
+  {
+    try {
+      $data = $request->validate([
+        'delivery_ids' => 'required|array|min:1',
+        'delivery_ids.*' => 'required|integer|distinct|exists:ap_work_order_part_deliveries,id',
+      ]);
+
+      return $this->success($this->service->confirmReceipt($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getAssignmentsByWorkOrder($workOrderId, Request $request)
+  {
+    try {
+      $data = $request->validate([
+        'delivered_to' => 'required|integer|exists:rrhh_persona,id',
+      ]);
+
+      return $this->success($this->service->getAssignmentsByWorkOrder($workOrderId, $data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function getDeliveries($id)
+  {
+    try {
+      return $this->success($this->service->getDeliveriesByWorkOrderPart($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -54,7 +54,7 @@ class EvaluationCycleService extends BaseService implements BaseServiceInterface
     );
   }
 
-  public function participants(int $id)
+  public function participants(int $id, Request $request)
   {
     $cycle = $this->find($id);
     $personsInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycle->id)
@@ -63,8 +63,14 @@ class EvaluationCycleService extends BaseService implements BaseServiceInterface
       ->get()
       ->pluck('person_id')
       ->toArray();
-    $persons = Worker::whereIn('id', $personsInCycle)->get();
-    return WorkerResource::collection($persons);
+    
+    return $this->getFilteredResults(
+      Worker::whereIn('id', $personsInCycle),
+      $request,
+      Worker::filters,
+      Worker::sorts,
+      WorkerResource::class,
+    );
   }
 
   public function positions(int $id)

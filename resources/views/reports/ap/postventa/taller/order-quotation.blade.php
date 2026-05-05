@@ -24,12 +24,12 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 10px;
+      font-size: 11px;
       padding: 20px;
     }
 
     .header {
-      margin-bottom: 15px;
+      margin-bottom: 2px;
     }
 
     .header table {
@@ -47,13 +47,13 @@
     }
 
     .logo img {
-      max-width: 100px;
+      max-width: 200px;
       height: auto;
     }
 
     .center-title {
       text-align: center;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
       padding: 5px;
     }
@@ -71,7 +71,7 @@
       border: none;
       vertical-align: top;
       padding: 5px;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     .company-left {
@@ -79,25 +79,20 @@
       text-align: left;
     }
 
-    .customer-right {
+    .company-right {
       width: 50%;
       text-align: left;
-    }
-
-    .company-name {
-      font-weight: bold;
-      font-size: 11px;
-      margin-bottom: 3px;
     }
 
     .quotation-info {
       margin-bottom: 10px;
       text-align: left;
-      font-size: 10px;
+      font-size: 14px;
     }
 
     .quotation-info strong {
       font-weight: bold;
+      font-size: 14px;
     }
 
     table.data-section {
@@ -109,16 +104,16 @@
 
     table.data-section td {
       padding: 5px;
-      font-size: 9px;
+      font-size: 11px;
       vertical-align: top;
-      border: 1px solid #000;
+      border: none;
     }
 
     .section-header {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 11px;
       padding: 5px;
       text-align: left;
       border: 1px solid #000;
@@ -126,7 +121,11 @@
 
     .label-cell {
       font-weight: bold;
-      width: 25%;
+      width: 15%;
+    }
+
+    .data-cell {
+      width: 35%;
     }
 
     table.details-table {
@@ -136,10 +135,10 @@
     }
 
     table.details-table th {
-      background-color: #172e66;
-      color: white;
+      background-color: #8b8b8b;
+      color: black;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
       padding: 5px 3px;
       text-align: center;
       border: 1px solid #000;
@@ -147,7 +146,7 @@
 
     table.details-table td {
       padding: 4px 3px;
-      font-size: 8px;
+      font-size: 11px;
       border: 1px solid #000;
       vertical-align: middle;
     }
@@ -174,7 +173,7 @@
       width: 50%;
       margin-left: auto;
       border-collapse: collapse;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     .totals-section td {
@@ -199,7 +198,7 @@
 
     .important-title {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 11px;
       margin-bottom: 5px;
       text-decoration: underline;
     }
@@ -243,12 +242,12 @@
       padding: 8px;
       border: 1px solid #000;
       vertical-align: top;
-      font-size: 8px;
+      font-size: 11px;
     }
 
     .card-header {
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
       margin-bottom: 5px;
       text-align: center;
       border-bottom: 1px solid #ccc;
@@ -261,15 +260,18 @@
 
     .card-content div {
       margin-bottom: 3px;
+      font-size: 8px;
     }
 
     .card-content-header {
       text-align: center;
-      font-weight: bold
+      font-weight: bold;
+      font-size: 8px;
     }
 
     .card-label {
       font-weight: bold;
+      font-size: 8px;
     }
 
     .signature-section {
@@ -281,7 +283,7 @@
       display: inline-block;
       width: 250px;
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: bold;
     }
 
@@ -290,12 +292,6 @@
       max-height: 80px;
       display: block;
       margin: 0 auto 10px auto;
-    }
-
-    .signature-line {
-      width: 200px;
-      border-top: 2px solid #000;
-      margin: 0 auto 5px auto;
     }
   </style>
 </head>
@@ -322,17 +318,16 @@
 <div class="company-info">
   <table>
     <tr>
-      <td class="company-left">
-        <div>Car. Panamericana Norte Nro. 1006</div>
-        <div>Chiclayo - Lambayeque</div>
+      <td class="company-left" style="text-align: left">
+        <div>{{$quotation['sede']->direccion}}</div>
+        <div>{{$quotation['sede']->province->name}}
+          - {{$quotation['sede']->district->name}} {{$quotation['sede']->district->ubigeo}}</div>
+        <div>RUC: {{$quotation['sede']->company->num_doc}}</div>
+      </td>
+      <td class="company-right" style="text-align: right;">
         <div>Tel.:</div>
         <div>Email: info@automotorespakatnamu.com</div>
         <div>Web: www.automotorespakatnamu.com</div>
-      </td>
-      <td class="customer-right">
-        <div><strong>{{ $quotation['customer_name'] }}</strong></div>
-        <div>{{ $quotation['customer_address'] }}</div>
-        <div>{{ $quotation['customer_document'] }} {{ $quotation['customer_district'] }}</div>
       </td>
     </tr>
   </table>
@@ -340,7 +335,7 @@
 
 <!-- Número de propuesta y fecha -->
 <div class="quotation-info">
-  <strong>Nº Propuesta:</strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
+  <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
   <strong>Fecha:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
 </div>
 
@@ -350,22 +345,26 @@
     <td colspan="4" class="section-header">DATOS DE LA PROPUESTA</td>
   </tr>
   <tr>
-    <td class="label-cell">Descripción:</td>
-    <td style="width: 40%;">{{ $quotation['observations'] }}</td>
-    <td class="label-cell">Asesor:</td>
-    <td style="width: 25%;">{{ $quotation['advisor_name'] }}</td>
+    <td class="label-cell">Cliente:</td>
+    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> DNI: {{ $quotation['customer_document'] }}
+      <br>{{ $quotation['customer_address'] }}
+    </td>
   </tr>
   <tr>
     <td class="label-cell">Observaciones:</td>
-    <td></td>
+    <td colspan="3">{{ $quotation['observations'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Asesor:</td>
+    <td class="data-cell">{{ $quotation['advisor_name'] }}</td>
     <td class="label-cell">Celular:</td>
-    <td>{{ $quotation['advisor_phone'] }}</td>
+    <td class="data-cell">{{ $quotation['advisor_phone'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
-    <td>Pendiente de validación por parte del cliente</td>
+    <td class="data-cell">Pendiente de validación por parte del cliente</td>
     <td class="label-cell">Correo:</td>
-    <td>{{ $quotation['advisor_email'] }}</td>
+    <td class="data-cell">{{ $quotation['advisor_email'] }}</td>
   </tr>
 </table>
 
@@ -376,9 +375,9 @@
   </tr>
   <tr>
     <td class="label-cell">Placa:</td>
-    <td>{{ $quotation['vehicle_plate'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_plate'] }}</td>
     <td class="label-cell">Nº Chasis:</td>
-    <td>{{ $quotation['vehicle_vin'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_vin'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Modelo:</td>
@@ -386,13 +385,13 @@
   </tr>
   <tr>
     <td class="label-cell">Color:</td>
-    <td>{{ $quotation['vehicle_color'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_color'] }}</td>
     <td class="label-cell">Nº Motor:</td>
-    <td>{{ $quotation['vehicle_engine'] }}</td>
+    <td class="data-cell">{{ $quotation['vehicle_engine'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Kilometraje:</td>
-    <td colspan="3">{{ $quotation['vehicle_km'] }}</td>
+    <td colspan="3">{{ $quotation['vehicle_km'] }} km</td>
   </tr>
 </table>
 
@@ -405,27 +404,74 @@
     <th style="width: 15%;">Observ.</th>
     <th style="width: 10%;">Tpo./Cant.</th>
     <th style="width: 12%;">P.Hora/PVP</th>
-    <th style="width: 8%;">Dto.</th>
+    <th style="width: 8%;">% Dto.</th>
     <th style="width: 10%;">Imp.Neto</th>
   </tr>
   </thead>
   <tbody>
-  @foreach($quotation['details'] as $detail)
-    <tr>
-      <td class="text-center">{{ $detail['code'] }}</td>
-      <td class="text-left">{{ $detail['description'] }}</td>
-      <td class="text-left">{{ $detail['supply_type'] }}</td>
-      <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
-      <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+  @php
+    $laborDetails = collect($quotation['details'])->where('item_type', 'LABOR');
+    $productDetails = collect($quotation['details'])->where('item_type', 'PRODUCT');
+    $laborSubtotal = 0;
+    $productSubtotal = 0;
+  @endphp
+
+  {{-- MANO DE OBRA --}}
+  @if($laborDetails->count() > 0)
+    @foreach($laborDetails as $detail)
+      <tr>
+        <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
+        <td class="text-left">{{ $detail['description'] }}</td>
+        <td class="text-left">
+          {{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}
+          @if(!empty($detail['observations']))
+            <br>
+            <span style="font-size: 8px;">{{ $detail['observations'] }}</span>
+          @endif
+        </td>
+        <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+      </tr>
+      @php $laborSubtotal += $detail['total_amount']; @endphp
+    @endforeach
+    <tr style="background-color: #f0f0f0;">
+      <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Mano de Obra:</td>
+      <td class="text-right" style="font-weight: bold;">{{ number_format($laborSubtotal, 2) }}</td>
     </tr>
-  @endforeach
+  @endif
+
+  {{-- REPUESTOS --}}
+  @if($productDetails->count() > 0)
+    @foreach($productDetails as $detail)
+      <tr>
+        <td class="text-center">{{ $quotation['show_codes'] ?? true ? $detail['code'] : '' }}</td>
+        <td class="text-left">{{ $detail['description'] }}</td>
+        <td class="text-left">
+          {{ $detail['supply_type'] === 'M.O' ? '' : $detail['supply_type'] }}
+          @if(!empty($detail['observations']))
+            <br>
+            <span style="font-size: 8px;">{{ $detail['observations'] }}</span>
+          @endif
+        </td>
+        <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['unit_price'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['discount'], 2) }}</td>
+        <td class="text-right">{{ number_format($detail['total_amount'], 2) }}</td>
+      </tr>
+      @php $productSubtotal += $detail['total_amount']; @endphp
+    @endforeach
+    <tr style="background-color: #f0f0f0;">
+      <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Repuestos:</td>
+      <td class="text-right" style="font-weight: bold;">{{ number_format($productSubtotal, 2) }}</td>
+    </tr>
+  @endif
   </tbody>
 </table>
 
 <!-- Totales -->
-<div class="totals-section">
+<div class="totals-section totals-footer">
   <table>
     <tr>
       <td class="label-total">Total M.O.:</td>
@@ -442,12 +488,12 @@
     <tr>
       <td class="label-total">Base Propuesta:</td>
       <td class="value-total">
-        S/ {{ number_format($quotation['subtotal'] / 1.18, 2) }}
+        S/ {{ number_format($quotation['base_imponible'], 2) }}
       </td>
     </tr>
     <tr>
       <td class="label-total">IGV 18.00%:</td>
-      <td class="value-total">S/ {{ number_format($quotation['subtotal'] * 0.18, 2) }}</td>
+      <td class="value-total">S/ {{ number_format($quotation['tax_amount'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Propuesta:</td>
@@ -499,133 +545,154 @@
 </div>
 
 <!-- Sección CUENTA AP -->
-{{--<div class="cards-section">--}}
-{{--  <div class="section-title">CUENTAS AP</div>--}}
-{{--  <div class="cards-container">--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CHICLAYO</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">PIURA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CAJAMARCA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">JAÉN</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BCP:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>--}}
-{{--        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>--}}
-{{--        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>--}}
-{{--        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>--}}
-{{--        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--  </div>--}}
-{{--</div>--}}
+<div class="cards-section">
+  <div class="section-title">CUENTAS AP</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 305-2041106-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-305-002041106039-13</div>
+        <div><span class="card-label">DÓLARES:</span> 305-2032097-1-49</div>
+        <div><span class="card-label">CCI:</span> 002-305-002032097149-10</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0279-0100020589</div>
+        <div><span class="card-label">CCI:</span> 011279000100020589­76</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0279-0100020597</div>
+        <div><span class="card-label">CCI:</span> 011279000100020597­79</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 475-2660047-0-39</div>
+        <div><span class="card-label">CCI:</span> 002-475-002660047039-22</div>
+        <div><span class="card-label">DÓLARES:</span> 475-2573597-1-16</div>
+        <div><span class="card-label">CCI:</span> 002-475-002573597116-27</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0267-0100130672</div>
+        <div><span class="card-label">CCI:</span> 011267000100130672­27</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0267-0100130680</div>
+        <div><span class="card-label">CCI:</span> 011267000100130680­20</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 245-2661107-0-14</div>
+        <div><span class="card-label">CCI:</span> 002-245-002661107014-90</div>
+        <div><span class="card-label">DÓLARES:</span> 245-2663485-1-44</div>
+        <div><span class="card-label">CCI:</span> 002-245-002663485144-93</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0277-0100080793</div>
+        <div><span class="card-label">CCI:</span> 011277000100080793­11</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0277-0100080807</div>
+        <div><span class="card-label">CCI:</span> 011277 000100080807­19</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 395-5394658-0-80</div>
+        <div><span class="card-label">CCI:</span> 002-395-005394558080-20</div>
+        <div><span class="card-label">DÓLARES:</span> 395-2415578-1-84</div>
+        <div><span class="card-label">CCI:</span> 002-395-002415578184-22</div>
+        <div class="card-content-header">N° CUENTA BCO. BBVA:</div>
+        <div><span class="card-label">SOLES:</span> 0011-0409-0100005801</div>
+        <div><span class="card-label">CCI:</span> 011409000100005801­04</div>
+        <div><span class="card-label">DÓLARES:</span> 0011-0409-0100005828</div>
+        <div><span class="card-label">CCI:</span> 011409000100005828­07</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">TUMBES</div>
+      <div class="card-content">
+        <div class="card-content-header">N° CUENTA BCO. BCP:</div>
+        <div><span class="card-label">SOLES:</span> 575-7131202-0-22</div>
+        <div><span class="card-label">CCI:</span> 002-575-007131202022-96</div>
+        <div><span class="card-label">DÓLARES:</span> 575-7131213-1-43</div>
+        <div><span class="card-label">CCI:</span> 002-575-007131213143-97</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Sección UBÍCANOS EN -->
-{{--<div class="cards-section">--}}
-{{--  <div class="section-title">UBÍCANOS EN</div>--}}
-{{--  <div class="cards-container">--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CHICLAYO</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO DEL COLEGIO SANTO TORIBIO DE MOGROVEJO,--}}
-{{--          CRUCE CON AV. LEGUÍA)--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">PIURA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I – PIURA (COSTADO DE LA FERRETERÍA "MARTÍN")--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">CAJAMARCA</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA EX UGEL)--}}
-{{--        </div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--    <div class="card">--}}
-{{--      <div class="card-header">JAÉN</div>--}}
-{{--      <div class="card-content">--}}
-{{--        <div><span class="card-label">Dirección:</span></div>--}}
-{{--        <div>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS) CAJAMARCA – JAÉN</div>--}}
-{{--        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>--}}
-{{--        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>--}}
-{{--        <div><span class="card-label">Horario:</span></div>--}}
-{{--        <div>LUNES A VIERNES: 8:00 AM A 6:00 PM--}}
-{{--          SÁBADOS: 8:00 AM A 6:00 PM--}}
-{{--        </div>--}}
-{{--      </div>--}}
-{{--    </div>--}}
-{{--  </div>--}}
-{{--</div>--}}
+<div class="cards-section">
+  <div class="section-title">UBÍCANOS EN</div>
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-header">CHICLAYO</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>CAR. PANAMERICANA NORTE #1006 - CHICLAYO - LAMBAYEQUE (COSTADO
+          DEL COLEGIO SANTO
+          TORIBIO DE MOGROVEJO,
+          CRUCE CON AV. LEGUÍA)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 593</div>
+        <div><span class="card-label">REPUESTOS:</span> 943 856 726</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">PIURA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>AV. SÁNCHEZ CERRO MZA. 248 LOTE. 2 DPTO. B Z.I. INDUSTRIAL I –
+          PIURA (COSTADO DE LA
+          FERRETERÍA "MARTÍN")
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 932 049 710</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 122 002</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">CAJAMARCA</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>MZA. B LOTE. 19 OTR. EL BOSQUE III ETAPA – CAJAMARCA (FRENTE A LA
+          EX UGEL)
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 950 118 892</div>
+        <div><span class="card-label">REPUESTOS:</span> 950 118 181</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">JAÉN</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>AV. PAKAMUROS #2485 INT. B (CARRETERA SAN IGNACIO - LINDEROS)
+          CAJAMARCA – JAÉN
+        </div>
+        <div><span class="card-label">CITAS TALLER:</span> 944 296 503</div>
+        <div><span class="card-label">REPUESTOS:</span> 982 940 771</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 6:00 PM
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">TUMBES</div>
+      <div class="card-content">
+        <div><span class="card-label">Dirección:</span>C.P BARRIO BELLAVISTA MZ A LOTE 19 INT. 1 - TUMBES - (Ref. Parque
+          Bellavista)
+        </div>
+        <div><span class="card-label">REPUESTOS:</span> 956 278 314</div>
+        <div><span class="card-label">Horario:</span>LUNES A VIERNES: 8:00 AM A 6:00 PM
+          SÁBADOS: 8:00 AM A 1:00 PM
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

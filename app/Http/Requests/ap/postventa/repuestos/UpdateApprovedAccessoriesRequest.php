@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\repuestos;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Validation\Rule;
 
@@ -10,9 +11,15 @@ class UpdateApprovedAccessoriesRequest extends StoreRequest
 {
   public function prepareForValidation(): void
   {
-    $this->merge([
-      'type_currency_id' => TypeCurrency::PEN_ID,
-    ]);
+    if ($this->has('type_operation_id')) {
+      $typeOperationId = (int) $this->input('type_operation_id');
+      $currencyId = match ($typeOperationId) {
+        ApMasters::TIPO_OPERACION_COMERCIAL => TypeCurrency::USD_ID,
+        ApMasters::TIPO_OPERACION_POSTVENTA => TypeCurrency::PEN_ID,
+        default                             => TypeCurrency::PEN_ID,
+      };
+      $this->merge(['type_currency_id' => $currencyId]);
+    }
   }
 
   public function rules(): array
@@ -26,7 +33,11 @@ class UpdateApprovedAccessoriesRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('approvedAccessory')),
       ],
-      'type' => ['sometimes', Rule::in(['SERVICIO', 'REPUESTO'])],
+      'type_operation_id' => [
+        'sometimes', 'integer',
+        Rule::in([ApMasters::TIPO_OPERACION_COMERCIAL, ApMasters::TIPO_OPERACION_POSTVENTA]),
+        'exists:ap_masters,id',
+      ],
       'description' => ['sometimes', 'string'],
       'price' => ['sometimes', 'numeric'],
       'status' => ['sometimes', 'boolean'],
@@ -42,11 +53,11 @@ class UpdateApprovedAccessoriesRequest extends StoreRequest
       'code.max' => 'El código no debe exceder los 20 caracteres.',
       'code.unique' => 'El código ya está en uso.',
 
-      'type.in' => 'El tipo debe ser SERVICIO o REPUESTO.',
+      'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',
+      'type_operation_id.in' => 'El tipo de operación debe ser Comercial o Posventa.',
+      'type_operation_id.exists' => 'El tipo de operación seleccionado no es válido.',
 
       'description.string' => 'La descripción debe ser una cadena de texto.',
-
-      'exchange_rate.numeric' => 'La tasa de cambio debe ser un número.',
 
       'price.numeric' => 'El precio debe ser un número.',
 

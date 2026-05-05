@@ -117,4 +117,13 @@ return [
     'name' => env('MAIL_FROM_NAME', 'Example'),
   ],
 
+  'tics' => ['mesadeayuda@grupopakatnamu.com'],
+
+  'recipients' => [
+    'purchase_quote' => [
+      'piura_jaen'        => ['john.timana@derco.pe'],
+      'cajamarca_chiclayo' => ['adolfo.ramirez@inchcape.com'],
+    ],
+  ],
+
 ];

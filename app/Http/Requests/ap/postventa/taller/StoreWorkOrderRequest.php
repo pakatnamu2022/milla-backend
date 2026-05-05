@@ -45,11 +45,24 @@ class StoreWorkOrderRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'num_doc_contact' => [
+        'required',
+        'integer',
+        'digits:8',
+      ],
+      'full_contact_name' => [
+        'required',
+        'string',
+      ],
+      'phone_contact' => [
+        'required',
+        'string',
+      ],
       'opening_date' => [
         'required',
         'date',
       ],
-      'estimated_delivery_date' => [
+      'estimated_delivery_time' => [
         'required',
         'date',
       ],
@@ -133,8 +146,7 @@ class StoreWorkOrderRequest extends StoreRequest
       'items.*.type_planning_id' => [
         'required_with:items',
         'integer',
-        Rule::exists('ap_masters', 'id')
-          ->where('type', 'TIPO_PLANIFICACION'),
+        Rule::exists('type_planning_work_order', 'id'),
       ],
       'items.*.type_operation_id' => [
         'required_with:items',
@@ -173,11 +185,21 @@ class StoreWorkOrderRequest extends StoreRequest
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
+      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
+      'num_doc_contact.integer' => 'El número de documento del contacto debe ser un entero.',
+      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
+
+      'full_contact_name.required' => 'El nombre completo del contacto es obligatorio.',
+      'full_contact_name.string' => 'El nombre completo del contacto debe ser una cadena de texto.',
+
+      'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
+      'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
+
       'opening_date.required' => 'La fecha de apertura es obligatoria.',
       'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
-      'estimated_delivery_date.required' => 'La fecha estimada de entrega es obligatoria.',
-      'estimated_delivery_date.date' => 'La fecha estimada de entrega debe ser una fecha válida.',
+      'estimated_delivery_time.required' => 'La fecha y hora estimada de entrega es obligatoria.',
+      'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
 
       'diagnosis_date.required' => 'La fecha de diagnóstico es obligatoria.',
       'diagnosis_date.date' => 'La fecha de diagnóstico debe ser una fecha válida.',

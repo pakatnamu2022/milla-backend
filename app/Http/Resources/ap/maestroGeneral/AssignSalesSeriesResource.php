@@ -21,7 +21,6 @@ class AssignSalesSeriesResource extends JsonResource
       'sede' => $this->sede->abreviatura,
       'status' => $this->status,
       'type' => $this->type,
-      'is_advance' => $this->is_advance,
     ];
   }
 }

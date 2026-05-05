@@ -6,11 +6,14 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class PerDiemRequest extends BaseModel
 {
@@ -46,8 +49,8 @@ class PerDiemRequest extends BaseModel
     'final_result',
     'with_active',
     'with_request',
-    'deposit_voucher_url',
     'authorizer_id',
+    'second_authorizer_id',
     'mobility_payroll_generated',
   ];
 
@@ -70,6 +73,7 @@ class PerDiemRequest extends BaseModel
 
   const filters = [
     'search' => ['code', 'purpose', 'employee.nombre_completo'],
+    'approvers_id' => 'accessor_in',
     'status' => '=',
     'settlement_status' => '=',
     'employee_id' => '=',
@@ -216,6 +220,15 @@ class PerDiemRequest extends BaseModel
   }
 
   /**
+   * Field "approvers_id" to get array of approval IDs for this request
+   * @return mixed[]
+   */
+  public function getApproversIdAttribute()
+  {
+    return $this->approvals->pluck('approver_id')->toArray();
+  }
+
+  /**
    * Get the hotel reservation for this request
    */
   public function hotelReservation(): HasOne
@@ -229,6 +242,14 @@ class PerDiemRequest extends BaseModel
   public function expenses(): HasMany
   {
     return $this->hasMany(PerDiemExpense::class)->orderBy('expense_date', 'desc');
+  }
+
+  /**
+   * Get all digital files for this request (deposit vouchers)
+   */
+  public function digitalFiles(): MorphMany
+  {
+    return $this->morphMany(DigitalFile::class, 'fileable', 'model', 'id_model');
   }
 
   /**
@@ -288,6 +309,84 @@ class PerDiemRequest extends BaseModel
   }
 
   /**
+   * Cuánto se ha gastado de lo presupuestado.
+   * Suma receipt_amount de gastos no rechazados, no de empresa,
+   * cuyo tipo de gasto (o su parent) coincide con algún presupuesto asignado.
+   */
+  public function getBudgetSpentAttribute(): float
+  {
+    if (!$this->budgets || !$this->expenses) {
+      return 0.0;
+    }
+
+    $budgetTypeIds = $this->budgets->pluck('expense_type_id')->toArray();
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected && !$e->is_company_expense)
+      ->filter(function ($e) use ($budgetTypeIds) {
+        if (in_array($e->expense_type_id, $budgetTypeIds)) {
+          return true;
+        }
+        if ($e->expenseType) {
+          return in_array($e->expenseType->parent_id, $budgetTypeIds);
+        }
+        return false;
+      })
+      ->sum('receipt_amount');
+  }
+
+  /**
+   * Total gastado en todos los gastos no rechazados (incluye hotel registrado por empresa).
+   */
+  public function getTotalSpentAllAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('receipt_amount');
+  }
+
+  /**
+   * Cuánto se ha gastado fuera del presupuesto:
+   * hotel de empresa, pasajes sin tarifa, y cualquier tipo no presupuestado.
+   */
+  public function getExtraSpentAttribute(): float
+  {
+    return round($this->total_spent_all - $this->budget_spent, 2);
+  }
+
+  /**
+   * Total que asume la empresa (company_amount de gastos no rechazados).
+   */
+  public function getTotalCompanyAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('company_amount');
+  }
+
+  /**
+   * Total que asume el colaborador (employee_amount de gastos no rechazados).
+   */
+  public function getTotalEmployeeAttribute(): float
+  {
+    if (!$this->expenses) {
+      return 0.0;
+    }
+
+    return (float)$this->expenses
+      ->filter(fn($e) => !$e->rejected)
+      ->sum('employee_amount');
+  }
+
+  /**
    * Check if expenses can be recorded for this request
    */
   public function canRecordExpenses(): bool
@@ -305,5 +404,21 @@ class PerDiemRequest extends BaseModel
     }
 
     return $this->end_date->diffInDays(now());
+  }
+
+  /**
+   * Check if all deposit vouchers have been uploaded (max 3)
+   */
+  public function hasAllDepositVouchers(): bool
+  {
+    return $this->digitalFiles()->count() >= 3;
+  }
+
+  /**
+   * Get count of uploaded deposit vouchers
+   */
+  public function getDepositVouchersCount(): int
+  {
+    return $this->digitalFiles()->count();
   }
 }

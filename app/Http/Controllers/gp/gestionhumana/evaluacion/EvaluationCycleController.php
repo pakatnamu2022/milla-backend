@@ -28,10 +28,10 @@ class EvaluationCycleController extends Controller
     }
   }
 
-  public function participants(int $id)
+  public function participants(int $id, Request $request)
   {
     try {
-      return $this->success($this->service->participants($id));
+      return $this->service->participants($id, $request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

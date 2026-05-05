@@ -28,6 +28,7 @@ class ApVehicleDeliveryResource extends JsonResource
       'aceptada_por_sunat' => $this->ShippingGuide->aceptada_por_sunat ?? false,
       'sent_at' => $this->ShippingGuide->sent_at ?? null,
       'status_dynamic' => $this->ShippingGuide->status_dynamic ?? null,
+      'checklist_status' => $this->checklist_status,
       'shipping_guide' => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),

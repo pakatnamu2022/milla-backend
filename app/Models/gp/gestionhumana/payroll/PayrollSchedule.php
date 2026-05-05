@@ -15,7 +15,7 @@ class PayrollSchedule extends BaseModel
 
   protected $fillable = [
     'worker_id',
-    'work_type_id',
+    'code',
     'period_id',
     'work_date',
     'hours_worked',
@@ -26,8 +26,6 @@ class PayrollSchedule extends BaseModel
 
   protected $casts = [
     'work_date' => 'date',
-    'hours_worked' => 'decimal:2',
-    'extra_hours' => 'decimal:2',
   ];
 
   // Schedule statuses
@@ -50,7 +48,7 @@ class PayrollSchedule extends BaseModel
   const filters = [
     'search' => ['notes'],
     'worker_id' => '=',
-    'work_type_id' => '=',
+    'code' => '=',
     'period_id' => '=',
     'work_date' => 'date_between',
     'status' => '=',
@@ -69,14 +67,6 @@ class PayrollSchedule extends BaseModel
   public function worker(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'worker_id');
-  }
-
-  /**
-   * Get the work type for this schedule
-   */
-  public function workType(): BelongsTo
-  {
-    return $this->belongsTo(PayrollWorkType::class, 'work_type_id');
   }
 
   /**
@@ -117,13 +107,5 @@ class PayrollSchedule extends BaseModel
   public function scopeAbsent($query)
   {
     return $query->where('status', self::STATUS_ABSENT);
-  }
-
-  /**
-   * Get total hours for this schedule
-   */
-  public function getTotalHoursAttribute(): float
-  {
-    return (float) $this->hours_worked + (float) $this->extra_hours;
   }
 }

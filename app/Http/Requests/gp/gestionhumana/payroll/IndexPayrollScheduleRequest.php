@@ -11,7 +11,7 @@ class IndexPayrollScheduleRequest extends StoreRequest
     return [
       'search' => ['nullable', 'string', 'max:100'],
       'worker_id' => ['nullable', 'integer', 'exists:rrhh_persona,id'],
-      'work_type_id' => ['nullable', 'integer', 'exists:gh_payroll_work_types,id'],
+      'code' => ['nullable', 'string', 'max:50'],
       'period_id' => ['nullable', 'integer', 'exists:gh_payroll_periods,id'],
       'work_date' => ['nullable', 'array'],
       'work_date.0' => ['nullable', 'date'],

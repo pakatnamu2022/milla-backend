@@ -4,11 +4,15 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\BaseModel;
+use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -85,10 +89,16 @@ class ShippingGuides extends BaseModel
     'company_name_transport',
     'created_at',
     'updated_at',
+    'area_id',
+    'send_dynamics',
+    'is_consignment',
+    'dynamics_date',
+    'is_accounted',
   ];
 
   protected $casts = [
     'issue_date' => 'datetime',
+    'dynamics_date' => 'date',
     'cancelled_at' => 'datetime',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
@@ -99,32 +109,37 @@ class ShippingGuides extends BaseModel
     'aceptada_por_sunat' => 'boolean',
     'status' => 'boolean',
     'is_received' => 'boolean',
+    'is_accounted' => 'boolean',
   ];
 
   // Issuer types
   const ISSUER_TYPE_SUPPLIER = 'PROVEEDOR';
-  const ISSUER_TYPE_AUTOMOTORES = 'NOSOTROS';
+  const ISSUER_TYPE_SYSTEM = 'SYSTEM';
+  const DOCUMENT_TYPE_GR = 'GUIA_REMISION';
 
   const filters = [
     'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
-    'document_type',
-    'issuer_type',
+    'document_type' => '=',
+    'issuer_type' => '=',
     'issue_date' => 'date_between',
-    'requires_sunat',
-    'is_sunat_registered',
-    'vehicle_movement_id',
-    'sede_transmitter_id',
-    'sede_receiver_id',
-    'transmitter_id', // Ubicacion Origen (Proveedor)
-    'receiver_id', // Ubicacion Destino (Cliente)
-    'transport_company_id',
-    'driver_doc',
-    'license',
-    'plate',
-    'driver_name',
-    'status',
-    'transfer_reason_id',
-    'transfer_modality_id',
+    'requires_sunat' => '=',
+    'is_sunat_registered' => '=',
+    'vehicle_movement_id' => '=',
+    'sede_transmitter_id' => '=',
+    'sede_receiver_id' => '=',
+    'transmitter_id' => '=', // Ubicacion Origen (Proveedor)
+    'receiver_id' => '=', // Ubicacion Destino (Cliente)
+    'transport_company_id' => '=',
+    'driver_doc' => '=',
+    'license' => '=',
+    'plate' => '=',
+    'driver_name' => 'like',
+    'status' => '=',
+    'transfer_reason_id' => 'in',
+    'transfer_modality_id' => '=',
+    'area_id' => '=',
+    'send_dynamics' => '=',
+    'is_consignment' => '=',
   ];
 
   const sorts = [
@@ -165,6 +180,15 @@ class ShippingGuides extends BaseModel
   public function setNoteReceivedAttribute($value): void
   {
     $this->attributes['note_received'] = Str::upper(Str::ascii($value));
+  }
+
+  /**
+   * Relaciones
+   */
+
+  public function area(): BelongsTo
+  {
+    return $this->belongsTo(Area::class, 'area_id');
   }
 
   public function typeVoucher(): BelongsTo
@@ -247,9 +271,24 @@ class ShippingGuides extends BaseModel
     return $this->belongsTo(ApClassArticle::class, 'ap_class_article_id');
   }
 
+  public function inventoryMovement(): MorphOne
+  {
+    return $this->morphOne(InventoryMovement::class, 'reference');
+  }
+
   public function receivingChecklists()
   {
     return $this->hasMany(ApReceivingChecklist::class, 'shipping_guide_id');
+  }
+
+  public function consignmentAccessories()
+  {
+    return $this->hasMany(ShippingGuideAccessory::class, 'shipping_guide_id');
+  }
+
+  public function receivingInspection(): HasOne
+  {
+    return $this->hasOne(ApReceivingInspection::class, 'shipping_guide_id');
   }
 
   /**
@@ -357,5 +396,38 @@ class ShippingGuides extends BaseModel
       'correlative_number' => $correlativeNumber,
       'correlative' => $correlative,
     ];
+  }
+
+  public function getTransferPrefix(ShippingGuides $shippingGuide): string
+  {
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      return 'CR-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+      return 'CT-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
+      return 'CO-';
+    }
+
+    return '-';
+  }
+
+  /**
+   * Obtiene el TransferenciaId usado en Dynamics para transferencias de productos
+   * Formato: PTRA-000000XXX usando correlative_dyn
+   */
+  public function getDynamicsTransferTransactionId(bool $isReversal = false): string
+  {
+    $prefix = $this->getTransferPrefix($this);
+    $transactionId = $prefix . $this->document_number;
+
+    if ($isReversal) {
+      $transactionId .= '*';
+    }
+
+    return $transactionId;
   }
 }

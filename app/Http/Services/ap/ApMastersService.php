@@ -35,14 +35,6 @@ class ApMastersService extends BaseService implements BaseServiceInterface
 
   public function store(Mixed $data)
   {
-    if (
-      isset($data['type']) &&
-      $data['type'] === 'TIPO_DOCUMENTO' &&
-      (!isset($data['code']) || !is_numeric($data['code']))
-    ) {
-      throw new Exception('El campo num. digitos debe tener formato de número entero.');
-    }
-
     $ApCommercialMasters = ApMasters::create($data);
 
     // Limpiar el cache de tipos cuando se crea un registro
@@ -59,13 +51,7 @@ class ApMastersService extends BaseService implements BaseServiceInterface
   public function update(Mixed $data)
   {
     $ApCommercialMasters = $this->find($data['id']);
-    if (
-      isset($data['type']) &&
-      $data['type'] === 'TIPO_DOCUMENTO' &&
-      (!isset($data['code']) || !is_numeric($data['code']))
-    ) {
-      throw new Exception('El campo num. digitos debe tener formato de número entero.');
-    }
+    
     $ApCommercialMasters->update($data);
 
     // Limpiar el cache de tipos cuando se actualiza un registro

@@ -104,6 +104,9 @@ class BusinessPartners extends Model
   const DYNAMICS_CLIENT = 'CLIENTES';
   const DYNAMICS_SUPPLIER = 'PROVEEDORES';
 
+  //IDS
+  public const AUTOMOTORES_PAKATNAMU_ID = 17;
+
   public function setFirstNameAttribute($value)
   {
     $this->attributes['first_name'] = Str::upper($value);

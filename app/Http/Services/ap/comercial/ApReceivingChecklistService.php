@@ -3,22 +3,40 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApReceivingChecklistResource;
+use App\Http\Resources\ap\comercial\ApReceivingInspectionResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
-use App\Jobs\SyncShippingGuideJob;
+use App\Http\Utils\Constants;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\ApReceivingChecklist;
+use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\ApReceivingInspectionDamage;
+use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
+use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ApReceivingChecklistService extends BaseService
 {
+  private const PATH_RECEPTIONS = 'ap/commercial/receptions';
+  private const PATH_DAMAGES = 'ap/commercial/receptions/damages';
+
+  public function __construct(protected DigitalFileService $digitalFileService)
+  {
+  }
+
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
@@ -69,15 +87,30 @@ class ApReceivingChecklistService extends BaseService
         ->with(['receiving', 'shipping_guide'])
         ->get();
 
-      // Get accessories from purchase orders related to this vehicle
+      // Get accessories: desde tabla de accesorios de consignación o desde OC según el tipo de guía
       $accessories = [];
 
-      if ($shippingGuide->vehicleMovement) {
+      if ($shippingGuide->is_consignment) {
+        // Consignación: leer accesorios declarados directamente en la guía
+        $consignmentAccessories = ShippingGuideAccessory::with('unitMeasurement')
+          ->where('shipping_guide_id', $shippingGuideId)
+          ->get();
 
+        foreach ($consignmentAccessories as $accessory) {
+          $accessories[] = [
+            'id' => $accessory->id,
+            'description' => $accessory->description,
+            'quantity' => $accessory->quantity,
+            'unit_price' => null,
+            'total' => null,
+            'unit_measurement' => $accessory->unitMeasurement?->description ?? 'UND',
+          ];
+        }
+      } elseif ($shippingGuide->vehicleMovement) {
+        // Normal: leer accesorios desde las órdenes de compra del vehículo
         $vehicle = $shippingGuide->vehicleMovement->vehicle;
 
         if ($vehicle) {
-
           $purchaseOrders = $vehicle->purchaseOrders;
 
           foreach ($purchaseOrders as $purchaseOrder) {
@@ -97,10 +130,56 @@ class ApReceivingChecklistService extends BaseService
         }
       }
 
+      $inspection = ApReceivingInspection::with('damages')->where('shipping_guide_id', $shippingGuideId)->first();
+
+      // Obtener estados de accesorios ya guardados para esta guía
+      $accessoryStatuses = ApReceivingAccessoryStatus::where('shipping_guide_id', $shippingGuideId)
+        ->get()
+        ->keyBy('purchase_order_item_id');
+
+      // Enriquecer accesorios con estado de recepción
+      $accessories = array_map(function ($acc) use ($accessoryStatuses) {
+        $status = isset($acc['id']) ? $accessoryStatuses->get($acc['id']) : null;
+        $acc['received'] = $status ? (bool) $status->received : null;
+        $acc['work_order_id'] = $status?->work_order_id;
+        $acc['is_installed'] = $status?->is_installed ?? null;
+        return $acc;
+      }, $accessories);
+
+      // Accesorios de posventa de la cotización de venta (no vienen en OC, pero necesitan instalación)
+      $posventaAccessories = [];
+      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+      if ($vehicle) {
+        $vehicle->load(['purchaseRequestQuote.accessories.approvedAccessory']);
+        $quote = $vehicle->purchaseRequestQuote;
+        if ($quote) {
+          foreach ($quote->accessories as $detail) {
+            if ($detail->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+              $posventaAccessories[] = [
+                'id' => $detail->id,
+                'approved_accessory_id' => $detail->approved_accessory_id,
+                'description' => $detail->approvedAccessory->description ?? 'N/A',
+                'quantity' => $detail->quantity,
+                'price' => $detail->price,
+              ];
+            }
+          }
+        }
+      }
+
+      // Verificar si ya existe OT de instalación de accesorios abierta para este vehículo
+      $hasOpenInstWorkOrder = $vehicle ? ApWorkOrder::where('vehicle_id', $vehicle->id)
+        ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+        ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+        ->exists() : false;
+
       return response()->json([
         'data' => ApReceivingChecklistResource::collection($checklists),
         'note_received' => $shippingGuide->note_received,
         'accessories' => $accessories,
+        'posventa_accessories' => $posventaAccessories,
+        'has_open_inst_work_order' => $hasOpenInstWorkOrder,
+        'inspection' => $inspection ? new ApReceivingInspectionResource($inspection) : null,
       ]);
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
@@ -117,7 +196,8 @@ class ApReceivingChecklistService extends BaseService
         throw new Exception('Guía de envío no encontrada');
       }
 
-      if (!$shippingGuide->aceptada_por_sunat) {
+      $isConsignment = $shippingGuide->is_consignment && !$shippingGuide->send_dynamics;
+      if (!$isConsignment && !$shippingGuide->aceptada_por_sunat) {
         throw new Exception('Debe esperar a que la guía de remisión sea aceptada por SUNAT antes de registrar la recepción');
       }
 
@@ -140,16 +220,13 @@ class ApReceivingChecklistService extends BaseService
       // Get existing records for this shipping guide
       $existingRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])->get();
       $existingReceivingIds = $existingRecords->pluck('receiving_id')->toArray();
-      $newReceivingIds = array_keys($data['items_receiving']);
+      $newReceivingIds = array_values($data['items_receiving']);
 
       // Determine which to delete (in existing but not in new)
       $toDelete = array_diff($existingReceivingIds, $newReceivingIds);
 
       // Determine which to add (in new but not in existing)
       $toAdd = array_diff($newReceivingIds, $existingReceivingIds);
-
-      // Determine which to update (in both existing and new)
-      $toUpdate = array_intersect($existingReceivingIds, $newReceivingIds);
 
       // Delete removed records
       if (!empty($toDelete)) {
@@ -169,21 +246,17 @@ class ApReceivingChecklistService extends BaseService
         ApReceivingChecklist::create([
           'receiving_id' => $receivingId,
           'shipping_guide_id' => $data['shipping_guide_id'],
-          'quantity' => $data['items_receiving'][$receivingId],
+          'kilometers' => $data['kilometers'],
         ]);
       }
 
-      // Update existing records with new quantities
-      foreach ($toUpdate as $receivingId) {
-        ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
-          ->where('receiving_id', $receivingId)
-          ->update(['quantity' => $data['items_receiving'][$receivingId]]);
+      if (!$isConsignment) {
+        // marcar como enviada a Dynamics y despachar migración
+        $shippingGuide->markAsSentToDynamic();
+        VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
       }
 
-      // marcar cono enviada a Dynamics
-      $shippingGuide->markAsSentToDynamic();
-
-      // Update shipping guide with note, is_received, received_by and received_date
+      // Siempre marcar como recibido
       $shippingGuide->update([
         'is_received' => true,
         'note_received' => $data['note'] ?? null,
@@ -191,8 +264,103 @@ class ApReceivingChecklistService extends BaseService
         'received_date' => now(),
       ]);
 
-      // Despachar el Job síncronamente para debugging
-      VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
+      // Actualizar has_pdi en el vehículo asociado si se envía el campo
+      if (array_key_exists('has_pdi', $data)) {
+        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+        if ($vehicle) {
+          $vehicle->update(['has_pdi' => $data['has_pdi']]);
+        }
+      }
+
+      // Crear/actualizar inspección si llegan fotos o daños
+      $hasInspectionData = isset($data['photo_front'])
+        || isset($data['photo_back'])
+        || isset($data['photo_left'])
+        || isset($data['photo_right'])
+        || isset($data['general_observations'])
+        || !empty($data['damages']);
+
+      if ($hasInspectionData) {
+        $inspection = ApReceivingInspection::firstOrCreate(
+          ['shipping_guide_id' => $data['shipping_guide_id']],
+          ['inspected_by' => auth()->id()]
+        );
+
+        if (isset($data['general_observations'])) {
+          $inspection->update(['general_observations' => $data['general_observations']]);
+        }
+
+        $this->processVehiclePhotos($inspection, $data);
+
+        if (!empty($data['damages'])) {
+          $this->processInspectionDamages($inspection, $data['damages']);
+        }
+      }
+
+      // Guardar estado de recepción por accesorio y determinar si se necesita OT de instalación
+      $needsInstallationWO = false;
+
+      if (!empty($data['accessories'])) {
+        // Eliminar registros previos para reemplazarlos
+        ApReceivingAccessoryStatus::where('shipping_guide_id', $data['shipping_guide_id'])->delete();
+
+        foreach ($data['accessories'] as $accessory) {
+          ApReceivingAccessoryStatus::create([
+            'shipping_guide_id' => $data['shipping_guide_id'],
+            'purchase_order_item_id' => $accessory['purchase_order_item_id'] ?? null,
+            'description' => $accessory['description'],
+            'quantity' => $accessory['quantity'] ?? 1,
+            'received' => (bool) $accessory['received'],
+          ]);
+
+          if (!(bool) $accessory['received']) {
+            $needsInstallationWO = true;
+          }
+        }
+      }
+
+      // Verificar si el vehículo tiene accesorios de posventa (no vienen en OC)
+      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+      if (!$needsInstallationWO && $vehicle) {
+        $vehicle->load(['purchaseRequestQuote.accessories.approvedAccessory']);
+        $hasPosventaAccessories = $vehicle->purchaseRequestQuote?->accessories
+          ->contains(fn($a) => $a->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA);
+
+        if ($hasPosventaAccessories) {
+          $needsInstallationWO = true;
+        }
+      }
+
+      // Generar OT de instalación si hay accesorios pendientes y no existe ya una abierta
+      $generatedWorkOrderId = null;
+      if ($needsInstallationWO && $vehicle) {
+        $hasOpenInstWO = ApWorkOrder::where('vehicle_id', $vehicle->id)
+          ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+          ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+          ->exists();
+
+        if (!$hasOpenInstWO) {
+          try {
+            $workOrderService = app(WorkOrderService::class);
+            $woResponse = $workOrderService->generateInstallationAccessories($vehicle->id);
+            $woData = json_decode($woResponse->getContent(), true);
+            $generatedWorkOrderId = $woData['work_order_id'] ?? null;
+
+            // Asociar la OT generada a los accesorios que no llegaron
+            if ($generatedWorkOrderId) {
+              ApReceivingAccessoryStatus::where('shipping_guide_id', $data['shipping_guide_id'])
+                ->where('received', false)
+                ->update(['work_order_id' => $generatedWorkOrderId]);
+            }
+          } catch (Exception $e) {
+            Log::warning('No se pudo generar OT de instalación de accesorios', [
+              'vehicle_id' => $vehicle->id,
+              'shipping_guide_id' => $shippingGuide->id,
+              'error' => $e->getMessage(),
+            ]);
+          }
+        }
+      }
 
       // Get updated records
       $updatedRecords = ApReceivingChecklist::where('shipping_guide_id', $data['shipping_guide_id'])
@@ -204,7 +372,9 @@ class ApReceivingChecklistService extends BaseService
 
       // Enviar correo de notificación en segundo plano (después del commit)
       try {
-        $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
+        if (!$shippingGuide->is_consignment) {
+          $this->sendReceptionEmail($shippingGuide->fresh(['vehicleMovement.vehicle', 'transmitter', 'receiver', 'receivedBy']), $updatedRecords);
+        }
       } catch (Exception $e) {
         Log::error('Error al enviar correo de recepción de vehículo', [
           'shipping_guide_id' => $shippingGuide->id,
@@ -215,6 +385,7 @@ class ApReceivingChecklistService extends BaseService
       return response()->json([
         'data' => $updatedRecords,
         'note_received' => $shippingGuide->note_received,
+        'installation_work_order_id' => $generatedWorkOrderId,
       ]);
     } catch (Exception $e) {
       DB::rollBack();
@@ -274,6 +445,7 @@ class ApReceivingChecklistService extends BaseService
    * @param ShippingGuides $shippingGuide
    * @param mixed $receivedItems
    * @return void
+   * @throws Exception
    */
   private function sendReceptionEmail(ShippingGuides $shippingGuide, mixed $receivedItems): void
   {
@@ -284,51 +456,126 @@ class ApReceivingChecklistService extends BaseService
       // Preparar items para el template
       $items = collect($receivedItems)->map(function ($item) {
         $description = $item->resource->receiving->description ?? 'N/A';
-        $quantity = $item->resource->quantity ?? 0;
-
-        // Si la cantidad es mayor a 0, mostrar descripción con cantidad
-        // Si es 0 o null, solo mostrar la descripción
-        if ($quantity > 0) {
-          $formattedName = "{$description} ({$quantity})";
-        } else {
-          $formattedName = $description;
-        }
+        $quantity = $item->resource->quantity ?? 1;
 
         return [
-          'name' => $formattedName,
+          'name' => $description,
           'quantity' => $quantity,
         ];
       })->toArray();
 
       $coordinator = $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email2 ?? $vehicle->purchaseOrder->vehicleMovement->createdByUser->person->email1 ?? null;
-      $consultant = $vehicle->purchaseRequestQuote?->opportunity->worker->email2 ?? $vehicle->purchaseRequestQuote?->opportunity->worker->email1 ?? null;
+      $consultant = $vehicle->purchaseOrder->advisor()?->email2 ?? $vehicle->purchaseOrder->advisor()?->email1 ?? null;
 
       $emailsTo = [$coordinator, $consultant];
-      $emailsCC = ['wsuclupef@automotorespakatnamu.com', 'dordinolac@grupopakatnamu.com', 'hvaldiviezos@automotorespakatnamu.com', 'kquesquenm@automotorespakatnamu.com'];
+      $emailsCC = array_merge(Constants::AP_TICS_MAIL, ['jefealmacen@automotorespakatnamu.com']);
+
+      // Preparar fotos de inspección como adjuntos
+      $attachments = [];
+      $inspection = ApReceivingInspection::where('shipping_guide_id', $shippingGuide->id)->first();
+      $hasPhotos = false;
+
+      if ($inspection) {
+        $photoMap = [
+          'photo_front_url' => 'Foto_Frontal.jpg',
+          'photo_back_url'  => 'Foto_Trasera.jpg',
+          'photo_left_url'  => 'Foto_Izquierda.jpg',
+          'photo_right_url' => 'Foto_Derecha.jpg',
+        ];
+
+        foreach ($photoMap as $field => $fileName) {
+          if (!empty($inspection->$field)) {
+            $attachments[] = [
+              'url'  => $inspection->$field,
+              'name' => $fileName,
+              'mime' => 'image/jpeg',
+            ];
+            $hasPhotos = true;
+          }
+        }
+      }
 
       $emailService->queue([
-        'to' => array_filter($emailsTo),
-        'cc' => $emailsCC,
-        'subject' => 'Notificación de Recepción de Vehículo - ' . ($vehicle->vin ?? 'VIN no disponible'),
-        'template' => 'emails.vehicle-reception',
-        'data' => [
-          'advisor_name' => 'Wilmer Yoel Suclupe Farroñan', // TODO: Obtener del asesor real
-          'vehicle_vin' => $vehicle->vin ?? 'N/A',
-          'vehicle_model' => $vehicle->model->version ?? 'N/A',
-          'vehicle_brand' => $vehicle->model->family->brand->name ?? 'N/A',
-          'vehicle_year' => $vehicle->year ?? 'N/A',
-          'vehicle_color' => $vehicle->color->description ?? 'N/A',
-          'origin' => $shippingGuide->transmitter->address ?? 'N/A',
-          'destination' => $shippingGuide->receiver->address ?? 'N/A',
+        'to'          => array_filter($emailsTo),
+        'cc'          => $emailsCC,
+        'subject'     => 'Recepción de Vehículo — VIN ' . ($vehicle->vin ?? 'N/A'),
+        'template'    => 'emails.vehicle-reception',
+        'attachments' => $attachments,
+        'data'        => [
+          'badge'          => 'Recepción de Vehículo',
+          'title'          => 'Notificación de Recepción',
+          'subtitle'       => 'El vehículo ha sido recepcionado satisfactoriamente',
+          'company_name'   => 'Automotores Pakatnamu',
+          'vehicle_vin'    => $vehicle->vin ?? 'N/A',
+          'vehicle_model'  => $vehicle->model->version ?? 'N/A',
+          'vehicle_brand'  => $vehicle->model->family->brand->name ?? 'N/A',
+          'vehicle_year'   => $vehicle->year ?? 'N/A',
+          'vehicle_color'  => $vehicle->color->description ?? 'N/A',
+          'origin'         => $shippingGuide->transmitter->address ?? 'N/A',
+          'destination'    => $shippingGuide->receiver->address ?? 'N/A',
           'received_items' => $items,
-          'note' => $shippingGuide->note_received ?? 'N/A',
-          'received_by' => $shippingGuide->receivedBy->name ?? 'Sistema',
-          'received_date' => $shippingGuide->received_date ? $shippingGuide->received_date->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
-          'shipping_guide_id' => $shippingGuide->id,
-        ]
+          'note'           => $shippingGuide->note_received ?? null,
+          'received_by'    => $shippingGuide->receivedBy->name ?? 'Sistema',
+          'received_date'  => $shippingGuide->received_date
+            ? $shippingGuide->received_date->format('d/m/Y H:i')
+            : now()->format('d/m/Y H:i'),
+          'has_photos'     => $hasPhotos,
+        ],
       ]);
     } catch (Exception $e) {
+      Log::error('Error al preparar o enviar correo de recepción de vehículo', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
+    }
+  }
+
+  private function processVehiclePhotos(ApReceivingInspection $inspection, array $data): void
+  {
+    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+    $updates = [];
+
+    foreach ($photoTypes as $photoType) {
+      if (isset($data[$photoType]) && $data[$photoType] instanceof UploadedFile) {
+        $digitalFile = $this->digitalFileService->store(
+          $data[$photoType],
+          self::PATH_RECEPTIONS,
+          'public',
+          $inspection->getTable()
+        );
+        $updates["{$photoType}_url"] = $digitalFile->url;
+      }
+    }
+
+    if (!empty($updates)) {
+      $inspection->update($updates);
+    }
+  }
+
+  private function processInspectionDamages(ApReceivingInspection $inspection, array $damages): void
+  {
+    foreach ($damages as $damageData) {
+      $photoFile = null;
+
+      if (isset($damageData['photo']) && $damageData['photo'] instanceof UploadedFile) {
+        $photoFile = $damageData['photo'];
+        unset($damageData['photo']);
+      }
+
+      $damage = new ApReceivingInspectionDamage($damageData);
+      $damage->receiving_inspection_id = $inspection->id;
+      $damage->save();
+
+      if ($photoFile) {
+        $digitalFile = $this->digitalFileService->store(
+          $photoFile,
+          self::PATH_DAMAGES,
+          'public',
+          $damage->getTable()
+        );
+        $damage->update(['photo_url' => $digitalFile->url]);
+      }
     }
   }
 }

@@ -26,7 +26,7 @@ class ApReceivingChecklistController extends Controller
     try {
       return $this->service->list($request);
     } catch (Exception $e) {
-      return response()->json(['error' => $e->getMessage()], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -38,7 +38,7 @@ class ApReceivingChecklistController extends Controller
     try {
       return $this->service->update($request->validated());
     } catch (Exception $e) {
-      return response()->json(['error' => $e->getMessage()], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -50,7 +50,7 @@ class ApReceivingChecklistController extends Controller
     try {
       return $this->service->getByShippingGuide($shippingGuideId);
     } catch (Exception $e) {
-      return response()->json(['error' => $e->getMessage()], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -62,7 +62,7 @@ class ApReceivingChecklistController extends Controller
     try {
       return $this->service->destroyByShippingGuide($shippingGuideId);
     } catch (Exception $e) {
-      return response()->json(['error' => $e->getMessage()], 500);
+      return $this->error($e->getMessage());
     }
   }
 
@@ -74,7 +74,7 @@ class ApReceivingChecklistController extends Controller
     try {
       return $this->success($this->service->getVehicleByShippingGuide($shippingGuideId));
     } catch (Exception $e) {
-      return response()->json(['error' => $e->getMessage()], 500);
+      return $this->error($e->getMessage());
     }
   }
 }

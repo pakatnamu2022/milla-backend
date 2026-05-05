@@ -28,7 +28,7 @@
 
     body {
       font-family: Arial, sans-serif;
-      font-size: 8px;
+      font-size: 10px;
       padding: 15px;
     }
 
@@ -111,7 +111,7 @@
 
     .info-table {
       width: 100%;
-      font-size: 7px;
+      font-size: 9px;
       margin-bottom: 5px;
     }
 
@@ -122,14 +122,13 @@
 
     .info-label {
       font-weight: bold;
-      width: 100px;
-      background-color: #f5f5f5;
+      width: 60px;
     }
 
     .detail-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 7px;
+      font-size: 9px;
       margin-top: 5px;
     }
 
@@ -164,7 +163,7 @@
 
     .section-title {
       font-weight: bold;
-      font-size: 8px;
+      font-size: 10px;
       margin-bottom: 5px;
       padding: 3px;
       background-color: #f0f0f0;
@@ -172,13 +171,13 @@
 
     .footer-note {
       margin-top: 10px;
-      font-size: 7px;
+      font-size: 9px;
       font-style: italic;
     }
 
     .page-number {
       text-align: right;
-      font-size: 7px;
+      font-size: 9px;
       margin-top: 5px;
     }
   </style>
@@ -194,41 +193,17 @@
     <div class="column-left">
       <div class="section-box" style="padding: 10px; min-height: 150px; box-sizing: border-box;">
         <div class="section-row">
-          <span class="section-label">CLIENTE</span>
-          <span class="section-value">: {{ strtoupper($client->full_name ?? 'N/A') }}</span>
+          <span class="section-label">Propietario</span>
+          <span class="section-value">: {{ strtoupper($workOrder->vehicle->customer->full_name ?? 'N/A') }}</span>
+        </div>
+        <div class="section-row">
+          <span class="section-label">Contacto</span>
+          <span class="section-value">: {{ strtoupper($workOrder->full_contact_name ?? 'N/A') }}</span>
         </div>
         <div class="section-row">
           <span class="section-label">Fec. Recepción</span>
           <span
-            class="section-value">: {{ $workOrder->opening_date ? \Carbon\Carbon::parse($workOrder->opening_date)->format('d/m/Y H:i') : 'N/A' }}</span>
-        </div>
-        <div class="section-row">
-          <span class="section-label">Fec. Entrega</span>
-          <span class="section-value">:</span>
-        </div>
-        <div class="section-row">
-          <span class="section-label">Fec. Final</span>
-          <span class="section-value"></span>
-        </div>
-
-        <div class="checkbox-group">
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Espera Trabajo
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Requiere Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Pide Repuestos
-          </div>
-          <div class="checkbox-item">
-            <span class="checkbox"></span> Vehículo con Campaña NRO:
-          </div>
-        </div>
-
-        <div class="section-row" style="margin-top: 10px;">
-          <span class="section-label">AUTORIZACIÓN ADICIONAL :</span>
-          <span class="section-value" style="margin-left: 100px;">$</span>
+            class="section-value">: {{ $workOrder->vehicleInspection ? \Carbon\Carbon::parse($workOrder->vehicleInspection->inspection_date)->format('d/m/Y H:i') : '- / - / -' }}</span>
         </div>
       </div>
     </div>
@@ -249,15 +224,15 @@
           <span style="font-weight: bold;">PLACA</span>
           <span style="margin-left: 10px;">: {{ $vehicle->plate ?? 'N/A' }}</span>
         </div>
-        <div style="margin-bottom: 5px; font-size: 7px;">
+        <div style="margin-bottom: 5px; font-size: 9px;">
           <span style="font-weight: bold;">TIPO SERVICIO</span>
           <span>: {{ $workOrder->items->first()->typePlanning->description ?? 'N/A' }}</span>
         </div>
-        <div style="margin-bottom: 5px; font-size: 7px;">
+        <div style="margin-bottom: 5px; font-size: 9px;">
           <span style="font-weight: bold;">ASISTENTE</span>
           <span class="checkbox" style="margin-left: 10px;"></span>
         </div>
-        <div style="font-size: 7px;">
+        <div style="font-size: 9px;">
           <span style="font-weight: bold;">FEC. ASISTENCIA</span>
         </div>
       </div>
@@ -304,7 +279,7 @@
           </tr>
           <tr>
             <td class="info-label">VEHÍCULO</td>
-            <td colspan="3">: {{ $vehicle->model->name ?? 'N/A' }}</td>
+            <td colspan="3">: {{ $vehicle->model->version ?? 'N/A' }}</td>
           </tr>
           <tr>
             <td class="info-label">AÑO</td>
@@ -329,9 +304,9 @@
   <div class="section-box">
     <table class="info-table">
       <tr>
-        <td class="info-label" style="width: 180px;">NRO PRESUPUESTO RECEPCIONISTA</td>
+        <td class="info-label" style="width: 110px;">NRO PRESUPUESTO</td>
         <td style="width: 200px;">:</td>
-        <td class="info-label" style="width: 180px;">TEL. RECEPCIONISTA</td>
+        <td class="info-label" style="width: 110px;">TEL. RECEPCIONISTA</td>
         <td>: {{ strtoupper($workOrder->advisor->tel_referencia_3 ?? 'N/A') }}</td>
       </tr>
       <tr>
@@ -356,7 +331,7 @@
         <div
           style="display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; border-right: 1px solid #000;">
           <div style="font-weight: bold; margin-bottom: 5px;">REQUERIMIENTO CLIENTE</div>
-          <div style="margin-left: 20px; font-size: 7px; min-height: 40px;">
+          <div style="margin-left: 20px; font-size: 9px; min-height: 40px;">
             {{ $workOrder->items->pluck('description')->implode(', ') ?: 'N/A' }}
           </div>
         </div>
@@ -393,7 +368,7 @@
       <th style="width: 40%;">DESCRIPCIÓN</th>
       <th style="width: 10%;">MC</th>
       <th style="width: 10%;">CANTIDAD / HRS</th>
-      <th style="width: 10%;">DESCTO</th>
+      <th style="width: 10%;">% DTO.</th>
       <th style="width: 15%;">P.UNITARIO</th>
       <th style="width: 15%;">TOTAL</th>
     </tr>
@@ -406,12 +381,12 @@
       </tr>
       @foreach($parts as $part)
         <tr>
-          <td class="text-left">{{ strtoupper($part->product->description ?? 'N/A') }}</td>
+          <td class="text-left">{{ strtoupper($part->product->name ?? 'N/A') }}</td>
           <td class="text-center"></td>
           <td class="text-center">{{ formatNumber($part->quantity_used) }}</td>
           <td class="text-right">{{ formatNumber($part->discount_percentage ?? 0) }}</td>
           <td class="text-right">{{ formatNumber($part->unit_price) }}</td>
-          <td class="text-right">{{ formatNumber($part->total_amount) }}</td>
+          <td class="text-right">{{ formatNumber($part->net_amount) }}</td>
         </tr>
       @endforeach
     @endif
@@ -426,9 +401,9 @@
           <td class="text-left">{{ strtoupper($labour->description) }}</td>
           <td class="text-center"></td>
           <td class="text-center">{{ $labour->time_spent }}</td>
-          <td class="text-right">0.00</td>
+          <td class="text-right">{{ formatNumber($labour->discount_percentage ?? 0) }}</td>
           <td class="text-right">{{ formatNumber($labour->hourly_rate) }}</td>
-          <td class="text-right">{{ formatNumber($labour->total_cost) }}</td>
+          <td class="text-right">{{ formatNumber($labour->net_amount ?? $labour->total_cost) }}</td>
         </tr>
       @endforeach
     @endif
@@ -450,52 +425,90 @@
 
   <!-- RESULTADO ENTREGA -->
   <div class="section-box" style="margin-top: 10px;">
-    <div class="bold" style="margin-bottom: 5px;">RESULTADO ENTREGA</div>
-    <div class="checkbox-group">
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Chequeó Anomalías
+    <div style="display: table; width: 100%;">
+      <div
+        style="display: table-cell; width: 65%; vertical-align: top; padding-right: 10px;">
+        <div class="bold" style="margin-bottom: 5px;">RESULTADO ENTREGA</div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+          <tr>
+            <td style="width: 50%; padding: 3px 10px 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Chequeó Anomalías
+            </td>
+            <td style="width: 50%; padding: 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Verificó el Precio al Cliente
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 10px 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Explicaciones de la Orden de Trabajo
+            </td>
+            <td style="padding: 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Entregó Libro de Garantía Firmado
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 10px 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Informaron su Próxima Revisión
+            </td>
+            <td style="padding: 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Recorrió el Vehículo con el Cliente
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 3px 10px 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Informaron Contacto Telefónico
+            </td>
+            <td style="padding: 3px 0; vertical-align: middle;">
+              <span class="checkbox"></span> Confirmó el resultado con el Cliente
+            </td>
+          </tr>
+        </table>
       </div>
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Verificó el Precio al Cliente
+      <div style="display: table-cell; width: 35%; vertical-align: top; padding-left: 10px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+          <tr>
+            <td colspan="2"
+                style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #172e66; color: white; text-align: center;">
+              RESUMEN
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
+              Total {{$currencySymbol}}
+            </td>
+            <td
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['total_cost']) }}</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">
+              Descuento {{$currencySymbol}}
+            </td>
+            <td
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['discount_amount']) }}</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
+              Neto {{$currencySymbol}}
+            </td>
+            <td
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['net_amount']) }}</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #f5f5f5;">Total
+              IGV {{$currencySymbol}}
+            </td>
+            <td
+              style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['tax_amount']) }}</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #e8eef7;">
+              Total {{$currencySymbol}}
+            </td>
+            <td
+              style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-weight: bold; background-color: #e8eef7;">{{ formatNumber($totals['total_amount']) }}</td>
+          </tr>
+        </table>
       </div>
-    </div>
-    <div class="checkbox-group">
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Explicaciones de la Orden de Trabajo
-      </div>
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Entregó Libro de Garantía Firmado
-      </div>
-    </div>
-    <div class="checkbox-group">
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Informaron su Próxima Revisión
-      </div>
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Recorrió el Vehículo con el Cliente
-      </div>
-    </div>
-    <div class="checkbox-group">
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Informaron Contacto Telefónico
-      </div>
-      <div class="checkbox-item">
-        <span class="checkbox"></span> Confirmó el resultado con el Cliente
-      </div>
-    </div>
-    <div style="text-align: center; margin-top: 10px; font-size: 8px;">
-      {{ strtoupper($workOrder->advisor->nombre_completo ?? 'N/A') }}
-    </div>
-  </div>
-
-  <!-- SEGUIMIENTO POST-SERVICIO -->
-  <div class="section-box" style="margin-top: 5px;">
-    <div class="bold" style="margin-bottom: 5px;">SEGUIMIENTO POST-SERVICIO</div>
-    <div style="font-size: 7px;">
-      <span class="bold">LLAMAR</span>
-    </div>
-    <div style="font-size: 7px;">
-      <span class="bold">FECHA HORA :</span>
     </div>
   </div>
 

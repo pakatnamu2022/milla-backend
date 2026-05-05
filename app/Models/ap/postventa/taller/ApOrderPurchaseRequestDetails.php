@@ -19,8 +19,12 @@ class ApOrderPurchaseRequestDetails extends Model
     'order_purchase_request_id',
     'product_id',
     'quantity',
+    'unit_price',
+    'discount_percentage',
+    'total_amount',
     'notes',
     'requested_delivery_date',
+    'supply_type',
     'status',
   ];
 
@@ -29,6 +33,7 @@ class ApOrderPurchaseRequestDetails extends Model
     'order_purchase_request_id' => '=',
     'product_id' => '=',
     'requested_delivery_date' => 'between',
+    'supply_type' => '=',
   ];
 
   const sorts = [
@@ -43,6 +48,17 @@ class ApOrderPurchaseRequestDetails extends Model
     'requested_delivery_date' => 'datetime',
   ];
 
+  // Status constants
+  const STATUS_PENDING = 'pending';
+  const STATUS_ORDERED = 'ordered';
+  const STATUS_RECEIVED = 'received';
+  const STATUS_REJECTED = 'rejected';
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = strtolower($value);
+  }
+
   public function orderPurchaseRequest(): BelongsTo
   {
     return $this->belongsTo(ApOrderPurchaseRequests::class, 'order_purchase_request_id');
@@ -51,16 +67,6 @@ class ApOrderPurchaseRequestDetails extends Model
   public function product(): BelongsTo
   {
     return $this->belongsTo(Products::class, 'product_id');
-  }
-
-  public function purchaseOrders(): BelongsToMany
-  {
-    return $this->belongsToMany(
-      PurchaseOrder::class,
-      'ap_order_purchase_request_detail_purchase_order',
-      'ap_order_purchase_request_detail_id',
-      'purchase_order_id'
-    )->withTimestamps();
   }
 
   public function supplierOrders(): BelongsToMany

@@ -111,6 +111,62 @@ class ViewService extends BaseService
     return response()->json(['message' => 'Vista eliminada correctamente']);
   }
 
+  public function duplicate($id)
+  {
+    $view = $this->find($id);
+    $duplicated = $this->duplicateView($view, $view->parent_id);
+    return new ViewResource($duplicated);
+  }
+
+  private function duplicateView(View $view, $parentId): View
+  {
+    $suffix = ' Copia';
+    $routeSuffix = '-copia';
+
+    $newView = View::create([
+      'descripcion' => $view->descripcion . $suffix,
+      'slug'        => $view->slug ? $view->slug . $routeSuffix : null,
+      'route'       => $view->route ? $view->route . $routeSuffix : null,
+      'ruta'        => $view->ruta ? $view->ruta . $routeSuffix : null,
+      'icono'       => $view->icono,
+      'icon'        => $view->icon,
+      'submodule'   => $view->submodule,
+      'company_id'  => $view->company_id,
+      'parent_id'   => $parentId,
+      'idPadre'     => $view->idPadre,
+      'idSubPadre'  => $view->idSubPadre,
+      'idHijo'      => $view->idHijo,
+      'status_deleted' => 1,
+    ]);
+
+    // Duplicar permisos
+    $oldRoute = $view->route;
+    $newRoute = $newView->route;
+
+    foreach ($view->permissions as $permission) {
+      $newCode = ($oldRoute && $newRoute && str_starts_with($permission->code, $oldRoute . '.'))
+        ? $newRoute . substr($permission->code, strlen($oldRoute))
+        : $permission->code . $routeSuffix;
+
+      Permission::create([
+        'code'          => $newCode,
+        'name'          => $permission->name,
+        'description'   => $permission->description,
+        'module'        => $newRoute ?? $permission->module,
+        'vista_id'      => $newView->id,
+        'policy_method' => $permission->policy_method,
+        'is_active'     => $permission->is_active,
+      ]);
+    }
+
+    // Duplicar hijos recursivamente
+    foreach ($view->children()->where('status_deleted', 1)->get() as $child) {
+      $this->duplicateView($child, $newView->id);
+    }
+
+    return $newView;
+  }
+
   /**
    * Obtener vistas con sus permisos en formato árbol (sin paginación)
    */

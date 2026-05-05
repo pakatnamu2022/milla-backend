@@ -4,8 +4,10 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
-use App\Models\ap\compras\PurchaseOrderItem;
+use App\Http\Services\common\ExportService;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
@@ -13,6 +15,55 @@ use Illuminate\Support\Facades\DB;
 
 class ProductWarehouseStockService extends BaseService
 {
+  // Método de cálculo de precio de venta:
+  // 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+  // 2: PVP = Costo / (1 - (margen + impuesto))
+  private const PRICE_CALCULATION_METHOD = 2;
+
+  private ?float $freightCommission = null;
+  private ?float $profitMargin = null;
+  private ?float $minimunDiscount = null;
+
+  protected ExportService $exportService;
+
+  public function __construct(ExportService $exportService)
+  {
+    $this->exportService = $exportService;
+  }
+
+  /**
+   * Get freight commission percentage from GeneralMaster (cached)
+   *
+   * @return float
+   */
+  private function getFreightCommission(): float
+  {
+    if ($this->freightCommission === null) {
+      $this->freightCommission = GeneralMaster::find(GeneralMaster::FREIGHT_COMMISSION_ID)->value ?? 0.05;
+    }
+    return $this->freightCommission;
+  }
+
+  /**
+   * Get profit margin percentage from GeneralMaster (cached)
+   *
+   * @return float
+   */
+  private function getProfitMargin(): float
+  {
+    if ($this->profitMargin === null) {
+      $this->profitMargin = GeneralMaster::find(GeneralMaster::PROFIT_MARGIN_ID)->value ?? 0.30;
+    }
+    return $this->profitMargin;
+  }
+
+  private function getMinimunDiscount(): float
+  {
+    if ($this->minimunDiscount === null) {
+      $this->minimunDiscount = GeneralMaster::find(GeneralMaster::ADVISOR_DISCOUNT_PERCENTAGE_PV_ID)->value ?? 0.05;
+    }
+    return $this->minimunDiscount;
+  }
 
   public function list(Request $request)
   {
@@ -26,17 +77,25 @@ class ProductWarehouseStockService extends BaseService
   }
 
   /**
-   * Add stock to warehouse from inventory movement
-   * IMPORTANT: quantity parameter should be the actual physical quantity to add
-   * (already excluding observed/damaged items)
+   * Add stock to warehouse with automatic currency conversion to PEN (base currency)
    *
-   * @param int $productId
-   * @param int $warehouseId
-   * @param float $quantity
-   * @return ProductWarehouseStock
+   * @param int $productId Product ID
+   * @param int $warehouseId Warehouse ID
+   * @param float $quantity Quantity to add
+   * @param float $unitCost Unit cost in original currency
+   * @param int|null $currencyId Currency ID of the unit cost (default: PEN = 3)
+   * @param float|null $exchangeRate Exchange rate to convert to PEN (only for non-PEN currencies)
+   * @return ProductWarehouseStock Updated stock record
    * @throws Exception
    */
-  public function addStock(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
+  public function addStock(
+    int    $productId,
+    int    $warehouseId,
+    float  $quantity,
+    float  $unitCost = 0,
+    ?int   $currencyId = null,
+    ?float $exchangeRate = null
+  ): ProductWarehouseStock
   {
     DB::beginTransaction();
     try {
@@ -54,8 +113,49 @@ class ProductWarehouseStockService extends BaseService
           'available_quantity' => 0,
           'minimum_stock' => 0,
           'maximum_stock' => 0,
+          'average_cost' => 0,
+          'currency_id' => TypeCurrency::PEN_ID, // Always PEN (base currency)
         ]
       );
+
+      // Calcule el costo promedio ponderado si se proporciona el costo unitario.
+      if ($unitCost > 0) {
+        // Convertir el costo unitario a PEN (moneda base) si es necesario.
+        $unitCostInPEN = $this->convertToBaseCurrency($unitCost, $currencyId, $exchangeRate);
+
+        $currentStock = $stock->quantity;
+        $currentAverageCost = $stock->average_cost ?? 0;
+
+        // Fórmula del costo promedio ponderado (todo en PEN):
+        // nuevo_costo_promedio = (current_stock × current_average_cost + new_quantity × unit_cost_in_PEN) / (current_stock + new_quantity)
+        if ($currentStock + $quantity > 0) {
+          $newAverageCost = (($currentStock * $currentAverageCost) + ($quantity * $unitCostInPEN)) / ($currentStock + $quantity);
+          $stock->average_cost = round($newAverageCost, 2);
+        } else {
+          $stock->average_cost = $unitCostInPEN;
+        }
+
+        // Actualizar cost_price al último costo unitario de compra (en PEN)
+        $stock->cost_price = $unitCostInPEN;
+
+        // Update sale_price based on average cost with freight commission and profit margin
+        $profitMargin = $this->getProfitMargin();
+        $freightCommission = $this->getFreightCommission();
+
+        if (self::PRICE_CALCULATION_METHOD === 1) {
+          // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+          $stock->sale_price = round(
+            ($stock->average_cost / (1 - $profitMargin)) * (1 + $freightCommission),
+            2
+          );
+        } else {
+          // Método 2 (por defecto): PVP = Costo / (1 - (margen + impuesto))
+          $stock->sale_price = round(
+            $stock->average_cost / (1 - ($profitMargin + $freightCommission)),
+            2
+          );
+        }
+      }
 
       // Add quantity (physical stock that actually arrived in good condition)
       $stock->quantity += $quantity;
@@ -70,6 +170,35 @@ class ProductWarehouseStockService extends BaseService
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Convertir importe de la moneda original a la moneda base (PEN)
+   *
+   * @param float $amount Importe en moneda original
+   * @param int|null $currencyId Currency ID (null or PEN_ID means already in PEN)
+   * @param float|null $exchangeRate ID de la moneda (nulo o PEN_ID significa que ya está en PEN)
+   * @return float Cantidad convertida a PEN
+   */
+  private function convertToBaseCurrency(float $amount, ?int $currencyId, ?float $exchangeRate): float
+  {
+    // If no currency specified or already in PEN, return as is
+    if ($currencyId === null || $currencyId === TypeCurrency::PEN_ID) {
+      return $amount;
+    }
+
+    // If currency is USD and exchange rate is provided, convert to PEN
+    if ($currencyId === TypeCurrency::USD_ID && $exchangeRate && $exchangeRate > 0) {
+      return round($amount * $exchangeRate, 2);
+    }
+
+    // For other currencies with exchange rate, apply conversion
+    if ($exchangeRate && $exchangeRate > 0) {
+      return round($amount * $exchangeRate, 2);
+    }
+
+    // If no valid exchange rate, return amount as is (assume already in PEN)
+    return $amount;
   }
 
   /**
@@ -312,7 +441,26 @@ class ProductWarehouseStockService extends BaseService
         // Determine if this is an inbound or outbound movement
         if ($movement->is_inbound) {
           // INBOUND: Add stock to warehouse
-          $stock = $this->addStock($productId, $movement->warehouse_id, abs($quantity));
+          // Pass unit_cost for PURCHASE_RECEPTION and ADJUSTMENT_IN movements to calculate weighted average cost
+          // - PURCHASE_RECEPTION: unit_cost comes from adjusted purchase price (total invoiced / qty received)
+          // - ADJUSTMENT_IN: unit_cost comes from user input for initial stock or manual adjustments
+          $unitCost = 0;
+          if (in_array($movement->movement_type, [
+            InventoryMovement::TYPE_PURCHASE_RECEPTION,
+            InventoryMovement::TYPE_ADJUSTMENT_IN
+          ])) {
+            $unitCost = $detail->unit_cost ?? 0;
+          }
+
+          // Pass currency and exchange rate from movement for proper conversion to PEN
+          $stock = $this->addStock(
+            $productId,
+            $movement->warehouse_id,
+            abs($quantity),
+            $unitCost,
+            $movement->currency_id,
+            $movement->exchange_rate
+          );
           $updatedStocks[] = $stock;
         } else {
           // OUTBOUND: Remove stock from warehouse
@@ -599,7 +747,7 @@ class ProductWarehouseStockService extends BaseService
   /**
    * Get stock by multiple product IDs across all warehouses
    * Returns stock information grouped by product
-   * Includes pricing information per warehouse: last purchase price, public sale price, minimum sale price
+   * Includes pricing information per warehouse from ProductWarehouseStock table
    *
    * @param array $productIds Array of product IDs
    * @return array
@@ -608,14 +756,8 @@ class ProductWarehouseStockService extends BaseService
   {
     // Get all stocks for the given product IDs
     $stocks = ProductWarehouseStock::whereIn('product_id', $productIds)
-      ->with(['product', 'warehouse'])
+      ->with(['product', 'warehouse', 'currency'])
       ->get();
-
-    // Get warehouse IDs from stocks
-    $warehouseIds = $stocks->pluck('warehouse_id')->unique()->toArray();
-
-    // Get last purchase prices for all products by warehouse
-    $lastPurchasePricesByWarehouse = $this->getLastPurchasePricesByWarehouse($productIds, $warehouseIds);
 
     // Group by product_id
     $result = [];
@@ -644,12 +786,20 @@ class ProductWarehouseStockService extends BaseService
       $totalAvailable = $productStocks->sum('available_quantity');
 
       // Build warehouses array with pricing per warehouse
+      // Uses values already calculated and stored in ProductWarehouseStock table
       $warehouses = [];
       foreach ($productStocks as $stock) {
-        // Get pricing for this specific product-warehouse combination
-        $lastPurchasePrice = $lastPurchasePricesByWarehouse[$productId][$stock->warehouse_id] ?? 0;
-        $publicSalePrice = $this->calculatePublicSalePrice($lastPurchasePrice);
+        // Get pricing from ProductWarehouseStock table (already calculated in addStock method)
+        $lastPurchasePrice = (float)($stock->cost_price ?? 0);      // Last unit cost from purchase/adjustment
+        $averageCost = (float)($stock->average_cost ?? 0);          // Weighted average cost
+        $publicSalePrice = (float)($stock->sale_price ?? 0);        // Public sale price (already calculated)
         $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
+
+        // Calculate days without movement
+        $daysWithoutMovement = null;
+        if ($stock->last_movement_date) {
+          $daysWithoutMovement = (int)now()->diffInDays($stock->last_movement_date, true);
+        }
 
         $warehouses[] = [
           'warehouse_id' => $stock->warehouse_id,
@@ -664,9 +814,12 @@ class ProductWarehouseStockService extends BaseService
           'is_low_stock' => $stock->is_low_stock,
           'is_out_of_stock' => $stock->is_out_of_stock,
           'last_movement_date' => $stock->last_movement_date?->format('Y-m-d H:i:s'),
-          'last_purchase_price' => (float)$lastPurchasePrice,
-          'public_sale_price' => (float)$publicSalePrice,
-          'minimum_sale_price' => (float)$minimumSalePrice,
+          'days_without_movement' => $daysWithoutMovement,
+          'last_purchase_price' => $lastPurchasePrice,
+          'average_cost' => $averageCost,
+          'public_sale_price' => $publicSalePrice,
+          'minimum_sale_price' => $minimumSalePrice,
+          'currency' => $stock->currency,
         ];
       }
 
@@ -685,65 +838,6 @@ class ProductWarehouseStockService extends BaseService
   }
 
   /**
-   * Get last purchase prices for multiple products grouped by warehouse
-   * Searches in PurchaseOrderItem for the most recent purchase of each product per warehouse
-   *
-   * @param array $productIds
-   * @param array $warehouseIds
-   * @return array [product_id => [warehouse_id => last_purchase_price]]
-   */
-  private function getLastPurchasePricesByWarehouse(array $productIds, array $warehouseIds): array
-  {
-    $prices = [];
-
-    // Initialize the array structure
-    foreach ($productIds as $productId) {
-      $prices[$productId] = [];
-    }
-
-    // Get last purchase order items for each product-warehouse combination
-    $lastPurchaseItems = PurchaseOrderItem::whereIn('product_id', $productIds)
-      ->whereHas('purchaseOrder', function ($query) use ($warehouseIds) {
-        $query->whereIn('warehouse_id', $warehouseIds);
-      })
-      ->with(['purchaseOrder:id,warehouse_id'])
-      ->orderBy('created_at', 'desc')
-      ->get();
-
-    // Group by product_id and warehouse_id, keeping only the most recent
-    foreach ($lastPurchaseItems as $item) {
-      $productId = $item->product_id;
-      $warehouseId = $item->purchaseOrder?->warehouse_id;
-
-      if ($warehouseId && !isset($prices[$productId][$warehouseId])) {
-        $prices[$productId][$warehouseId] = (float)$item->unit_price;
-      }
-    }
-
-    return $prices;
-  }
-
-  /**
-   * Calculate public sale price
-   * Formula: (purchase price * 1.05 freight commission) + 30% margin
-   * Example: 150 * 1.05 = 157.5, 157.5 * 0.30 = 47.25, 157.5 + 47.25 = 204.75
-   *
-   * @param float $lastPurchasePrice
-   * @return float
-   */
-  private function calculatePublicSalePrice(float $lastPurchasePrice): float
-  {
-    if ($lastPurchasePrice <= 0) {
-      return 0;
-    }
-
-    $priceWithFreight = $lastPurchasePrice * 1.05;
-    $margin = $priceWithFreight * 0.30;
-
-    return round($priceWithFreight + $margin, 2);
-  }
-
-  /**
    * Calculate minimum sale price (public sale price - 5%)
    *
    * @param float $publicSalePrice
@@ -755,6 +849,53 @@ class ProductWarehouseStockService extends BaseService
       return 0;
     }
 
-    return round($publicSalePrice * 0.95, 2);
+    return round($publicSalePrice * (1 - $this->getMinimunDiscount()), 2);
+  }
+
+  /**
+   * Export inventory to Excel
+   *
+   * @param Request $request
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportInventory(Request $request)
+  {
+    $filters = [];
+
+    // Filter by warehouse
+    if ($request->filled('warehouse_id')) {
+      $filters[] = [
+        'column' => 'warehouse_id',
+        'operator' => '=',
+        'value' => $request->warehouse_id
+      ];
+    }
+
+    // Filter by stock status
+    if ($request->filled('stock_type')) {
+      if ($request->stock_type === 'with_stock') {
+        $filters[] = [
+          'column' => 'with_stock',
+          'operator' => '=',
+          'value' => true
+        ];
+      } elseif ($request->stock_type === 'without_stock') {
+        $filters[] = [
+          'column' => 'without_stock',
+          'operator' => '=',
+          'value' => true
+        ];
+      }
+    }
+
+    $title = $request->get('title', 'Reporte de Inventario');
+
+    $options = [
+      'title' => $title,
+      'filters' => $filters,
+      'format' => $request->get('format', 'excel'),
+    ];
+
+    return $this->exportService->exportToExcel(ProductWarehouseStock::class, $options);
   }
 }

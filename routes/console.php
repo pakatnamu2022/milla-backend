@@ -34,15 +34,26 @@ Schedule::command('app:sync-exchange-rate')
 // Verificar y migrar órdenes de compra de vehículos pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:verify-migration --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Verificar y migrar guías de remisión pendientes
-// Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
+// Verificar y migrar guías de remisión de COMERCIAL (vehículos) pendientes
+// Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
 Schedule::command('shipping-guide:verify-migration --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Verificar y migrar recepciones de POSVENTA (productos) pendientes
+// Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
+Schedule::command('product-reception:verify-migration --all --limit=10')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -50,7 +61,17 @@ Schedule::command('shipping-guide:verify-migration --all --limit=10')
 // Sincronizar invoice_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-invoice-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Sincronizar shipping_guide_dynamics desde Dynamics
+// Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
+Schedule::command('shipping-guide:sync-dynamics --all')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -58,7 +79,8 @@ Schedule::command('po:sync-invoice-dynamics --all --limit=10')
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -66,7 +88,8 @@ Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
 // Verificar y sincronizar documentos electrónicos de venta a Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
 Schedule::command('electronic-document:verify-sync --all --limit=10')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
@@ -74,8 +97,25 @@ Schedule::command('electronic-document:verify-sync --all --limit=10')
 // Consultar estado de documentos electrónicos enviados a SUNAT
 // Verificación de estado cada minuto (solo lectura, no crea jobs masivos)
 Schedule::command('app:check-pending-electronic-documents')
-  ->everyMinute()
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Cerrar evaluaciones cuyo end_date ya venció
+// Ejecuta diariamente a las 23:00 hora Lima
+Schedule::command('evaluation:close-expired')
+  ->dailyAt('23:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Redistribuir leads pendientes (use=0, >24h) entre asesores del mismo grupo shop+marca
+// Ejecuta diariamente a medianoche (hora Lima)
+//Schedule::command('ap:redistribute-potential-buyers')
+//  ->dailyAt('00:00')
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 

@@ -34,6 +34,19 @@ class ApClassArticle extends Model
     'description',
   ];
 
+  const int SERVICIOS = 2;
+  const int VEHICULOS_NUEVO = 3;
+  const int CAMIONES_NUEVO = 4;
+  const int VEHICUL_USADO = 5;
+  const int CAMIONES_USADO = 6;
+  const int REPUESTOS_VEHICULO = 7;
+  const int LUBRICANTE = 8;
+  const int REPUESTOS_CAMIONES = 9;
+  const int GLP_KIT = 10;
+  const int GLP_TANQUE = 11;
+  const int SUMINISTROS = 12;
+
+
   public function setDynCodeAttribute($value)
   {
     $this->attributes['dyn_code'] = Str::upper(Str::ascii($value));

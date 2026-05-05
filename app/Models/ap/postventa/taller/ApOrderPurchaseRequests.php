@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +26,12 @@ class ApOrderPurchaseRequests extends Model
     'ap_order_quotation_id',
     'purchase_order_id',
     'warehouse_id',
+    'currency_id',
+    'area_id',
+    'exchange_rate',
+    'reviewed_by',
+    'reviewed_at',
+    'approved',
     'requested_date',
     'ordered_date',
     'received_date',
@@ -40,6 +48,7 @@ class ApOrderPurchaseRequests extends Model
     'ap_order_quotation_id' => '=',
     'purchase_order_id' => '=',
     'warehouse_id' => '=',
+    'currency_id' => '=',
     'requested_date' => 'between',
     'supply_type' => 'in',
   ];
@@ -59,6 +68,8 @@ class ApOrderPurchaseRequests extends Model
     'ordered_date' => 'datetime',
     'received_date' => 'datetime',
     'notified_at' => 'datetime',
+    'reviewed_at' => 'datetime',
+    'approved' => 'boolean',
   ];
 
   // Boot method
@@ -74,8 +85,14 @@ class ApOrderPurchaseRequests extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
+
+  // STATUS CONSTANTS
+  const PENDING = 'pending';
+  const ORDERED = 'ordered';
+  const RECEIVED = 'received';
+  const CANCELLED = 'cancelled';
 
   public function apOrderQuotation(): BelongsTo
   {
@@ -90,6 +107,21 @@ class ApOrderPurchaseRequests extends Model
   public function warehouse(): BelongsTo
   {
     return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function typeCurrency(): BelongsTo
+  {
+    return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function area(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'area_id');
+  }
+
+  public function reviewedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'reviewed_by');
   }
 
   public function requestedBy(): BelongsTo

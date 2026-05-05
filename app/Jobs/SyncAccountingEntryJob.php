@@ -30,7 +30,7 @@ class SyncAccountingEntryJob implements ShouldQueue
     public int $shippingGuideId
   )
   {
-    $this->onQueue('sync');
+    $this->onQueue('electronic_documents');
   }
 
   /**

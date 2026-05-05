@@ -22,6 +22,7 @@ class PayrollPeriod extends BaseModel
     'start_date',
     'end_date',
     'payment_date',
+    'biweekly_date',
     'status',
     'company_id',
   ];
@@ -32,6 +33,7 @@ class PayrollPeriod extends BaseModel
     'start_date' => 'date',
     'end_date' => 'date',
     'payment_date' => 'date',
+    'biweekly_date' => 'date',
   ];
 
   // Period statuses
@@ -121,7 +123,7 @@ class PayrollPeriod extends BaseModel
    */
   public static function getCurrentPeriod(?int $companyId = null)
   {
-    $query = self::open()->orderBy('year', 'desc')->orderBy('month', 'desc');
+    $query = self::orderBy('year', 'desc')->orderBy('month', 'desc');
 
     if ($companyId) {
       $query->where('company_id', $companyId);
@@ -154,10 +156,11 @@ class PayrollPeriod extends BaseModel
 
   /**
    * Check if period can be modified
+   * Only OPEN periods can be modified, updated or deleted
    */
   public function canModify(): bool
   {
-    return in_array($this->status, [self::STATUS_OPEN, self::STATUS_PROCESSING]);
+    return $this->status === self::STATUS_OPEN;
   }
 
   /**

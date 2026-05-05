@@ -15,6 +15,7 @@ class HotelAgreement extends BaseModel
   protected $fillable = [
     'city',
     'name',
+    'ruc',
     'corporate_rate',
     'features',
     'includes_breakfast',
@@ -38,7 +39,7 @@ class HotelAgreement extends BaseModel
   ];
 
   const filters = [
-    'search' => ['name', 'city', 'email', 'phone'],
+    'search' => ['name', 'city', 'ruc', 'email', 'phone'],
     'city' => 'like',
     'active' => '=',
     'includes_breakfast' => '=',

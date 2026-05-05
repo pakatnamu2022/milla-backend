@@ -122,6 +122,18 @@ return [
       'icon' => 'UserCheck',
       'policy_method' => 'assign',
     ],
+    'bill' => [
+      'label' => 'Facturar',
+      'description' => 'Permite facturar cotizaciones o servicios',
+      'icon' => 'DollarSign',
+      'policy_method' => 'bill',
+    ],
+    'otOptions' => [
+      'label' => 'Opciones OT',
+      'description' => 'Permite acceder a opciones de órdenes de trabajo',
+      'icon' => 'Settings',
+      'policy_method' => 'otOptions',
+    ],
     'manage' => [
       'label' => 'Gestionar',
       'description' => 'Permite gestionar configuraciones avanzadas',
@@ -134,7 +146,80 @@ return [
       'icon' => 'Truck',
       'policy_method' => 'receive',
     ],
+    'history' => [
+      'label' => 'Historial',
+      'description' => 'Permite visualizar el historial de cambios o acciones',
+      'icon' => 'History',
+      'policy_method' => 'history',
+    ],
+    'maintenance' => [
+      'label' => 'Mantenimiento',
+      'description' => 'Permite realizar tareas de mantenimiento del sistema',
+      'icon' => 'Tool',
+      'policy_method' => 'maintenance',
+    ],
+    'request' => [
+      'label' => 'Solicitar',
+      'description' => 'Permite realizar solicitudes dentro del sistema',
+      'icon' => 'Send',
+      'policy_method' => 'request',
+    ],
+    'editDiscount' => [
+      'label' => 'Editar Descuento',
+      'description' => 'Permite editar descuentos en cotizaciones o facturas',
+      'icon' => 'Edit3',
+      'policy_method' => 'editDiscount',
+    ],
+    'seeReception' => [
+      'label' => 'Ver Recepción',
+      'description' => 'Permite visualizar la información de recepción comercial del vehículo',
+      'icon' => 'Eye',
+      'policy_method' => 'seeReception',
+    ],
+    'requestCancellation' => [
+      'label' => 'Solicitar Anulación',
+      'description' => 'Permite solicitar la anulación de un registro o documento',
+      'icon' => 'XCircle',
+      'policy_method' => 'requestCancellation',
+    ],
+    'migrate' => [
+      'label' => 'Migrar',
+      'description' => 'Permite realizar migraciones de datos o configuraciones',
+      'icon' => 'XCircle',
+      'policy_method' => 'migrate',
+    ],
+    'generate' => [
+      'label' => 'Generar',
+      'description' => 'Permite generar documentos, reportes u otros elementos dentro del sistema',
+      'icon' => 'XCircle',
+      'policy_method' => 'generate',
+    ],
+    'createSpare' => [
+      'label' => 'Crear Nuevo Repuesto',
+      'description' => 'Permite crear un nuevo repuesto directamente desde la cotización',
+      'icon' => 'Plus',
+      'policy_method' => 'createSpare',
+    ],
+    'confirmCancellationReception' => [
+      'label' => 'Confirmar Anulación Recepción',
+      'description' => 'Permite confirmar la anulación de una recepción comercial',
+      'icon' => 'CheckCircle',
+      'policy_method' => 'confirmCancellationReception',
+    ],
+    'addSparePartsOT' => [
+      'label' => 'Agregar Repuestos a OT',
+      'description' => 'Permite agregar repuestos a una orden de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'addSparePartsOT',
+    ],
+    'notify' => [
+      'label' => 'Notificar',
+      'description' => 'Permite enviar notificaciones a usuarios o grupos',
+      'icon' => 'Bell',
+      'policy_method' => 'notify',
+    ]
   ],
+
 
   /*
   |--------------------------------------------------------------------------

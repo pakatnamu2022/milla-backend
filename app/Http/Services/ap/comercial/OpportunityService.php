@@ -64,6 +64,16 @@ class OpportunityService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     $data['worker_id'] = auth()->user()->partner_id;
+
+    $statusIds = ApMasters::where('type', 'OPPORTUNITY_STATUS')->whereIn('code', Opportunity::OPEN_STATUS_CODES)->pluck('id')->toArray();
+    $exists = Opportunity::where('client_id', $data['client_id'])
+      ->where('family_id', $data['family_id'])
+      ->whereIn('opportunity_status_id', $statusIds)
+      ->exists();
+    if ($exists) {
+      throw new Exception('El cliente ya tiene una oportunidad abierta para esta familia');
+    }
+
     DB::beginTransaction();
     try {
       $opportunity = Opportunity::create($data);

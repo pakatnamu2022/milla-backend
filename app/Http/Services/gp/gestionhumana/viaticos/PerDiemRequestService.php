@@ -19,6 +19,8 @@ use App\Models\gp\gestionhumana\viaticos\PerDiemPolicy;
 use App\Models\gp\gestionhumana\viaticos\PerDiemApproval;
 use App\Models\gp\gestionhumana\viaticos\MobilityPayroll;
 use App\Models\gp\gestionsistema\DigitalFile;
+use App\Models\gp\gestionsistema\Position;
+use App\Models\gp\gestionsistema\UserSede;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
@@ -32,14 +34,16 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 {
   protected EmailService $emailService;
   protected DigitalFileService $digitalFileService;
+  protected HotelReservationService $hotelReservationService;
 
   // Configuración de ruta para vouchers de depósito
   private const DEPOSIT_VOUCHER_PATH = '/gp/gestionhumana/viaticos/vouchers/';
 
-  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService)
+  public function __construct(DigitalFileService $digitalFileService, EmailService $emailService, HotelReservationService $hotelReservationService)
   {
     $this->digitalFileService = $digitalFileService;
     $this->emailService = $emailService;
+    $this->hotelReservationService = $hotelReservationService;
   }
 
   /**
@@ -64,7 +68,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   {
     $perDiemRequest = PerDiemRequest::with([
       'budgets.expenseType',
-      'expenses.expenseType' // Eager load expenses for spent calculation
+      'expenses.expenseType', // Eager load expenses for spent calculation
+      'digitalFiles' // Eager load deposit vouchers
     ])->where('id', $id)->first();
     if (!$perDiemRequest) {
       throw new Exception('Solicitud de viático no encontrada');
@@ -77,7 +82,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PerDiemRequestResource($this->find($id));
+    $request = $this->find($id);
+    $request->load([
+      'employee',
+      'company',
+      'sedeService',
+      'district',
+      'policy',
+      'category',
+      'digitalFiles'
+    ]);
+    return new PerDiemRequestResource($request);
   }
 
   /**
@@ -98,6 +113,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if (auth()->check()) {
         $data['employee_id'] = auth()->user()->person->id;
         $data['authorizer_id'] = auth()->user()->person->jefe_id;
+        $data['second_authorizer_id'] = auth()->user()->person->second_boss_id;
       }
 
       // Get employee's position (cargo) to obtain per_diem_category_id
@@ -106,6 +122,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('El empleado no tiene un cargo asignado');
       }
 
+      // Validate that the position has a per diem category assigned
       if (!$employee->position->per_diem_category_id) {
         throw new Exception('El cargo del empleado no tiene una categoría de viático asignada');
       }
@@ -145,6 +162,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'with_active' => $data['with_active'] ?? false,
         'with_request' => false,
         'authorizer_id' => $data['authorizer_id'] ?? null,
+        'second_authorizer_id' => $data['second_authorizer_id'] ?? null,
       ];
 
       // Create the request
@@ -171,8 +189,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         ]);
       }
 
+      // Create approval for employee's second boss
+      if ($employee->second_boss_id) {
+        PerDiemApproval::create([
+          'per_diem_request_id' => $request->id,
+          'approver_id' => $employee->second_boss_id,
+          'status' => PerDiemApproval::PENDING,
+        ]);
+      }
+
       // Send email notifications
-      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'district']));
+      $this->sendPerDiemRequestCreatedEmails($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return new PerDiemRequestResource($request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'budgets.expenseType', 'approvals.approver']));
@@ -268,7 +295,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send cancellation email
       $this->sendPerDiemRequestCancelledEmail(
-        $request->fresh(['employee.boss', 'district']),
+        $request->fresh(['employee.boss', 'employee.secondBoss', 'district']),
         $data['cancellation_reason'] ?? ''
       );
 
@@ -297,16 +324,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get approval requests for the authenticated user (as approver)
    * @param Request $request
-   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   * @return \Illuminate\Http\JsonResponse
    */
   public function getPendingApprovals(Request $request)
   {
     $approverId = auth()->user()->person->id;
 
     // Merge authorizer_id filter
-    $request->merge(['authorizer_id' => $approverId]);
+    $request->merge(['approvers_id' => $approverId]);
 
     // Handle approval_status filter: 'pending' (default), 'approved', 'all'
     $approvalStatus = $request->query('approval_status', 'pending');
@@ -323,6 +349,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'sedeService',
       'district',
       'policy',
+      'approvals',
     ]);
 
     return $this->getFilteredResults(
@@ -344,7 +371,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $userId = auth()->user()->person->id;
 
     $pendingSettlements = PerDiemRequest::where('settlement_status', PerDiemRequest::SETTLEMENT_SUBMITTED)
-      ->where('authorizer_id', $userId)
+      ->where(function ($query) use ($userId) {
+        $query->where('authorizer_id', $userId)
+          ->orWhere('second_authorizer_id', $userId);
+      })
       ->orderBy('settlement_date', 'desc')
       ->get();
 
@@ -374,20 +404,81 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se pueden enviar solicitudes en estado pendiente o rechazadas');
       }
 
-      // Create approval record for the employee's boss
-      if ($request->employee->jefe_id) {
-        // Check if approval already exists
-        $existingApproval = PerDiemApproval::where('per_diem_request_id', $request->id)
-          ->where('approver_id', $request->employee->jefe_id)
-          ->first();
+      // Create approval records for bosses if missing
+      $bosses = array_filter([$request->employee->jefe_id, $request->employee->second_boss_id]);
+      foreach ($bosses as $bossId) {
+        $exists = PerDiemApproval::where('per_diem_request_id', $request->id)
+          ->where('approver_id', $bossId)
+          ->exists();
 
-        if (!$existingApproval) {
+        if (!$exists) {
           PerDiemApproval::create([
             'per_diem_request_id' => $request->id,
-            'approver_id' => $request->employee->jefe_id,
+            'approver_id' => $bossId,
             'status' => PerDiemApproval::PENDING,
           ]);
         }
+      }
+
+      DB::commit();
+      return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'approvals.approver']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Reset approvals for a per diem request.
+   * - Crea aprobaciones faltantes para jefe y segundo jefe.
+   * - Restablece aprobaciones aprobadas/rechazadas a pendiente.
+   * - Solo funciona si la solicitud no ha pasado a in_progress.
+   */
+  public function resetApprovals(int $id): PerDiemRequest
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      // Solo permitir si no ha pasado a in_progress o estados posteriores
+      if (in_array($request->status, [
+        PerDiemRequest::STATUS_IN_PROGRESS,
+        PerDiemRequest::STATUS_PENDING_SETTLEMENT,
+        PerDiemRequest::STATUS_SETTLED,
+        PerDiemRequest::STATUS_CANCELLED,
+      ])) {
+        throw new Exception('No se pueden restablecer las aprobaciones una vez que la solicitud ha pasado a estado en proceso');
+      }
+
+      $employee = $request->employee;
+      $bosses = array_filter([$employee->jefe_id, $employee->second_boss_id]);
+
+      foreach ($bosses as $bossId) {
+        $approval = PerDiemApproval::where('per_diem_request_id', $request->id)
+          ->where('approver_id', $bossId)
+          ->first();
+
+        if (!$approval) {
+          // Crear aprobación faltante
+          PerDiemApproval::create([
+            'per_diem_request_id' => $request->id,
+            'approver_id' => $bossId,
+            'status' => PerDiemApproval::PENDING,
+          ]);
+        } elseif ($approval->status !== PerDiemApproval::PENDING) {
+          // Restablecer aprobación aprobada o rechazada a pendiente
+          $approval->update([
+            'status' => PerDiemApproval::PENDING,
+            'comments' => null,
+            'approved_at' => null,
+          ]);
+        }
+      }
+
+      // Si estaba aprobada o rechazada, volver a pendiente
+      if (in_array($request->status, [PerDiemRequest::STATUS_APPROVED, PerDiemRequest::STATUS_REJECTED])) {
+        $request->update(['status' => PerDiemRequest::STATUS_PENDING]);
       }
 
       DB::commit();
@@ -409,14 +500,17 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       $request = $this->find($id);
       $approverId = auth()->user()->person->id ?? $data['approver_id'];
 
-      // Find the approval record for this approver
-      $approval = $request->approvals()
+      // Find any existing approval record for this approver (not just pending)
+      $existingApproval = $request->approvals()
         ->where('approver_id', $approverId)
-        ->where('status', PerDiemApproval::PENDING)
         ->first();
 
-      if (!$approval) {
-        // If no approval exists, create one
+      if ($existingApproval && $existingApproval->status !== PerDiemApproval::PENDING) {
+        throw new Exception('Esta aprobación ya ha sido procesada');
+      }
+
+      if (!$existingApproval) {
+        // No approval record exists yet for this approver — create one
         $approval = PerDiemApproval::create([
           'per_diem_request_id' => $request->id,
           'approver_id' => $approverId,
@@ -425,7 +519,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'approved_at' => now(),
         ]);
       } else {
-        // Update the existing approval
+        $approval = $existingApproval;
+        // Update the existing pending approval
         $approval->update([
           'status' => $data['status'],
           'comments' => $data['comments'] ?? null,
@@ -448,7 +543,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           $request->update(['status' => PerDiemRequest::STATUS_APPROVED]);
 
           // Send approval email to employee
-          $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee', 'district']));
+          $this->sendPerDiemRequestApprovedEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
         }
         // If not all approved yet, keep status as pending
       }
@@ -515,7 +610,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       ]);
 
       // Send settlement email to employee
-      $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee', 'district']));
+      $this->sendPerDiemRequestSettlementEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category']);
@@ -567,7 +662,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       // Send settlement completed email to employee
-      $this->sendPerDiemRequestSettledEmail($request->fresh(['employee', 'district']));
+      $this->sendPerDiemRequestSettledEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
@@ -594,15 +689,16 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       if ($request->settlement_status === PerDiemRequest::SETTLEMENT_SUBMITTED) {
-        if ($currentUserId !== $request->authorizer_id) {
-          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo');
+        $allowedApprovers = array_filter([$request->authorizer_id, $request->second_authorizer_id]);
+        if (!in_array($currentUserId, $allowedApprovers)) {
+          throw new Exception('La aprobación de la liquidación debe ser realizada por el jefe directo o el segundo jefe');
         }
 
         $request->update([
           'settlement_status' => PerDiemRequest::SETTLEMENT_APPROVED,
         ]);
 
-        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE DIRECTO";
+        $approvalNote = "LIQUIDACIÓN APROBADA POR JEFE";
       }
 
       // If there are comments, add them to notes
@@ -614,6 +710,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       }
 
       $request->update(['notes' => $newNotes]);
+
+      // Enviar notificaciones en segundo plano a los 3 actores
+      $this->sendSettlementNotifications($request->fresh(['employee', 'company', 'sedeService', 'district', 'authorizer']));
 
       DB::commit();
       return $request->fresh(['employee', 'company', 'sedeService', 'district', 'policy', 'category', 'expenses']);
@@ -701,7 +800,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
       // Send in-progress email ONLY if no hotel reservation exists
       if (!$request->hotelReservation()->exists()) {
-        $this->sendPerDiemInProgressEmail($request->fresh(['employee', 'district']));
+        $this->sendPerDiemInProgressEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
       }
 
       DB::commit();
@@ -722,6 +821,191 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Regenerate budgets and recalculate all expenses for an in-progress per diem request.
+   * Deletes existing budgets, recreates them from current rates, then
+   * recalculates company_amount/employee_amount for every non-rejected expense.
+   *
+   * @throws Exception
+   */
+  public function regenerateBudgetsAll(int $id): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($id);
+
+      if ($request->status !== PerDiemRequest::STATUS_IN_PROGRESS) {
+        throw new Exception('Solo se pueden regenerar los presupuestos de solicitudes en progreso.');
+      }
+
+      // Delete existing budgets
+      $request->budgets()->delete();
+
+      // Get current rates for the request's district and category
+      $rates = PerDiemRate::getCurrentRatesByDistrict(
+        $request->district_id,
+        $request->per_diem_category_id
+      );
+
+      if ($rates->isEmpty()) {
+        throw new Exception('No se encontraron tarifas vigentes para el destino y categoría de esta solicitud.');
+      }
+
+      // Recreate budgets
+      $totalBudget = $this->generateBudgets($request, $rates);
+      $request->update(['total_budget' => $totalBudget]);
+
+      // Reload budgets for the recalculation pass
+      $request->load('budgets');
+
+      // Recalculate company/employee amounts for all non-rejected expenses
+      $this->recalculateExpenses($request);
+
+      // Recalculate total spent
+      $totalSpent = PerDiemExpense::where('per_diem_request_id', $id)
+        ->where('rejected', false)
+        ->sum('company_amount');
+
+      $request->update([
+        'total_spent' => $totalSpent,
+        'balance_to_return' => max(0, $totalBudget - $totalSpent),
+      ]);
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'sedeService',
+          'district',
+          'policy',
+          'category',
+          'budgets.expenseType',
+          'expenses.expenseType',
+          'hotelReservation.hotelAgreement',
+        ])
+      );
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Recalculate company_amount / employee_amount for all non-rejected expenses
+   * of a request after its budgets have been regenerated.
+   * Expenses are processed in chronological order so daily-limit tracking is correct.
+   */
+  private function recalculateExpenses(PerDiemRequest $request): void
+  {
+    $budgets = $request->budgets->keyBy('expense_type_id');
+    $mealsBudget = $budgets->get(ExpenseType::MEALS_ID);
+
+    // If there is a dedicated BREAKFAST budget (e.g. hotel without breakfast
+    // included, or a separate breakfast rate), track it outside of the shared
+    // MEALS daily limit.  We simply check whether the budget entry exists —
+    // if it does, breakfast must be tracked independently; if not, it falls
+    // through to the shared MEALS limit as before.
+    $breakfastBudget = $budgets->get(ExpenseType::BREAKFAST_ID);
+
+    // Chronological order to respect daily accumulation correctly
+    $expenses = PerDiemExpense::where('per_diem_request_id', $request->id)
+      ->where('rejected', false)
+      ->orderBy('expense_date')
+      ->orderBy('id')
+      ->get();
+
+    // Running daily totals: [date => [budget_key => accumulated_company_amount]]
+    $dailySpent = [];
+
+    foreach ($expenses as $expense) {
+      $typeId = $expense->expense_type_id;
+      $date = is_string($expense->expense_date)
+        ? substr($expense->expense_date, 0, 10)
+        : $expense->expense_date->format('Y-m-d');
+
+      [$companyAmount, $employeeAmount] = $this->computeExpenseAmounts(
+        $typeId,
+        (float)$expense->receipt_amount,
+        $date,
+        $mealsBudget,
+        $budgets,
+        $dailySpent,
+        $breakfastBudget,
+      );
+
+      $expense->update([
+        'company_amount' => $companyAmount,
+        'employee_amount' => $employeeAmount,
+      ]);
+
+      // Accumulate spent for daily-limit tracking.
+      // Breakfast is tracked separately when it has its own budget.
+      if ($typeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+        $dailySpent[$date][ExpenseType::BREAKFAST_ID] = ($dailySpent[$date][ExpenseType::BREAKFAST_ID] ?? 0) + $companyAmount;
+      } elseif (in_array($typeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+        $dailySpent[$date][ExpenseType::MEALS_ID] = ($dailySpent[$date][ExpenseType::MEALS_ID] ?? 0) + $companyAmount;
+      } elseif (!in_array($typeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID])) {
+        $dailySpent[$date][$typeId] = ($dailySpent[$date][$typeId] ?? 0) + $companyAmount;
+      }
+    }
+  }
+
+  /**
+   * Calculate company_amount and employee_amount for a single expense,
+   * given the current budget map and already-spent daily totals.
+   *
+   * @param mixed $breakfastBudget When non-null, breakfast has its own budget
+   *                               separate from the MEALS daily limit.
+   * @return array{float, float}  [company_amount, employee_amount]
+   */
+  private function computeExpenseAmounts(
+    int    $typeId,
+    float  $receiptAmount,
+    string $date,
+           $mealsBudget,
+           $budgets,
+    array  $dailySpent,
+           $breakfastBudget = null,
+  ): array
+  {
+    // No daily limit: company covers 100%
+    if (in_array($typeId, [ExpenseType::TRANSPORTATION_ID, ExpenseType::GASOLINE_ID, ExpenseType::TOLLS_ID, ExpenseType::ACCOMMODATION_ID])) {
+      return [$receiptAmount, 0.0];
+    }
+
+    // Breakfast with its own budget (hotel without breakfast included)
+    if ($typeId === ExpenseType::BREAKFAST_ID && $breakfastBudget) {
+      $alreadySpent = $dailySpent[$date][ExpenseType::BREAKFAST_ID] ?? 0;
+      $available = max(0, $breakfastBudget->daily_amount - $alreadySpent);
+      $companyAmount = min($receiptAmount, $available);
+      return [$companyAmount, $receiptAmount - $companyAmount];
+    }
+
+    // Meals share the MEALS budget daily limit
+    if (in_array($typeId, [ExpenseType::BREAKFAST_ID, ExpenseType::LUNCH_ID, ExpenseType::DINNER_ID])) {
+      if (!$mealsBudget) {
+        return [0.0, $receiptAmount];
+      }
+      $alreadySpent = $dailySpent[$date][ExpenseType::MEALS_ID] ?? 0;
+      $available = max(0, $mealsBudget->daily_amount - $alreadySpent);
+      $companyAmount = min($receiptAmount, $available);
+      return [$companyAmount, $receiptAmount - $companyAmount];
+    }
+
+    // Every other type uses its own budget
+    $budget = $budgets->get($typeId);
+    if (!$budget) {
+      return [0.0, $receiptAmount];
+    }
+    $alreadySpent = $dailySpent[$date][$typeId] ?? 0;
+    $available = max(0, $budget->daily_amount - $alreadySpent);
+    $companyAmount = min($receiptAmount, $available);
+    return [$companyAmount, $receiptAmount - $companyAmount];
   }
 
   public function confirmProgress(int $id): PerDiemRequestResource
@@ -758,17 +1042,19 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     // Get all expense types from budgets
     $expenseTypeIds = $request->budgets()->pluck('expense_type_id')->unique()->toArray();
 
-    // Check if TRANSPORTATION should be available
-    // Count existing transportation expenses (excluding rejected ones)
-    $transportationExpensesCount = PerDiemExpense::where('per_diem_request_id', $id)
-      ->where('expense_type_id', ExpenseType::TRANSPORTATION_ID)
-      ->where('rejected', false)
-      ->count();
+//    // Check if TRANSPORTATION should be available
+//    // Count existing transportation expenses (excluding rejected ones)
+//    $transportationExpensesCount = PerDiemExpense::where('per_diem_request_id', $id)
+//      ->where('expense_type_id', ExpenseType::TRANSPORTATION_ID)
+//      ->where('rejected', false)
+//      ->count();
+//
+//    // Add TRANSPORTATION to available types if less than 2 expenses exist
+//    if ($transportationExpensesCount < 2 && !in_array(ExpenseType::TRANSPORTATION_ID, $expenseTypeIds)) {
+//      $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
+//    }
 
-    // Add TRANSPORTATION to available types if less than 2 expenses exist
-    if ($transportationExpensesCount < 2 && !in_array(ExpenseType::TRANSPORTATION_ID, $expenseTypeIds)) {
-      $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
-    }
+    $expenseTypeIds[] = ExpenseType::TRANSPORTATION_ID;
 
     // Add TOLLS and GASOLINE if with_active is true
     if ($request->with_active) {
@@ -930,11 +1216,11 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     // Separar gastos por quien los asume (empresa vs colaborador)
     $gastosEmpresa = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === true && $expense->validated == 1;
+      return $expense->is_company_expense === true;
     });
 
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return $expense->is_company_expense === false && $expense->validated == 1;
+      return $expense->is_company_expense === false;
     });
 
     // ===== GASTOS DE LA EMPRESA =====
@@ -1366,9 +1652,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       'expenses.expenseType',
     ]);
 
-    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo
+    // Obtener solo los gastos del personal (no asumidos por la empresa) directamente del modelo y filtrar por validados
     $gastosColaborador = $perDiemRequest->expenses->filter(function ($expense) {
-      return !$expense->is_company_expense && $expense->validated == 1;
+      return !$expense->is_company_expense; //&& $expense->validated == 1;
     });
 
     // Agrupar gastos por parent (si tienen parent, agrupar por parent_id, si no por expense_type_id)
@@ -1492,8 +1778,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
 
     foreach ($rates as $rate) {
       switch ($rate->expense_type_id) {
+        case ExpenseType::BREAKFAST_ID:
+          $totalBudget += $this->generateMealBudgets(
+            $request,
+            $rate,
+            $daysCount,
+            (bool)($request->hotelReservation?->hotelAgreement?->includes_breakfast)
+          );
+          break;
+
         case ExpenseType::MEALS_ID:
-          $totalBudget += $this->generateMealBudgets($request, $rate, $daysCount);
+          $totalBudget += $this->generateMealBudgets(
+            $request,
+            $rate,
+            $daysCount,
+          );
           break;
 
         case ExpenseType::ACCOMMODATION_ID:
@@ -1516,34 +1815,37 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Generate budgets for meals (breakfast, lunch, dinner)
-   * Distributes MEALS amount across three meals: 30%, 40%, 30%
-   * Omits meals included in hotel agreement
+   * Generate a budget entry for a meal rate (breakfast or meals).
+   * Skips creation if the meal is already included in the hotel agreement.
    *
    * @param PerDiemRequest $request
-   * @param PerDiemRate $mealsRate The parent MEALS rate
+   * @param PerDiemRate $mealsRate The rate (BREAKFAST_ID or MEALS_ID)
    * @param int $daysCount
-   * @param HotelReservation|null $hotelReservation
+   * @param bool $includedInHotel Whether this meal type is covered by the hotel
    * @return float Total meal budget added
    */
   private function generateMealBudgets(
     PerDiemRequest $request,
     PerDiemRate    $mealsRate,
     int            $daysCount,
+    bool           $includedInHotel = false,
   ): float
   {
-    $totalMealsDaily = $mealsRate->daily_amount;
-    // Create breakfast budget if not included in hotel
+    if ($includedInHotel) {
+      return 0.0;
+    }
 
-    $totalMealBudget = $totalMealsDaily * $daysCount;
+    $dailyAmount = $mealsRate->daily_amount;
+    $total = $dailyAmount * $daysCount;
+
     $request->budgets()->create([
-      'expense_type_id' => ExpenseType::MEALS_ID,
-      'daily_amount' => $totalMealsDaily,
+      'expense_type_id' => $mealsRate->expense_type_id,
+      'daily_amount' => $dailyAmount,
       'days' => $daysCount,
-      'total' => $totalMealBudget,
+      'total' => $total,
     ]);
 
-    return $totalMealBudget;
+    return $total;
   }
 
   /**
@@ -1607,40 +1909,64 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Upload deposit voucher for a per diem request
+   * Upload deposit voucher(s) for a per diem request
    * This is used when with_request is true to upload proof of deposit
+   * Each voucher can have a description for context
+   * Maximum 3 vouchers per request
    *
    * @param int $id Per diem request ID
-   * @param UploadedFile $voucherFile The voucher file (photo or document)
+   * @param array $voucherFiles Array of voucher files to upload
+   * @param array $descriptions Array of descriptions (optional, indexed to match files)
    * @return PerDiemRequestResource
    * @throws Exception
    */
-  public function agregarDeposito(int $id, UploadedFile $voucherFile): PerDiemRequestResource
+  public function agregarDeposito(
+    int   $id,
+    array $voucherFiles,
+    array $descriptions = []
+  ): PerDiemRequestResource
   {
     try {
       DB::beginTransaction();
 
       $request = $this->find($id);
 
-      // Delete old voucher if exists
-      if ($request->deposit_voucher_url) {
-        $oldDigitalFile = DigitalFile::where('url', $request->deposit_voucher_url)->first();
+      // Validate max 3 vouchers total
+      $currentVouchersCount = $request->digitalFiles()->count();
+      $newVouchersCount = count($voucherFiles);
 
-        if ($oldDigitalFile) {
-          $this->digitalFileService->destroy($oldDigitalFile->id);
-        }
+      if ($currentVouchersCount + $newVouchersCount > 3) {
+        $remaining = 3 - $currentVouchersCount;
+        throw new Exception("Solo puedes subir {$remaining} archivo(s) más. Límite máximo: 3 comprobantes de depósito");
       }
 
-      // Upload new voucher using DigitalFileService
       $path = self::DEPOSIT_VOUCHER_PATH;
-      $model = $request->getTable();
 
-      $digitalFile = $this->digitalFileService->store($voucherFile, $path, 'public', $model);
+      // Process each voucher file
+      foreach ($voucherFiles as $index => $voucherFile) {
+        // Generate file name and upload directly to S3
+        $fileName = $path . time() . '_' . $voucherFile->getClientOriginalName();
+        $url = $this->digitalFileService->uploadImage($voucherFile, $fileName, 'public');
 
-      // Update request with voucher URL
-      $request->deposit_voucher_url = $digitalFile->url;
-      $request->paid = true;
-      $request->save();
+        // Get description for this file (if provided)
+        $description = $descriptions[$index] ?? null;
+
+        // Create only the morphMany relationship record
+        $request->digitalFiles()->create([
+          'name' => $fileName,
+          'description' => $description ? strtoupper($description) : null,
+          'url' => $url,
+          'mimeType' => $voucherFile->getClientMimeType(),
+          'model' => get_class($request),
+          'id_model' => $request->id,
+        ]);
+      }
+
+      // Mark as paid if at least one voucher exists
+      if (!$request->paid && $request->digitalFiles()->count() > 0) {
+        $request->paid = true;
+        $request->save();
+      }
 
       DB::commit();
 
@@ -1651,7 +1977,58 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'sedeService',
           'district',
           'policy',
-          'category'
+          'category',
+          'digitalFiles'
+        ])
+      );
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Remove a deposit voucher from a per diem request
+   *
+   * @param int $requestId Per diem request ID
+   * @param int $fileId Digital file ID to remove
+   * @return PerDiemRequestResource
+   * @throws Exception
+   */
+  public function eliminarDeposito(int $requestId, int $fileId): PerDiemRequestResource
+  {
+    try {
+      DB::beginTransaction();
+
+      $request = $this->find($requestId);
+
+      // Find the digital file that belongs to this request
+      $digitalFile = $request->digitalFiles()->where('id', $fileId)->first();
+
+      if (!$digitalFile) {
+        throw new Exception('El archivo no pertenece a esta solicitud');
+      }
+
+      // Delete the file using the service
+      $this->digitalFileService->destroy($fileId);
+
+      // Update paid status if no vouchers remain
+      if ($request->digitalFiles()->count() === 0) {
+        $request->paid = false;
+        $request->save();
+      }
+
+      DB::commit();
+
+      return new PerDiemRequestResource(
+        $request->fresh([
+          'employee',
+          'company',
+          'sedeService',
+          'district',
+          'policy',
+          'category',
+          'digitalFiles'
         ])
       );
     } catch (Exception $e) {
@@ -1772,9 +2149,9 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     }
 
     // if settled is false, throw exception
-    if (!$perDiemRequest->settled) {
-      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
-    }
+//    if (!$perDiemRequest->settled) {
+//      throw new Exception('La solicitud debe estar liquidada para generar la planilla de movilidad.');
+//    }
 
     // Get mobility expenses with mobility_payroll_id
     $mobilityExpenses = $perDiemRequest->expenses->filter(function ($expense) {
@@ -1864,7 +2241,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'end_date' => $request->end_date->format('d/m/Y'),
         'days_count' => $request->days_count,
         'purpose' => $request->purpose,
-        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
       ];
 
       // Send email to employee
@@ -1891,7 +2268,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'days_count' => $request->days_count,
           'total_budget' => $request->total_budget,
           'purpose' => $request->purpose,
-          'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+          'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
         ];
 
         $this->emailService->queue([
@@ -1901,6 +2278,30 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
           'template' => 'emails.per-diem-request-created-boss',
           'data' => $bossEmailData,
+        ]);
+      }
+
+      // Send email to second boss if exists
+      if ($sendToBoss && $request->employee->second_boss_id && $request->employee->secondBoss) {
+        $secondBossEmailData = [
+          'boss_name' => $request->employee->secondBoss->nombre_completo,
+          'employee_name' => $request->employee->nombre_completo,
+          'request_code' => $request->code,
+          'destination' => $request->district->name ?? 'N/A',
+          'start_date' => $request->start_date->format('d/m/Y'),
+          'end_date' => $request->end_date->format('d/m/Y'),
+          'days_count' => $request->days_count,
+          'total_budget' => $request->total_budget,
+          'purpose' => $request->purpose,
+          'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
+        ];
+
+        $this->emailService->queue([
+          'to' => [$request->employee->secondBoss->email2],
+          'cc' => $accountantEmails,
+          'subject' => 'Nueva Solicitud de Viáticos Pendiente de Aprobación - ' . $request->code,
+          'template' => 'emails.per-diem-request-created-boss',
+          'data' => $secondBossEmailData,
         ]);
       }
     } catch (Exception $e) {
@@ -1937,7 +2338,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -1946,13 +2347,26 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       if ($sendToBoss && $request->employee->boss) {
         $this->emailService->queue([
           'to' => $request->employee->boss->email2,
-          //          'to' => "hvaldiviezos@automotorespakatnamu.com",
           'cc' => $accountantEmails,
           'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send email to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Solicitud de Viáticos Aprobada - ' . $request->code,
+          'template' => 'emails.per-diem-request-approved',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -1967,7 +2381,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-approved',
           'data' => array_merge($emailData, [
             'recipient_type' => 'accounting',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2066,7 +2480,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2081,7 +2495,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settlement',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar-liquidaciones',
+          ]),
+        ]);
+      }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Liquidación de Viáticos - ' . $request->code,
+          'template' => 'emails.per-diem-request-settlement',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2114,17 +2542,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Get accountant emails for this district
       $accountantEmails = $this->getAccountantEmailsByDistrict($request->district_id);
 
-      // Calcular total que asume la empresa (gastos de empresa)
-      $gastosEmpresa = $request->expenses->filter(function ($expense) {
-        return $expense->is_company_expense === true && !$expense->rejected;
-      });
-      $totalAsumeEmpresa = $gastosEmpresa->sum('company_amount');
-
-      // Calcular total que asume el colaborador (gastos del colaborador)
-      $gastosColaborador = $request->expenses->filter(function ($expense) {
-        return $expense->is_company_expense === false && !$expense->rejected;
-      });
-      $totalAsumeColaborador = $gastosColaborador->sum('company_amount');
+      // Calcular totales sobre todos los gastos no rechazados
+      $gastosActivos = $request->expenses->filter(fn($e) => !$e->rejected);
+      $totalAsumeEmpresa = (float)$gastosActivos->sum('company_amount');
+      $totalAsumeColaborador = (float)$gastosActivos->sum('employee_amount');
 
       // Calcular el total a reembolsar (importe otorgado - lo que asume el colaborador)
       $importeOtorgado = $request->cash_amount ?? 0;
@@ -2153,7 +2574,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settled',
           'data' => array_merge($emailData, [
             'recipient_type' => 'employee',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2168,7 +2589,21 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'template' => 'emails.per-diem-request-settled',
           'data' => array_merge($emailData, [
             'recipient_type' => 'boss',
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Liquidación de Viáticos Completada - ' . $request->code,
+          'template' => 'emails.per-diem-request-settled',
+          'data' => array_merge($emailData, [
+            'recipient_type' => 'boss',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2216,7 +2651,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2230,7 +2665,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
           'template' => 'emails.per-diem-request-cancelled',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Solicitud de Viáticos Cancelada - ' . $request->code,
+          'template' => 'emails.per-diem-request-cancelled',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2265,7 +2713,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
           ]),
         ]);
       }
@@ -2279,7 +2727,20 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
           'template' => 'emails.per-diem-in-progress',
           'data' => array_merge($emailData, [
-            'button_url' => config('app.frontend_url') . '/perfil/viaticos/aprobar',
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
+          ]),
+        ]);
+      }
+
+      // Send to second boss if exists
+      if ($sendToBoss && $request->employee->secondBoss) {
+        $this->emailService->queue([
+          'to' => $request->employee->secondBoss->email2,
+          'cc' => $accountantEmails,
+          'subject' => 'Tu Viaje Está en Progreso - ' . $request->code,
+          'template' => 'emails.per-diem-in-progress',
+          'data' => array_merge($emailData, [
+            'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/aprobar',
           ]),
         ]);
       }
@@ -2302,7 +2763,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     $request = $this->find($id);
 
     // Load necessary relationships
-    $request->load(['employee.boss', 'district', 'expenses.expenseType']);
+    $request->load(['employee.boss', 'employee.secondBoss', 'district', 'expenses.expenseType', 'hotelReservation']);
 
     $emailType = $data['email_type'];
     $sendToEmployee = $data['send_to_employee'] ?? false;
@@ -2325,6 +2786,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'approved':
@@ -2336,6 +2801,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           if ($sendToBoss && $request->employee->boss) {
             $emailCount++;
             $recipients[] = 'Jefe';
+          }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
           }
           if ($sendToAccounting) {
             $emailCount++;
@@ -2353,6 +2822,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           if ($sendToAccounting) {
             $emailCount++;
             $recipients[] = 'Contabilidad';
@@ -2369,6 +2842,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'cancelled':
@@ -2381,6 +2858,10 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
             $emailCount++;
             $recipients[] = 'Jefe';
           }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
           break;
 
         case 'in_progress':
@@ -2392,6 +2873,25 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
           if ($sendToBoss && $request->employee->boss) {
             $emailCount++;
             $recipients[] = 'Jefe';
+          }
+          if ($sendToBoss && $request->employee->secondBoss) {
+            $emailCount++;
+            $recipients[] = 'Segundo Jefe';
+          }
+          break;
+
+        case 'hotel_reservation':
+          // Get the hotel reservation for this request
+          $reservation = $request->hotelReservation;
+          if (!$reservation) {
+            throw new Exception('Esta solicitud no tiene una reserva de hotel asociada');
+          }
+
+          // Send hotel reservation email only to employee
+          if ($sendToEmployee && $request->employee->email2) {
+            $this->hotelReservationService->sendHotelReservationEmail($reservation);
+            $emailCount++;
+            $recipients[] = 'Empleado';
           }
           break;
 
@@ -2408,6 +2908,221 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       \Log::error('Error resending per diem request emails: ' . $e->getMessage());
       throw $e;
+    }
+  }
+
+  /**
+   * Enviar notificaciones de liquidación aprobada a los actores involucrados
+   * 1. Jefe que aprobó la liquidación
+   * 2. Jefes de contabilidad
+   * 3. Analistas de contabilidad zonales según la sede de servicio
+   */
+  private function sendSettlementNotifications(PerDiemRequest $request): void
+  {
+    try {
+      // 1. Enviar al jefe que aprobó la liquidación
+      $this->sendToAuthorizer($request);
+
+      // 2. Enviar a jefes de contabilidad
+      $this->sendToAccountingHeads($request);
+
+      // 3. Enviar a analistas de contabilidad zonales
+      $this->sendToAccountingAnalysts($request);
+
+    } catch (Exception $e) {
+      \Log::error('Error sending settlement notifications: ' . $e->getMessage());
+      // No lanzamos excepción para no bloquear el proceso principal
+    }
+  }
+
+  /**
+   * Enviar notificación al jefe que aprobó la liquidación
+   */
+  private function sendToAuthorizer(PerDiemRequest $request): void
+  {
+    try {
+      if (!$request->authorizer || !$request->authorizer->email2) {
+        return;
+      }
+
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      $emailConfig = [
+        'to' => $request->authorizer->email2,
+        'subject' => "Liquidación de Viáticos {$request->code} - Aprobada",
+        'template' => 'emails.per-diem-settlement-notification',
+        'data' => [
+          'recipient_name' => $request->authorizer->nombre_completo,
+          'recipient_role' => 'Jefe Aprobador',
+          'request_code' => $request->code,
+          'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+          'company' => $request->company->businessName ?? 'N/A',
+          'sede_service' => $request->sedeService->abreviatura ?? 'N/A',
+          'district' => $request->district->name ?? 'N/A',
+          'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+          'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+          'days_count' => $request->days_count,
+          'total_budget' => number_format($request->total_budget, 2),
+          'total_spent' => number_format($request->total_spent ?? 0, 2),
+          'total_company_amount' => number_format($totalCompanyAmount, 2),
+          'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+          'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+          'settlement_status' => $request->settlement_status,
+          'purpose' => $request->purpose,
+          'action_required' => 'Confirmación: Ha aprobado esta liquidación',
+          'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+          'send_date' => now()->format('d/m/Y H:i'),
+          'company_name' => 'Grupo Pakatnamu',
+          'contact_info' => 'rrhh@grupopakatnamu.com'
+        ]
+      ];
+
+      $this->emailService->queue($emailConfig);
+
+    } catch (Exception $e) {
+      \Log::error("Error sending email to authorizer for request {$request->code}: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Enviar notificación a jefes de contabilidad
+   */
+  private function sendToAccountingHeads(PerDiemRequest $request): void
+  {
+    try {
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      $accountingHeads = Worker::whereIn('cargo_id', Position::HEAD_ACCOUNTING)
+        ->where('status_id', 22)
+        ->get();
+
+      foreach ($accountingHeads as $accountingHead) {
+        if (!$accountingHead->email2) {
+          continue;
+        }
+
+        $emailConfig = [
+          'to' => $accountingHead->email2,
+          'subject' => "Liquidación de Viáticos {$request->code} - Notificación",
+          'template' => 'emails.per-diem-settlement-notification',
+          'data' => [
+            'recipient_name' => $accountingHead->nombre_completo,
+            'recipient_role' => 'Jefe de Contabilidad',
+            'request_code' => $request->code,
+            'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+            'company' => $request->company->razon_social ?? 'N/A',
+            'sede_service' => $request->sedeService->razon_social ?? 'N/A',
+            'district' => $request->district->name ?? 'N/A',
+            'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+            'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+            'days_count' => $request->days_count,
+            'total_budget' => number_format($request->total_budget, 2),
+            'total_spent' => number_format($request->total_spent ?? 0, 2),
+            'total_company_amount' => number_format($totalCompanyAmount, 2),
+            'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+            'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+            'settlement_status' => $request->settlement_status,
+            'purpose' => $request->purpose,
+            'action_required' => 'Revisar la liquidación de viáticos',
+            'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+            'send_date' => now()->format('d/m/Y H:i'),
+            'company_name' => 'Grupo Pakatnamu',
+            'contact_info' => 'rrhh@grupopakatnamu.com'
+          ]
+        ];
+
+        $this->emailService->queue($emailConfig);
+      }
+
+    } catch (Exception $e) {
+      \Log::error("Error sending emails to accounting heads for request {$request->code}: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * Enviar notificación a analistas de contabilidad zonales
+   * Filtrados por sede de servicio usando UserSede
+   */
+  private function sendToAccountingAnalysts(PerDiemRequest $request): void
+  {
+    try {
+      if (!$request->sede_service_id) {
+        return;
+      }
+
+      // Calcular totales de empresa y colaborador
+      $totalCompanyAmount = $request->expenses()->where('is_company_expense', 1)->sum('receipt_amount');
+      $totalEmployeeAmount = $request->expenses()->where('is_company_expense', 0)->sum('receipt_amount');
+
+      // Obtener usuarios asignados a la sede del servicio
+      $userSedeRecords = UserSede::where('sede_id', $request->sede_service_id)
+        ->where('status', true)
+        ->with('user')
+        ->get();
+
+      if ($userSedeRecords->isEmpty()) {
+        return;
+      }
+
+      // Obtener partner_ids de usuarios asignados a la sede
+      $partnerIds = $userSedeRecords->map(function ($userSede) {
+        return $userSede->user ? $userSede->user->partner_id : null;
+      })->filter()->unique();
+
+      // Filtrar analistas de contabilidad que están asignados a la sede
+      $accountingAnalysts = Worker::whereIn('id', $partnerIds)
+        ->whereIn('cargo_id', Position::ZONAL_ACCOUNTING_ANALYST)
+        ->where('status_id', 22)
+        ->get();
+
+      if ($accountingAnalysts->isEmpty()) {
+        return;
+      }
+
+      foreach ($accountingAnalysts as $analyst) {
+        if (!$analyst->email2) {
+          continue;
+        }
+
+        $emailConfig = [
+          'to' => $analyst->email2,
+          'subject' => "Liquidación de Viáticos {$request->code} - Revisión",
+          'template' => 'emails.per-diem-settlement-notification',
+          'data' => [
+            'recipient_name' => $analyst->nombre_completo,
+            'recipient_role' => 'Analista de Contabilidad',
+            'request_code' => $request->code,
+            'employee_name' => $request->employee->nombre_completo ?? 'N/A',
+            'company' => $request->company->razon_social ?? 'N/A',
+            'sede_service' => $request->sedeService->razon_social ?? 'N/A',
+            'district' => $request->district->name ?? 'N/A',
+            'start_date' => Carbon::parse($request->start_date)->format('d/m/Y'),
+            'end_date' => Carbon::parse($request->end_date)->format('d/m/Y'),
+            'days_count' => $request->days_count,
+            'total_budget' => number_format($request->total_budget, 2),
+            'total_spent' => number_format($request->total_spent ?? 0, 2),
+            'total_company_amount' => number_format($totalCompanyAmount, 2),
+            'total_employee_amount' => number_format($totalEmployeeAmount, 2),
+            'balance_to_return' => number_format($request->balance_to_return ?? 0, 2),
+            'settlement_status' => $request->settlement_status,
+            'purpose' => $request->purpose,
+            'action_required' => 'Procesar la liquidación de viáticos',
+            'view_url' => config('app.frontend_url') . '/viaticos/solicitudes/' . $request->id,
+            'send_date' => now()->format('d/m/Y H:i'),
+            'company_name' => 'Grupo Pakatnamu',
+            'contact_info' => 'rrhh@grupopakatnamu.com'
+          ]
+        ];
+
+        $this->emailService->queue($emailConfig);
+      }
+
+    } catch (Exception $e) {
+      \Log::error("Error sending emails to accounting analysts for request {$request->code}: " . $e->getMessage());
     }
   }
 }

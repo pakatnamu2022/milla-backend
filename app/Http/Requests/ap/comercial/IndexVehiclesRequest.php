@@ -22,14 +22,15 @@ class IndexVehiclesRequest extends IndexRequest
       'ap_vehicle_status_id.*' => [
         'integer',
         Rule::exists('ap_vehicle_status', 'id'),
-        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::INVENTARIO_VN])
       ],
 //      'search' => [
 //        'integer',
 //        Rule::exists('ap_vehicle_status', 'id'),
 //        Rule::in([ApVehicleStatus::VEHICULO_EN_TRAVESIA, ApVehicleStatus::PEDIDO_VN])
 //      ],
+      'is_received' => 'nullable|boolean|in:0,1',
       'has_purchase_request_quote' => 'nullable|boolean|in:0,1',
+      'has_delivery_guide' => 'nullable|boolean|in:0,1',
       'ap_models_vn_id' => [
         'integer',
         Rule::in(ApModelsVn::all()->pluck('id')->toArray()),

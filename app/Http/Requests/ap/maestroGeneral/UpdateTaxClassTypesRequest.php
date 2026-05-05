@@ -39,6 +39,11 @@ class UpdateTaxClassTypesRequest extends StoreRequest
         'max:100',
       ],
       'status' => ['nullable', 'boolean'],
+      'type_detraction_id' => [
+        'nullable',
+        'integer',
+        'exists:sunat_concepts,id',
+      ],
     ];
   }
 
@@ -60,6 +65,9 @@ class UpdateTaxClassTypesRequest extends StoreRequest
       'type.max' => 'El tipo no debe exceder los 100 caracteres.',
 
       'status.boolean' => 'El estado debe ser verdadero o falso.',
+
+      'type_detraction_id.integer' => 'El tipo de detracción debe ser un número entero.',
+      'type_detraction_id.exists' => 'El tipo de detracción seleccionado no existe.',
     ];
   }
 }

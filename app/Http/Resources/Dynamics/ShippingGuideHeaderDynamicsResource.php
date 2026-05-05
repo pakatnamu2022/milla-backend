@@ -17,7 +17,6 @@ class ShippingGuideHeaderDynamicsResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
-    // Usar dyn_series si existe, sino generar uno nuevo
     if (!empty($this->dyn_series)) {
       $transactionId = $this->dyn_series;
     } else {

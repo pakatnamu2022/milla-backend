@@ -9,6 +9,7 @@ class ConfirmApOrderQuotationsRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'notes' => 'nullable',
       'customer_signature' => ['required', 'string', 'regex:/^data:image\/[a-z+]+;base64,/'],
     ];
   }

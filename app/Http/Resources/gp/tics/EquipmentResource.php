@@ -44,6 +44,34 @@ class EquipmentResource extends JsonResource
             'sede_id' => $this->sede_id,
             'status_id' => $this->status_id,
             'status_deleted' => $this->status_deleted,
+
+//            ESTADO DE ASIGNACIÓN (calculado)
+            'assignment_status' => $this->computeAssignmentStatus(),
+            'assigned_to' => $this->activeAssignment
+              ? [
+                'assignment_id' => $this->activeAssignment->id,
+                'persona_id'    => $this->activeAssignment->persona_id,
+                'worker_name'   => $this->activeAssignment->worker?->nombre_completo,
+                'fecha'         => $this->activeAssignment->fecha,
+              ]
+              : null,
         ];
+    }
+
+    /**
+     * Calcula el estado de asignación del equipo:
+     * - disponible: sin asignación activa
+     * - asignado: asignado a un trabajador activo
+     * - pendiente_liberacion: asignado a un trabajador que está de baja
+     */
+    private function computeAssignmentStatus(): string
+    {
+        $assignment = $this->activeAssignment;
+        if (!$assignment) return 'disponible';
+
+        $worker = $assignment->worker;
+        if (!$worker || !$worker->b_empleado) return 'pendiente_liberacion';
+
+        return 'asignado';
     }
 }

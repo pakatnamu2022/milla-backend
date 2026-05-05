@@ -141,4 +141,17 @@ class ProductsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get physical warehouses with product availability
+   * Returns all physical warehouses indicating if the product is in each warehouse
+   */
+  public function getWarehousesAvailability($id)
+  {
+    try {
+      return $this->success($this->service->getWarehousesAvailabilityForProduct($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

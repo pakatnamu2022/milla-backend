@@ -28,6 +28,9 @@ class ProductWarehouseStockResource extends JsonResource
       'available_quantity' => (float)$this->available_quantity,
       'minimum_stock' => (float)$this->minimum_stock,
       'maximum_stock' => (float)$this->maximum_stock,
+      'cost_price' => $this->cost_price ?? 0,
+      'average_cost' => $this->average_cost ?? 0,
+      'sale_price' => $this->sale_price ?? 0,
       'last_movement_date' => $this->last_movement_date?->format('Y-m-d H:i:s'),
 
       // Computed attributes

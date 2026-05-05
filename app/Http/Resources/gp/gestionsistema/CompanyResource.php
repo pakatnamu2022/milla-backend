@@ -21,6 +21,8 @@ class CompanyResource extends JsonResource
       'phone' => $this->phone,
       'address' => $this->address,
       'city' => $this->city,
+      'detraction_amount' => round($this->detraction_amount, 2),
+      'billing_detraction_type_id' => $this->billing_detraction_type_id,
     ];
   }
 }

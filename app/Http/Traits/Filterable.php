@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Http\Utils\Constants;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -49,7 +50,7 @@ trait Filterable
       $paramName = str_replace('.', '$', $filter);
       $value = $request->query($paramName);
 
-      if ($value === null) {
+      if ($value === null || $value === '' || $value === []) {
         continue;
       }
 
@@ -78,6 +79,13 @@ trait Filterable
 
       if ($filter === 'search') {
         $fields = $operator;
+
+        // Si algún campo es un accessor, toda la búsqueda se maneja en memoria
+        $hasAccessorSearchFields = collect($fields)->contains(fn($f) => str_starts_with($f, 'accessor:'));
+        if ($hasAccessorSearchFields) {
+          continue;
+        }
+
         $query->where(function ($q) use ($fields, $value, $query) {
           foreach ($fields as $field) {
             if (str_contains($field, '.')) {
@@ -241,7 +249,8 @@ trait Filterable
         return false;
 
       case 'accessor_in':
-        return in_array($itemValue, (array)$value);
+        // $itemValue es el array del accessor; $value es el escalar buscado
+        return in_array($value, (array)$itemValue);
 
       default:
         return $itemValue == $value;
@@ -277,8 +286,10 @@ trait Filterable
       case 'date_btw':
       case 'date_between':
         if (is_array($value) && count($value) === 2) {
-          $query->whereDate($filter, '>=', $value[0])
-            ->whereDate($filter, '<=', $value[1]);
+          $query->where(function($q) use ($filter, $value) {
+            $q->whereDate($filter, '>=', (string) $value[0])
+              ->whereDate($filter, '<=', (string) $value[1]);
+          });
         }
         break;
       case '>':
@@ -358,6 +369,16 @@ trait Filterable
     if ($sortField !== null && in_array($sortField, $sorts)) {
       // Calificar el campo con el alias de tabla
       $qualifiedField = $this->qualifyColumn($query, $sortField);
+
+      // Si hay filtro activo para ese mismo campo, priorizar coincidencia exacta primero
+      $filterParamName = str_replace('.', '$', $sortField);
+      $filterValue = $request->query($filterParamName);
+
+      // La priorización por igualdad solo aplica a valores escalares, no a rangos/arrays.
+      if (is_scalar($filterValue) && $filterValue !== '') {
+        $query->orderByRaw("({$qualifiedField} = ?) DESC", [$filterValue]);
+      }
+
       $query->orderBy($qualifiedField, $sortOrder);
     } else {
       // Calificar 'id' con el alias de tabla
@@ -519,8 +540,12 @@ trait Filterable
 
     $all = $request->query('all', false) === 'true';
 
-    // Verificar si hay filtros de accessor
-    $hasAccessorFilters = collect($filters)->contains(function ($operator) {
+    // Verificar si hay filtros de accessor (operadores directos o dentro del array de search)
+    $searchFields = $filters['search'] ?? [];
+    $hasAccessorSearchFields = is_array($searchFields) &&
+      collect($searchFields)->contains(fn($f) => str_starts_with($f, 'accessor:'));
+
+    $hasAccessorFilters = $hasAccessorSearchFields || collect($filters)->contains(function ($operator) {
       return is_string($operator) && str_starts_with($operator, 'accessor');
     });
 
@@ -528,9 +553,38 @@ trait Filterable
       // Si hay filtros o ordenamiento de accessor, obtenemos todo y filtramos en memoria
       $results = $query->get();
 
+      // Aplicar búsqueda en memoria cuando el search incluye accessor fields
+      if ($hasAccessorSearchFields) {
+        $searchValue = $request->query('search');
+        if ($searchValue !== null && $searchValue !== '') {
+          $results = $results->filter(function ($item) use ($searchFields, $searchValue) {
+            foreach ($searchFields as $field) {
+              if (str_starts_with($field, 'accessor:')) {
+                $accessorName = substr($field, 9);
+                $itemValue = $item->{$accessorName} ?? '';
+              } else {
+                $itemValue = data_get($item, $field) ?? '';
+              }
+              if (stripos((string) $itemValue, $searchValue) !== false) {
+                return true;
+              }
+            }
+            return false;
+          })->values();
+        }
+      }
+
       // Aplicar filtros de accessor
-      if ($hasAccessorFilters) {
+      if ($hasAccessorFilters && !$hasAccessorSearchFields) {
         $results = $this->applyAccessorFilters($results, $request, $filters);
+      } elseif ($hasAccessorFilters) {
+        // Aplicar solo los filtros que no sean del search (ya procesado arriba)
+        $nonSearchAccessorFilters = collect($filters)->filter(function ($operator, $key) {
+          return $key !== 'search' && is_string($operator) && str_starts_with($operator, 'accessor');
+        })->all();
+        if (!empty($nonSearchAccessorFilters)) {
+          $results = $this->applyAccessorFilters($results, $request, $nonSearchAccessorFilters);
+        }
       }
 
       // Aplicar ordenamiento de accessor
@@ -679,7 +733,9 @@ trait Filterable
     // Aplicar configuraciones
     foreach ($config as $method => $params) {
       if (method_exists($resourceInstance, $method)) {
-        if (is_array($params)) {
+        // Validación más robusta para prevenir "Only arrays and traversables can be unpacked"
+        if (is_array($params) && count($params) > 0 && array_is_list($params)) {
+          // Solo usar spread operator si es array secuencial válido y no vacío
           $resourceInstance->$method(...$params);
         } else {
           $resourceInstance->$method($params);

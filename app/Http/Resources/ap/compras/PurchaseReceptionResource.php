@@ -4,6 +4,7 @@ namespace App\Http\Resources\ap\compras;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
+use App\Http\Resources\ap\postventa\taller\ApSupplierOrderResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -27,10 +28,16 @@ class PurchaseReceptionResource extends JsonResource
       'purchase_order_id' => $this->purchase_order_id,
       'warehouse_id' => $this->warehouse_id,
       'status' => $this->status,
+      'carrier_id' => $this->carrier_id,
+      'supplier_id' => $this->supplierOrder->supplier_id ?? null,
+      'supplier_num_doc' => $this->supplierOrder && $this->supplierOrder->supplier ? $this->supplierOrder->supplier->num_doc : null,
+      'supplier_name' => $this->supplierOrder && $this->supplierOrder->supplier ? $this->supplierOrder->supplier->full_name : null,
+      'type_currency_id' => $this->supplierOrder ? $this->supplierOrder->type_currency_id : null,
 
       // Relationships
       'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),
       'warehouse' => new WarehouseResource($this->warehouse),
+      'supplier_order' => $this->supplierOrder ? new ApSupplierOrderResource($this->supplierOrder->load('details')) : null,
       'carrier' => BusinessPartnersResource::make($this->carrier),
       'details' => PurchaseReceptionDetailResource::collection($this->details->load('product')),
     ];

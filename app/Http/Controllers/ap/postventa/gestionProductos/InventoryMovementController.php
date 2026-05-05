@@ -15,12 +15,10 @@ use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
 {
-  protected $inventoryMovementService;
   protected InventoryMovementService $service;
 
   public function __construct(InventoryMovementService $service)
   {
-    $this->inventoryMovementService = new InventoryMovementService();
     $this->service = $service;
   }
 
@@ -46,7 +44,7 @@ class InventoryMovementController extends Controller
   {
     $request->validated();
     try {
-      $movement = $this->inventoryMovementService->createAdjustment(
+      $movement = $this->service->createAdjustment(
         $request->only(['movement_type', 'warehouse_id', 'movement_date', 'notes', 'reason_in_out_id']),
         $request->details
       );
@@ -71,49 +69,21 @@ class InventoryMovementController extends Controller
   public function destroy(int $id)
   {
     try {
-      return $this->inventoryMovementService->reverseStockFromMovement($id);
+      return $this->service->reverseStockFromMovement($id);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
   }
 
-  /**
-   * Create warehouse transfer with shipping guide
-   * Creates TRANSFER_OUT movement + Shipping Guide (NOT sent to Nubefact yet)
-   *
-   * @param StoreTransferInventoryRequest $request
-   * @return JsonResponse
-   */
   public function createTransfer(StoreTransferInventoryRequest $request): JsonResponse
   {
     $request->validated();
     try {
-      $result = $this->inventoryMovementService->createTransfer(
-        $request->only([
-          // Transfer data
-          'document_type',
-          'warehouse_origin_id',
-          'warehouse_destination_id',
-          'document_series_id',
-          'movement_date',
-          'notes',
-          'reason_in_out_id',
-          'item_type',
-          // Shipping guide data
-          'driver_name',
-          'driver_doc',
-          'license',
-          'plate',
-          'transfer_reason_id',
-          'transfer_modality_id',
-          'transport_company_id',
-          'total_packages',
-          'total_weight',
-          // Business Partners (will be used to get address and ubigeo data)
-          'transmitter_origin_id',
-          'receiver_destination_id',
-        ]),
-        $request->details
+      $data = $request->validated();
+
+      $result = $this->service->createTransfer(
+        $data,
+        $data['details']
       );
 
       return $this->success([
@@ -128,33 +98,14 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Update warehouse transfer
-   * Only updates simple fields (NOT products)
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   *
-   * @param UpdateTransferInventoryRequest $request
-   * @param int $id Movement ID
-   * @return JsonResponse
-   */
   public function updateTransfer(UpdateTransferInventoryRequest $request, int $id): JsonResponse
   {
     $request->validated();
     try {
-      $result = $this->inventoryMovementService->updateTransfer(
-        $request->only([
-          'movement_date',
-          'notes',
-          'driver_name',
-          'driver_doc',
-          'license',
-          'plate',
-          'transfer_reason_id',
-          'transfer_modality_id',
-          'transport_company_id',
-          'total_packages',
-          'total_weight',
-        ]),
+      $data = $request->validated();
+
+      $result = $this->service->updateTransfer(
+        $data,
         $id
       );
 
@@ -168,18 +119,10 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Delete warehouse transfer
-   * Only allowed if shipping guide has NOT been sent to SUNAT
-   * Reverses stock from in_transit back to available
-   *
-   * @param int $id Movement ID
-   * @return JsonResponse
-   */
   public function destroyTransfer(int $id): JsonResponse
   {
     try {
-      $this->inventoryMovementService->destroyTransfer($id);
+      $this->service->destroyTransfer($id);
 
       return $this->success([
         'message' => 'Transferencia eliminada correctamente. El stock ha sido revertido.'
@@ -189,39 +132,21 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Get movement history for a specific product in a warehouse
-   * Returns all inventory movements for a product
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
-      $movements = $this->inventoryMovementService->getProductMovementHistory(
+      $movements = $this->service->getProductMovementHistory(
         $productId,
         $warehouseId,
         $request
       );
 
-      // Return with pagination preserved
-      // Format: { data: [], links: {}, meta: {} }
       return $movements;
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
   }
 
-  /**
-   * Get kardex of all inventory movements
-   * Returns all inventory movements with optional warehouse filter
-   *
-   * @param Request $request
-   * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
-   */
   public function getKardex(Request $request)
   {
     try {
@@ -235,7 +160,7 @@ class InventoryMovementController extends Controller
         'search' => 'nullable|string',
       ]);
 
-      $movements = $this->inventoryMovementService->getKardex($request);
+      $movements = $this->service->getKardex($request);
 
       // Return with pagination preserved
       // Format: { data: [], links: {}, meta: {} }
@@ -245,36 +170,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Create sale outbound movement from quotation
-   * Creates SALE type movement referencing an ApOrderQuotation
-   *
-   * @param int $quotationId Quotation ID
-   * @return JsonResponse
-   */
-  public function createSaleFromQuotation(int $quotationId): JsonResponse
-  {
-    try {
-      $movement = $this->inventoryMovementService->createSaleFromQuotation($quotationId);
-
-      return $this->success([
-        'message' => 'Movimiento de salida por venta creado exitosamente',
-        'movement' => $movement,
-      ]);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
-   * Get purchase history for a specific product in a warehouse
-   * Returns all purchases with prices to track cost variations
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return JsonResponse
-   */
   public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): JsonResponse
   {
     try {
@@ -284,7 +179,7 @@ class InventoryMovementController extends Controller
         'search' => 'sometimes|string',
       ]);
 
-      $history = $this->inventoryMovementService->getProductPurchaseHistory(
+      $history = $this->service->getProductPurchaseHistory(
         $productId,
         $warehouseId,
         $request
@@ -296,14 +191,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Export movement history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
-   */
   public function exportProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
@@ -314,7 +201,7 @@ class InventoryMovementController extends Controller
         'status' => 'sometimes|string',
       ]);
 
-      return $this->inventoryMovementService->exportProductMovementHistory(
+      return $this->service->exportProductMovementHistory(
         $productId,
         $warehouseId,
         $request
@@ -324,14 +211,6 @@ class InventoryMovementController extends Controller
     }
   }
 
-  /**
-   * Export purchase history for a specific product in a warehouse to Excel
-   *
-   * @param int $productId Product ID
-   * @param int $warehouseId Warehouse ID
-   * @param Request $request
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
-   */
   public function exportProductPurchaseHistory(int $productId, int $warehouseId, Request $request)
   {
     try {
@@ -340,7 +219,7 @@ class InventoryMovementController extends Controller
         'date_to' => 'sometimes|date|after_or_equal:date_from',
       ]);
 
-      return $this->inventoryMovementService->exportProductPurchaseHistory(
+      return $this->service->exportProductPurchaseHistory(
         $productId,
         $warehouseId,
         $request

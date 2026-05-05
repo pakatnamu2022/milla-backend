@@ -30,7 +30,7 @@ class CheckElectronicDocumentStatusJob implements ShouldQueue
     public int $documentId
   )
   {
-    $this->onQueue('electronic-documents');
+    $this->onQueue('electronic_documents');
   }
 
   /**
@@ -64,7 +64,7 @@ class CheckElectronicDocumentStatusJob implements ShouldQueue
         ]);
         return;
       }
-      
+
       // Consultar estado en Nubefact (esto ya actualiza el documento automáticamente)
       $service->queryFromNubefact($this->documentId);
 

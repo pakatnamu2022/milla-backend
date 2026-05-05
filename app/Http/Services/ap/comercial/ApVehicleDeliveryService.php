@@ -7,8 +7,12 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
@@ -41,8 +45,18 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function list(Request $request)
   {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist']);
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])
+        ->whereIn('sede_id', $sedes);
+    }
+
     return $this->getFilteredResults(
-      ApVehicleDelivery::class,
+      $query,
       $request,
       ApVehicleDelivery::filters,
       ApVehicleDelivery::sorts,
@@ -62,7 +76,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function store(mixed $data): ApVehicleDeliveryResource
   {
     try {
-      DB::transaction(function () use ($data) {
+      return DB::transaction(function () use ($data) {
         $user = auth()->user();
         $data['advisor_id'] = $user->partner_id;
 
@@ -105,7 +119,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    $vehicleDelivery = ApVehicleDelivery::with('ShippingGuide')->find($id);
+    $vehicleDelivery = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])->find($id);
     if (!$vehicleDelivery) {
       throw new Exception('Entrega de Vehículo no encontrado');
     }
@@ -131,8 +145,17 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       $data['real_wash_date'] = now();
     }
 
-    // Si status_delivery cambia a completed, setear real_delivery_date
+    // Si status_delivery cambia a completed, verificar accesorios pendientes y setear real_delivery_date
     if (isset($data['status_delivery']) && $data['status_delivery'] === 'completed') {
+      $pendingInstWO = ApWorkOrder::where('vehicle_id', $vehicleDelivery->vehicle_id)
+        ->whereHas('items', fn($q) => $q->where('type_planning_id', TypePlanningWorkOrder::TYPE_PLANNING_INST_ACCESORIOS_ID))
+        ->where('status_id', '!=', ApMasters::CLOSED_WORK_ORDER_ID)
+        ->exists();
+
+      if ($pendingInstWO) {
+        throw new Exception('No se puede completar la entrega: existen órdenes de trabajo de instalación de accesorios pendientes de cierre.');
+      }
+
       $data['real_delivery_date'] = now();
     }
 
@@ -167,7 +190,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Verificar si ya existe una guía de remisión
         $existingShippingGuide = null;
         if ($record->shipping_guide_id) {
-          $existingShippingGuide = ShippingGuides::find($record->shipping_guide_id);
+          $existingShippingGuide = ShippingGuides::where('id', $record->shipping_guide_id)->whereNull('cancelled_at')->first();
         }
 
         // Si existe una guía, solo actualizar los campos permitidos
@@ -224,6 +247,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $existingShippingGuide->update($updateData);
 
           return new ShippingGuidesResource($existingShippingGuide->fresh());
+        }
+
+        // Validar que exista un checklist de entrega confirmado antes de generar la guía
+        $checklist = ApDeliveryChecklist::where('vehicle_delivery_id', $id)->first();
+        if (!$checklist) {
+          throw new Exception('Debe crear y confirmar el checklist de entrega antes de generar la guía de remisión');
+        }
+        if (!$checklist->isConfirmed()) {
+          throw new Exception('El checklist de entrega debe estar confirmado antes de generar la guía de remisión');
         }
 
         // Si no existe, crear una nueva guía (código original)
@@ -304,7 +336,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $shippingGuideData = [
           'document_type' => 'GUIA_REMISION',
           'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
-          'issuer_type' => 'NOSOTROS',
+          'issuer_type' => ShippingGuides::ISSUER_TYPE_SYSTEM,
           'document_series_id' => $documentSeriesId,
           'series' => $series,
           'correlative' => $correlative,
@@ -400,7 +432,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $shippingGuide->markAsAccepted($responseData);
           $vehicleDelivery->update([
             'status_nubefact' => true,
-            'status_sunat' => true,
             'real_delivery_date' => now()
           ]);
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
@@ -454,7 +485,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && !$shippingGuide->aceptada_por_sunat) {
           DB::beginTransaction();
           $shippingGuide->markAsAccepted($responseData);
-          $vehicleDelivery->update(['status_sunat' => true, 'real_delivery_date' => now()]);
+          $vehicleDelivery->update(['aceptada_por_sunat' => true, 'real_delivery_date' => now()]);
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
         } else {
@@ -465,6 +496,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
             'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $shippingGuide->enlace_del_xml,
             'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $shippingGuide->enlace_del_cdr,
           ]);
+          if ($responseData['sunat_soap_error'] !== '') {
+            $shippingGuide->update([
+              'aceptada_por_sunat' => false,
+              'cancelled_at' => now(),
+              'cancellation_reason' => 'Error en SOAP: ' . $responseData['sunat_soap_error'],
+            ]);
+            $vehicleDelivery->update(['sent_at' => null]);
+          }
+
           $message = 'Estado de la guía consultado correctamente';
         }
       } else {

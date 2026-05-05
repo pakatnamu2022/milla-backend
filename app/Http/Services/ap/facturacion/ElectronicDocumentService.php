@@ -3,45 +3,177 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
-use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
-use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use App\Http\Utils\Constants;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use NumberFormatter;
 use Throwable;
 
 class ElectronicDocumentService extends BaseService implements BaseServiceInterface
 {
   protected NubefactApiService $nubefactService;
+  protected DigitalFileService $digitalFileService;
 
-  public function __construct(NubefactApiService $nubefactService)
+  public function __construct()
   {
-    $this->nubefactService = $nubefactService;
+    $this->nubefactService = new NubefactApiService();
+    $this->digitalFileService = new DigitalFileService();
+  }
+
+  /**
+   * Despacha manualmente el job de sincronización para un documento (útil para reintentar fallidos).
+   *
+   * Antes de despachar:
+   * - Resetea a "pending" los logs que no estén completados.
+   * - Si la cabecera (sales_document) ya existe en GPIN y está fallida,
+   *   hace un UPDATE en la tabla intermedia para que GPIN la vuelva a procesar.
+   */
+  public function dispatchMigration(int $id): array
+  {
+    $document = ElectronicDocument::find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->migration_status === 'completed') {
+      throw new Exception('El documento ya está sincronizado completamente');
+    }
+
+    $documentoId = $document->full_number;
+    $resetActions = [];
+
+    // Revisar los logs y preparar el terreno antes de redespachar
+    $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)->get();
+
+    foreach ($logs as $log) {
+      if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      // Resetear el log a pending para que el job lo reintente limpiamente
+      $log->update([
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
+        'proceso_estado' => 0,
+        'attempts' => 0,
+      ]);
+
+      $resetActions[] = "Log reseteado a pending: {$log->step}";
+    }
+
+    $document->update(['was_dyn_requested' => true]);
+
+    SyncSalesDocumentJob::dispatch($document->id);
+
+    return [
+      'message' => "Job de sincronización despachado para el documento {$documentoId}",
+      'resets' => $resetActions,
+    ];
+  }
+
+  /**
+   * Despacha jobs de migración para todos los documentos electrónicos no completados
+   * y retorna un resumen con el motivo de cada despacho.
+   */
+  public function dispatchAll(): array
+  {
+    $dispatched = [];
+
+    ElectronicDocument::whereNotIn('migration_status', [VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED])
+      ->get()
+      ->each(function (ElectronicDocument $doc) use (&$dispatched) {
+        $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $doc->id)->get();
+        $reason = $this->buildDispatchAllReason($logs);
+
+        $this->dispatchMigration($doc->id);
+
+        $dispatched[] = [
+          'id' => $doc->id,
+          'number' => $doc->full_number,
+          'migration_status' => $doc->migration_status,
+          'reason' => $reason,
+        ];
+      });
+
+    return [
+      'total_dispatched' => count($dispatched),
+      'dispatched' => $dispatched,
+    ];
+  }
+
+  private function buildDispatchAllReason($logs): array
+  {
+    if ($logs->isEmpty()) {
+      return [
+        'type' => 'no_logs',
+        'description' => 'Sin logs de migración — despacho inicial',
+        'steps' => [],
+      ];
+    }
+
+    $nonCompleted = $logs->filter(fn($log) => $log->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($nonCompleted->isEmpty()) {
+      return [
+        'type' => 'retry',
+        'description' => 'Todos los pasos tienen logs — reintentando migración',
+        'steps' => [],
+      ];
+    }
+
+    $hasFailed = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
+    $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
+
+    $steps = $nonCompleted->map(fn($log) => [
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
+      'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
+    ])->values()->toArray();
+
+    return [
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'description' => $hasFailed
+        ? 'Tiene pasos fallidos pendientes de reintento'
+        : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
+      'steps' => $steps,
+    ];
   }
 
   /**
@@ -75,8 +207,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   public function list(Request $request): JsonResponse
   {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ElectronicDocument::class;
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
+        $q->whereIn('sede_id', $sedes);
+      });
+    }
+
     return $this->getFilteredResults(
-      ElectronicDocument::class,
+      $query,
       $request,
       ElectronicDocument::filters,
       ElectronicDocument::sorts,
@@ -102,7 +245,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'vehicleMovement',
       'creator',
       'updater'
-    ])->find($id);
+    ])->withCount('referencingItems')->find($id);
 
     if (!$document) {
       throw new Exception('Documento electrónico no encontrado');
@@ -124,26 +267,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * @return int
    * @throws Exception
    */
-  public function nextDocumentNumber(string $documentType, string $series): array
+  public function nextDocumentNumber(string $documentType, string $seriesCode): array
   {
-    $query = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
-      ->where('serie', $series)
-      ->whereNull('deleted_at');
-
-    $series = AssignSalesSeries::where('series', $series)
+    $assignSeries = AssignSalesSeries::where('series', $seriesCode)
       ->whereNull('deleted_at')
       ->first();
 
-    /**
-     * TODO: Delete this block and always use nextCorrelativeQuery
-     */
-    if ($query->count() == 0) {
-      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero') + $series->correlative_start;
-    } else {
-      $correlative = (int)$this->nextCorrelativeQuery($query, 'numero');
-    }
+    // Sin whereNull('deleted_at'): los soft-deleted también cuentan
+    // para evitar reusar números ya emitidos ante SUNAT
+    $maxCorrelative = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
+      ->where('serie', $seriesCode)
+      ->max('numero');
 
-    $number = $this->completeNumber($correlative);
+    $correlativeNumber = $maxCorrelative !== null
+      ? ((int)$maxCorrelative) + 1
+      : $assignSeries->correlative_start + 1;
+
+    $number = $this->completeNumber($correlativeNumber);
     return ["number" => $number];
   }
 
@@ -167,71 +307,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     DB::beginTransaction();
     try {
+      // ================================================================
+      // 1. PREPARACIÓN INICIAL (común para todos)
+      // ================================================================
+
       /**
-       * Validar y calcular el siguiente número correlativo si no se proporciona
+       * Validar y calcular el siguiente número correlativo
        */
       $nextNumberData = $this->nextDocumentNumberCorrelative(
         $data['sunat_concept_document_type_id'],
         $data['serie']
       );
       $data['numero'] = $nextNumberData['number'];
-
-      // Validar que si la cotización status = Aperturado
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
-        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
-          throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
-        }
-
-        // Validar stock de productos si no es un anticipo
-        $this->validateQuotationStock($quotation, $data['is_advance_payment']);
-      }
-
-      // Validar orden de trabajo si viene work_order_id
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $this->validateWorkOrderInvoice($data);
-      }
-
-      /**
-       * Validar que un anticipo no sea por 0 soles
-       */
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = (float)($data['total'] ?? 0);
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-
-        // Validar que la suma de anticipos no exceda el monto de la cotización
-        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
-
-          // Sumar todos los anticipos aceptados por SUNAT para esta cotización
-          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-            ->where('is_advance_payment', 1)
-            ->where('aceptada_por_sunat', true)
-            ->where('anulado', false)
-            ->whereNull('deleted_at')
-            ->sum('total');
-
-          // Sumar el nuevo anticipo
-          $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
-
-          // Validar que no exceda el total de la cotización
-          if ($totalAnticiposConNuevo > $quotation->total_amount) {
-            throw new Exception(sprintf(
-              'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
-              $totalAnticiposConNuevo,
-              $quotation->total_amount,
-              $totalAnticiposExistentes
-            ));
-          }
-        }
-      }
-
-      /**
-       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-       */
-      $this->validateInternalSaleTotal($data);
 
       /**
        * Validar que la serie sea correcta
@@ -241,9 +328,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       /**
-       * Obtener la tasa de cambio actual si la moneda es USD
+       * Obtener la tasa de cambio y datos del cliente
        */
-      $exchangeRate = (new ExchangeRateService())->getCurrentUSDRate();
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
 
       $client = BusinessPartners::find($data['client_id']);
       $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
@@ -259,18 +353,88 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['client_id'] = $client->id;
       $data['tipo_de_cambio'] = $exchangeRate->rate;
 
+      // ================================================================
+      // 2. VALIDACIONES POR TIPO DE ENTIDAD
+      // ================================================================
+
+      $this->validateAndEnrichForQuotation($data);
+      $this->validateAndEnrichForWorkOrder($data);
+
+      // ================================================================
+      // 3. VALIDACIONES COMUNES
+      // ================================================================
+
+      /**
+       * Validar que un anticipo no sea por 0 soles
+       */
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = (float)($data['total'] ?? 0);
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+        }
+      }
+
+      /**
+       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+       */
+      $this->validateInternalSaleTotal($data);
+
+      // ================================================================
+      // 4. APLICAR LÓGICA DE DETRACCIONES
+      // ================================================================
+      $this->applyDetractionLogic($data);
+
+      // ================================================================
+      // 4.5. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
+      // ================================================================
+      // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
+      // ================================================================
 
       /**
        * Crear el documento principal
        */
-      $document = ElectronicDocument::create(array_merge($data, [
+
+      $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
         'status' => ElectronicDocument::STATUS_DRAFT,
-      ]));
+      ]);
 
-      // Crear los items
+//      throw new Exception(json_encode($data));
+      $document = ElectronicDocument::create($data);
+
+      /**
+       * Crear los items
+       */
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($data['order_quotation_id'])) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id']);
+        } elseif (!empty($data['work_order_id'])) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id']);
+        }
+
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
           $itemData['line_number'] = $index + 1;
@@ -278,21 +442,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Crear guías de remisión si existen
+      /**
+       * Crear guías de remisión si existen
+       */
       if (isset($data['guias']) && is_array($data['guias'])) {
         foreach ($data['guias'] as $guiaData) {
           $document->guides()->create($guiaData);
         }
       }
 
-      // Crear cuotas si es venta al crédito
+      /**
+       * Crear cuotas si es venta al crédito
+       */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         foreach ($data['venta_al_credito'] as $cuotaData) {
           $document->installments()->create($cuotaData);
         }
       }
 
-      // Crear movimiento de vehículo si viene ap_vehicle_id
+      /**
+       * Crear movimiento de vehículo si viene ap_vehicle_id
+       */
       if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
         $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
 
@@ -302,34 +472,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // Marcar cotización con has_invoice_generated si viene order_quotation_id
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
-      }
+      // ================================================================
+      // 6. POST-PROCESAMIENTO POR ENTIDAD
+      // ================================================================
 
-      // Marcar orden de trabajo con has_invoice_generated si viene work_order_id
-      // Si is_advance_payment = 0 (venta interna), cerrar la OT
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
-        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
-      }
+      $this->afterCreateForQuotation($document, $data);
+      $this->afterCreateForWorkOrder($document, $data);
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Throwable $e) {
       DB::rollBack();
-      Log::error('Error creating electronic document', [
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear el documento electrónico: ' . $e->getMessage());
     }
   }
 
-  /**
-   * Update an electronic document
-   * @throws Exception
-   */
   public function update(mixed $data): ElectronicDocumentResource
   {
     $id = $data['id'];
@@ -354,53 +511,59 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que si la cotización está cambiando y ya tiene factura, no se puede cambiar
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
-        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización');
+      // ============================================================================
+      // VALIDACIONES PARA order_quotation_id
+      // ============================================================================
+
+      // Determinar el order_quotation_id efectivo (el del documento o el nuevo)
+      $effectiveQuotationId = isset($data['order_quotation_id']) ? $data['order_quotation_id'] : $document->order_quotation_id;
+
+      // Validar que no se pueda CAMBIAR la cotización si ya está asociada a una
+      if (isset($data['order_quotation_id']) && $document->order_quotation_id && $data['order_quotation_id'] != $document->order_quotation_id) {
+        throw new Exception('No se puede cambiar la cotización de un documento que ya está asociado a una cotización. Debe eliminar el documento y crear uno nuevo.');
       }
 
-      // Validar cotización si se está agregando o si ya existe
-      if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-        $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+      // Validar que no se pueda QUITAR la cotización si ya está asociada
+      if (isset($data['order_quotation_id']) && $data['order_quotation_id'] === null && $document->order_quotation_id) {
+        throw new Exception('No se puede quitar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la cotización si existe (ya sea del documento o nueva)
+      if ($effectiveQuotationId) {
+        $quotation = ApOrderQuotations::find($effectiveQuotationId);
+
+        if (!$quotation) {
+          throw new Exception('La cotización especificada no existe.');
+        }
+
+        // Validar que la cotización no esté descartada
         if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
           throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
         }
 
-        // Validar stock de productos si no es un anticipo
+        // Determinar si es anticipo (considerar cambios en is_advance_payment)
         $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        // Validar stock de productos si no es un anticipo
         $this->validateQuotationStock($quotation, $isAdvancePayment);
-      }
 
-      // Validar orden de trabajo si viene work_order_id
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        // Si el documento ya tenía una work_order_id diferente, no permitir cambio
-        if ($document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
-          throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden');
-        }
-        $this->validateWorkOrderInvoice(array_merge($document->toArray(), $data));
-      }
+        // Validar anticipos si es anticipo o si está cambiando el monto
+        if ($isAdvancePayment == 1) {
+          $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
 
-      // Validar anticipo si está siendo actualizado
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = isset($data['total']) ? (float)$data['total'] : (float)$document->total;
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-
-        // Validar que la suma de anticipos no exceda el monto de la cotización
-        if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-          $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+          if ($total <= 0) {
+            throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+          }
 
           // Sumar todos los anticipos aceptados por SUNAT para esta cotización (excluyendo el actual)
-          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-            ->where('id', '!=', $id) // Excluir el documento actual
+          $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $effectiveQuotationId)
+            ->where('id', '!=', $id)
             ->where('is_advance_payment', 1)
             ->where('aceptada_por_sunat', true)
             ->where('anulado', false)
             ->whereNull('deleted_at')
             ->sum('total');
 
-          // Sumar el anticipo actualizado
           $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
 
           // Validar que no exceda el total de la cotización
@@ -415,9 +578,43 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
-      // Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-      if (isset($data['is_advance_payment']) || isset($data['total']) || isset($data['order_quotation_id']) || isset($data['work_order_id'])) {
-        $this->validateInternalSaleTotal(array_merge($document->toArray(), $data));
+      // ============================================================================
+      // VALIDACIONES PARA work_order_id
+      // ============================================================================
+
+      // Determinar el work_order_id efectivo (el del documento o el nuevo)
+      $effectiveWorkOrderId = isset($data['work_order_id']) ? $data['work_order_id'] : $document->work_order_id;
+
+      // Validar que no se pueda CAMBIAR la orden de trabajo si ya está asociada a una
+      if (isset($data['work_order_id']) && $document->work_order_id && $data['work_order_id'] != $document->work_order_id) {
+        throw new Exception('No se puede cambiar la orden de trabajo de un documento que ya está asociado a una orden. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar que no se pueda QUITAR la orden de trabajo si ya está asociada
+      if (isset($data['work_order_id']) && $data['work_order_id'] === null && $document->work_order_id) {
+        throw new Exception('No se puede quitar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.');
+      }
+
+      // Validar la orden de trabajo si existe (ya sea del documento o nueva)
+      if ($effectiveWorkOrderId) {
+        // Preparar datos para validación incluyendo tanto los datos del documento como los nuevos
+        $validationData = array_merge($document->toArray(), $data);
+        $validationData['work_order_id'] = $effectiveWorkOrderId;
+
+        $this->validateWorkOrderInvoice($validationData);
+      }
+
+      // Validar venta interna para order_quotation_id o work_order_id
+      // Solo si es venta interna (is_advance_payment = 0) y tiene alguna de estas entidades
+      if (($effectiveQuotationId || $effectiveWorkOrderId)) {
+        // Determinar si es venta interna
+        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] : $document->is_advance_payment;
+
+        if ($isAdvancePayment == 0) {
+          // Preparar datos para validación
+          $validationData = array_merge($document->toArray(), $data);
+          $this->validateInternalSaleTotal($validationData);
+        }
       }
 
       // Manejar cambios en ap_vehicle_id
@@ -471,6 +668,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar items si se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
+        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        if (!empty($effectiveQuotationId)) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId);
+        } elseif (!empty($effectiveWorkOrderId)) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId);
+        }
+
         // Eliminar items existentes
         $document->items()->delete();
 
@@ -503,21 +707,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
       }
 
-      // Actualizar estado de orden de trabajo si corresponde
-      if (isset($data['work_order_id']) && $data['work_order_id']) {
-        $isAdvancePayment = isset($data['is_advance_payment']) ? $data['is_advance_payment'] == 1 : $document->is_advance_payment;
-        $this->updateWorkOrderInvoiceStatus($data['work_order_id'], $isAdvancePayment);
-      }
-
       DB::commit();
       return new ElectronicDocumentResource($document->fresh(['items', 'guides', 'installments', 'vehicleMovement']));
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar el documento electrónico: ' . $e->getMessage());
     }
   }
@@ -546,18 +739,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error deleting electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al eliminar el documento electrónico: ' . $e->getMessage());
     }
   }
 
-  /**
-   * Send document to Nubefact API
-   * @throws Exception
-   */
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();
@@ -581,13 +766,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Validar estructura de respuesta
       if (!is_array($response)) {
-        Log::error('Respuesta de Nubefact no es un array', ['response' => $response]);
         throw new Exception('Respuesta inválida de Nubefact: formato inesperado');
       }
 
       // El servicio devuelve ['success' => bool, 'data' => array] o ['success' => bool, 'error' => string, 'data' => array]
       if (!$response['success']) {
         $errorMessage = is_array($response['error']) ? implode(', ', $response['error']) : ($response['error'] ?? 'Error desconocido');
+
         throw new Exception('Error de Nubefact: ' . $errorMessage);
       }
 
@@ -595,7 +780,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $nubefactData = $response['data'] ?? [];
 
       if (!isset($nubefactData['aceptada_por_sunat'])) {
-        Log::error('Respuesta de Nubefact sin clave aceptada_por_sunat', ['response' => $nubefactData]);
         throw new Exception('Respuesta inválida de Nubefact: falta campo aceptada_por_sunat');
       }
 
@@ -617,18 +801,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error sending document to Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al enviar el documento a Nubefact: ' . $e->getMessage());
     }
   }
 
-  /**
-   * Query document status from Nubefact
-   * @throws Exception
-   */
   public function queryFromNubefact($id): JsonResponse
   {
     try {
@@ -652,8 +828,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($document->order_quotation_id) {
           $this->updateQuotationInvoiceStatus($document->order_quotation_id);
         }
-      }
 
+        // Actualizar estado de orden de trabajo si el documento tiene work_order_id
+        if ($document->work_order_id) {
+          $this->updateWorkOrderInvoiceStatus($document->work_order_id, $document->is_advance_payment);
+        }
+
+        // NOTA: La creación del movimiento de inventario se realiza en SyncAccountingStatusJob
+        // después de confirmar que la factura fue contabilizada en Dynamics (is_accounted = true)
+      }
       // Verificar si el documento fue anulado en Nubefact
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
@@ -672,15 +855,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return response()->json([
         'success' => true,
         'message' => 'Estado consultado correctamente',
-        'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error querying document from Nubefact', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al consultar el documento en Nubefact: ' . $e->getMessage());
     }
   }
@@ -728,11 +906,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error cancelling document in Nubefact', [
-        'id' => $id,
-        'reason' => $reason,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al anular el documento: ' . $e->getMessage());
     }
   }
@@ -765,8 +938,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
     }
 
+    $isAnnulled = $documentDynamics30200->VOIDSTTS == "1";
+
+    // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+    if (!$isAnnulled) {
+      $rmRecord = DB::connection('dbtest')
+        ->table('RM20101')
+        ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+        ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+        ->first();
+
+      if ($rmRecord) {
+        $isAnnulled = $rmRecord->VOIDSTTS == "1";
+      }
+    }
+
     return [
-      'annulled' => $documentDynamics30200->VOIDSTTS == "1",
+      'annulled' => $isAnnulled,
     ];
   }
 
@@ -845,6 +1033,130 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Build the items array for a credit note based on its type.
+   * @throws Exception
+   */
+  private function resolveItemsForCreditNote(ElectronicDocument $originalDocument, array $data): array
+  {
+    $concept = SunatConcepts::find($data['sunat_concept_credit_note_type_id']);
+    $typeCode = $concept?->code_nubefact;
+
+    switch ($typeCode) {
+      case SunatConcepts::CODE_CREDIT_NOTE_ANULACION:       // '01'
+      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_TOTAL: // '06'
+        return $this->buildItemsFromAllOriginalItems($originalDocument);
+
+      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_ITEM: // '07'
+        return $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']);
+
+      case SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL: // '04'
+        return $this->buildDiscountGlobalItem($originalDocument, $data);
+
+      default:
+        throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}");
+    }
+  }
+
+  /**
+   * Copy all items from the original document (for Anulación / Devolución total).
+   */
+  private function buildItemsFromAllOriginalItems(ElectronicDocument $document): array
+  {
+    if ($document->items->isEmpty()) {
+      throw new Exception('El documento original no tiene ítems');
+    }
+
+    return $document->items->map(function (ElectronicDocumentItem $item) {
+      return [
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $item->valor_unitario,
+        'precio_unitario' => $item->precio_unitario,
+        'descuento' => $item->descuento,
+        'subtotal' => $item->subtotal,
+        'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
+        'igv' => $item->igv,
+        'total' => $item->total,
+      ];
+    })->values()->toArray();
+  }
+
+  /**
+   * Copy specific items from the original document by their IDs (for Devolución por ítem).
+   * @throws Exception
+   */
+  private function buildItemsFromSelectedIds(ElectronicDocument $document, array $detailIds): array
+  {
+    $selectedItems = $document->items->whereIn('id', $detailIds);
+
+    if ($selectedItems->isEmpty()) {
+      throw new Exception('Ninguno de los ítems especificados pertenece al documento original');
+    }
+
+    return $selectedItems->map(function (ElectronicDocumentItem $item) {
+      return [
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $item->valor_unitario,
+        'precio_unitario' => $item->precio_unitario,
+        'descuento' => $item->descuento,
+        'subtotal' => $item->subtotal,
+        'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
+        'igv' => $item->igv,
+        'total' => $item->total,
+      ];
+    })->values()->toArray();
+  }
+
+  /**
+   * Build a single discount line item for a global discount credit note (Descuento global).
+   * The user provides discount_amount as the total amount (including IGV when applicable).
+   */
+  private function buildDiscountGlobalItem(ElectronicDocument $document, array $data): array
+  {
+    $discountAmount = (float)$data['discount_amount'];
+
+    // Determine IGV handling based on original document
+    $isGravado = (float)$document->total_gravada > 0;
+
+    if ($isGravado) {
+      $igvTypeId = SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
+      $subtotal = round($discountAmount / 1.18, 2);
+      $igv = round($discountAmount - $subtotal, 2);
+    } else {
+      // Use IGV type from first item of original document (inafecta/exonerada)
+      $firstItem = $document->items->first();
+      $igvTypeId = $firstItem?->sunat_concept_igv_type_id ?? SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
+      $subtotal = $discountAmount;
+      $igv = 0.00;
+    }
+
+    return [[
+      'account_plan_id' => $data['account_plan_id'],
+      'unidad_de_medida' => 'NIU',
+      'codigo' => null,
+      'codigo_producto_sunat' => null,
+      'descripcion' => 'Descuento global',
+      'cantidad' => 1,
+      'valor_unitario' => $subtotal,
+      'precio_unitario' => $discountAmount,
+      'descuento' => null,
+      'subtotal' => $subtotal,
+      'sunat_concept_igv_type_id' => $igvTypeId,
+      'igv' => $igv,
+      'total' => $discountAmount,
+    ]];
+  }
+
+  /**
    * Create a credit note from an existing document
    * @throws Exception
    */
@@ -859,7 +1171,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Solo se pueden crear notas de crédito para documentos aceptados por SUNAT');
       }
 
-      // Calcular totales desde items si no se proporcionan
+      // Resolver los items según el tipo de nota de crédito
+      $originalDocument->load('items');
+      $data['items'] = $this->resolveItemsForCreditNote($originalDocument, $data);
+
+      // Calcular totales desde items
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
 
@@ -896,7 +1212,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -913,11 +1229,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $creditNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error creating credit note', [
-        'original_document_id' => $originalDocumentId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear la nota de crédito: ' . $e->getMessage());
     }
   }
@@ -970,11 +1281,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
         'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
         'original_document_id' => $originalDocumentId,
-        'origin_module' => $originalDocument->origin_module,
+        'area_id' => $originalDocument->area_id,
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
@@ -1005,11 +1318,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $debitNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error creating debit note', [
-        'original_document_id' => $originalDocumentId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al crear la nota de débito: ' . $e->getMessage());
     }
   }
@@ -1044,14 +1352,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('No se puede actualizar una nota de crédito anulada');
       }
 
-      // Obtener el documento original
-      $originalDocument = $this->find($data['original_document_id']);
+      // Obtener el documento original desde la nota de crédito
+      $originalDocument = $this->find($creditNote->original_document_id);
 
-      // Calcular totales desde items si no se proporcionan
+      // Resolver los items según el tipo de nota de crédito
+      $originalDocument->load('items');
+      $data['items'] = $this->resolveItemsForCreditNote($originalDocument, $data);
+
+      // Calcular totales desde items
       if (isset($data['items']) && is_array($data['items'])) {
         $calculatedTotals = $this->calculateTotalsFromItemsNotes($data['items']);
 
-        // Merge calculated totals only if not provided by user
         foreach ($calculatedTotals as $key => $value) {
           if (!isset($data[$key])) {
             $data[$key] = $value;
@@ -1082,12 +1393,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
-        'original_document_id' => $data['original_document_id'],
+        'original_document_id' => $creditNote->original_document_id,
       ]);
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1099,11 +1410,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $updatedCreditNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating credit note', [
-        'credit_note_id' => $creditNoteId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar la nota de crédito: ' . $e->getMessage());
     }
   }
@@ -1173,6 +1479,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos para actualización
       $updateData = array_merge($data, [
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
         'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
         'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
@@ -1181,7 +1489,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // No permitir cambiar estos campos
       unset($updateData['sunat_concept_document_type_id']);
-      unset($updateData['origin_module']);
+      unset($updateData['area_id']);
       unset($updateData['origin_entity_type']);
       unset($updateData['origin_entity_id']);
 
@@ -1207,11 +1515,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $updatedDebitNote;
     } catch (Exception $e) {
       DB::rollBack();
-      Log::error('Error updating debit note', [
-        'debit_note_id' => $debitNoteId,
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
       throw new Exception('Error al actualizar la nota de débito: ' . $e->getMessage());
     }
   }
@@ -1219,11 +1522,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Get documents by module and entity
    */
-  public function getByOriginEntity(string $module, string $entityType, int $entityId): JsonResponse
+  public function getByOriginEntity(int $areaId, string $entityType, int $entityId): JsonResponse
   {
     try {
       $documents = ElectronicDocument::with(['documentType', 'currency', 'items'])
-        ->where('origin_module', $module)
+        ->where('area_id', $areaId)
         ->where('origin_entity_type', $entityType)
         ->where('origin_entity_id', $entityId)
         ->orderBy('fecha_de_emision', 'desc')
@@ -1234,12 +1537,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'data' => ElectronicDocumentResource::collection($documents)
       ]);
     } catch (Exception $e) {
-      Log::error('Error getting documents by origin entity', [
-        'module' => $module,
-        'entity_type' => $entityType,
-        'entity_id' => $entityId,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al obtener documentos: ' . $e->getMessage());
     }
   }
@@ -1421,10 +1718,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       return $pdf;
     } catch (Exception $e) {
-      Log::error('Error generating PDF for electronic document', [
-        'id' => $id,
-        'error' => $e->getMessage()
-      ]);
       throw new Exception('Error al generar el PDF: ' . $e->getMessage());
     }
   }
@@ -1440,6 +1733,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     try {
       $vehicle = Vehicles::find($vehicleId);
+      $isFinal = !$document->is_advance_payment;
 
       if (!$vehicle) {
         throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
@@ -1452,36 +1746,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $vehicleMovement = VehicleMovement::create([
         'movement_type' => 'VENTA',
         'ap_vehicle_id' => $vehicleId,
-        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'movement_date' => now(),
         'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
         'previous_status_id' => $previousStatusId,
-        'new_status_id' => ApVehicleStatus::FACTURADO,
+        'new_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'created_by' => auth()->id(),
       ]);
 
       // Actualizar el estado del vehículo
       $vehicle->update([
-        'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
-      ]);
-
-      Log::info('Vehicle movement created for electronic document', [
-        'vehicle_id' => $vehicleId,
-        'movement_id' => $vehicleMovement->id,
-        'document_id' => $document->id,
-        'document_number' => "{$document->serie}-{$document->numero}",
-        'previous_status' => $previousStatusId,
-        'new_status' => ApVehicleStatus::FACTURADO,
+        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
       ]);
 
       return $vehicleMovement;
     } catch (Exception $e) {
-      Log::error('Error creating vehicle movement for electronic document', [
-        'vehicle_id' => $vehicleId,
-        'document_id' => $document->id,
-        'error' => $e->getMessage()
-      ]);
-      throw $e;
+      throw new Exception('Error al crear el movimiento de vehículo: ' . $e->getMessage());
     }
   }
 
@@ -1589,6 +1869,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     if ($document->anulado) {
       throw new Exception('No se puede sincronizar un documento anulado');
     }
+
+    $document->update(['was_dyn_requested' => true]);
 
     // Dispatch the sync job con deduplicación
     $this->dispatchJobWithDeduplication($id);
@@ -1700,13 +1982,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function checkResources($id)
   {
     $document = $this->find($id);
-    return [
-      'sale' => new SalesDocumentDynamicsResource($document),
-      'items' => $document->items()->get()->map(function ($item) use ($document) {
-        return new SalesDocumentDetailDynamicsResource($item, $document);
-      }),
-      'series' => new SalesDocumentSerialDynamicsResource($document)
-    ];
+    $document->load('purchaseRequestQuote.accessories.approvedAccessory');
+
+    return (new \App\Services\Dynamics\SalesDynamicsBuilder())->buildAll($document);
   }
 
   /**
@@ -1751,7 +2029,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 1. El total pagado >= total de la cotización
       // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
       if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
-        $quotation->update(['is_fully_paid' => true]);
+        $quotation->update([
+          'is_fully_paid' => true,
+          'status' => ApOrderQuotations::STATUS_FACTURADO
+        ]);
       }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
@@ -1786,6 +2067,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('La cotización no tiene productos para validar stock.');
     }
 
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
       // Skip if no product_id
@@ -1801,6 +2085,126 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // If no stock record found or insufficient available quantity, throw exception
       if (!$stock || $stock->available_quantity < $detail->quantity) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+
+      // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+      if ($detail->product && $detail->product->dyn_code && $warehouse->dyn_code) {
+        try {
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $detail->product->dyn_code,
+            $warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+            );
+          }
+        } catch (Exception $e) {
+          // Si falla la validación en sistema externo, propagar la excepción
+          throw new Exception(
+            "Error al validar stock externo para el producto '{$detail->product->description}': " . $e->getMessage()
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validar stock reservado para Orden de Trabajo
+   * Valida que exista suficiente reserved_quantity para los repuestos de la OT
+   *
+   * @param ApWorkOrder $workOrder
+   * @param int $is_advance_payment
+   * @return void
+   * @throws Exception
+   */
+  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0): void
+  {
+    // Si es un anticipo, no validamos stock
+    if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Cargar repuestos de la orden de trabajo
+    $workOrder->load(['parts.product', 'sede']);
+
+    // Si no hay repuestos, no hay nada que validar
+    if ($workOrder->parts->isEmpty()) {
+      return;
+    }
+
+    // Obtener almacén físico de la sede
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', 1)
+      ->where('status', 1)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró un almacén físico activo para la sede de la orden de trabajo.');
+    }
+
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
+    // Validar stock reservado para cada repuesto
+    foreach ($workOrder->parts as $part) {
+      // Omitir si no tiene product_id
+      if (!$part->product_id) {
+        continue;
+      }
+
+      // Obtener registro de stock para este producto en el almacén
+      $stock = ProductWarehouseStock::where('warehouse_id', $part->warehouse_id)
+        ->where('product_id', $part->product_id)
+        ->first();
+
+      // Validar que exista stock y que haya suficiente cantidad reservada
+      if (!$stock) {
+        throw new Exception(
+          "No se encontró registro de stock para el repuesto: {$part->product->description}"
+        );
+      }
+
+      // Validar que el stock reservado sea suficiente
+      if ($stock->reserved_quantity < $part->quantity_used) {
+        throw new Exception(
+          "Stock reservado insuficiente para el repuesto: {$part->product->description}. " .
+          "Stock reservado: {$stock->reserved_quantity}, Cantidad requerida: {$part->quantity_used}"
+        );
+      }
+
+      // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+      if ($part->product && $part->product->dyn_code && $warehouse->dyn_code) {
+        try {
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $part->product->dyn_code,
+            $warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $part->quantity_used) {
+            throw new Exception(
+              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
+            );
+          }
+        } catch (Exception $e) {
+          // Si falla la validación en sistema externo, propagar la excepción
+          throw new Exception(
+            "Error al validar stock externo para el repuesto '{$part->product->description}': " . $e->getMessage()
+          );
+        }
       }
     }
   }
@@ -1823,19 +2227,71 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $newTotal = (float)($data['total'] ?? 0);
     $currencyId = $data['sunat_concept_currency_id'] ?? null;
 
-    $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder'])->find($workOrderId);
+    $workOrder = ApWorkOrder::with(['labours', 'parts.deliveries', 'advancesWorkOrder', 'items.typePlanning'])->find($workOrderId);
 
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
-    // Calculate work order totals (based on getPaymentSummary logic)
-    $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
-    $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
-    $workOrderTotal = $totalLabourCost + $totalPartsCost;
+    if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
+      throw new Exception('No se puede facturar una orden de trabajo cancelada.');
+    }
+
+    $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
+
+    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment && $validateLabor) {
+      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+    }
+
+    if (!$isAdvancePayment && $validateLabor) {
+      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
+        return $labour->worker_id !== null && $labour->deleted_at === null;
+      });
+
+      if ($laboursWithWorker->count() === 0) {
+        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
+      }
+    }
+
+    // Validate that all parts are fully delivered if work order has parts
+    if (!$isAdvancePayment && $workOrder->parts->count() > 0) {
+      $partsNotFullyDelivered = [];
+
+      foreach ($workOrder->parts as $part) {
+        // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
+        $totalDelivered = $part->deliveries
+          ->whereNull('deleted_at')
+          ->sum('delivered_quantity');
+
+        // Compare with quantity_used
+        $quantityUsed = (float)$part->quantity_used;
+        $totalDelivered = (float)$totalDelivered;
+
+        // If not fully delivered, add to list
+        if ($totalDelivered < $quantityUsed) {
+          $partsNotFullyDelivered[] = sprintf(
+            '%s (Usado: %.2f, Entregado: %.2f, Pendiente: %.2f)',
+            $part->product->name ?? "Producto ID: {$part->product_id}",
+            $quantityUsed,
+            $totalDelivered,
+            $quantityUsed - $totalDelivered
+          );
+        }
+      }
+
+      if (count($partsNotFullyDelivered) > 0) {
+        throw new Exception(
+          'No se puede facturar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
+          implode('; ', $partsNotFullyDelivered)
+        );
+      }
+    }
+
+    // Calculate work order total using centralized method (includes labour, parts, discount, and tax)
+    $workOrderTotal = (float)$workOrder->final_amount;
 
     // Validate that work order has at least labours or parts to invoice
-    if ($workOrderTotal <= 0) {
+    if ($workOrderTotal <= 0 && !$isAdvancePayment) {
       throw new Exception('La orden de trabajo no tiene mano de obra ni repuestos para facturar.');
     }
 
@@ -1846,13 +2302,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->whereNull('deleted_at')
       ->sum('total');
 
-    // Calculate total with new invoice
-    $totalWithNewInvoice = $totalInvoiced + $newTotal;
+    // Calculate total with new invoice and round to 2 decimals to avoid floating point precision issues
+    $totalWithNewInvoice = round($totalInvoiced + $newTotal, 2);
+    $workOrderTotal = round($workOrderTotal, 2);
 
     // Validate that invoice does not exceed work order total
     if ($totalWithNewInvoice > $workOrderTotal) {
       throw new Exception(sprintf(
-        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f). Ya hay %.2f facturado.',
+        'El monto total a facturar (%.2f) excede el monto de la orden de trabajo (%.2f) que incluye IGV. Ya hay %.2f facturado.',
         $totalWithNewInvoice,
         $workOrderTotal,
         $totalInvoiced
@@ -1885,11 +2342,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->whereNull('deleted_at')
         ->sum('total');
 
-      $totalAdvancesWithNew = $totalAdvances + $newTotal;
+      // Round to 2 decimals to avoid floating point precision issues
+      $totalAdvancesWithNew = round($totalAdvances + $newTotal, 2);
 
       if ($totalAdvancesWithNew > $workOrderTotal) {
         throw new Exception(sprintf(
-          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f). Ya hay %.2f en anticipos existentes.',
+          'La suma de anticipos (%.2f) excede el monto total de la orden de trabajo (%.2f) que incluye IGV. Ya hay %.2f en anticipos existentes.',
           $totalAdvancesWithNew,
           $workOrderTotal,
           $totalAdvances
@@ -1935,9 +2393,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $entityId = $data['work_order_id'];
       $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
       if ($workOrder) {
-        $totalLabourCost = $workOrder->labours->sum('total_cost') ?? 0;
-        $totalPartsCost = $workOrder->parts->sum('total_amount') ?? 0;
-        $entityTotal = $totalLabourCost + $totalPartsCost;
+        // Calculate total using centralized method (includes labour, parts, discount, and tax)
+        $entityTotal = (float)$workOrder->final_amount;
         $entityName = 'orden de trabajo';
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
@@ -1981,15 +2438,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  /**
-   * Update work order invoice status
-   * Marks has_invoice_generated = true when a document is created
-   * If is_advance_payment = false (venta interna), close the work order
-   *
-   * @param int $workOrderId
-   * @param bool $isAdvancePayment
-   * @return void
-   */
   private function updateWorkOrderInvoiceStatus(int $workOrderId, bool $isAdvancePayment = true): void
   {
     try {
@@ -2002,6 +2450,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Siempre marcar que se generó factura
       $workOrder->update(['has_invoice_generated' => true]);
 
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      $totalPaid = ElectronicDocument::where('work_order_id', $workOrderId)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Verificar si la suma de anticipos coincide con el monto total de la OT
+      // Marcar como totalmente facturado si el total pagado >= monto final de la OT y no sea un anticipo (la venta interna es la que cierra la operación)
+      if ((float)$totalPaid >= (float)$workOrder->final_amount && !$isAdvancePayment) {
+        $workOrder->update(['is_invoiced' => true]);
+      }
+
       // Si no es anticipo (es venta interna), cerrar la orden de trabajo
       if (!$isAdvancePayment) {
         $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
@@ -2012,5 +2473,761 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'error' => $e->getMessage(),
       ]);
     }
+  }
+
+  /**
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde el producto.
+   * El frontend envía `product_id` (opcional) en cada item.
+   * No aplica a items de anticipo (anticipo_regularizacion = true).
+   */
+  private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
+  {
+    // Recopilar todos los product_ids de items que no son anticipos
+    $productIds = [];
+    foreach ($items as $item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      // Recopilar product_id si existe
+      if (!empty($item['product_id'])) {
+        $productIds[] = $item['product_id'];
+      }
+    }
+
+    // Si no hay product_ids, no hay nada que mapear
+    if (empty($productIds)) {
+      return;
+    }
+
+    // Cargar todos los productos de una vez
+    $products = Products::whereIn('id', array_unique($productIds))
+      ->get()
+      ->keyBy('id');
+
+    // Mapear codigo y dyn_code para cada item
+    foreach ($items as &$item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      // Si tiene product_id, mapear desde el producto
+      if (!empty($item['product_id'])) {
+        $product = $products->get($item['product_id']);
+
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Enriquece los campos `codigo` y `dyn_code` de cada item desde una orden de trabajo.
+   * Usa el campo `codigo` del item (enviado por el frontend) como ID de part o labour.
+   * - Repuestos (parts con product_id): mapea codigo y dyn_code del producto.
+   * - Mano de obra (labours sin product_id): valor fijo 'V0000011' o 'V0000012'.
+   */
+  private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
+  {
+    $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
+
+    if (!$workOrder) {
+      return;
+    }
+
+    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code ?? 'V0000011';
+
+    // Indexar parts y labours por ID para búsqueda rápida
+    $parts = $workOrder->parts->keyBy('id');
+    $labours = $workOrder->labours->keyBy('id');
+
+    foreach ($items as $index => &$item) {
+      // Saltar items de anticipo
+      if (!empty($item['anticipo_regularizacion'])) {
+        continue;
+      }
+
+      // Si el item tiene product_id, buscar el producto directamente para mapear código y dyn_code
+      if (!empty($item['product_id'])) {
+        $product = Products::find($item['product_id']);
+        if ($product) {
+          if ($product->code) {
+            $item['codigo'] = $product->code;
+          }
+          if ($product->dyn_code) {
+            $item['dyn_code'] = $product->dyn_code;
+          }
+          if ($product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $product->unitMeasurement->dyn_code;
+          }
+        }
+        continue;
+      }
+
+      $itemId = $item['codigo'] ?? null;
+
+      if (!$itemId) {
+        continue;
+      }
+
+      // Intentar buscar como part
+      $part = $parts->get($itemId);
+      if ($part && $part->product) {
+        if ($part->product->code) {
+          $item['codigo'] = $part->product->code;
+        }
+        if ($part->product->dyn_code) {
+          $item['dyn_code'] = $part->product->dyn_code;
+        }
+        if ($part->product->unitMeasurement) {
+          $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
+        }
+        continue;
+      }
+
+      // Intentar buscar como labour
+      $labour = $labours->get($itemId);
+      if ($labour) {
+        $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
+
+        if ($descripcionNormalizada === 'materiales') {
+          $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
+          $item['codigo'] = $materialsCode;
+          $item['dyn_code'] = $materialsCode;
+          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
+        } else {
+          $item['codigo'] = $labourCode;
+          $item['dyn_code'] = $labourCode;
+          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
+        }
+      }
+    }
+  }
+
+  // ========================================================================
+  // MÉTODOS DE VALIDACIÓN Y ENRIQUECIMIENTO POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Validar y enriquecer datos para Order Quotation
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateAndEnrichForQuotation(array &$data): void
+  {
+    if (!isset($data['order_quotation_id']) || !$data['order_quotation_id']) {
+      return;
+    }
+
+    $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+    // Validar que cotización no esté descartada
+    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
+    }
+
+    // Validar stock de productos si no es un anticipo
+    $this->validateQuotationStock($quotation, $data['is_advance_payment']);
+
+    // Validar suma de anticipos si es anticipo
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+      $total = (float)($data['total'] ?? 0);
+
+      // Sumar todos los anticipos aceptados por SUNAT para esta cotización
+      $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
+        ->where('is_advance_payment', 1)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Sumar el nuevo anticipo
+      $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
+
+      // Validar que no exceda el total de la cotización
+      if ($totalAnticiposConNuevo > $quotation->total_amount) {
+        throw new Exception(sprintf(
+          'La suma de anticipos (%.2f) excede el monto total de la cotización (%.2f). Ya hay %.2f en anticipos existentes.',
+          $totalAnticiposConNuevo,
+          $quotation->total_amount,
+          $totalAnticiposExistentes
+        ));
+      }
+    }
+  }
+
+  /**
+   * Validar y enriquecer datos para Work Order
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function validateAndEnrichForWorkOrder(array &$data): void
+  {
+    if (!isset($data['work_order_id']) || !$data['work_order_id']) {
+      return;
+    }
+
+    // Validar reglas de negocio de la orden de trabajo
+    $this->validateWorkOrderInvoice($data);
+
+    // Validar stock reservado para repuestos de la OT
+    $workOrder = ApWorkOrder::find($data['work_order_id']);
+    if ($workOrder) {
+      $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
+    }
+  }
+
+  // ========================================================================
+  // MÉTODOS DE LÓGICA DE DETRACCIONES POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Aplicar lógica de detracción para Order Quotation
+   *
+   * @param array $data
+   * @param Company $company
+   * @return float Entity total
+   */
+  private function applyDetractionForQuotation(array &$data, Company $company): float
+  {
+    // Para quotation, no hay una entidad total específica en este contexto
+    // Solo retornar 0, la detracción se calculará sobre el monto del documento
+    return 0;
+  }
+
+  /**
+   * Aplicar lógica de detracción para Work Order
+   *
+   * @param array $data
+   * @param Company $company
+   * @return float Entity total
+   */
+  private function applyDetractionForWorkOrder(array &$data, Company $company): float
+  {
+    $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($data['work_order_id']);
+
+    if (!$workOrder) {
+      return 0;
+    }
+
+    $entityTotal = (float)$workOrder->final_amount;
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+    /**
+     * Calcular sunat_concept_transaction_type_id para work_order
+     * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
+     */
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
+
+    // Determinar el concepto base según el tipo de documento
+    if ($isAdvancePayment) {
+      // Es un anticipo
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    } else {
+      // Es venta interna final
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+    }
+
+    // Si el monto total de la work_order supera o iguala el monto de detracción,
+    // aplicar ID_SUJETA_DETRACCION a todos los documentos de esta orden
+    if ($entityTotal >= $detractionAmount && $detractionAmount > 0) {
+      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+    }
+
+    // Sobrescribir el valor enviado por el frontend
+    $data['sunat_concept_transaction_type_id'] = $transactionConceptId;
+
+    return $entityTotal;
+  }
+
+  /**
+   * Aplicar lógica de detracciones (orquestador principal)
+   *
+   * @param array $data
+   * @return void
+   */
+  private function applyDetractionLogic(array &$data): void
+  {
+    if (!in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
+      return;
+    }
+
+    $company = Company::find(Company::COMPANY_AP_ID);
+    if (!$company || !isset($data['total'])) {
+      return;
+    }
+
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+    $entityTotal = 0;
+
+    // Determinar el tipo de entidad y aplicar su lógica específica
+    if (isset($data['work_order_id']) && $data['work_order_id'] && (int)$data['area_id'] === ApMasters::AREA_TALLER) {
+      $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
+      $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
+
+      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
+        $data['detraccion'] = true;
+        $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
+          ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
+          default => SunatConcepts::ID_DETRACTION_SERVICIOS
+        };
+
+        // Obtener el porcentaje de detracción desde GeneralMaster
+        $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+        if ($detractionPercentage) {
+          $porcentaje = (float)$detractionPercentage->value;
+          $data['detraccion_porcentaje'] = $porcentaje;
+          // La detracción se calcula sobre el total del documento actual
+          $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+        }
+      }
+    } else if (isset($data['detraccion']) && $data['detraccion']) {
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
+    }
+
+    if (isset($data['detraccion']) && $data['detraccion'] === true && (int)$data['area_id'] === ApMasters::AREA_COMERCIAL) {
+      // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
+      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
+    }
+  }
+
+  // ========================================================================
+  // MÉTODOS DE POST-PROCESAMIENTO POR TIPO DE ENTIDAD
+  // ========================================================================
+
+  /**
+   * Post-procesamiento para Order Quotation
+   *
+   * @param ElectronicDocument $document
+   * @param array $data
+   * @return void
+   */
+  private function afterCreateForQuotation(ElectronicDocument $document, array &$data): void
+  {
+    if (!isset($data['order_quotation_id']) || !$data['order_quotation_id']) {
+      return;
+    }
+
+    // Marcar quotation con has_invoice_generated
+    $this->updateQuotationInvoiceStatus($data['order_quotation_id']);
+  }
+
+  /**
+   * Post-procesamiento para Work Order
+   *
+   * @param ElectronicDocument $document
+   * @param array $data
+   * @return void
+   */
+  private function afterCreateForWorkOrder(ElectronicDocument $document, array &$data): void
+  {
+    if (!isset($data['work_order_id']) || !$data['work_order_id']) {
+      return;
+    }
+
+    // Marcar work_order con has_invoice_generated
+    $workOrder = ApWorkOrder::find($data['work_order_id']);
+
+    if (!$workOrder) {
+      return;
+    }
+
+    $workOrder->update(['has_invoice_generated' => true]);
+  }
+
+  /*
+   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
+   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
+   *
+   * @return array
+   */
+  public function syncAccountingStatusFromDynamics(): array
+  {
+    $documents = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->get();
+
+    $results = [];
+    $errors = [];
+
+    foreach ($documents as $document) {
+      try {
+        $sopRecord = DB::connection('dbtest')
+          ->table('SOP30200')
+          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+          ->first();
+
+        $source = null;
+
+        if ($sopRecord) {
+          $isAnnulled = $sopRecord->VOIDSTTS == "1";
+          $source = 'SOP30200';
+
+          // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
+          if (!$isAnnulled) {
+            $rmRecord = DB::connection('dbtest')
+              ->table('RM20101')
+              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+              ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
+              ->first();
+
+            if ($rmRecord) {
+              $isAnnulled = $rmRecord->VOIDSTTS == "1";
+              $source = 'RM20101';
+            }
+          }
+
+          $document->update([
+            'is_accounted' => true,
+            'is_annulled' => $isAnnulled,
+          ]);
+        } else {
+          $isAnnulled = false;
+          $document->update([
+            'is_accounted' => false,
+            'is_annulled' => false,
+          ]);
+        }
+
+        $results[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_accounted' => $document->is_accounted,
+          'is_annulled' => $isAnnulled,
+          'source' => $source,
+        ];
+      } catch (Throwable $e) {
+        $errors[] = [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'error' => $e->getMessage(),
+        ];
+      }
+    }
+
+    return [
+      'total' => $documents->count(),
+      'updated' => count($results),
+      'results' => $results,
+      'errors' => $errors,
+    ];
+  }
+
+  public function createConsolidatedInvoice(array $data): array
+  {
+    DB::beginTransaction();
+    try {
+      // 1. Get and validate internal notes
+      $internalNotes = ApInternalNote::whereIn('id', $data['internal_note_ids'])
+        ->pending()
+        ->with(['workOrder.invoiceTo', 'workOrder.typeCurrency'])
+        ->get();
+
+      if ($internalNotes->isEmpty()) {
+        throw new Exception('No se encontraron notas internas pendientes con los IDs proporcionados');
+      }
+
+      if ($internalNotes->count() !== count($data['internal_note_ids'])) {
+        throw new Exception('Una o más notas internas no están disponibles para facturación (pueden estar ya facturadas o no existir)');
+      }
+
+      // 2. Validate all work orders belong to the same client
+      $clientIds = $internalNotes->pluck('workOrder.invoice_to')->unique();
+      if ($clientIds->count() > 1) {
+        throw new Exception('Todas las órdenes de trabajo deben pertenecer al mismo cliente para consolidar');
+      }
+
+      $clientId = $clientIds->first();
+      if (!$clientId) {
+        throw new Exception('Las órdenes de trabajo no tienen un cliente asignado');
+      }
+
+      // 3. Validate all work orders have the same currency
+      $currencyIds = $internalNotes->pluck('workOrder.currency_id')->unique();
+      if ($currencyIds->count() > 1) {
+        throw new Exception('Todas las órdenes de trabajo deben tener la misma moneda para consolidar');
+      }
+
+      $data['series_id'] = $data['serie'];
+      $data['serie'] = AssignSalesSeries::find($data['serie'])->series;
+
+      // 4. Calculate totals from work orders
+      $subtotal = 0;
+      $taxAmount = 0;
+      $total = 0;
+      $workOrdersData = [];
+
+      foreach ($internalNotes as $note) {
+        $workOrder = $note->workOrder;
+        $subtotal += (float)$workOrder->subtotal;
+        $taxAmount += (float)$workOrder->tax_amount;
+        $total += (float)$workOrder->final_amount;
+
+        $workOrdersData[] = [
+          'work_order_id' => $workOrder->id,
+          'correlative' => $workOrder->correlative,
+          'internal_note_number' => $note->number,
+          'subtotal' => $workOrder->subtotal,
+          'tax_amount' => $workOrder->tax_amount,
+          'final_amount' => $workOrder->final_amount,
+        ];
+
+        // actualizamos el estado de has_invoice_generated del ApWorkOrder
+        $workOrder->update(['has_invoice_generated' => true]);
+      }
+
+      // 5. Get client data
+      $client = BusinessPartners::find($clientId);
+      if (!$client) {
+        throw new Exception('Cliente no encontrado');
+      }
+
+      // 6. Get exchange rate
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      // 7. Get document type
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      // 8. Get next correlative number
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
+
+      // 9. Validate serie
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+
+      // ================================================================
+      // 10. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
+      // 11. Prepare invoice data
+      $invoiceData = [
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'serie' => $data['serie'],
+        'series_id' => $data['series_id'],
+        'numero' => $nextNumberData['number'],
+        'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_MASSIVE,
+        'client_id' => $clientId,
+        'sunat_concept_identity_document_type_id' => $documentType->id,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
+        'fecha_de_emision' => $emissionDate,
+        'fecha_de_vencimiento' => $data['fecha_de_vencimiento'] ?? null,
+        'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
+        'total_gravada' => round($subtotal, 2),
+        'total_igv' => round($taxAmount, 2),
+        'total' => round($total, 2),
+        'internal_note' => $data['internal_note'] ?? '',
+        'observaciones' => $data['observaciones'] ?? '',
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
+        'created_by' => auth()->id(),
+        'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
+        'area_id' => ApMasters::AREA_POSVENTA,
+        'orden_compra_servicio_url' => $data['orden_compra_servicio_url'] ?? null,
+        'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
+      ];
+
+      // 11. Apply detraction logic for consolidated work orders
+      $company = Company::find(Company::COMPANY_AP_ID);
+      if ($company && isset($invoiceData['total'])) {
+        $detractionAmount = (float)($company->detraction_amount ?? 0);
+
+        // Verificar si el total de la factura consolidada supera o iguala el monto de detracción
+        if ($total >= $detractionAmount && $detractionAmount > 0) {
+          $invoiceData['detraccion'] = true;
+          $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
+          $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
+
+          // Obtener el porcentaje de detracción desde GeneralMaster
+          $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+          if ($detractionPercentage) {
+            $porcentaje = (float)$detractionPercentage->value;
+            $invoiceData['detraccion_porcentaje'] = $porcentaje;
+            // La detracción se calcula sobre el total del documento
+            $invoiceData['detraccion_total'] = (float)$invoiceData['total'] * ($porcentaje / 100);
+          }
+        }
+      }
+
+      // 12. Create invoice
+      $invoice = ElectronicDocument::create($invoiceData);
+
+      // 13. Create invoice items from frontend data
+      $lineNumber = 1;
+      foreach ($data['items'] as $item) {
+        $invoice->items()->create([
+          'line_number' => $lineNumber++,
+          'unidad_de_medida' => $item['unidad_de_medida'],
+          'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
+          'descripcion' => $item['descripcion'],
+          'cantidad' => $item['cantidad'],
+          'valor_unitario' => round((float)$item['valor_unitario'], 2),
+          'precio_unitario' => round((float)$item['precio_unitario'], 2),
+          'subtotal' => round((float)$item['subtotal'], 2),
+          'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
+          'igv' => round((float)$item['igv'], 2),
+          'total' => round((float)$item['total'], 2),
+          'account_plan_id' => $item['account_plan_id'] ?? null,
+        ]);
+      }
+
+      // 14. Attach internal notes to invoice
+      $invoice->internalNotes()->attach($data['internal_note_ids']);
+
+      // 15. Mark internal notes as invoiced
+      foreach ($internalNotes as $note) {
+        $note->markAsInvoiced($emissionDate);
+      }
+
+      DB::commit();
+
+      return [
+        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
+        'work_orders' => $workOrdersData,
+        'message' => 'Factura consolidada creada exitosamente',
+        'totals' => [
+          'subtotal' => round($subtotal, 2),
+          'tax_amount' => round($taxAmount, 2),
+          'total' => round($total, 2),
+          'work_orders_count' => $internalNotes->count(),
+        ],
+      ];
+
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Get invoice with internal notes and their work orders
+   *
+   * @param int $invoiceId
+   * @return array
+   * @throws Exception
+   */
+  public function getInvoiceWithWorkOrders(int $invoiceId): array
+  {
+    $invoice = ElectronicDocument::with([
+      'internalNotes.workOrder.invoiceTo',
+      'internalNotes.workOrder.typeCurrency',
+      'internalNotes.workOrder.items',
+      'documentType',
+      'client',
+      'currency'
+    ])->find($invoiceId);
+
+    if (!$invoice) {
+      throw new Exception('Factura no encontrada');
+    }
+
+    // Prepare internal notes with work orders data
+    $internalNotesData = $invoice->internalNotes->map(function ($note) {
+      return [
+        'id' => $note->id,
+        'number' => $note->number,
+        'status' => $note->status,
+        'created_date' => $note->created_date?->format('Y-m-d'),
+        'closed_date' => $note->closed_date?->format('Y-m-d'),
+        'work_order' => $note->workOrder ? [
+          'id' => $note->workOrder->id,
+          'correlative' => $note->workOrder->correlative,
+          'invoice_to' => $note->workOrder->invoice_to,
+          'client_name' => $note->workOrder->invoiceTo?->razon_social,
+          'currency_id' => $note->workOrder->currency_id,
+          'currency' => $note->workOrder->typeCurrency?->name,
+          'subtotal' => $note->workOrder->subtotal,
+          'tax_amount' => $note->workOrder->tax_amount,
+          'final_amount' => $note->workOrder->final_amount,
+          'status' => $note->workOrder->status,
+        ] : null,
+      ];
+    });
+
+    return [
+      'invoice' => [
+        'id' => $invoice->id,
+        'full_number' => $invoice->full_number,
+        'serie' => $invoice->serie,
+        'numero' => $invoice->numero,
+        'document_type' => $invoice->documentType?->description,
+        'client_name' => $invoice->cliente_denominacion,
+        'client_document' => $invoice->cliente_numero_de_documento,
+        'emission_date' => $invoice->fecha_de_emision?->format('Y-m-d'),
+        'due_date' => $invoice->fecha_de_vencimiento?->format('Y-m-d'),
+        'currency' => $invoice->currency?->description,
+        'total' => $invoice->total,
+        'status' => $invoice->status,
+        'consolidation_type' => $invoice->consolidation_type,
+      ],
+      'internal_notes' => $internalNotesData,
+      'summary' => [
+        'total_internal_notes' => $internalNotesData->count(),
+        'total_work_orders' => $internalNotesData->count(),
+        'total_amount' => $invoice->total,
+      ],
+    ];
   }
 }

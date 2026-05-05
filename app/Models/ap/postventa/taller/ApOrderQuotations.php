@@ -2,17 +2,22 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /*
   Modelo para las cotizaciones
@@ -30,6 +35,7 @@ class ApOrderQuotations extends Model
     'sede_id',
     'quotation_number',
     'subtotal',
+    'mileage',
     'discount_percentage',
     'discount_amount',
     'tax_amount',
@@ -39,9 +45,13 @@ class ApOrderQuotations extends Model
     'expiration_date',
     'collection_date',
     'observations',
+    'notes',
     'created_by',
     'is_take',
+    'is_requested_by_management',
+    'emails_sent_count',
     'area_id',
+    'invoice_to',
     'currency_id',
     'exchange_rate',
     'has_invoice_generated',
@@ -53,9 +63,17 @@ class ApOrderQuotations extends Model
     'discarded_at',
     'supply_type',
     'customer_signature_url',
+    'customer_signature_delivery_url',
+    'delivery_document_number',
     'chief_approval_by',
     'manager_approval_by',
     'status',
+    'confirmation_token',
+    'confirmation_token_expires_at',
+    'confirmed_at',
+    'confirmation_channel',
+    'confirmation_ip',
+    'confirmation_metadata',
   ];
 
   const filters = [
@@ -87,6 +105,10 @@ class ApOrderQuotations extends Model
     'discarded_at' => 'datetime',
     'has_invoice_generated' => 'boolean',
     'is_fully_paid' => 'boolean',
+    'is_requested_by_management' => 'boolean',
+    'confirmation_token_expires_at' => 'datetime',
+    'confirmed_at' => 'datetime',
+    'confirmation_metadata' => 'array',
   ];
 
   //STATUS CONSTANTS
@@ -97,8 +119,18 @@ class ApOrderQuotations extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
+
+  // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
+  const  DAYS_TO_EDIT_OR_DELETE = 15;
+
+  // CONFIRMATION CHANNEL CONSTANTS
+  const CONFIRMATION_CHANNEL_PRESENCIAL = 'presencial';
+  const CONFIRMATION_CHANNEL_VIRTUAL = 'virtual';
+
+  // DIAS DE VALIDEZ DEL TOKEN DE CONFIRMACION
+  const CONFIRMATION_TOKEN_VALIDITY_DAYS = 30;
 
   protected static function boot()
   {
@@ -118,6 +150,11 @@ class ApOrderQuotations extends Model
   public function setObservationsAttribute($value)
   {
     $this->attributes['observations'] = strtoupper($value);
+  }
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = strtoupper($value);
   }
 
   public function vehicle(): BelongsTo
@@ -145,11 +182,16 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(User::class, 'manager_approval_by');
   }
 
-  public function Area(): BelongsTo
+  public function area(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'area_id');
   }
 
+  public function invoiceTo(): BelongsTo
+  {
+    return $this->belongsTo(BusinessPartners::class, 'invoice_to');
+  }
+  
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
@@ -180,9 +222,144 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(User::class, 'discarded_by');
   }
 
+  public function discountRequests()
+  {
+    return $this->hasMany(DiscountRequestsOrderQuotation::class, 'ap_order_quotation_id');
+  }
+
+  public function workOrders(): HasMany
+  {
+    return $this->hasMany(
+      ApWorkOrder::class,
+      'order_quotation_id'
+    );
+  }
+
   public function markAsTaken(): void
   {
     $this->is_take = 1;
     $this->save();
+  }
+
+  public static function generateNextQuotationNumber(int $sedeId): string
+  {
+    $sede = Sede::find($sedeId);
+    if (!$sede) {
+      throw new Exception('sede no encontrada');
+    }
+
+    $dynCode = $sede->dyn_code;
+    $year = date('Y');
+    $month = date('m');
+    $prefix = "COT-{$dynCode}-{$year}{$month}";
+
+    $lastQuotation = self::withTrashed()
+      ->where('quotation_number', 'like', "{$prefix}%")
+      ->orderBy('quotation_number', 'desc')
+      ->lockForUpdate()
+      ->first();
+
+    if ($lastQuotation) {
+      $lastNumber = (int)substr($lastQuotation->quotation_number, -4);
+      $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+    } else {
+      $newNumber = '0001';
+    }
+
+    return "{$prefix}{$newNumber}";
+  }
+
+  /**
+   * Centralized method to calculate and update quotation totals based on details.
+   * This method calculates:
+   * - subtotal: sum of all items (quantity * unit_price) without discounts
+   * - discount_amount: total discount amount in money
+   * - discount_percentage: average discount percentage
+   * - tax_amount: IGV (18%) calculated on subtotal after discounts
+   * - total_amount: final total including discounts and taxes
+   *
+   * @return void
+   */
+  public function calculateTotals(): void
+  {
+    // Get all details for this quotation
+    $details = $this->details;
+
+    // Calculate totals
+    $subtotal = 0; // suma de (quantity * unit_price) sin descuentos
+    $sumTotalAmountItems = 0; // suma de total_amount de cada item (ya con descuento aplicado)
+
+    foreach ($details as $detail) {
+      $itemSubtotal = $detail->quantity * $detail->unit_price;
+      $subtotal += $itemSubtotal;
+      $sumTotalAmountItems += $detail->total_amount;
+    }
+
+    // Calculate discount amount (cuánto se descontó en total en dinero)
+    $discountAmount = $subtotal - $sumTotalAmountItems;
+
+    // Calculate discount percentage (porcentaje promedio de descuento)
+    $discountPercentage = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
+
+    // Calculate tax amount (IGV 18% sobre la suma de total_amount de items)
+    $taxAmount = $sumTotalAmountItems * (Constants::VAT_TAX / 100);
+
+    // Calculate total amount (suma de total_amount items + IGV)
+    $totalAmount = $sumTotalAmountItems + $taxAmount;
+
+    // Update quotation with all calculated values
+    $this->subtotal = round($subtotal, 2);
+    $this->discount_amount = round($discountAmount, 2);
+    $this->discount_percentage = round($discountPercentage, 2);
+    $this->tax_amount = round($taxAmount, 2);
+    $this->total_amount = round($totalAmount, 2);
+  }
+
+  /**
+   * Genera un token único para confirmación virtual
+   */
+  public function generateConfirmationToken(): string
+  {
+    $token = Str::random(64);
+    $expiresAt = Carbon::now()->addDays(self::CONFIRMATION_TOKEN_VALIDITY_DAYS);
+
+    $this->confirmation_token = $token;
+    $this->confirmation_token_expires_at = $expiresAt;
+    $this->save();
+
+    return $token;
+  }
+
+  /**
+   * Verifica si el token de confirmación ha expirado
+   */
+  public function isConfirmationTokenExpired(): bool
+  {
+    if (!$this->confirmation_token_expires_at) {
+      return true;
+    }
+
+    return Carbon::now()->isAfter($this->confirmation_token_expires_at);
+  }
+
+  /**
+   * Verifica si la cotización ya fue confirmada
+   */
+  public function isConfirmed(): bool
+  {
+    return $this->confirmed_at !== null;
+  }
+
+  /**
+   * Genera el link de confirmación virtual
+   */
+  public function getConfirmationLink(): string
+  {
+    if (!$this->confirmation_token) {
+      $this->generateConfirmationToken();
+    }
+
+    $frontendUrl = config('app.frontend_url');
+    return "{$frontendUrl}/confirmacion-cotizacion/{$this->confirmation_token}";
   }
 }

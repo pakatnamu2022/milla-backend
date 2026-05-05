@@ -3,16 +3,14 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
-use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApWorkOrder;
-use Illuminate\Validation\Validator;
 
 class StoreApVehicleInspectionRequest extends StoreRequest
 {
   public function rules(): array
   {
     return [
-      'work_order_id' => 'required|exists:ap_work_orders,id',
+      'ap_work_order_id' => 'required|exists:ap_work_orders,id',
       'inspection_date' => 'required|date',
       'mileage' => 'nullable|numeric|min:0',
       'fuel_level' => 'nullable|string|min:0|max:100',
@@ -41,11 +39,42 @@ class StoreApVehicleInspectionRequest extends StoreRequest
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
       'customer_signature' => 'required|string|regex:/^data:image\/[a-z+]+;base64,/',
+      'signer_type' => 'required|string|in:OWNER,CONTACT',
+      'washed' => 'nullable|boolean',
       'photo_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_left' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
       'photo_right' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
-
+      'photo_optional_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_2' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_3' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_4' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_5' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      'photo_optional_6' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+      // Detalles de trabajo
+      'oil_change' => 'nullable|boolean',
+      'check_level_lights' => 'nullable|boolean',
+      'general_lubrication' => 'nullable|boolean',
+      'rotation_inspection_cleaning' => 'nullable|boolean',
+      'insp_filter_basic_checks' => 'nullable|boolean',
+      'tire_pressure_inflation_check' => 'nullable|boolean',
+      'alignment_balancing' => 'nullable|boolean',
+      'pad_replace_disc_resurface' => 'nullable|boolean',
+      'other_work_details' => 'nullable|string',
+      // Requerimiento del cliente
+      'customer_requirement' => 'nullable|string',
+      // Explicaciones de resultados
+      'explanation_work_performed' => 'nullable|boolean',
+      'price_explanation' => 'nullable|boolean',
+      'confirm_additional_work' => 'nullable|boolean',
+      'clarification_customer_concerns' => 'nullable|boolean',
+      'exterior_cleaning' => 'nullable|boolean',
+      'interior_cleaning' => 'nullable|boolean',
+      'keeps_spare_parts' => 'nullable|boolean',
+      'valuable_objects' => 'nullable|boolean',
+      //Items de cortesía
+      'courtesy_seat_cover' => 'nullable|boolean',
+      'paper_floor' => 'nullable|boolean',
       // Damages array
       'damages' => 'nullable|array',
       'damages.*.damage_type' => 'required_with:damages|string|max:100',
@@ -62,10 +91,10 @@ class StoreApVehicleInspectionRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'work_order_id.required' => 'La orden de trabajo es requerida',
-      'work_order_id.exists' => 'La orden de trabajo no existe',
-      'inspection_date.required' => 'La fecha de inspección es requerida',
-      'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
+      'ap_work_order_id.required' => 'La orden de trabajo es requerida',
+      'ap_work_order_id.exists' => 'La orden de trabajo no existe',
+      'inspection_date.required' => 'La fecha de recepción es requerida',
+      'inspection_date.date' => 'La fecha de recepción no es una fecha válida',
       'customer_signature.required' => 'La firma del cliente es requerido',
       'customer_signature.regex' => 'La firma del cliente debe ser una imagen en formato base64 válido',
       'mileage.numeric' => 'El kilometraje debe ser un número',
@@ -84,17 +113,17 @@ class StoreApVehicleInspectionRequest extends StoreRequest
   /**
    * Configure the validator instance.
    */
-  public function withValidator(Validator $validator): void
+  public function withValidator($validator): void
   {
     $validator->after(function ($validator) {
-      $workOrderId = $this->input('work_order_id');
+      $workOrderId = $this->input('ap_work_order_id');
 
       if ($workOrderId) {
         $existingWorkOrder = ApWorkOrder::find($workOrderId);
 
         if (!$existingWorkOrder) {
           $validator->errors()->add(
-            'work_order_id',
+            'ap_work_order_id',
             'La orden de trabajo no existe o ya fue eliminada.'
           );
           return;
@@ -102,8 +131,8 @@ class StoreApVehicleInspectionRequest extends StoreRequest
 
         if ($existingWorkOrder->vehicleInspection) {
           $validator->errors()->add(
-            'work_order_id',
-            'Esta orden de trabajo ya tiene una inspección vehicular registrada.'
+            'ap_work_order_id',
+            'Esta orden de trabajo ya tiene una recepción vehicular registrada.'
           );
         }
       }

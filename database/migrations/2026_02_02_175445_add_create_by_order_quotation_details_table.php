@@ -13,7 +13,7 @@ return new class extends Migration {
     Schema::table('ap_order_quotation_details', function (Blueprint $table) {
       $table->integer('created_by')->nullable()->after('status')->comment('Usuario que creó el registro');
       $table->foreign('created_by')->references('id')->on('usr_users');
-      $table->string('supply_type', 50)->nullable()->after('created_by')->comment('Tipo de suministro LIMA/IMPORTADO');
+      $table->string('supply_type', 50)->nullable()->after('created_by')->comment('Tipo de suministro CENTRAL/IMPORTADO');
     });
   }
 

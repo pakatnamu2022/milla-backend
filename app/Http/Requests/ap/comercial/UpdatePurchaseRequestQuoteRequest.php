@@ -19,8 +19,10 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'base_selling_price' => ['sometimes', 'numeric'],
       'sale_price' => ['sometimes', 'numeric', 'min:0'],
       'doc_sale_price' => ['sometimes', 'numeric', 'min:0'],
+      'down_payment' => ['nullable', 'numeric', 'min:0'],
       'comment' => ['nullable', 'string', 'max:255'],
-      'warranty' => ['nullable', 'string', 'max:100'],
+      'warranty_years' => ['sometimes', 'integer', 'min:1'],
+      'warranty_km' => ['sometimes', 'integer', 'min:1'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['sometimes', 'exists:business_partners,id'],
       'vehicle_color_id' => ['sometimes', 'exists:ap_masters,id'],
@@ -40,6 +42,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories' => ['nullable', 'array'],
       'accessories.*.accessory_id' => ['required', 'exists:approved_accessories,id'],
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
+      'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
       'type_currency_id' => ['sometimes', 'exists:ap_masters,id'],
 
@@ -63,11 +66,16 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'doc_sale_price.numeric' => 'El campo precio de venta en documento debe ser un número.',
       'doc_sale_price.min' => 'El campo precio de venta en documento debe ser mayor o igual a 0.',
 
+      'down_payment.numeric' => 'El campo a cuenta debe ser un número.',
+      'down_payment.min' => 'El campo a cuenta debe ser mayor o igual a 0.',
+
       'comment.string' => 'El campo comentario debe ser una cadena de texto.',
       'comment.max' => 'El campo comentario no debe exceder los 255 caracteres.',
 
-      'warranty.string' => 'El campo garantía debe ser una cadena de texto.',
-      'warranty.max' => 'El campo garantía no debe exceder los 100 caracteres.',
+      'warranty_years.integer' => 'El campo años de garantía debe ser un número entero.',
+      'warranty_years.min' => 'El campo años de garantía debe ser al menos 1.',
+      'warranty_km.integer' => 'El campo kilómetros de garantía debe ser un número entero.',
+      'warranty_km.min' => 'El campo kilómetros de garantía debe ser al menos 1.',
 
       'opportunity_id.exists' => 'La oportunidad seleccionada no es válida.',
 
@@ -102,6 +110,8 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity.required' => 'La cantidad es obligatoria para cada accesorio.',
       'accessories.*.quantity.integer' => 'La cantidad debe ser un número entero.',
       'accessories.*.quantity.min' => 'La cantidad debe ser al menos 1.',
+      'accessories.*.additional_price.numeric' => 'El precio adicional debe ser un número.',
+      'accessories.*.additional_price.min' => 'El precio adicional debe ser mayor o igual a 0.',
 
       'type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
 

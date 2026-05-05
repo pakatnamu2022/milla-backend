@@ -7,6 +7,7 @@ use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApWorkOrderParts extends Model
@@ -21,13 +22,23 @@ class ApWorkOrderParts extends Model
     'product_id',
     'warehouse_id',
     'quantity_used',
-    'unit_cost',
+    'assigned_quantity',
     'unit_price',
     'discount_percentage',
-    'subtotal',
+    'total_cost',
     'tax_amount',
-    'total_amount',
-    'registered_by'
+    'net_amount',
+    'registered_by',
+  ];
+
+  protected $casts = [
+    'quantity_used' => 'decimal:2',
+    'assigned_quantity' => 'decimal:2',
+    'unit_price' => 'decimal:2',
+    'discount_percentage' => 'decimal:2',
+    'total_cost' => 'decimal:2',
+    'tax_amount' => 'decimal:2',
+    'net_amount' => 'decimal:2',
   ];
 
   const filters = [
@@ -61,5 +72,10 @@ class ApWorkOrderParts extends Model
   public function registeredBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'registered_by');
+  }
+
+  public function deliveries(): HasMany
+  {
+    return $this->hasMany(ApWorkOrderPartDelivery::class, 'work_order_part_id');
   }
 }

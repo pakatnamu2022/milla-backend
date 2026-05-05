@@ -37,6 +37,22 @@ class ApMasters extends Model
     'type',
   ];
 
+  // NUMERO DE DIGITOS
+  const int NUM_DIGITS_DNI = 8;
+  const int NUM_DIGITS_RUC = 11;
+  const int NUM_DIGITS_CE = 12;
+  const int NUM_DIGITS_PASSPORT = 9;
+  const int NUM_DIGITS_DEFAULT = 20;
+
+  // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS
+  const array DOCUMENT_TYPE_DIGITS = [
+    809 => self::NUM_DIGITS_DNI,   // DNI
+    810 => self::NUM_DIGITS_RUC,  // RUC
+    811 => self::NUM_DIGITS_CE,   // CE
+    973 => self::NUM_DIGITS_PASSPORT, // PASAPORTE
+    974 => self::NUM_DIGITS_DEFAULT,
+  ];
+
   //  OPERATION TYPE
   const int TIPO_OPERACION_COMERCIAL = 794;
   const int TIPO_OPERACION_POSTVENTA = 804;
@@ -57,11 +73,25 @@ class ApMasters extends Model
   const int CLOSED_WORK_ORDER_ID = 892;
   const int CANCELED_WORK_ORDER_ID = 893;
 
-  // IDS DE AREAS
-  const int AREA_POSTVENTA_ID = 825;
-  const int AREA_COMERCIAL_ID = 826;
-  const int AREA_TALLER_ID = 881;
-  const int AREA_MESON_ID = 882;
+  // IDS de TIPO DE OPERACION CITA
+  const int OP_TYPE_APPT_PDI_ID = 965;
+  const int OP_TYPE_APPT_ACC_INSTALL_ID = 983;
+
+  /**
+   * AREAS
+   */
+  const int AREA_COMERCIAL = 826;
+  const int AREA_POSVENTA = 825;
+  const int AREA_TALLER = 881;
+  const int AREA_MESON = 882;
+  const array AREAS_POSVENTA = [self::AREA_POSVENTA, self::AREA_TALLER, self::AREA_MESON];
+
+  const array ALL_AREAS = [
+    self::AREA_COMERCIAL,
+    self::AREA_POSVENTA,
+    self::AREA_TALLER,
+    self::AREA_MESON,
+  ];
 
   public function setCodeAttribute($value)
   {
@@ -97,5 +127,10 @@ class ApMasters extends Model
   public function getOpenOpportunityStatusAttribute()
   {
     return in_array($this->code, Opportunity::OPEN_STATUS_CODES);
+  }
+
+  public static function getDigitsForDocumentType(int $documentTypeId): ?int
+  {
+    return self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
   }
 }

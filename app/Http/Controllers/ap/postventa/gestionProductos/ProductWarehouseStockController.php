@@ -54,4 +54,20 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function exportInventory(Request $request)
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'stock_type' => 'nullable|string|in:all,with_stock,without_stock',
+        'title' => 'nullable|string',
+      ]);
+
+      return $this->service->exportInventory($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

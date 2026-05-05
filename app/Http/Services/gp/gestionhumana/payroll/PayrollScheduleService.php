@@ -2,12 +2,16 @@
 
 namespace App\Http\Services\gp\gestionhumana\payroll;
 
+use App\Http\Resources\gp\gestionhumana\payroll\PayrollPeriodResource;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollScheduleResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Models\GeneralMaster;
+use App\Models\gp\gestionhumana\payroll\AttendanceRule;
+use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
+use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
-use App\Models\gp\gestionhumana\payroll\PayrollWorkType;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Exception;
@@ -16,12 +20,19 @@ use Illuminate\Support\Facades\DB;
 
 class PayrollScheduleService extends BaseService implements BaseServiceInterface
 {
+  protected PayrollSummaryService $summaryService;
+
+  public function __construct(PayrollSummaryService $summaryService)
+  {
+    $this->summaryService = $summaryService;
+  }
+
   /**
    * Get all schedules with filters and pagination
    */
   public function list(Request $request)
   {
-    $query = PayrollSchedule::with(['worker', 'workType', 'period']);
+    $query = PayrollSchedule::with(['worker', 'period']);
 
     return $this->getFilteredResults(
       $query,
@@ -37,7 +48,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    */
   public function find($id)
   {
-    $schedule = PayrollSchedule::with(['worker', 'workType', 'period'])->find($id);
+    $schedule = PayrollSchedule::with(['worker', 'period'])->find($id);
     if (!$schedule) {
       throw new Exception('Schedule not found');
     }
@@ -50,6 +61,55 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     return new PayrollScheduleResource($this->find($id));
+  }
+
+  /**
+   * Resolve the date range for schedule filtering based on biweekly half.
+   *
+   * biweekly = 1 → start_date  ... biweekly_date
+   * biweekly = 2 → biweekly_date+1 ... end_date
+   * biweekly = null → start_date ... end_date (full month)
+   *
+   * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+   */
+  private function getDateRangeForBiweekly(PayrollPeriod $period, ?int $biweekly): array
+  {
+    if ($biweekly === 1 && $period->biweekly_date) {
+      return [$period->start_date, $period->biweekly_date];
+    }
+
+    if ($biweekly === 2 && $period->biweekly_date) {
+      return [$period->biweekly_date->copy()->addDay(), $period->end_date];
+    }
+
+    return [$period->start_date, $period->end_date];
+  }
+
+  /**
+   * Calculate hours for a schedule based on code and worker
+   */
+  private function calculateHours($code, $worker, $status = null)
+  {
+    $rule = AttendanceRule::where('code', $code)->first();
+
+    // Si la regla no existe o indica que no genera pago, no se cuentan horas trabajadas
+    if (!$rule || !$rule->pay) {
+      return ['hours_worked' => 0, 'extra_hours' => 0];
+    }
+
+    $workingHours = GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8;
+
+    if ($rule->use_shift) {
+      $horasJornada = (float)($worker->horas_jornada ?: $workingHours);
+    } else {
+      $horasJornada = (float)($rule->hours ?? $workingHours);
+    }
+
+    if ($horasJornada >= $workingHours) {
+      return ['hours_worked' => $workingHours, 'extra_hours' => $horasJornada - $workingHours];
+    } else {
+      return ['hours_worked' => $horasJornada, 'extra_hours' => 0];
+    }
   }
 
   /**
@@ -66,19 +126,13 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Worker not found');
       }
 
-      // Validate work type exists
-      $workType = PayrollWorkType::find($data['work_type_id']);
-      if (!$workType) {
-        throw new Exception('Work type not found');
-      }
-
       // Validate period exists and is modifiable
       $period = PayrollPeriod::find($data['period_id']);
       if (!$period) {
         throw new Exception('Period not found');
       }
-      if (!$period->canModify()) {
-        throw new Exception('Cannot add schedule: period is in ' . $period->status . ' status');
+      if ($period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede agregar horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $period->status);
       }
 
       // Check for duplicate
@@ -90,19 +144,34 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         throw new Exception('Schedule already exists for this worker on this date');
       }
 
+      // Calculate hours and determine status based on code
+      $code = $data['code'];
+
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
+        $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
+      } else {
+        $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
+      }
+
+      $hours = $this->calculateHours($code, $worker, $status);
+
       $schedule = PayrollSchedule::create([
         'worker_id' => $data['worker_id'],
-        'work_type_id' => $data['work_type_id'],
+        'code' => $data['code'],
         'period_id' => $data['period_id'],
         'work_date' => $data['work_date'],
-        'hours_worked' => $data['hours_worked'] ?? $workType->base_hours,
-        'extra_hours' => $data['extra_hours'] ?? 0,
+        'hours_worked' => $hours['hours_worked'],
+        'extra_hours' => $hours['extra_hours'],
         'notes' => $data['notes'] ?? null,
-        'status' => $data['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+        'status' => $status,
       ]);
 
       DB::commit();
-      return new PayrollScheduleResource($schedule->load(['worker', 'workType', 'period']));
+      return new PayrollScheduleResource($schedule->load(['worker', 'period']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -125,8 +194,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       if (!$period) {
         throw new Exception('Period not found');
       }
-      if (!$period->canModify()) {
-        throw new Exception('Cannot add schedules: period is in ' . $period->status . ' status');
+      if ($period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se pueden agregar horarios: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $period->status);
       }
 
       $createdSchedules = [];
@@ -141,39 +210,47 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
             continue;
           }
 
-          // Validate work type exists
-          $workType = PayrollWorkType::find($scheduleData['work_type_id']);
-          if (!$workType) {
-            $errors[] = "Row {$index}: Work type not found";
-            continue;
-          }
-
           // Check for duplicate
           $existingSchedule = PayrollSchedule::where('worker_id', $scheduleData['worker_id'])
             ->where('work_date', $scheduleData['work_date'])
             ->first();
 
+          // Calculate hours and determine status based on code
+          $code = $scheduleData['code'];
+
+          // Auto-assign status based on attendance rule
+          $attendanceRule = AttendanceRule::where('code', $code)->first();
+          if ($code === 'VC') {
+            $status = PayrollSchedule::STATUS_VACATION;
+          } elseif ($attendanceRule && !$attendanceRule->pay) {
+            $status = PayrollSchedule::STATUS_ABSENT;
+          } else {
+            $status = $scheduleData['status'] ?? PayrollSchedule::STATUS_WORKED;
+          }
+
+          $hours = $this->calculateHours($code, $worker, $status);
+
           if ($existingSchedule) {
             // Update existing schedule
             $existingSchedule->update([
-              'work_type_id' => $scheduleData['work_type_id'],
-              'hours_worked' => $scheduleData['hours_worked'] ?? $workType->base_hours,
-              'extra_hours' => $scheduleData['extra_hours'] ?? 0,
+              'code' => $scheduleData['code'],
+              'hours_worked' => $hours['hours_worked'],
+              'extra_hours' => $hours['extra_hours'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+              'status' => $status,
             ]);
             $createdSchedules[] = $existingSchedule;
           } else {
             // Create new schedule
             $schedule = PayrollSchedule::create([
               'worker_id' => $scheduleData['worker_id'],
-              'work_type_id' => $scheduleData['work_type_id'],
+              'code' => $scheduleData['code'],
               'period_id' => $periodId,
               'work_date' => $scheduleData['work_date'],
-              'hours_worked' => $scheduleData['hours_worked'] ?? $workType->base_hours,
-              'extra_hours' => $scheduleData['extra_hours'] ?? 0,
+              'hours_worked' => $hours['hours_worked'],
+              'extra_hours' => $hours['extra_hours'],
               'notes' => $scheduleData['notes'] ?? null,
-              'status' => $scheduleData['status'] ?? PayrollSchedule::STATUS_SCHEDULED,
+              'status' => $status,
             ]);
             $createdSchedules[] = $schedule;
           }
@@ -188,7 +265,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         'created_count' => count($createdSchedules),
         'errors' => $errors,
         'schedules' => PayrollScheduleResource::collection(
-          collect($createdSchedules)->map(fn($s) => $s->load(['worker', 'workType', 'period']))
+          collect($createdSchedules)->map(fn($s) => $s->load(['worker', 'period']))
         ),
       ];
     } catch (Exception $e) {
@@ -208,28 +285,37 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $schedule = $this->find($data['id']);
 
       // Validate period is modifiable
-      if (!$schedule->period->canModify()) {
-        throw new Exception('Cannot update schedule: period is in ' . $schedule->period->status . ' status');
+      if ($schedule->period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede actualizar el horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $schedule->period->status);
       }
 
-      // Validate work type if changing
-      if (isset($data['work_type_id']) && $data['work_type_id'] !== $schedule->work_type_id) {
-        $workType = PayrollWorkType::find($data['work_type_id']);
-        if (!$workType) {
-          throw new Exception('Work type not found');
-        }
+      $code = $data['code'] ?? $schedule->code;
+
+      // Auto-assign status based on attendance rule
+      $attendanceRule = AttendanceRule::where('code', $code)->first();
+      if ($code === 'VC') {
+        $status = PayrollSchedule::STATUS_VACATION;
+      } elseif ($attendanceRule && !$attendanceRule->pay) {
+        $status = PayrollSchedule::STATUS_ABSENT;
+      } else {
+        $status = $data['status'] ?? PayrollSchedule::STATUS_WORKED;
       }
 
-      $schedule->update([
-        'work_type_id' => $data['work_type_id'] ?? $schedule->work_type_id,
-        'hours_worked' => $data['hours_worked'] ?? $schedule->hours_worked,
-        'extra_hours' => $data['extra_hours'] ?? $schedule->extra_hours,
+      // Always recalculate hours in case attendance rules have changed
+      $hours = $this->calculateHours($code, $schedule->worker, $status);
+
+      $updateData = [
+        'code' => $code,
         'notes' => $data['notes'] ?? $schedule->notes,
-        'status' => $data['status'] ?? $schedule->status,
-      ]);
+        'status' => $status,
+        'hours_worked' => $hours['hours_worked'],
+        'extra_hours' => $hours['extra_hours'],
+      ];
+
+      $schedule->update($updateData);
 
       DB::commit();
-      return new PayrollScheduleResource($schedule->fresh()->load(['worker', 'workType', 'period']));
+      return new PayrollScheduleResource($schedule->fresh()->load(['worker', 'period']));
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
@@ -247,8 +333,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $schedule = $this->find($id);
 
       // Validate period is modifiable
-      if (!$schedule->period->canModify()) {
-        throw new Exception('Cannot delete schedule: period is in ' . $schedule->period->status . ' status');
+      if ($schedule->period->status !== PayrollPeriod::STATUS_OPEN) {
+        throw new Exception('No se puede eliminar el horario: el período debe estar en estado ABIERTO (OPEN). Estado actual: ' . $schedule->period->status);
       }
 
       $schedule->delete();
@@ -262,60 +348,653 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Get summary of hours by period
+   * Get summary by period using attendance codes and rules
+   *
+   * Calculation logic:
+   * 1. Group schedules by worker_id and code
+   * 2. Count days worked per code
+   * 3. For each code, get AttendanceRules
+   * 4. Calculate cost per rule:
+   *    - If use_shift = 1: hours = worker.horas_jornada
+   *    - If use_shift = 0: hours = rule.hours
+   *    - base_hour_value = worker.sueldo / 30 / worker.horas_jornada
+   *    - If hour_type = NOCTURNO: apply 35% surcharge (multiply by 1.35)
+   *    - Apply rule multiplier
+   *    - total = hours × hour_value × multiplier × days_worked
+   *    - If pay = 0: subtract instead of add
    */
-  public function getSummaryByPeriod(int $periodId)
+  public function getSummaryByPeriod(int $periodId, ?int $biweekly = null)
   {
     $period = PayrollPeriod::find($periodId);
     if (!$period) {
       throw new Exception('Period not found');
     }
 
-    $schedules = PayrollSchedule::with(['worker', 'workType'])
+    [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
+    // Get all worked schedules for this period (filtered by biweekly half if provided)
+    $schedules = PayrollSchedule::with(['worker'])
       ->where('period_id', $periodId)
       ->where('status', PayrollSchedule::STATUS_WORKED)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
       ->get();
 
-    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) {
+    // Get all attendance rules
+    $attendanceRules = AttendanceRule::all()->groupBy('code');
+
+    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules) {
       $worker = $workerSchedules->first()->worker;
 
-      $totalNormalHours = 0;
-      $totalExtraHours = 0;
-      $totalNightHours = 0;
-      $totalHolidayHours = 0;
-      $daysWorked = 0;
+      // Worker salary and shift info
+      $sueldo = (float)($worker->sueldo ?? 0);
+      $horasJornada = (float)($worker->horas_jornada ?: 8);
 
-      foreach ($workerSchedules as $schedule) {
-        $workType = $schedule->workType;
-        $hours = (float) $schedule->hours_worked;
+      if ($sueldo == 0 || $horasJornada == 0) {
+        return null; // Skip worker with invalid salary or shift hours
+      }
 
-        if ($workType->is_night_shift) {
-          $totalNightHours += $hours;
-        } elseif ($workType->is_holiday || $workType->is_sunday) {
-          $totalHolidayHours += $hours;
-        } else {
-          $totalNormalHours += $hours;
+      $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
+      $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
+      $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+      $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+      $umbralNocturno = $salarioMinimo * $recargoNocturno;
+
+      // Base hour value
+      //$valorHoraBase = $sueldo / 30 / $horasJornada;
+      $valorHoraBase = $sueldo / $diasMes / $horasTrabajo;
+
+      // Group by code and count days
+      $codeGroups = $workerSchedules->groupBy('code');
+
+      $details = [];
+      $totalAmount = 0;
+
+      foreach ($codeGroups as $code => $codeSchedules) {
+        $diasTrabajados = $codeSchedules->count();
+
+        // Get rules for this code
+        $rules = $attendanceRules->get($code);
+
+        if (!$rules || $rules->isEmpty()) {
+          continue; // Skip if no rules defined for this code
         }
 
-        $totalExtraHours += (float) $schedule->extra_hours;
-        $daysWorked++;
+        foreach ($rules as $rule) {
+          // Determine hours to use
+          $horas = $rule->use_shift ? $horasJornada : (float)$rule->hours;
+
+          // El recargo nocturno solo aplica si el salario del trabajador es menor al umbral
+          // (salario_minimo * 1.35). Si ya supera ese umbral, su hora nocturna se calcula
+          // sobre su propio salario sin recargo adicional.
+          $valorHora = $valorHoraBase;
+          if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
+            $valorHora *= $recargoNocturno;
+          }
+
+          // Apply multiplier
+          $valorHora *= (float)$rule->multiplier;
+
+          // Calculate total for this rule
+          $total = $horas * $valorHora * $diasTrabajados;
+
+          // If pay = 0, subtract instead of add
+          if (!$rule->pay) {
+            $total = -$total;
+          }
+
+          $totalAmount += $total;
+
+          $details[] = [
+            'code' => $code,
+            'hour_type' => $rule->hour_type,
+            'hours' => round($horas, 2),
+            'multiplier' => round((float)$rule->multiplier, 4),
+            'pay' => $rule->pay,
+            'use_shift' => $rule->use_shift,
+            'hour_value' => round($valorHora, 2),
+            'days_worked' => $diasTrabajados,
+            'total' => round($total, 2),
+          ];
+        }
       }
 
       return [
         'worker_id' => $worker->id,
         'worker_name' => $worker->nombre_completo,
-        'total_normal_hours' => round($totalNormalHours, 2),
-        'total_extra_hours' => round($totalExtraHours, 2),
-        'total_night_hours' => round($totalNightHours, 2),
-        'total_holiday_hours' => round($totalHolidayHours, 2),
-        'days_worked' => $daysWorked,
+        'salary' => round($sueldo, 2),
+        'shift_hours' => round($horasJornada, 2),
+        'base_hour_value' => round($valorHoraBase, 2),
+        'details' => $details,
+        'total_amount' => round($totalAmount, 2),
+      ];
+    })->filter()->values();
+
+    return [
+      'period' => new PayrollPeriodResource($period),
+      'biweekly' => $biweekly,
+      'date_from' => $dateFrom,
+      'date_to' => $dateTo,
+      'workers_count' => $summary->count(),
+      'summary' => $summary,
+    ];
+  }
+
+  /**
+   * Fills missing days in the given date range for all workers that appear at least once
+   * in that range. Missing days are created as PayrollSchedule records with code 'NL'
+   * (No Laboró) using the corresponding attendance rules.
+   */
+  private function fillMissingDaysWithNL(PayrollPeriod $period, $dateFrom, $dateTo): void
+  {
+    $dateFromCarbon = Carbon::parse($dateFrom);
+    $dateToCarbon   = Carbon::parse($dateTo);
+
+    // Workers that appear at least once in this date range
+    $workerIds = PayrollSchedule::where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->distinct()
+      ->pluck('worker_id');
+
+    if ($workerIds->isEmpty()) {
+      return;
+    }
+
+    // All calendar dates in the range
+    $allDates = [];
+    $cursor = $dateFromCarbon->copy();
+    while ($cursor->lte($dateToCarbon)) {
+      $allDates[] = $cursor->format('Y-m-d');
+      $cursor->addDay();
+    }
+
+    // Existing schedules grouped by worker
+    $existingByWorker = PayrollSchedule::with('worker')
+      ->where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFromCarbon)
+      ->where('work_date', '<=', $dateToCarbon)
+      ->whereIn('worker_id', $workerIds)
+      ->get()
+      ->groupBy('worker_id');
+
+    foreach ($workerIds as $workerId) {
+      $workerSchedules = $existingByWorker->get($workerId, collect());
+      $filledDates     = $workerSchedules->map(fn($s) => Carbon::parse($s->work_date)->format('Y-m-d'))->toArray();
+      $missingDates    = array_values(array_diff($allDates, $filledDates));
+
+      if (empty($missingDates)) {
+        continue;
+      }
+
+      $worker = $workerSchedules->isNotEmpty()
+        ? $workerSchedules->first()->worker
+        : Worker::find($workerId);
+
+      if (!$worker) {
+        continue;
+      }
+
+      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_ABSENT);
+
+      foreach ($missingDates as $missingDate) {
+        PayrollSchedule::create([
+          'worker_id'    => $workerId,
+          'code'         => 'NL',
+          'period_id'    => $period->id,
+          'work_date'    => $missingDate,
+          'hours_worked' => $hours['hours_worked'],
+          'extra_hours'  => $hours['extra_hours'],
+          'notes'        => null,
+          'status'       => PayrollSchedule::STATUS_ABSENT,
+        ]);
+      }
+    }
+  }
+
+  /**
+   * Create PayrollCalculation + detail records for all workers with schedules in the given date range.
+   * Used internally by generate and recalculate.
+   *
+   * @param PayrollPeriod $period
+   * @param int|null $biweekly Value to stamp on each created calculation (1, 2, or null)
+   * @param mixed $dateFrom
+   * @param mixed $dateTo
+   * @param \Illuminate\Support\Collection $attendanceRules Grouped by code
+   * @param array $errors Passed by reference — worker-level errors are appended here
+   * @return int[]  IDs of created PayrollCalculation records
+   */
+  private function createCalculationsForPeriod(
+    PayrollPeriod $period,
+    ?int          $biweekly,
+                  $dateFrom,
+                  $dateTo,
+                  $attendanceRules,
+    array         &$errors
+  ): array
+  {
+    $schedules = PayrollSchedule::with(['worker'])
+      ->where('period_id', $period->id)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
+      ->get();
+
+    if ($schedules->isEmpty()) {
+      return [];
+    }
+
+    $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
+    $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
+    $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
+    $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+    $umbralNocturno = $salarioMinimo * $recargoNocturno;
+
+    $createdIds = [];
+
+    foreach ($schedules->groupBy('worker_id') as $workerId => $workerSchedules) {
+      try {
+        $worker = $workerSchedules->first()->worker;
+        $sueldo = (float)($worker->sueldo ?? 0);
+        $horasJornada = (float)($worker->horas_jornada ?: 8);
+
+        if ($sueldo == 0 || $horasJornada == 0) {
+          $errors[] = "Worker {$worker->nombre_completo}: Invalid salary or shift hours";
+          continue;
+        }
+
+        // Ahora usa los valores de la BD en lugar de números hardcodeados
+        $valorHoraBase = $sueldo / $diasMes / $horasTrabajo;
+
+        // Contar días de vacaciones
+        $daysVacation = $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_VACATION)->count();
+
+        // Calcular el valor de la hora vacacional solo si hay días de vacaciones
+        $valorHoraVacacional = 0;
+        if ($daysVacation > 0) {
+          $promedioData = PayrollCalculation::calcularPromedioUltimos6Meses(
+            $period->id,
+            $workerId,
+            $period->company_id ?? 0
+          );
+          $valorHoraVacacional = ($promedioData->total_avg + $sueldo) / $diasMes;
+        }
+
+        $calculation = PayrollCalculation::create([
+          'period_id' => $period->id,
+          'biweekly' => $biweekly,
+          'worker_id' => $workerId,
+          'company_id' => $period->company_id ?? null,
+          'sede_id' => $worker->sede_id ?? null,
+          'salary' => $sueldo,
+          'shift_hours' => $horasJornada,
+          'base_hour_value' => $valorHoraBase,
+          'vacation_hour_value' => $valorHoraVacacional,
+          'days_worked' => $workerSchedules->filter(function ($s) use ($attendanceRules) {
+            if ($s->status !== PayrollSchedule::STATUS_WORKED) return false;
+            $rules = $attendanceRules->get($s->code);
+            return !$rules || $rules->isEmpty() || (bool) $rules->first()->pay;
+          })->count(),
+          'days_absent' => $workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_ABSENT)->count(),
+          'days_vacation' => $daysVacation,
+          'status' => PayrollCalculation::STATUS_CALCULATED,
+          'calculated_at' => now(),
+          'calculated_by' => auth()->id(),
+        ]);
+
+        $totalEarnings = 0;
+        $calculationOrder = 1;
+
+        foreach ($workerSchedules->filter(fn($s) => $s->status === PayrollSchedule::STATUS_WORKED)->groupBy('code') as $code => $codeSchedules) {
+          $diasTrabajados = $codeSchedules->count();
+          $rules = $attendanceRules->get($code);
+
+          if (!$rules || $rules->isEmpty()) {
+            continue;
+          }
+
+          foreach ($rules as $rule) {
+            $horas = (float)$rule->hours;
+            $valorHora = $valorHoraBase;
+            if (strtoupper($rule->hour_type) === 'NOCTURNO' && $sueldo < $umbralNocturno) {
+              $valorHora *= $recargoNocturno;
+            }
+            $valorHoraConMultiplicador = $valorHora * (float)$rule->multiplier;
+
+            // Special calculation for vacation concept (VC)
+            if ($code === 'VC') {
+              $promedioData = PayrollCalculation::calcularPromedioUltimos6Meses(
+                $period->id,
+                $workerId,
+                $worker->company_id ?? 0
+              );
+              $valorHoraConMultiplicador = ($promedioData->total_avg + $sueldo) / $diasMes / $horasTrabajo;
+            }
+
+            $total = $horas * $valorHoraConMultiplicador * $diasTrabajados;
+            if (!$rule->pay) {
+              $total = -$total;
+            }
+            $totalEarnings += $total;
+
+            PayrollCalculationDetail::create([
+              'calculation_id' => $calculation->id,
+              'concept_id' => null,
+              'concept_code' => $code,
+              'concept_name' => $rule->description ?? $code,
+              'type' => $rule->pay ? 'EARNING' : 'DEDUCTION',
+              'category' => 'ATTENDANCE',
+              'hour_type' => $rule->hour_type,
+              'hours' => $horas,
+              'days_worked' => $diasTrabajados,
+              'multiplier' => (float)$rule->multiplier,
+              'use_shift' => false,
+              'hour_value' => $valorHoraConMultiplicador,
+              'amount' => $total,
+              'calculation_order' => $calculationOrder++,
+            ]);
+          }
+        }
+
+        $calculation->update([
+          'total_earnings' => $totalEarnings > 0 ? $totalEarnings : 0,
+          'total_deductions' => $totalEarnings < 0 ? abs($totalEarnings) : 0,
+        ]);
+
+        $this->summaryService->persist($calculation->load('details'));
+        $createdIds[] = $calculation->id;
+      } catch (Exception $e) {
+        $errors[] = "Worker ID {$workerId}: " . $e->getMessage();
+      }
+    }
+
+    return $createdIds;
+  }
+
+  /**
+   * Force-delete all calculations (and their details) for a given period + biweekly value.
+   * Throws if any are APPROVED or PAID.
+   */
+  private function deleteCalculationsForBiweekly(int $periodId, ?int $biweekly): void
+  {
+    $query = PayrollCalculation::withTrashed()->where('period_id', $periodId);
+    $biweekly === null ? $query->whereNull('biweekly') : $query->where('biweekly', $biweekly);
+    $existing = $query->get();
+
+    $locked = $existing->filter(fn($c) => in_array($c->status, [
+      PayrollCalculation::STATUS_APPROVED,
+      PayrollCalculation::STATUS_PAID,
+    ]));
+
+    if ($locked->count() > 0) {
+      $label = $biweekly ? "biweekly={$biweekly}" : 'full month';
+      throw new Exception("Cannot recalculate ({$label}): {$locked->count()} calculations are already APPROVED or PAID.");
+    }
+
+    if ($existing->isNotEmpty()) {
+      PayrollCalculationDetail::whereIn('calculation_id', $existing->pluck('id'))->forceDelete();
+      $deleteQuery = PayrollCalculation::withTrashed()->where('period_id', $periodId);
+      $biweekly === null ? $deleteQuery->whereNull('biweekly') : $deleteQuery->where('biweekly', $biweekly);
+      $deleteQuery->forceDelete();
+    }
+  }
+
+  /**
+   * Generate payroll calculations for a period.
+   *
+   * biweekly=1  → creates records with biweekly=1 (primera quincena)
+   * biweekly=2  → creates records with biweekly=2 (segunda quincena)
+   * biweekly=null + period has biweekly_date
+   *             → creates records for biweekly=1, biweekly=2, AND biweekly=null (consolidado)
+   * biweekly=null + no biweekly_date
+   *             → creates records with biweekly=null (mes completo)
+   *
+   * @param int $periodId
+   * @return array
+   * @throws Exception
+   */
+  public function generatePayrollCalculations(int $periodId, ?int $biweekly = null)
+  {
+    try {
+      DB::beginTransaction();
+
+      $period = PayrollPeriod::find($periodId);
+      if (!$period) {
+        throw new Exception('Period not found');
+      }
+
+      if ($biweekly !== null && !$period->biweekly_date) {
+        throw new Exception('The period does not have a biweekly date configured.');
+      }
+
+      $attendanceRules = AttendanceRule::all()->groupBy('code');
+      $errors = [];
+      $allCreatedIds = [];
+
+      // Validate all assigned workers have every day filled before processing
+      if ($biweekly === null && $period->biweekly_date) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
+      }
+
+      if ($biweekly === null && $period->biweekly_date) {
+        // Period with biweekly split: create only biweekly=1 and biweekly=2 (no null consolidado)
+        $existingB1 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 1)->count();
+        $existingB2 = PayrollCalculation::where('period_id', $periodId)->where('biweekly', 2)->count();
+
+        if ($existingB1 > 0 || $existingB2 > 0) {
+          $parts = array_values(array_filter([
+            $existingB1 > 0 ? 'biweekly=1' : null,
+            $existingB2 > 0 ? 'biweekly=2' : null,
+          ]));
+          throw new Exception('Calculations already exist for this period (' . implode(', ', $parts) . '). Use the recalculate endpoint to update them.');
+        }
+
+        [$from1, $to1] = $this->getDateRangeForBiweekly($period, 1);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 1, $from1, $to1, $attendanceRules, $errors));
+
+        [$from2, $to2] = $this->getDateRangeForBiweekly($period, 2);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 2, $from2, $to2, $attendanceRules, $errors));
+      } else {
+        // Single biweekly half (or full month without biweekly_date)
+        $existingQuery = PayrollCalculation::where('period_id', $periodId);
+        $biweekly === null ? $existingQuery->whereNull('biweekly') : $existingQuery->where('biweekly', $biweekly);
+
+        if ($existingQuery->count() > 0) {
+          $halfLabel = $biweekly ? "biweekly={$biweekly}" : 'full month';
+          throw new Exception("Calculations already exist for this period ({$halfLabel}). Use the recalculate endpoint to update them.");
+        }
+
+        [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $allCreatedIds = $this->createCalculationsForPeriod($period, $biweekly, $dateFrom, $dateTo, $attendanceRules, $errors);
+      }
+
+      if (empty($allCreatedIds)) {
+        throw new Exception('No worked schedules found for this period');
+      }
+
+      if ($period->status !== PayrollPeriod::STATUS_CALCULATED) {
+        $period->update(['status' => PayrollPeriod::STATUS_CALCULATED]);
+      }
+
+      DB::commit();
+
+      return [
+        'success' => true,
+        'period_id' => $periodId,
+        'calculations_created' => count($allCreatedIds),
+        'calculation_ids' => $allCreatedIds,
+        'errors' => $errors,
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Recalculate payroll calculations for a period.
+   * Deletes existing calculations and regenerates them based on current attendance schedules.
+   *
+   * biweekly=1 or 2 → deletes and regenerates only that half
+   * biweekly=null + period has biweekly_date
+   *                → deletes and regenerates all three (1, 2, and null consolidado)
+   * biweekly=null + no biweekly_date
+   *                → deletes and regenerates the full-month set
+   *
+   * @param int $periodId
+   * @return array
+   * @throws Exception
+   */
+  public function recalculatePayrollCalculations(int $periodId, ?int $biweekly = null)
+  {
+    try {
+      DB::beginTransaction();
+
+      $period = PayrollPeriod::find($periodId);
+      if (!$period) {
+        throw new Exception('Period not found');
+      }
+
+      if ($biweekly !== null && !$period->biweekly_date) {
+        throw new Exception('The period does not have a biweekly date configured.');
+      }
+
+      $isFullWithSplit = $biweekly === null && $period->biweekly_date;
+
+      // Validate all assigned workers have every day filled before processing
+      if ($isFullWithSplit) {
+        [$vFrom1, $vTo1] = $this->getDateRangeForBiweekly($period, 1);
+        [$vFrom2, $vTo2] = $this->getDateRangeForBiweekly($period, 2);
+        $this->fillMissingDaysWithNL($period, $vFrom1, $vTo1);
+        $this->fillMissingDaysWithNL($period, $vFrom2, $vTo2);
+      } else {
+        [$vFrom, $vTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $this->fillMissingDaysWithNL($period, $vFrom, $vTo);
+      }
+
+      // Delete existing calculations (throws if any are APPROVED/PAID)
+      if ($isFullWithSplit) {
+        $this->deleteCalculationsForBiweekly($periodId, 1);
+        $this->deleteCalculationsForBiweekly($periodId, 2);
+      } else {
+        $this->deleteCalculationsForBiweekly($periodId, $biweekly);
+      }
+
+      $attendanceRules = AttendanceRule::all()->groupBy('code');
+      $errors = [];
+      $allCreatedIds = [];
+
+      if ($isFullWithSplit) {
+        [$from1, $to1] = $this->getDateRangeForBiweekly($period, 1);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 1, $from1, $to1, $attendanceRules, $errors));
+
+        [$from2, $to2] = $this->getDateRangeForBiweekly($period, 2);
+        $allCreatedIds = array_merge($allCreatedIds, $this->createCalculationsForPeriod($period, 2, $from2, $to2, $attendanceRules, $errors));
+      } else {
+        [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+        $allCreatedIds = $this->createCalculationsForPeriod($period, $biweekly, $dateFrom, $dateTo, $attendanceRules, $errors);
+      }
+
+      if (empty($allCreatedIds)) {
+        throw new Exception('No worked schedules found for this period');
+      }
+
+      DB::commit();
+
+      return [
+        'success' => true,
+        'period_id' => $periodId,
+        'calculations_created' => count($allCreatedIds),
+        'calculation_ids' => $allCreatedIds,
+        'errors' => $errors,
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Get daily attendances for all workers in a period
+   * Returns attendance data grouped by worker with daily codes and summary
+   *
+   * @param int $periodId
+   * @return array
+   * @throws Exception
+   */
+  public function getAttendancesByPeriod(int $periodId, ?int $biweekly = null)
+  {
+    $period = PayrollPeriod::find($periodId);
+    if (!$period) {
+      throw new Exception('Period not found');
+    }
+
+    [$dateFrom, $dateTo] = $this->getDateRangeForBiweekly($period, $biweekly);
+
+    // Get all schedules for this period with worker information
+    $schedules = PayrollSchedule::with(['worker'])
+      ->where('period_id', $periodId)
+      ->where('work_date', '>=', $dateFrom)
+      ->where('work_date', '<=', $dateTo)
+      ->orderBy('work_date', 'asc')
+      ->get();
+
+    if ($schedules->isEmpty()) {
+      return [
+        'period_id' => $periodId,
+        'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
+        'start_date' => $dateFrom,
+        'end_date' => $dateTo,
+        'biweekly_date' => $period->biweekly_date,
+        'biweekly' => $biweekly,
+        'attendances' => [],
+      ];
+    }
+
+    // Group schedules by worker
+    $attendancesByWorker = $schedules->groupBy('worker_id')->map(function ($workerSchedules) {
+      $worker = $workerSchedules->first()->worker;
+
+      // Prepare daily attendances array
+      $dailyAttendances = $workerSchedules->map(function ($schedule) {
+        return [
+          'date' => $schedule->work_date->format('Y-m-d'),
+          'code' => $schedule->code,
+          'status' => $schedule->status,
+        ];
+      })->values();
+
+      // Count occurrences of each code for summary
+      $codeCounts = $workerSchedules->groupBy('code')->map(function ($codeGroup) {
+        return $codeGroup->count();
+      });
+
+      return [
+        'worker_id' => $worker->id,
+        'worker_name' => $worker->nombre_completo ?? '',
+        'document_number' => $worker->vat ?? '',
+        'daily_attendances' => $dailyAttendances,
+        'summary' => [
+          'codes' => $codeCounts,
+          'total_days' => $dailyAttendances->count(),
+        ],
       ];
     })->values();
 
     return [
-      'period' => new \App\Http\Resources\gp\gestionhumana\payroll\PayrollPeriodResource($period),
-      'workers_count' => $summary->count(),
-      'summary' => $summary,
+      'period_id' => $periodId,
+      'period_name' => $period->name ?? "{$period->start_date} - {$period->end_date}",
+      'start_date' => $dateFrom,
+      'end_date' => $dateTo,
+      'biweekly_date' => $period->biweekly_date,
+      'biweekly' => $biweekly,
+      'total_workers' => $attendancesByWorker->count(),
+      'attendances' => $attendancesByWorker,
     ];
   }
 }

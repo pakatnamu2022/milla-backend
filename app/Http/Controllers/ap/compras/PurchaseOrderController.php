@@ -87,4 +87,68 @@ class PurchaseOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Obtiene los recursos formateados para Dynamics de una orden de compra
+   */
+  public function checkResources($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->checkResources($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+
+  public function nextCorrelative(Request $request)
+  {
+    try {
+      $request->validate([
+        'sede_id' => 'required|integer|exists:config_sede,id',
+        'type_operation_id' => 'required|integer|exists:ap_masters,id',
+      ]);
+
+      return $this->success($this->service->nextCorrelative(
+        $request->sede_id,
+        $request->type_operation_id
+      ));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Despacha el job para sincronizar la nota de crédito a Dynamics
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dispatchSyncCreditNoteJob($id)
+  {
+    try {
+      return $this->success($this->service->dispatchSyncCreditNoteJob($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Despacha el job para sincronizar la factura a Dynamics
+   * @param $id
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dispatchSyncInvoiceJob($id)
+  {
+    try {
+      return $this->success($this->service->dispatchSyncInvoiceJob($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

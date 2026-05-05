@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Models\gp\gestionhumana\payroll;
+
+use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class AttendanceRule extends BaseModel
+{
+  use SoftDeletes;
+
+  protected $table = 'attendance_rules';
+
+  protected $fillable = [
+    'code',
+    'description',
+    'hour_type',
+    'hours',
+    'multiplier',
+    'pay',
+    'use_shift',
+  ];
+
+  protected $casts = [
+    'hours' => 'decimal:2',
+    'multiplier' => 'decimal:4',
+    'pay' => 'boolean',
+    'use_shift' => 'boolean',
+  ];
+
+  const filters = [
+    'search' => ['code', 'hour_type'],
+    'code' => '=',
+    'hour_type' => '=',
+    'use_shift' => '=',
+    'pay' => '=',
+  ];
+
+  const sorts = [
+    'code',
+    'hour_type',
+    'created_at',
+  ];
+
+  public function workers()
+  {
+    return $this->belongsToMany(
+      Worker::class,
+      'worker_attendance_rule',
+      'attendance_rule_code',
+      'worker_id',
+      'code',
+      'id'
+    )->withTimestamps();
+  }
+}

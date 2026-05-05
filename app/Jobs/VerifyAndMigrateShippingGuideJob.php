@@ -7,6 +7,7 @@ use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\DatabaseSyncService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -69,15 +70,17 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   /**
    * Procesa todas las guías de remisión pendientes de migración
+   * SOLO procesa guías del área COMERCIAL (vehículos)
    */
   protected function processAllPendingShippingGuides(): void
   {
     $pendingGuides = ShippingGuides::whereIn('migration_status', [
       VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-//      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
-      ->where('aceptada_por_sunat', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('area_id', ApMasters::AREA_COMERCIAL) // Solo área comercial (vehículos)
       ->whereNull('deleted_at')
       ->get();
 
@@ -96,6 +99,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   /**
    * Procesa una guía de remisión específica
+   * SOLO procesa guías del área COMERCIAL (vehículos)
    */
   protected function processShippingGuide(int $shippingGuideId): void
   {
@@ -109,6 +113,25 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
+    // Validar que la guía sea del área COMERCIAL
+    if ($shippingGuide->area_id !== ApMasters::AREA_COMERCIAL) {
+      Log::warning('Guía de remisión no es del área COMERCIAL, se omite la migración', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'area_id' => $shippingGuide->area_id,
+        'expected_area_id' => ApMasters::AREA_COMERCIAL
+      ]);
+      return;
+    }
+
+    // Validar que tenga vehicle_movement_id
+    if (!$shippingGuide->vehicle_movement_id) {
+      Log::error('Guía de remisión del área COMERCIAL sin vehicle_movement_id', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'area_id' => $shippingGuide->area_id
+      ]);
+      throw new Exception("La guía de remisión del área COMERCIAL debe tener un vehicle_movement_id válido. ShippingGuide ID: {$shippingGuide->id}");
+    }
+
     // Actualizar estado general a 'in_progress' si está pending
     if ($shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
       $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
@@ -116,6 +139,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     // Determinar si es una guía de venta o transferencia
     $isSale = $this->isSaleShippingGuide($shippingGuide);
+
     if ($isSale) {
       // NUEVO: Crear logs si no existen (primera vez)
       $this->ensureSaleLogsExist($shippingGuide);
@@ -197,7 +221,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     if ($transferLog->proceso_estado === 1) {
       $vehicle = $shippingGuide->vehicleMovement?->vehicle;
       if (!$vehicle) {
-        throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
+        throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido." . " ShippingGuide ID: {$shippingGuide->id}");
       }
 
       $vehicleMovementService = new VehicleMovementService();
@@ -295,7 +319,9 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     // Verificar tanto la versión normal como la reversión
     $steps = [
       VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
+      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
     ];
 
     foreach ($steps as $step) {
@@ -344,7 +370,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
       // Verificar si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
       // y si es una transacción normal (no reversal)
-      if ($existingTransaction->ProcesoEstado === "1" && !str_contains($step, 'REVERSAL')) {
+      if ($existingTransaction->ProcesoEstado == 1 && !str_contains($step, 'REVERSAL')) {
         // Dispatch job con pequeño delay para asegurar consistencia
         SyncAccountingEntryJob::dispatch($shippingGuide->id)
           ->onQueue('sync')
@@ -467,8 +493,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $transactionId = $shippingGuide->dyn_series;
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
-      $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
+      $transactionId = $prefix . $shippingGuide->document_number;
     }
 
     // Si es una reversión, agregar asterisco
@@ -489,8 +515,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $transactionId = $shippingGuide->dyn_series;
     } else {
       // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $this->getTransferPrefix($shippingGuide);
-      $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
+      $transactionId = $prefix . $shippingGuide->document_number;
     }
 
     // Si es una reversión, agregar asterisco
@@ -513,6 +539,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $log->proceso_estado === 1;
     });
 
+
     $hasFailed = $logs->contains(function ($log) {
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
@@ -525,6 +552,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'migrated_at' => now(),
       ]);
     } elseif ($hasFailed) {
+      Log::error('Migración de guía de remisión fallida', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'document_number' => $shippingGuide->document_number,
+      ]);
       $shippingGuide->update([
         'status_dynamic' => 0,
         'migration_status' => 'failed',
@@ -716,8 +747,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     try {
       // Generar el TransactionId si no existe
       if (empty($shippingGuide->dyn_series)) {
-        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'TVEN-' : 'TSAL-';
-        $transactionId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
+        $transactionId = $prefix . $shippingGuide->document_number;
         // Actualizar dyn_series en ShippingGuides
         $shippingGuide->update([
           'dyn_series' => $transactionId,
@@ -854,7 +885,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   protected function syncInventoryTransfer(ShippingGuides $shippingGuide, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $this->getTransferPrefix($shippingGuide);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
@@ -876,7 +907,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transferId = $prefix . $shippingGuide->document_number;
       if ($isCancelled) {
         $transferId .= '*';
       }
@@ -885,8 +916,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       $data = [
         'EmpresaId' => Company::AP_DYNAMICS,
         'TransferenciaId' => $transferId,
-        'FechaEmision' => $shippingGuide->issue_date?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
-        'FechaContable' => $shippingGuide->issue_date->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
+        'FechaEmision' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
+        'FechaContable' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
         'Procesar' => 1,
         'ProcesoEstado' => 0,
         'ProcesoError' => '',
@@ -925,8 +956,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
     }
 
-    $prefix = $this->getTransferPrefix($shippingGuide);
-    $transferIdOriginal = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
+    $transferIdOriginal = $prefix . $shippingGuide->document_number;
     $transferIdFormatted = $transferIdOriginal;
 
     // Si está cancelada, agregar asterisco al final del TransferenciaId
@@ -1106,7 +1137,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $this->getTransferPrefix($shippingGuide);
+    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
 
     // Si está cancelada, usar el step de reversión para crear un nuevo log
     $step = $isCancelled
@@ -1128,7 +1159,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     try {
       // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . str_pad($shippingGuide->correlative, 8, '0', STR_PAD_LEFT);
+      $transferId = $prefix . $shippingGuide->document_number;
       if ($isCancelled) {
         $transferId .= '*';
       }
@@ -1185,18 +1216,5 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
     ]);
-  }
-
-  private function getTransferPrefix(ShippingGuides $shippingGuide): string
-  {
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      return 'CREC-';
-    }
-
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-      return 'CTRA-';
-    }
-
-    return '-';
   }
 }

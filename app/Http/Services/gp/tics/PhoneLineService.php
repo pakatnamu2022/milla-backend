@@ -21,7 +21,7 @@ class PhoneLineService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      PhoneLine::query(),
+      PhoneLine::query()->with('activeAssignment'),
       $request,
       PhoneLine::filters,
       PhoneLine::sorts,
@@ -37,7 +37,7 @@ class PhoneLineService extends BaseService implements BaseServiceInterface
 
   public function find($id)
   {
-    $phoneLine = PhoneLine::where('id', $id)->first();
+    $phoneLine = PhoneLine::where('id', $id)->with('activeAssignment')->first();
     if (!$phoneLine) {
       throw new Exception('Línea telefónica no encontrada');
     }

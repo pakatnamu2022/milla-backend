@@ -52,6 +52,7 @@ class AuthService
         $user->tokens()->delete();
         throw new Exception('Credenciales Inválidas', 401);
       }
+
       return response()->json([
         'user' => UserResource::make($user),
         'permissions' => $permissionsData['permissions'],
@@ -344,6 +345,10 @@ class AuthService
 
     if (!Hash::check($request->current_password, $user->password)) {
       return response()->json(['message' => 'La contraseña actual es incorrecta'], 422);
+    }
+
+    if (Hash::check($request->new_password, $user->password)) {
+      return response()->json(['message' => 'La nueva contraseña no puede ser igual a la contraseña actual'], 422);
     }
 
     $user->update([

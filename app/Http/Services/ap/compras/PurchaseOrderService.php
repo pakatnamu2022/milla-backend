@@ -2,19 +2,28 @@
 
 namespace App\Http\Services\ap\compras;
 
+use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
+use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Http\Services\BaseService;
+use App\Http\Utils\Constants;
+use App\Jobs\SyncCreditNoteDynamicsJob;
+use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
+use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
@@ -22,6 +31,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class PurchaseOrderService extends BaseService implements BaseServiceInterface
@@ -52,13 +62,34 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function list(Request $request)
   {
+    $query = $this->getPurchaseOrderQuery($request);
+
     return $this->getFilteredResults(
-      PurchaseOrder::class,
+      $query,
       $request,
       PurchaseOrder::filters,
       PurchaseOrder::sorts,
       PurchaseOrderResource::class
     );
+  }
+
+  /**
+   * Construye el query de órdenes de compra según el acceso por sedes.
+   * Usuarios TICS pueden ver todas las sedes.
+   * @param Request $request
+   * @return string|\Illuminate\Database\Eloquent\Builder
+   */
+  private function getPurchaseOrderQuery(Request $request)
+  {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      return PurchaseOrder::class;
+    }
+
+    $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+
+    return PurchaseOrder::whereIn('sede_id', $sedes);
   }
 
   /**
@@ -69,7 +100,12 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function find($id)
   {
-    $purchaseOrder = PurchaseOrder::with(['items', 'supplier', 'warehouse'])->where('id', $id)->first();
+    $purchaseOrder = PurchaseOrder::with([
+      'items',
+      'supplier',
+      'warehouse',
+      'quotation',
+    ])->where('id', $id)->first();
     if (!$purchaseOrder) {
       throw new Exception('Orden de compra no encontrada');
     }
@@ -98,24 +134,21 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
 
-      // Construir query con los mismos filtros de la serie
-      $query = PurchaseOrder::where('sede_id', $data['sede_id'])
+      // Obtener el máximo correlativo real (incluyendo anuladas) para evitar duplicados
+      $maxCorrelative = PurchaseOrder::where('sede_id', $data['sede_id'])
         ->where('type_operation_id', $data['type_operation_id'])
         ->where('status', true)
-        ->whereNull('deleted_at');
+        ->whereNull('deleted_at')
+        ->max('number_correlative');
 
-      // Verificar si hay datos previos
-      $hasData = $query->exists();
+      $number_correlative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
 
-      if (!$hasData) {
-        // No hay datos, usar el correlative_start de la serie
-        $number_correlative = $series->correlative_start;
-      } else {
-        // Ya hay datos, usar nextCorrelativeQueryInteger que retorna max + 1
-        $number_correlative = $this->nextCorrelativeQueryInteger($query, 'number_correlative');
+      // Si no es producción, sumar 1000 al correlativo para evitar conflictos para posventa
+      if (config('app.env') !== 'production' && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
+        $number_correlative += 1000;
       }
 
-      $number = $this->completeNumber($number_correlative, 7);
+      $number = $this->completeNumber($number_correlative, 8);
 
       $data['number_correlative'] = $number_correlative;
       $data['number'] = $series->series . $number;
@@ -144,6 +177,42 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     $data['payment_terms'] = $data['payment_terms'] ?? null;
 
     return $data;
+  }
+
+  /**
+   * Obtiene el próximo número correlativo para una orden de compra
+   * @param int $sedeId
+   * @param int $typeOperationId
+   * @return array
+   * @throws Exception
+   */
+  public function nextCorrelative(int $sedeId, int $typeOperationId): array
+  {
+    $series = AssignSalesSeries::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('type', AssignSalesSeries::PURCHASE)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if (!$series) {
+      throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
+    }
+
+    $maxCorrelative = PurchaseOrder::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->where('status', true)
+      ->whereNull('deleted_at')
+      ->max('number_correlative');
+
+    $numberCorrelative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
+    $number = $series->series . $this->completeNumber($numberCorrelative, 7);
+
+    return [
+      'series' => 'OC' . $series->series,
+      'number_correlative' => $numberCorrelative,
+      'number' => 'OC' . $number,
+    ];
   }
 
   public function hasVehicleInItems(array $items): bool
@@ -195,7 +264,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     try {
       // Guardar items temporalmente
       $items = $data['items'] ?? [];
-
       if (isset($data['ap_supplier_order_id'])) {
         $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
         if ($supplierOrder && !is_null($supplierOrder->ap_purchase_order_id)) {
@@ -203,13 +271,40 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Lógica de consignación (ANTES de verificar vehículo en items)
+      $isConsignment = isset($data['consignment_shipping_guide_id']);
+      $consignmentGuide = null;
+      if ($isConsignment) {
+        $consignmentGuide = ShippingGuides::with('vehicleMovement.vehicle')->findOrFail($data['consignment_shipping_guide_id']);
+        $consignmentVehicle = $consignmentGuide->vehicleMovement?->vehicle
+          ?? throw new Exception('No hay vehículo asociado a la guía de consignación');
+
+        if ($consignmentVehicle->ap_vehicle_status_id !== ApVehicleStatus::CONSIGNACION) {
+          throw new Exception('El vehículo no está en estado CONSIGNACION');
+        }
+
+        $pedidoMovement = VehicleMovement::create([
+          'movement_type' => VehicleMovement::ORDERED,
+          'ap_vehicle_id' => $consignmentVehicle->id,
+          'ap_vehicle_status_id' => $consignmentVehicle->ap_vehicle_status_id,
+          'observation' => 'Orden de compra por vehículo en consignación',
+          'movement_date' => now(),
+          'previous_status_id' => ApVehicleStatus::CONSIGNACION,
+          'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+          'created_by' => auth()->id(),
+        ]);
+        $consignmentVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN]);
+
+        $data['vehicle_movement_id'] = $pedidoMovement->id;
+      }
+
       // Verificar si la orden incluye un vehículo
-      $hasVehicle = $this->hasVehicleInItems($items);
+      $hasVehicle = !$isConsignment && $this->hasVehicleInItems($items);
 
       // Si tiene vehículo, crear el flujo completo: Vehicle → VehicleMovement
       if ($hasVehicle) {
-        $vehicleMovementId = $this->createVehicleAndMovement($data);
-        $data['vehicle_movement_id'] = $vehicleMovementId;
+        $result = $this->createVehicleAndMovement($data);
+        $data['vehicle_movement_id'] = $result['movement_id'];
       }
 
       // Enriquecer datos de la orden
@@ -229,7 +324,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         if ($supplierOrder) {
           $supplierOrder->update([
             'ap_purchase_order_id' => $purchaseOrder->id,
-            'is_take' => true
           ]);
         }
       }
@@ -237,9 +331,26 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items si existen
       $this->saveItemsIfExists($items, $purchaseOrder);
 
+      // Si viene purchase_reception_id, procesar la recepción y vincularla con la factura
+      if (isset($data['purchase_reception_id'])) {
+        $this->linkReceptionToInvoice($purchaseOrder, $data['purchase_reception_id']);
+      }
+
       // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
       if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
         $this->updateInTransitStockOnCreate($purchaseOrder);
+      }
+
+      // Para consignación: guardar dynamics_date y despachar migración de la guía
+      if ($isConsignment && $consignmentGuide) {
+        $consignmentGuide->update([
+          'dynamics_date' => $purchaseOrder->emission_date,
+          'migration_status' => 'pending',
+        ]);
+        if (config('database_sync.enabled', false)) {
+          VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
+            ->onQueue('shipping_guides');
+        }
       }
 
       // Despachar job de migración y sincronización si está habilitado
@@ -259,10 +370,10 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   /**
    * Crea el vehículo y su movimiento inicial
    * @param array $data
-   * @return int ID del VehicleMovement creado
+   * @return array{movement_id: int, vehicle_id: int}
    * @throws Exception
    */
-  protected function createVehicleAndMovement(array $data): int
+  protected function createVehicleAndMovement(array $data): array
   {
     // 1. Crear el vehículo
     $vehicleService = new VehiclesService();
@@ -293,7 +404,10 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'created_by' => auth()->id(),
     ]);
 
-    return $vehicleMovement->id;
+    return [
+      'movement_id' => $vehicleMovement->id,
+      'vehicle_id' => $vehicle->id,
+    ];
   }
 
 
@@ -351,7 +465,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
    */
   public function show($id)
   {
-    return new PurchaseOrderResource($this->find($id));
+    return (new PurchaseOrderResource($this->find($id)))->showExtra();
   }
 
   /**
@@ -450,6 +564,8 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
           'description' => $itemData['description'] ?? '',
           'unit_price' => $unitPrice,
           'quantity' => $quantity,
+          'quantity_received' => 0,
+          'quantity_pending' => $quantity,
           'total' => $total,
           'is_vehicle' => $itemData['is_vehicle'] ?? false,
           'product_id' => $itemData['product_id'] ?? null,
@@ -686,6 +802,125 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         implode(', ', $missingProducts) . '. ' .
         'Por favor, registre estos productos en el almacén antes de continuar.'
       );
+    }
+  }
+
+  protected function linkReceptionToInvoice(PurchaseOrder $purchaseOrder, int $receptionId): void
+  {
+    $reception = PurchaseReception::find($receptionId);
+    if (!$reception) {
+      throw new Exception("Recepción ID {$receptionId} no encontrada");
+    }
+
+    if ($reception->purchase_order_id && $reception->purchase_order_id !==
+      $purchaseOrder->id) {
+      throw new Exception("La recepción ya está vinculada a otra orden de compra");
+    }
+
+    // SOLO vincular
+    $reception->update(['purchase_order_id' => $purchaseOrder->id]);
+
+    // Vincular detalles con items
+    foreach ($reception->details as $receptionDetail) {
+      $orderItem = $purchaseOrder->items()
+        ->where('product_id', $receptionDetail->product_id)
+        ->first();
+
+      if ($orderItem) {
+        $receptionDetail->update(['purchase_order_item_id' =>
+          $orderItem->id]);
+      }
+    }
+  }
+
+  public function checkResources($id)
+  {
+    $purchaseOrder = $this->find($id);
+
+    return [
+      'header' => new PurchaseOrderDynamicsResource($purchaseOrder),
+      'detail' => new PurchaseOrderItemDynamicsResource($purchaseOrder->items),
+    ];
+  }
+
+  /**
+   * Despacha un job para sincronizar la nota de crédito de una orden de compra con Dynamics
+   * @param $id
+   * @return string[]
+   * @throws Exception
+   */
+  public function dispatchSyncCreditNoteJob($id): array
+  {
+    $purchaseOrder = $this->find($id);
+    SyncCreditNoteDynamicsJob::dispatchSync($purchaseOrder->id);
+    return [
+      'message' => "Job de sincronización de nota de crédito para la orden de compra {$purchaseOrder->number} ha sido despachado."
+    ];
+  }
+
+  /**
+   * Despacha un job para sincronizar la factura de una orden de compra con Dynamics
+   * @param $id
+   * @return string[]
+   * @throws Exception
+   */
+  public function dispatchSyncInvoiceJob($id): array
+  {
+    $purchaseOrder = $this->find($id);
+    SyncInvoiceDynamicsJob::dispatchSync($purchaseOrder->id);
+    return [
+      'message' => "Job de sincronización de factura para la orden de compra {$purchaseOrder->number} ha sido despachado."
+    ];
+  }
+
+  /**
+   * Vincula los anticipos de la cotización al vehículo de la OC,
+   * creando un movimiento FACTURADO por cada anticipo sin vehículo asociado,
+   * usando la fecha del anticipo como fecha del movimiento.
+   * Solo aplica si la OC tiene quotation_id y un vehículo.
+   */
+  public function linkAnticipationsToVehicle(PurchaseOrder $purchaseOrder): void
+  {
+    if (!$purchaseOrder->quotation_id) {
+      return;
+    }
+
+    $vehicle = $purchaseOrder->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    $quotation = $purchaseOrder->quotation;
+    if (!$quotation) {
+      return;
+    }
+
+    $anticipos = $quotation->electronicDocuments()
+      ->where('is_advance_payment', true)
+      ->whereNull('ap_vehicle_movement_id')
+      ->where('anulado', false)
+      ->get();
+
+    foreach ($anticipos as $anticipo) {
+      try {
+        $movement = VehicleMovement::create([
+          'movement_type' => ApVehicleStatus::FACTURADO,
+          'ap_vehicle_id' => $vehicle->id,
+          'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
+          'movement_date' => $anticipo->fecha_de_emision,
+          'observation' => 'Anticipo facturado: ' . $anticipo->full_number,
+          'previous_status_id' => $vehicle->ap_vehicle_status_id,
+          'new_status_id' => ApVehicleStatus::FACTURADO,
+        ]);
+
+        $anticipo->update(['ap_vehicle_movement_id' => $movement->id]);
+      } catch (Throwable $e) {
+        Log::error("Error al vincular anticipo #{$anticipo->id} al vehículo #{$vehicle->id} en OC #{$purchaseOrder->id}: {$e->getMessage()}");
+      }
+    }
+
+    if ($anticipos->isNotEmpty()) {
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
     }
   }
 }

@@ -14,7 +14,7 @@ class ShippingGuidesResource extends JsonResource
       'ap_vehicle_id' => $this->vehicleMovement?->ap_vehicle_id ?? null,
       'document_series_id' => $this->document_series_id ?? "",
       'series' => $this->series ?? "",
-      'dyn_series' => $this->dyn_series ?? "-",
+      'dyn_series' => $this->dyn_series ?? "",
       'correlative' => $this->correlative ?? "",
       'document_type' => $this->document_type,
       'issuer_type' => $this->issuer_type,
@@ -95,6 +95,38 @@ class ShippingGuidesResource extends JsonResource
           ];
         });
       }),
+      'items' => $this->when(
+        $this->relationLoaded('vehicleMovement') || $this->relationLoaded('inventoryMovement'),
+        function () {
+          // Si la guía es de vehículo, retorna los datos del vehículo
+          if ($this->vehicleMovement?->vehicle) {
+            $vehicle = $this->vehicleMovement->vehicle;
+            return [[
+              'codigo' => $vehicle->vin,
+              'descripcion' => $vehicle->model?->version ?? '-',
+              'unidad' => 'NIU',
+              'cantidad' => 1,
+            ]];
+          }
+
+          // Si la guía es de inventario, retorna los detalles del movimiento
+          if ($this->inventoryMovement?->details) {
+            return $this->inventoryMovement->details->map(fn($detail) => [
+              'codigo' => $detail->product?->code ?? '-',
+              'descripcion' => $detail->product?->name ?? '-',
+              'unidad' => $detail->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+              'cantidad' => $detail->quantity,
+            ]);
+          }
+
+          return [];
+        }
+      ),
+      'send_dynamics' => $this->send_dynamics,
+      'is_consignment' => $this->is_consignment,
+      'vehicle' => $this->vehicleMovement?->vehicle ? new VehiclesResource($this->vehicleMovement->vehicle) : null,
+      'migration_status' => $this->migration_status,
+      'is_accounted' => $this->is_accounted,
     ];
   }
 }

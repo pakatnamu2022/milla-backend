@@ -10,7 +10,9 @@ use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
 use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use Illuminate\Http\Request;
 
 class ApOrderQuotationsController extends Controller
 {
@@ -25,6 +27,15 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function listForPurchaseRequest(Request $request)
+  {
+    try {
+      return $this->service->listForPurchaseRequest($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -91,7 +102,15 @@ class ApOrderQuotationsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      return $this->service->generateQuotationPDF($id);
+      // Obtener el parámetro show_codes desde la query string (por defecto true)
+      $showCodes = request()->query('show_codes', true);
+
+      // Convertir a booleano si viene como string
+      if (is_string($showCodes)) {
+        $showCodes = filter_var($showCodes, FILTER_VALIDATE_BOOLEAN);
+      }
+
+      return $this->service->generateQuotationPDF($id, $showCodes);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -136,10 +155,80 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  public function approve($id)
+  public function approve(ApproveApOrderQuotationsRequest $request, $id)
   {
     try {
-      return $this->success($this->service->approve($id));
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->approve($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updateDeliveryInfo(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'customer_signature_delivery_url' => 'required|string',
+        'delivery_document_number' => 'required|string|max:255',
+      ]);
+
+      return $this->success($this->service->updateDeliveryInfo($id, $request->only([
+        'customer_signature_delivery_url',
+        'delivery_document_number',
+      ])));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function sendNotificationEmail($id)
+  {
+    try {
+      return $this->success($this->service->sendQuotationNotificationEmail($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function duplicate($id)
+  {
+    try {
+      return $this->success($this->service->duplicate($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function sendVirtualConfirmationLink($id)
+  {
+    try {
+      return $this->success($this->service->sendVirtualConfirmationLink($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function regenerateConfirmationToken($id)
+  {
+    try {
+      return $this->success($this->service->regenerateConfirmationToken($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function invoiceTo(Request $request, $id)
+  {
+    try {
+      $data = $request->validate(
+        [
+          'invoice_to' => 'required|integer|exists:business_partners,id',
+        ]
+      );
+      $data['id'] = $id;
+      return $this->success($this->service->invoiceTo($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -42,6 +42,7 @@ class User extends Authenticatable
     'person.position.name' => 'like',
     'role.nombre' => 'like',
     'person.cargo_id' => 'in',
+    'person.sede.empresa_id' => '='
   ];
 
   const sorts = [

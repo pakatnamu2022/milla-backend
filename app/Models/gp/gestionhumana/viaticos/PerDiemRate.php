@@ -29,6 +29,7 @@ class PerDiemRate extends BaseModel
   ];
 
   const filters = [
+    'search' => ['district.name'],
     'per_diem_policy_id' => '=',
     'district_id' => '=',
     'per_diem_category_id' => '=',
@@ -109,7 +110,7 @@ class PerDiemRate extends BaseModel
         $query->where('is_current', true);
       })
       ->whereHas('expenseType', function ($query) {
-        $query->whereNull('parent_id');
+//        $query->whereNull('parent_id');
       })
       ->where('district_id', $districtId)
       ->where('per_diem_category_id', $categoryId)

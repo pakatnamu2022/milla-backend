@@ -39,11 +39,17 @@ class ApWorkOrderPlanning extends Model
     'actual_end_datetime' => 'datetime',
   ];
 
+  // Constantes de horario laboral
+  const WORK_START_TIME = '08:00';
+  const LUNCH_START_TIME = '13:00';
+  const LUNCH_END_TIME = '14:24';
+  const WORK_END_TIME = '18:00';
+
   const filters = [
     'search' => ['description', 'workOrder.correlative'],
     'worker_id' => '=',
     'work_order_id' => '=',
-    'planned_start_datetime' => 'between',
+    'planned_start_datetime' => 'date_between',
     'planned_end_datetime' => 'between',
     'status' => '=',
     'workOrder.sede_id' => '=',
@@ -142,7 +148,7 @@ class ApWorkOrderPlanning extends Model
   {
     $activeSession = $this->activeSession();
     if ($activeSession) {
-      $activeSession->endSession($pauseReason);
+      $activeSession->endSession($pauseReason, 'paused');
 
       // Actualizar horas acumuladas
       $this->actual_hours = $this->calculateTotalHoursWorked();
@@ -183,9 +189,9 @@ class ApWorkOrderPlanning extends Model
       return;
     }
 
-    // Contar plannings pendientes o en progreso
+    // Contar plannings pendientes o en progreso (sin contar los cancelados)
     $pendingPlannings = $workOrder->plannings()
-      ->where('status', '!=', 'completed')
+      ->whereIn('status', ['planned', 'in_progress'])
       ->count();
 
     // Si no hay plannings pendientes, marcar la orden como terminada

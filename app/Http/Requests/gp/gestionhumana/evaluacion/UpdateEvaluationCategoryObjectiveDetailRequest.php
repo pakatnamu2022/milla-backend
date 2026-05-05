@@ -9,7 +9,7 @@ class UpdateEvaluationCategoryObjectiveDetailRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'goal' => 'nullable|numeric|max:255',
+      'goal' => 'nullable|numeric',
       'weight' => 'nullable|numeric|min:0',
       'active' => 'nullable|boolean',
     ];

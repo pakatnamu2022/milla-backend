@@ -43,6 +43,8 @@ class EvaluationPersonResult extends BaseModel
     'boss_area',
     'boss_sede',
     'comments',
+    'hasObjectives',
+    'hierarchical_category_id',
   ];
 
   const filters = [
@@ -56,6 +58,8 @@ class EvaluationPersonResult extends BaseModel
     'objectivesResult' => '=',
     'competencesResult' => '=',
     'result' => '=',
+    'hasObjectives' => '=',
+    'hierarchical_category_id' => '=',
 
     // 👇 NUEVOS: Filtros por accessor
     'is_completed' => 'accessor_bool',
@@ -81,6 +85,11 @@ class EvaluationPersonResult extends BaseModel
     'competencesResult',
     'result',
   ];
+
+  public function hierarchicalCategory()
+  {
+    return $this->belongsTo(HierarchicalCategory::class, 'hierarchical_category_id');
+  }
 
   public function person()
   {
@@ -109,6 +118,20 @@ class EvaluationPersonResult extends BaseModel
     return $this->hasOne(EvaluationPersonDashboard::class, 'person_id', 'person_id')
       ->where('evaluation_id', $this->evaluation_id);
   }
+
+  // Reglas de color condicional para el reporte Excel
+  // Colores en formato RGB hex, basados en tasa de resultado (0-100)
+  protected $reportColorRules = [
+    [
+      'column' => 'result',
+      'ranges' => [
+        ['min' => 100, 'color' => 'DCFCE7'],  // verde (>= 100%)
+        ['min' => 50,  'max' => 100, 'color' => 'FEF3C7'], // ámbar (50-99%)
+        ['min' => 0.01, 'max' => 50, 'color' => 'FFEDD5'], // naranja (> 0% y < 50%)
+        ['exact' => 0,  'color' => 'FEE2E2'],              // rojo (0%)
+      ]
+    ]
+  ];
 
   // ← CONFIGURACIÓN DEL REPORTE CON FORMATO SOLICITADO
   protected $reportColumns = [
@@ -184,6 +207,22 @@ class EvaluationPersonResult extends BaseModel
       'formatter' => null,
       'width' => 25,
       'accessor' => 'getNotaFeedbackSubordinadoAttribute'
+    ],
+    'boss' => [
+      'label' => 'Líder',
+      'formatter' => null,
+      'width' => 25
+    ],
+    'result' => [
+      'label' => 'Resultado (%)',
+      'formatter' => 'percentage',
+      'width' => 15
+    ],
+    'result_label' => [
+      'label' => 'Calificación',
+      'formatter' => null,
+      'width' => 20,
+      'accessor' => 'getResultLabelAttribute'
     ]
   ];
 
@@ -192,7 +231,7 @@ class EvaluationPersonResult extends BaseModel
     'person.position.hierarchicalCategory',
     'person.sede',
     'person.subordinates',
-    'evaluation'
+    'evaluation.finalParameter.details'
   ];
 
   /**
@@ -227,7 +266,7 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getProgresoPorcentajeAttribute()
   {
-    return number_format($this->total_progress['completion_rate'] * 100, 2) . '%';
+    return number_format($this->total_progress['completion_rate'], 2) . '%';
   }
 
   /**
@@ -278,6 +317,34 @@ class EvaluationPersonResult extends BaseModel
   {
     // Placeholder - aquí podrías implementar lógica específica para obtener la nota
     return 'Pendiente';
+  }
+
+  /**
+   * Accessor para la etiqueta de calificación del resultado (cumple, excelente, etc.)
+   */
+  public function getResultLabelAttribute(): ?string
+  {
+    $score = (float)$this->result;
+    $ranges = $this->evaluation?->finalParameter?->details;
+
+    if (!$ranges || $ranges->isEmpty()) {
+      return null;
+    }
+
+    $range = $ranges->first(function ($detail) use ($score) {
+      return $score >= (float)$detail->from && $score < (float)$detail->to;
+    });
+
+    if ($range) {
+      return $range->label;
+    }
+
+    $maxRange = $ranges->sortByDesc('to')->first();
+    if ($maxRange && $score === (float)$maxRange->to) {
+      return $maxRange->label;
+    }
+
+    return null;
   }
 
   /**
@@ -630,7 +697,7 @@ class EvaluationPersonResult extends BaseModel
     $completedSections = 0;
 
     // Solo contar objetivos si la persona los tiene
-    if ($this->person->position->hierarchicalCategory->hasObjectives) {
+    if ($this->hasObjectives) {
       $totalSections++;
       if ($objectivesProgress['completion_rate'] == 100) {
         $completedSections++;
@@ -672,7 +739,7 @@ class EvaluationPersonResult extends BaseModel
       'completed' => $completedObjectives,
       'total' => $totalObjectives,
       'is_completed' => $completionRate == 100,
-      'has_objectives' => (bool)$this->person->position->hierarchicalCategory->hasObjectives,
+      'has_objectives' => (bool)$this->hasObjectives,
     ];
   }
 

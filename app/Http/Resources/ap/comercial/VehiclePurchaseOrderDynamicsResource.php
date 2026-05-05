@@ -35,7 +35,7 @@ class VehiclePurchaseOrderDynamicsResource extends JsonResource
       'FechaEmision' => $this->emission_date,
       'MonedaId' => $typeCurrency,
       'TipoTasaId' => $exchangeRate->type,
-      'TasaCambio' => $exchangeRate->rate,
+      'TasaCambio' => '0',
       'PlanImpuestoId' => $supplierTaxClassType,
       'UsuarioId' => 'USUGP',
       'Procesar' => 1,

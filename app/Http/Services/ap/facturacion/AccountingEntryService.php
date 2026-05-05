@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\facturacion;
 
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticleAccountMapping;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Exception;
@@ -63,6 +64,97 @@ class AccountingEntryService
     $this->validateBalance($lines);
 
     return $lines;
+  }
+
+  /**
+   * Genera las líneas del asiento de entrega para accesorios de vehículo (solo posventa).
+   *
+   * Cuando se vende un accesorio en la venta de un vehículo de posventa, el ítem
+   * queda contabilizado en la cuenta 4961700 (diferido, código Dynamics V0000016).
+   * Al realizar la entrega del vehículo ese monto se traslada según el mapeo
+   * definido en ap_class_article_account_mapping para la clase M_ACC_VEH:
+   *   DÉBITO  account_origin      (4961700)  → reconoce la obligación cumplida
+   *   CRÉDITO account_destination (7011118)  → reconoce el ingreso por el accesorio
+   */
+  public function generatePostventaAccessoryLines(ElectronicDocument $document, int $asientoNumber): array
+  {
+    $sedeDynCode = $this->getSedeDynCode($document);
+
+    // Identificar ítems de accesorios: los que tienen plan de cuenta con account = '4961700'
+    // y no son regularización de anticipo
+    $accessoryItems = $document->items->filter(function ($item) {
+      return $item->accountPlan
+        && $item->accountPlan->account === '4961700'
+        && !$item->anticipo_regularizacion;
+    });
+
+    if ($accessoryItems->isEmpty()) {
+      return [];
+    }
+
+    $totalAmount = $accessoryItems->sum(function ($item) {
+      return round((float)$item->valor_unitario * (float)$item->cantidad - (float)($item->descuento ?? 0), 2);
+    });
+
+    if ($totalAmount <= 0) {
+      return [];
+    }
+
+    // Obtener el mapeo de cuentas desde ap_class_article_account_mapping (clase M_ACC_VEH)
+    $priceMapping = $this->getAccessoryAccountMapping();
+
+    $lineNumber = 1;
+    $lines = [];
+
+    // Línea ORIGEN (is_debit_origin = true → DÉBITO)
+    $lines[] = [
+      'Asiento'      => $asientoNumber,
+      'Linea'        => $lineNumber++,
+      'CuentaNumero' => $priceMapping->getFullAccountOrigin($sedeDynCode),
+      'Debito'       => $priceMapping->is_debit_origin ? round($totalAmount, 2) : 0.00,
+      'Credito'      => $priceMapping->is_debit_origin ? 0.00 : round($totalAmount, 2),
+      'Descripcion'  => 'Entrega accesorio vehiculo',
+    ];
+
+    // Línea DESTINO (inverso de is_debit_origin → CRÉDITO)
+    $lines[] = [
+      'Asiento'      => $asientoNumber,
+      'Linea'        => $lineNumber++,
+      'CuentaNumero' => $priceMapping->getFullAccountDestination($sedeDynCode),
+      'Debito'       => !$priceMapping->is_debit_origin ? round($totalAmount, 2) : 0.00,
+      'Credito'      => !$priceMapping->is_debit_origin ? 0.00 : round($totalAmount, 2),
+      'Descripcion'  => 'Reconocimiento venta accesorio vehiculo',
+    ];
+
+    $this->validateBalance($lines);
+
+    return $lines;
+  }
+
+  /**
+   * Obtiene el mapeo PRECIO de la clase ACCESORIO_VEHICULO (dyn_code = 'M_ACC_VEH')
+   * desde ap_class_article_account_mapping.
+   */
+  protected function getAccessoryAccountMapping(): ApClassArticleAccountMapping
+  {
+    $classArticle = ApClassArticle::where('dyn_code', 'M_ACC_VEH')
+      ->where('status', true)
+      ->first();
+
+    if (!$classArticle) {
+      throw new Exception("No se encontró la clase de artículo ACCESORIO_VEHICULO (M_ACC_VEH). Ejecute la migración correspondiente.");
+    }
+
+    $mapping = ApClassArticleAccountMapping::where('ap_class_article_id', $classArticle->id)
+      ->where('account_type', 'PRECIO')
+      ->where('status', true)
+      ->first();
+
+    if (!$mapping) {
+      throw new Exception("No existe mapeo de cuenta PRECIO activo para la clase ACCESORIO_VEHICULO (M_ACC_VEH).");
+    }
+
+    return $mapping;
   }
 
   /**

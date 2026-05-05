@@ -23,6 +23,7 @@ class PayrollPeriodResource extends JsonResource
       'start_date' => $this->start_date,
       'end_date' => $this->end_date,
       'payment_date' => $this->payment_date,
+      'biweekly_date' => $this->biweekly_date,
       'status' => $this->status,
       'can_modify' => $this->canModify(),
       'can_calculate' => $this->canCalculate(),

@@ -3,8 +3,12 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\ApMastersResource;
+use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
+use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,10 +33,13 @@ class WorkOrderResource extends JsonResource
       'status_name' => $this->status ? $this->status->description : null,
       'advisor_id' => $this->advisor_id,
       'advisor_name' => $this->advisor ? $this->advisor->nombre_completo : null,
+      'invoice_to' => $this->invoice_to,
+      'invoice_to_client' => BusinessPartnersResource::make($this->invoiceTo),
       'sede_id' => $this->sede_id,
       'sede_name' => $this->sede ? $this->sede->abreviatura : null,
       'opening_date' => $this->opening_date?->format('Y-m-d H:i:s'),
       'estimated_delivery_date' => $this->estimated_delivery_date?->format('Y-m-d H:i:s'),
+      'estimated_delivery_time' => $this->estimated_delivery_time?->format('H:i:s'),
       'actual_delivery_date' => $this->actual_delivery_date?->format('Y-m-d H:i:s'),
       'diagnosis_date' => $this->diagnosis_date?->format('Y-m-d H:i:s'),
       'observations' => $this->observations,
@@ -50,10 +57,25 @@ class WorkOrderResource extends JsonResource
       'type_recall' => $this->type_recall,
       'created_by' => $this->created_by,
       'creator_name' => $this->creator ? $this->creator->name : null,
-      'is_inspection_completed' => !!$this->vehicleInspection,
+      'is_inspection_completed' => $this->vehicleInspection && !$this->vehicleInspection->is_cancelled,
       'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
+      'is_delivery' => (bool)$this->is_delivery,
+      'delivery_by_name' => $this->deliveryBy ? $this->deliveryBy->name : null,
       'status' => new ApMastersResource($this->status),
+      'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsWorkOrder::STATUS_APPROVED)->isNotEmpty(),
+      'cost_man_hours' => $this->when(
+        isset($this->additional['includeCostManHours']) && $this->additional['includeCostManHours'],
+        fn() => $this->vehicle->is_heavy
+          ? GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VP_ID)->value
+          : GeneralMaster::find(GeneralMaster::COST_PER_MAN_HOUR_VL_ID)->value
+      ),
+      'is_invalid_with_quote' => $this->orderQuotation
+        ? $this->orderQuotation->details->contains('status', ApOrderQuotationDetails::STATUS_PENDING)
+        : false,
+      'num_doc_contact' => $this->num_doc_contact,
+      'full_contact_name' => $this->full_contact_name,
+      'phone_contact' => $this->phone_contact,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
@@ -63,7 +85,8 @@ class WorkOrderResource extends JsonResource
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'advances' => ElectronicDocumentResource::collection(
         $this->whenLoaded('advancesWorkOrder', fn() => $this->advancesWorkOrder->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
-      )
+      ),
+      'internal_note' => new InternalNoteResource($this->whenLoaded('internalNote')),
     ];
   }
 }

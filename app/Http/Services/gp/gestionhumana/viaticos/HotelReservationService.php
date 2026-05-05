@@ -3,6 +3,7 @@
 namespace App\Http\Services\gp\gestionhumana\viaticos;
 
 use App\Http\Resources\gp\gestionhumana\viaticos\HotelReservationResource;
+use App\Http\Resources\gp\gestionhumana\viaticos\PerDiemRateResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
@@ -86,6 +87,25 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         throw new Exception('La solicitud ya tiene una reserva de hotel asociada');
       }
 
+      // Check for overlapping reservations in the same hotel agreement
+//      if (!empty($data['hotel_agreement_id'])) {
+//        $overlap = HotelReservation::where('hotel_agreement_id', $data['hotel_agreement_id'])
+//          ->where('per_diem_request_id', '!=', $data['per_diem_request_id'])
+//          ->where(function ($q) use ($data) {
+//            $q->whereBetween('checkin_date', [$data['checkin_date'], $data['checkout_date']])
+//              ->orWhereBetween('checkout_date', [$data['checkin_date'], $data['checkout_date']])
+//              ->orWhere(function ($q2) use ($data) {
+//                $q2->where('checkin_date', '<=', $data['checkin_date'])
+//                  ->where('checkout_date', '>=', $data['checkout_date']);
+//              });
+//          })
+//          ->exists();
+//
+//        if ($overlap) {
+//          throw new Exception('Este hotel ya tiene una reserva activa para las fechas indicadas en otra solicitud. Verifique que no se esté registrando un duplicado.');
+//        }
+//      }
+
       // Extraer archivo del array de datos
       $files = $this->extractFiles($data);
 
@@ -153,6 +173,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
     }
   }
 
+
   /**
    * Update a hotel reservation
    */
@@ -214,6 +235,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
     }
 
     DB::transaction(function () use ($reservation) {
+      // Eliminar el gasto de empresa vinculado
+      PerDiemExpense::where('hotel_reservation_id', $reservation->id)->delete();
+
       // Eliminar archivos asociados si existen
       $this->deleteAttachedFiles($reservation);
 
@@ -221,6 +245,30 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
     });
 
     return response()->json(['message' => 'Reserva de hotel eliminada correctamente']);
+  }
+
+  /**
+   * Release a hotel reservation from its per diem request.
+   * Removes the reservation and its linked company expense so the request
+   * is no longer blocked from cancellation.
+   */
+  public function release(int $id): void
+  {
+    $reservation = $this->find($id);
+
+    if ($reservation->attended) {
+      throw new Exception('No se puede liberar una reserva que ya fue atendida');
+    }
+
+    DB::transaction(function () use ($reservation) {
+      // Eliminar el gasto de empresa vinculado
+      PerDiemExpense::where('hotel_reservation_id', $reservation->id)->delete();
+
+      // Eliminar archivos asociados si existen
+      $this->deleteAttachedFiles($reservation);
+
+      $reservation->delete();
+    });
   }
 
   /**
@@ -260,8 +308,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         $this->uploadAndAttachFiles($reservation, $files);
       }
 
-      // Create company expense for accommodation
-      $this->createCompanyExpenseForReservation($reservation);
+      // Create/update company expense and validate it — at this point the stay
+      // has been confirmed and a real receipt exists.
+      $this->createCompanyExpenseForReservation($reservation, $data['document_number'] ?? '', $data['ruc'] ?? '', true);
 
       DB::commit();
       return $reservation->fresh(['request', 'hotelAgreement']);
@@ -355,16 +404,20 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   }
 
   /**
-   * Create a company expense for the hotel reservation
+   * Create or update the company expense linked to a hotel reservation.
+   *
+   * @param bool $validate Pass true only when the hotel has been attended and
+   *                        a real receipt exists (called from markAsAttended).
+   *                        At booking time there is no invoice yet, so the
+   *                        expense stays unvalidated until checkout.
    */
-  private function createCompanyExpenseForReservation(HotelReservation $reservation, string $document_number = "", string $ruc = ""): void
+  private function createCompanyExpenseForReservation(HotelReservation $reservation, string $document_number = "", string $ruc = "", bool $validate = false): void
   {
     // Check if expense already exists for this reservation
     $existingExpense = PerDiemExpense::where('hotel_reservation_id', $reservation->id)->first();
 
     if ($existingExpense) {
-      // Update existing expense
-      $existingExpense->update([
+      $updateData = [
         'receipt_amount' => $reservation->total_cost,
         'company_amount' => $reservation->total_cost,
         'employee_amount' => 0,
@@ -373,9 +426,16 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'receipt_number' => strtoupper($document_number),
         'business_name' => strtoupper($reservation->hotel_name),
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
-      ]);
+      ];
+
+      if ($validate) {
+        $updateData['validated'] = true;
+        $updateData['validated_by'] = auth()->user()->partner_id;
+        $updateData['validated_at'] = now();
+      }
+
+      $existingExpense->update($updateData);
     } else {
-      // Create new company expense
       PerDiemExpense::create([
         'per_diem_request_id' => $reservation->per_diem_request_id,
         'hotel_reservation_id' => $reservation->id,
@@ -391,9 +451,9 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'receipt_path' => $reservation->receipt_path,
         'notes' => "Reserva de hotel: {$reservation->hotel_name} ({$reservation->nights_count} noches)",
         'is_company_expense' => true,
-        'validated' => true,
-        'validated_by' => auth()->user()->partner_id,
-        'validated_at' => now(),
+        'validated' => $validate,
+        'validated_by' => $validate ? auth()->user()->partner_id : null,
+        'validated_at' => $validate ? now() : null,
       ]);
     }
   }
@@ -401,7 +461,7 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
   /**
    * Send email notification when a hotel reservation is created
    */
-  private function sendHotelReservationEmail(HotelReservation $reservation): void
+  public function sendHotelReservationEmail(HotelReservation $reservation): void
   {
     try {
       $request = $reservation->request;
@@ -415,10 +475,10 @@ class HotelReservationService extends BaseService implements BaseServiceInterfac
         'checkout_date' => $reservation->checkout_date->format('d/m/Y'),
         'nights_count' => $reservation->nights_count,
         'total_cost' => $reservation->total_cost,
-        'button_url' => config('app.frontend_url') . '/perfil/viaticos/' . $request->id,
+        'button_url' => config('app.frontend_url') . '/perfil/solicitud-viaticos/' . $request->id,
       ];
 
-      $this->emailService->send([
+      $this->emailService->queue([
         'to' => [$request->employee->email2],
         'subject' => 'Reserva de Hotel Confirmada - ' . $request->code,
         'template' => 'emails.per-diem-hotel-reserved',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\comercial;
 
+use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\ShippingGuides;
@@ -390,7 +391,7 @@ class NubefactShippingGuideApiService
   {
     // Caso 1: Guía con vehículo
     if ($guide->vehicleMovement && $guide->vehicleMovement->vehicle) {
-      return $this->buildVehicleItems($guide->vehicleMovement->vehicle);
+      return $this->buildVehicleItems($guide->vehicleMovement->vehicle, $guide);
     }
 
     // Caso 2: Guía con productos de inventario (transferencias)
@@ -419,22 +420,60 @@ class NubefactShippingGuideApiService
   }
 
   /**
-   * Construye items para vehículos
+   * Construye items para vehículos, fusionando los accesorios confirmados del checklist
    */
-  protected function buildVehicleItems($vehicle): array
+  protected function buildVehicleItems($vehicle, $guide = null): array
   {
+    $description = strtoupper(
+      $vehicle->model->family->brand->name . ' ' .
+      $vehicle->model->version . ' ' .
+      $vehicle->model->model_year . ' ' .
+      'SERIE: ' . $vehicle->vin . ' ' .
+      'MOTOR: ' . $vehicle->engine_number
+    );
+
+    if ($guide) {
+      $checklistDescription = $this->getChecklistDescription($guide);
+      if ($checklistDescription) {
+        $description .= "\n" . $checklistDescription;
+      }
+    }
+
     return [[
       'unidad_de_medida' => 'NIU',
       'codigo' => '001',
-      'descripcion' => strtoupper(
-        $vehicle->model->family->brand->name . ' ' .
-        $vehicle->model->version . ' ' .
-        $vehicle->model->model_year . ' ' .
-        'SERIE: ' . $vehicle->vin . ' ' .
-        'MOTOR: ' . $vehicle->engine_number
-      ),
+      'descripcion' => $description,
       'cantidad' => '1',
     ]];
+  }
+
+  /**
+   * Retorna la descripción fusionada de los ítems confirmados del checklist
+   */
+  protected function getChecklistDescription($guide): ?string
+  {
+    $vehicleDelivery = ApVehicleDelivery::where('shipping_guide_id', $guide->id)->first();
+    if (!$vehicleDelivery) {
+      return null;
+    }
+
+    $checklist = ApDeliveryChecklist::where('vehicle_delivery_id', $vehicleDelivery->id)
+      ->with('items')
+      ->first();
+
+    if (!$checklist || $checklist->items->isEmpty()) {
+      return null;
+    }
+
+    $confirmedItems = $checklist->items->where('is_confirmed', true);
+
+    if ($confirmedItems->isEmpty()) {
+      return null;
+    }
+
+    return $confirmedItems->map(function ($item) {
+      return strtoupper($item->description);
+    })->implode("\n");
   }
 
   /**

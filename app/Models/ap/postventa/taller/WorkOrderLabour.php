@@ -18,7 +18,9 @@ class WorkOrderLabour extends Model
     'description',
     'time_spent',
     'hourly_rate',
+    'discount_percentage',
     'total_cost',
+    'net_amount',
     'worker_id',
     'work_order_id'
   ];
@@ -35,13 +37,16 @@ class WorkOrderLabour extends Model
     'time_spent',
     'hourly_rate',
     'total_cost',
+    'net_amount',
     'worker_id',
     'created_at',
   ];
 
   protected $casts = [
     'hourly_rate' => 'decimal:2',
+    'discount_percentage' => 'decimal:2',
     'total_cost' => 'decimal:2',
+    'net_amount' => 'decimal:2',
   ];
 
   public function setDescriptionAttribute($value): void

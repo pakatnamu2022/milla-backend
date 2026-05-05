@@ -5,9 +5,13 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
+use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
-use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -44,6 +48,26 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
+      // Validate if quotation is already associated with a work order
+      $this->validateQuotationNotAssociatedWithWorkOrder($data['order_quotation_id']);
+
+      $sedeId = ApOrderQuotations::findOrFail($data['order_quotation_id'])->sede_id;
+
+      // Only validate price for products, not for labor
+      if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $data['product_id'],
+          $sedeId,
+          $data['unit_price']
+        );
+
+        if (!$validation['valid']) {
+          throw new Exception(
+            "Producto ({$data['description']}): {$validation['message']}"
+          );
+        }
+      }
+
       // Set created_at
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
@@ -55,8 +79,13 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Create quotation detail
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
 
       return new ApOrderQuotationDetailsResource($apOrderQuotationDetails->load([
         'orderQuotation',
@@ -75,14 +104,22 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return DB::transaction(function () use ($data) {
       $apOrderQuotationDetails = $this->find($data['id']);
 
+      // Validate if quotation is already associated with a work order
+      $this->validateQuotationNotAssociatedWithWorkOrder($apOrderQuotationDetails->order_quotation_id);
+
       // Calculate total_amount from percentage
       $data['total_amount'] = $this->calculateDetailTotal($data);
 
       // Update quotation detail
       $apOrderQuotationDetails->update($data);
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($apOrderQuotationDetails->order_quotation_id);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($apOrderQuotationDetails->order_quotation_id);
 
       // Reload relations
       $apOrderQuotationDetails->load([
@@ -99,14 +136,52 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     $apOrderQuotationDetails = $this->find($id);
     $quotationId = $apOrderQuotationDetails->order_quotation_id;
 
+    // Validate if quotation is already associated with a work order
+    $this->validateQuotationNotAssociatedWithWorkOrder($quotationId);
+
     DB::transaction(function () use ($apOrderQuotationDetails, $quotationId) {
       $apOrderQuotationDetails->delete();
 
-      // Recalculate quotation totals
-      $this->updateQuotationTotals($quotationId);
+      // Recalculate quotation totals using centralized method in model
+      $quotation = ApOrderQuotations::find($quotationId);
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recalculate work order totals if quotation is associated with one
+      $this->recalculateWorkOrderTotals($quotationId);
     });
 
     return response()->json(['message' => 'Detalle de cotización eliminado correctamente.']);
+  }
+
+  /**
+   * Validate if quotation is already associated with a work order
+   *
+   * @param int $quotationId
+   * @return void
+   * @throws Exception
+   */
+  private function validateQuotationNotAssociatedWithWorkOrder(int $quotationId): void
+  {
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)
+      ->whereHas('advancesWorkOrder')
+      ->first();
+
+    if ($workOrder) {
+      throw new Exception("Esta cotización no puede ser modificada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
+    }
+
+    $quotation = ApOrderQuotations::find($quotationId);
+
+    if ($quotation->area_id === ApMasters::AREA_TALLER && !$quotation->is_take) {
+      $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+      $today = Carbon::now()->startOfDay();
+
+      // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+      if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+        throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+      }
+    }
   }
 
   private function calculateDetailTotal(array $data): float
@@ -116,39 +191,22 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return round($subtotal - ($subtotal * $discountPercentage / 100), 2);
   }
 
+
   /**
-   * Recalculate and update quotation totals based on all details
+   * Recalculate work order totals if the quotation is associated with one
    *
    * @param int $quotationId
    * @return void
    */
-  private function updateQuotationTotals(int $quotationId): void
+  private function recalculateWorkOrderTotals(int $quotationId): void
   {
-    // Get all details for this quotation
-    $details = ApOrderQuotationDetails::where('order_quotation_id', $quotationId)->get();
+    // Find work order associated with this quotation
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)->first();
 
-    // Calculate totals
-    $subtotal = 0;
-    $totalDiscountAmount = 0;
-
-    foreach ($details as $detail) {
-      $lineSubtotal = $detail->quantity * $detail->unit_price;
-      $subtotal += $lineSubtotal;
-      $totalDiscountAmount += $lineSubtotal * ($detail->discount_percentage / 100);
+    if ($workOrder) {
+      // Recalculate and save work order totals
+      $workOrder->calculateTotals();
+      $workOrder->save();
     }
-
-    // Calculate discount percentage
-    $discountPercentage = $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : 0;
-
-    // Calculate total (subtotal - discounts, without taxes)
-    $totalAmount = $subtotal - $totalDiscountAmount;
-
-    // Update quotation
-    ApOrderQuotations::where('id', $quotationId)->update([
-      'subtotal' => round($subtotal, 2),
-      'discount_amount' => round($totalDiscountAmount, 2),
-      'discount_percentage' => round($discountPercentage, 2),
-      'total_amount' => round($totalAmount, 2),
-    ]);
   }
 }

@@ -3,10 +3,13 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StoreElectronicDocumentRequest extends StoreRequest
@@ -33,7 +36,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'purchase_request_quote_id',
       'order_quotation_id',
       'sunat_concept_currency_id',
-      'sunat_concept_detraction_type_id',
       'documento_que_se_modifica_tipo',
       'documento_que_se_modifica_numero',
       'sunat_concept_credit_note_type_id',
@@ -71,6 +73,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'total_retencion',
       'detraccion_total',
       'detraccion_porcentaje',
+      'detraccion'
     ];
 
     foreach ($decimalFields as $field) {
@@ -102,6 +105,15 @@ class StoreElectronicDocumentRequest extends StoreRequest
         if (isset($item['sunat_concept_igv_type_id'])) {
           $items[$index]['sunat_concept_igv_type_id'] = (int)$item['sunat_concept_igv_type_id'];
         }
+        // Convertir producto_id: si está vacío (""), convertirlo a null para que no se valide
+        if (isset($item['producto_id'])) {
+          if ($item['producto_id'] === '') {
+            $items[$index]['producto_id'] = null;
+          } else {
+            $items[$index]['producto_id'] = (int)$item['producto_id'];
+          }
+        }
+        
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
@@ -184,7 +196,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
           ->where('type', SunatConcepts::BILLING_DOCUMENT_TYPE)
           ->whereNull('deleted_at')->where('status', 1)
       ],
-      'series' => [
+      'series_id' => [
         'required',
         'integer',
         Rule::exists('assign_sales_series', 'id')
@@ -203,9 +215,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
           ->whereNull('deleted_at')->where('status', 1)
       ],
 
-
       // Origen del documento
-      'origin_module' => ['required', Rule::in(['comercial', 'posventa'])],
+      'area_id' => ['required', Rule::in(ApMasters::ALL_AREAS)],
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
@@ -277,7 +288,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Detracción
       'detraccion' => 'nullable|boolean',
-      'sunat_concept_detraction_type_id' => 'nullable|integer|exists:sunat_concepts,id',
       'detraccion_total' => 'nullable|numeric|min:0',
       'detraccion_porcentaje' => 'nullable|numeric|min:0|max:100',
       'medio_de_pago_detraccion' => 'nullable|integer|between:1,12',
@@ -298,7 +308,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
+      'orden_compra_servicio_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       'codigo_unico' => 'nullable|string|max:20',
+      'card_last4' => 'nullable|string|max:4|min:4',
+      'internal_note' => 'nullable|string|max:255',
 
       // Configuración
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
@@ -324,6 +337,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       ],
       'items.*.unidad_de_medida' => 'required|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
+      'items.*.product_id' => 'nullable|integer|exists:products,id',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
       'items.*.descripcion' => 'required|string',
       'items.*.cantidad' => 'required|numeric|min:0.0000000001',
@@ -370,6 +384,10 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
       'total.required' => 'El total del documento es obligatorio',
       'total.min' => 'El total del documento debe ser al menos 0',
+      'sunat_concept_currency_id.required' => 'La moneda es obligatoria',
+      'sunat_concept_currency_id.exists' => 'La moneda seleccionada no es válida',
+      'tipo_de_cambio.numeric' => 'El tipo de cambio debe ser un número',
+
       'items.required' => 'Debe agregar al menos un item al documento',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',
@@ -380,6 +398,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.reference_document_id.required_if' => 'Debe seleccionar el documento de anticipo que se está regularizando',
       'items.*.reference_document_id.exists' => 'El documento de anticipo seleccionado no es válido. Verifique que el documento exista, esté aceptado por SUNAT y no esté anulado',
       'items.*.reference_document_id.integer' => 'El documento de referencia debe ser un ID válido',
+      'items.*.product_id.integer' => 'El producto seleccionado no es válido',
+      'items.*.product_id.exists' => 'El producto seleccionado no existe',
     ];
   }
 
@@ -443,16 +463,6 @@ class StoreElectronicDocumentRequest extends StoreRequest
         }
       }
 
-      // Validar que si hay detracción, tenga todos los campos necesarios
-      if ($this->input('detraccion') === true) {
-        if (!$this->has('sunat_concept_detraction_type_id')) {
-          $validator->errors()->add(
-            'sunat_concept_detraction_type_id',
-            'Debe especificar el tipo de detracción'
-          );
-        }
-      }
-
       // Validar estado del vehículo si se proporciona ap_vehicle_movement_id
       if ($this->has('ap_vehicle_movement_id') && $this->input('ap_vehicle_movement_id')) {
         $vehicleMovement = VehicleMovement::with(['vehicle.vehicleStatus', 'vehicle.model'])
@@ -481,8 +491,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
             $precioVenta = (float)$vehicle->model->sale_price;
 
             // Obtener suma de anticipos previos para este vehículo
-            $sumaAnticipos = \DB::table('ap_billing_electronic_documents')
-              ->where('origin_module', 'comercial')
+            $sumaAnticipos = DB::table('ap_billing_electronic_documents')
+              ->where('area_id', ApMasters::AREA_COMERCIAL)
               ->where('origin_entity_id', $vehicle->id)
               ->where('sunat_concept_transaction_type_id', 36) // Tipo operación: Anticipos (ID del seeder)
               ->whereNull('deleted_at')

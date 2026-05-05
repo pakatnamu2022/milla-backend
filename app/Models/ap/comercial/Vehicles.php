@@ -28,6 +28,7 @@ class Vehicles extends BaseModel
     'vin',
     'plate',
     'year',
+    'year_delivery',
     'engine_number',
     'ap_models_vn_id',
     'warehouse_id',
@@ -36,12 +37,19 @@ class Vehicles extends BaseModel
     'ap_vehicle_status_id',
     'type_operation_id',
     'status',
+    'is_heavy',
     'warehouse_physical_id',
-    'customer_id'
+    'customer_id',
+    'has_pdi',
+    'generated_pdi',
   ];
 
   protected $casts = [
     'year' => 'integer',
+    'year_delivery' => 'integer',
+    'has_pdi' => 'boolean',
+    'is_heavy' => 'boolean',
+    'generated_pdi' => 'boolean',
   ];
 
   const array filters = [
@@ -64,6 +72,8 @@ class Vehicles extends BaseModel
     'is_paid' => 'accessor_bool',
     'customer_id' => '=',
     'type_operation_id' => '=',
+    'is_received' => 'accessor_bool',
+    'has_delivery_guide' => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -72,6 +82,24 @@ class Vehicles extends BaseModel
     'engine_number',
     'created_at',
   ];
+
+  /**
+   * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
+   * @return bool
+   */
+  public function getIsReceivedAttribute()
+  {
+    return $this->shippingGuides()->exists();
+  }
+
+  /**
+   * Accesor para determinar si el vehículo ya tiene una guía de entrega: 'has_delivery_guide'
+   * @return bool
+   */
+  public function getHasDeliveryGuideAttribute(): bool
+  {
+    return $this->vehicleDelivery()->exists();
+  }
 
   public function setPlateAttribute($value)
   {
@@ -204,6 +232,11 @@ class Vehicles extends BaseModel
     return $this->hasOne(ApExhibitionVehicles::class, 'vehicle_id');
   }
 
+  public function inventoryRecord(): HasOne
+  {
+    return $this->hasOne(ApVehicleInventory::class, 'ap_vehicle_id');
+  }
+
   /**
    * Obtiene todos los documentos electrónicos (facturas, boletas, etc.) a través de los movimientos del vehículo
    * Un vehículo puede tener múltiples movimientos y cada movimiento puede tener documentos electrónicos
@@ -282,6 +315,8 @@ class Vehicles extends BaseModel
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
         ->where('anulado', false)
+        ->where('is_accounted', true)
+        ->where('is_annulled', false)
         ->get();
 
       // Calcular total pagado
@@ -312,9 +347,61 @@ class Vehicles extends BaseModel
     }
   }
 
+  public static function vehiclePaid($vehicleId)
+  {
+    try {
+      // Obtener el documento electrónico usando el método centralizado
+      $data = self::getElectronicDocumentWithClient($vehicleId);
+      $electronicDocument = $data->electronicDocument;
+
+      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
+      $totalSalePrice = $purchaseRequestQuote->sale_price;
+
+      // Obtener todos los documentos electrónicos asociados a esta cotización
+      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->where('is_accounted', true)
+        ->where('is_annulled', false)
+        ->get();
+
+      // Calcular total pagado
+      $totalPaid = 0;
+      foreach ($documents as $doc) {
+        // Facturas y boletas suman al total pagado
+        if (in_array($doc->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+          $totalPaid += $doc->total;
+        } // Notas de crédito restan del total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+          $totalPaid -= $doc->total;
+        } // Notas de débito suman al total pagado
+        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
+          $totalPaid += $doc->total;
+        }
+      }
+
+      // Calcular deuda pendiente
+      $pendingDebt = $totalSalePrice - $totalPaid;
+
+      // Consideramos pagado si la diferencia es menor a 0.01
+      return $pendingDebt;
+    } catch (\Exception $e) {
+      return false;
+    }
+  }
+
   public function getIsPaidAttribute(): bool
   {
     return self::isVehiclePaid($this->id);
+  }
+
+
+  public function getPaidAttribute()
+  {
+    return self::vehiclePaid($this->id);
   }
 
   public function getPurchasePriceAttribute(): float

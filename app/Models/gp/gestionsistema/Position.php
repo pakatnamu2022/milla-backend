@@ -78,8 +78,15 @@ class Position extends BaseModel
     });
   }
 
-  const POSITION_JEFE_TALLER_ID = 143;
-  const POSITION_GERENTE_TALLER_ID = 142;
+  const array ASESOR_SERVICIO_PV_IDS = [144, 145, 146];
+  const array POSITION_JEFE_PVT_IDS = [143];
+  const array POSITION_JEFE_PVR_IDS = [344];
+  const array POSITION_GERENTE_PV_IDS = [142];
+  const array AFTER_SALES_COORDINATOR = [141];
+  const array ZONAL_ACCOUNTING_ANALYST = [301, 302];
+  const array HEAD_ACCOUNTING = [44, 288];
+  const array WAREHOUSE_ASSISTANT = [57, 87, 129, 233, 251, 309];
+  const array WAREHOUSE_MANAGER = [56, 86, 248];
 
   public function setNameAttribute($value)
   {

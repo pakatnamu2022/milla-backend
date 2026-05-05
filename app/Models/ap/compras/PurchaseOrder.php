@@ -5,17 +5,23 @@ namespace App\Models\ap\compras;
 use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -57,6 +63,7 @@ class PurchaseOrder extends BaseModel
     'migration_status',
     'status',
     'vehicle_movement_id',
+    'quotation_id',
     'type_operation_id',
     'migrated_at',
     'payment_terms',
@@ -88,6 +95,7 @@ class PurchaseOrder extends BaseModel
     'vehicle.ap_models_vn_id' => '=',
     'vehicle.ap_vehicle_status_id' => '=',
     'type_operation_id' => '=',
+    'quotation_id' => '=',
     'emission_date' => 'between',
     'due_date' => 'between',
   ];
@@ -100,13 +108,18 @@ class PurchaseOrder extends BaseModel
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
   // Relaciones
   public function supplier(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'supplier_id');
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
   }
 
   public function creator(): BelongsTo
@@ -134,14 +147,14 @@ class PurchaseOrder extends BaseModel
     return $this->hasMany(PurchaseOrderItem::class, 'purchase_order_id');
   }
 
-  public function receptions(): HasMany
+  public function reception(): HasOne // A una recepción le corresponde una factura (OC)
   {
-    return $this->hasMany(PurchaseReception::class, 'purchase_order_id');
+    return $this->hasOne(PurchaseReception::class, 'purchase_order_id');
   }
 
   public function hasActiveReceptions(): bool
   {
-    return $this->receptions()->whereNull('deleted_at')->exists();
+    return $this->reception()->whereNull('deleted_at')->exists();
   }
 
   public function vehicleMovement(): BelongsTo
@@ -187,6 +200,31 @@ class PurchaseOrder extends BaseModel
   public function accessories(): HasMany
   {
     return $this->hasMany(VehicleAccessory::class, 'vehicle_purchase_order_id');
+  }
+
+  /**
+   * Relación a logs de sincronización de credit note
+   */
+  public function creditNoteSyncLogs(): HasMany
+  {
+    return $this->hasMany(CreditNoteSyncLog::class);
+  }
+
+  /**
+   * Relación con la cotización asociada
+   */
+  public function quotation(): BelongsTo
+  {
+    return $this->belongsTo(PurchaseRequestQuote::class, 'quotation_id');
+  }
+
+  /**
+   * Acceso al asesor a través de: Quotation → WorkOrder → Advisor
+   * Retorna el asesor asociado a la orden de trabajo de esta cotización
+   */
+  public function advisor(): ?Worker
+  {
+    return $this->quotation?->opportunity->worker;
   }
 
   /**

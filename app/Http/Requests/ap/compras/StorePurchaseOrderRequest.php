@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\compras;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\Warehouse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends StoreRequest
@@ -35,14 +36,14 @@ class StorePurchaseOrderRequest extends StoreRequest
     }
 
     $vehicleRules = $hasVehicle ? [
-      'vin' => ['required', 'string', 'max:17', Rule::unique('ap_vehicles', 'vin')->whereNull('deleted_at')->where('status', 1)],
+      'vin' => ['required', 'string', 'max:20', Rule::unique('ap_vehicles', 'vin')->whereNull('deleted_at')->where('status', 1)],
       'year' => ['required', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => ['required', 'string', 'max:30', Rule::unique('ap_vehicles', 'engine_number')->whereNull('deleted_at')->where('status', 1)],
       'ap_models_vn_id' => ['required', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
       'vehicle_color_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'COLOR_VEHICULO')->where('status', 1)->whereNull('deleted_at')],
       'engine_type_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_MOTOR')->where('status', 1)->whereNull('deleted_at')],
     ] : [
-      'vin' => ['nullable', 'string', 'max:17'],
+      'vin' => ['nullable', 'string', 'max:20'],
       'year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
       'engine_number' => ['nullable', 'string', 'max:30'],
       'ap_models_vn_id' => ['nullable', 'integer', Rule::exists('ap_models_vn', 'id')->where('status', 1)->whereNull('deleted_at')],
@@ -53,7 +54,11 @@ class StorePurchaseOrderRequest extends StoreRequest
     return array_merge($vehicleRules, [
       // Información de la Factura (Cabecera)
       'invoice_series' => ['required', 'string', 'max:10'],
-      'invoice_number' => ['required', 'string', 'max:20'],
+      'invoice_number' => [
+        'required',
+        'string',
+        'max:20',
+      ],
       'emission_date' => ['required', 'date', 'date_format:Y-m-d'],
       'due_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:emission_date'],
 
@@ -75,6 +80,16 @@ class StorePurchaseOrderRequest extends StoreRequest
       // Movimiento de Vehículo (opcional, solo si la OC está relacionada a un movimiento)
       'vehicle_movement_id' => ['nullable', 'integer', Rule::exists('ap_vehicle_movement', 'id')->whereNull('deleted_at')],
 
+      // Guía de consignación (opcional, para OC de vehículos en consignación)
+      'consignment_shipping_guide_id' => ['nullable', 'integer', 'exists:shipping_guides,id'],
+
+      // Cotización asociada (opcional)
+      'quotation_id' => [
+        'nullable',
+        'integer',
+        Rule::exists('purchase_request_quote', 'id')->whereNull('deleted_at')
+      ],
+
       // Tipo de Operación (opcional)
       'type_operation_id' => ['required', 'integer', Rule::exists('ap_masters', 'id')->where('type', 'TIPO_OPERACION')->where('status', 1)->whereNull('deleted_at')],
 
@@ -82,7 +97,7 @@ class StorePurchaseOrderRequest extends StoreRequest
 
       'notes' => ['nullable', 'string', 'max:1000'],
 
-      'ap_supplier_order_id' => ['nullable', 'integer', 'exists:ap_supplier_order,id'],
+      'purchase_reception_id' => ['nullable', 'integer', 'exists:purchase_receptions,id'],
 
       'created_by' => ['required', 'integer', Rule::exists('usr_users', 'id')->where('status_deleted', 1)],
 
@@ -95,6 +110,25 @@ class StorePurchaseOrderRequest extends StoreRequest
       'items.*.is_vehicle' => ['nullable', 'boolean'],
       'items.*.product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('status', 'ACTIVE')->whereNull('deleted_at')],
     ]);
+  }
+
+  public function withValidator($validator)
+  {
+    $validator->after(function ($validator) {
+      if ($this->has('invoice_series') && $this->has('invoice_number') && $this->has('supplier_id')) {
+        $exists = DB::table('ap_purchase_order')
+          ->where('invoice_series', $this->invoice_series)
+          ->where('invoice_number', $this->invoice_number)
+          ->where('supplier_id', $this->supplier_id)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        if ($exists) {
+          $validator->errors()->add('invoice_number', 'La factura ya existe para este proveedor.');
+        }
+      }
+    });
+
   }
 
   public function attributes()
@@ -128,6 +162,7 @@ class StorePurchaseOrderRequest extends StoreRequest
       'currency_id' => 'Moneda',
       'warehouse_id' => 'Almacén',
       'vehicle_movement_id' => 'Movimiento de Vehículo',
+      'quotation_id' => 'Cotización',
 
       // Items
       'items' => 'Items de la Orden',
@@ -139,16 +174,4 @@ class StorePurchaseOrderRequest extends StoreRequest
     ];
   }
 
-  public function messages()
-  {
-    return [
-      'ap_supplier_order_id.exists' => 'La orden de proveedor relacionada no es válida',
-      'items.required' => 'Debe agregar al menos un item a la orden de compra',
-      'items.min' => 'Debe agregar al menos un item a la orden de compra',
-      'due_date.after_or_equal' => 'La fecha de vencimiento debe ser igual o posterior a la fecha de emisión',
-      'subtotal.required' => 'El subtotal es requerido (debe venir de la factura)',
-      'igv.required' => 'El IGV es requerido (debe venir de la factura)',
-      'total.required' => 'El total es requerido (debe venir de la factura)',
-    ];
-  }
 }

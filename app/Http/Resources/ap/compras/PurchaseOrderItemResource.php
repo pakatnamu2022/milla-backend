@@ -26,6 +26,7 @@ class PurchaseOrderItemResource extends JsonResource
       'product_id' => $this->product_id ?? null,
       'product_name' => $this->product->name ?? null,
       'product_code' => $this->product->code ?? null,
+      'product_dyn_code' => $this->product->dyn_code ?? null,
     ];
   }
 }

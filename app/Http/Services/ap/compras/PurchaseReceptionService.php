@@ -5,15 +5,19 @@ namespace App\Http\Services\ap\compras;
 use App\Http\Resources\ap\compras\PurchaseReceptionResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
+use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\ap\compras\PurchaseOrder;
-use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
+use App\Models\ap\postventa\taller\ApSupplierOrderDetails;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -48,18 +52,23 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
   {
     DB::beginTransaction();
     try {
-      // Validate purchase order exists
-      $purchaseOrder = PurchaseOrder::findOrFail($data['purchase_order_id']);
+      // Validate supplier order exists
+      $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
-      // VALIDACIÓN 1: Verificar que la orden no tenga recepciones activas
-      if ($purchaseOrder->hasActiveReceptions()) {
-        throw new Exception('Esta orden de compra ya tiene una recepción activa. No se permite recepcionar nuevamente.');
+      if (is_null($supplierOrder->approved_by)) {
+        throw new Exception('La OC debe estar aprobada para crear la recepción');
       }
 
-      // VALIDACIÓN 2: La fecha de recepción no puede ser anterior a la fecha de emisión de la orden
+      // VALIDACIÓN 1: La fecha de recepción no puede ser anterior a la fecha de la orden
       $receptionDate = Carbon::parse($data['reception_date']);
-      if ($receptionDate->lt($purchaseOrder->emission_date)) {
-        throw new Exception('La fecha de recepción no puede ser anterior a la fecha de emisión de la orden de compra (' . $purchaseOrder->emission_date->format('Y-m-d') . ')');
+      $orderDate = Carbon::parse($supplierOrder->order_date);
+      if ($receptionDate->lt($orderDate)) {
+        throw new Exception('La fecha de recepción no puede ser anterior a la fecha de la orden de compra (' . $orderDate->format('Y-m-d') . ')');
+      }
+
+      //VALIDACIÓN 2: El reception_type debe ser diferente a COMPLETE
+      if ($supplierOrder->reception_type === ApSupplierOrder::COMPLETE) {
+        throw new Exception('No se pueden crear recepciones para una orden de proveedor que ya está completa');
       }
 
       // Generate reception number
@@ -77,11 +86,10 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Process details
       $totalItems = 0;
       $totalQuantity = 0;
-      $allItemsFullyReceived = true;
 
       foreach ($details as $detail) {
         // Validate detail
-        $this->validateReceptionDetail($detail, $purchaseOrder);
+        $this->validateReceptionDetail($detail, $supplierOrder);
 
         // Set reception id
         $detail['purchase_reception_id'] = $reception->id;
@@ -91,41 +99,42 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
         $totalItems++;
         $totalQuantity += $detail['quantity_received'];
-
-        // Check if ALL OC items are fully received (only for ORDERED items)
-        if ($detail['reception_type'] === 'ORDERED' && $detail['purchase_order_item_id']) {
-          $orderItem = PurchaseOrderItem::find($detail['purchase_order_item_id']);
-          if ($orderItem) {
-            // quantity_received already contains only good items
-            $quantityReceived = $detail['quantity_received'];
-            $totalReceivedNow = $orderItem->quantity_received + $quantityReceived;
-
-            // If not fully received, mark as incomplete
-            if ($totalReceivedNow < $orderItem->quantity) {
-              $allItemsFullyReceived = false;
-            }
-          }
-        }
       }
 
-      // CÁLCULO AUTOMÁTICO DE STATUS:
-      // - APPROVED: Si se recepcionó todo lo pedido
-      // - INCOMPLETE: Si falta mercancía
-      $status = $allItemsFullyReceived ? 'APPROVED' : 'INCOMPLETE';
+      // CÁLCULO AUTOMÁTICO DE STATUS Y RECEPTION_TYPE:
 
-      // Update reception totals and status
+      // 1. Verificar si con esta recepción se completó la orden de proveedor
+      $allItemsFullyReceived = $this->checkIfAllItemsReceived($supplierOrder);
+
+      // 2. Calcular STATUS (estado general después de esta recepción):
+      // - APPROVED: Si ya se recepcionó todo lo pedido (considerando todas las recepciones)
+      // - PARTIAL: Si aún falta mercancía por recepcionar
+      $status = $allItemsFullyReceived ? 'APPROVED' : 'PARTIAL';
+
+      // 3. Calcular RECEPTION_TYPE (tipo de esta recepción específica):
+      // - COMPLETE: Si en esta recepción se está recibiendo todo lo que faltaba
+      // - PARTIAL: Si solo se recibe una parte (quedarán más recepciones pendientes)
+      $receptionType = $allItemsFullyReceived ? 'COMPLETE' : 'PARTIAL';
+
+      // Update reception totals, status and reception_type
       $reception->update([
         'total_items' => $totalItems,
         'total_quantity' => $totalQuantity,
         'status' => $status,
+        'reception_type' => $receptionType,
       ]);
 
-      // SIEMPRE procesar la recepción (tanto APPROVED como INCOMPLETE)
-      // Actualiza OC, crea movimiento de inventario y actualiza stock
-      $this->processReception($reception);
+      // ACTUALIZAR RECEPTION_TYPE DEL ApSupplierOrder
+      $this->updateSupplierOrderReceptionType($supplierOrder);
+
+      // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
+      if ($reception->supplierOrder) {
+        $this->notifyRequestUsers($reception->supplierOrder);
+      }
 
       DB::commit();
       return new PurchaseReceptionResource($reception->load([
+        'supplierOrder',
         'purchaseOrder',
         'warehouse',
         'receivedByUser',
@@ -148,13 +157,23 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     try {
       $reception = $this->find($data['id']);
 
-      $purchaseOrder = $reception->purchaseOrder;
-
-      // VALIDACIÓN: La fecha de recepción no puede ser anterior a la fecha de emisión de la orden
+      // VALIDACIÓN: La fecha de recepción no puede ser anterior a la fecha de la orden
       if (isset($data['reception_date'])) {
         $receptionDate = Carbon::parse($data['reception_date']);
-        if ($receptionDate->lt($purchaseOrder->emission_date)) {
-          throw new Exception('La fecha de recepción no puede ser anterior a la fecha de emisión de la orden de compra (' . $purchaseOrder->emission_date->format('Y-m-d') . ')');
+
+        // Verificar contra la orden de proveedor (siempre debe existir)
+        if ($reception->supplierOrder) {
+          $orderDate = Carbon::parse($reception->supplierOrder->order_date);
+          if ($receptionDate->lt($orderDate)) {
+            throw new Exception('La fecha de recepción no puede ser anterior a la fecha de la orden de compra (' . $orderDate->format('Y-m-d') . ')');
+          }
+        }
+
+        // Si también tiene purchase order, verificar contra esa fecha
+        if ($reception->purchaseOrder) {
+          if ($receptionDate->lt($reception->purchaseOrder->emission_date)) {
+            throw new Exception('La fecha de recepción no puede ser anterior a la fecha de emisión de la orden de compra (' . $reception->purchaseOrder->emission_date->format('Y-m-d') . ')');
+          }
         }
       }
 
@@ -163,6 +182,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       DB::commit();
       return new PurchaseReceptionResource($reception->fresh([
+        'supplierOrder',
         'purchaseOrder',
         'warehouse',
         'receivedByUser',
@@ -180,145 +200,63 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     try {
       $reception = $this->find($id);
 
-      // IMPORTANTE: Revertir los cambios antes de eliminar
-      $stockService = new ProductWarehouseStockService();
-
-      foreach ($reception->details as $detail) {
-        $quantityReceived = $detail->quantity_received;
-        $observedQuantity = $detail->observed_quantity ?? 0;
-        $totalProcessed = $quantityReceived + $observedQuantity;
-
-        // Revertir stock físico (quantity) - para TODOS los tipos
-        if ($quantityReceived > 0) {
-          $stockService->removeStock(
-            $detail->product_id,
-            $reception->warehouse_id,
-            $quantityReceived
-          );
-        }
-
-        // Solo revertir PurchaseOrderItem para items de tipo ORDERED
-        if ($detail->reception_type === 'ORDERED' && $detail->purchase_order_item_id) {
-          $orderItem = PurchaseOrderItem::find($detail->purchase_order_item_id);
-          if ($orderItem) {
-            // Revertir quantity_received en PurchaseOrderItem
-            $orderItem->quantity_received -= $quantityReceived;
-            $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
-            $orderItem->save();
-
-            // Revertir quantity_pending_credit_note si había observaciones
-            if ($observedQuantity > 0) {
-              $stockService->removePendingCreditNote(
-                $detail->product_id,
-                $reception->warehouse_id,
-                $observedQuantity
-              );
-            }
-
-            // Volver a agregar a quantity_in_transit
-            $stockService->addInTransitStock(
-              $detail->product_id,
-              $reception->warehouse_id,
-              $totalProcessed
-            );
-          }
-        }
+      // VALIDACIÓN: No permitir eliminar si ya tiene PurchaseOrder (factura) asociada
+      if ($reception->purchase_order_id) {
+        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada. Debe eliminar primero la factura.');
       }
 
-      // Delete associated inventory movements and details
-      $inventoryMovements = InventoryMovement::where('reference_type', PurchaseReception::class)
-        ->where('reference_id', $reception->id)
-        ->get();
-
-      foreach ($inventoryMovements as $movement) {
-        // Delete movement (soft delete) - details will be deleted automatically via boot method
-        $movement->delete();
-      }
+      // Obtener el supplier order antes de eliminar
+      $supplierOrder = $reception->supplierOrder;
 
       // Delete reception (soft delete) - details will be deleted automatically via boot method
       $reception->delete();
 
+      // Actualizar reception_type del supplier order si existe
+      if ($supplierOrder) {
+        $this->updateSupplierOrderReceptionType($supplierOrder);
+      }
+
       DB::commit();
-      return response()->json(['message' => 'Recepción eliminada correctamente. Se han revertido todas las cantidades y movimientos de inventario.']);
+      return response()->json(['message' => 'Recepción eliminada correctamente.']);
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
     }
   }
 
-  /**
-   * Process reception (ALWAYS - both APPROVED and INCOMPLETE)
-   * - Updates PurchaseOrderItem quantities
-   * - Creates inventory movement
-   * - Updates product_warehouse_stock (quantity, quantity_in_transit, quantity_pending_credit_note)
-   *
-   * IMPORTANT: Frontend sends:
-   * - quantity_received: Physical units that arrived in good condition
-   * - observed_quantity: Units that arrived damaged/missing
-   * These are SEPARATE values, NOT to be subtracted from each other
-   */
-  protected function processReception($reception)
+  protected function checkIfAllItemsReceived($supplierOrder): bool
   {
-    $stockService = new ProductWarehouseStockService();
+    // Obtener todos los items de la orden de proveedor
+    $supplierOrderDetails = $supplierOrder->details;
 
-    // Update purchase order item quantities
-    foreach ($reception->details as $detail) {
-      // Only update OC items for ORDERED type
-      if ($detail->reception_type === 'ORDERED' && $detail->purchase_order_item_id) {
-        $orderItem = PurchaseOrderItem::find($detail->purchase_order_item_id);
-        if ($orderItem) {
-          // quantity_received already represents only the good items
-          $quantityReceived = $detail->quantity_received;
-          $observedQuantity = $detail->observed_quantity ?? 0;
-          $totalProcessed = $quantityReceived + $observedQuantity;
+    foreach ($supplierOrderDetails as $orderDetail) {
+      // Calcular cuánto se ha recibido ACEPTADO de este producto (incluyendo la recepción actual)
+      // Solo contamos quantity_received - observed_quantity (cantidades aceptadas)
+      $receptionDetails = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
+        $query->where('ap_supplier_order_id', $supplierOrder->id)
+          ->whereNull('deleted_at');
+      })
+        ->where('product_id', $orderDetail->product_id)
+        ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
+        ->get();
 
-          // Update quantities in PurchaseOrderItem
-          $orderItem->quantity_received += $quantityReceived;
-          $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
-          $orderItem->save();
+      $totalAccepted = 0;
+      foreach ($receptionDetails as $detail) {
+        $observedQty = $detail->observed_quantity ?? 0;
+        $totalAccepted += ($detail->quantity_received - $observedQty);
+      }
 
-          // Update quantity_pending_credit_note if there are observations
-          if ($observedQuantity > 0) {
-            $stockService->addPendingCreditNote(
-              $detail->product_id,
-              $reception->warehouse_id,
-              $observedQuantity
-            );
-          }
-
-          // Remove from in-transit (total processed: received + observed)
-          $stockService->removeInTransitStock(
-            $detail->product_id,
-            $reception->warehouse_id,
-            $totalProcessed
-          );
-        }
+      // Si algún item no está completamente recibido, retornar false
+      if ($totalAccepted < $orderDetail->quantity) {
+        return false;
       }
     }
 
-    // Create inventory movement and update stock (quantity field)
-    // This will add ONLY the quantity_received to physical stock
-    $inventoryMovementService = new InventoryMovementService();
-    try {
-      $inventoryMovementService->createFromPurchaseReception($reception);
-    } catch (Exception $e) {
-      throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
-    }
-
-    // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
-    $this->notifyRequestUsers($reception->purchaseOrder);
+    return true;
   }
 
-  /**
-   * Validate reception detail
-   */
-  protected function validateReceptionDetail($detail, $purchaseOrder)
+  protected function validateReceptionDetail($detail, $supplierOrder)
   {
-    // ORDERED type must have purchase_order_item_id
-    if ($detail['reception_type'] === 'ORDERED' && empty($detail['purchase_order_item_id'])) {
-      throw new Exception('Los productos ORDERED deben tener purchase_order_item_id');
-    }
-
     // BONUS/GIFT/SAMPLE must NOT have purchase_order_item_id
     if (in_array($detail['reception_type'], ['BONUS', 'GIFT', 'SAMPLE']) && !empty($detail['purchase_order_item_id'])) {
       throw new Exception('Los productos BONUS/GIFT/SAMPLE no deben tener purchase_order_item_id');
@@ -328,31 +266,46 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     $observedQuantity = $detail['observed_quantity'] ?? 0;
     $quantityReceived = $detail['quantity_received'];
 
-    if ($observedQuantity > $quantityReceived) {
-      throw new Exception('La cantidad observada no puede ser mayor a la cantidad recibida');
-    }
-
     // If observed_quantity > 0, must have reason_observation
     if ($observedQuantity > 0 && empty($detail['reason_observation'])) {
       throw new Exception('Debe indicar la razón de la observación cuando hay productos observados');
     }
 
     // Validate that we don't receive more than ordered (for ORDERED type)
-    if ($detail['reception_type'] === 'ORDERED' && !empty($detail['purchase_order_item_id'])) {
-      $orderItem = PurchaseOrderItem::find($detail['purchase_order_item_id']);
-      if ($orderItem) {
-        $quantityAccepted = $quantityReceived - $observedQuantity;
-        $totalThatWillBeReceived = $orderItem->quantity_received + $quantityAccepted;
-        if ($totalThatWillBeReceived > $orderItem->quantity) {
-          throw new Exception("No puede recibir más de lo ordenado para el producto ID {$detail['product_id']}. Ordenado: {$orderItem->quantity}, Ya recibido: {$orderItem->quantity_received}, Intenta recibir: {$quantityAccepted}");
-        }
+    if ($detail['reception_type'] === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
+      $productId = $detail['product_id'];
+
+      // Buscar el producto en los detalles de la orden de proveedor
+      $supplierOrderDetail = ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrder->id)
+        ->where('product_id', $productId)
+        ->with('product')
+        ->first();
+
+      if (!$supplierOrderDetail) {
+        $product = Products::find($productId);
+        $productName = $product ? $product->name : "ID {$productId}";
+        throw new Exception("El producto '{$productName}' no está en la orden de compra");
+      }
+
+      // Calcular cuánto ya se ha recibido de este producto en recepciones previas
+      $alreadyReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
+        $query->where('ap_supplier_order_id', $supplierOrder->id)
+          ->whereNull('deleted_at');
+      })
+        ->where('product_id', $productId)
+        ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
+        ->sum('quantity_received');
+
+      $quantityAccepted = $quantityReceived - $observedQuantity;
+      $totalThatWillBeReceived = $alreadyReceived + $quantityAccepted;
+
+      if ($totalThatWillBeReceived > $supplierOrderDetail->quantity) {
+        $productName = $supplierOrderDetail->product->name ?? "ID {$productId}";
+        throw new Exception("No puede recibir más de lo ordenado para el producto '{$productName}'. Ordenado: {$supplierOrderDetail->quantity}, Ya recibido: {$alreadyReceived}, Intenta recibir: {$quantityAccepted}");
       }
     }
   }
 
-  /**
-   * Generate unique reception number
-   */
   protected function generateReceptionNumber()
   {
     $year = date('Y');
@@ -373,48 +326,54 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return sprintf('REC-%s-%04d', $year, $correlative);
   }
 
-  /**
-   * Get receptions by purchase order
-   */
   public function getByPurchaseOrder($purchaseOrderId)
   {
-    $receptions = PurchaseReception::byPurchaseOrder($purchaseOrderId)
-      ->with(['warehouse', 'receivedByUser', 'reviewedByUser', 'details.product'])
+    $receptions = PurchaseReception::where('purchase_order_id', $purchaseOrderId)
+      ->with(['supplierOrder', 'purchaseOrder', 'warehouse', 'receivedByUser', 'reviewedByUser', 'details.product'])
       ->get();
 
     return PurchaseReceptionResource::collection($receptions);
   }
 
-  /**
-   * OPCIONAL: Notificar a los usuarios que solicitaron productos cuando llega la orden
-   * Solo notifica si la orden tiene solicitudes vinculadas
-   * @param PurchaseOrder $purchaseOrder
-   * @return void
-   */
-  protected function notifyRequestUsers(PurchaseOrder $purchaseOrder): void
+  protected function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
   {
-    $apSupplierOrder = ApSupplierOrder::where('ap_purchase_order_id', $purchaseOrder->id)->first();
-
-    if (!$apSupplierOrder) {
-      return;
-    }
-
-    $requestDetailsCount = $apSupplierOrder->requestDetails()->count();
+    $requestDetailsCount = $supplierOrder->requestDetails()->count();
 
     if ($requestDetailsCount === 0) {
       return;
     }
 
     // Obtener usuarios únicos a notificar con sus correos
-    $usersToNotify = $apSupplierOrder->getUsersToNotify();
+    $usersToNotify = $supplierOrder->getUsersToNotify();
 
     if ($usersToNotify->isEmpty()) {
       return;
     }
 
-    $apSupplierOrder->requestDetails()->update(['status' => 'received']);
+    $supplierOrder->requestDetails()->update(['status' => 'received']);
 
     $emailService = new EmailService();
+
+    // Obtener detalles de la última recepción para incluir en el correo
+    $latestReception = $supplierOrder->receptions()
+      ->with('details.product')
+      ->latest()
+      ->first();
+
+    $receivedItems = [];
+    if ($latestReception) {
+      foreach ($latestReception->details as $detail) {
+        $product = $detail->product;
+        if ($product) {
+          $receivedItems[] = [
+            'code' => $product->code ?? 'N/A',
+            'name' => $product->name,
+            'quantity' => $detail->quantity_received - ($detail->observed_quantity ?? 0), // Cantidad aceptada
+            'unit' => $product->unit_type ?? 'unid'
+          ];
+        }
+      }
+    }
 
     // Agrupar por email para enviar un solo correo por usuario
     $groupedByEmail = $usersToNotify->groupBy('email');
@@ -428,17 +387,23 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         // Recopilar todas las solicitudes de este usuario
         $requestNumbers = $userRequests->pluck('request_number')->unique()->toArray();
 
+        // Usar número de orden de proveedor o PurchaseOrder si existe
+        $orderNumber = $supplierOrder->apPurchaseOrder
+          ? $supplierOrder->apPurchaseOrder->number
+          : $supplierOrder->order_number;
+
         $emailConfig = [
           'to' => $email,
-          'subject' => 'Pedido Recibido - Orden de Compra ' . $purchaseOrder->number,
+          'subject' => 'Pedido Recibido - Orden de Compra ' . $orderNumber,
           'template' => 'emails.purchase-order-received',
           'data' => [
             'badge' => 'Pedido Recibido',
             'title' => 'Pedido Recibido en Almacén',
             'subtitle' => 'Los productos de tu solicitud ya están disponibles',
             'user_name' => $userName,
-            'purchase_order_number' => $purchaseOrder->number,
+            'purchase_order_number' => $orderNumber,
             'request_numbers' => $requestNumbers,
+            'received_items' => $receivedItems,
             'date' => now()->format('d/m/Y H:i'),
             'company_name' => 'Grupo Pakatnamu',
             'contact_info' => 'almacen@grupopakatnamu.com'
@@ -451,5 +416,132 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         \Log::error('Error al enviar notificación de recepción de orden de compra a ' . $email . ': ' . $e->getMessage());
       }
     }
+  }
+
+  public function processReceptionStock(PurchaseOrder $purchaseOrder): void
+  {
+    $stockService = new ProductWarehouseStockService();
+    $reception = $purchaseOrder->reception; // Relación ya vinculada
+
+    // 1. Validar que la recepción exista
+    if (!$reception) {
+      throw new Exception("No hay recepción vinculada a esta factura");
+    }
+
+    // 2. Procesar cada detalle de la recepción
+    foreach ($reception->details as $index => $receptionDetail) {
+      $quantityReceived = $receptionDetail->quantity_received;
+      $observedQuantity = $receptionDetail->observed_quantity ?? 0;
+      $totalProcessed = $quantityReceived + $observedQuantity;
+
+      // 3. Buscar el PurchaseOrderItem correspondiente a este producto
+      $orderItem = $purchaseOrder->items()
+        ->where('product_id', $receptionDetail->product_id)
+        ->first();
+
+      if (!$orderItem) {
+        throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
+      }
+
+      // 4. Vincular el detalle de recepción con el item de la factura
+      $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
+
+      // 5. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
+      if ($receptionDetail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
+        $orderItem->quantity_received += $quantityReceived;
+        $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+        $orderItem->save();
+
+        // 6. Actualizar quantity_pending_credit_note si hay observaciones
+        if ($observedQuantity > 0) {
+          $stockService->addPendingCreditNote(
+            $receptionDetail->product_id,
+            $reception->warehouse_id,
+            $observedQuantity
+          );
+        }
+
+        // 7. Remover de in-transit (total procesado: recibido + observado)
+        $stockService->removeInTransitStock(
+          $receptionDetail->product_id,
+          $reception->warehouse_id,
+          $totalProcessed
+        );
+      }
+    }
+
+    // 8. Crear movimiento de inventario y actualizar stock físico
+    $inventoryMovementService = new InventoryMovementService();
+    try {
+      $inventoryMovementService->createFromPurchaseReception($reception);
+    } catch (Exception $e) {
+      throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
+    }
+
+    // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
+    $this->markRequestDetailsAsReceived($purchaseOrder);
+  }
+
+  protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void
+  {
+    // Obtener la recepción asociada a esta purchase order
+    $reception = $purchaseOrder->reception;
+
+    if (!$reception || !$reception->supplierOrder) {
+      return;
+    }
+
+    // Obtener IDs de los detalles de solicitud vinculados a la orden de proveedor
+    $detailIds = DB::table('ap_order_purchase_request_detail_supplier_order')
+      ->where('ap_supplier_order_id', $reception->supplierOrder->id)
+      ->pluck('ap_order_purchase_request_detail_id');
+
+    if ($detailIds->isEmpty()) {
+      return;
+    }
+
+    // Marcar los detalles como recepcionados
+    ApOrderPurchaseRequestDetails::whereIn('id', $detailIds)
+      ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_RECEIVED]);
+
+    // Obtener los IDs únicos de las cabeceras (solicitudes de compra)
+    $requestIds = ApOrderPurchaseRequestDetails::whereIn('id', $detailIds)
+      ->pluck('order_purchase_request_id')
+      ->unique();
+
+    // Para cada cabecera, si todos sus detalles están recepcionados → marcar la cabecera
+    foreach ($requestIds as $requestId) {
+      $hasPending = ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $requestId)
+        ->where('status', '!=', ApOrderPurchaseRequestDetails::STATUS_RECEIVED)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if (!$hasPending) {
+        ApOrderPurchaseRequests::where('id', $requestId)->update([
+          'status' => ApOrderPurchaseRequests::RECEIVED,
+          'received_date' => now(),
+        ]);
+      }
+    }
+  }
+
+  /**
+   * Actualizar el reception_type del ApSupplierOrder
+   * COMPLETE: Si no hay productos pendientes por recepcionar
+   * PARTIAL: Si todavía hay productos pendientes
+   *
+   * @param ApSupplierOrder $supplierOrder
+   * @return void
+   */
+  protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
+  {
+    $supplierOrderService = new ApSupplierOrderService(new EmailService());
+    $pendingProducts = $supplierOrderService->getPendingProducts($supplierOrder->id);
+
+    // Si no hay productos pendientes → COMPLETE
+    // Si hay productos pendientes → PARTIAL
+    $receptionType = empty($pendingProducts) ? ApSupplierOrder::COMPLETE : ApSupplierOrder::PARTIAL;
+
+    $supplierOrder->update(['reception_type' => $receptionType]);
   }
 }

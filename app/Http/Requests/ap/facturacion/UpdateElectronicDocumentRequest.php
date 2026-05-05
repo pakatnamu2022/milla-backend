@@ -3,11 +3,13 @@
 namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class UpdateElectronicDocumentRequest extends StoreRequest
@@ -135,6 +137,15 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         if (isset($item['reference_document_id'])) {
           $items[$index]['reference_document_id'] = (int)$item['reference_document_id'];
         }
+        // Convertir producto_id: si está vacío (""), convertirlo a null para que no se valide
+        if (isset($item['producto_id'])) {
+          if ($item['producto_id'] === '') {
+            $items[$index]['producto_id'] = null;
+          } else {
+            $items[$index]['producto_id'] = (int)$item['producto_id'];
+          }
+        }
+        
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
@@ -220,7 +231,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       ],
 
       // Origen del documento
-      'origin_module' => ['nullable', Rule::in(['comercial', 'posventa'])],
+      'area_id' => ['nullable', Rule::in(ApMasters::ALL_AREAS)],
       'origin_entity_type' => 'nullable|string|max:100',
       'origin_entity_id' => 'nullable|integer',
       'ap_vehicle_movement_id' => 'nullable|integer|exists:ap_vehicle_movement,id',
@@ -319,6 +330,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
       'codigo_unico' => 'nullable|string|max:20',
+      'card_last4' => 'nullable|string|max:4|min:4',
+      'internal_note' => 'nullable|string|max:255',
 
       // Configuración
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
@@ -344,6 +357,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       ],
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
+      'items.*.producto_id' => 'nullable|integer|exists:products,id',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
       'items.*.descripcion' => 'required_with:items|string',
       'items.*.cantidad' => 'required_with:items|numeric|min:0.0000000001',
@@ -405,12 +419,66 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       $documentId = $this->route('id');
       $document = ElectronicDocument::find($documentId);
 
+      if (!$document) {
+        return;
+      }
+
       // Validar que el documento no haya sido aceptado por SUNAT
-      if ($document && $document->status === ElectronicDocument::STATUS_ACCEPTED && $document->aceptada_por_sunat) {
+      if ($document->status === ElectronicDocument::STATUS_ACCEPTED && $document->aceptada_por_sunat) {
         $validator->errors()->add(
           'status',
           'No se puede editar un documento que ya fue aceptado por SUNAT'
         );
+      }
+
+      // ============================================================================
+      // VALIDACIONES ADICIONALES PARA order_quotation_id
+      // ============================================================================
+
+      // Validar que no se intente cambiar order_quotation_id si ya está asociado
+      if ($this->has('order_quotation_id') && $document->order_quotation_id) {
+        $newQuotationId = $this->input('order_quotation_id');
+
+        // Si se intenta cambiar a otro ID diferente
+        if ($newQuotationId && $newQuotationId != $document->order_quotation_id) {
+          $validator->errors()->add(
+            'order_quotation_id',
+            'No se puede cambiar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+
+        // Si se intenta quitar (pasar null)
+        if ($newQuotationId === null) {
+          $validator->errors()->add(
+            'order_quotation_id',
+            'No se puede quitar la cotización de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+      }
+
+      // ============================================================================
+      // VALIDACIONES ADICIONALES PARA work_order_id
+      // ============================================================================
+
+      // Validar que no se intente cambiar work_order_id si ya está asociado
+      if ($this->has('work_order_id') && $document->work_order_id) {
+        $newWorkOrderId = $this->input('work_order_id');
+
+        // Si se intenta cambiar a otro ID diferente
+        if ($newWorkOrderId && $newWorkOrderId != $document->work_order_id) {
+          $validator->errors()->add(
+            'work_order_id',
+            'No se puede cambiar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
+
+        // Si se intenta quitar (pasar null)
+        if ($newWorkOrderId === null) {
+          $validator->errors()->add(
+            'work_order_id',
+            'No se puede quitar la orden de trabajo de un documento que ya está asociado a una. Debe eliminar el documento y crear uno nuevo.'
+          );
+        }
       }
 
       // Validar que la serie corresponda al tipo de documento (solo si ambos están presentes)
@@ -557,8 +625,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
             $precioVenta = (float)$vehicle->model->sale_price;
 
             // Obtener suma de anticipos previos para este vehículo
-            $sumaAnticipos = \DB::table('ap_billing_electronic_documents')
-              ->where('origin_module', 'comercial')
+            $sumaAnticipos = DB::table('ap_billing_electronic_documents')
+              ->where('area_id', ApMasters::AREA_COMERCIAL)
               ->where('origin_entity_id', $vehicle->id)
               ->where('sunat_concept_transaction_type_id', 36) // Tipo operación: Anticipos (ID del seeder)
               ->whereNull('deleted_at')

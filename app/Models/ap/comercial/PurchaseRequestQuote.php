@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -12,12 +14,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use App\Models\ap\comercial\CustomerKycDeclaration;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class PurchaseRequestQuote extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'purchase_request_quote';
 
@@ -30,10 +34,12 @@ class PurchaseRequestQuote extends Model
     'base_selling_price',
     'sale_price',
     'doc_sale_price',
+    'down_payment',
     'comment',
     'is_invoiced',
     'is_approved',
-    'warranty',
+    'warranty_years',
+    'warranty_km',
     'opportunity_id',
     'holder_id',
     'vehicle_color_id',
@@ -46,6 +52,7 @@ class PurchaseRequestQuote extends Model
   ];
 
   const filters = [
+    'search' => ['correlative', 'apModelsVn.code', 'holder.full_name', 'holder.num_doc', 'opportunity.worker.nombre_completo', 'opportunity.client.full_name'],
     'type_document' => '=',
     'type_vehicle' => '=',
     'quote_deadline' => '=',
@@ -56,6 +63,7 @@ class PurchaseRequestQuote extends Model
     'holder_id' => '=',
     'vehicle_color_id' => '=',
     'ap_models_vn_id' => '=',
+    'apModelsVn.family.brand_id' => '=',
     'ap_vehicle_id' => '=',
     'doc_type_currency_id' => '=',
     'is_invoiced' => '=',
@@ -73,6 +81,33 @@ class PurchaseRequestQuote extends Model
     'updated_at',
   ];
 
+
+  public function getFullCorrelativeAttribute(): string
+  {
+    return 'COT-' . $this['correlative'];
+  }
+
+  public function getIsInvoicedAttribute(): bool
+  {
+    return $this->electronicDocuments()
+      ->where('aceptada_por_sunat', 1)
+      ->where('anulado', 0)
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
+      ->where('anulado', 0)
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', 0)
+      ->exists();
+  }
+
+
+  /**
+   * Determina si la cotización está pagada comparando el total de los documentos electrónicos asociados con el precio de venta de la cotización.
+   * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados.
+   * @return bool
+   */
   public function getIsPaidAttribute(): bool
   {
     $total = $this->electronicDocuments()
@@ -83,7 +118,6 @@ class PurchaseRequestQuote extends Model
       })
       ->where('anulado', 0)
       ->whereNull('deleted_at')
-      ->where('is_advance_payment', 0)
       ->sum('total');
     return $this->sale_price == $total;
   }
@@ -97,13 +131,6 @@ class PurchaseRequestQuote extends Model
   {
     if ($value) {
       $this->attributes['comment'] = Str::upper($value);
-    }
-  }
-
-  public function setWarrantyAttribute($value): void
-  {
-    if ($value) {
-      $this->attributes['warranty'] = Str::upper($value);
     }
   }
 
@@ -162,6 +189,117 @@ class PurchaseRequestQuote extends Model
     return $this->belongsTo(Sede::class, 'sede_id');
   }
 
+  /**
+   * Relación inversa con órdenes de compra
+   */
+  public function purchaseOrders(): HasOne
+  {
+    return $this->hasOne(PurchaseOrder::class, 'quotation_id');
+  }
+
+  protected $reportColumns = [
+    'created_at' => [
+      'label' => 'Fecha de Registro',
+      'formatter' => 'date:d/m/Y H:i',
+      'width' => 22,
+    ],
+    'correlative' => [
+      'label' => 'Correlativo',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'sede.abreviatura' => [
+      'label' => 'Sede',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'type_document' => [
+      'label' => 'Tipo Documento',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'type_vehicle' => [
+      'label' => 'Tipo Vehículo',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'opportunity.worker.nombre_completo' => [
+      'label' => 'Asesor',
+      'formatter' => null,
+      'width' => 30,
+    ],
+    'holder.num_doc' => [
+      'label' => 'N° Doc. Titular',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'holder.full_name' => [
+      'label' => 'Titular',
+      'formatter' => null,
+      'width' => 30,
+    ],
+    'apModelsVn.family.brand.name' => [
+      'label' => 'Marca',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'apModelsVn.code' => [
+      'label' => 'Modelo',
+      'formatter' => null,
+      'width' => 20,
+    ],
+    'vehicleColor.description' => [
+      'label' => 'Color',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'typeCurrency.code' => [
+      'label' => 'Moneda Base',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'sale_price' => [
+      'label' => 'Precio Venta',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'docTypeCurrency.code' => [
+      'label' => 'Moneda Doc.',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'doc_sale_price' => [
+      'label' => 'Precio Doc.',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'quote_deadline' => [
+      'label' => 'Vigencia',
+      'formatter' => 'date:d/m/Y',
+      'width' => 15,
+    ],
+    'is_approved' => [
+      'label' => 'Aprobado',
+      'formatter' => null,
+      'width' => 12,
+    ],
+    'status' => [
+      'label' => 'Estado',
+      'formatter' => null,
+      'width' => 12,
+    ],
+  ];
+
+  protected $reportRelations = [
+    'sede',
+    'holder',
+    'apModelsVn.family.brand',
+    'typeCurrency',
+    'docTypeCurrency',
+    'vehicleColor',
+    'opportunity.worker',
+  ];
+
   public function activate(): void
   {
     $this->status = 1;
@@ -181,5 +319,10 @@ class PurchaseRequestQuote extends Model
   public function electronicDocuments(): HasMany
   {
     return $this->hasMany(ElectronicDocument::class, 'purchase_request_quote_id');
+  }
+
+  public function kycDeclaration(): HasOne
+  {
+    return $this->hasOne(CustomerKycDeclaration::class, 'purchase_request_quote_id');
   }
 }

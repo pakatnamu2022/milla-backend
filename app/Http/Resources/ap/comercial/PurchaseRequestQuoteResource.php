@@ -2,15 +2,24 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PurchaseRequestQuoteResource extends JsonResource
 {
+  protected bool $showExtra = false;
+
+  public function showExtra($show = true): static
+  {
+    $this->showExtra = $show;
+    return $this;
+  }
+
   public function toArray(Request $request): array
   {
-    return [
+    $response = [
       'id' => $this->id,
       'is_paid' => $this->is_paid,
       'correlative' => $this->correlative,
@@ -22,6 +31,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'base_selling_price' => round($this->base_selling_price, 2),
       'sale_price' => round($this->sale_price, 2),
       'doc_sale_price' => round($this->doc_sale_price, 2),
+      'down_payment' => $this->down_payment ? round($this->down_payment, 2) : null,
       'type_currency_id' => $this->type_currency_id,
       'type_currency' => $this->typeCurrency->code ?? null,
       'type_currency_symbol' => $this->typeCurrency->code . ' ' . $this->typeCurrency->symbol ?? null,
@@ -38,18 +48,19 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_phone' => $this->holder->phone,
       'client_name' => $this->opportunity->client->full_name ?? null,
       'ap_vehicle_id' => $this->ap_vehicle_id,
-      'ap_vehicle' => $this->when($this->ap_vehicle_id, VehiclesResource::make($this->vehicle)),
       'vehicle_color_id' => $this->vehicle_color_id,
       'vehicle_color' => $this->vehicleColor->description ?? null,
       'ap_models_vn_id' => $this->ap_models_vn_id,
       'ap_model_vn' => $this->apModelsVn->code ?? null,
+      'brand_id' => $this->apModelsVn->family->brand_id ?? null,
       'ap_vehicle_purchase_order_id' => $this->ap_vehicle_purchase_order_id,
       'ap_vehicle_purchase_order' => $this->vehiclePurchaseOrders->vin ?? null,
       'doc_type_currency_id' => $this->doc_type_currency_id ?? null,
       'doc_type_currency' => $this->docTypeCurrency->code ?? null,
       'doc_type_currency_symbol' => $this->docTypeCurrency->symbol ?? null,
       'advisor_name' => $this->opportunity->worker->nombre_completo ?? null,
-      'warranty' => $this->warranty,
+      'warranty_years' => $this->warranty_years,
+      'warranty_km' => $this->warranty_km,
       'consultant' => $this->opportunity->worker ? WorkerResource::make($this->opportunity->worker) : null,
       'bonus_discounts' => $this->discountCoupons->map(function ($discount) {
         return [
@@ -74,13 +85,28 @@ class PurchaseRequestQuoteResource extends JsonResource
           'type' => $accessory->type,
           'quantity' => $accessory->quantity,
           'price' => $accessory->price,
+          'additional_price' => $accessory->additional_price,
           'total' => $accessory->total,
+          'type_currency_id' => $accessory->type_currency_id,
+          'type_currency_code' => $accessory->typeCurrency->code ?? null,
+          'type_currency_symbol' => $accessory->typeCurrency->symbol ?? null,
         ];
       }),
       'sede_id' => $this->sede_id ?? null,
       'sede' => $this->sede->abreviatura ?? null,
+      'kyc_declaration_id' => $this->relationLoaded('kycDeclaration') ? $this->kycDeclaration?->id : null,
+      'kyc_status' => $this->relationLoaded('kycDeclaration') ? ($this->kycDeclaration?->status ?? 'PENDIENTE') : null,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];
+
+    if ($this->showExtra) {
+      $response['ap_vehicle'] = $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null;
+      $response['model'] = $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null;
+    } else {
+      $response['ap_vehicle'] = $this->ap_vehicle_id ? ($this->vehicle->model->version . ' - ' . $this->vehicle->vin) : null;
+    }
+
+    return $response;
   }
 }

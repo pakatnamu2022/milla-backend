@@ -50,6 +50,7 @@ class AppointmentPlanning extends Model
     'is_taken' => '=',
     'sede_id' => '=',
     'num_doc_client' => '=',
+    'created_at' => 'date_between',
   ];
 
   const sorts = [
@@ -60,6 +61,8 @@ class AppointmentPlanning extends Model
 
   protected $casts = [
     'is_taken' => 'boolean',
+    'date_appointment' => 'date',
+    'delivery_date' => 'date',
   ];
 
   public function setDescriptionAttribute($value)
@@ -84,7 +87,7 @@ class AppointmentPlanning extends Model
 
   public function typePlanning()
   {
-    return $this->belongsTo(ApMasters::class, 'type_planning_id');
+    return $this->belongsTo(TypePlanningWorkOrder::class, 'type_planning_id');
   }
 
   public function vehicle()

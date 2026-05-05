@@ -19,6 +19,7 @@ class PayrollWorkTypeResource extends JsonResource
       'code' => $this->code,
       'name' => $this->name,
       'description' => $this->description,
+      'shift_type' => $this->shift_type,
       'multiplier' => (float) $this->multiplier,
       'base_hours' => (int) $this->base_hours,
       'is_extra_hours' => (bool) $this->is_extra_hours,
@@ -27,6 +28,7 @@ class PayrollWorkTypeResource extends JsonResource
       'is_sunday' => (bool) $this->is_sunday,
       'active' => (bool) $this->active,
       'order' => (int) $this->order,
+      'segments' => PayrollWorkTypeSegmentResource::collection($this->whenLoaded('segments')),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];

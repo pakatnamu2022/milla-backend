@@ -18,8 +18,9 @@ class StorePhoneLineWorkerRequest extends StoreRequest
   {
     return [
       'phone_line_id' => 'required|exists:phone_line,id',
-      'worker_id' => 'required|exists:rrhh_persona,id',
-      'assigned_at' => 'required|date',
+      'worker_id'     => 'required|exists:rrhh_persona,id',
+      'equipo_id'     => 'nullable|exists:help_equipos,id',
+      'assigned_at'   => 'required|date',
     ];
   }
 }

@@ -30,24 +30,45 @@ class ApSupplierOrderResource extends JsonResource
       'created_by_name' => $this->createdBy->name ?? '',
       'order_date' => $this->order_date,
       'order_number' => $this->order_number,
+      'order_number_external' => $this->order_number_external,
       'supply_type' => $this->supply_type,
       'net_amount' => $this->net_amount,
       'tax_amount' => $this->tax_amount,
       'total_amount' => $this->total_amount,
-      'is_take' => $this->is_take,
       'status' => $this->status,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
-      'has_invoice' => !is_null($this->ap_purchase_order_id),
+      'has_receptions' => $this->hasActiveReceptions(),
+      'has_invoice' => $this->receptions()->whereNotNull('purchase_order_id')->whereNull('deleted_at')->exists(),
+      'reception_type' => $this->reception_type,
+      'approved_by' => $this->approved_by,
 
       // Relationships
       'supplier' => new BusinessPartnersResource($this->whenLoaded('supplier')),
-      'invoice' => new PurchaseOrderResource($this->whenLoaded('apPurchaseOrder')),
       'sede' => new SedeResource($this->whenLoaded('sede')),
       'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
       'type_currency' => new TypeCurrencyResource($this->whenLoaded('typeCurrency')),
       'created_by_user' => new UserCompleteResource($this->whenLoaded('createdBy')),
       'details' => ApSupplierOrderDetailsResource::collection($this->whenLoaded('details')),
+      'invoice_numbers' => $this->when($this->relationLoaded('receptions'), function () {
+        return $this->receptions
+          ->whereNotNull('purchase_order_id')
+          ->map(fn($reception) => $reception->purchaseOrder)
+          ->filter()
+          ->map(fn($po) => trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-'))
+          ->filter()
+          ->values();
+      }),
+      'oc_dyn_numbers' => $this->when($this->relationLoaded('receptions'), function () {
+        return $this->receptions
+          ->whereNotNull('purchase_order_id')
+          ->map(fn($reception) => $reception->purchaseOrder)
+          ->filter()
+          ->map(fn($po) => trim(($po->number ?? ''), '-'))
+          ->filter()
+          ->values();
+      }),
+
       'purchase_requests' => $this->when($this->relationLoaded('requestDetails'), function () {
         return $this->requestDetails
           ->pluck('orderPurchaseRequest')

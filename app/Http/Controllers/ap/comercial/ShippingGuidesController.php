@@ -11,6 +11,7 @@ use App\Http\Services\ap\comercial\ShippingGuidesService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
+use function Pest\Laravel\json;
 
 class ShippingGuidesController extends Controller
 {
@@ -30,11 +31,23 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function storeConsignment(StoreShippingGuidesRequest $request)
+  {
+    try {
+      $data = $request->validated();
+      if ($request->hasFile('file')) {
+        $data['file'] = $request->file('file');
+      }
+      return $this->success($this->service->storeConsignment($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function store(StoreShippingGuidesRequest $request)
   {
     try {
       $data = $request->validated();
-
       // Agregar el archivo si existe
       if ($request->hasFile('file')) {
         $data['file'] = $request->file('file');
@@ -251,6 +264,24 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function dispatchMigration(int $id)
+  {
+    try {
+      return $this->success($this->service->dispatchMigration($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function dispatchAll()
+  {
+    try {
+      return $this->success($this->service->dispatchAll());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function checkResources($id)
   {
     try {
@@ -263,6 +294,34 @@ class ShippingGuidesController extends Controller
         'success' => false,
         'message' => $th->getMessage()
       ], 400);
+    }
+  }
+
+  public function syncWithDynamics($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->syncWithDynamics($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+  
+  public function nextDocumentNumber(Request $request)
+  {
+    try {
+      $request->validate([
+        'document_series_id' => 'required|integer|exists:assign_sales_series,id',
+      ]);
+
+      return $this->success($this->service->nextDocumentNumber($request->document_series_id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
     }
   }
 }

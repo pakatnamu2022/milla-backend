@@ -9,7 +9,7 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'work_order_id' => 'sometimes|required|exists:ap_work_orders,id',
+      'ap_work_order_id' => 'sometimes|required|exists:ap_work_orders,id',
       'inspection_date' => 'sometimes|required|date',
       'mileage' => 'nullable|numeric|min:0',
       'fuel_level' => 'nullable|string|min:0|max:100',
@@ -37,6 +37,31 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
       'tool_kit' => 'nullable|boolean',
       'jack_and_lever' => 'nullable|boolean',
       'general_observations' => 'nullable|string',
+      'washed' => 'nullable|boolean',
+      // Detalles de trabajo
+      'oil_change' => 'nullable|boolean',
+      'check_level_lights' => 'nullable|boolean',
+      'general_lubrication' => 'nullable|boolean',
+      'rotation_inspection_cleaning' => 'nullable|boolean',
+      'insp_filter_basic_checks' => 'nullable|boolean',
+      'tire_pressure_inflation_check' => 'nullable|boolean',
+      'alignment_balancing' => 'nullable|boolean',
+      'pad_replace_disc_resurface' => 'nullable|boolean',
+      'other_work_details' => 'nullable|string',
+      // Requerimiento del cliente
+      'customer_requirement' => 'nullable|string',
+      // Explicación de resultados
+      'explanation_work_performed' => 'nullable|boolean',
+      'price_explanation' => 'nullable|boolean',
+      'confirm_additional_work' => 'nullable|boolean',
+      'clarification_customer_concerns' => 'nullable|boolean',
+      'exterior_cleaning' => 'nullable|boolean',
+      'interior_cleaning' => 'nullable|boolean',
+      'keeps_spare_parts' => 'nullable|boolean',
+      'valuable_objects' => 'nullable|boolean',
+      // Items de cortesía
+      'courtesy_seat_cover' => 'nullable|boolean',
+      'paper_floor' => 'nullable|boolean',
     ];
   }
 
@@ -46,10 +71,10 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'work_order_id.required' => 'La orden de trabajo es requerida',
-      'work_order_id.exists' => 'La orden de trabajo no existe',
-      'inspection_date.required' => 'La fecha de inspección es requerida',
-      'inspection_date.date' => 'La fecha de inspección no es una fecha válida',
+      'ap_work_order_id.required' => 'La orden de trabajo es requerida',
+      'ap_work_order_id.exists' => 'La orden de trabajo no existe',
+      'inspection_date.required' => 'La fecha de recepción es requerida',
+      'inspection_date.date' => 'La fecha de recepción no es una fecha válida',
       'mileage.numeric' => 'El kilometraje debe ser un número',
       'mileage.min' => 'El kilometraje no puede ser negativo',
       'fuel_level.min' => 'El nivel de combustible no puede ser negativo',

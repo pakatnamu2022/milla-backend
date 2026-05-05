@@ -54,6 +54,8 @@ return [
 
   'url' => env('APP_URL', 'http://localhost'),
 
+  'external_api_key' => env('EXTERNAL_API_KEY'),
+
   /*
   |--------------------------------------------------------------------------
   | Frontend Application URL
@@ -64,7 +66,7 @@ return [
   |
   */
 
-  'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+  'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
   /*
   |--------------------------------------------------------------------------
@@ -90,11 +92,11 @@ return [
   |
   */
 
-  'locale' => env('APP_LOCALE', 'en'),
+  'locale' => env('APP_LOCALE', 'es'),
 
-  'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+  'fallback_locale' => env('APP_FALLBACK_LOCALE', 'es'),
 
-  'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+  'faker_locale' => env('APP_FAKER_LOCALE', 'es_ES'),
 
   /*
   |--------------------------------------------------------------------------

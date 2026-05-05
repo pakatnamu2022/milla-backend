@@ -4,6 +4,7 @@ namespace App\Models\ap\compras;
 
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\taller\ApSupplierOrder;
 use App\Models\BaseModel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ class PurchaseReception extends BaseModel
   protected $fillable = [
     'reception_number',
     'purchase_order_id',
+    'ap_supplier_order_id',
     'reception_date',
     'warehouse_id',
     'shipping_guide_number',
@@ -44,13 +46,14 @@ class PurchaseReception extends BaseModel
 
   const filters = [
     'search' => ['reception_number', 'shipping_guide_number'],
-    'purchase_order_id' => '=',
     'warehouse_id' => '=',
     'status' => '=',
     'reception_type' => '=',
     'reception_date' => '=',
     'received_by' => '=',
     'reviewed_by' => '=',
+    'ap_supplier_order_id' => '=',
+    'purchase_order_id' => '=',
   ];
 
   const sorts = [
@@ -92,6 +95,11 @@ class PurchaseReception extends BaseModel
   public function purchaseOrder(): BelongsTo
   {
     return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
+  }
+
+  public function supplierOrder(): BelongsTo
+  {
+    return $this->belongsTo(ApSupplierOrder::class, 'ap_supplier_order_id');
   }
 
   public function warehouse(): BelongsTo
@@ -169,11 +177,6 @@ class PurchaseReception extends BaseModel
   public function scopePartial($query)
   {
     return $query->where('status', 'PARTIAL');
-  }
-
-  public function scopeByPurchaseOrder($query, $purchaseOrderId)
-  {
-    return $query->where('purchase_order_id', $purchaseOrderId);
   }
 
   public function scopeByWarehouse($query, $warehouseId)

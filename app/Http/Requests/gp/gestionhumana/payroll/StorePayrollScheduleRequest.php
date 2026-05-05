@@ -3,7 +3,10 @@
 namespace App\Http\Requests\gp\gestionhumana\payroll;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
+use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 
 class StorePayrollScheduleRequest extends StoreRequest
 {
@@ -11,25 +14,45 @@ class StorePayrollScheduleRequest extends StoreRequest
   {
     return [
       'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
-      'work_type_id' => ['required', 'integer', 'exists:gh_payroll_work_types,id'],
+      'code' => ['required', 'string', 'max:50'],
       'period_id' => ['required', 'integer', 'exists:gh_payroll_periods,id'],
       'work_date' => ['required', 'date'],
-      'hours_worked' => ['nullable', 'numeric', 'min:0', 'max:24'],
-      'extra_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
       'notes' => ['nullable', 'string', 'max:255'],
       'status' => ['nullable', 'string', 'in:' . implode(',', PayrollSchedule::STATUSES)],
     ];
+  }
+
+  public function withValidator($validator): void
+  {
+    $validator->after(function ($validator) {
+      $period = PayrollPeriod::find($this->input('period_id'));
+      if ($period) {
+        $workDate = Carbon::parse($this->input('work_date'));
+        $startDate = Carbon::parse($period->start_date);
+        $paymentDate = Carbon::parse($period->end_date);
+        if ($workDate->lt($startDate) || $workDate->gt($paymentDate)) {
+          $validator->errors()->add('work_date', 'El día de trabajo debe ser entre los días permitidos del periodo');
+        }
+      }
+
+      $workerId = $this->input('worker_id');
+      $code = $this->input('code');
+      if ($workerId && $code) {
+        $worker = Worker::find($workerId);
+        if ($worker && !$worker->isAttendanceCodeAllowed($code)) {
+          $validator->errors()->add('code', "El código de asistencia '{$code}' no está permitido para este trabajador");
+        }
+      }
+    });
   }
 
   public function attributes(): array
   {
     return [
       'worker_id' => 'worker',
-      'work_type_id' => 'work type',
+      'code' => 'attendance code',
       'period_id' => 'period',
       'work_date' => 'work date',
-      'hours_worked' => 'hours worked',
-      'extra_hours' => 'extra hours',
       'notes' => 'notes',
       'status' => 'status',
     ];

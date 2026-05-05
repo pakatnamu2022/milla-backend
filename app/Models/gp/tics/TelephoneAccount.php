@@ -15,6 +15,7 @@ class TelephoneAccount extends BaseModel
   protected $fillable = [
     'company_id',
     'account_number',
+    'operator',
   ];
 
   const filters = [
@@ -22,11 +23,13 @@ class TelephoneAccount extends BaseModel
     'search' => ['account_number'],
     'company_id' => '=',
     'account_number' => 'like',
+    'operator' => '=',
   ];
 
   const sorts = [
     'id' => 'asc',
     'account_number' => 'asc',
+    'operator' => 'asc',
   ];
 
   /**

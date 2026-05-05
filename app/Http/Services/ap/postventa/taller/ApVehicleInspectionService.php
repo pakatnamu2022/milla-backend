@@ -13,6 +13,7 @@ use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class ApVehicleInspectionService extends BaseService
   {
     $inspection = ApVehicleInspection::with([
       'damages',
-      'workOrder',
+      'createdByWorkOrder',
       'inspectionBy'
     ])->where('id', $id)->first();
 
@@ -74,11 +75,24 @@ class ApVehicleInspectionService extends BaseService
       $damages = $data['damages'] ?? [];
       unset($data['damages']);
 
-      // Crear la inspección
+      // Extract date from inspection_date
+      if (isset($data['inspection_date'])) {
+        $inspectionDateTime = Carbon::parse($data['inspection_date']);
+        $data['inspection_date'] = $inspectionDateTime->toDateTimeString();
+      }
+
+      //Actualizamos en ap_work_order_id el id de la recepción creada
+      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
+
+      $validateReception = $workOrder->items->first()?->typePlanning->validate_receipt;
+
+      if (!$validateReception) {
+        throw new Exception('No se puede crear una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
+      }
+
+      // Crear la recepción
       $inspection = ApVehicleInspection::create($data);
 
-      //Actualizamos en work_order_id el id de la inspección creada
-      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
       $workOrder->update([
         'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
@@ -102,7 +116,7 @@ class ApVehicleInspectionService extends BaseService
       DB::commit();
 
       // Recargar con relaciones
-      $inspection->load(['damages', 'workOrder', 'inspectionBy']);
+      $inspection->load(['damages', 'createdByWorkOrder', 'inspectionBy']);
 
       return new ApVehicleInspectionResource($inspection);
     } catch (Exception $e) {
@@ -113,14 +127,16 @@ class ApVehicleInspectionService extends BaseService
 
   public function show($id)
   {
-    return new ApVehicleInspectionResource($this->find($id));
+    $inspection = $this->find($id);
+    $inspection->load(['createdByWorkOrder.vehicle.shippingGuideReceiving.receivingInspection.damages']);
+    return new ApVehicleInspectionResource($inspection);
   }
 
   public function update(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $inspection = $this->find($data['id']);
-      $workOrder = ApWorkOrder::findOrFail($data['work_order_id']);
+      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
 
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
@@ -151,7 +167,7 @@ class ApVehicleInspectionService extends BaseService
       // Eliminar daños y sus archivos
       $this->deleteInspectionDamages($inspection);
 
-      // Eliminar la inspección
+      // Eliminar la recepción
       $inspection->delete();
 
       DB::commit();
@@ -213,7 +229,7 @@ class ApVehicleInspectionService extends BaseService
   private function processPhotosInspection($inspection, array $photosInspection, string $type): void
   {
     $pendingImages = [];
-    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right', 'photo_optional_1', 'photo_optional_2', 'photo_optional_3', 'photo_optional_4', 'photo_optional_5', 'photo_optional_6'];
 
     foreach ($photoTypes as $photoType) {
       if (isset($photosInspection[$photoType]) && $photosInspection[$photoType] instanceof UploadedFile) {
@@ -258,7 +274,7 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Elimina los daños de una inspección y sus archivos asociados
+   * Elimina los daños de una recepción y sus archivos asociados
    */
   private function deleteInspectionDamages($inspection): void
   {
@@ -278,7 +294,7 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Elimina las firmas de una inspección
+   * Elimina las firmas de una recepción
    */
   private function deleteSignatures($inspection): void
   {
@@ -308,7 +324,7 @@ class ApVehicleInspectionService extends BaseService
     // Subir archivo usando DigitalFileService
     $digitalFile = $this->digitalFileService->store($signatureFile, $path, 'public', $model);
 
-    // Actualizar la inspección con la URL
+    // Actualizar la recepción con la URL
     $inspection->{$fieldName} = $digitalFile->url;
     $inspection->save();
   }
@@ -318,21 +334,22 @@ class ApVehicleInspectionService extends BaseService
    */
   public function generateReceptionReport($id)
   {
-    // Obtener la inspección con todas las relaciones necesarias
+    // Obtener la recepción con todas las relaciones necesarias
     $inspection = ApVehicleInspection::with([
       'damages',
-      'workOrder.vehicle.model.family.brand',
-      'workOrder.vehicle.color',
-      'workOrder.vehicle.customer',
-      'workOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'workOrder.sede',
-      'workOrder.status',
-      'workOrder.items.typePlanning',
-      'workOrder.appointmentPlanning',
+      'createdByWorkOrder.vehicle.model.family.brand',
+      'createdByWorkOrder.vehicle.color',
+      'createdByWorkOrder.vehicle.customer',
+      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'createdByWorkOrder.sede',
+      'createdByWorkOrder.status',
+      'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
+      'createdByWorkOrder.appointmentPlanning',
       'inspectionBy.person' // User sí tiene relación person
     ])->findOrFail($id);
 
-    $workOrder = $inspection->workOrder;
+    $workOrder = $inspection->createdByWorkOrder;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
@@ -352,6 +369,14 @@ class ApVehicleInspectionService extends BaseService
     if ($inspection->customer_signature_url) {
       $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
     }
+
+    // Convertir fotos de daños a base64
+    $damagesWithPhotos = $inspection->damages->map(function ($damage) {
+      if ($damage->photo_url) {
+        $damage->photo_base64 = Helpers::convertUrlToBase64($damage->photo_url);
+      }
+      return $damage;
+    });
 
     // Preparar lista de checks del inventario
     $inventoryChecks = [
@@ -390,7 +415,7 @@ class ApVehicleInspectionService extends BaseService
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
-      'damages' => $inspection->damages,
+      'damages' => $damagesWithPhotos,
       'inventoryChecks' => $inventoryChecks,
       'customerSignature' => $customerSignature,
       'advisorSignature' => $advisorSignature,
@@ -406,5 +431,180 @@ class ApVehicleInspectionService extends BaseService
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
+  }
+
+  /**
+   * Genera el reporte de recepción en PDF
+   */
+  public function generateOrderReceipt($id)
+  {
+    // Obtener la recepción con todas las relaciones necesarias
+    $inspection = ApVehicleInspection::with([
+      'damages',
+      'createdByWorkOrder.vehicle.model.family.brand',
+      'createdByWorkOrder.vehicle.color',
+      'createdByWorkOrder.vehicle.customer',
+      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
+      'createdByWorkOrder.sede',
+      'createdByWorkOrder.status',
+      'createdByWorkOrder.items.typePlanning',
+      'createdByWorkOrder.items.typeOperation',
+      'createdByWorkOrder.appointmentPlanning',
+      'inspectionBy.person' // User sí tiene relación person
+    ])->findOrFail($id);
+
+    $workOrder = $inspection->createdByWorkOrder;
+    $vehicle = $workOrder->vehicle;
+    $customer = $vehicle->customer;
+    $advisor = $workOrder->advisor; // Worker extiende de Person directamente
+
+    // Obtener firma del asesor desde WorkerSignature
+    // El asesor es Worker que extiende de Person directamente
+    $advisorSignature = null;
+    if ($advisor) {
+      $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
+      if ($workerSignature && $workerSignature->signature_url) {
+        $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
+      }
+    }
+
+    // Convertir firma del cliente a base64 si existe
+    $customerSignature = null;
+    if ($inspection->customer_signature_url) {
+      $customerSignature = Helpers::convertUrlToBase64($inspection->customer_signature_url);
+    }
+
+    // Convertir fotos de daños a base64
+    $damagesWithPhotos = $inspection->damages->map(function ($damage) {
+      if ($damage->photo_url) {
+        $damage->photo_base64 = Helpers::convertUrlToBase64($damage->photo_url);
+      }
+      return $damage;
+    });
+
+    // Preparar lista de checks del inventario
+    $inventoryChecks = [
+      'dirty_unit' => 'UNIDAD SUCIA',
+      'unit_ok' => 'UNIDAD OK',
+      'title_deed' => 'TARJETA DE PROPIEDAD',
+      'soat' => 'SOAT',
+      'moon_permits' => 'PERMISOS LUNETA',
+      'service_card' => 'TARJETA DE SERVICIO',
+      'owner_manual' => 'MANUAL DEL PROPIETARIO',
+      'key_ring' => 'LLAVERO',
+      'wheel_lock' => 'SEGURO DE RUEDA',
+      'safe_glasses' => 'GAFAS DE SEGURIDAD',
+      'radio_mask' => 'MÁSCARA DE RADIO',
+      'lighter' => 'ENCENDEDOR',
+      'floors' => 'PISOS',
+      'seat_cover' => 'CUBRE ASIENTOS',
+      'quills' => 'PLUMILLAS',
+      'antenna' => 'ANTENA',
+      'glasses_wheel' => 'VASOS RUEDA',
+      'emblems' => 'EMBLEMAS',
+      'spare_tire' => 'LLANTA DE REPUESTO',
+      'fluid_caps' => 'TAPAS DE FLUIDOS',
+      'tool_kit' => 'KIT DE HERRAMIENTAS',
+      'jack_and_lever' => 'GATO Y PALANCA',
+    ];
+
+    // Preparar datos para la vista
+    $data = [
+      'inspection' => $inspection,
+      'workOrder' => $workOrder,
+      'vehicle' => $vehicle,
+      'customer' => $customer,
+      'advisor' => $advisor, // Worker ya es Person directamente
+      'advisorPhone' => $advisor ? $advisor->cel_personal : '',
+      'sede' => $workOrder->sede,
+      'status' => $workOrder->status,
+      'items' => $workOrder->items,
+      'damages' => $damagesWithPhotos,
+      'inventoryChecks' => $inventoryChecks,
+      'customerSignature' => $customerSignature,
+      'advisorSignature' => $advisorSignature,
+      'appointmentNumber' => $workOrder->appointmentPlanning ? $workOrder->appointmentPlanning->correlative : 'N/A',
+      'isGuarantee' => $workOrder->is_guarantee ?? false,
+      'isRecall' => $workOrder->is_recall ?? false,
+      'descriptionRecall' => $workOrder->description_recall ?? '',
+      'typeRecall' => $workOrder->type_recall ?? '',
+    ];
+
+    // Generar PDF
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.order-receipt', $data);
+    $pdf->setPaper('a4', 'portrait');
+
+    return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
+  }
+
+  public function requestCancellation(int $id, string $reason)
+  {
+    $inspection = $this->find($id);
+
+    if ($inspection->is_cancelled) {
+      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
+    }
+
+    if ($inspection->cancellation_requested_by) {
+      return response()->json(['message' => 'Ya existe una solicitud de anulación pendiente'], 422);
+    }
+
+    $workOrder = $inspection->createdByWorkOrder;
+
+    if (!$workOrder) {
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
+    }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
+    }
+
+    $inspection->update([
+      'cancellation_requested_by' => auth()->id(),
+      'cancellation_requested_at' => now(),
+      'cancellation_reason' => $reason,
+    ]);
+
+    return response()->json([
+      'message' => 'Solicitud de anulación registrada exitosamente',
+      'data' => $inspection->fresh()
+    ]);
+  }
+
+  public function confirmCancellation(int $id)
+  {
+    $inspection = $this->find($id);
+
+    if ($inspection->is_cancelled) {
+      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
+    }
+
+    if (!$inspection->cancellation_requested_by) {
+      return response()->json(['message' => 'No existe solicitud de anulación para esta recepción'], 422);
+    }
+
+    if ($inspection->createdByWorkOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
+    }
+
+    $inspection->update([
+      'cancellation_confirmed_by' => auth()->id(),
+      'cancellation_confirmed_at' => now(),
+      'is_cancelled' => true,
+    ]);
+
+    $workOrder = $inspection->createdByWorkOrder;
+    if (!$workOrder) {
+      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
+    }
+
+    $workOrder->update([
+      'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
+    ]);
+
+    return response()->json([
+      'message' => 'Anulación confirmada exitosamente',
+      'data' => $inspection->fresh()
+    ]);
   }
 }

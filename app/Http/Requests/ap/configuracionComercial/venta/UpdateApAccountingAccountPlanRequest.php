@@ -14,9 +14,6 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
         'nullable',
         'string',
         'max:20',
-        Rule::unique('ap_accounting_account_plan', 'account')
-          ->whereNull('deleted_at')
-          ->ignore($this->route('accountingAccountPlan'))
       ],
       'code_dynamics' => [
         'nullable',
@@ -31,10 +28,9 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('accountingAccountPlan')),
       ],
-      'accounting_type_id' => [
+      'is_detraction' => [
         'nullable',
-        'integer',
-        'exists:ap_masters,id',
+        'boolean',
       ],
       'status' => [
         'nullable',
@@ -46,13 +42,12 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'account.unique' => 'La cuenta ya existe.',
       'account.max' => 'La cuenta no debe ser mayor a 20 caracteres.',
 
       'description.unique' => 'La descripción ya existe.',
       'description.max' => 'La descripción no debe ser mayor a 255 caracteres.',
 
-      'accounting_type_id.exists' => 'El tipo de account contable no existe.',
+      'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
     ];
   }
 }

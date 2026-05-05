@@ -9,7 +9,7 @@ class StorePurchaseReceptionRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'purchase_order_id' => 'required|exists:ap_purchase_order,id',
+      'ap_supplier_order_id' => 'required|exists:ap_supplier_order,id',
       'reception_date' => 'required|date',
       'warehouse_id' => 'required|exists:warehouse,id',
       'shipping_guide_number' => 'required|string|max:100',
@@ -19,9 +19,8 @@ class StorePurchaseReceptionRequest extends StoreRequest
 
       // Details
       'details' => 'required|array|min:1',
-      'details.*.purchase_order_item_id' => 'nullable|exists:ap_purchase_order_item,id',
       'details.*.product_id' => 'required|exists:products,id',
-      'details.*.quantity_received' => 'required|numeric|min:0.01',
+      'details.*.quantity_received' => 'required|numeric|min:0',
       'details.*.observed_quantity' => 'nullable|numeric|min:0',
       'details.*.reception_type' => 'required|in:ORDERED,BONUS,GIFT,SAMPLE',
       'details.*.reason_observation' => 'nullable|in:DAMAGED,DEFECTIVE,EXPIRED,WRONG_PRODUCT,WRONG_QUANTITY,POOR_QUALITY,OTHER',
@@ -36,8 +35,8 @@ class StorePurchaseReceptionRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'purchase_order_id.required' => 'La orden de compra es obligatoria.',
-      'purchase_order_id.exists' => 'La orden de compra no existe.',
+      'ap_supplier_order_id.required' => 'La orden de compra es obligatoria.',
+      'ap_supplier_order_id.exists' => 'La orden de compra no existe.',
       'reception_date.required' => 'La fecha de recepción es obligatoria.',
       'reception_date.date' => 'La fecha de recepción no es una fecha válida.',
       'shipping_guide_number.required' => 'El número de guía de remisión es obligatorio.',
@@ -54,7 +53,7 @@ class StorePurchaseReceptionRequest extends StoreRequest
       'details.*.product_id.required' => 'El producto es obligatorio.',
       'details.*.product_id.exists' => 'El producto no existe.',
       'details.*.quantity_received.required' => 'La cantidad recibida es obligatoria.',
-      'details.*.quantity_received.min' => 'La cantidad recibida debe ser mayor a 0.',
+      'details.*.quantity_received.min' => 'La cantidad recibida debe ser al menos 0.',
       'details.*.reception_type.required' => 'El tipo de recepción es obligatorio.',
       'details.*.reception_type.in' => 'El tipo de recepción debe ser ORDERED, BONUS, GIFT o SAMPLE.',
     ];

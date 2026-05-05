@@ -127,19 +127,29 @@ class PotentialBuyersController extends Controller
       $result = $this->service->importFromExcelSocialNetworks($request->file('file'));
 
       if ($result['success']) {
-        return $this->success($result, $result['message']);
+        return $this->success($result);
       } else {
-        return $this->error($result['message'], $result);
+        return $this->error($result['message']);
       }
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
 
-  public function assignWorkers()
+  public function assignWorkers(Request $request)
   {
+    $request->validate([
+      'date_from' => 'required|date',
+      'date_to' => 'required|date',
+      'all' => 'sometimes|boolean'
+    ]);
+
     try {
-      $result = $this->service->assignWorkersToUnassigned();
+      $dateFrom = $request->input('date_from');
+      $dateTo = $request->input('date_to');
+      $all = $request->input('all', false);
+
+      $result = $this->service->assignWorkersToUnassigned($dateFrom, $dateTo, $all);
 
       if ($result['success']) {
         return $this->success($result, $result['message']);

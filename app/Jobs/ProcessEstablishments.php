@@ -44,6 +44,7 @@ class ProcessEstablishments implements ShouldQueue
       );
 
       if ($establishments['success'] && !empty($establishments['data']['establishments'] ?? [])) {
+        // Si hay establecimientos, los creamos normalmente
         foreach ($establishments['data']['establishments'] as $establishment) {
           $businessPartner->establishments()->create([
             'code' => $establishment['code'] ?? null,
@@ -55,6 +56,17 @@ class ProcessEstablishments implements ShouldQueue
             'business_partner_id' => $businessPartner->id,
           ]);
         }
+      } else {
+        // Si NO hay establecimientos, creamos uno usando los datos del padre
+        $businessPartner->establishments()->create([
+          'code' => '0000',
+          'type' => 'CENTRAL',
+          'activity_economic' => $businessPartner->activityEconomic->name ?? null,
+          'address' => $businessPartner->direction ?? '-',
+          'full_address' => $businessPartner->direction ?? null,
+          'ubigeo' => $businessPartner->district->ubigeo ?? null,
+          'business_partner_id' => $businessPartner->id,
+        ]);
       }
 
       $businessPartner->update(['establishments_status' => 'completed']);

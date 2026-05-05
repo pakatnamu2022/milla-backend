@@ -3,7 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\comercial\BusinessPartners;
-use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\maestroGeneral\Sede;
@@ -20,25 +20,26 @@ class ApSupplierOrder extends Model
   protected $table = 'ap_supplier_order';
 
   protected $fillable = [
-    'ap_purchase_order_id',
     'supplier_id',
     'sede_id',
     'warehouse_id',
     'type_currency_id',
+    'approved_by',
     'created_by',
     'order_date',
     'order_number',
+    'order_number_external',
     'supply_type',
     'net_amount',
     'tax_amount',
     'total_amount',
     'exchange_rate',
-    'is_take',
+    'reception_type',
     'status',
   ];
 
   const filters = [
-    'search' => ['order_number', 'supplier.num_doc', 'supplier.full_name'],
+    'search' => ['order_number', 'order_number_external', 'supplier.num_doc', 'supplier.full_name'],
     'supplier_id' => '=',
     'sede_id' => '=',
     'warehouse_id' => '=',
@@ -46,7 +47,7 @@ class ApSupplierOrder extends Model
     'created_by' => '=',
     'order_date' => 'between',
     'supply_type' => 'in',
-    'is_take' => '=',
+    'reception_type' => '=',
     'status' => '=',
   ];
 
@@ -60,8 +61,14 @@ class ApSupplierOrder extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
-  const LIMA = 'LIMA';
+  const LOCAL = 'LOCAL';
+  const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
+
+  // RECEPTION TYPE CONSTANTS
+  const PARTIAL = 'PARTIAL';
+  const COMPLETE = 'COMPLETE';
+  const PENDING = 'PENDING';
 
   protected static function boot()
   {
@@ -71,11 +78,6 @@ class ApSupplierOrder extends Model
     static::deleting(function ($quotation) {
       $quotation->details()->delete();
     });
-  }
-
-  public function apPurchaseOrder(): BelongsTo
-  {
-    return $this->belongsTo(PurchaseOrder::class, 'ap_purchase_order_id');
   }
 
   public function supplier(): BelongsTo
@@ -98,6 +100,11 @@ class ApSupplierOrder extends Model
     return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
   }
 
+  public function approvedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'approved_by');
+  }
+
   public function createdBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'created_by');
@@ -106,6 +113,22 @@ class ApSupplierOrder extends Model
   public function details()
   {
     return $this->hasMany(ApSupplierOrderDetails::class, 'ap_supplier_order_id');
+  }
+
+  /**
+   * Relación con recepciones de compra
+   */
+  public function receptions()
+  {
+    return $this->hasMany(PurchaseReception::class, 'ap_supplier_order_id');
+  }
+
+  /**
+   * Verificar si tiene recepciones activas (no eliminadas)
+   */
+  public function hasActiveReceptions(): bool
+  {
+    return $this->receptions()->whereNull('deleted_at')->exists();
   }
 
   /**
@@ -147,4 +170,32 @@ class ApSupplierOrder extends Model
       ->values();
   }
 
+  /**
+   * Generar el siguiente número de orden de compra automáticamente
+   * Formato: OC-YYYY-0001
+   * Se reinicia cada año
+   */
+  public static function generateOrderNumber(): string
+  {
+    $year = date('Y');
+    $prefix = "OC-{$year}-";
+
+    // Buscar la última orden del año actual
+    $lastOrder = self::withTrashed()
+      ->where('order_number', 'LIKE', "{$prefix}%")
+      ->orderBy('order_number', 'desc')
+      ->first();
+
+    if ($lastOrder) {
+      // Extraer el número correlativo y sumar 1
+      $lastNumber = (int)substr($lastOrder->order_number, -4);
+      $newNumber = $lastNumber + 1;
+    } else {
+      // Si no hay órdenes del año actual, empezar en 1
+      $newNumber = 1;
+    }
+
+    // Formatear con 4 dígitos: OC-2026-0001
+    return sprintf('%s%04d', $prefix, $newNumber);
+  }
 }

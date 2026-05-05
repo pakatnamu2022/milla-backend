@@ -49,10 +49,24 @@ class ApOrderQuotationDetails extends Model
     'created_at',
   ];
 
+  const ITEM_TYPE_PRODUCT = 'PRODUCT';
+  const ITEM_TYPE_LABOR = 'LABOR';
+
+  //Constants status
+  const STATUS_PENDING = 'pending';
+  const STATUS_TAKEN = 'taken';
+
   public function setDescriptionAttribute($value): void
   {
     if ($value) {
       $this->attributes['description'] = strtoupper($value);
+    }
+  }
+
+  public function setObservationsAttribute($value): void
+  {
+    if ($value) {
+      $this->attributes['observations'] = strtoupper($value);
     }
   }
 

@@ -33,6 +33,8 @@ class UpdateShippingGuidesRequest extends StoreRequest
       'transfer_reason_id' => 'nullable|integer|exists:sunat_concepts,id',
       'transfer_modality_id' => 'nullable|integer|exists:sunat_concepts,id',
       'ap_class_article_id' => 'nullable|integer|exists:ap_class_article,id',
+      'send_dynamics' => 'nullable|boolean',
+      'is_consignment' => 'nullable|boolean',
     ];
   }
 
