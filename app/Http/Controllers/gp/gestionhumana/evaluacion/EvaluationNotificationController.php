@@ -414,7 +414,7 @@ class EvaluationNotificationController extends Controller
 
     $evaluation = $evaluationPerson->evaluation;
     $cycle = $evaluation->cycle;
-    $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', url('/'))), '/');
+    $frontendUrl = rtrim((string)config('app.frontend_url', config('app.url', url('/'))), '/');
 
     return response()->view('emails.evaluation-results-available', [
       'badge' => 'Resultado disponible',
@@ -526,13 +526,13 @@ class EvaluationNotificationController extends Controller
       $additionalNotes = "Recuerde completar todas las evaluaciones antes de la fecha límite para asegurar un proceso completo.";
     }
 
-    $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', url('/'))), '/');
+    $frontendUrl = rtrim((string)config('app.frontend_url', config('app.url', url('/'))), '/');
 
     return response()->view('emails.evaluation-reminder', [
       'leader_name' => $leader->nombre_completo,
       'evaluation_name' => $evaluation->name,
-      'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
-      'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+      'start_date' => Carbon::parse($evaluation->start_date),
+      'end_date' => Carbon::parse($evaluation->end_date),
       'pending_count' => $pendingCount,
       'total_count' => $totalEvaluations,
       'pending_evaluations' => $pendingDetails,
