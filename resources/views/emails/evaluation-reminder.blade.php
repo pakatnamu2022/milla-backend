@@ -106,8 +106,8 @@
                           <p style=" margin:5px 0 0;
                                     font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                                     font-size:9px;font-weight:600;color:#aeaeb2;
-                                    letter-spacing:0.6px;padding-bottom: 10px;">
-                            Completado
+                                    padding-top: 4px;padding-bottom: 10px;">
+                            completado
                           </p>
                         </td>
                       </tr>
@@ -126,7 +126,7 @@
             </td>
 
             {{-- Separator: 1px centered al alto del ring --}}
-            <td width="1" align="center" valign="middle" style="padding:0;margin:0;">
+            <td class="ev-ring-sep" width="1" align="center" valign="middle" style="padding:0;margin:0;">
               <img
                 src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='110'><rect width='1' height='110' fill='%23e8e8ed'/></svg>"
                 width="1" height="110"
@@ -139,9 +139,9 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
                      style="border-collapse:collapse;">
                 <tr>
-                  <td align="left" valign="middle" style="width:52px;padding-right:12px;">
+                  <td align="left" valign="middle" style="width:52px;">
                     <span
-                      style="display:inline-block;width:40px;height:40px;border-radius:50%;background:#eef6ff;box-shadow:0 4px 10px rgba(1,35,126,0.07);text-align:center;">
+                      style="display:inline-block;width:40px;height:40px;border-radius:50%;background:#eef6ff;text-align:center;">
                       <img src="https://api.iconify.design/lucide/users.svg?color=%2301237e&width=18&height=18"
                            width="18" height="18"
                            style="display:block;margin:11px auto;width:18px;height:18px;border:0;outline:none;text-decoration:none;"
@@ -208,7 +208,7 @@
             {{ $initials }}
           </span>
           </td>
-          <td valign="middle" style="padding:14px 0;
+          <td valign="middle" class="ev-collab-name" style="padding:14px 0;
                                    font-family:system-ui,-apple-system,sans-serif;
                                    font-size:16px;font-weight:500;color:#1d1d1f;">
             {{ Str::title($ev['employee_name']) }}
