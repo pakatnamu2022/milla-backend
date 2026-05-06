@@ -255,13 +255,6 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     $categoryId = $data['category_id'];
     $objectiveId = $data['objective_id'];
     $workers = HierarchicalCategory::find($categoryId)->workers()->pluck('rrhh_persona.id')->toArray();
-    // Verificar si el objetivo está asociado a alguna evaluación activa
-//    $activeEvaluations = EvaluationPersonCycleDetail::where('category_id', $categoryId
-//    )->where('person_id', $categoryObjective->person_id
-//    )->whereNull('deleted_at')->exists();
-//    if ($activeEvaluations) {
-//      throw new Exception('No se puede eliminar el objetivo porque está asociado a una evaluación activa.');
-//    }
     EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
       ->where('objective_id', $objectiveId)
       ->whereNull('deleted_at')->delete();
