@@ -38,10 +38,13 @@ class SnapshotCommercialManagerBrandGroupPeriods extends Command
 
     // Obtener registros del mes ANTERIOR
     $assignments = DB::table('ap_commercial_manager_brand_group_periods')
-      ->where('year', $previousYear)
-      ->where('month', $previousMonthNumber)
-      ->where('status', true)
-      ->whereNull('deleted_at')
+      ->join('rrhh_persona', 'ap_commercial_manager_brand_group_periods.commercial_manager_id', '=', 'rrhh_persona.id')
+      ->where('ap_commercial_manager_brand_group_periods.year', $previousYear)
+      ->where('ap_commercial_manager_brand_group_periods.month', $previousMonthNumber)
+      ->where('ap_commercial_manager_brand_group_periods.status', true)
+      ->where('rrhh_persona.status_id', 22)
+      ->whereNull('ap_commercial_manager_brand_group_periods.deleted_at')
+      ->select('ap_commercial_manager_brand_group_periods.*')
       ->get();
 
     if ($assignments->isEmpty()) {

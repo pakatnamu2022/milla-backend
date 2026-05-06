@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\postventa\gestionProductos;
 
+use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,7 +34,7 @@ class TransferReceptionResource extends JsonResource
       'updated_at' => $this->updated_at,
 
       // Relationships
-      'shipping_guide' => $this->shippingGuide,
+      'shipping_guide' => ShippingGuidesResource::make($this->shippingGuide),
       'warehouse' => $this->warehouse,
       'received_name' => $this->receivedByUser ? $this->receivedByUser->name : null,
       'reviewer_name' => $this->reviewedByUser ? $this->reviewedByUser->name : null,

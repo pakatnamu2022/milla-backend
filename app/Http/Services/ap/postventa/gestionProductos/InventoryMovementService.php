@@ -873,8 +873,27 @@ class InventoryMovementService extends BaseService
         $q->where('product_id', $productId);
       })
       ->where(function ($q) use ($warehouseId) {
-        $q->where('warehouse_id', $warehouseId)
-          ->orWhere('warehouse_destination_id', $warehouseId);
+        // TRANSFER_OUT: solo mostrar en el almacén de origen (warehouse_id)
+        $q->where(function ($subQ) use ($warehouseId) {
+          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+            ->where('warehouse_id', $warehouseId);
+        })
+        // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
+        ->orWhere(function ($subQ) use ($warehouseId) {
+          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+            ->where('warehouse_destination_id', $warehouseId);
+        })
+        // Todos los demás tipos de movimientos (no transferencias)
+        ->orWhere(function ($subQ) use ($warehouseId) {
+          $subQ->whereNotIn('movement_type', [
+              InventoryMovement::TYPE_TRANSFER_OUT,
+              InventoryMovement::TYPE_TRANSFER_IN
+            ])
+            ->where(function ($q2) use ($warehouseId) {
+              $q2->where('warehouse_id', $warehouseId)
+                ->orWhere('warehouse_destination_id', $warehouseId);
+            });
+        });
       })
       ->with([
         'details' => function ($q) use ($productId) {
@@ -1416,8 +1435,27 @@ class InventoryMovementService extends BaseService
         $q->where('product_id', $productId);
       })
       ->where(function ($q) use ($warehouseId) {
-        $q->where('warehouse_id', $warehouseId)
-          ->orWhere('warehouse_destination_id', $warehouseId);
+        // TRANSFER_OUT: solo mostrar en el almacén de origen (warehouse_id)
+        $q->where(function ($subQ) use ($warehouseId) {
+          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+            ->where('warehouse_id', $warehouseId);
+        })
+        // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
+        ->orWhere(function ($subQ) use ($warehouseId) {
+          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+            ->where('warehouse_destination_id', $warehouseId);
+        })
+        // Todos los demás tipos de movimientos (no transferencias)
+        ->orWhere(function ($subQ) use ($warehouseId) {
+          $subQ->whereNotIn('movement_type', [
+              InventoryMovement::TYPE_TRANSFER_OUT,
+              InventoryMovement::TYPE_TRANSFER_IN
+            ])
+            ->where(function ($q2) use ($warehouseId) {
+              $q2->where('warehouse_id', $warehouseId)
+                ->orWhere('warehouse_destination_id', $warehouseId);
+            });
+        });
       })
       ->with([
         'details' => function ($q) use ($productId) {

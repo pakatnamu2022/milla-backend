@@ -21,10 +21,13 @@ class TransferReceptionService extends BaseService
   protected $stockService;
   protected $inventoryMovementService;
 
-  public function __construct()
+  public function __construct(
+    ProductWarehouseStockService $stockService,
+    InventoryMovementService     $inventoryMovementService
+  )
   {
-    $this->stockService = new ProductWarehouseStockService();
-    $this->inventoryMovementService = new InventoryMovementService();
+    $this->stockService = $stockService;
+    $this->inventoryMovementService = $inventoryMovementService;
   }
 
   public function list(Request $request)
@@ -154,7 +157,7 @@ class TransferReceptionService extends BaseService
     //marcamos la $shippingGuide como recibida
     $shippingGuide->update([
       'is_received' => true,
-      'received_by' => Auth::id(),
+      'received_by' => $reception->received_by,
       'received_date' => now(),
     ]);
 
@@ -164,12 +167,12 @@ class TransferReceptionService extends BaseService
       'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
       'item_type' => $reception->item_type,
       'movement_date' => $reception->reception_date,
-      'warehouse_id' => $reception->warehouse_id, // Destination warehouse
-      'warehouse_destination_id' => $transferOutMovement->warehouse_id, // Origin warehouse
+      'warehouse_id' => $transferOutMovement->warehouse_id, // Origin warehouse
+      'warehouse_destination_id' => $reception->warehouse_id, // Destination warehouse
       'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
       'reference_type' => TransferReception::class,
       'reference_id' => $reception->id,
-      'user_id' => Auth::id(),
+      'user_id' => $reception->received_by,
       'status' => InventoryMovement::STATUS_APPROVED,
       'notes' => "Ingreso por recepción de transferencia {$transferOutMovement->movement_number}",
       'total_items' => 0,
@@ -250,7 +253,7 @@ class TransferReceptionService extends BaseService
     // Auto-approve reception
     $reception->update([
       'status' => TransferReception::STATUS_APPROVED,
-      'reviewed_by' => Auth::id(),
+      'reviewed_by' => $reception->received_by,
       'reviewed_at' => now(),
     ]);
 

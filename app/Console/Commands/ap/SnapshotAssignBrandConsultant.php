@@ -38,10 +38,13 @@ class SnapshotAssignBrandConsultant extends Command
 
     // Obtener registros del mes ANTERIOR
     $assignments = DB::table('ap_assign_brand_consultant')
-      ->where('year', $previousYear)
-      ->where('month', $previousMonthNumber)
-      ->where('status', true)
-      ->whereNull('deleted_at')
+      ->join('rrhh_persona', 'ap_assign_brand_consultant.worker_id', '=', 'rrhh_persona.id')
+      ->where('ap_assign_brand_consultant.year', $previousYear)
+      ->where('ap_assign_brand_consultant.month', $previousMonthNumber)
+      ->where('ap_assign_brand_consultant.status', true)
+      ->where('rrhh_persona.status_id', 22)
+      ->whereNull('ap_assign_brand_consultant.deleted_at')
+      ->select('ap_assign_brand_consultant.*')
       ->get();
 
     if ($assignments->isEmpty()) {
