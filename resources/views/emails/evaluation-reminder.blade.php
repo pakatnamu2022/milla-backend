@@ -79,29 +79,36 @@
 
               {{-- conic-gradient ring — Gmail web, Apple Mail, modern clients --}}
               <!--[if !mso]><!-->
-              <div style="width:110px;height:110px;border-radius:55px;
-                        background:conic-gradient(from -90deg, #01237e {{ $progress }}%, #e8e8ed 0%);
-                        margin:0 auto;font-size:0;line-height:0;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0"
-                       width="86" height="86"
-                       style="border-radius:43px;background:#fbfafc;margin:12px auto;">
-                  <tr>
-                    <td align="center" valign="middle">
-                      <p style="margin:0;
-                              font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
-                              font-size:22px;font-weight:700;color:#1d1d1f;line-height:1;">
-                        {{ $progress }}%
-                      </p>
-                      <p style="margin:5px 0 0;
-                              font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
-                              font-size:9px;font-weight:600;color:#aeaeb2;
-                              letter-spacing:0.6px;">
-                        Completado
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </div>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                     width="110" height="110" align="center"
+                     style="width:110px;height:110px;border-collapse:collapse;
+                            border-radius:55px;background:conic-gradient(from -90deg, #01237e {{ $progress }}%, #e8e8ed 0%);
+                            margin:0 auto;font-size:0;line-height:0;">
+                <tr>
+                  <td align="center" valign="middle" style="padding:0;font-size:0;line-height:0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                           width="86" height="86" align="center"
+                           style="width:86px;height:86px;border-collapse:collapse;
+                                  border-radius:43px;background:#fbfafc;">
+                      <tr>
+                        <td align="center" valign="middle" style="padding:0;">
+                          <p style="margin:0;
+                                  font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                                  font-size:22px;font-weight:700;color:#1d1d1f;line-height:1;">
+                            {{ $progress }}%
+                          </p>
+                          <p style="margin:5px 0 0;
+                                  font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                                  font-size:9px;font-weight:600;color:#aeaeb2;
+                                  letter-spacing:0.6px;">
+                            Completado
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
               <!--<![endif]-->
 
               {{-- Outlook fallback --}}
