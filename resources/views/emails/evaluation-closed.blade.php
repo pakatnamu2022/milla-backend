@@ -1,181 +1,253 @@
 {{-- resources/views/emails/evaluation-closed.blade.php --}}
-@extends('emails.layouts.base')
+@extends('emails.layouts.evaluation')
+
+@section('email_subject') Evaluación de Desempeño Finalizada — Resumen @endsection
+@section('title') Evaluación finalizada @endsection
+@section('subtitle') El período de evaluación ha concluido. Aquí tienes el resumen de tu equipo. @endsection
 
 @section('content')
-  <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-    <p style="margin:0 0 12px 0;">Estimado/a <strong style="font-weight:600;">{{ $leader_name }}</strong>,</p>
 
-    <div class="card card-muted">
-      Le informamos que el período de evaluación <strong>{{ $evaluation_name }}</strong> ha finalizado. A continuación encontrará un resumen general del desempeño de su equipo.
-    </div>
+{{-- Greeting --}}
+<p style="margin:0 0 20px 0;
+          font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+          font-size:15px;line-height:1.7;color:#3a3a3c;">
+  Hola, <strong style="color:#1d1d1f;">{{ $leader_name }}</strong>.
+  El período <strong style="color:#1d1d1f;">{{ $evaluation_name }}</strong> ha finalizado.
+  A continuación encontrarás el resumen de desempeño de tu equipo.
+</p>
 
-    <div class="card">
-      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;color:#111827;">Información de la evaluación</div>
-      <div><strong>Evaluación:</strong> {{ $evaluation_name }}</div>
-      <div><strong>Período:</strong> {{ $start_date }} - {{ $end_date }}</div>
-      <div><strong>Fecha de cierre:</strong> {{ $closed_date }}</div>
-      <div><strong>Total evaluados:</strong> {{ $total_evaluated }} de {{ $team_count }}</div>
-    </div>
+{{-- Evaluation meta --}}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+       style="background:#f9f9fb;border-radius:14px;margin-bottom:24px;">
+  <tr>
+    <td style="padding:24px;">
 
-    @isset($team_summary)
-      <div class="card">
-        <div style="font:600 16px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:12px;color:#01237e;">
-          Resumen General del Equipo
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+             class="ev-stats">
+        <tr>
+          <td width="50%" valign="top" style="padding-right:12px;">
+            <p style="margin:0 0 3px 0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:11px;font-weight:600;color:#aeaeb2;
+                      text-transform:uppercase;letter-spacing:0.6px;">
+              Período
+            </p>
+            <p style="margin:0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:13px;font-weight:500;color:#1d1d1f;">
+              {{ $start_date }} — {{ $end_date }}
+            </p>
+          </td>
+          <td width="50%" align="right" valign="top">
+            <p style="margin:0 0 3px 0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:11px;font-weight:600;color:#aeaeb2;
+                      text-transform:uppercase;letter-spacing:0.6px;">
+              Evaluados
+            </p>
+            <p style="margin:0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:13px;font-weight:500;color:#1d1d1f;">
+              {{ $total_evaluated }} de {{ $team_count }}
+            </p>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+{{-- Team summary --}}
+@isset($team_summary)
+  @php
+    $avg      = (float)($team_summary['average_score'] ?? 0);
+    $avgInt   = (int) round($avg);
+    $barColor = $avg >= 90 ? '#10b981' : ($avg >= 70 ? '#01237e' : ($avg >= 60 ? '#f59e0b' : '#ef4444'));
+  @endphp
+
+  {{-- Average score block --}}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="background:#f9f9fb;border-radius:14px;margin-bottom:20px;">
+    <tr>
+      <td style="padding:24px;">
+
+        <p style="margin:0 0 3px 0;
+                  font-family:system-ui,-apple-system,sans-serif;
+                  font-size:11px;font-weight:600;color:#aeaeb2;
+                  text-transform:uppercase;letter-spacing:0.8px;">
+          Promedio del equipo
+        </p>
+        <p style="margin:0 0 10px 0;
+                  font-family:system-ui,-apple-system,sans-serif;
+                  font-size:38px;font-weight:700;line-height:1;
+                  color:{{ $barColor }};letter-spacing:-1px;">
+          {{ number_format($avg, 1) }}%
+        </p>
+
+        {{-- Progress bar --}}
+        <div style="background:#e8e8ed;border-radius:3px;height:6px;margin-bottom:20px;
+                    line-height:6px;font-size:1px;">
+          <div style="background:{{ $barColor }};border-radius:3px;height:6px;
+                      width:{{ $avgInt }}%;font-size:1px;"></div>
         </div>
 
-        <div style="margin-bottom:16px;">
-          <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;">
-            Promedio General: <span style="font-size:20px;color:#01237e;">{{ number_format($team_summary['average_score'] ?? 0, 2) }}%</span>
-          </div>
-
-          {{-- Barra de progreso del promedio --}}
-          @php
-            $avg = (float)($team_summary['average_score'] ?? 0);
-            $barColor = $avg >= 90 ? '#10b981' : ($avg >= 70 ? '#01237e' : ($avg >= 60 ? '#f59e0b' : '#ef4444'));
-          @endphp
-          <div class="progress" style="height:14px;">
-            <b style="height:14px;width:{{ $avg }}%;background:{{ $barColor }};"></b>
-          </div>
-        </div>
-
-        {{-- Distribución de rendimiento --}}
-        @if(!empty($team_summary['performance_distribution']))
-          <div style="margin-top:20px;">
-            <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;">
-              Distribución de Desempeño
-            </div>
-
-            @foreach($team_summary['performance_distribution'] as $level => $data)
-              @php
-                $percentage = $data['percentage'] ?? 0;
-                $count = $data['count'] ?? 0;
-                $levelColor = match($level) {
-                  'Excelente' => '#10b981',
-                  'Bueno' => '#01237e',
-                  'Regular' => '#f59e0b',
-                  'Deficiente' => '#ef4444',
-                  default => '#6b7280'
-                };
-              @endphp
-
-              <div style="margin-bottom:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                  <span style="font:600 13px/1 Inter,Arial,Helvetica,sans-serif;color:{{ $levelColor }};margin-right: 10px;">
-                    {{ $level }}
-                  </span>
-                  <span style="font:700 13px/1 Inter,Arial,Helvetica,sans-serif;color:{{ $levelColor }};">
-                    {{ $count }} ({{ number_format($percentage, 1) }}%)
-                  </span>
-                </div>
-                <div class="progress" style="height:10px;background:#e5e7eb;">
-                  <b style="height:10px;width:{{ $percentage }}%;background:{{ $levelColor }};"></b>
-                </div>
-              </div>
-            @endforeach
-          </div>
-        @endif
-
-        {{-- Estadísticas adicionales --}}
+        {{-- Stats grid --}}
         @if(!empty($team_summary['stats']))
-          <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e6e8ee;">
-            <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:10px;">
-              Estadísticas Detalladas
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              @foreach($team_summary['stats'] as $label => $value)
-                <div style="padding:10px;background:#f9fafc;border-radius:8px;">
-                  <div style="font:400 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#6b7280;">{{ $label }}</div>
-                  <div style="font:700 16px/1.2 Inter,Arial,Helvetica,sans-serif;color:#01237e;">{{ $value }}</div>
-                </div>
-              @endforeach
-            </div>
-          </div>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+            @php $statsArr = array_chunk(array_keys($team_summary['stats']), 2, true); @endphp
+            @foreach(array_chunk(array_keys($team_summary['stats']), 2) as $chunk)
+              <tr>
+                @foreach($chunk as $label)
+                  <td width="50%" valign="top" style="padding-bottom:14px;padding-right:8px;">
+                    <p style="margin:0 0 2px 0;
+                              font-family:system-ui,-apple-system,sans-serif;
+                              font-size:11px;color:#aeaeb2;
+                              text-transform:uppercase;letter-spacing:0.5px;">
+                      {{ $label }}
+                    </p>
+                    <p style="margin:0;
+                              font-family:system-ui,-apple-system,sans-serif;
+                              font-size:15px;font-weight:600;color:#1d1d1f;">
+                      {{ $team_summary['stats'][$label] }}
+                    </p>
+                  </td>
+                @endforeach
+              </tr>
+            @endforeach
+          </table>
         @endif
-      </div>
-    @endisset
 
-    @if(!empty($team_results))
-      <div class="card">
-        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;">Resultados Individuales</div>
-        <table class="table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-          <thead>
-          <tr>
-            <th align="left">Colaborador</th>
-            <th align="center">Calificación</th>
-            <th align="left">Nivel</th>
-          </tr>
-          </thead>
-          <tbody>
-          @foreach($team_results as $result)
-            @php
-              $score = (float)($result['score'] ?? 0);
-              $level = $result['level'] ?? 'N/A';
-              $levelColor = match($level) {
-                'Excelente' => '#10b981',
-                'Bueno' => '#01237e',
-                'Regular' => '#f59e0b',
-                'Deficiente' => '#ef4444',
-                default => '#6b7280'
-              };
-            @endphp
-            <tr>
-              <td>{{ $result['employee_name'] }}</td>
-              <td align="center" style="font-weight:700;font-size:15px;">{{ number_format($score, 1) }}%</td>
-              <td style="font-weight:600;color:{{ $levelColor }};">{{ $level }}</td>
-            </tr>
-          @endforeach
-          </tbody>
-        </table>
-      </div>
-    @endif
+      </td>
+    </tr>
+  </table>
 
-    @isset($top_competences)
-      <div class="card" style="border-left:3px solid #10b981;">
-        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#059669;">✓ Fortalezas del Equipo</div>
-        <ul style="margin:6px 0 0 0;padding-left:20px;">
-          @foreach($top_competences as $competence)
-            <li>{{ $competence }}</li>
-          @endforeach
-        </ul>
-      </div>
-    @endisset
-
-    @isset($areas_improvement)
-      <div class="card" style="border-left:3px solid #f59e0b;">
-        <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#d97706;">Áreas de Oportunidad</div>
-        <ul style="margin:6px 0 0 0;padding-left:20px;">
-          @foreach($areas_improvement as $area)
-            <li>{{ $area }}</li>
-          @endforeach
-        </ul>
-      </div>
-    @endisset
-
-    <div class="card card-muted">
-      <div style="font:600 14px/1.4 Inter,Arial,Helvetica,sans-serif;margin-bottom:8px;color:#111827;">Próximos Pasos</div>
-      <div>
-        • Revisar los resultados individuales con cada miembro del equipo<br>
-        • Establecer planes de desarrollo personalizados<br>
-        • Programar reuniones de retroalimentación<br>
-        • Dar seguimiento a las áreas de mejora identificadas
-      </div>
-    </div>
-
-    @isset($evaluation_url)
-      <div style="text-align:center;margin:20px 0 6px;">
-        <a href="{{ $evaluation_url }}" class="btn btn-primary">Ver Resultados Completos</a>
-      </div>
-    @endisset
-
-    @isset($additional_notes)
-      <div class="card" style="margin-top:16px;">
-        <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">Nota</div>
-        <div>{{ $additional_notes }}</div>
-      </div>
-    @endisset
-
-    <p style="margin:20px 0 0 0;font-size:13px;color:#6b7280;">
-      Gracias por su participación en el proceso de evaluación de desempeño. Su compromiso es fundamental para el desarrollo de su equipo.
+  {{-- Performance distribution --}}
+  @if(!empty($team_summary['performance_distribution']))
+    <p style="margin:0 0 12px 0;
+              font-family:system-ui,-apple-system,sans-serif;
+              font-size:11px;font-weight:600;color:#aeaeb2;
+              text-transform:uppercase;letter-spacing:0.8px;">
+      Distribución de desempeño
     </p>
-  </div>
+
+    @foreach($team_summary['performance_distribution'] as $level => $data)
+      @php
+        $pct = (float)($data['percentage'] ?? 0);
+        $cnt = (int)($data['count'] ?? 0);
+        $pctInt = (int) round($pct);
+        $levelColor = match($level) {
+          'Excelente' => '#10b981',
+          'Bueno'     => '#01237e',
+          'Regular'   => '#f59e0b',
+          'Deficiente'=> '#ef4444',
+          default     => '#6b7280'
+        };
+      @endphp
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="margin-bottom:14px;">
+        <tr>
+          <td valign="middle" width="80">
+            <p style="margin:0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:13px;font-weight:600;color:{{ $levelColor }};">
+              {{ $level }}
+            </p>
+          </td>
+          <td valign="middle" style="padding:0 12px;">
+            <div style="background:#e8e8ed;border-radius:3px;height:6px;
+                        line-height:6px;font-size:1px;">
+              <div style="background:{{ $levelColor }};border-radius:3px;height:6px;
+                          width:{{ $pctInt }}%;font-size:1px;"></div>
+            </div>
+          </td>
+          <td valign="middle" align="right" width="48" style="white-space:nowrap;">
+            <p style="margin:0;
+                      font-family:system-ui,-apple-system,sans-serif;
+                      font-size:12px;font-weight:600;color:{{ $levelColor }};">
+              {{ $cnt }} ({{ number_format($pct, 0) }}%)
+            </p>
+          </td>
+        </tr>
+      </table>
+    @endforeach
+  @endif
+@endisset
+
+{{-- Strengths --}}
+@isset($top_competences)
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="background:#f0fdf4;border-radius:14px;margin-top:20px;">
+    <tr>
+      <td style="padding:20px 24px;">
+        <p style="margin:0 0 10px 0;
+                  font-family:system-ui,-apple-system,sans-serif;
+                  font-size:13px;font-weight:600;color:#166534;">
+          Fortalezas del equipo
+        </p>
+        @foreach($top_competences as $competence)
+          <p style="margin:0 0 5px 0;
+                    font-family:system-ui,-apple-system,sans-serif;
+                    font-size:13px;line-height:1.5;color:#3a3a3c;">
+            · {{ $competence }}
+          </p>
+        @endforeach
+      </td>
+    </tr>
+  </table>
+@endisset
+
+{{-- Areas of improvement --}}
+@isset($areas_improvement)
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="background:#fffbeb;border-radius:14px;margin-top:12px;">
+    <tr>
+      <td style="padding:20px 24px;">
+        <p style="margin:0 0 10px 0;
+                  font-family:system-ui,-apple-system,sans-serif;
+                  font-size:13px;font-weight:600;color:#92400e;">
+          Oportunidades de mejora
+        </p>
+        @foreach($areas_improvement as $area)
+          <p style="margin:0 0 5px 0;
+                    font-family:system-ui,-apple-system,sans-serif;
+                    font-size:13px;line-height:1.5;color:#3a3a3c;">
+            · {{ $area }}
+          </p>
+        @endforeach
+      </td>
+    </tr>
+  </table>
+@endisset
+
+{{-- CTA --}}
+@isset($evaluation_url)
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="margin-top:28px;">
+    <tr>
+      <td align="center">
+        <a href="{{ $evaluation_url }}"
+           style="display:inline-block;padding:15px 40px;
+                  background:#01237e;color:#ffffff;
+                  font-family:system-ui,-apple-system,sans-serif;
+                  font-size:15px;font-weight:600;line-height:1;
+                  text-decoration:none;border-radius:12px;
+                  border:1px solid #0131b1;">
+          Ver resultados completos
+        </a>
+      </td>
+    </tr>
+  </table>
+@endisset
+
+{{-- Additional notes --}}
+@isset($additional_notes)
+  <p style="margin:20px 0 0 0;
+            font-family:system-ui,-apple-system,sans-serif;
+            font-size:13px;line-height:1.6;color:#aeaeb2;text-align:center;">
+    {{ $additional_notes }}
+  </p>
+@endisset
+
+<div style="height:8px;font-size:0;"></div>
 @endsection
