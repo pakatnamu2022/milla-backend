@@ -73,8 +73,11 @@
                 <td style="vertical-align:middle;">
                   <p
                     style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
-                    Correo automático — no responder &nbsp;·&nbsp; &copy; {{ date('Y') }} Sian. Todos los derechos
-                    reservados.
+                    Este correo fue enviado automáticamente.
+                  </p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
+                    &copy; {{ date('Y') }} Sian. Todos los derechos reservados.
                   </p>
                 </td>
               </tr>
