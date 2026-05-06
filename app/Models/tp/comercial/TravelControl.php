@@ -2,12 +2,14 @@
 
 namespace App\Models\tp\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\tp\Customer;
 
 class TravelControl extends BaseModel
 {
+  use Reportable;
   protected $table = 'op_despacho';
   protected $primaryKey = 'id';
 
@@ -24,13 +26,27 @@ class TravelControl extends BaseModel
     'fecha_viaje',
     'observacion_comercial',
     'proxima_prog',
-    'ubicacion'
+    'ubicacion',
+    'produccion'
   ];
 
   protected $casts = [
     'fecha_viaje' => 'datetime',
     'km_inicio' => 'decimal:2',
     'km_fin' => 'decimal:2',
+  ];
+  const filters = [
+      'search' => ['id', 'trip_number', 'conductor_id', 'tracto_id', 'idcliente'],
+      'status' => '=',
+      'date_from' => '>=',
+      'date_to' => '<=',
+  ];
+  const sorts = [
+      'id',
+      'fecha_viaje',
+      'km_inicio',
+      'km_fin',
+      'total_km',
   ];
 
   //RELACIONES
@@ -64,7 +80,8 @@ class TravelControl extends BaseModel
 
   public function items()
   {
-    return $this->hasMany(DispatchItem::class, 'despacho_id', 'id');
+    return $this->hasMany(DispatchItem::class, 'despacho_id', 'id')
+        ->orderBy('id', 'asc');
   }
 
   public function recordsDriver()
@@ -157,6 +174,172 @@ class TravelControl extends BaseModel
   {
     return DispatchStatus::toTripStatus($this->estado);
   }
+
+  public function getRouteFromItemsAttribute(): string
+{
+    if (!$this->relationLoaded('items') || $this->items->isEmpty()) {
+        return 'Sin ruta';
+    }
+    
+    $firstItem = $this->items->first();
+    $lastItem = $this->items->last();
+    
+    $origin = $firstItem->origin->descripcion ?? 'Sin origen';
+    $destination = $lastItem->destination->descripcion ?? 'Sin destino';
+    
+    return $origin . ' - ' . $destination;
+}
+
+    protected $reportColumns = [
+        'tipo' => [
+            'label' => 'Tipo',
+            'formatter' => null,
+        ],
+        'nro_viaje' => [
+            'label' => 'N° Viaje',
+            'formatter' => null,
+        ],
+        'placa' => [
+            'label' => 'Placa',
+            'formatter' => null,
+            'accessor' => 'getPlacaReportAttribute'
+        ],
+        'conductor' => [
+            'label' => 'Conductor',
+            'formatter' => null,
+            'accessor' => 'getConductorReportAttribute'
+        ],
+        'ruta' => [
+            'label' => 'Ruta',
+            'formatter' => null,
+        ],
+        'cliente' => [
+            'label' => 'Cliente',
+            'formatter' => null,
+            'accessor' => 'getClienteReportAttribute'
+        ],
+        'estado' => [
+            'label' => 'Estado',
+            'formatter' => null,
+        ],
+        'km_inicial' => [
+            'label' => 'Km Inicial',
+            'formatter' => null,
+        ],
+        'km_final' => [
+            'label' => 'Km Final',
+            'formatter' => null,
+        ],
+        'total_km' => [
+            'label' => 'Total Km',
+            'formatter' => null,
+        ],
+        'total_horas' => [
+            'label' => 'Total Horas',
+            'formatter' => null,
+        ],
+        'toneladas' => [
+            'label' => 'Toneladas',
+            'formatter' => null,
+        ],
+        'fecha_inicio' => [
+            'label' => 'Fecha Inicio',
+            'formatter' => 'date:d/m/Y H:i',
+        ],
+        'fecha_fin' => [
+            'label' => 'Fecha Fin',
+            'formatter' => 'date:d/m/Y H:i',
+        ],
+        'origen' => [
+            'label' => 'Origen',
+            'formatter' => null,
+        ],
+        'destino' => [
+            'label' => 'Destino',
+            'formatter' => null,
+        ],
+        'producto' => [
+            'label' => 'Producto',
+            'formatter' => null,
+        ],
+        'cantidad' => [
+            'label' => 'Cantidad',
+            'formatter' => null,
+        ],
+        'km_viaje' => [
+            'label' => 'Km Viaje',
+            'formatter' => null,
+        ],
+        'estado_tramo' => [
+            'label' => 'Estado Tramo',
+            'formatter' => null,
+        ],
+        'inicio_real' => [
+            'label' => 'Inicio Real',
+            'formatter' => 'date:d/m/Y H:i',
+        ],
+        'fin_real' => [
+            'label' => 'Fin Real',
+            'formatter' => 'date:d/m/Y H:i',
+        ],
+    ];
+
+
+    protected $reportRelations = [
+        'driver',
+        'tract',
+        'customer',
+        'items.origin',
+        'items.destination',
+        'items.product',
+    ];
+
+    // Accessors para el reporte
+    public function getPlacaReportAttribute()
+    {
+        return $this->tract->placa ?? 'N/A';
+    }
+
+    public function getConductorReportAttribute()
+    {
+        return $this->driver->nombre_completo ?? 'N/A';
+    }
+
+    public function getClienteReportAttribute()
+    {
+        return $this->customer->nombre_completo ?? 'N/A';
+    }
+
+    // Método para procesar datos del reporte (opcional)
+    public function processReportData($data)
+    {
+        $processed = [];
+        
+        foreach ($data as $item) {
+            $row = [];
+            foreach (array_keys($this->reportColumns) as $column) {
+                $value = $this->getReportColumnValue($item, $column);
+                $row[$column] = $value;
+            }
+            $processed[] = (object)$row;
+        }
+        
+        return collect($processed);
+    }
+
+    public function getStateSpanishAttribute(): string{
+      $estados = [
+        'pending' => 'Pendiente',
+        'in_progress' => 'En Ruta',
+        'completed' => 'Completado',
+        'fuel_pending' => 'Combustible Pendiente',
+      ];
+
+      return $estados[$this->mapped_status] ?? $this->mapped_status;
+    }
+
+
+
 
 
 }

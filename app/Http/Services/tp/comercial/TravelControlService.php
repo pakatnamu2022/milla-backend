@@ -6,6 +6,7 @@ use App\Http\Resources\tp\comercial\DriverTravelRecordResource;
 use App\Http\Resources\tp\comercial\TravelControlResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\tp\comercial\DispatchItem;
 use App\Models\tp\Customer;
 use App\Models\tp\comercial\DispatchStatus;
 use App\Models\tp\comercial\TravelControl;
@@ -22,6 +23,7 @@ class TravelControlService extends BaseService
 {
   public function list(Request $request)
     {
+
         $perPage = $request->get('per_page', 15);
         $search = $request->get('search', '');
         $status = $request->get('status', DispatchStatus::FILTER_ALL);
@@ -180,7 +182,12 @@ class TravelControlService extends BaseService
       'cart:id,placa',
       'customer:id,nombre_completo,ruc',
       'statusTrip:id,descripcion,color2,porcentaje,norden',
-      'items.product:id,descripcion',
+      'items' => function($q) {
+              $q->with([
+                  'origin',      // ← Agregar esta línea
+                  'destination'  // ← Agregar esta línea
+              ])->orderBy('id', 'asc');
+      },
       'recordsDriver',
       'expenses' => function ($q) {
         $q->where('concepto_id', 25);
@@ -257,10 +264,10 @@ class TravelControlService extends BaseService
         throw new Exception('El viaje no se puede iniciar en su estado actual');
       }
 
-      $latestKm = $this->getLatestMileage($travel->tracto_id);
-      if ($data['mileage'] < $latestKm) {
-        throw new Exception("El kilometraje no puede ser menor al último registro ({$latestKm} km)");
-      }
+      // $latestKm = $this->getLatestMileage($travel->tracto_id);
+      // if ($data['mileage'] < $latestKm) {
+      //   throw new Exception("El kilometraje no puede ser menor al último registro ({$latestKm} km)");
+      // }
 
       DriverTravelRecord::create([
         'dispatch_id' => $travel->id,
@@ -514,6 +521,36 @@ class TravelControlService extends BaseService
     $vehicle = Vehicle::find($vehicleId);
     return $vehicle ? ($vehicle->kilometraje ?? 0) : 0;
   }
+
+  public function getSegments($travelId)
+    {
+      $segments = DispatchItem::where('despacho_id', $travelId)
+          ->with(['origin', 'destination'])
+          ->orderBy('id', 'asc')
+          ->get();
+      $foundActive = false;
+      
+      foreach ($segments as $segment) {
+          
+          if (in_array($segment->segment_status, ['completed', 'in_progress'])) {
+              $foundActive = true;
+              continue;
+          }
+          
+          if ($foundActive) {
+              $segment->segment_status = 'locked';
+          } elseif (!$foundActive && $segment->segment_status !== 'completed') {
+              $segment->segment_status = 'pending';
+              $foundActive = true;
+          }
+      }
+      
+      $result = DispatchItem::where('despacho_id', $travelId)
+          ->orderBy('id', 'asc')
+          ->get();
+      
+      return $result;
+    }
 
 
 }
