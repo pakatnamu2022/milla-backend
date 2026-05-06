@@ -182,6 +182,7 @@ class EvaluationNotificationService
           'subtitle' => 'Evaluaciones Pendientes de Completar',
           'leader_name' => $leader->nombre_completo,
           'evaluation_name' => $evaluation->name,
+          'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
           'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
           'pending_count' => $pendingData['pending_evaluations'],
           'total_count' => $pendingData['total_evaluations'],

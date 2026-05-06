@@ -531,6 +531,7 @@ class EvaluationNotificationController extends Controller
     return response()->view('emails.evaluation-reminder', [
       'leader_name' => $leader->nombre_completo,
       'evaluation_name' => $evaluation->name,
+      'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
       'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
       'pending_count' => $pendingCount,
       'total_count' => $totalEvaluations,
