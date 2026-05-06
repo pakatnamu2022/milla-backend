@@ -1685,7 +1685,7 @@ class InventoryMovementService extends BaseService
 
       $warehouseId = $reception->warehouse_id;
 
-      // Validar que hay stock disponible para todos los productos
+      // Validar que hay cantidad pendiente de nota de crédito para todos los productos
       foreach ($creditNote->details as $detail) {
         $stock = $this->stockService->getStock($detail->product_id, $warehouseId);
 
@@ -1696,11 +1696,11 @@ class InventoryMovementService extends BaseService
           );
         }
 
-        if ($stock->available_quantity < $detail->quantity) {
+        if ($stock->quantity_pending_credit_note < $detail->quantity) {
           $productName = $detail->product->name ?? "ID {$detail->product_id}";
           throw new Exception(
-            "Stock insuficiente para producto '{$productName}'. " .
-            "Disponible: {$stock->available_quantity}, Cantidad a devolver: {$detail->quantity}"
+            "Cantidad pendiente de nota de crédito insuficiente para producto '{$productName}'. " .
+            "Pendiente: {$stock->quantity_pending_credit_note}, Cantidad a devolver: {$detail->quantity}"
           );
         }
       }
@@ -1744,8 +1744,11 @@ class InventoryMovementService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      // Actualizar stock automáticamente (resta las cantidades devueltas)
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+      // Actualizar quantity_pending_credit_note (NO restar del stock normal)
+      // Esto SOLO resta de quantity_pending_credit_note, no afecta el stock disponible
+      foreach ($creditNote->details as $detail) {
+        $this->stockService->removePendingCreditNote($detail->product_id, $warehouseId, $detail->quantity);
+      }
 
       DB::commit();
       return $movement;

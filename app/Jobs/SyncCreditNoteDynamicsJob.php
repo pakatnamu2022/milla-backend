@@ -119,6 +119,47 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         // Proceso POSTVENTA (separado)
         $results = $this->consultStoredProcedure($purchaseOrder->number, 'all');
 
+        //Obtenemos del $results solo los ArticuloId
+        $articleIds = array_map(function ($item) {
+          return trim($item->ArticuloId ?? '');
+        }, $results);
+
+        // VALIDACIÓN: Comparar cantidades enviadas con cantidades observadas en la recepción
+        $reception = $purchaseOrder->reception;
+
+        if (!$reception) {
+          \Log::error("VALIDACIÓN ERROR: No se encontró recepción para OC #{$purchaseOrder->number}");
+        } else {
+
+          foreach ($results as $item) {
+            $dynCode = trim($item->ArticuloId ?? '');
+            $itemCantidadEnviada = (float)($item->ItemCantidadEnviada ?? 0);
+
+            // Buscar el producto por dyn_code
+            $product = Products::where('dyn_code', $dynCode)->first();
+
+            if (!$product) {
+              \Log::error("VALIDACIÓN ERROR: Producto no encontrado con dyn_code: {$dynCode}");
+              continue;
+            }
+
+            // Buscar el detalle de recepción para este producto
+            $receptionDetail = $reception->details()->where('product_id', $product->id)->first();
+
+            if (!$receptionDetail) {
+              \Log::error("VALIDACIÓN ERROR: No se encontró detalle de recepción para producto ID {$product->id} (dyn_code: {$dynCode})");
+              continue;
+            }
+
+            // Comparar observed_quantity con ItemCantidadEnviada
+            $observedQuantity = (float)$receptionDetail->observed_quantity;
+
+            if ($observedQuantity !== $itemCantidadEnviada) {
+              \Log::error("VALIDACIÓN ERROR: Producto {$dynCode} - Cantidad enviada: {$itemCantidadEnviada} != Cantidad observada: {$observedQuantity}");
+            }
+          }
+        }
+
         [$status, $creditNoteNumber, $errorMessage] = $this->processPostventaCreditNote($purchaseOrder, $results);
       } else {
         $errorMessage = "La orden de compra #{$purchaseOrderId} tiene un tipo de operación no válido";
@@ -131,15 +172,31 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       // Calcular tiempo de ejecución
       $executionTime = (int)((microtime(true) - $startTime) * 1000); // en milisegundos
 
-      // Registrar en log
-      CreditNoteSyncLog::create([
-        'purchase_order_id' => $purchaseOrderId,
-        'attempted_at' => now(),
-        'status' => $status,
-        'credit_note_number' => $creditNoteNumber,
-        'error_message' => $errorMessage,
-        'execution_time' => $executionTime,
-      ]);
+      // Buscar registro existente del mismo día
+      $existingLog = CreditNoteSyncLog::where('purchase_order_id', $purchaseOrderId)
+        ->whereDate('attempted_at', now()->toDateString())
+        ->first();
+
+      if ($existingLog) {
+        // Actualizar registro existente
+        $existingLog->update([
+          'attempted_at' => now(),
+          'status' => $status,
+          'credit_note_number' => $creditNoteNumber,
+          'error_message' => $errorMessage,
+          'execution_time' => $executionTime,
+        ]);
+      } else {
+        // Crear nuevo registro
+        CreditNoteSyncLog::create([
+          'purchase_order_id' => $purchaseOrderId,
+          'attempted_at' => now(),
+          'status' => $status,
+          'credit_note_number' => $creditNoteNumber,
+          'error_message' => $errorMessage,
+          'execution_time' => $executionTime,
+        ]);
+      }
     }
   }
 
@@ -199,8 +256,8 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       $firstRow = $results[0];
 
       // Extraer el número de documento limpio (RE00000084)
-      $documentId = trim($firstRow->DocumentoId ?? '');
-      $creditNoteNumber = $documentId;
+      $documentoNumero = trim($firstRow->DocumentoNumero ?? '');
+      $creditNoteNumber = $documentoNumero;
 
       // Buscar si ya existe la NC
       $existingCreditNote = SupplierCreditNote::where('credit_note_number', $creditNoteNumber)->first();
@@ -262,9 +319,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       // Generar movimiento de inventario de salida por devolución
       // Esto resta del stock las cantidades que se están devolviendo al proveedor
       $inventoryService = app(InventoryMovementService::class);
-      $movement = $inventoryService->createReturnOutFromCreditNote($supplierCreditNote);
-
-      \Log::info("Movimiento de inventario creado para NC {$creditNoteNumber}: {$movement->movement_number}");
+      $inventoryService->createReturnOutFromCreditNote($supplierCreditNote);
 
       DB::commit();
       $status = 'success';
@@ -305,14 +360,19 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
   public function failed(\Throwable $exception): void
   {
     // Si el job falla completamente (no se pudo ejecutar processPurchaseOrder)
-    // registrar en el log si aún no se registró
+    // actualizar o crear el log
     if ($this->purchaseOrderId) {
-      // Verificar si ya se registró en processPurchaseOrder
-      $existsLog = CreditNoteSyncLog::where('purchase_order_id', $this->purchaseOrderId)
+      $existingLog = CreditNoteSyncLog::where('purchase_order_id', $this->purchaseOrderId)
         ->whereDate('attempted_at', now()->toDateString())
-        ->exists();
+        ->first();
 
-      if (!$existsLog) {
+      if ($existingLog) {
+        $existingLog->update([
+          'attempted_at' => now(),
+          'status' => 'error',
+          'error_message' => $exception->getMessage(),
+        ]);
+      } else {
         CreditNoteSyncLog::create([
           'purchase_order_id' => $this->purchaseOrderId,
           'attempted_at' => now(),
