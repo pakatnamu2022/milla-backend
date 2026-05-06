@@ -20,7 +20,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: #fafafa;
     }
 
     img {
@@ -31,15 +31,20 @@
       text-decoration: none;
     }
 
+    a {
+      color: #01237e;
+      text-decoration: none;
+    }
+
     @media only screen and (max-width: 600px) {
       .ev-wrap {
-        padding: 0 !important;
+        padding: 24px 16px 40px !important;
       }
 
       .ev-card {
-        border-radius: 0 !important;
-        border-left: 0 !important;
-        border-right: 0 !important;
+        border-radius: 16px !important;
+        border-left: 1px solid #e5e5e7 !important;
+        border-right: 1px solid #e5e5e7 !important;
       }
 
       .ev-pad {
@@ -68,18 +73,18 @@
   </style>
   @stack('ev_styles')
 </head>
-<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff;">
+<body bgcolor="#fafafa" style="margin:0;padding:0;background:#fafafa;">
 
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#ffffff">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#fafafa">
   <tr>
-    <td align="center" class="ev-wrap" style="padding:36px 20px 52px;">
+    <td align="center" class="ev-wrap" style="padding:40px 20px 60px;">
 
       {{-- Card --}}
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
              class="ev-card"
-             style="max-width:540px;background:#ffffff;border-radius:20px;
-                    border:1px solid #e8e8e8;
-                    box-shadow:0 4px 32px rgba(0,0,0,0.06);overflow:hidden;">
+             style="max-width:540px;background:#ffffff;border-radius:24px;
+                    border:1px solid #e5e5e7;
+                    box-shadow:0 2px 12px rgba(0,0,0,0.04);overflow:hidden;">
 
         {{-- Logo --}}
         <tr>
@@ -115,7 +120,7 @@
           <td class="ev-pad" style="padding:0 40px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
-                <td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td>
+                <td height="1" bgcolor="#f3f3f5" style="font-size:0;line-height:0;">&nbsp;</td>
               </tr>
             </table>
           </td>
@@ -143,7 +148,7 @@
           <td class="ev-pad" style="padding:0 40px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
-                <td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td>
+                <td height="1" bgcolor="#f3f3f5" style="font-size:0;line-height:0;">&nbsp;</td>
               </tr>
             </table>
           </td>
