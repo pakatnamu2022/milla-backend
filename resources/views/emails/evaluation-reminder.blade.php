@@ -7,19 +7,32 @@
       .ev-ring-col {
         display: block !important;
         width: 100% !important;
-        padding: 0 0 20px 0 !important;
         border-right: none !important;
+        padding-bottom: 16px !important;
       }
 
       .ev-ring-sep {
-        display: none !important;
+        display: block !important;
+        width: 100% !important;
+        height: 1px !important;
+        margin: 16px 0 !important;
+        padding: 0 !important;
+      }
+
+      .ev-ring-sep img {
+        width: 100% !important;
+        height: 1px !important;
       }
 
       .ev-count-col {
         display: block !important;
         width: 100% !important;
-        padding: 20px 0 0 0 !important;
-        border-top: 1px solid #e8e8ed;
+        padding: 0 !important;
+        border-top: none !important;
+      }
+
+      .ev-collab-name {
+        padding-right: 12px !important;
       }
     }
   </style>
@@ -47,13 +60,8 @@
   {{-- Greeting --}}
   <p style="margin:0 0 6px 0;
           font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-          font-size:15px;line-height:1.7;color:#3a3a3c;">
-    Hola, <strong style="color:#01237e;">{{ Str::title($leader_name) }}</strong>.
-  </p>
-  <p style="margin:0 0 6px 0;
-          font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-          font-size:15px;line-height:1.7;color:#3a3a3c;padding-right: 80px;">
-    Completa las evaluaciones antes
+          font-size:15px;line-height:1.7;color:#3a3a3c; padding-bottom: 20px;">
+    Hola, <strong style="color:#01237e;">{{ Str::title($leader_name) }}</strong>. Completa las evaluaciones antes
     del <span
       style="font-weight: 700;color:#01237e;">{{ \Carbon\Carbon::parse($end_date)->locale('es')->translatedFormat('d \d\e F \d\e Y') }}</span>
     para mantener el proceso al día.
@@ -62,16 +70,16 @@
   {{-- Summary card --}}
   {{-- Usamos solo la tabla para las esquinas redondeadas (evita doble rounded causado por un <div> externo) --}}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;border-collapse:collapse;">
+         style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;border-collapse:separate;border-spacing:0;">
     <tr>
-      <td style="padding:28px 24px;">
+      <td style="padding:28px 24px;border-radius:16px;overflow:hidden;background:transparent;">
 
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+               style="border-collapse:collapse;border-spacing:0;background:transparent;">
           <tr>
 
             {{-- Left: progress ring --}}
-            <td class="ev-ring-col" width="46%" align="center" valign="middle"
-                style="padding-right:12px;">
+            <td class="ev-ring-col" width="46%" align="center" valign="middle">
 
               {{-- conic-gradient ring — Gmail web, Apple Mail, modern clients --}}
               <!--[if !mso]><!-->
@@ -119,27 +127,38 @@
 
             {{-- Separator: 1px centered al alto del ring --}}
             <td width="1" align="center" valign="middle" style="padding:0;margin:0;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="1" height="110" style="width:1px;height:110px;border-collapse:collapse;">
-                <tr>
-                  <td style="background:#e8e8ed;font-size:0;line-height:0;padding:0;margin:0;">&nbsp;</td>
-                </tr>
-              </table>
+              <img
+                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='110'><rect width='1' height='110' fill='%23e8e8ed'/></svg>"
+                width="1" height="110"
+                style="display:block;border:0;line-height:0;width:1px;height:110px;max-width:1px;" alt=""
+                aria-hidden="true">
             </td>
 
-            {{-- Right: pending count --}}
-            <td class="ev-count-col" width="46%" align="center" valign="middle"
-                style="padding-left:18px;padding-right:20px;">
-              <p style="margin:0 0 6px 0;
-                      font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
-                      font-size:52px;font-weight:700;line-height:1;color:#1d1d1f;
-                      letter-spacing:-2px;">
-                {{ $pending_count }}
-              </p>
-              <p style="margin:0;
-                      font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
-                      font-size:13px;line-height:1.5;color:#3a3a3c;">
-                evaluaciones<br>pendientes
-              </p>
+            {{-- Right: pending count with icon (rounded) --}}
+            <td class="ev-count-col" width="46%" align="center" valign="middle">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                     style="border-collapse:collapse;">
+                <tr>
+                  <td align="left" valign="middle" style="width:52px;padding-right:12px;">
+                    <span
+                      style="display:inline-block;width:40px;height:40px;border-radius:50%;background:#eef6ff;box-shadow:0 4px 10px rgba(1,35,126,0.07);text-align:center;">
+                      <img src="https://api.iconify.design/lucide/users.svg?color=%2301237e&width=18&height=18"
+                           width="18" height="18"
+                           style="display:block;margin:11px auto;width:18px;height:18px;border:0;outline:none;text-decoration:none;"
+                           alt="">
+                    </span>
+                  </td>
+                  <td align="left" valign="middle" style="padding:0;">
+                    <p
+                      style="margin:0;font-size:14px;font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;color:#1d1d1f;line-height:1;">
+                      <strong style="font-size:16px;font-weight:700">{{ $pending_count }}</strong> evaluaciones
+                      pendientes
+                    </p>
+
+                  </td>
+                </tr>
+              </table>
+
             </td>
 
           </tr>
@@ -166,8 +185,8 @@
 
         if ($p === 0) {
           $badgeLabel = 'Pendiente';
-          $badgeBg    = '#fef3c7';
-          $badgeColor = '#92400e';
+          $badgeBg    = '#ffedd4';
+          $badgeColor = '#e17100';
         } elseif ($p < 100) {
           $badgeLabel = 'En progreso';
           $badgeBg    = '#eff6ff';
@@ -191,15 +210,15 @@
           </td>
           <td valign="middle" style="padding:14px 0;
                                    font-family:system-ui,-apple-system,sans-serif;
-                                   font-size:14px;font-weight:500;color:#1d1d1f;">
-            {{ $ev['employee_name'] }}
+                                   font-size:16px;font-weight:500;color:#1d1d1f;">
+            {{ Str::title($ev['employee_name']) }}
           </td>
           <td align="right" valign="middle" style="padding:14px 0;white-space:nowrap;">
           <span style="display:inline-block;padding:5px 12px;
                        background:{{ $badgeBg }};border-radius:999px;
                        font-family:system-ui,-apple-system,sans-serif;
-                       font-size:11px;font-weight:600;color:{{ $badgeColor }};">
-            {{ $badgeLabel }}
+                       font-size:12px;font-weight:600;color:{{ $badgeColor }};">
+           • &nbsp; {{ $badgeLabel }}
           </span>
           </td>
         </tr>
@@ -226,8 +245,7 @@
                   background:#01237e;color:#ffffff;
                   font-family:system-ui,-apple-system,sans-serif;
                   font-size:15px;font-weight:600;line-height:1;
-                  text-decoration:none;border-radius:14px;
-                  box-shadow:0 4px 16px rgba(1,35,126,0.28);">
+                  text-decoration:none;border-radius:14px;">
             Completar evaluaciones
           </a>
         </td>
