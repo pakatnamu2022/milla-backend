@@ -60,92 +60,94 @@
   </p>
 
   {{-- Summary card --}}
-  <div style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;">
+  {{-- Usamos solo la tabla para las esquinas redondeadas (evita doble rounded causado por un <div> externo) --}}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;border-collapse:collapse;">
+    <tr>
+      <td style="padding:28px 24px;">
 
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-           style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;">
-      <tr>
-        <td style="padding:28px 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
 
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
+            {{-- Left: progress ring --}}
+            <td class="ev-ring-col" width="46%" align="center" valign="middle"
+                style="padding-right:12px;">
 
-              {{-- Left: progress ring --}}
-              <td class="ev-ring-col" width="46%" align="center" valign="middle"
-                  style="border-right:1px solid #e8e8ed;padding-right:20px;">
-
-                {{-- conic-gradient ring — Gmail web, Apple Mail, modern clients --}}
-                <!--[if !mso]><!-->
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0"
-                       width="110" height="110" align="center"
-                       style="width:110px;height:110px;border-collapse:collapse;
+              {{-- conic-gradient ring — Gmail web, Apple Mail, modern clients --}}
+              <!--[if !mso]><!-->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                     width="110" height="110" align="center"
+                     style="width:110px;height:110px;border-collapse:collapse;
                             border-radius:55px;background:conic-gradient(from -90deg, #01237e {{ $progress }}%, #e8e8ed 0%);
                             margin:0 auto;font-size:0;line-height:0;">
-                  <tr>
-                    <td align="center" valign="middle" style="padding:0;font-size:0;line-height:0;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"
-                             width="95" height="95" align="center"
-                             style="width:95px;height:95px;border-collapse:collapse;
+                <tr>
+                  <td align="center" valign="middle" style="padding:0;font-size:0;line-height:0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                           width="95" height="95" align="center"
+                           style="width:95px;height:95px;border-collapse:collapse;
                                   border-radius:1000px;background:#fbfafc;">
-                        <tr>
-                          <td align="center" valign="middle" style="padding:0;">
-                            <p style="margin:0;
+                      <tr>
+                        <td align="center" valign="middle" style="padding:0;">
+                          <p style="margin:0;
                                   font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                                   font-size:20px;font-weight:600;color:#1d1d1f;line-height:1;">
                               <span style="margin:0;
                                   font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                                   font-size:34px;font-weight:600;color:#1d1d1f;line-height:1;">{{ $progress }}</span>%
-                            </p>
-                            <p style=" margin:5px 0 0;
+                          </p>
+                          <p style=" margin:5px 0 0;
                                     font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                                     font-size:9px;font-weight:600;color:#aeaeb2;
                                     letter-spacing:0.6px;padding-bottom: 10px;">
-                              Completado
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-                <!--<![endif]-->
+                            Completado
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <!--<![endif]-->
 
-                {{-- Outlook fallback --}}
-                <!--[if mso]>
+              {{-- Outlook fallback --}}
+              <!--[if mso]>
             <p style="margin:0 0 2px;font-family:Arial,sans-serif;font-size:36px;font-weight:bold;color:#01237e;line-height:1;text-align:center;">{{ $progress }}%</p>
             <p style="margin:0;font-family:Arial,sans-serif;font-size:9px;color:#aeaeb2;text-align:center;letter-spacing:1px;text-transform:uppercase;">Completado</p>
             <![endif]-->
 
-              </td>
+            </td>
 
-              {{-- Separator --}}
-              <td class="ev-ring-sep" width="1" bgcolor="#e8e8ed"
-                  style="background:#e8e8ed;font-size:0;line-height:0;">&nbsp;
-              </td>
+            {{-- Separator: 1px centered al alto del ring --}}
+            <td width="1" align="center" valign="middle" style="padding:0;margin:0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="1" height="110" style="width:1px;height:110px;border-collapse:collapse;">
+                <tr>
+                  <td style="background:#e8e8ed;font-size:0;line-height:0;padding:0;margin:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
 
-              {{-- Right: pending count --}}
-              <td class="ev-count-col" width="46%" align="center" valign="middle"
-                  style="padding-left:20px;padding-right:20px;">
-                <p style="margin:0 0 6px 0;
+            {{-- Right: pending count --}}
+            <td class="ev-count-col" width="46%" align="center" valign="middle"
+                style="padding-left:18px;padding-right:20px;">
+              <p style="margin:0 0 6px 0;
                       font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                       font-size:52px;font-weight:700;line-height:1;color:#1d1d1f;
                       letter-spacing:-2px;">
-                  {{ $pending_count }}
-                </p>
-                <p style="margin:0;
+                {{ $pending_count }}
+              </p>
+              <p style="margin:0;
                       font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
                       font-size:13px;line-height:1.5;color:#3a3a3c;">
-                  evaluaciones<br>pendientes
-                </p>
-              </td>
+                evaluaciones<br>pendientes
+              </p>
+            </td>
 
-            </tr>
-          </table>
+          </tr>
+        </table>
 
-        </td>
-      </tr>
-    </table>
-  </div>
+      </td>
+    </tr>
+  </table>
 
   {{-- Collaborator list --}}
   @if(!empty($shown))
