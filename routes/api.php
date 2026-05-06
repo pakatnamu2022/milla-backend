@@ -182,10 +182,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy'
     ]);
+    Route::put('control-travel/{id}/mileage', [TravelControlController::class, 'updateMileage'])->name('control-travel.update-mileage');
+    Route::get('control-travel/{travelId}/segments', [TravelControlController::class, 'getSegments']);
+    Route::get('control-travel/{travelId}/segments/progress', [TravelControlController::class, 'getSegmentProgress']);
+    Route::post('control-travel/{travelId}/segments/{segmentId}/start', [TravelControlController::class, 'startSegment']);
+    Route::post('control-travel/{travelId}/segments/{segmentId}/end', [TravelControlController::class, 'endSegment']);
     Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
     Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
     Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
     Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
+    Route::post('control-travel/export/all', [TravelControlController::class, 'exportAllReports'])->name('control-travel.export-all');
+    Route::post('control-travel/export/summary', [TravelControlController::class,'exportSummaryReport'])->name('control-travel.export-summary');
+    Route::post('control-travel/{id}/export', [TravelControlController::class, 'exportReport'])->name('control-travel.export');
     Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
     Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
     Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');

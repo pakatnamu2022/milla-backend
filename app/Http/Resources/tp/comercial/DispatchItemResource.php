@@ -23,52 +23,58 @@ class DispatchItemResource extends JsonResource
             
             'id' => $this->id,
             'despacho_id' => $this->despacho_id,
-            'cantidad' => $this->cantidad,
-            'idproducto' => $this->idproducto,
+            'order' => $this->order,
+
+            'name' => $this->segment_name,
+            'origin' => $this->origin ? $this->origin->descripcion : 'Sin origen',
+            'destination' => $this->destination ? $this->destination->descripcion : 'Sin destino',
+
             'idorigen' => $this->idorigen,
             'iddestino' => $this->iddestino,
+            'idproducto' => $this->idproducto,
+            'producto_descripcion' => $product->descripcion ?? null,
             'observacion' => $this->observacion,
             'tiempo_estimado' => $this->tiempo_estimado,
             'tipo_flete' => $this->tipo_flete,
             'unidad_medida_id' => $this->unidad_medida_id,
             'km_viaje' => $this->km_viaje,
+            'cantidad' => $this->cantidad,
             'precio_unit' => $this->precio_unit,
             'total' => $this->total,
-            'producto_descripcion' => $product->descripcion ?? null,
-            'producto' => $product ? [
-                'id' => $product->id,
-                'descripcion' => $product->descripcion,
-                'codigo' => $product->codigo ?? null
-            ] : null,
+            'statusigv' => $this->statusigv,
+            'statusflete' => $this->statusflete,
+
+
+            'status' => $this->segment_status,
+            'segment_status' => $this->segment_status,
+            'initial_mileage' => $this->initial_mileage,
+            'final_mileage' => $this->final_mileage,
+            'total_mileage' => $this->total_mileage,
+            'total_hours' => $this->total_hours,
+            'actual_start' => $this->actual_start?->toISOString(),
+            'actual_end' => $this->actual_end?->toISOString(),
+
+            'start_latitude' => $this->start_latitude,
+            'start_longitude' => $this->start_longitude,
+            'end_latitude' => $this->end_latitude,
+            'end_longitude' => $this->end_longitude,
+
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
             
-            'origen_descripcion' => $origin->descripcion ?? null,
-            'origen' => $origin ? [
-                'id' => $origin->id,
-                'descripcion' => $origin->descripcion,
-                'codigo' => $origin->codigo ?? null
-            ] : null,
-            
-            'destino_descripcion' => $destination->descripcion ?? null,
-            'destino' => $destination ? [
-                'id' => $destination->id,
-                'descripcion' => $destination->descripcion,
-                'codigo' => $destination->codigo ?? null
-            ] : null,
+            // Métricas formateadas
             'valor_total' => $this->total,
             'valor_formateado' => $this->total ? 'S/ ' . number_format($this->total, 2) : 'S/ 0.00',
             'cantidad_formateada' => $this->cantidad ? number_format($this->cantidad, 2) : '0.00',
             'unidad_info' => $this->getUnidadInfo(),
-            'is_valid' => $this->isValid(),
-            'has_required_data' => $this->hasRequiredData(),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'metadata' => [
-                'has_product' => !empty($this->idproducto),
-                'has_origin' => !empty($this->idorigen),
-                'has_destination' => !empty($this->iddestino),
-                'has_price' => !empty($this->precio_unit) || !empty($this->total),
-                'is_complete' => $this->isComplete()
-            ]
+            
+            // Helpers para el frontend
+            'can_start' => $this->canStart(),
+            'can_end' => $this->canEnd(),
+            'is_locked' => $this->isLocked(),
+            'is_completed' => $this->isCompleted(),
+            'is_pending' => $this->isPending(),
+            'is_in_progress' => $this->isInProgress(),
         ];
     }
     

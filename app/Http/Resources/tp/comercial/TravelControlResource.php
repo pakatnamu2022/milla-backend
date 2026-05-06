@@ -109,6 +109,33 @@ class TravelControlResource extends JsonResource
       'gastos' => $this->whenLoaded('expenses', function () {
         return TravelExpenseResource::collection($this->expenses);
       }, []),
+      'subTrips' => $this->whenLoaded('items', function () {
+        $items = $this->items->sortBy('id');
+        $foundActive = false;
+        
+        $processedItems = $items->map(function ($item) use (&$foundActive) {
+            // Clonar el item para no modificar el original
+            $itemCopy = clone $item;
+            
+            // Si ya está completado o en progreso, mantener su estado
+            if (in_array($item->segment_status, ['completed', 'in_progress'])) {
+                $foundActive = true;
+                return $itemCopy;
+            }
+            
+            // Si no tiene estado o es null, calcular según corresponda
+            if (!$foundActive) {
+                $itemCopy->segment_status = 'pending';
+                $foundActive = true;
+            } else {
+                $itemCopy->segment_status = 'locked';
+            }
+            
+            return $itemCopy;
+        });
+        
+        return DispatchItemResource::collection($processedItems);
+    }, []),
 
       'proximocod' => '-',
       'proximoruta' => '-',
@@ -127,10 +154,6 @@ class TravelControlResource extends JsonResource
       'obs_adic_6' => $this->obs_adic_6,
       'obs_adic_7' => $this->obs_adic_7,
       'obs_adic_8' => $this->obs_adic_8,
-
-      // Timestamps
-      'created_at' => $this->created_at,
-      'updated_at' => $this->updated_at,
 
       'driver' => [
         'id' => $this->conductor_id ? (string)$this->conductor_id : null,
@@ -184,9 +207,11 @@ class TravelControlResource extends JsonResource
       return 'Sin ruta';
     }
 
-    $item = $this->items->first();
-    $origin = $item->origin->descripcion ?? 'Sin origen';
-    $destination = $item->destination->descripcion ?? 'Sin destino';
+    $itemInicio = $this->items->first();
+    $origin = $itemInicio->origin->descripcion ?? 'Sin origen';
+
+    $itemFinal = $this->items->last();
+    $destination = $itemFinal->destination->descripcion ?? 'Sin destino';
 
     return $origin . ' - ' . $destination;
   }
