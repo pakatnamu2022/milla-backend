@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\WorkOrderPlanningResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderPlanningSessionResource;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanningSession;
+use App\Models\User;
 use Exception;
 
 class WorkOrderPlanningSessionService
@@ -16,6 +17,23 @@ class WorkOrderPlanningSessionService
   public function startSession($planningId, ?string $notes = null)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
+
+    $userId = auth()->id();
+    $user = User::find($userId);
+
+    if (!$user) {
+      throw new Exception('Usuario no autenticado o no valido');
+    }
+
+    $person = $user->person;
+
+    if (!$person) {
+      throw new Exception('El usuario no esta registrada en la tabla trabajadores');
+    }
+
+    if ($person->id !== $planning->worker_id) {
+      throw new Exception('No tiene permiso para iniciar esta sesión de trabajo');
+    }
 
     if (!$planning) {
       throw new Exception('Planificación no encontrada');
@@ -38,6 +56,23 @@ class WorkOrderPlanningSessionService
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
+    $userId = auth()->id();
+    $user = User::find($userId);
+
+    if (!$user) {
+      throw new Exception('Usuario no autenticado o no valido');
+    }
+
+    $person = $user->person;
+
+    if (!$person) {
+      throw new Exception('El usuario no esta registrada en la tabla trabajadores');
+    }
+
+    if ($person->id !== $planning->worker_id) {
+      throw new Exception('No tiene permiso para iniciar esta sesión de trabajo');
+    }
+
     if (!$planning) {
       throw new Exception('Planificación no encontrada');
     }
@@ -58,6 +93,23 @@ class WorkOrderPlanningSessionService
   public function completeWork($planningId)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
+
+    $userId = auth()->id();
+    $user = User::find($userId);
+
+    if (!$user) {
+      throw new Exception('Usuario no autenticado o no valido');
+    }
+
+    $person = $user->person;
+
+    if (!$person) {
+      throw new Exception('El usuario no esta registrada en la tabla trabajadores');
+    }
+
+    if ($person->id !== $planning->worker_id) {
+      throw new Exception('No tiene permiso para iniciar esta sesión de trabajo');
+    }
 
     if (!$planning) {
       throw new Exception('Planificación no encontrada');
