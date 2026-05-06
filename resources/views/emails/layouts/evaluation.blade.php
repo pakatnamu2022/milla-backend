@@ -1,5 +1,5 @@
 {{-- resources/views/emails/layouts/evaluation.blade.php --}}
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
@@ -8,21 +8,61 @@
   <meta name="x-apple-disable-message-reformatting"/>
   <title>@yield('email_subject', 'Evaluación de Desempeño — Sian')</title>
   <style>
-    body,table,td,a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
-    table           { border-collapse:collapse !important; }
-    body            { margin:0; padding:0; background:#ffffff; }
-    img             { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; }
+    body, table, td, a {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
 
-    @media only screen and (max-width:600px) {
-      .ev-wrap    { padding:0 !important; }
-      .ev-card    { border-radius:0 !important; border-left:0 !important; border-right:0 !important; }
-      .ev-pad     { padding-left:24px !important; padding-right:24px !important; }
-      .ev-col3    { display:block !important; width:100% !important; padding:10px 0 !important; }
-      .ev-spacer  { display:none !important; }
+    table {
+      border-collapse: collapse !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+
+    img {
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .ev-wrap {
+        padding: 0 !important;
+      }
+
+      .ev-card {
+        border-radius: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+      }
+
+      .ev-pad {
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+      }
+
+      .ev-col3 {
+        display: block !important;
+        width: 100% !important;
+        padding: 10px 0 !important;
+      }
+
+      .ev-spacer {
+        display: none !important;
+      }
+
       .ev-stats td {
-        display:block !important; width:100% !important;
-        text-align:left !important; padding-right:0 !important;
-        padding-bottom:14px !important;
+        display: block !important;
+        width: 100% !important;
+        text-align: left !important;
+        padding-right: 0 !important;
+        padding-bottom: 14px !important;
       }
     }
   </style>
@@ -53,10 +93,8 @@
         {{-- Title --}}
         <tr>
           <td class="ev-pad" style="padding:0 40px 8px;">
-            <h1 style="margin:0;
-                       font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-                       font-size:30px;font-weight:700;line-height:1.15;
-                       color:#1d1d1f;letter-spacing:-0.6px;">
+            <h1
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:40px;font-weight:400;line-height:1.1;color:#111111;letter-spacing:-1px;">
               @yield('title')
             </h1>
           </td>
@@ -65,9 +103,8 @@
         {{-- Subtitle --}}
         <tr>
           <td class="ev-pad" style="padding:0 40px 28px;">
-            <p style="margin:0;
-                      font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-                      font-size:15px;line-height:1.6;color:#86868b;">
+            <p
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#6b7280;">
               @yield('subtitle')
             </p>
           </td>
@@ -77,7 +114,9 @@
         <tr>
           <td class="ev-pad" style="padding:0 40px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr><td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+              <tr>
+                <td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td>
+              </tr>
             </table>
           </td>
         </tr>
@@ -103,7 +142,9 @@
         <tr>
           <td class="ev-pad" style="padding:0 40px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr><td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+              <tr>
+                <td height="1" bgcolor="#f0f0f0" style="font-size:0;line-height:0;">&nbsp;</td>
+              </tr>
             </table>
           </td>
         </tr>
@@ -111,12 +152,25 @@
         {{-- Footer text --}}
         <tr>
           <td align="center" class="ev-pad" style="padding:20px 40px 36px;">
-            <p style="margin:0;
-                      font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-                      font-size:12px;line-height:1.6;color:#c7c7cc;text-align:center;">
-              Este correo fue enviado automáticamente &nbsp;·&nbsp;
-              &copy; {{ date('Y') }} {{ $company_name ?? 'Sian' }}
-            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="https://namu-storage.nyc3.digitaloceanspaces.com/general/s_gray.svg"
+                       alt="Sian" width="20" height="20"
+                       style="display:block;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:middle;">
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
+                    Este correo fue enviado automáticamente.
+                  </p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;">
+                    &copy; {{ date('Y') }} Sian. Todos los derechos reservados.
+                  </p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
 

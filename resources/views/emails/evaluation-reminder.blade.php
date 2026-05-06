@@ -4,10 +4,11 @@
 @push('ev_styles')
 <style>
 @media only screen and (max-width:600px) {
-  .ev-ring-stat { display:block !important; width:100% !important;
-                  text-align:center !important; padding:10px 0 !important;
-                  border-right:none !important; }
-  .ev-ring-divider { display:none !important; }
+  .ev-ring-col  { display:block !important; width:100% !important;
+                  padding:0 0 20px 0 !important; border-right:none !important; }
+  .ev-ring-sep  { display:none !important; }
+  .ev-count-col { display:block !important; width:100% !important;
+                  padding:20px 0 0 0 !important; border-top:1px solid #e8e8ed; }
 }
 </style>
 @endpush
@@ -18,116 +19,101 @@
 
 @section('content')
 @php
-  $pending     = (int)($pending_count ?? 0);
-  $total       = max(1, (int)($total_count ?? 1));
-  $progress    = round((($total - $pending) / $total) * 100);
-  $shown       = array_slice($pending_evaluations ?? [], 0, 4);
-  $extra       = max(0, count($pending_evaluations ?? []) - 4);
-
-  $ringR       = 52;
-  $ringC       = round(2 * M_PI * $ringR, 2);
-  $ringOffset  = round($ringC * (1 - $progress / 100), 2);
+  $pending  = (int)($pending_count ?? 0);
+  $total    = max(1, (int)($total_count ?? 1));
+  $progress = round((($total - $pending) / $total) * 100);
+  $shown    = array_slice($pending_evaluations ?? [], 0, 4);
+  $extra    = max(0, count($pending_evaluations ?? []) - 4);
 @endphp
 
 {{-- Greeting --}}
-<p style="margin:0 0 22px 0;
+<p style="margin:0 0 6px 0;
           font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
           font-size:15px;line-height:1.7;color:#3a3a3c;">
   Hola, <strong style="color:#1d1d1f;">{{ $leader_name }}</strong>.
   Completa las evaluaciones antes de la fecha límite para mantener el proceso al día.
 </p>
 
+{{-- Evaluation name + period (above card) --}}
+<p style="margin:0 0 2px 0;
+          font-family:system-ui,-apple-system,sans-serif;
+          font-size:15px;font-weight:600;color:#1d1d1f;">
+  {{ $evaluation_name }}
+</p>
+<p style="margin:0 0 20px 0;
+          font-family:system-ui,-apple-system,sans-serif;
+          font-size:13px;color:#aeaeb2;">
+  {{ $start_date }} — {{ $end_date }}
+</p>
+
 {{-- Summary card --}}
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-       style="background:#f9f9fb;border-radius:16px;margin-bottom:26px;">
+       style="background:#fbfafc;border-radius:16px;border:1px solid #efefef;margin-bottom:26px;">
   <tr>
-    <td style="padding:28px 28px 24px;">
+    <td style="padding:28px 24px;">
 
-      {{-- Evaluation label --}}
-      <p style="margin:0 0 4px 0;
-                font-family:system-ui,-apple-system,sans-serif;
-                font-size:10px;font-weight:600;color:#aeaeb2;
-                text-transform:uppercase;letter-spacing:0.9px;text-align:center;">
-        Evaluación
-      </p>
-      <p style="margin:0 0 24px 0;
-                font-family:system-ui,-apple-system,sans-serif;
-                font-size:15px;font-weight:600;color:#1d1d1f;text-align:center;">
-        {{ $evaluation_name }}
-      </p>
-
-      {{-- Progress ring — Gmail, Apple Mail, modern clients --}}
-      <!--[if !mso]><!-->
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
-          <td align="center" style="padding-bottom:22px;">
-            <svg width="120" height="120" viewBox="0 0 120 120"
-                 xmlns="http://www.w3.org/2000/svg"
-                 style="display:inline-block;vertical-align:middle;">
-              <circle cx="60" cy="60" r="{{ $ringR }}"
-                      fill="none" stroke="#e8e8ed" stroke-width="8"/>
-              <circle cx="60" cy="60" r="{{ $ringR }}"
-                      fill="none" stroke="#01237e" stroke-width="8"
-                      stroke-linecap="round"
-                      stroke-dasharray="{{ $ringC }}"
-                      stroke-dashoffset="{{ $ringOffset }}"
-                      transform="rotate(-90 60 60)"/>
-              <text x="60" y="54" text-anchor="middle"
-                    font-family="system-ui,-apple-system,Helvetica,sans-serif"
-                    font-size="25" font-weight="700" fill="#1d1d1f">{{ $progress }}%</text>
-              <text x="60" y="73" text-anchor="middle"
-                    font-family="system-ui,-apple-system,Helvetica,sans-serif"
-                    font-size="10" fill="#aeaeb2" letter-spacing="0.6">COMPLETADO</text>
-            </svg>
+
+          {{-- Left: progress ring --}}
+          <td class="ev-ring-col" width="46%" align="center" valign="middle"
+              style="border-right:1px solid #e8e8ed;padding-right:20px;">
+
+            {{-- conic-gradient ring — Gmail web, Apple Mail, modern clients --}}
+            <!--[if !mso]><!-->
+            <div style="width:110px;height:110px;border-radius:55px;
+                        background:conic-gradient(from -90deg, #01237e {{ $progress }}%, #e8e8ed 0%);
+                        margin:0 auto;font-size:0;line-height:0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                     width="86" height="86"
+                     style="border-radius:43px;background:#fbfafc;margin:12px auto;">
+                <tr>
+                  <td align="center" valign="middle">
+                    <p style="margin:0;
+                              font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                              font-size:22px;font-weight:700;color:#1d1d1f;line-height:1;">
+                      {{ $progress }}%
+                    </p>
+                    <p style="margin:5px 0 0;
+                              font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                              font-size:9px;font-weight:600;color:#aeaeb2;
+                              letter-spacing:0.6px;text-transform:uppercase;">
+                      Completado
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <!--<![endif]-->
+
+            {{-- Outlook fallback --}}
+            <!--[if mso]>
+            <p style="margin:0 0 2px;font-family:Arial,sans-serif;font-size:36px;font-weight:bold;color:#01237e;line-height:1;text-align:center;">{{ $progress }}%</p>
+            <p style="margin:0;font-family:Arial,sans-serif;font-size:9px;color:#aeaeb2;text-align:center;letter-spacing:1px;text-transform:uppercase;">Completado</p>
+            <![endif]-->
+
           </td>
-        </tr>
-      </table>
-      <!--<![endif]-->
 
-      {{-- Progress ring — Outlook fallback --}}
-      <!--[if mso]>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-        <tr>
-          <td align="center" style="padding-bottom:20px;">
-            <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:42px;font-weight:bold;color:#01237e;line-height:1;">{{ $progress }}%</p>
-            <p style="margin:0;font-family:Arial,sans-serif;font-size:10px;color:#aeaeb2;letter-spacing:1px;">COMPLETADO</p>
-          </td>
-        </tr>
-      </table>
-      <![endif]-->
+          {{-- Separator --}}
+          <td class="ev-ring-sep" width="1" bgcolor="#e8e8ed"
+              style="background:#e8e8ed;font-size:0;line-height:0;">&nbsp;</td>
 
-      {{-- Stats row: pending + deadline --}}
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-        <tr>
-          <td class="ev-ring-stat" width="50%" align="center" valign="middle"
-              style="border-right:1px solid #e8e8ed;padding:4px 16px 4px 0;">
-            <p style="margin:0 0 3px 0;
-                      font-family:system-ui,-apple-system,sans-serif;
-                      font-size:26px;font-weight:700;line-height:1;color:#1d1d1f;">
+          {{-- Right: pending count --}}
+          <td class="ev-count-col" width="46%" align="center" valign="middle"
+              style="padding-left:20px;padding-right:20px;">
+            <p style="margin:0 0 6px 0;
+                      font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                      font-size:52px;font-weight:700;line-height:1;color:#1d1d1f;
+                      letter-spacing:-2px;">
               {{ $pending_count }}
             </p>
             <p style="margin:0;
-                      font-family:system-ui,-apple-system,sans-serif;
-                      font-size:10px;font-weight:500;color:#aeaeb2;
-                      text-transform:uppercase;letter-spacing:0.6px;">
-              Pendientes
+                      font-family:system-ui,-apple-system,Helvetica,Arial,sans-serif;
+                      font-size:13px;line-height:1.5;color:#3a3a3c;">
+              evaluaciones<br>pendientes
             </p>
           </td>
-          <td class="ev-ring-divider" width="1">&nbsp;</td>
-          <td class="ev-ring-stat" width="50%" align="center" valign="middle"
-              style="padding:4px 0 4px 16px;">
-            <p style="margin:0 0 3px 0;
-                      font-family:system-ui,-apple-system,sans-serif;
-                      font-size:16px;font-weight:600;line-height:1.2;color:#1d1d1f;">
-              {{ $end_date }}
-            </p>
-            <p style="margin:0;
-                      font-family:system-ui,-apple-system,sans-serif;
-                      font-size:10px;font-weight:500;color:#aeaeb2;
-                      text-transform:uppercase;letter-spacing:0.6px;">
-              Fecha límite
-            </p>
-          </td>
+
         </tr>
       </table>
 
