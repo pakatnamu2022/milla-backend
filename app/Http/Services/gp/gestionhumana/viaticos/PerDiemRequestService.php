@@ -798,10 +798,7 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Update total budget
       $request->update(['total_budget' => $totalBudget]);
 
-      // Send in-progress email ONLY if no hotel reservation exists
-      if (!$request->hotelReservation()->exists()) {
-        $this->sendPerDiemInProgressEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district']));
-      }
+      $this->sendPerDiemInProgressEmail($request->fresh(['employee.boss', 'employee.secondBoss', 'district', 'hotelReservation']));
 
       DB::commit();
 
@@ -2542,6 +2539,8 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
       // Get accountant emails for this district
       $accountantEmails = $this->getAccountantEmailsByDistrict($request->district_id);
 
+      $request->loadMissing(['expenses.expenseType', 'budgets']);
+
       // Calcular totales sobre todos los gastos no rechazados
       $gastosActivos = $request->expenses->filter(fn($e) => !$e->rejected);
       $totalAsumeEmpresa = (float)$gastosActivos->sum('company_amount');
@@ -2555,13 +2554,14 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'employee_name' => $request->employee->nombre_completo,
         'request_code' => $request->code,
         'total_budget' => $request->total_budget,
-        'total_spent' => $request->total_spent,
+        'budget_spent' => $request->budget_spent,
         'balance_to_return' => $request->balance_to_return,
-        // Nuevos datos para el correo
         'total_asume_empresa' => $totalAsumeEmpresa,
         'total_asume_colaborador' => $totalAsumeColaborador,
         'total_reembolsar' => $totalReembolsar,
         'importe_otorgado' => $importeOtorgado,
+        'gastos_complementarios' => $request->extra_spent,
+        'total_general' => $request->total_spent_all,
       ];
 
       // Send to employee
@@ -2703,6 +2703,15 @@ class PerDiemRequestService extends BaseService implements BaseServiceInterface
         'start_date' => $request->start_date->format('d/m/Y'),
         'total_budget' => $request->total_budget,
       ];
+
+      $hotelReservation = $request->hotelReservation;
+      if ($hotelReservation) {
+        $emailData['hotel_name'] = $hotelReservation->hotel_name;
+        $emailData['hotel_address'] = $hotelReservation->address;
+        $emailData['hotel_checkin'] = $hotelReservation->checkin_date->format('d/m/Y');
+        $emailData['hotel_checkout'] = $hotelReservation->checkout_date->format('d/m/Y');
+        $emailData['hotel_nights'] = $hotelReservation->nights_count;
+      }
 
       // Send to employee
       if ($sendToEmployee) {
