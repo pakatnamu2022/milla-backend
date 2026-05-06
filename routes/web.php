@@ -22,3 +22,13 @@ Route::get('/preview/evaluation-reminder/{chiefId}', [EvaluationNotificationCont
   ->whereNumber('chiefId')
   ->name('preview.evaluation-reminder');
 
+// Preview temporal del correo de evaluación abierta (opened)
+Route::get('/preview/evaluation-opened/{chiefId}', [EvaluationNotificationController::class, 'previewEvaluationOpened'])
+  ->whereNumber('chiefId')
+  ->name('preview.evaluation-opened');
+
+// Preview temporal del correo de evaluación finalizada (closed)
+Route::get('/preview/evaluation-closed/{chiefId}', [EvaluationNotificationController::class, 'previewEvaluationClosed'])
+  ->whereNumber('chiefId')
+  ->name('preview.evaluation-closed');
+

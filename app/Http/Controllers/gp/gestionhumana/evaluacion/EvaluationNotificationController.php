@@ -544,4 +544,243 @@ class EvaluationNotificationController extends Controller
       'logo' => 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg',
     ]);
   }
+
+  /**
+   * Vista temporal para previsualizar el correo de evaluación abierta (Correo: opened)
+   */
+  public function previewEvaluationOpened(Request $request, int $chiefId)
+  {
+    if (!app()->environment(['local', 'testing'])) {
+      abort(404);
+    }
+
+    $validator = Validator::make(array_merge($request->all(), ['chief_id' => $chiefId]), [
+      'chief_id' => 'required|integer|exists:rrhh_persona,id',
+      'evaluation_id' => 'nullable|integer|exists:gh_evaluation,id',
+    ]);
+
+    if ($validator->fails()) {
+      abort(404);
+    }
+
+    // Obtener la evaluación
+    $evaluationQuery = Evaluation::query();
+
+    if ($evaluationId = $request->integer('evaluation_id')) {
+      $evaluationQuery->where('id', $evaluationId);
+    } else {
+      $evaluationQuery->orderByDesc('id');
+    }
+
+    $evaluation = $evaluationQuery->first();
+
+    if (!$evaluation) {
+      abort(404, 'No se encontró evaluación.');
+    }
+
+    // Obtener el líder
+    $leader = Worker::find($chiefId);
+
+    if (!$leader) {
+      abort(404, 'Líder no encontrado.');
+    }
+
+    // Obtener miembros del equipo asignados a este líder para la evaluación
+    $evaluationPersons = EvaluationPerson::query()
+      ->with(['person'])
+      ->where('evaluation_id', $evaluation->id)
+      ->where('chief_id', $chiefId)
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      abort(404, 'El líder no tiene evaluaciones asignadas.');
+    }
+
+    $seen = [];
+    $team_members = [];
+    foreach ($evaluationPersons as $ep) {
+      if (in_array($ep->person_id, $seen, true)) {
+        continue;
+      }
+      $seen[] = $ep->person_id;
+
+      $rawPosition = $ep->person->cargo ?? ($ep->person->position ?? null);
+      $position = 'N/A';
+
+      if (is_string($rawPosition) && trim($rawPosition) !== '') {
+        $decoded = json_decode($rawPosition, true);
+        if (is_array($decoded)) {
+          $position = (string)($decoded['name'] ?? $decoded['cargo'] ?? $decoded['descripcion'] ?? 'N/A');
+        } else {
+          $position = $rawPosition;
+        }
+      } elseif (is_array($rawPosition)) {
+        $position = (string)($rawPosition['name'] ?? $rawPosition['cargo'] ?? $rawPosition['descripcion'] ?? 'N/A');
+      } elseif (is_object($rawPosition)) {
+        $position = (string)($rawPosition->name ?? $rawPosition->cargo ?? $rawPosition->descripcion ?? 'N/A');
+      }
+
+      $position = trim(strip_tags($position));
+      if ($position === '' || $position === '{}' || str_starts_with($position, '{"id"')) {
+        $position = 'N/A';
+      }
+
+      $team_members[] = [
+        'name' => $ep->person->nombre_completo ?? 'N/A',
+        'position' => $position
+      ];
+    }
+
+    $frontendUrl = rtrim((string)config('app.frontend_url', config('app.url', url('/'))), '/');
+
+    return response()->view('emails.evaluation-opened', [
+      'leader_name' => $leader->nombre_completo,
+      'evaluation_name' => $evaluation->name,
+      'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
+      'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+      'team_members' => $team_members,
+      'team_count' => count($team_members),
+      'has_objectives' => true,
+      'has_competences' => true,
+      'evaluation_url' => $frontendUrl . '/perfil/equipo',
+      'additional_notes' => 'Recuerda revisar el alcance y objetivos compartidos con el equipo.',
+      'send_date' => now()->format('d/m/Y H:i'),
+      'company_name' => 'Grupo Pakatnamu',
+      'contact_info' => 'rrhh@grupopakatnamu.com',
+      'logo' => 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg',
+    ]);
+  }
+
+  /**
+   * Vista temporal para previsualizar el correo de evaluación finalizada (Correo: closed)
+   */
+  public function previewEvaluationClosed(Request $request, int $chiefId)
+  {
+    if (!app()->environment(['local', 'testing'])) {
+      abort(404);
+    }
+
+    $validator = Validator::make(array_merge($request->all(), ['chief_id' => $chiefId]), [
+      'chief_id' => 'required|integer|exists:rrhh_persona,id',
+      'evaluation_id' => 'nullable|integer|exists:gh_evaluation,id',
+    ]);
+
+    if ($validator->fails()) {
+      abort(404);
+    }
+
+    // Obtener la evaluación
+    $evaluationQuery = Evaluation::query();
+
+    if ($evaluationId = $request->integer('evaluation_id')) {
+      $evaluationQuery->where('id', $evaluationId);
+    } else {
+      $evaluationQuery->orderByDesc('id');
+    }
+
+    $evaluation = $evaluationQuery->first();
+
+    if (!$evaluation) {
+      abort(404, 'No se encontró evaluación.');
+    }
+
+    // Obtener el líder
+    $leader = Worker::find($chiefId);
+
+    if (!$leader) {
+      abort(404, 'Líder no encontrado.');
+    }
+
+    $evaluationPersons = EvaluationPerson::query()
+      ->with(['person'])
+      ->where('evaluation_id', $evaluation->id)
+      ->where('chief_id', $chiefId)
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      abort(404, 'El líder no tiene evaluaciones asignadas.');
+    }
+
+    // Calcular resumen simple
+    $total = 0;
+    $sumScores = 0.0;
+    $evaluatedCount = 0;
+    $distribution = [
+      'Excelente' => ['count' => 0, 'percentage' => 0],
+      'Bueno' => ['count' => 0, 'percentage' => 0],
+      'Regular' => ['count' => 0, 'percentage' => 0],
+      'Deficiente' => ['count' => 0, 'percentage' => 0],
+    ];
+
+    foreach ($evaluationPersons as $ep) {
+      if (in_array($ep->person_id, [])) {
+        // placeholder to allow future dedupe if needed
+      }
+      $total++;
+      $score = is_numeric($ep->result) ? (float)$ep->result : 0.0;
+      $sumScores += $score;
+      if ($score > 0) {
+        $evaluatedCount++;
+      }
+
+      // Categorizar según score (suponiendo escala 0-100)
+      if ($score >= 90) {
+        $distribution['Excelente']['count']++;
+      } elseif ($score >= 70) {
+        $distribution['Bueno']['count']++;
+      } elseif ($score >= 60) {
+        $distribution['Regular']['count']++;
+      } else {
+        $distribution['Deficiente']['count']++;
+      }
+    }
+
+    // Calcular porcentajes
+    foreach ($distribution as $level => &$data) {
+      $data['percentage'] = $total > 0 ? ($data['count'] / $total) * 100 : 0;
+    }
+
+    $avg = $total > 0 ? ($sumScores / max(1, $total)) : 0.0;
+
+    $team_summary = [
+      'average_score' => round($avg, 1),
+      'stats' => [
+        'Evaluados' => "$evaluatedCount",
+        'Total' => "$total",
+      ],
+      'performance_distribution' => array_map(function ($k, $v) {
+        return [$k => ['count' => $v['count'], 'percentage' => $v['percentage']]];
+      }, array_keys($distribution), $distribution),
+    ];
+
+    // Normalize performance_distribution to simple array of arrays for blade
+    $perf = [];
+    foreach ($distribution as $level => $d) {
+      $perf[$level] = ['count' => $d['count'], 'percentage' => $d['percentage']];
+    }
+
+    $frontendUrl = rtrim((string)config('app.frontend_url', config('app.url', url('/'))), '/');
+
+    return response()->view('emails.evaluation-closed', [
+      'leader_name' => $leader->nombre_completo,
+      'evaluation_name' => $evaluation->name,
+      'start_date' => Carbon::parse($evaluation->start_date)->format('d/m/Y'),
+      'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+      'team_count' => $total,
+      'total_evaluated' => $evaluatedCount,
+      'team_summary' => [
+        'average_score' => round($avg, 1),
+        'stats' => ['Evaluados' => $evaluatedCount, 'Total' => $total],
+        'performance_distribution' => $perf,
+      ],
+      'top_competences' => ['Colaboración', 'Comunicación', 'Resolución de problemas'],
+      'areas_improvement' => ['Gestión del tiempo', 'Documentación'],
+      'evaluation_url' => $frontendUrl . '/perfil/equipo',
+      'additional_notes' => 'Resumen generado para previsualización.',
+      'send_date' => now()->format('d/m/Y H:i'),
+      'company_name' => 'Grupo Pakatnamu',
+      'contact_info' => 'rrhh@grupopakatnamu.com',
+      'logo' => 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg',
+    ]);
+  }
 }
