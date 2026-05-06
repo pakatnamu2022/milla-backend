@@ -10,7 +10,7 @@ class UpdateEvaluationObjectiveRequest extends StoreRequest
   {
     return [
       'name' => 'nullable|string',
-      'description' => 'nullable|string|max_digits:1000',
+      'description' => 'nullable|string',
       'metric_id' => 'nullable|exists:gh_evaluation_metric,id',
       'goalReference' => 'nullable|numeric',
       'fixedWeight' => 'nullable|numeric|min:0',
