@@ -43,7 +43,7 @@
 
         {{-- Subtítulo --}}
         <tr>
-          <td align="left" style="padding-bottom:10px;margin-bottom:40px;border-bottom:1px solid #f0f0f0;">
+          <td align="left" style="padding-bottom:10px;border-bottom:1px solid #f0f0f0;">
             <p
               style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#6b7280;">
               @yield('subtitle')
@@ -52,7 +52,13 @@
         </tr>
 
         {{-- Contenido del template --}}
+        <tr>
+          <td style="padding-top:20px;font-size:0;line-height:0;">&nbsp;</td>
+        </tr>
         @yield('content')
+        <tr>
+          <td style="padding-bottom:20px;font-size:0;line-height:0;">&nbsp;</td>
+        </tr>
 
         {{-- Footer --}}
         <tr>

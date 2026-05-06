@@ -51,99 +51,7 @@
           </td>
         </tr>
 
-        {{-- Total gastado --}}
-        <tr>
-          <td style="padding:14px 0;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt=""
-                       width="28" height="28"
-                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
-                </td>
-                <td style="vertical-align:top;">
-                  <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
-                    S/ {{ number_format($total_spent, 2) }}</p>
-                  <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    Total gastado</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        {{-- Empresa asume --}}
-        <tr>
-          <td style="padding:14px 0;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt=""
-                       width="28" height="28"
-                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
-                </td>
-                <td style="vertical-align:top;">
-                  <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
-                    S/ {{ number_format($total_asume_empresa, 2) }}</p>
-                  <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    Empresa asume</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        {{-- Colaborador asume --}}
-        <tr>
-          <td style="padding:14px 0;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt=""
-                       width="28" height="28"
-                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
-                </td>
-                <td style="vertical-align:top;">
-                  <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
-                    S/ {{ number_format($total_asume_colaborador, 2) }}</p>
-                  <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    Colaborador asume</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        {{-- A reembolsar --}}
-        <tr>
-          <td style="padding:14px 0;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/undo-2.svg?color=%23111111&width=28&height=28" alt=""
-                       width="28" height="28"
-                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
-                </td>
-                <td style="vertical-align:top;">
-                  <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
-                    S/ {{ number_format($total_reembolsar, 2) }}</p>
-                  <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    A reembolsar</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        {{-- Presupuesto asignado --}}
+        {{-- Presupuesto Asignado --}}
         <tr>
           <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -159,7 +67,126 @@
                     S/ {{ number_format($total_budget, 2) }}</p>
                   <p
                     style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    Presupuesto asignado</p>
+                    Presupuesto Asignado · Monto aprobado para el viático</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Gastado del Presupuesto --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($budget_spent, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Gastado del Presupuesto
+                    @if($total_budget > 0)
+                      · {{ number_format(($budget_spent / $total_budget) * 100, 1) }}% del presupuesto utilizado
+                    @endif
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Gastos Complementarios --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/layers.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($gastos_complementarios, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Gastos Complementarios · Pasajes, alojamiento y similares</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Gastos de Empresa --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_asume_empresa, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Gastos de Empresa · Pagados directamente por la empresa</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Gasto del Colaborador --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_asume_colaborador, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Gasto del Colaborador · Lo que el colaborador asumió</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Total General --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/sigma.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_general, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Total General · Presupuesto + complementarios + empresa</p>
                 </td>
               </tr>
             </table>
