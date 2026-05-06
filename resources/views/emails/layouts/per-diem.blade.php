@@ -25,7 +25,7 @@
 
         {{-- Logo --}}
         <tr>
-          <td align="left" style="padding-bottom:36px;">
+          <td align="center" style="padding-bottom:36px;">
             <img src="{{ $logo ?? 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg' }}" alt="Sian"
                  style="display:block;max-width:100px;height:auto;border:0;outline:none;text-decoration:none;">
           </td>
@@ -35,7 +35,7 @@
         <tr>
           <td align="left" style="padding-bottom:10px;">
             <h1
-              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:40px;font-weight:500;line-height:1.1;color:#111111;letter-spacing:-1px;">
+              style="margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:40px;font-weight:400;line-height:1.1;color:#111111;letter-spacing:-1px;">
               @yield('title')
             </h1>
           </td>

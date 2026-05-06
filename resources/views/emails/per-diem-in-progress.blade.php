@@ -21,16 +21,20 @@
 
         {{-- Código --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Código</p>
                 </td>
               </tr>
             </table>
@@ -39,16 +43,20 @@
 
         {{-- Destino --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/map-pin.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/map-pin.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $destination }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Destino</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $destination }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Destino</p>
                 </td>
               </tr>
             </table>
@@ -57,16 +65,20 @@
 
         {{-- Fecha de inicio --}}
         <tr>
-          <td style="padding:14px 0;@if(isset($total_budget) && $total_budget)border-bottom:1px solid #f3f4f6;@endif">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Fecha de inicio</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Fecha de inicio</p>
                 </td>
               </tr>
             </table>
@@ -80,12 +92,17 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                    <img src="https://api.iconify.design/lucide/banknote.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                    <img src="https://api.iconify.design/lucide/banknote.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
                          style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                   </td>
                   <td style="vertical-align:top;">
-                    <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
-                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto</p>
+                    <p
+                      style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                      S/ {{ number_format($total_budget, 2) }}</p>
+                    <p
+                      style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                      Presupuesto</p>
                   </td>
                 </tr>
               </table>
@@ -101,7 +118,8 @@
   <tr>
     <td style="padding:20px 0 32px 0;">
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.7;color:#6b7280;">
-        Guarda todos tus comprobantes de gastos. Al finalizar el viaje, deberás registrar y liquidar tus gastos en el sistema.
+        Guarda todos tus comprobantes de gastos. Al finalizar el viaje, deberás registrar y liquidar tus gastos en el
+        sistema.
       </p>
     </td>
   </tr>

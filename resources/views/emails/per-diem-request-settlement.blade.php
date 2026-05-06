@@ -31,16 +31,20 @@
 
         {{-- Código --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Código</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $request_code }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Código</p>
                 </td>
               </tr>
             </table>
@@ -49,16 +53,20 @@
 
         {{-- Destino --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/map-pin.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/map-pin.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $destination }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Destino</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $destination }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Destino</p>
                 </td>
               </tr>
             </table>
@@ -67,16 +75,21 @@
 
         {{-- Fechas --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }} — {{ $end_date }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Fechas</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $start_date }}
+                    — {{ $end_date }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Fechas</p>
                 </td>
               </tr>
             </table>
@@ -85,16 +98,21 @@
 
         {{-- Presupuesto asignado --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/banknote.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/banknote.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_budget, 2) }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Presupuesto asignado</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_budget, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Presupuesto asignado</p>
                 </td>
               </tr>
             </table>
@@ -103,16 +121,21 @@
 
         {{-- Total gastado --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/receipt.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_general_comprobante, 2) }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Total gastado</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_general_comprobante, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Total gastado</p>
                 </td>
               </tr>
             </table>
@@ -121,16 +144,21 @@
 
         {{-- Empresa asume --}}
         <tr>
-          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+          <td style="padding:14px 0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/building-2.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_general_asume_empresa, 2) }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Empresa asume</p>
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_general_asume_empresa, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Empresa asume</p>
                 </td>
               </tr>
             </table>
@@ -143,13 +171,21 @@
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td style="width:44px;vertical-align:middle;padding-right:12px;">
-                  <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt="" width="28" height="28"
+                  <img src="https://api.iconify.design/lucide/wallet.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
                        style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
                 </td>
                 <td style="vertical-align:top;">
-                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/ {{ number_format($total_general_asume_colaborador, 2) }}</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
-                    @if($recipient_type === 'employee')Tú asumes@else Colaborador asume@endif
+                  <p
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/ {{ number_format($total_general_asume_colaborador, 2) }}</p>
+                  <p
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    @if($recipient_type === 'employee')
+                      Tú asumes
+                    @else
+                      Colaborador asume
+                    @endif
                   </p>
                 </td>
               </tr>
@@ -165,27 +201,47 @@
   @if(count($gastos_empresa) > 0)
     <tr>
       <td style="padding:28px 0 8px 0;">
-        <p style="margin:0 0 12px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;line-height:1.4;">Gastos asumidos por la empresa</p>
+        <p
+          style="margin:0 0 12px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;line-height:1.4;">
+          Gastos asumidos por la empresa</p>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <thead>
-            <tr>
-              <th style="padding:0 8px 10px 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Fecha</th>
-              <th style="padding:0 8px 10px 8px;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Tipo</th>
-              <th style="padding:0 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Monto</th>
-            </tr>
+          <tr>
+            <th
+              style="padding:0 8px 10px 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Fecha
+            </th>
+            <th
+              style="padding:0 8px 10px 8px;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Tipo
+            </th>
+            <th
+              style="padding:0 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Monto
+            </th>
+          </tr>
           </thead>
           <tbody>
-            @foreach($gastos_empresa as $gasto)
-              <tr>
-                <td style="padding:10px 8px 10px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['fecha'] }}</td>
-                <td style="padding:10px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['tipo'] }}</td>
-                <td style="padding:10px 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
-              </tr>
-            @endforeach
+          @foreach($gastos_empresa as $gasto)
             <tr>
-              <td colspan="2" style="padding:12px 8px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">Total empresa</td>
-              <td style="padding:12px 0 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">S/ {{ number_format($total_empresa_asume_empresa, 2) }}</td>
+              <td
+                style="padding:10px 8px 10px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['fecha'] }}</td>
+              <td
+                style="padding:10px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['tipo'] }}</td>
+              <td
+                style="padding:10px 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">
+                S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
             </tr>
+          @endforeach
+          <tr>
+            <td colspan="2"
+                style="padding:12px 8px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">
+              Total empresa
+            </td>
+            <td
+              style="padding:12px 0 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">
+              S/ {{ number_format($total_empresa_asume_empresa, 2) }}</td>
+          </tr>
           </tbody>
         </table>
       </td>
@@ -196,34 +252,66 @@
   @if(count($gastos_colaborador) > 0)
     <tr>
       <td style="padding:28px 0 8px 0;">
-        <p style="margin:0 0 12px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;line-height:1.4;">
-          @if($recipient_type === 'employee')Tus gastos personales@else Gastos personales del colaborador@endif
+        <p
+          style="margin:0 0 12px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;line-height:1.4;">
+          @if($recipient_type === 'employee')
+            Tus gastos personales
+          @else
+            Gastos personales del colaborador
+          @endif
         </p>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <thead>
-            <tr>
-              <th style="padding:0 8px 10px 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Fecha</th>
-              <th style="padding:0 8px 10px 8px;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Tipo</th>
-              <th style="padding:0 8px 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">Empresa</th>
-              <th style="padding:0 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
-                @if($recipient_type === 'employee')Tú@else Colab.@endif
-              </th>
-            </tr>
+          <tr>
+            <th
+              style="padding:0 8px 10px 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Fecha
+            </th>
+            <th
+              style="padding:0 8px 10px 8px;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Tipo
+            </th>
+            <th
+              style="padding:0 8px 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              Empresa
+            </th>
+            <th
+              style="padding:0 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid #f0f0f0;">
+              @if($recipient_type === 'employee')
+                Tú
+              @else
+                Colab.
+              @endif
+            </th>
+          </tr>
           </thead>
           <tbody>
-            @foreach($gastos_colaborador as $gasto)
-              <tr>
-                <td style="padding:10px 8px 10px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['fecha'] }}</td>
-                <td style="padding:10px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['tipo'] }}</td>
-                <td style="padding:10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
-                <td style="padding:10px 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">S/ {{ number_format($gasto['asume_colaborador'], 2) }}</td>
-              </tr>
-            @endforeach
+          @foreach($gastos_colaborador as $gasto)
             <tr>
-              <td colspan="2" style="padding:12px 8px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">Total</td>
-              <td style="padding:12px 8px 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">S/ {{ number_format($total_colaborador_asume_empresa, 2) }}</td>
-              <td style="padding:12px 0 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">S/ {{ number_format($total_colaborador_asume_colaborador, 2) }}</td>
+              <td
+                style="padding:10px 8px 10px 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['fecha'] }}</td>
+              <td
+                style="padding:10px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">{{ $gasto['tipo'] }}</td>
+              <td
+                style="padding:10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">
+                S/ {{ number_format($gasto['asume_empresa'], 2) }}</td>
+              <td
+                style="padding:10px 0 10px 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#111111;border-bottom:1px solid #f8f8f8;">
+                S/ {{ number_format($gasto['asume_colaborador'], 2) }}</td>
             </tr>
+          @endforeach
+          <tr>
+            <td colspan="2"
+                style="padding:12px 8px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">
+              Total
+            </td>
+            <td
+              style="padding:12px 8px 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">
+              S/ {{ number_format($total_colaborador_asume_empresa, 2) }}</td>
+            <td
+              style="padding:12px 0 0 8px;text-align:right;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;color:#111111;">
+              S/ {{ number_format($total_colaborador_asume_colaborador, 2) }}</td>
+          </tr>
           </tbody>
         </table>
       </td>
@@ -241,7 +329,11 @@
       <td align="center" style="padding-bottom:40px;">
         <a href="{{ $button_url }}"
            style="display:inline-block;padding:13px 28px;background:#01237e;color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;line-height:1;text-decoration:none;border-radius:8px;">
-          @if($recipient_type === 'employee')Ver mi liquidación@else Revisar liquidación@endif
+          @if($recipient_type === 'employee')
+            Ver mi liquidación
+          @else
+            Revisar liquidación
+          @endif
         </a>
       </td>
     </tr>
