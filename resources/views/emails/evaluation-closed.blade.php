@@ -8,7 +8,7 @@
 @section('content')
 
 {{-- Greeting --}}
-<p style="margin:0 0 20px 0;
+<p style="margin:0 0 22px 0;
           font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
           font-size:15px;line-height:1.7;color:#3a3a3c;">
   Hola, <strong style="color:#1d1d1f;">{{ $leader_name }}</strong>.
@@ -20,7 +20,7 @@
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
        style="background:#f9f9fb;border-radius:14px;margin-bottom:24px;">
   <tr>
-    <td style="padding:24px;">
+    <td style="padding:24px 28px;">
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
              class="ev-stats">
@@ -28,7 +28,7 @@
           <td width="50%" valign="top" style="padding-right:12px;">
             <p style="margin:0 0 3px 0;
                       font-family:system-ui,-apple-system,sans-serif;
-                      font-size:11px;font-weight:600;color:#aeaeb2;
+                      font-size:10px;font-weight:600;color:#aeaeb2;
                       text-transform:uppercase;letter-spacing:0.6px;">
               Período
             </p>
@@ -41,7 +41,7 @@
           <td width="50%" align="right" valign="top">
             <p style="margin:0 0 3px 0;
                       font-family:system-ui,-apple-system,sans-serif;
-                      font-size:11px;font-weight:600;color:#aeaeb2;
+                      font-size:10px;font-weight:600;color:#aeaeb2;
                       text-transform:uppercase;letter-spacing:0.6px;">
               Evaluados
             </p>
@@ -70,11 +70,11 @@
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
          style="background:#f9f9fb;border-radius:14px;margin-bottom:20px;">
     <tr>
-      <td style="padding:24px;">
+      <td style="padding:24px 28px;">
 
         <p style="margin:0 0 3px 0;
                   font-family:system-ui,-apple-system,sans-serif;
-                  font-size:11px;font-weight:600;color:#aeaeb2;
+                  font-size:10px;font-weight:600;color:#aeaeb2;
                   text-transform:uppercase;letter-spacing:0.8px;">
           Promedio del equipo
         </p>
@@ -86,7 +86,7 @@
         </p>
 
         {{-- Progress bar --}}
-        <div style="background:#e8e8ed;border-radius:3px;height:6px;margin-bottom:20px;
+        <div style="background:#e8e8ed;border-radius:3px;height:6px;margin-bottom:22px;
                     line-height:6px;font-size:1px;">
           <div style="background:{{ $barColor }};border-radius:3px;height:6px;
                       width:{{ $avgInt }}%;font-size:1px;"></div>
@@ -95,14 +95,13 @@
         {{-- Stats grid --}}
         @if(!empty($team_summary['stats']))
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-            @php $statsArr = array_chunk(array_keys($team_summary['stats']), 2, true); @endphp
             @foreach(array_chunk(array_keys($team_summary['stats']), 2) as $chunk)
               <tr>
                 @foreach($chunk as $label)
                   <td width="50%" valign="top" style="padding-bottom:14px;padding-right:8px;">
                     <p style="margin:0 0 2px 0;
                               font-family:system-ui,-apple-system,sans-serif;
-                              font-size:11px;color:#aeaeb2;
+                              font-size:10px;color:#aeaeb2;
                               text-transform:uppercase;letter-spacing:0.5px;">
                       {{ $label }}
                     </p>
@@ -126,7 +125,7 @@
   @if(!empty($team_summary['performance_distribution']))
     <p style="margin:0 0 12px 0;
               font-family:system-ui,-apple-system,sans-serif;
-              font-size:11px;font-weight:600;color:#aeaeb2;
+              font-size:10px;font-weight:600;color:#aeaeb2;
               text-transform:uppercase;letter-spacing:0.8px;">
       Distribución de desempeño
     </p>
@@ -186,7 +185,7 @@
           Fortalezas del equipo
         </p>
         @foreach($top_competences as $competence)
-          <p style="margin:0 0 5px 0;
+          <p style="margin:0 0 6px 0;
                     font-family:system-ui,-apple-system,sans-serif;
                     font-size:13px;line-height:1.5;color:#3a3a3c;">
             · {{ $competence }}
@@ -209,7 +208,7 @@
           Oportunidades de mejora
         </p>
         @foreach($areas_improvement as $area)
-          <p style="margin:0 0 5px 0;
+          <p style="margin:0 0 6px 0;
                     font-family:system-ui,-apple-system,sans-serif;
                     font-size:13px;line-height:1.5;color:#3a3a3c;">
             · {{ $area }}
@@ -227,12 +226,12 @@
     <tr>
       <td align="center">
         <a href="{{ $evaluation_url }}"
-           style="display:inline-block;padding:15px 40px;
+           style="display:inline-block;padding:16px 48px;
                   background:#01237e;color:#ffffff;
                   font-family:system-ui,-apple-system,sans-serif;
                   font-size:15px;font-weight:600;line-height:1;
-                  text-decoration:none;border-radius:12px;
-                  border:1px solid #0131b1;">
+                  text-decoration:none;border-radius:14px;
+                  box-shadow:0 4px 16px rgba(1,35,126,0.28);">
           Ver resultados completos
         </a>
       </td>

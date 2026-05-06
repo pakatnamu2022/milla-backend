@@ -3,10 +3,10 @@
 
 @push('ev_styles')
 <style>
-  @media only screen and (max-width: 600px) {
-    .ev-feat  { display: block !important; width: 100% !important; padding: 12px 0 !important; }
-    .ev-feat-spacer { display: none !important; }
-  }
+@media only screen and (max-width:600px) {
+  .ev-feat        { display:block !important; width:100% !important; padding:14px 0 !important; }
+  .ev-feat-spacer { display:none !important; }
+}
 </style>
 @endpush
 
@@ -22,7 +22,7 @@
           font-size:15px;line-height:1.7;color:#3a3a3c;">
   Hola, <strong style="color:#1d1d1f;">{{ $person_name }}</strong>.
 </p>
-<p style="margin:0 0 20px 0;
+<p style="margin:0 0 24px 0;
           font-family:system-ui,-apple-system,sans-serif;
           font-size:15px;line-height:1.7;color:#3a3a3c;">
   El período de evaluación <strong style="color:#1d1d1f;">{{ $start_date }} al {{ $end_date }}</strong>
@@ -35,13 +35,13 @@
        style="margin-bottom:28px;">
   <tr>
     <td class="ev-feat" width="31%" align="center" valign="top"
-        style="background:#f9f9fb;border-radius:12px;padding:20px 12px;text-align:center;">
+        style="background:#f9f9fb;border-radius:12px;padding:22px 12px;text-align:center;">
       <p style="margin:0 0 8px 0;
                 font-family:system-ui,-apple-system,sans-serif;
-                font-size:22px;line-height:1;">
+                font-size:24px;line-height:1;">
         &#128200;
       </p>
-      <p style="margin:0 0 4px 0;
+      <p style="margin:0 0 5px 0;
                 font-family:system-ui,-apple-system,sans-serif;
                 font-size:13px;font-weight:600;color:#1d1d1f;">
         Tu calificación
@@ -54,13 +54,13 @@
     </td>
     <td class="ev-feat-spacer" width="3.5%"></td>
     <td class="ev-feat" width="31%" align="center" valign="top"
-        style="background:#f9f9fb;border-radius:12px;padding:20px 12px;text-align:center;">
+        style="background:#f9f9fb;border-radius:12px;padding:22px 12px;text-align:center;">
       <p style="margin:0 0 8px 0;
                 font-family:system-ui,-apple-system,sans-serif;
-                font-size:22px;line-height:1;">
+                font-size:24px;line-height:1;">
         &#128172;
       </p>
-      <p style="margin:0 0 4px 0;
+      <p style="margin:0 0 5px 0;
                 font-family:system-ui,-apple-system,sans-serif;
                 font-size:13px;font-weight:600;color:#1d1d1f;">
         Retroalimentación
@@ -73,13 +73,13 @@
     </td>
     <td class="ev-feat-spacer" width="3.5%"></td>
     <td class="ev-feat" width="31%" align="center" valign="top"
-        style="background:#f9f9fb;border-radius:12px;padding:20px 12px;text-align:center;">
+        style="background:#f9f9fb;border-radius:12px;padding:22px 12px;text-align:center;">
       <p style="margin:0 0 8px 0;
                 font-family:system-ui,-apple-system,sans-serif;
-                font-size:22px;line-height:1;">
+                font-size:24px;line-height:1;">
         &#127919;
       </p>
-      <p style="margin:0 0 4px 0;
+      <p style="margin:0 0 5px 0;
                 font-family:system-ui,-apple-system,sans-serif;
                 font-size:13px;font-weight:600;color:#1d1d1f;">
         Oportunidades
@@ -99,12 +99,12 @@
   <tr>
     <td align="center">
       <a href="{{ $results_url }}"
-         style="display:inline-block;padding:15px 40px;
+         style="display:inline-block;padding:16px 48px;
                 background:#01237e;color:#ffffff;
                 font-family:system-ui,-apple-system,sans-serif;
                 font-size:15px;font-weight:600;line-height:1;
-                text-decoration:none;border-radius:12px;
-                border:1px solid #0131b1;">
+                text-decoration:none;border-radius:14px;
+                box-shadow:0 4px 16px rgba(1,35,126,0.28);">
         Ver mi resultado de desempeño
       </a>
     </td>

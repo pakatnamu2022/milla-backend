@@ -5,6 +5,10 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 use App\Http\Controllers\Controller;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\common\EvaluationNotificationService;
+use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
+use App\Models\gp\gestionhumana\personal\Worker;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -372,5 +376,171 @@ class EvaluationNotificationController extends Controller
         'error' => $e->getMessage()
       ], 500);
     }
+  }
+
+  /**
+   * Vista temporal para previsualizar el correo de resultados disponibles
+   */
+  public function previewResultsAvailable(Request $request, int $chiefId)
+  {
+    if (!app()->environment(['local', 'testing'])) {
+      abort(404);
+    }
+
+    $validator = Validator::make(array_merge($request->all(), ['chief_id' => $chiefId]), [
+      'chief_id' => 'required|integer|exists:rrhh_persona,id',
+      'evaluation_id' => 'nullable|integer|exists:gh_evaluation,id',
+    ]);
+
+    if ($validator->fails()) {
+      abort(404);
+    }
+
+    $query = EvaluationPerson::query()
+      ->with(['person', 'evaluation.cycle'])
+      ->where('chief_id', $chiefId);
+
+    if ($evaluationId = $request->integer('evaluation_id')) {
+      $query->where('evaluation_id', $evaluationId);
+    } else {
+      $query->orderByDesc('evaluation_id')->orderByDesc('id');
+    }
+
+    $evaluationPerson = $query->first();
+
+    if (!$evaluationPerson || !$evaluationPerson->person || !$evaluationPerson->evaluation) {
+      abort(404, 'No se encontró información suficiente para previsualizar el correo.');
+    }
+
+    $evaluation = $evaluationPerson->evaluation;
+    $cycle = $evaluation->cycle;
+    $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', url('/'))), '/');
+
+    return response()->view('emails.evaluation-results-available', [
+      'badge' => 'Resultado disponible',
+      'person_name' => $evaluationPerson->person->nombre_completo,
+      'evaluation_name' => $evaluation->name,
+      'start_date' => Carbon::parse($cycle?->start_date ?? $evaluation->start_date ?? now())->format('d/m/Y'),
+      'end_date' => Carbon::parse($cycle?->end_date ?? $evaluation->end_date ?? now())->format('d/m/Y'),
+      'results_url' => $frontendUrl . '/perfil/mi-desempeno',
+      'date' => now()->format('d/m/Y H:i'),
+      'company_name' => 'Grupo Pakatnamu',
+      'contact_info' => 'rrhh@grupopakatnamu.com',
+      'logo' => 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg',
+    ]);
+  }
+
+  /**
+   * Vista temporal para previsualizar el correo de recordatorio de evaluaciones pendientes
+   */
+  public function previewEvaluationReminder(Request $request, int $chiefId)
+  {
+    if (!app()->environment(['local', 'testing'])) {
+      abort(404);
+    }
+
+    $validator = Validator::make(array_merge($request->all(), ['chief_id' => $chiefId]), [
+      'chief_id' => 'required|integer|exists:rrhh_persona,id',
+      'evaluation_id' => 'nullable|integer|exists:gh_evaluation,id',
+    ]);
+
+    if ($validator->fails()) {
+      abort(404);
+    }
+
+    // Obtener la evaluación
+    $evaluationQuery = Evaluation::query();
+
+    if ($evaluationId = $request->integer('evaluation_id')) {
+      $evaluationQuery->where('id', $evaluationId);
+    } else {
+      $evaluationQuery->orderByDesc('id');
+    }
+
+    $evaluation = $evaluationQuery->first();
+
+    if (!$evaluation) {
+      abort(404, 'No se encontró evaluación.');
+    }
+
+    // Obtener el líder
+    $leader = Worker::find($chiefId);
+
+    if (!$leader) {
+      abort(404, 'Líder no encontrado.');
+    }
+
+    // Obtener evaluaciones pendientes del líder para esta evaluación
+    $evaluationPersons = EvaluationPerson::query()
+      ->with(['person'])
+      ->where('evaluation_id', $evaluation->id)
+      ->where('chief_id', $chiefId)
+      ->get();
+
+    if ($evaluationPersons->isEmpty()) {
+      abort(404, 'El líder no tiene evaluaciones asignadas.');
+    }
+
+    // Calcular estadísticas y detalles de evaluaciones pendientes
+    $totalEvaluations = 0;
+    $pendingCount = 0;
+    $pendingDetails = [];
+    $seenPersonIds = [];
+
+    foreach ($evaluationPersons as $evalPerson) {
+      // Evitar duplicados
+      if (in_array($evalPerson->person_id, $seenPersonIds)) {
+        continue;
+      }
+      $seenPersonIds[] = $evalPerson->person_id;
+      $totalEvaluations++;
+
+      // Determinar progreso
+      $isCompleted = $evalPerson->wasEvaluated == 1;
+      if ($isCompleted) {
+        $progressPercentage = 100.0;
+      } elseif ($evalPerson->result !== null && $evalPerson->result > 0) {
+        $progressPercentage = 50.0;
+      } else {
+        $progressPercentage = 0.0;
+      }
+
+      // Agregar a pendientes si no está completada
+      if (!$isCompleted) {
+        $pendingCount++;
+        $pendingDetails[] = [
+          'employee_name' => $evalPerson->person->nombre_completo ?? 'N/A',
+          'progress_percentage' => (int)$progressPercentage,
+          'employee_id' => $evalPerson->person_id
+        ];
+      }
+    }
+
+    // Calcular notas adicionales
+    $daysUntilEnd = Carbon::now()->diffInDays(Carbon::parse($evaluation->end_date), false);
+    if ($daysUntilEnd <= 3) {
+      $additionalNotes = "Esta evaluación vence en {$daysUntilEnd} días. Por favor complete las evaluaciones pendientes lo antes posible.";
+    } elseif ($daysUntilEnd <= 7) {
+      $additionalNotes = "Esta evaluación vence en {$daysUntilEnd} días. Recomendamos completar las evaluaciones pronto.";
+    } else {
+      $additionalNotes = "Recuerde completar todas las evaluaciones antes de la fecha límite para asegurar un proceso completo.";
+    }
+
+    $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', url('/'))), '/');
+
+    return response()->view('emails.evaluation-reminder', [
+      'leader_name' => $leader->nombre_completo,
+      'evaluation_name' => $evaluation->name,
+      'end_date' => Carbon::parse($evaluation->end_date)->format('d/m/Y'),
+      'pending_count' => $pendingCount,
+      'total_count' => $totalEvaluations,
+      'pending_evaluations' => $pendingDetails,
+      'evaluation_url' => $frontendUrl . '/perfil/equipo',
+      'additional_notes' => $additionalNotes,
+      'send_date' => now()->format('d/m/Y H:i'),
+      'company_name' => 'Grupo Pakatnamu',
+      'contact_info' => 'rrhh@grupopakatnamu.com',
+      'logo' => 'https://namu-storage.nyc3.digitaloceanspaces.com/general/sian.svg',
+    ]);
   }
 }
