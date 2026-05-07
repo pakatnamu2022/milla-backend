@@ -119,11 +119,6 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         // Proceso POSTVENTA (separado)
         $results = $this->consultStoredProcedure($purchaseOrder->number, 'all');
 
-        //Obtenemos del $results solo los ArticuloId
-        $articleIds = array_map(function ($item) {
-          return trim($item->ArticuloId ?? '');
-        }, $results);
-
         // VALIDACIÓN: Comparar cantidades enviadas con cantidades observadas en la recepción
         $reception = $purchaseOrder->reception;
 
