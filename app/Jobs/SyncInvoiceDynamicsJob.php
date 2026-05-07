@@ -6,8 +6,13 @@ use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
+use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
+use App\Http\Services\common\EmailService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\postventa\taller\ApSupplierOrder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -135,6 +140,21 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           'migration_status' => 'updated_with_nc',
           'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) // Si son iguales, marcar como false (anulada)
         ]);
+
+        // Actualizar la recepción asociada si existe y es de área POSTVENTA
+        if ($purchaseOrder->reception && $purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+          //Actualizamos el estado de la recepción ANULADO
+          $purchaseOrder->reception->update([
+            'status' => 'ANNULLED'
+          ]);
+
+          //Actualizamos tipo de recepción del pedido a proveedor según productos pendientes
+          if ($purchaseOrder->reception->supplierOrder) {
+            $supplierOrder = $purchaseOrder->reception->supplierOrder;
+            $supplierOrderService = new ApSupplierOrderService(new EmailService());
+            $supplierOrderService->updateReceptionType($supplierOrder);
+          }
+        }
 
         return;
       }

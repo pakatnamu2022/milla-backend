@@ -119,43 +119,56 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         // Proceso POSTVENTA (separado)
         $results = $this->consultStoredProcedure($purchaseOrder->number, 'all');
 
-        // VALIDACIÓN: Comparar cantidades enviadas con cantidades observadas en la recepción
-        $reception = $purchaseOrder->reception;
+        // Consultar información de factura para determinar si está anulada
+        $invoiceResult = $this->consultInvoiceStoredProcedure($purchaseOrder->number);
 
-        if (!$reception) {
-          \Log::error("VALIDACIÓN ERROR: No se encontró recepción para OC #{$purchaseOrder->number}");
-        } else {
+        $isInvoiceVoided = false;
 
-          foreach ($results as $item) {
-            $dynCode = trim($item->ArticuloId ?? '');
-            $itemCantidadEnviada = (float)($item->ItemCantidadEnviada ?? 0);
+        if ($invoiceResult) {
+          $newInvoice = trim($invoiceResult->NroDocProvDocumento ?? '');
+          $newReceipt = trim($invoiceResult->NumeroDocumento ?? '');
+          $isInvoiceVoided = ($newInvoice === $newReceipt);
+        }
 
-            // Buscar el producto por dyn_code
-            $product = Products::where('dyn_code', $dynCode)->first();
+        // VALIDACIÓN: Solo validar cantidades si la factura NO está anulada
+        if (!$isInvoiceVoided) {
+          $reception = $purchaseOrder->reception;
 
-            if (!$product) {
-              \Log::error("VALIDACIÓN ERROR: Producto no encontrado con dyn_code: {$dynCode}");
-              continue;
-            }
+          if (!$reception) {
+            \Log::error("VALIDACIÓN ERROR: No se encontró recepción para OC #{$purchaseOrder->number}");
+          } else {
 
-            // Buscar el detalle de recepción para este producto
-            $receptionDetail = $reception->details()->where('product_id', $product->id)->first();
+            foreach ($results as $item) {
+              $dynCode = trim($item->ArticuloId ?? '');
+              $itemCantidadEnviada = (float)($item->ItemCantidadEnviada ?? 0);
 
-            if (!$receptionDetail) {
-              \Log::error("VALIDACIÓN ERROR: No se encontró detalle de recepción para producto ID {$product->id} (dyn_code: {$dynCode})");
-              continue;
-            }
+              // Buscar el producto por dyn_code
+              $product = Products::where('dyn_code', $dynCode)->first();
 
-            // Comparar observed_quantity con ItemCantidadEnviada
-            $observedQuantity = (float)$receptionDetail->observed_quantity;
+              if (!$product) {
+                \Log::error("VALIDACIÓN ERROR: Producto no encontrado con dyn_code: {$dynCode}");
+                continue;
+              }
 
-            if ($observedQuantity !== $itemCantidadEnviada) {
-              \Log::error("VALIDACIÓN ERROR: Producto {$dynCode} - Cantidad enviada: {$itemCantidadEnviada} != Cantidad observada: {$observedQuantity}");
+              // Buscar el detalle de recepción para este producto
+              $receptionDetail = $reception->details()->where('product_id', $product->id)->first();
+
+              if (!$receptionDetail) {
+                \Log::error("VALIDACIÓN ERROR: No se encontró detalle de recepción para producto ID {$product->id} (dyn_code: {$dynCode})");
+                continue;
+              }
+
+              // Comparar observed_quantity con ItemCantidadEnviada
+              $observedQuantity = (float)$receptionDetail->observed_quantity;
+
+              if ($observedQuantity !== $itemCantidadEnviada) {
+                \Log::error("VALIDACIÓN ERROR: Producto {$dynCode} - Cantidad enviada: {$itemCantidadEnviada} != Cantidad observada: {$observedQuantity}");
+              }
             }
           }
         }
 
-        [$status, $creditNoteNumber, $errorMessage] = $this->processPostventaCreditNote($purchaseOrder, $results);
+        [$status, $creditNoteNumber, $errorMessage] = $this->processPostventaCreditNote($purchaseOrder, $results, $isInvoiceVoided);
       } else {
         $errorMessage = "La orden de compra #{$purchaseOrderId} tiene un tipo de operación no válido";
         throw new \Exception($errorMessage);
@@ -232,12 +245,16 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
   /**
    * Procesa la Nota de Crédito para POSTVENTA
    * Crea registros en SupplierCreditNote y SupplierCreditNoteDetail
+   *
+   * @param PurchaseOrder $purchaseOrder
+   * @param array $results
+   * @param bool $isInvoiceVoided Si la factura está anulada (invoice == receipt)
+   * @return array
    */
-  protected function processPostventaCreditNote(PurchaseOrder $purchaseOrder, array $results): array
+  protected function processPostventaCreditNote(PurchaseOrder $purchaseOrder, array $results, bool $isInvoiceVoided = false): array
   {
     $creditNoteNumber = null;
     $errorMessage = null;
-    $status = 'error';
 
     if (empty($results)) {
       $status = 'success';
@@ -277,7 +294,9 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         'tax_amount' => abs((float)($firstRow->DocumentoIgv ?? 0)),
         'total' => abs((float)($firstRow->DocumentoPrecioCompra ?? 0)),
         'status' => SupplierCreditNote::STATUS_APPROVED,
-        'notes' => 'Creada automáticamente desde Dynamics',
+        'notes' => $isInvoiceVoided
+          ? 'Creada automáticamente desde Dynamics (DEVOLUCIÓN)'
+          : 'Creada automáticamente desde Dynamics (DEVOLUCIÓN CON CRÉDITO)',
         'approved_by' => $purchaseOrder->created_by, // Asignar el mismo usuario que creó la OC
         'approved_at' => now(),
       ]);
@@ -312,9 +331,16 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       ]);
 
       // Generar movimiento de inventario de salida por devolución
-      // Esto resta del stock las cantidades que se están devolviendo al proveedor
+      // Decidir qué método usar según si la factura está anulada o no
       $inventoryService = app(InventoryMovementService::class);
-      $inventoryService->createReturnOutFromCreditNote($supplierCreditNote);
+
+      if ($isInvoiceVoided) {
+        // Factura anulada: restar directamente del stock disponible
+        $inventoryService->createReturnOutFromCreditNoteDirectStock($supplierCreditNote);
+      } else {
+        // Factura válida: restar del quantity_pending_credit_note
+        $inventoryService->createReturnOutFromCreditNote($supplierCreditNote);
+      }
 
       DB::commit();
       $status = 'success';
@@ -347,6 +373,27 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
       }
 
       return [];
+    } catch (\Exception $e) {
+      throw $e;
+    }
+  }
+
+  /**
+   * Consulta el Procedimiento Almacenado de Factura
+   */
+  protected function consultInvoiceStoredProcedure(string $orderNumber): ?object
+  {
+    try {
+      // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = 'OC1400000001'
+      $results = DB::connection('dbtest')
+        ->select("EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = '{$orderNumber}'");
+
+      // El PA debería retornar un resultado con los campos NroDocProvDocumento y NumeroDocumento
+      if (!empty($results) && isset($results[0])) {
+        return $results[0];
+      }
+
+      return null;
     } catch (\Exception $e) {
       throw $e;
     }

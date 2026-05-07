@@ -878,22 +878,22 @@ class InventoryMovementService extends BaseService
           $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
             ->where('warehouse_id', $warehouseId);
         })
-        // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
-        ->orWhere(function ($subQ) use ($warehouseId) {
-          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
-            ->where('warehouse_destination_id', $warehouseId);
-        })
-        // Todos los demás tipos de movimientos (no transferencias)
-        ->orWhere(function ($subQ) use ($warehouseId) {
-          $subQ->whereNotIn('movement_type', [
+          // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
+          ->orWhere(function ($subQ) use ($warehouseId) {
+            $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+              ->where('warehouse_destination_id', $warehouseId);
+          })
+          // Todos los demás tipos de movimientos (no transferencias)
+          ->orWhere(function ($subQ) use ($warehouseId) {
+            $subQ->whereNotIn('movement_type', [
               InventoryMovement::TYPE_TRANSFER_OUT,
               InventoryMovement::TYPE_TRANSFER_IN
             ])
-            ->where(function ($q2) use ($warehouseId) {
-              $q2->where('warehouse_id', $warehouseId)
-                ->orWhere('warehouse_destination_id', $warehouseId);
-            });
-        });
+              ->where(function ($q2) use ($warehouseId) {
+                $q2->where('warehouse_id', $warehouseId)
+                  ->orWhere('warehouse_destination_id', $warehouseId);
+              });
+          });
       })
       ->with([
         'details' => function ($q) use ($productId) {
@@ -1440,22 +1440,22 @@ class InventoryMovementService extends BaseService
           $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
             ->where('warehouse_id', $warehouseId);
         })
-        // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
-        ->orWhere(function ($subQ) use ($warehouseId) {
-          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
-            ->where('warehouse_destination_id', $warehouseId);
-        })
-        // Todos los demás tipos de movimientos (no transferencias)
-        ->orWhere(function ($subQ) use ($warehouseId) {
-          $subQ->whereNotIn('movement_type', [
+          // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
+          ->orWhere(function ($subQ) use ($warehouseId) {
+            $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+              ->where('warehouse_destination_id', $warehouseId);
+          })
+          // Todos los demás tipos de movimientos (no transferencias)
+          ->orWhere(function ($subQ) use ($warehouseId) {
+            $subQ->whereNotIn('movement_type', [
               InventoryMovement::TYPE_TRANSFER_OUT,
               InventoryMovement::TYPE_TRANSFER_IN
             ])
-            ->where(function ($q2) use ($warehouseId) {
-              $q2->where('warehouse_id', $warehouseId)
-                ->orWhere('warehouse_destination_id', $warehouseId);
-            });
-        });
+              ->where(function ($q2) use ($warehouseId) {
+                $q2->where('warehouse_id', $warehouseId)
+                  ->orWhere('warehouse_destination_id', $warehouseId);
+              });
+          });
       })
       ->with([
         'details' => function ($q) use ($productId) {
@@ -1715,7 +1715,7 @@ class InventoryMovementService extends BaseService
         'reference_id' => $creditNote->id,
         'user_id' => $creditNote->approved_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Salida por devolución a proveedor - Nota de Crédito {$creditNote->credit_note_number}",
+        'notes' => "Salida por devolución a proveedor (DEVOLUCIÓN CON CRÉDITO) - Nota de Crédito {$creditNote->credit_note_number}",
         'total_items' => 0,
         'total_quantity' => 0,
       ]);
@@ -1748,6 +1748,110 @@ class InventoryMovementService extends BaseService
       // Esto SOLO resta de quantity_pending_credit_note, no afecta el stock disponible
       foreach ($creditNote->details as $detail) {
         $this->stockService->removePendingCreditNote($detail->product_id, $warehouseId, $detail->quantity);
+      }
+
+      DB::commit();
+      return $movement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Crear movimiento de salida por devolución desde nota de crédito
+   * Esta versión resta directamente del stock disponible (available_quantity)
+   * Se usa cuando la factura está anulada (invoice == receipt)
+   *
+   * @param $creditNote SupplierCreditNote
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createReturnOutFromCreditNoteDirectStock($creditNote): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Validar que la nota de crédito exista y tenga detalles
+      if (!$creditNote) {
+        throw new Exception('Nota de crédito no encontrada');
+      }
+
+      $creditNote->load(['details', 'purchaseReception']);
+
+      if ($creditNote->details->isEmpty()) {
+        throw new Exception('La nota de crédito no contiene productos para generar salida de inventario');
+      }
+
+      // Obtener el almacén de la recepción original
+      $reception = $creditNote->purchaseReception;
+      if (!$reception || !$reception->warehouse_id) {
+        throw new Exception('No se encontró la recepción o el almacén asociado a la nota de crédito');
+      }
+
+      $warehouseId = $reception->warehouse_id;
+
+      // Validar que hay stock disponible para todos los productos
+      foreach ($creditNote->details as $detail) {
+        $stock = $this->stockService->getStock($detail->product_id, $warehouseId);
+
+        if (!$stock) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "No se encontró registro de stock para el producto '{$productName}' en el almacén"
+          );
+        }
+
+        if ($stock->available_quantity < $detail->quantity) {
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+          throw new Exception(
+            "Stock disponible insuficiente para producto '{$productName}'. " .
+            "Disponible: {$stock->available_quantity}, Cantidad a devolver: {$detail->quantity}"
+          );
+        }
+      }
+
+      // Crear movimiento de inventario de salida
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_RETURN_OUT,
+        'movement_date' => $creditNote->credit_note_date ?? now(),
+        'warehouse_id' => $warehouseId,
+        'reference_type' => get_class($creditNote),
+        'reference_id' => $creditNote->id,
+        'user_id' => $creditNote->approved_by ?? Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Salida por devolución a proveedor (DEVOLUCIÓN) - Nota de Crédito {$creditNote->credit_note_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Crear detalles del movimiento
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($creditNote->details as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->subtotal,
+          'notes' => "Devolución NC {$creditNote->credit_note_number} - {$detail->notes}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      // Actualizar totales del movimiento
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Restar directamente del stock disponible (available_quantity)
+      foreach ($creditNote->details as $detail) {
+        $this->stockService->removeStock($detail->product_id, $warehouseId, $detail->quantity);
       }
 
       DB::commit();

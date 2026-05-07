@@ -36,6 +36,14 @@ class ApSupplierOrder extends Model
     'exchange_rate',
     'reception_type',
     'status',
+    'discarded_by',
+    'reason_cancellation',
+    'discarded_at',
+  ];
+
+  protected $casts = [
+    'status' => 'boolean',
+    'discarded_at' => 'datetime',
   ];
 
   const filters = [
@@ -115,6 +123,11 @@ class ApSupplierOrder extends Model
     return $this->hasMany(ApSupplierOrderDetails::class, 'ap_supplier_order_id');
   }
 
+  public function discardedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'discarded_by');
+  }
+
   /**
    * Relación con recepciones de compra
    */
@@ -129,6 +142,14 @@ class ApSupplierOrder extends Model
   public function hasActiveReceptions(): bool
   {
     return $this->receptions()->whereNull('deleted_at')->exists();
+  }
+
+  /**
+   * Verificar si tiene recepciones anuladas
+   */
+  public function hasAnnulledReceptions(): bool
+  {
+    return $this->receptions()->where('status', '=', 'ANNULLED')->whereNull('deleted_at')->exists();
   }
 
   /**

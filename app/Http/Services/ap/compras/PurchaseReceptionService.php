@@ -56,7 +56,11 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
       if (is_null($supplierOrder->approved_by)) {
-        throw new Exception('La OC debe estar aprobada para crear la recepción');
+        throw new Exception('El pedido a proveedor debe estar aprobada para generar una recepción');
+      }
+
+      if (!$supplierOrder->status) {
+        throw new Exception('No se puede generar un registro de recepción a un pedido que ha sido anulado');
       }
 
       // VALIDACIÓN 1: La fecha de recepción no puede ser anterior a la fecha de la orden
@@ -202,7 +206,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // VALIDACIÓN: No permitir eliminar si ya tiene PurchaseOrder (factura) asociada
       if ($reception->purchase_order_id) {
-        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada. Debe eliminar primero la factura.');
+        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada ya sea activa o anulada. Debe anular la recepción.');
       }
 
       // Obtener el supplier order antes de eliminar
@@ -234,6 +238,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Solo contamos quantity_received - observed_quantity (cantidades aceptadas)
       $receptionDetails = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
         $query->where('ap_supplier_order_id', $supplierOrder->id)
+          ->where('status', '!=', 'ANNULLED')
           ->whereNull('deleted_at');
       })
         ->where('product_id', $orderDetail->product_id)
@@ -290,6 +295,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Calcular cuánto ya se ha recibido de este producto en recepciones previas
       $alreadyReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($supplierOrder) {
         $query->where('ap_supplier_order_id', $supplierOrder->id)
+          ->where('status', 1)
           ->whereNull('deleted_at');
       })
         ->where('product_id', $productId)
@@ -527,8 +533,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
   /**
    * Actualizar el reception_type del ApSupplierOrder
-   * COMPLETE: Si no hay productos pendientes por recepcionar
-   * PARTIAL: Si todavía hay productos pendientes
+   * Delega la lógica al servicio centralizado ApSupplierOrderService
    *
    * @param ApSupplierOrder $supplierOrder
    * @return void
@@ -536,12 +541,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
   protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
   {
     $supplierOrderService = new ApSupplierOrderService(new EmailService());
-    $pendingProducts = $supplierOrderService->getPendingProducts($supplierOrder->id);
-
-    // Si no hay productos pendientes → COMPLETE
-    // Si hay productos pendientes → PARTIAL
-    $receptionType = empty($pendingProducts) ? ApSupplierOrder::COMPLETE : ApSupplierOrder::PARTIAL;
-
-    $supplierOrder->update(['reception_type' => $receptionType]);
+    $supplierOrderService->updateReceptionType($supplierOrder);
   }
 }

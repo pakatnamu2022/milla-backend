@@ -254,4 +254,33 @@ class PurchaseOrder extends BaseModel
       $this->attributes['number_guide'] = 'NI' . $value;
     }
   }
+
+  /**
+   * Obtiene el siguiente número correlativo para una orden de compra
+   * Fuente de verdad centralizada para la asignación de correlativos
+   *
+   * Lógica especial:
+   * - Si es TIPO_OPERACION_POSTVENTA: omite el filtro where('status', true)
+   * - Si NO es TIPO_OPERACION_POSTVENTA: incluye el filtro where('status', true)
+   *
+   * @param int $sedeId
+   * @param int $typeOperationId
+   * @param int $correlativeStart Número inicial si no hay correlativos previos (default: 1)
+   * @return int
+   */
+  public static function getNextCorrelative(int $sedeId, int $typeOperationId, int $correlativeStart = 1): int
+  {
+    $query = self::where('sede_id', $sedeId)
+      ->where('type_operation_id', $typeOperationId)
+      ->whereNull('deleted_at');
+
+    // Condición especial: solo aplicar where('status', true) si NO es TIPO_OPERACION_POSTVENTA
+    if ($typeOperationId !== ApMasters::TIPO_OPERACION_POSTVENTA) {
+      $query->where('status', true);
+    }
+
+    $maxCorrelative = $query->max('number_correlative');
+
+    return $maxCorrelative ? $maxCorrelative + 1 : $correlativeStart;
+  }
 }

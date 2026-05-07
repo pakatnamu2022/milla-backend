@@ -35,7 +35,7 @@ class PurchaseReceptionResource extends JsonResource
       'type_currency_id' => $this->supplierOrder ? $this->supplierOrder->type_currency_id : null,
 
       // Relationships
-      'purchase_order' => new PurchaseOrderResource($this->purchaseOrder),
+      'purchase_order' => new PurchaseOrderResource($this->purchaseOrderActive),
       'warehouse' => new WarehouseResource($this->warehouse),
       'supplier_order' => $this->supplierOrder ? new ApSupplierOrderResource($this->supplierOrder->load('details')) : null,
       'carrier' => BusinessPartnersResource::make($this->carrier),

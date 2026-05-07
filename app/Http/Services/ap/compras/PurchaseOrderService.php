@@ -131,14 +131,12 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
 
-      // Obtener el máximo correlativo real (incluyendo anuladas) para evitar duplicados
-      $maxCorrelative = PurchaseOrder::where('sede_id', $data['sede_id'])
-        ->where('type_operation_id', $data['type_operation_id'])
-        ->where('status', true)
-        ->whereNull('deleted_at')
-        ->max('number_correlative');
-
-      $number_correlative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
+      // Usar el método centralizado del modelo como fuente de verdad
+      $number_correlative = PurchaseOrder::getNextCorrelative(
+        $data['sede_id'],
+        $data['type_operation_id'],
+        $series->correlative_start
+      );
 
       // Si no es producción, sumar 1000 al correlativo para evitar conflictos para posventa
       if (config('app.env') !== 'production' && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
@@ -196,13 +194,13 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
     }
 
-    $maxCorrelative = PurchaseOrder::where('sede_id', $sedeId)
-      ->where('type_operation_id', $typeOperationId)
-      ->where('status', true)
-      ->whereNull('deleted_at')
-      ->max('number_correlative');
+    // Usar el método centralizado del modelo como fuente de verdad
+    $numberCorrelative = PurchaseOrder::getNextCorrelative(
+      $sedeId,
+      $typeOperationId,
+      $series->correlative_start
+    );
 
-    $numberCorrelative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
     $number = $series->series . $this->completeNumber($numberCorrelative, 7);
 
     return [
@@ -661,8 +659,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       throw new Exception("Recepción ID {$receptionId} no encontrada");
     }
 
-    if ($reception->purchase_order_id && $reception->purchase_order_id !==
-      $purchaseOrder->id) {
+    if ($reception->purchase_order_id && $reception->purchase_order_id !== $purchaseOrder->id) {
       throw new Exception("La recepción ya está vinculada a otra orden de compra");
     }
 

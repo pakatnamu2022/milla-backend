@@ -9,6 +9,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
@@ -189,9 +190,14 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       $supplierOrder = $this->find($data['id']);
       $warehouse = Warehouse::find($data['warehouse_id']);
 
-      if (!is_null($supplierOrder->ap_purchase_order_id)) {
-        throw new Exception('No se puede editar una orden al proveedor que ya se le ha registrado una factura.');
+      if ($supplierOrder->hasAnnulledReceptions()) {
+        throw new Exception('No se puede editar un pedido a proveedor que tiene recepciones anuladas asociadas.');
       }
+
+      if ($supplierOrder->discarded_by) {
+        throw new Exception('No se puede editar un pedido a proveedor que ha sido descartado.');
+      }
+
       $data['sede_id'] = $warehouse->sede_id;
 
       // Extract details from data
@@ -264,37 +270,17 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
   {
     $supplierOrder = $this->find($id);
 
-    if (!is_null($supplierOrder->ap_purchase_order_id)) {
-      throw new Exception('No se puede eliminar una orden al proveedor que ya se le ha registrado una factura.');
+    if ($supplierOrder->hasAnnulledReceptions()) {
+      throw new Exception('No se puede eliminar un pedido a proveedor que tiene recepciones anuladas asociadas.');
+    }
+
+    if ($supplierOrder->discarded_by) {
+      throw new Exception('No se puede eliminar un pedido a proveedor que ha sido descartado.');
     }
 
     DB::transaction(function () use ($supplierOrder) {
-      // Get linked request detail IDs before deleting
-      $requestDetailIds = $supplierOrder->requestDetails()->pluck('ap_order_purchase_request_details.id')->toArray();
-
-      // Revert status of linked purchase request details back to 'pending'
-      if (!empty($requestDetailIds)) {
-        DB::table('ap_order_purchase_request_details')
-          ->whereIn('id', $requestDetailIds)
-          ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_PENDING]);
-
-        // Revert status of parent purchase request headers back to 'pending'
-        $headerIds = DB::table('ap_order_purchase_request_details')
-          ->whereIn('id', $requestDetailIds)
-          ->pluck('order_purchase_request_id')
-          ->unique()
-          ->values()
-          ->toArray();
-
-        if (!empty($headerIds)) {
-          DB::table('ap_order_purchase_requests')
-            ->whereIn('id', $headerIds)
-            ->update(['status' => ApOrderPurchaseRequests::PENDING]);
-        }
-
-        // Detach the relationship
-        $supplierOrder->requestDetails()->detach();
-      }
+      // Liberar items de solicitudes de compra vinculadas
+      $this->releaseLinkedPurchaseRequests($supplierOrder);
 
       // Delete details (cascade will handle this, but explicit deletion is clearer)
       ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrder->id)->delete();
@@ -379,6 +365,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
       ->where('pr.ap_supplier_order_id', $id)
       ->whereNull('pr.deleted_at')
+      ->where('pr.status', '!=', 'ANNULLED')
       ->whereNull('prd.deleted_at')
       ->select('prd.product_id', DB::raw('SUM(prd.quantity_received) as total_received'))
       ->groupBy('prd.product_id')
@@ -651,5 +638,107 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         'message' => 'Notificación enviada correctamente a jefatura y gerencia para aprobación del pedido.',
       ]);
     });
+  }
+
+  /**
+   * Actualizar el reception_type del ApSupplierOrder basado en productos pendientes
+   *
+   * Esta es la única fuente de verdad para calcular el reception_type:
+   * - COMPLETE: Si no hay productos pendientes (todo recibido)
+   * - PARTIAL: Si hay productos pendientes Y existen recepciones activas (algo recibido)
+   * - PENDING: Si hay productos pendientes Y NO existen recepciones activas (nada recibido)
+   *
+   * @param ApSupplierOrder $supplierOrder
+   * @return void
+   */
+  public function updateReceptionType(ApSupplierOrder $supplierOrder): void
+  {
+    $pendingProducts = $this->getPendingProducts($supplierOrder->id);
+
+    // Verificar si existen recepciones activas (no anuladas, no eliminadas)
+    $hasActiveReceptions = PurchaseReception::where('ap_supplier_order_id', $supplierOrder->id)
+      ->where('status', '!=', 'ANNULLED')
+      ->whereNull('deleted_at')
+      ->exists();
+
+    // Determinar el reception_type
+    if (empty($pendingProducts)) {
+      $receptionType = ApSupplierOrder::COMPLETE;
+    } else {
+      $receptionType = $hasActiveReceptions ? ApSupplierOrder::PARTIAL : ApSupplierOrder::PENDING;
+    }
+
+    $supplierOrder->update(['reception_type' => $receptionType]);
+  }
+
+  public function discard(int $id, string $reasonCancellation)
+  {
+    return DB::transaction(function () use ($id, $reasonCancellation) {
+      $supplierOrder = $this->find($id);
+
+      if ($supplierOrder->discarded_by) {
+        throw new Exception('Este pedido a proveedor ya ha sido anulado.');
+      }
+
+      if (!$supplierOrder->hasAnnulledReceptions()) {
+        throw new Exception('No se puede anular un pedido a proveedor que no tiene recepciones anuladas asociadas.');
+      }
+
+      if (!is_null($supplierOrder->ap_purchase_order_id)) {
+        throw new Exception('No se puede anular una orden al proveedor que ya se le ha registrado una factura.');
+      }
+
+      // Liberar items de solicitudes de compra vinculadas
+      $this->releaseLinkedPurchaseRequests($supplierOrder);
+
+      $supplierOrder->update([
+        'discarded_by' => auth()->user()->id,
+        'reason_cancellation' => $reasonCancellation,
+        'discarded_at' => now(),
+        'status' => false,
+      ]);
+
+      return new ApSupplierOrderResource($supplierOrder);
+    });
+  }
+
+  /**
+   * Libera los items de las solicitudes de compra vinculadas a un pedido a proveedor.
+   *
+   * Esta es la única fuente de verdad para liberar items cuando se elimina o descarta
+   * un pedido a proveedor. Revierte el status de los detalles y encabezados de las
+   * solicitudes de compra a 'pending' y desvincula la relación.
+   *
+   * @param ApSupplierOrder $supplierOrder
+   * @return void
+   */
+  protected function releaseLinkedPurchaseRequests(ApSupplierOrder $supplierOrder): void
+  {
+    // Get linked request detail IDs before detaching
+    $requestDetailIds = $supplierOrder->requestDetails()->pluck('ap_order_purchase_request_details.id')->toArray();
+
+    // Revert status of linked purchase request details back to 'pending'
+    if (!empty($requestDetailIds)) {
+      DB::table('ap_order_purchase_request_details')
+        ->whereIn('id', $requestDetailIds)
+        ->update(['status' => ApOrderPurchaseRequestDetails::STATUS_PENDING]);
+
+      // Revert status of parent purchase request headers back to 'pending'
+      $headerIds = DB::table('ap_order_purchase_request_details')
+        ->whereIn('id', $requestDetailIds)
+        ->pluck('order_purchase_request_id')
+        ->unique()
+        ->values()
+        ->toArray();
+
+      if (!empty($headerIds)) {
+        DB::table('ap_order_purchase_requests')
+          ->whereIn('id', $headerIds)
+          ->update(['status' => ApOrderPurchaseRequests::PENDING]);
+      }
+
+      // Detach the relationship
+      $supplierOrder->requestDetails()->detach();
+    }
   }
 }
