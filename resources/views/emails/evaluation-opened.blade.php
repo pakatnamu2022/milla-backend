@@ -2,13 +2,13 @@
 @extends('emails.layouts.evaluation')
 
 @section('email_subject')
-  Nueva Evaluación de Desempeño Habilitada
+  Nueva Evaluación de Guerreros Habilitada
 @endsection
 @section('title')
   Nueva evaluación abierta
 @endsection
 @section('subtitle')
-  Se ha habilitado una evaluación de desempeño para tu equipo.
+  Se ha habilitado una evaluación de guerreros para tu equipo.
 @endsection
 
 @section('content')
@@ -27,7 +27,7 @@
 
   {{-- Evaluation info card --}}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f7f7f9;border-radius:18px;margin-bottom:32px;border:1px solid #f0f0f2;">
+         style="background:#f7f7f9;border-radius:18px;margin-bottom:28px;border:1px solid #f0f0f2;overflow:hidden;">
     <tr>
       <td style="padding:28px 32px;">
 
@@ -144,7 +144,7 @@
 
   {{-- What will be evaluated --}}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f7f7f9;border-radius:18px;margin-top:28px;border:1px solid #f0f0f2;">
+         style="background:#f7f7f9;border-radius:18px;margin-top:28px;border:1px solid #f0f0f2;overflow:hidden;">
     <tr>
       <td style="padding:24px 28px;">
         <p style="margin:0 0 12px 0;

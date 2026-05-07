@@ -12,6 +12,7 @@ use App\Jobs\ValidatePotentialBuyersDocuments;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\PotentialBuyers;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
+use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Exception;
@@ -813,5 +814,46 @@ class PotentialBuyersService extends BaseService
   public function export(Request $request)
   {
     return $this->exportService->exportFromRequest($request, PotentialBuyers::class);
+  }
+
+  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId): array
+  {
+    $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
+      ->where('year', now()->year)
+      ->where('month', now()->month)
+      ->where('status', true)
+      ->pluck('worker_id')
+      ->toArray();
+
+    if (!in_array($fromWorkerId, $teamIds) || !in_array($toWorkerId, $teamIds)) {
+      return [
+        'success' => false,
+        'message' => 'Los asesores deben pertenecer a tu equipo en el periodo actual',
+      ];
+    }
+
+    $query = PotentialBuyers::where('worker_id', $fromWorkerId)
+      ->where('use', PotentialBuyers::CREATED);
+
+    if (!empty($potentialBuyerIds)) {
+      $query->whereIn('id', $potentialBuyerIds);
+    }
+
+    $count = $query->count();
+
+    if ($count === 0) {
+      return [
+        'success' => false,
+        'message' => 'No hay registros pendientes para transferir',
+      ];
+    }
+
+    $query->update(['worker_id' => $toWorkerId]);
+
+    return [
+      'success'           => true,
+      'message'           => "{$count} potential buyer(s) transferido(s) correctamente",
+      'transferred_count' => $count,
+    ];
   }
 }
