@@ -19,7 +19,7 @@
   Evaluaciones pendientes
 @endsection
 @section('subtitle')
-  Tienes evaluaciones de desempeño que requieren tu atención.
+  Tienes evaluaciones de guerreros que requieren tu atención.
 @endsection
 
 @section('content')
@@ -36,10 +36,9 @@
           font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
           font-size:15px;line-height:1.7;color:#3a3a3c;">
     Hola, <strong style="color:#1d1d1f;font-weight:500;">{{ Str::title($leader_name) }}</strong>. Completa las
-    evaluaciones antes
-    del <span
+    evaluaciones de tus guerreros antes del <span
       style="font-weight:600;color:#1d1d1f;">{{ \Carbon\Carbon::parse($end_date)->locale('es')->translatedFormat('d \d\e F \d\e Y') }}</span>
-    para mantener el proceso al día.
+    para asegurar un proceso completo y justo.
   </p>
 
   {{-- Summary card - Apple Style Horizontal Progress --}}

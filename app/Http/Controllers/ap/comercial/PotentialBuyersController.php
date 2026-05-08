@@ -7,6 +7,7 @@ use App\Http\Requests\ap\comercial\DiscardPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\IndexPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\MyLeadsRequest;
 use App\Http\Requests\ap\comercial\StorePotentialBuyersRequest;
+use App\Http\Requests\ap\comercial\TransferPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
 use App\Models\ap\comercial\Opportunity;
@@ -165,6 +166,27 @@ class PotentialBuyersController extends Controller
   {
     try {
       return $this->service->export($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function transferWorkers(TransferPotentialBuyersRequest $request)
+  {
+    try {
+      $bossWorkerId = auth()->user()->partner_id;
+      if (!$bossWorkerId) return $this->error('El trabajador autenticado es inválido');
+
+      $result = $this->service->transferWorkers(
+        $request->from_worker_id,
+        $request->to_worker_id,
+        $request->input('potential_buyer_ids', []),
+        $bossWorkerId
+      );
+
+      return $result['success']
+        ? $this->success($result, $result['message'])
+        : $this->error($result['message'], $result);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

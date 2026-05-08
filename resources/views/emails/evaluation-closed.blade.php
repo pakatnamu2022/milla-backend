@@ -24,7 +24,7 @@
 
   {{-- Evaluation meta --}}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="background:#f7f7f9;border-radius:18px;margin-bottom:28px;border:1px solid #f0f0f2;">
+         style="background:#f7f7f9;border-radius:18px;margin-bottom:28px;border:1px solid #f0f0f2;overflow:hidden;">
     <tr>
       <td style="padding:28px 32px;">
 
@@ -220,7 +220,7 @@
   {{-- Strengths --}}
   @isset($top_competences)
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-           style="background:#f0fdf4;border-radius:18px;margin-top:28px;border:1px solid #dbeafe;">
+           style="background:#f0fdf4;border-radius:18px;margin-top:28px;border:1px solid #dbeafe;overflow:hidden;">
       <tr>
         <td style="padding:24px 28px;">
           <p style="margin:0 0 14px 0;
@@ -243,7 +243,7 @@
   {{-- Areas of improvement --}}
   @isset($areas_improvement)
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-           style="background:#fffbf0;border-radius:18px;margin-top:14px;border:1px solid #fde8cc;">
+           style="background:#fffbf0;border-radius:18px;margin-top:14px;border:1px solid #fde8cc;overflow:hidden;">
       <tr>
         <td style="padding:24px 28px;">
           <p style="margin:0 0 14px 0;

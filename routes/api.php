@@ -1017,6 +1017,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('potentialBuyers/import-derco', [PotentialBuyersController::class, 'importDerco']);
       Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
       Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
+      Route::post('potentialBuyers/transfer-workers', [PotentialBuyersController::class, 'transferWorkers']);
 
       // Rutas especiales de oportunidades (deben ir antes del apiResource)
       Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
