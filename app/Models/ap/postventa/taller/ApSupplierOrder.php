@@ -139,9 +139,17 @@ class ApSupplierOrder extends Model
   /**
    * Verificar si tiene recepciones activas (no eliminadas)
    */
-  public function hasActiveReceptions(): bool
+  public function hasReceptions(): bool
   {
     return $this->receptions()->whereNull('deleted_at')->exists();
+  }
+
+  /**
+   * Verificar si tiene recepciones activas (no eliminadas)
+   */
+  public function hasActiveReceptions(): bool
+  {
+    return $this->receptions()->where('status', '!=', 'ANNULLED')->whereNull('deleted_at')->exists();
   }
 
   /**

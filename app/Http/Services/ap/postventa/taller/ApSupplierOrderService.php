@@ -680,6 +680,10 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Este pedido a proveedor ya ha sido anulado.');
       }
 
+      if ($supplierOrder->hasActiveReceptions()) {
+        throw new Exception('No se puede anular un pedido a proveedor que tiene recepciones activas asociadas. Por favor, anule primero las recepciones vinculadas.');
+      }
+
       if (!$supplierOrder->hasAnnulledReceptions()) {
         throw new Exception('No se puede anular un pedido a proveedor que no tiene recepciones anuladas asociadas.');
       }

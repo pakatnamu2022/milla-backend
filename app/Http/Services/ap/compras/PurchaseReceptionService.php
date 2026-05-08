@@ -150,9 +150,15 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  public function show($id)
+  public function show($id, $includeAllOrders = false)
   {
-    return new PurchaseReceptionResource($this->find($id));
+    $resource = new PurchaseReceptionResource($this->find($id));
+
+    if ($includeAllOrders) {
+      $resource->additional(['include_all_orders' => true]);
+    }
+
+    return $resource;
   }
 
   public function update(Mixed $data)

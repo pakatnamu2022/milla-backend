@@ -13,6 +13,14 @@ class PurchaseReceptionResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
+    // Determinar qué relación de purchase_order usar
+    // Por defecto usa 'active', pero puede cambiarse con additional('include_all_orders', true)
+    $includeAllOrders = $this->additional['include_all_orders'] ?? false;
+
+    $purchaseOrderRelation = $includeAllOrders
+      ? $this->purchaseOrder
+      : $this->purchaseOrderActive;
+
     return [
       'id' => $this->id,
       'reception_number' => $this->reception_number,
@@ -35,7 +43,7 @@ class PurchaseReceptionResource extends JsonResource
       'type_currency_id' => $this->supplierOrder ? $this->supplierOrder->type_currency_id : null,
 
       // Relationships
-      'purchase_order' => new PurchaseOrderResource($this->purchaseOrderActive),
+      'purchase_order' => new PurchaseOrderResource($purchaseOrderRelation),
       'warehouse' => new WarehouseResource($this->warehouse),
       'supplier_order' => $this->supplierOrder ? new ApSupplierOrderResource($this->supplierOrder->load('details')) : null,
       'carrier' => BusinessPartnersResource::make($this->carrier),

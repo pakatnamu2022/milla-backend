@@ -56,6 +56,7 @@ class PurchaseOrderResource extends JsonResource
       'warehouse' => $this->warehouse->description ?? null,
       'article_class' => $this->warehouse->articleClass ?? null,
       'payment_terms' => $this->payment_terms ?? '',
+      'type_operation_id' => $this->type_operation_id,
 
       // Vehículo (si existe)
       'vehicle' => VehiclesResource::make($this->vehicle),
