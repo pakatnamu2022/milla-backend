@@ -22,6 +22,7 @@ class InventoryMovement extends Model
 
   protected $fillable = [
     'movement_number',
+    'movement_number_dyn',
     'movement_type',
     'movement_date',
     'warehouse_id',
