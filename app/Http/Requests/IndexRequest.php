@@ -16,6 +16,11 @@ class IndexRequest extends FormRequest
   public function rules(): array
   {
     return [
+      'all' => 'nullable|in:true,false',
+      'sort' => 'nullable|string',
+      'direction' => 'nullable|string',
+      'page' => 'nullable|integer|min:1',
+      'per_page' => 'nullable|integer|min:1|max:100',
     ];
   }
 

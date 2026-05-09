@@ -8,7 +8,10 @@ class IndexGeneralMasterRequest extends IndexRequest
 {
   public function rules(): array
   {
+    // Merge parent's rules so this request inherits base index rules.
     return [
+      'code' => 'nullable|string',
+      ...parent::rules()
     ];
   }
 }
