@@ -47,7 +47,7 @@ class StoreWorkOrderRequest extends StoreRequest
       ],
       'num_doc_contact' => [
         'required',
-        'integer',
+        'string',
         'digits:8',
       ],
       'full_contact_name' => [
@@ -186,7 +186,7 @@ class StoreWorkOrderRequest extends StoreRequest
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
       'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
-      'num_doc_contact.integer' => 'El número de documento del contacto debe ser un entero.',
+      'num_doc_contact.string' => 'El número de documento del contacto debe ser una cadena de texto.',
       'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
 
       'full_contact_name.required' => 'El nombre completo del contacto es obligatorio.',
