@@ -49,7 +49,7 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Filtrar solo registros de POSTVENTA y de los últimos 6 días
+      // Filtrar solo registros de POSTVENTA y de los últimos 6 meses
       $filteredResults = $this->filterResults($results);
 
       if (empty($filteredResults)) {
