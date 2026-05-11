@@ -119,3 +119,12 @@ Schedule::command('evaluation:close-expired')
 //  ->withoutOverlapping()
 //  ->runInBackground();
 
+// Sincronizar ajustes de inventario desde Dynamics
+// Ejecuta cada minuto para consultar y procesar ajustes de POSTVENTA de los últimos 3 días
+Schedule::command('inventory:sync-adjustments-dynamics')
+  ->everyFiveMinutes()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

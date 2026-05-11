@@ -38,10 +38,16 @@ class ApSupplierOrderResource extends JsonResource
       'status' => $this->status,
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
-      'has_receptions' => $this->hasActiveReceptions(),
+      'has_receptions' => $this->hasReceptions(),
+      'has_receptions_active' => $this->hasActiveReceptions(),
+      'has_receptions_annulled' => $this->hasAnnulledReceptions(),
       'has_invoice' => $this->receptions()->whereNotNull('purchase_order_id')->whereNull('deleted_at')->exists(),
       'reception_type' => $this->reception_type,
       'approved_by' => $this->approved_by,
+      'discarded_by' => $this->discarded_by,
+      'discarded_by_name' => $this->discardedBy->name ?? null,
+      'reason_cancellation' => $this->reason_cancellation,
+      'discarded_at' => $this->discarded_at,
 
       // Relationships
       'supplier' => new BusinessPartnersResource($this->whenLoaded('supplier')),
@@ -50,24 +56,38 @@ class ApSupplierOrderResource extends JsonResource
       'type_currency' => new TypeCurrencyResource($this->whenLoaded('typeCurrency')),
       'created_by_user' => new UserCompleteResource($this->whenLoaded('createdBy')),
       'details' => ApSupplierOrderDetailsResource::collection($this->whenLoaded('details')),
-      'invoice_numbers' => $this->when($this->relationLoaded('receptions'), function () {
-        return $this->receptions
-          ->whereNotNull('purchase_order_id')
-          ->map(fn($reception) => $reception->purchaseOrder)
-          ->filter()
-          ->map(fn($po) => trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-'))
-          ->filter()
-          ->values();
-      }),
-      'oc_dyn_numbers' => $this->when($this->relationLoaded('receptions'), function () {
-        return $this->receptions
-          ->whereNotNull('purchase_order_id')
-          ->map(fn($reception) => $reception->purchaseOrder)
-          ->filter()
-          ->map(fn($po) => trim(($po->number ?? ''), '-'))
-          ->filter()
-          ->values();
-      }),
+      'invoice_numbers' =>
+        $this->when($this->relationLoaded('receptions'), function () {
+          return $this->receptions
+            ->whereNotNull('purchase_order_id')
+            ->map(fn($reception) => $reception->purchaseOrder)
+            ->filter()
+            ->map(function ($po) {
+              return [
+                'number' => trim(($po->invoice_series ?? '') . '-' .
+                  ($po->invoice_number ?? ''), '-'),
+                'status' => $po->status,  // Aquí agregas el status
+              ];
+            })
+            ->filter(fn($item) => !empty($item['number']))
+            ->values();
+        }),
+
+      'oc_dyn_numbers' => $this->when($this->relationLoaded('receptions'),
+        function () {
+          return $this->receptions
+            ->whereNotNull('purchase_order_id')
+            ->map(fn($reception) => $reception->purchaseOrder)
+            ->filter()
+            ->map(function ($po) {
+              return [
+                'number' => trim($po->number ?? '', '-'),
+                'status' => $po->status,  // Aquí agregas el status
+              ];
+            })
+            ->filter(fn($item) => !empty($item['number']))
+            ->values();
+        }),
 
       'purchase_requests' => $this->when($this->relationLoaded('requestDetails'), function () {
         return $this->requestDetails

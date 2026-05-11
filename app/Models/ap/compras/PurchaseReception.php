@@ -97,6 +97,11 @@ class PurchaseReception extends BaseModel
     return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
   }
 
+  public function purchaseOrderActive(): BelongsTo
+  {
+    return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id')->where('status', 1);
+  }
+
   public function supplierOrder(): BelongsTo
   {
     return $this->belongsTo(ApSupplierOrder::class, 'ap_supplier_order_id');
@@ -128,24 +133,24 @@ class PurchaseReception extends BaseModel
   }
 
   // Accessors
-  public function getIsPendingReviewAttribute(): bool
-  {
-    return $this->status === 'PENDING_REVIEW';
-  }
-
   public function getIsApprovedAttribute(): bool
   {
     return $this->status === 'APPROVED';
   }
 
-  public function getIsRejectedAttribute(): bool
-  {
-    return $this->status === 'REJECTED';
-  }
-
   public function getIsPartialAttribute(): bool
   {
     return $this->status === 'PARTIAL';
+  }
+
+  public function getIncompleteAttribute(): bool
+  {
+    return $this->status === 'INCOMPLETE';
+  }
+
+  public function getAnnulledAttribute(): bool
+  {
+    return $this->status === 'ANNULLED';
   }
 
   public function getHasBonusItemsAttribute(): bool

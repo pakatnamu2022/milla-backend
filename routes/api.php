@@ -1414,6 +1414,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
       Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+      Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
         'show',
