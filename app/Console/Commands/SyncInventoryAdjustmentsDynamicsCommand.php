@@ -39,7 +39,7 @@ class SyncInventoryAdjustmentsDynamicsCommand extends Command
     SyncInventoryAdjustmentsDynamicsJob::dispatch();
 
     $this->info('Job despachado exitosamente');
-    $this->info('El job procesará los ajustes de inventario de POSTVENTA de los últimos 3 días');
+    $this->info('El job procesará los ajustes de inventario de POSTVENTA de los últimos 3 meses');
 
     return Command::SUCCESS;
   }
