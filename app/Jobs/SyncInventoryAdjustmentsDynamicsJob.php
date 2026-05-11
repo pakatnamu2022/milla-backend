@@ -49,11 +49,11 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Filtrar solo registros de POSTVENTA y de los últimos 3 días
+      // Filtrar solo registros de POSTVENTA y de los últimos 6 días
       $filteredResults = $this->filterResults($results);
 
       if (empty($filteredResults)) {
-        Log::info('No hay ajustes de inventario de POSTVENTA de los últimos 3 días');
+        Log::info('No hay ajustes de inventario de POSTVENTA de los últimos 6 meses');
         return;
       }
 
@@ -87,12 +87,6 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
           continue;
         }
       }
-
-      Log::info('Sincronización de ajustes de inventario completada', [
-        'total_procesados' => $processedCount,
-        'total_omitidos' => $skippedCount,
-        'total_errores' => $errorCount
-      ]);
     } catch (\Exception $e) {
       Log::error('Error en SyncInventoryAdjustmentsDynamicsJob', [
         'error' => $e->getMessage(),
@@ -119,23 +113,23 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Filtra los resultados por POSTVENTA y últimos 3 días
+   * Filtra los resultados por POSTVENTA y últimos 6 meses
    */
   protected function filterResults(array $results): array
   {
-    $threeDaysAgo = Carbon::now()->subDays(3)->startOfDay();
+    $threeMonthsAgo = Carbon::now()->subMonths(6)->startOfDay();
 
-    return array_filter($results, function ($row) use ($threeDaysAgo) {
+    return array_filter($results, function ($row) use ($threeMonthsAgo) {
       // Filtrar solo POSTVENTA
       if (!isset($row->Modulo) || $row->Modulo !== 'POSTVENTA') {
         return false;
       }
 
-      // Filtrar por fecha (últimos 3 días)
+      // Filtrar por fecha (últimos 6 meses)
       if (isset($row->Fecha)) {
         try {
           $fecha = Carbon::parse($row->Fecha);
-          return $fecha->gte($threeDaysAgo);
+          return $fecha->gte($threeMonthsAgo);
         } catch (\Exception $e) {
           Log::warning('Error parseando fecha', [
             'fecha' => $row->Fecha,
@@ -244,13 +238,6 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
 
       // Actualizar total_quantity
       $movement->update(['total_quantity' => $totalQuantity]);
-
-      Log::info('Movimiento de inventario creado exitosamente', [
-        'movement_id' => $movement->id,
-        'movement_number' => $movementNumber,
-        'movement_number_dyn' => $numero,
-        'total_items' => count($lines)
-      ]);
     });
   }
 
