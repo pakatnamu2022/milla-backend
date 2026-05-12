@@ -127,6 +127,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       $assignment = $this->find($data['id']);
       $items = $data['items'] ?? null;
       unset($data['items']);
+      $data['write_id'] = auth()->user()->partner_id;
 
       $assignment->update($data);
 
