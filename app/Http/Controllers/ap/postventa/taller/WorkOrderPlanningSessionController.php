@@ -45,6 +45,19 @@ class WorkOrderPlanningSessionController extends Controller
   }
 
   /**
+   * Continúa un trabajo pausado
+   * POST /api/work-order-planning/{id}/continue
+   */
+  public function continue($planningId)
+  {
+    try {
+      return $this->success($this->service->continueSession($planningId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Completa el trabajo
    * POST /api/work-order-planning/{id}/complete
    */

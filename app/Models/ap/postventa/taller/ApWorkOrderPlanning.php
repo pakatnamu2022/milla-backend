@@ -151,9 +151,46 @@ class ApWorkOrderPlanning extends Model
       $activeSession->endSession($pauseReason, 'paused');
 
       // Actualizar horas acumuladas
+      // El status del planning se mantiene en 'in_progress' aunque la sesión esté pausada
       $this->actual_hours = $this->calculateTotalHoursWorked();
       $this->save();
     }
+  }
+
+  /**
+   * Continúa un trabajo con sesiones pausadas
+   */
+  public function continueSession(?string $notes = null): ApWorkOrderPlanningSession
+  {
+    // Verificar si ya hay una sesión activa
+    if ($this->activeSession()) {
+      throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de continuar.');
+    }
+
+    // Verificar que el trabajo esté en progreso (no 'planned' ni 'completed')
+    if (!in_array($this->status, ['in_progress', 'planned'])) {
+      throw new \Exception('No se puede continuar un trabajo que ya está completado o cancelado.');
+    }
+
+    $workOrder = $this->workOrder;
+    $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
+    $workOrder->save();
+
+    $session = new ApWorkOrderPlanningSession([
+      'work_order_planning_id' => $this->id,
+      'start_datetime' => now(),
+      'status' => 'in_progress',
+      'notes' => $notes,
+    ]);
+    $session->save();
+
+    // Asegurar que el status esté en 'in_progress'
+    if ($this->status !== 'in_progress') {
+      $this->status = 'in_progress';
+      $this->save();
+    }
+
+    return $session;
   }
 
   /**
