@@ -1414,6 +1414,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
       Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+      Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
         'show',
@@ -1452,6 +1453,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
       Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
       Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
+      Route::post('workOrderPlanning/{id}/continue', [WorkOrderPlanningSessionController::class, 'continue']);
       Route::post('workOrderPlanning/{id}/complete', [WorkOrderPlanningSessionController::class, 'complete']);
       Route::get('workOrderPlanning/{id}/status', [WorkOrderPlanningSessionController::class, 'status']);
       Route::get('workOrderPlanning/{id}/sessions', [WorkOrderPlanningSessionController::class, 'sessions']);

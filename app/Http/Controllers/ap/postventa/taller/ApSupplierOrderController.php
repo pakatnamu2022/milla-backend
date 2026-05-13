@@ -106,4 +106,19 @@ class ApSupplierOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function discard(Request $request, $id)
+  {
+    try {
+      $reasonCancellation = $request->input('reason_cancellation');
+
+      if (!$reasonCancellation) {
+        return $this->error('El campo reason_cancellation es obligatorio');
+      }
+
+      return $this->success($this->service->discard($id, $reasonCancellation));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

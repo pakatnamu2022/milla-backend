@@ -6,14 +6,11 @@ use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
-use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Jobs\SyncInvoiceDynamicsJob;
-use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\ap\postventa\gestionProductos\Products;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
@@ -134,14 +131,12 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       if (!$series) throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
 
-      // Obtener el máximo correlativo real (incluyendo anuladas) para evitar duplicados
-      $maxCorrelative = PurchaseOrder::where('sede_id', $data['sede_id'])
-        ->where('type_operation_id', $data['type_operation_id'])
-        ->where('status', true)
-        ->whereNull('deleted_at')
-        ->max('number_correlative');
-
-      $number_correlative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
+      // Usar el método centralizado del modelo como fuente de verdad
+      $number_correlative = PurchaseOrder::getNextCorrelative(
+        $data['sede_id'],
+        $data['type_operation_id'],
+        $series->correlative_start
+      );
 
       // Si no es producción, sumar 1000 al correlativo para evitar conflictos para posventa
       if (config('app.env') !== 'production' && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
@@ -199,13 +194,13 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('No hay una serie asignada para la sede y tipo de operación proporcionados');
     }
 
-    $maxCorrelative = PurchaseOrder::where('sede_id', $sedeId)
-      ->where('type_operation_id', $typeOperationId)
-      ->where('status', true)
-      ->whereNull('deleted_at')
-      ->max('number_correlative');
+    // Usar el método centralizado del modelo como fuente de verdad
+    $numberCorrelative = PurchaseOrder::getNextCorrelative(
+      $sedeId,
+      $typeOperationId,
+      $series->correlative_start
+    );
 
-    $numberCorrelative = $maxCorrelative ? $maxCorrelative + 1 : $series->correlative_start;
     $number = $series->series . $this->completeNumber($numberCorrelative, 7);
 
     return [
@@ -254,7 +249,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   /**
    * Crea una nueva orden de compra
    * Si tiene datos de vehículo, crea: Vehicle → VehicleMovement → PurchaseOrder
-   * Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualiza quantity_in_transit
    * @throws Exception
    * @throws Throwable
    */
@@ -310,11 +304,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Enriquecer datos de la orden
       $data = $this->enrichData($data);
 
-      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, validar que productos existan en almacén
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
-        $this->validateProductsInWarehouse($items, $data['warehouse_id']);
-      }
-
       // Crear la orden de compra
       $purchaseOrder = PurchaseOrder::create($data);
 
@@ -334,11 +323,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Si viene purchase_reception_id, procesar la recepción y vincularla con la factura
       if (isset($data['purchase_reception_id'])) {
         $this->linkReceptionToInvoice($purchaseOrder, $data['purchase_reception_id']);
-      }
-
-      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-      if (isset($data['type_operation_id']) && $data['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
-        $this->updateInTransitStockOnCreate($purchaseOrder);
       }
 
       // Para consignación: guardar dynamics_date y despachar migración de la guía
@@ -502,11 +486,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
         // Crear nuevos items
         $this->saveItemsIfExists($items, $purchaseOrder);
-
-        // Si type_operation_id = TIPO_OPERACION_POSTVENTA, actualizar quantity_in_transit
-        if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
-          $this->updateInTransitStockOnUpdate($purchaseOrder, $oldItems, $items);
-        }
       }
 
       // Despachar job de migración si está habilitado y la orden está pendiente de migración
@@ -533,11 +512,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     $purchaseOrder = $this->find($id);
     DB::transaction(function () use ($purchaseOrder) {
-      // Si type_operation_id = TIPO_OPERACION_POSTVENTA, remover quantity_in_transit antes de eliminar
-      if ($purchaseOrder->type_operation_id == ApMasters::TIPO_OPERACION_POSTVENTA) {
-        $this->removeInTransitStockOnDestroy($purchaseOrder);
-      }
-
       // Eliminar items primero
       $purchaseOrder->items()->delete();
       // Eliminar la orden
@@ -678,133 +652,6 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Update quantity_in_transit when creating a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
-   * @param PurchaseOrder $purchaseOrder
-   * @return void
-   * @throws Exception
-   */
-  protected function updateInTransitStockOnCreate(PurchaseOrder $purchaseOrder): void
-  {
-    $stockService = app(ProductWarehouseStockService::class);
-
-    foreach ($purchaseOrder->items as $item) {
-      // Only process items with product_id
-      if ($item->product_id) {
-        $stockService->addInTransitStock(
-          $item->product_id,
-          $purchaseOrder->warehouse_id,
-          $item->quantity
-        );
-      }
-    }
-  }
-
-  /**
-   * Update quantity_in_transit when updating a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
-   * @param PurchaseOrder $purchaseOrder
-   * @param array $oldItems
-   * @param array $newItems
-   * @return void
-   * @throws Exception
-   */
-  protected function updateInTransitStockOnUpdate(PurchaseOrder $purchaseOrder, array $oldItems, array $newItems): void
-  {
-    $stockService = app(ProductWarehouseStockService::class);
-
-    // Create a map of old items by product_id
-    $oldItemsMap = [];
-    foreach ($oldItems as $oldItem) {
-      if ($oldItem->product_id) {
-        $oldItemsMap[$oldItem->product_id] = $oldItem->quantity;
-      }
-    }
-
-    // Create a map of new items by product_id
-    $newItemsMap = [];
-    foreach ($newItems as $newItem) {
-      if (isset($newItem['product_id']) && $newItem['product_id']) {
-        $newItemsMap[$newItem['product_id']] = $newItem['quantity'];
-      }
-    }
-
-    // Update stock for each product
-    $allProductIds = array_unique(array_merge(array_keys($oldItemsMap), array_keys($newItemsMap)));
-
-    foreach ($allProductIds as $productId) {
-      $oldQuantity = $oldItemsMap[$productId] ?? 0;
-      $newQuantity = $newItemsMap[$productId] ?? 0;
-
-      if ($oldQuantity != $newQuantity) {
-        $stockService->updateInTransitStock(
-          $productId,
-          $purchaseOrder->warehouse_id,
-          $oldQuantity,
-          $newQuantity
-        );
-      }
-    }
-  }
-
-  /**
-   * Remove quantity_in_transit when destroying a purchase order with type_operation_id = TIPO_OPERACION_POSTVENTA
-   * @param PurchaseOrder $purchaseOrder
-   * @return void
-   * @throws Exception
-   */
-  protected function removeInTransitStockOnDestroy(PurchaseOrder $purchaseOrder): void
-  {
-    $stockService = app(ProductWarehouseStockService::class);
-
-    foreach ($purchaseOrder->items as $item) {
-      // Only process items with product_id
-      if ($item->product_id) {
-        $stockService->removeInTransitStock(
-          $item->product_id,
-          $purchaseOrder->warehouse_id,
-          $item->quantity
-        );
-      }
-    }
-  }
-
-  /**
-   * Validate that products exist in warehouse stock before creating purchase order
-   * Only for TIPO_OPERACION_POSTVENTA orders
-   * @param array $items
-   * @param int $warehouseId
-   * @return void
-   * @throws Exception
-   */
-  protected function validateProductsInWarehouse(array $items, int $warehouseId): void
-  {
-    $stockService = app(ProductWarehouseStockService::class);
-    $missingProducts = [];
-    $warehouse = Warehouse::find($warehouseId);
-    $warehouseName = $warehouse ? $warehouse->description : "ID: {$warehouseId}";
-
-    foreach ($items as $item) {
-      // Only validate items with product_id (skip vehicles or items without product)
-      if (isset($item['product_id']) && $item['product_id']) {
-        $stock = $stockService->getStock($item['product_id'], $warehouseId);
-
-        if (!$stock) {
-          $product = Products::find($item['product_id']);
-          $productName = $product ? $product->name : "ID: {$item['product_id']}";
-          $missingProducts[] = $productName;
-        }
-      }
-    }
-
-    if (!empty($missingProducts)) {
-      throw new Exception(
-        'Los siguientes productos no están asignados al almacén "' . $warehouseName . '": ' .
-        implode(', ', $missingProducts) . '. ' .
-        'Por favor, registre estos productos en el almacén antes de continuar.'
-      );
-    }
-  }
-
   protected function linkReceptionToInvoice(PurchaseOrder $purchaseOrder, int $receptionId): void
   {
     $reception = PurchaseReception::find($receptionId);
@@ -812,8 +659,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       throw new Exception("Recepción ID {$receptionId} no encontrada");
     }
 
-    if ($reception->purchase_order_id && $reception->purchase_order_id !==
-      $purchaseOrder->id) {
+    if ($reception->purchase_order_id && $reception->purchase_order_id !== $purchaseOrder->id) {
       throw new Exception("La recepción ya está vinculada a otra orden de compra");
     }
 

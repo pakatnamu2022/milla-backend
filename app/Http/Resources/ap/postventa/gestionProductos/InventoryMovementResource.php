@@ -87,6 +87,13 @@ class InventoryMovementResource extends JsonResource
       $this->reference->loadMissing($relationsMap[$this->reference_type]);
     }
 
-    return new $resourceClass($this->reference);
+    $resourceInstance = new $resourceClass($this->reference);
+
+    // Si es PurchaseReceptionResource, queremos incluir TODAS las purchase orders (no solo activas)
+    if ($resourceClass === PurchaseReceptionResource::class) {
+      $resourceInstance->additional(['include_all_orders' => true]);
+    }
+
+    return $resourceInstance;
   }
 }
