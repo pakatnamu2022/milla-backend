@@ -43,6 +43,7 @@ class InventoryMovementResource extends JsonResource
       'notes' => $this->notes,
       'total_items' => $this->total_items,
       'total_quantity' => $this->total_quantity,
+      'cancelled_inventory_movement_id' => $this->cancelled_inventory_movement_id,
       'transfer_reception' => TransferReceptionResource::make($this->transferReception),
       'details' => InventoryMovementDetailResource::collection($this->whenLoaded('details')),
       // Calculated fields for kardex (only present when using getProductMovementHistory)

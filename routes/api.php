@@ -192,7 +192,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
     Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
     Route::post('control-travel/export/all', [TravelControlController::class, 'exportAllReports'])->name('control-travel.export-all');
-    Route::post('control-travel/export/summary', [TravelControlController::class,'exportSummaryReport'])->name('control-travel.export-summary');
+    Route::post('control-travel/export/summary', [TravelControlController::class, 'exportSummaryReport'])->name('control-travel.export-summary');
     Route::post('control-travel/{id}/export', [TravelControlController::class, 'exportReport'])->name('control-travel.export');
     Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
     Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
@@ -1222,6 +1222,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
       Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
+      Route::post('inventoryMovements/transfers/{id}/cancel', [InventoryMovementController::class, 'cancelTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);

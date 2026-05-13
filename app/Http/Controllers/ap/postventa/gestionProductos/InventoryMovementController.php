@@ -132,6 +132,22 @@ class InventoryMovementController extends Controller
     }
   }
 
+  public function cancelTransfer(int $id): JsonResponse
+  {
+    try {
+      $result = $this->service->cancelTransfer($id);
+
+      return $this->success([
+        'message' => 'Transferencia cancelada correctamente. Se ha generado una nueva transferencia inversa.',
+        'movement' => $result['movement'],
+        'shipping_guide' => $result['shipping_guide'],
+        'cancelled_movement' => $result['cancelled_movement'],
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
   {
     try {

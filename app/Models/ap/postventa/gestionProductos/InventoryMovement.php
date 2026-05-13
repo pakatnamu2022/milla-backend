@@ -31,6 +31,7 @@ class InventoryMovement extends Model
     'exchange_rate',
     'reference_type',
     'reference_id',
+    'cancelled_inventory_movement_id',
     'user_id',
     'status',
     'notes',
@@ -172,6 +173,11 @@ class InventoryMovement extends Model
   public function reference(): MorphTo
   {
     return $this->morphTo();
+  }
+
+  public function cancelledInventoryMovement(): BelongsTo
+  {
+    return $this->belongsTo(InventoryMovement::class, 'cancelled_inventory_movement_id');
   }
 
   // Accessors
