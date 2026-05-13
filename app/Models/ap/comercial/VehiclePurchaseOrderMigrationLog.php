@@ -94,6 +94,8 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_INVENTORY_TRANSFER => 'neInTbTransferenciaInventario',
     self::STEP_INVENTORY_TRANSFER_DETAIL => 'neInTbTransferenciaInventarioDet',
     self::STEP_INVENTORY_TRANSFER_SERIAL => 'neInTbTransferenciaInventarioDtS',
+    self::STEP_INVENTORY_TRANSFER_REVERSAL => 'neInTbTransferenciaInventario',
+    self::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL => 'neInTbTransferenciaInventarioDet',
     self::STEP_SALE_SHIPPING_GUIDE => 'neInTbTransaccionInventario',
     self::STEP_SALE_SHIPPING_GUIDE_DETAIL => 'neInTbTransaccionInventarioDet',
     self::STEP_SALE_SHIPPING_GUIDE_SERIAL => 'neInTbTransaccionInventarioDtS',

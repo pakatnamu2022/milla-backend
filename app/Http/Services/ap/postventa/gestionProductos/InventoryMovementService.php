@@ -19,6 +19,8 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\TransferReception;
+use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -936,6 +938,40 @@ class InventoryMovementService extends BaseService
         'status' => InventoryMovement::STATUS_CANCELLED,
         'notes' => $movement->notes . " [CANCELADO - Ver guía de anulación: {$shippingGuides->document_number}]",
       ]);
+
+      // Crear automáticamente TransferReception para la cancelación (almacén origen - que ahora es destino)
+      $receptionNumber = TransferReception::generateReceptionNumber();
+      $transferReception = TransferReception::create([
+        'reception_number' => $receptionNumber,
+        'transfer_movement_id' => $newMovementOut->id,
+        'shipping_guide_id' => $shippingGuides->id,
+        'warehouse_id' => $newMovementOut->warehouse_destination_id, // Almacén destino de la reversa (origen original)
+        'reception_date' => now(),
+        'item_type' => $movement->item_type,
+        'status' => TransferReception::STATUS_PENDING,
+        'notes' => "Recepción automática por anulación de transferencia {$movement->movement_number}",
+        'received_by' => Auth::id(),
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Crear detalles de la recepción automática (copiar del movimiento nuevo)
+      foreach ($newMovementOut->fresh('details')->details as $detail) {
+        TransferReceptionDetail::create([
+          'transfer_reception_id' => $transferReception->id,
+          'product_id' => $detail->product_id,
+          'quantity_sent' => $detail->quantity,
+          'quantity_received' => $detail->quantity,
+          'observed_quantity' => 0,
+          'reason_observation' => null,
+          'observation_notes' => null,
+        ]);
+      }
+
+      // Disparar job para migrar a Dynamics (igual que en el flujo normal)
+      if ($movement->item_type === 'PRODUCTO') {
+        \App\Jobs\MigrateProductReceptionToDynamicsJob::dispatch($transferReception->id);
+      }
 
       DB::commit();
       return [

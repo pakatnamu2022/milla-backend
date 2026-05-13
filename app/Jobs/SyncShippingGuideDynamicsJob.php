@@ -55,16 +55,26 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa todas las guías de remisión sin dyn_series
+   * Procesa todas las guías de remisión pendientes de sincronización
    */
   protected function processAllShippingGuides(): void
   {
-    // Obtener guías que no tienen dyn_series sincronizado
-    $shippingGuides = ShippingGuides::where('is_accounted', 0)
-      ->whereNotNull('document_number')
-      ->where('status', true)
+    // Obtener guías activas NO contabilizadas O guías canceladas NO anuladas
+    $shippingGuides = ShippingGuides::whereNotNull('document_number')
       ->where('aceptada_por_sunat', true)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->where(function($q) {
+        // Guías activas NO contabilizadas
+        $q->where(function($q2) {
+          $q2->where('status', true)
+             ->where('is_accounted', false);
+        })
+        // O guías canceladas NO anuladas
+        ->orWhere(function($q2) {
+          $q2->where('status', false)
+             ->where('is_annulled', false);
+        });
+      })
       ->get();
 
     if ($shippingGuides->isEmpty()) {
@@ -129,18 +139,45 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
       $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
-      $shippingGuide->update([
-        'is_accounted' => $isAccounted,
-      ]);
+      // Actualizar el campo correspondiente según si está cancelada o no
+      if ($isCancelled) {
+        $shippingGuide->update([
+          'is_annulled' => $isAccounted,
+        ]);
 
-      if (!$isAccounted) {
-        Log::info('La transferencia aún no está contabilizada en Dynamics', [
+        if (!$isAccounted) {
+          Log::info('La reversión aún no está contabilizada en Dynamics', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transaction_id' => $transactionId
+          ]);
+          return;
+        }
+
+        Log::info('Reversión contabilizada en Dynamics, generando movimiento inverso de inventario', [
           'shipping_guide_id' => $shippingGuide->id,
           'transaction_id' => $transactionId
         ]);
-        return;
+      } else {
+        $shippingGuide->update([
+          'is_accounted' => $isAccounted,
+        ]);
+
+        if (!$isAccounted) {
+          Log::info('La transferencia aún no está contabilizada en Dynamics', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transaction_id' => $transactionId
+          ]);
+          return;
+        }
+
+        Log::info('Transferencia contabilizada en Dynamics, generando movimiento de inventario', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'transaction_id' => $transactionId
+        ]);
       }
 
+      // Ambas (activa y cancelada) generan movimiento de inventario
+      // Para canceladas, el movimiento viene con almacenes invertidos desde MigrateProductReceptionToDynamicsJob
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
       if (!$transferReception) {
