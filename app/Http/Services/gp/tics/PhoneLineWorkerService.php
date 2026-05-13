@@ -5,8 +5,10 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\PhoneLineWorkerResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
+use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
@@ -178,7 +180,7 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 
   /**
    * Busca el EquipmentAssigment activo de este worker que tenga el equipo en sus items
-   * y actualiza su phone_line_id para que apunte a la línea asignada.
+   * y actualiza su phone_line_id. Si no existe, crea uno nuevo con el equipo como ítem.
    */
   private function syncLineToEquipmentAssigment(PhoneLineWorker $plw): void
   {
@@ -192,7 +194,24 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
 
     if ($assignment) {
       $assignment->update(['phone_line_id' => $plw->phone_line_id]);
+      return;
     }
+
+    // No existe asignación activa para este equipo → crear una nueva
+    $newAssignment = EquipmentAssigment::create([
+      'persona_id'     => $plw->worker_id,
+      'phone_line_id'  => $plw->phone_line_id,
+      'fecha'          => now()->toDateString(),
+      'status_deleted' => false,
+      'status_id'      => Constants::ASSIGN_STATUS,
+      'write_id'       => auth()->id(),
+    ]);
+
+    EquipmentItemAssigment::create([
+      'asig_equipo_id' => $newAssignment->id,
+      'equipo_id'      => $plw->equipo_id,
+      'status_id'      => Constants::ASSIGN_STATUS,
+    ]);
   }
 
   /**

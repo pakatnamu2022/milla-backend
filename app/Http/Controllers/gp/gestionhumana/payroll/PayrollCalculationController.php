@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\payroll;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\CalculatePayrollRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollCalculatorService;
+use App\Http\Services\gp\gestionhumana\payroll\PayrollPrintService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollReportService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollSummaryService;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
@@ -16,15 +17,18 @@ class PayrollCalculationController extends Controller
   protected PayrollCalculatorService $calculatorService;
   protected PayrollReportService $reportService;
   protected PayrollSummaryService $summaryService;
+  protected PayrollPrintService $printService;
 
   public function __construct(
     PayrollCalculatorService $calculatorService,
     PayrollReportService $reportService,
-    PayrollSummaryService $summaryService
+    PayrollSummaryService $summaryService,
+    PayrollPrintService $printService
   ) {
     $this->calculatorService = $calculatorService;
     $this->reportService = $reportService;
     $this->summaryService = $summaryService;
+    $this->printService = $printService;
   }
 
   /**
@@ -175,6 +179,44 @@ class PayrollCalculationController extends Controller
         'data' => $this->summaryService->calculate($updated->load('details')),
         'message' => 'Payslip summary recalculated successfully',
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate a multi-page PDF summary for a payroll period.
+   * Page 1 – daily attendance grid
+   * Page 2 – calculation details (salary, shift, hourly rate, net)
+   * Page 3 – full payroll summary (earnings breakdown + net)
+   *
+   * Query params:
+   *   biweekly=1|2  (optional) – restrict to a specific fortnight
+   */
+  public function printReport(Request $request, int $periodId)
+  {
+    try {
+      $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
+      return $this->printService->generatePrintPDF($periodId, $biweekly);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Generate a 3-sheet Excel workbook for a payroll period.
+   * Sheet 1 – daily attendance grid (color coded by shift type)
+   * Sheet 2 – calculation details with collapsable line items per worker
+   * Sheet 3 – full payroll summary with totals row
+   *
+   * Query params:
+   *   biweekly=1|2  (optional) – restrict to a specific fortnight
+   */
+  public function exportSummary(Request $request, int $periodId)
+  {
+    try {
+      $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
+      return $this->printService->generateExcel($periodId, $biweekly);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
