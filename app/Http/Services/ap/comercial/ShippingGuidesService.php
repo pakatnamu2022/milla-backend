@@ -947,10 +947,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('La guía de remisión no tiene número de documento asignado');
     }
 
-    if ($shippingGuide->is_accounted) {
+    if ($shippingGuide->is_accounted && $shippingGuide->status) {
       throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
     }
 
+    if ($shippingGuide->is_accounted && $shippingGuide->is_annulled) {
+      throw new Exception('La guía de remisión ya ha sido contabilizada y ya fue anulada');
+    }
+    
     // Despachar el job para sincronizar con Dynamics
     SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
 

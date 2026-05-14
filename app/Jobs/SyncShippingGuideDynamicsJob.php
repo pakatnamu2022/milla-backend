@@ -6,6 +6,7 @@ use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -55,16 +56,26 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa todas las guías de remisión sin dyn_series
+   * Procesa todas las guías de remisión pendientes de sincronización
    */
   protected function processAllShippingGuides(): void
   {
-    // Obtener guías que no tienen dyn_series sincronizado
-    $shippingGuides = ShippingGuides::where('is_accounted', 0)
-      ->whereNotNull('document_number')
-      ->where('status', true)
+    // Obtener guías activas NO contabilizadas O guías canceladas NO anuladas
+    $shippingGuides = ShippingGuides::whereNotNull('document_number')
       ->where('aceptada_por_sunat', true)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->where(function ($q) {
+        // Guías activas NO contabilizadas
+        $q->where(function ($q2) {
+          $q2->where('status', true)
+            ->where('is_accounted', false);
+        })
+          // O guías canceladas NO anuladas
+          ->orWhere(function ($q2) {
+            $q2->where('status', false)
+              ->where('is_annulled', false);
+          });
+      })
       ->get();
 
     if ($shippingGuides->isEmpty()) {
@@ -129,18 +140,34 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
       $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
-      $shippingGuide->update([
-        'is_accounted' => $isAccounted,
-      ]);
-
-      if (!$isAccounted) {
-        Log::info('La transferencia aún no está contabilizada en Dynamics', [
-          'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId
+      // Actualizar el campo correspondiente según si está cancelada o no
+      if ($isCancelled) {
+        $shippingGuide->update([
+          'is_annulled' => $isAccounted,
         ]);
-        return;
+
+        if (!$isAccounted) {
+          Log::info('La reversión aún no está contabilizada en Dynamics', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transaction_id' => $transactionId
+          ]);
+          return;
+        }
+      } else {
+        $shippingGuide->update([
+          'is_accounted' => $isAccounted,
+        ]);
+
+        if (!$isAccounted) {
+          Log::info('La transferencia aún no está contabilizada en Dynamics', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transaction_id' => $transactionId
+          ]);
+          return;
+        }
       }
 
+      // Verificar si la guía ya fue procesada (para evitar duplicados)
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
       if (!$transferReception) {
@@ -162,7 +189,30 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       }
 
       $transferReceptionService = app(TransferReceptionService::class);
-      $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
+
+      if ($isCancelled) {
+        // Para cancelaciones, buscar el movimiento de cancelación (TRANSFER_OUT con almacenes invertidos)
+        // El movimiento de cancelación tiene cancelled_inventory_movement_id apuntando al original
+        $cancellationMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+          ->where('reference_id', $shippingGuide->id)
+          ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+          ->whereNotNull('cancelled_inventory_movement_id')
+          ->first();
+
+        if (!$cancellationMovement) {
+          Log::warning('No se encontró el movimiento de cancelación (TRANSFER_OUT invertido)', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transfer_reception_id' => $transferReception->id
+          ]);
+          return;
+        }
+
+        // Generar movimiento inverso (devolución) usando el movimiento de CANCELACIÓN
+        $transferReceptionService->generateReversalInventoryMovement($transferReception, $cancellationMovement, $shippingGuide);
+      } else {
+        // Para transferencias normales, generar movimiento de entrada
+        $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
+      }
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,

@@ -209,8 +209,16 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
    */
   protected function verifyInventoryTransfer(ShippingGuides $shippingGuide, TransferReception $reception): void
   {
+    // Determinar si está cancelada PRIMERO para buscar el step correcto
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Buscar el step correcto según si está cancelada o no
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER;
+
     $transferLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER)
+      ->where('step', $step)
       ->first();
 
     if (!$transferLog) {
@@ -239,9 +247,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
     }
 
-    // Determinar si está cancelada ANTES de construir el TransferenciaId
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
     // Construir el TransferenciaId para este step (con asterisco si está cancelada)
     $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
@@ -269,8 +274,16 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
    */
   protected function verifyInventoryTransferDetail(ShippingGuides $shippingGuide, TransferReception $reception): void
   {
+    // Determinar si está cancelada PRIMERO para buscar el step correcto
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    // Buscar el step correcto según si está cancelada o no
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+
     $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL)
+      ->where('step', $step)
       ->first();
 
     if (!$detailLog) {
@@ -308,9 +321,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return;
     }
 
-    // Determinar si está cancelada ANTES de construir el TransferenciaId
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
     // Construir el TransferenciaId para este step (con asterisco si está cancelada)
     $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
@@ -322,7 +332,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       ->count();
 
     if ($existingDetailsCount < $expectedDetailsCount) {
-      // Faltan detalles → SINCRONIZAR
       $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
       return;
     }
@@ -343,7 +352,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     $transferLog = $this->getOrCreateLog(
       $shippingGuide->id,
       $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER],
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step],
       $shippingGuide->document_number,
       null
     );
@@ -403,7 +412,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     $transferDetailLog = $this->getOrCreateLog(
       $shippingGuide->id,
       $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step],
       $shippingGuide->document_number,
       null
     );
@@ -426,12 +435,13 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
 
       // Almacenes directamente del movimiento
+      // IMPORTANTE: Si está cancelada, el movimiento YA viene con los almacenes invertidos
+      // desde InventoryMovementService->cancelTransfer(), no los invertimos nuevamente
       $warehouseOriginCode = $warehouseOrigin->dyn_code;
       $warehouseDestinationCode = $warehouseDestination->dyn_code;
 
-      // Si está cancelada, invertir los almacenes
-      $almacenIdIni = $isCancelled ? $warehouseDestinationCode : $warehouseOriginCode;
-      $almacenIdFin = $isCancelled ? $warehouseOriginCode : $warehouseDestinationCode;
+      $almacenIdIni = $warehouseOriginCode;
+      $almacenIdFin = $warehouseDestinationCode;
 
       $sedeOrigin = $warehouseOrigin->sede;
       $sede = $reception->warehouse->sede;
@@ -460,12 +470,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
           ->first();
 
         if ($existingLine) {
-          // Esta línea ya existe, continuar con la siguiente
-          Log::info('Línea de detalle ya existe, omitiendo inserción', [
-            'TransferenciaId' => $transferId,
-            'Linea' => $lineNumber,
-            'ArticuloId' => $product->dyn_code
-          ]);
           $lineNumber++;
           continue;
         }
@@ -487,14 +491,10 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         }
 
         // Cuentas contables
+        // IMPORTANTE: Si está cancelada, los almacenes ya están invertidos en el movimiento,
+        // por lo que $sedeOrigin y $sede ya reflejan la inversión correctamente
         $inventoryAccount = $warehouseStart->inventory_account . '-' . $sedeOrigin->dyn_code;
         $counterpartInventoryAccount = $warehouseEnd->inventory_account . '-' . $sede->dyn_code;
-
-        if ($isCancelled) {
-          $temp = $inventoryAccount;
-          $inventoryAccount = $counterpartInventoryAccount;
-          $counterpartInventoryAccount = $temp;
-        }
 
         // Preparar datos para este producto
         $detailData = [
@@ -549,12 +549,20 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
 
+    // Determinar si está cancelada para buscar los steps correctos
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
     // Los pasos base son 2: transferencia + detalle de transferencia
     // Pero también puede haber N logs de artículos (productos)
-    $baseSteps = [
-      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
-      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
-    ];
+    $baseSteps = $isCancelled
+      ? [
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
+      ]
+      : [
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+      ];
 
     // Verificar que existan los pasos base
     $hasBaseSteps = true;
