@@ -277,13 +277,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     // Determinar si está cancelada PRIMERO para buscar el step correcto
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
-    Log::info('verifyInventoryTransferDetail - Verificando estado de cancelación', [
-      'shipping_guide_id' => $shippingGuide->id,
-      'status' => $shippingGuide->status,
-      'cancelled_at' => $shippingGuide->cancelled_at,
-      'isCancelled' => $isCancelled
-    ]);
-
     // Buscar el step correcto según si está cancelada o no
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
@@ -338,19 +331,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       ->where('TransferenciaId', $transactionId)
       ->count();
 
-    Log::info('verifyInventoryTransferDetail - Comparando detalles', [
-      'shipping_guide_id' => $shippingGuide->id,
-      'existingDetailsCount' => $existingDetailsCount,
-      'expectedDetailsCount' => $expectedDetailsCount,
-      'shouldSync' => $existingDetailsCount < $expectedDetailsCount
-    ]);
-
     if ($existingDetailsCount < $expectedDetailsCount) {
-      // Faltan detalles → SINCRONIZAR
-      Log::info('verifyInventoryTransferDetail - Sincronizando detalles faltantes', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'isCancelled' => $isCancelled
-      ]);
       $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
       return;
     }
@@ -462,14 +443,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $almacenIdIni = $warehouseOriginCode;
       $almacenIdFin = $warehouseDestinationCode;
 
-      Log::info('syncInventoryTransferDetail - Almacenes asignados', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'isCancelled' => $isCancelled,
-        'almacenIdIni' => $almacenIdIni,
-        'almacenIdFin' => $almacenIdFin,
-        'note' => $isCancelled ? 'Almacenes ya invertidos en el movimiento de cancelación' : 'Almacenes normales'
-      ]);
-
       $sedeOrigin = $warehouseOrigin->sede;
       $sede = $reception->warehouse->sede;
       if (!$sede) {
@@ -497,12 +470,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
           ->first();
 
         if ($existingLine) {
-          // Esta línea ya existe, continuar con la siguiente
-          Log::info('Línea de detalle ya existe, omitiendo inserción', [
-            'TransferenciaId' => $transferId,
-            'Linea' => $lineNumber,
-            'ArticuloId' => $product->dyn_code
-          ]);
           $lineNumber++;
           continue;
         }

@@ -153,11 +153,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           ]);
           return;
         }
-
-        Log::info('Reversión contabilizada en Dynamics, generando movimiento inverso de inventario', [
-          'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId
-        ]);
       } else {
         $shippingGuide->update([
           'is_accounted' => $isAccounted,
@@ -170,11 +165,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           ]);
           return;
         }
-
-        Log::info('Transferencia contabilizada en Dynamics, generando movimiento de inventario', [
-          'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId
-        ]);
       }
 
       // Verificar si la guía ya fue procesada (para evitar duplicados)
