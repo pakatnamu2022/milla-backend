@@ -832,6 +832,13 @@ class InventoryMovementService extends BaseService
         throw new Exception('El movimiento ya está cancelado');
       }
 
+      // Obtener el modelo referenciado ShippingGuides
+      if ($movement->reference instanceof ShippingGuides) {
+        if (!$movement->reference->status) {
+          throw new Exception('La guía de remisión asociada a este movimiento ya está cancelada');
+        }
+      }
+
       // Validamos stock en almacén destino (Dynamics)
       foreach ($movement->details as $detail) {
         // Validar stock en sistema dynamics

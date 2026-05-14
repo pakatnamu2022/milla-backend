@@ -63,17 +63,17 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     $shippingGuides = ShippingGuides::whereNotNull('document_number')
       ->where('aceptada_por_sunat', true)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
-      ->where(function($q) {
+      ->where(function ($q) {
         // Guías activas NO contabilizadas
-        $q->where(function($q2) {
+        $q->where(function ($q2) {
           $q2->where('status', true)
-             ->where('is_accounted', false);
+            ->where('is_accounted', false);
         })
-        // O guías canceladas NO anuladas
-        ->orWhere(function($q2) {
-          $q2->where('status', false)
-             ->where('is_annulled', false);
-        });
+          // O guías canceladas NO anuladas
+          ->orWhere(function ($q2) {
+            $q2->where('status', false)
+              ->where('is_annulled', false);
+          });
       })
       ->get();
 
@@ -176,8 +176,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         ]);
       }
 
-      // Ambas (activa y cancelada) generan movimiento de inventario
-      // Para canceladas, el movimiento viene con almacenes invertidos desde MigrateProductReceptionToDynamicsJob
+      // Verificar si la guía ya fue procesada (para evitar duplicados)
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
       if (!$transferReception) {
@@ -199,7 +198,14 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       }
 
       $transferReceptionService = app(TransferReceptionService::class);
-      $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
+
+      if ($isCancelled) {
+        // Para cancelaciones, generar movimiento inverso (devolución)
+        $transferReceptionService->generateReversalInventoryMovement($transferReception, $transferOutMovement, $shippingGuide);
+      } else {
+        // Para transferencias normales, generar movimiento de entrada
+        $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
+      }
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,

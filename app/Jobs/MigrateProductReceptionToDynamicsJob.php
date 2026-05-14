@@ -277,6 +277,13 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     // Determinar si está cancelada PRIMERO para buscar el step correcto
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
+    Log::info('verifyInventoryTransferDetail - Verificando estado de cancelación', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'status' => $shippingGuide->status,
+      'cancelled_at' => $shippingGuide->cancelled_at,
+      'isCancelled' => $isCancelled
+    ]);
+
     // Buscar el step correcto según si está cancelada o no
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
@@ -331,8 +338,19 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       ->where('TransferenciaId', $transactionId)
       ->count();
 
+    Log::info('verifyInventoryTransferDetail - Comparando detalles', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'existingDetailsCount' => $existingDetailsCount,
+      'expectedDetailsCount' => $expectedDetailsCount,
+      'shouldSync' => $existingDetailsCount < $expectedDetailsCount
+    ]);
+
     if ($existingDetailsCount < $expectedDetailsCount) {
       // Faltan detalles → SINCRONIZAR
+      Log::info('verifyInventoryTransferDetail - Sincronizando detalles faltantes', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'isCancelled' => $isCancelled
+      ]);
       $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
       return;
     }
@@ -436,12 +454,21 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
 
       // Almacenes directamente del movimiento
+      // IMPORTANTE: Si está cancelada, el movimiento YA viene con los almacenes invertidos
+      // desde InventoryMovementService->cancelTransfer(), no los invertimos nuevamente
       $warehouseOriginCode = $warehouseOrigin->dyn_code;
       $warehouseDestinationCode = $warehouseDestination->dyn_code;
 
-      // Si está cancelada, invertir los almacenes
-      $almacenIdIni = $isCancelled ? $warehouseDestinationCode : $warehouseOriginCode;
-      $almacenIdFin = $isCancelled ? $warehouseOriginCode : $warehouseDestinationCode;
+      $almacenIdIni = $warehouseOriginCode;
+      $almacenIdFin = $warehouseDestinationCode;
+
+      Log::info('syncInventoryTransferDetail - Almacenes asignados', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'isCancelled' => $isCancelled,
+        'almacenIdIni' => $almacenIdIni,
+        'almacenIdFin' => $almacenIdFin,
+        'note' => $isCancelled ? 'Almacenes ya invertidos en el movimiento de cancelación' : 'Almacenes normales'
+      ]);
 
       $sedeOrigin = $warehouseOrigin->sede;
       $sede = $reception->warehouse->sede;
@@ -497,14 +524,10 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
         }
 
         // Cuentas contables
+        // IMPORTANTE: Si está cancelada, los almacenes ya están invertidos en el movimiento,
+        // por lo que $sedeOrigin y $sede ya reflejan la inversión correctamente
         $inventoryAccount = $warehouseStart->inventory_account . '-' . $sedeOrigin->dyn_code;
         $counterpartInventoryAccount = $warehouseEnd->inventory_account . '-' . $sede->dyn_code;
-
-        if ($isCancelled) {
-          $temp = $inventoryAccount;
-          $inventoryAccount = $counterpartInventoryAccount;
-          $counterpartInventoryAccount = $temp;
-        }
 
         // Preparar datos para este producto
         $detailData = [
