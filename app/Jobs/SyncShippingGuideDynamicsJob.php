@@ -6,6 +6,7 @@ use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -200,8 +201,24 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       $transferReceptionService = app(TransferReceptionService::class);
 
       if ($isCancelled) {
-        // Para cancelaciones, generar movimiento inverso (devolución)
-        $transferReceptionService->generateReversalInventoryMovement($transferReception, $transferOutMovement, $shippingGuide);
+        // Para cancelaciones, buscar el movimiento de cancelación (TRANSFER_OUT con almacenes invertidos)
+        // El movimiento de cancelación tiene cancelled_inventory_movement_id apuntando al original
+        $cancellationMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+          ->where('reference_id', $shippingGuide->id)
+          ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+          ->whereNotNull('cancelled_inventory_movement_id')
+          ->first();
+
+        if (!$cancellationMovement) {
+          Log::warning('No se encontró el movimiento de cancelación (TRANSFER_OUT invertido)', [
+            'shipping_guide_id' => $shippingGuide->id,
+            'transfer_reception_id' => $transferReception->id
+          ]);
+          return;
+        }
+
+        // Generar movimiento inverso (devolución) usando el movimiento de CANCELACIÓN
+        $transferReceptionService->generateReversalInventoryMovement($transferReception, $cancellationMovement, $shippingGuide);
       } else {
         // Para transferencias normales, generar movimiento de entrada
         $transferReceptionService->generateInventoryMovement($transferReception, $transferOutMovement);
