@@ -618,17 +618,17 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $ciudad = strtolower(trim($quote->sede?->ciudad ?? ''));
 
     if (str_contains($ciudad, 'piura') || str_contains($ciudad, 'jaen') || str_contains($ciudad, 'jaén')) {
-      return (array) config('mail.recipients.purchase_quote.piura_jaen', []);
+      return (array)config('mail.recipients.purchase_quote.piura_jaen', []);
     }
 
     if (str_contains($ciudad, 'cajamarca') || str_contains($ciudad, 'chiclayo')) {
-      return (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', []);
+      return (array)config('mail.recipients.purchase_quote.cajamarca_chiclayo', []);
     }
 
     // Si la ciudad no coincide, enviar a todos
     return array_merge(
-      (array) config('mail.recipients.purchase_quote.piura_jaen', []),
-      (array) config('mail.recipients.purchase_quote.cajamarca_chiclayo', [])
+      (array)config('mail.recipients.purchase_quote.piura_jaen', []),
+      (array)config('mail.recipients.purchase_quote.cajamarca_chiclayo', [])
     );
   }
 
@@ -774,6 +774,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
           ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
       })
       ->where('anulado', false)
+      ->where('status', ElectronicDocument::STATUS_SENT)
       ->get(['id']);
 
     foreach ($pendingDocuments as $doc) {

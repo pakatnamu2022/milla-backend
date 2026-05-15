@@ -1067,6 +1067,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return $document->items->map(function (ElectronicDocumentItem $item) {
+      // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
+      // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
+      $cantidad = max((float)$item->cantidad, 0.000001);
+      $netValueUnit = round((float)$item->subtotal / $cantidad, 10);
+      $netPriceUnit = round((float)$item->total / $cantidad, 10);
+
       return [
         'account_plan_id' => $item->account_plan_id,
         'unidad_de_medida' => $item->unidad_de_medida,
@@ -1074,9 +1080,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'codigo_producto_sunat' => $item->codigo_producto_sunat,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
-        'valor_unitario' => $item->valor_unitario,
-        'precio_unitario' => $item->precio_unitario,
-        'descuento' => $item->descuento,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
         'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
         'igv' => $item->igv,
@@ -1098,6 +1104,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return $selectedItems->map(function (ElectronicDocumentItem $item) {
+      // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
+      // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
+      $cantidad = max((float)$item->cantidad, 0.000001);
+      $netValueUnit = round((float)$item->subtotal / $cantidad, 10);
+      $netPriceUnit = round((float)$item->total / $cantidad, 10);
+
       return [
         'account_plan_id' => $item->account_plan_id,
         'unidad_de_medida' => $item->unidad_de_medida,
@@ -1105,9 +1117,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'codigo_producto_sunat' => $item->codigo_producto_sunat,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
-        'valor_unitario' => $item->valor_unitario,
-        'precio_unitario' => $item->precio_unitario,
-        'descuento' => $item->descuento,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
         'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
         'igv' => $item->igv,
@@ -1203,6 +1215,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Copiar tipo de transacción del documento original
       if (!isset($data['sunat_concept_transaction_type_id'])) {
         $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
+      // Propagar detracción del documento original (Nubefact exige detraccion:true en la nota si el original la tenía)
+      if ($originalDocument->detraccion) {
+        $data['detraccion'] = true;
+        if (!isset($data['sunat_concept_detraction_type_id'])) {
+          $data['sunat_concept_detraction_type_id'] = $originalDocument->sunat_concept_detraction_type_id;
+        }
+        if (!isset($data['detraccion_porcentaje'])) {
+          $data['detraccion_porcentaje'] = $originalDocument->detraccion_porcentaje;
+        }
+        if (!isset($data['medio_de_pago_detraccion'])) {
+          $data['medio_de_pago_detraccion'] = $originalDocument->medio_de_pago_detraccion;
+        }
+        if (!isset($data['detraccion_total']) && isset($data['total']) && $data['detraccion_porcentaje']) {
+          $data['detraccion_total'] = round((float)$data['total'] * ((float)$data['detraccion_porcentaje'] / 100), 2);
+        }
       }
 
       // Preparar datos de la nota de crédito
@@ -1389,6 +1418,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Copiar tipo de transacción del documento original si no se proporciona
       if (!isset($data['sunat_concept_transaction_type_id'])) {
         $data['sunat_concept_transaction_type_id'] = $originalDocument->sunat_concept_transaction_type_id;
+      }
+
+      // Propagar detracción del documento original (Nubefact exige detraccion:true en la nota si el original la tenía)
+      if ($originalDocument->detraccion) {
+        $data['detraccion'] = true;
+        if (!isset($data['sunat_concept_detraction_type_id'])) {
+          $data['sunat_concept_detraction_type_id'] = $originalDocument->sunat_concept_detraction_type_id;
+        }
+        if (!isset($data['detraccion_porcentaje'])) {
+          $data['detraccion_porcentaje'] = $originalDocument->detraccion_porcentaje;
+        }
+        if (!isset($data['medio_de_pago_detraccion'])) {
+          $data['medio_de_pago_detraccion'] = $originalDocument->medio_de_pago_detraccion;
+        }
+        if (!isset($data['detraccion_total']) && isset($data['total']) && $data['detraccion_porcentaje']) {
+          $data['detraccion_total'] = round((float)$data['total'] * ((float)$data['detraccion_porcentaje'] / 100), 2);
+        }
       }
 
       // Preparar datos para actualización
