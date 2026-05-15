@@ -70,4 +70,30 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Compare stock between local system and Dynamics
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function compareStockWithDynamics(Request $request): JsonResponse
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+      ]);
+
+      $warehouseId = $request->input('warehouse_id');
+      $result = $this->service->compareStockWithDynamics($warehouseId);
+
+      return response()->json([
+        'success' => true,
+        'data' => $result,
+      ]);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

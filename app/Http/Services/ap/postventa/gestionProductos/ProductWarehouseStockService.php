@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResour
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
@@ -897,5 +898,134 @@ class ProductWarehouseStockService extends BaseService
     ];
 
     return $this->exportService->exportToExcel(ProductWarehouseStock::class, $options);
+  }
+
+  /**
+   * Compare stock between local system and Dynamics
+   * Makes a FULL OUTER JOIN logic to show all products from both systems
+   *
+   * @param int $warehouseId
+   * @return array
+   * @throws Exception
+   */
+  public function compareStockWithDynamics(int $warehouseId): array
+  {
+    try {
+      // 1. Get warehouse with dyn_code
+      $warehouse = Warehouse::findOrFail($warehouseId);
+
+      if (!$warehouse->dyn_code) {
+        throw new Exception("El almacén no tiene código de Dynamics configurado.");
+      }
+
+      // 2. Get stock from Dynamics using stored procedure
+      $dynamicsStocks = DB::connection('dbtest')->select("EXEC PaStockArticuloAlmacen '{$warehouse->dyn_code}'");
+
+      // 3. Get local stocks with product relation
+      $localStocks = ProductWarehouseStock::where('warehouse_id', $warehouseId)
+        ->with('product')
+        ->get();
+
+      // 4. Make comparison (FULL OUTER JOIN logic)
+      $comparison = [];
+      $processedDynCodes = [];
+
+      // Process Dynamics stocks first
+      foreach ($dynamicsStocks as $dynStock) {
+        // Trim the dyn_code from Dynamics to avoid whitespace issues
+        $dynCode = trim($dynStock->ArticuloCodigo);
+
+        // Find matching local stock by dyn_code (trimmed)
+        $localStock = $localStocks->first(function ($stock) use ($dynCode) {
+          return $stock->product && trim($stock->product->dyn_code) === $dynCode;
+        });
+
+        $localQuantity = $localStock?->quantity ?? null;
+        $dynamicsStock = (float)$dynStock->ArticuloStock;
+
+        // Determine where the product was found
+        $foundIn = $localQuantity !== null ? 'AMBOS' : 'SOLO_DYNAMICS';
+
+        // Calculate difference: local_quantity - dynamics_stock
+        // Works correctly even with negative dynamics stock: 10 - (-15) = 25
+        $difference = null;
+        if ($localQuantity !== null) {
+          $difference = $localQuantity - $dynamicsStock;
+        }
+
+        $comparison[] = [
+          'product_dyn_code' => $dynCode,
+          'product_code' => $localStock?->product?->code,
+          'product_name' => $localStock?->product?->name,
+          'warehouse_dynamics' => $dynStock->ArticuloAlmacen,
+          // Local system data
+          'local_quantity' => $localQuantity,
+          'local_available' => $localStock?->available_quantity ?? null,
+          'local_in_transit' => $localStock?->quantity_in_transit ?? null,
+          'local_reserved' => $localStock?->reserved_quantity ?? null,
+          'local_pending_credit_note' => $localStock?->quantity_pending_credit_note ?? null,
+          // Dynamics data
+          'dynamics_stock' => $dynamicsStock,
+          // Comparison
+          'difference' => $difference,
+          'match' => $difference === 0.0,
+          'found_in' => $foundIn,
+        ];
+
+        if ($localStock?->product?->dyn_code) {
+          $processedDynCodes[] = trim($localStock->product->dyn_code);
+        }
+      }
+
+      // Process local stocks that are not in Dynamics
+      foreach ($localStocks as $localStock) {
+        if (!$localStock->product) {
+          continue;
+        }
+
+        $dynCode = trim($localStock->product->dyn_code);
+
+        // Skip if already processed (compare trimmed)
+        if (in_array($dynCode, $processedDynCodes)) {
+          continue;
+        }
+
+        $comparison[] = [
+          'product_dyn_code' => $dynCode,
+          'product_code' => $localStock->product->code,
+          'product_name' => $localStock->product->name,
+          'warehouse_dynamics' => null,
+          // Local system data
+          'local_quantity' => $localStock->quantity,
+          'local_available' => $localStock->available_quantity,
+          'local_in_transit' => $localStock->quantity_in_transit,
+          'local_reserved' => $localStock->reserved_quantity,
+          'local_pending_credit_note' => $localStock->quantity_pending_credit_note,
+          // Dynamics data
+          'dynamics_stock' => null,
+          // Comparison
+          'difference' => $localStock->quantity,
+          'match' => false,
+          'found_in' => 'SOLO_LOCAL',
+        ];
+      }
+
+      // 5. Sort by product dyn_code
+      usort($comparison, function ($a, $b) {
+        return strcmp($a['product_dyn_code'] ?? '', $b['product_dyn_code'] ?? '');
+      });
+
+      return [
+        'warehouse_id' => $warehouseId,
+        'warehouse_code' => $warehouse->dyn_code,
+        'warehouse_description' => $warehouse->description,
+        'comparison_date' => now()->format('Y-m-d H:i:s'),
+        'total_products' => count($comparison),
+        'matching_products' => count(array_filter($comparison, fn($item) => $item['match'])),
+        'products' => $comparison,
+      ];
+    } catch (Exception $e) {
+      throw $e;
+    }
   }
 }
