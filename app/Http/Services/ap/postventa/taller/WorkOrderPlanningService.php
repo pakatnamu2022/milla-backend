@@ -46,6 +46,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
     // obtenemos la OT y validamos que exista
     $workOrder = ApWorkOrder::find($data['work_order_id']);
+    $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
 
     if (!$workOrder) {
       throw new Exception('Orden de trabajo no encontrada');
@@ -53,6 +54,10 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
     if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
       throw new Exception('No se puede agregar planificación a una orden de trabajo cerrada');
+    }
+
+    if ($workOrder->vehicleInspection === null && $validateReceipt) {
+      throw new Exception('No se puede planificar un trabajo si la OT no tiene una recepción de vehículo asociada.');
     }
 
     // Calcular planned_end_datetime si es necesario
