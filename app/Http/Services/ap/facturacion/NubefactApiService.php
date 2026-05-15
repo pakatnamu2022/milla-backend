@@ -393,14 +393,29 @@ class NubefactApiService
     }
 
     // Detracción
-    if ($document->detraccion == 1) {
-      $payload['detraccion'] = true;
-      $payload['detraccion_tipo'] = $document->detractionType->code_nubefact ?? null;
-      $payload['detraccion_total'] = $document->detraccion_total;
-      $payload['detraccion_porcentaje'] = $document->detraccion_porcentaje;
+    // Para notas de crédito/débito sin detracción propia, heredar del documento original si lo tenía.
+    $detraccionSource = $document;
+    if (!$document->detraccion && $document->original_document_id) {
+      $originalDoc = $document->relationLoaded('originalDocument')
+        ? $document->originalDocument
+        : $document->load('originalDocument')->originalDocument;
+      if ($originalDoc && $originalDoc->detraccion) {
+        $detraccionSource = $originalDoc;
+      }
+    }
 
-      if ($document->medio_de_pago_detraccion) {
-        $payload['medio_de_pago_detraccion'] = $document->medio_de_pago_detraccion;
+    if ($detraccionSource->detraccion == 1) {
+      $payload['detraccion'] = true;
+      $payload['detraccion_tipo'] = $detraccionSource->detractionType->code_nubefact ?? null;
+      // Recalculate based on this document's total when inheriting from original
+      $detraccionTotal = ($detraccionSource === $document)
+        ? $detraccionSource->detraccion_total
+        : round((float)$document->total * ((float)$detraccionSource->detraccion_porcentaje / 100), 2);
+      $payload['detraccion_total'] = $detraccionTotal;
+      $payload['detraccion_porcentaje'] = $detraccionSource->detraccion_porcentaje;
+
+      if ($detraccionSource->medio_de_pago_detraccion) {
+        $payload['medio_de_pago_detraccion'] = $detraccionSource->medio_de_pago_detraccion;
       }
     } else {
       $payload['detraccion'] = false;
