@@ -127,6 +127,7 @@ class ShippingGuidesResource extends JsonResource
       'vehicle' => $this->vehicleMovement?->vehicle ? new VehiclesResource($this->vehicleMovement->vehicle) : null,
       'migration_status' => $this->migration_status,
       'is_accounted' => $this->is_accounted,
+      'is_annulled' => $this->is_annulled,
     ];
   }
 }

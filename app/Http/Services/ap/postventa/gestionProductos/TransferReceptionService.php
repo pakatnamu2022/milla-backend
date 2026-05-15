@@ -14,6 +14,7 @@ use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class TransferReceptionService extends BaseService
@@ -32,8 +33,9 @@ class TransferReceptionService extends BaseService
 
   public function list(Request $request)
   {
+
     return $this->getFilteredResults(
-      TransferReception::class,
+      TransferReception::with('transferMovement'),
       $request,
       TransferReception::filters,
       TransferReception::sorts,
@@ -258,6 +260,171 @@ class TransferReceptionService extends BaseService
     ]);
 
     return $transferInMovement;
+  }
+
+  /**
+   * Genera el movimiento de inventario inverso cuando se anula una transferencia
+   * Crea un TRANSFER_IN para completar la reversión (el TRANSFER_OUT ya fue creado en cancelTransfer)
+   */
+  public function generateReversalInventoryMovement(TransferReception $reception, InventoryMovement $cancelledTransferOutMovement, ShippingGuides $shippingGuide): ?InventoryMovement
+  {
+    // Verificar si la recepción NO está aprobada (ya fue revertida o nunca se procesó)
+    if ($reception->status !== TransferReception::STATUS_APPROVED) {
+      Log::info('La recepción ya fue revertida o no está aprobada', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reception_id' => $reception->id,
+        'reception_status' => $reception->status
+      ]);
+      return null;
+    }
+
+    // Verificar si ya existe un TRANSFER_IN de reversión para esta recepción
+    // (evitar duplicados si el job se ejecuta múltiples veces)
+    $existingReversalMovement = InventoryMovement::where('reference_type', TransferReception::class)
+      ->where('reference_id', $reception->id)
+      ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+      ->whereNotNull('cancelled_inventory_movement_id') // El de reversión SÍ tiene este campo
+      ->first();
+
+    if ($existingReversalMovement) {
+      Log::info('Ya existe un movimiento de reversión TRANSFER_IN para esta recepción', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reception_id' => $reception->id,
+        'existing_reversal_movement_id' => $existingReversalMovement->id
+      ]);
+      return $existingReversalMovement;
+    }
+
+    // IMPORTANTE: El TRANSFER_OUT de cancelación YA fue creado en InventoryMovementService->cancelTransfer()
+    // con los almacenes invertidos:
+    // warehouse_id = destino original (B) → saca stock de B y lo pone en in_transit
+    // warehouse_destination_id = origen original (A) → devuelve a A
+    // Status: IN_TRANSIT (el stock está en tránsito desde B hacia A)
+
+    // Ahora necesitamos crear el TRANSFER_IN para completar la reversión
+    // (mover stock de in_transit al almacén destino A)
+
+    // Buscar el TRANSFER_IN original (el que se generó en la transferencia normal)
+    $originalTransferIn = InventoryMovement::where('reference_type', TransferReception::class)
+      ->where('reference_id', $reception->id)
+      ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+      ->whereNull('cancelled_inventory_movement_id') // El movimiento original NO tiene este campo
+      ->first();
+
+    if (!$originalTransferIn) {
+      throw new Exception("No se encontró el movimiento TRANSFER_IN original para la recepción {$reception->id}");
+    }
+
+    // Marcar la guía como recibida (reversión en proceso)
+    $shippingGuide->update([
+      'is_received' => true,
+      'received_by' => $reception->received_by,
+      'received_date' => now(),
+    ]);
+
+    // Crear movimiento TRANSFER_IN de reversión (ingreso al almacén origen original A)
+    $reversalMovement = InventoryMovement::create([
+      'movement_number' => InventoryMovement::generateMovementNumber(),
+      'movement_type' => InventoryMovement::TYPE_TRANSFER_IN, // TRANSFER_IN para completar la reversión
+      'item_type' => $reception->item_type,
+      'movement_date' => now(),
+      // Usamos los almacenes YA invertidos del movimiento de cancelación
+      'warehouse_id' => $cancelledTransferOutMovement->warehouse_id, // Origen de la reversión (B)
+      'warehouse_destination_id' => $cancelledTransferOutMovement->warehouse_destination_id, // Destino de la reversión (A)
+      'reason_in_out_id' => $cancelledTransferOutMovement->reason_in_out_id,
+      'reference_type' => TransferReception::class,
+      'reference_id' => $reception->id,
+      'user_id' => $reception->received_by,
+      'status' => InventoryMovement::STATUS_APPROVED,
+      'notes' => "Ingreso por reversión de transferencia {$originalTransferIn->movement_number}",
+      'total_items' => 0,
+      'total_quantity' => 0,
+      'cancelled_inventory_movement_id' => $originalTransferIn->id, // Marca que revierte al original
+    ]);
+
+    // Crear detalles del movimiento de reversión
+    $totalItems = 0;
+    $totalQuantity = 0;
+
+    foreach ($reception->details as $detail) {
+      if ($detail['quantity_received'] > 0) {
+        $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
+
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $reversalMovement->id,
+          'product_id' => $productId,
+          'quantity' => $detail['quantity_received'],
+          'unit_cost' => 0, // Cost is tracked at origin warehouse
+          'total_cost' => 0,
+          'batch_number' => null,
+          'expiration_date' => null,
+          'notes' => "Recibido de reversión {$cancelledTransferOutMovement->movement_number}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail['quantity_received'];
+      }
+    }
+
+    // Actualizar totales
+    $reversalMovement->update([
+      'total_items' => $totalItems,
+      'total_quantity' => $totalQuantity,
+    ]);
+
+    // Actualizar stock: Mover del tránsito al destino (solo para PRODUCTO type)
+    // El stock ya está en tránsito desde cancelTransfer->moveStockToInTransit
+    // Ahora necesitamos moverlo del tránsito al almacén de destino (origen original)
+    if ($reception->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
+      foreach ($reception->details as $detail) {
+        if (!isset($detail['product_id'])) {
+          continue;
+        }
+
+        if ($detail['quantity_received'] > 0) {
+          // Mover del stock en tránsito (almacén destino original) al almacén origen original
+          // warehouse_id del cancelledTransferOutMovement = destino original (donde está el stock en tránsito)
+          // warehouse_destination_id del cancelledTransferOutMovement = origen original (donde debe llegar)
+          $this->stockService->moveFromInTransitToDestination(
+            $detail['product_id'],
+            $cancelledTransferOutMovement->warehouse_id, // Destino original (donde está en tránsito)
+            $cancelledTransferOutMovement->warehouse_destination_id, // Origen original (destino final)
+            $detail['quantity_received']
+          );
+        }
+      }
+    }
+
+    // Marcar la recepción como revertida (cambiar status a STATUS_APPROVED)
+    $reception->update([
+      'status' => TransferReception::STATUS_APPROVED,
+      'reviewed_by' => $reception->received_by,
+      'reviewed_at' => now(),
+    ]);
+
+    // Actualizar el movimiento de cancelación a APPROVED (ya fue contabilizado en Dynamics)
+    $cancelledTransferOutMovement->update([
+      'status' => InventoryMovement::STATUS_APPROVED,
+    ]);
+
+    // Marcar la guía como procesada (reversión completada)
+    $shippingGuide->update([
+      'is_received' => true, // Marca que se procesó la reversión
+    ]);
+
+    Log::info('Movimiento de reversión TRANSFER_IN generado exitosamente', [
+      'shipping_guide_id' => $shippingGuide->id,
+      'transfer_reception_id' => $reception->id,
+      'reversal_movement_id' => $reversalMovement->id,
+      'reversal_movement_type' => 'TRANSFER_IN',
+      'cancelled_transfer_out_id' => $cancelledTransferOutMovement->id,
+      'original_transfer_in_id' => $originalTransferIn->id,
+      'reception_status_changed_to' => TransferReception::STATUS_APPROVED,
+      'warehouse_origin' => $cancelledTransferOutMovement->warehouse_id,
+      'warehouse_destination' => $cancelledTransferOutMovement->warehouse_destination_id
+    ]);
+
+    return $reversalMovement;
   }
 
   public function destroy(int $id)

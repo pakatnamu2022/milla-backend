@@ -19,6 +19,7 @@ class TransferReceptionResource extends JsonResource
       'id' => $this->id,
       'reception_number' => $this->reception_number,
       'transfer_movement_id' => $this->transfer_movement_id,
+      'transfer_movement' => InventoryMovementResource::make($this->whenLoaded('transferMovement')),
       'shipping_guide_id' => $this->shipping_guide_id,
       'warehouse_id' => $this->warehouse_id,
       'reception_date' => $this->reception_date,

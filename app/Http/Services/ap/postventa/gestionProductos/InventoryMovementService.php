@@ -5,11 +5,13 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -18,6 +20,8 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\TransferReception;
+use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -490,7 +494,6 @@ class InventoryMovementService extends BaseService
 
       // Get info for shipping guide
       $receiver_destination = BusinessPartners::find($transferData['receiver_destination_id']);
-
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
       $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
@@ -791,6 +794,14 @@ class InventoryMovementService extends BaseService
         $shippingGuide->delete();
       }
 
+      // Si en caso tiene un movimiento relacionado $movement actualizamos su estado
+      if ($movement->cancelledInventoryMovement) {
+        $movement->cancelledInventoryMovement->update([
+          'status' => InventoryMovement::STATUS_APPROVED,
+          'notes' => $movement->cancelledInventoryMovement->notes . " | Cancelación de transferencia revertida: {$movement->movement_number}",
+        ]);
+      }
+
       // Delete movement details
       $movement->details()->delete();
 
@@ -798,6 +809,196 @@ class InventoryMovementService extends BaseService
       $movement->delete();
 
       DB::commit();
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function cancelTransfer(int $movementId): array
+  {
+    DB::beginTransaction();
+    try {
+      $movement = $this->find($movementId);
+
+      if ($movement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {
+        throw new Exception('Solo se pueden cancelar movimientos de tipo TRANSFER_OUT');
+      }
+
+      if ($movement->status === InventoryMovement::STATUS_CANCELLED) {
+        throw new Exception('El movimiento ya está cancelado');
+      }
+
+      //Obtenemos la Guia de remision
+      $shippingGuides = $movement->reference;
+
+      if (!$shippingGuides) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      // Obtener el modelo referenciado ShippingGuides
+      if ($movement->reference instanceof ShippingGuides) {
+        if (!$movement->reference->status) {
+          throw new Exception('La guía de remisión asociada a este movimiento ya está cancelada');
+        }
+      }
+
+      if (!$shippingGuides->aceptada_por_sunat) {
+        throw new Exception('No se puede cancelar la transferencia porque la guía de remisión no ha sido aceptada por SUNAT');
+      }
+
+      if (!$shippingGuides->is_received) {
+        throw new Exception('No se puede cancelar la guía porque aún no se ha recepcionado el envío');
+      }
+
+      if ($movement->item_type === "PRODUCTO") {
+        // Validamos stock en almacén destino (Dynamics)
+        foreach ($movement->details as $detail) {
+          // Validar stock en sistema dynamics
+          $externalStock = $this->validateStockInExternalSystem($detail->product->dyn_code, $movement->warehouseDestination->dyn_code);
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantity = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantity < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente en sistema dynamics para producto '{$detail->product->name}'. " .
+              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail->quantity}"
+            );
+          }
+        }
+
+        // Validamos stock en almacén destino (sian)
+        foreach ($movement->details as $detail) {
+          $stock = $this->stockService->getStock($detail->product_id, $movement->warehouse_destination_id);
+          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+
+          if (!$stock) {
+            throw new Exception(
+              "No se encontró registro de stock para el producto '{$productName}' en el almacén de origen"
+            );
+          }
+
+          if ($stock->available_quantity < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
+              "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail->quantity}"
+            );
+          }
+        }
+
+        // Crear nuevo movimiento TRANSFER_OUT INVERTIDO
+        $newMovementOut = InventoryMovement::create([
+          'movement_number' => InventoryMovement::generateMovementNumber(),
+          'movement_type' => InventoryMovement::TYPE_TRANSFER_OUT,
+          'item_type' => $movement->item_type,
+          'movement_date' => now(),
+          // INVERTIR: lo que era destino ahora es origen
+          'warehouse_id' => $movement->warehouse_destination_id,
+          'warehouse_destination_id' => $movement->warehouse_id,
+          'reason_in_out_id' => $movement->reason_in_out_id,
+          'reference_type' => ShippingGuides::class,
+          'reference_id' => $shippingGuides->id,
+          'user_id' => Auth::id(),
+          'status' => InventoryMovement::STATUS_IN_TRANSIT,
+          'notes' => "Anulación de transferencia {$movement->movement_number} - Transferencia en tránsito",
+          'total_items' => 0,
+          'total_quantity' => 0,
+          // IMPORTANTE: Guardar referencia al movimiento original que se está cancelando
+          'cancelled_inventory_movement_id' => $movement->id,
+        ]);
+
+        // Copiar detalles del movimiento original
+        $totalItems = 0;
+        $totalQuantity = 0;
+
+        foreach ($movement->details as $detail) {
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $newMovementOut->id,
+            'product_id' => $detail->product_id,
+            'quantity' => $detail->quantity,
+            'unit_cost' => $detail->unit_cost,
+            'total_cost' => $detail->total_cost,
+            'notes' => $detail->notes,
+          ]);
+
+          $totalItems++;
+          $totalQuantity += $detail->quantity;
+        }
+
+        // Actualizar totales del nuevo movimiento
+        $newMovementOut->update([
+          'total_items' => $totalItems,
+          'total_quantity' => $totalQuantity,
+        ]);
+
+        // Mover stock a in_transit desde el nuevo almacén origen (que era destino)
+        $this->stockService->moveStockToInTransit($newMovementOut->fresh('details'));
+
+        // Marcar como cancelado la guía de remisión
+        $shippingGuides->update([
+          'cancelled_by' => Auth::id(),
+          'cancelled_at' => now(),
+          'status' => false,
+          'cancellation_reason' => "Guía de remisión anulada por movimiento de cancelación {$newMovementOut->movement_number}",
+          'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING, // Resetear para re-migrar la reversa
+        ]);
+      } else {
+        // Marcar como cancelado la guía de remisión
+        $shippingGuides->update([
+          'cancelled_by' => Auth::id(),
+          'cancelled_at' => now(),
+          'status' => false,
+        ]);
+      }
+
+      // Marcar el movimiento original como CANCELADO
+      $movement->update([
+        'status' => InventoryMovement::STATUS_CANCELLED,
+        'notes' => $movement->notes . " [CANCELADO - Ver guía de anulación: {$shippingGuides->document_number}]",
+      ]);
+
+      // Disparar job para migrar a Dynamics (igual que en el flujo normal)
+      if ($movement->item_type === 'PRODUCTO') {
+        // Crear automáticamente TransferReception para la cancelación (almacén origen - que ahora es destino)
+        $receptionNumber = TransferReception::generateReceptionNumber();
+        $transferReception = TransferReception::create([
+          'reception_number' => $receptionNumber,
+          'transfer_movement_id' => $newMovementOut->id,
+          'shipping_guide_id' => $shippingGuides->id,
+          'warehouse_id' => $newMovementOut->warehouse_destination_id, // Almacén destino de la reversa (origen original)
+          'reception_date' => now(),
+          'item_type' => $movement->item_type,
+          'status' => TransferReception::STATUS_PENDING,
+          'notes' => "Recepción automática por anulación de transferencia {$movement->movement_number}",
+          'received_by' => Auth::id(),
+          'total_items' => $totalItems,
+          'total_quantity' => $totalQuantity,
+        ]);
+
+        // Crear detalles de la recepción automática (copiar del movimiento nuevo)
+        foreach ($newMovementOut->fresh('details')->details as $detail) {
+          TransferReceptionDetail::create([
+            'transfer_reception_id' => $transferReception->id,
+            'product_id' => $detail->product_id,
+            'quantity_sent' => $detail->quantity,
+            'quantity_received' => $detail->quantity,
+            'observed_quantity' => 0,
+            'reason_observation' => null,
+            'observation_notes' => null,
+          ]);
+        }
+
+        MigrateProductReceptionToDynamicsJob::dispatch($transferReception->id);
+      }
+
+      DB::commit();
+      return [
+        'shipping_guide' => $shippingGuides->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
+        'cancelled_movement' => $movement->fresh(),
+      ];
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;

@@ -21,7 +21,6 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
-use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -61,11 +60,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     );
   }
 
-  /**
-   * @param $id
-   * @return ShippingGuides
-   * @throws Exception
-   */
   public function find($id): ShippingGuides
   {
     $document = ShippingGuides::find($id);
@@ -947,8 +941,20 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('La guía de remisión no tiene número de documento asignado');
     }
 
-    if ($shippingGuide->is_accounted) {
+    if ($shippingGuide->is_accounted && $shippingGuide->status) {
       throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
+    }
+
+    if ($shippingGuide->is_accounted && $shippingGuide->is_annulled) {
+      throw new Exception('La guía de remisión ya ha sido contabilizada y ya fue anulada');
+    }
+
+    if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
+      $movement = $shippingGuide->inventoryMovement;
+
+      if ($movement && $movement->item_type === 'SERVICIO') {
+        throw new Exception('Las guías de remisión como SERVICIO no se sincronizan con Dynamics');
+      }
     }
 
     // Despachar el job para sincronizar con Dynamics
@@ -959,7 +965,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
     ];
   }
-
 
   public function dispatchMigration(int $id): array
   {
