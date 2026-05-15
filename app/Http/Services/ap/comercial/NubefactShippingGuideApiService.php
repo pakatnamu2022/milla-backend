@@ -39,6 +39,10 @@ class NubefactShippingGuideApiService
    */
   public function generateGuide($guide): array
   {
+    if (config('nubefact.simulate')) {
+      return $this->simulatedSuccessResponse($guide, 'generar_guia');
+    }
+
     $this->setApiCredentials($guide->sede_transmitter_id);
     $payload = $this->buildGuidePayload($guide);
 
@@ -104,6 +108,10 @@ class NubefactShippingGuideApiService
    */
   public function queryGuide($guide): array
   {
+    if (config('nubefact.simulate')) {
+      return $this->simulatedSuccessResponse($guide, 'consultar_guia');
+    }
+
     $this->setApiCredentials($guide->sede_transmitter_id);
     // Si es guía de remisión, DEBE tener type_voucher_id válido
     if ($guide->document_type == 'GUIA_REMISION') {
@@ -587,5 +595,42 @@ class NubefactShippingGuideApiService
         'log_data' => $logData,
       ]);
     }
+  }
+
+  /**
+   * Devuelve una respuesta simulada exitosa sin llamar a Nubefact.
+   * Activado con NUBEFACT_SIMULATE=true en el .env.
+   */
+  private function simulatedSuccessResponse($guide, string $operation): array
+  {
+    $data = [
+      'serie' => $guide->series,
+      'numero' => $guide->correlative,
+      'aceptada_por_sunat' => true,
+      'sunat_description' => 'La Guia de Remision numero ' . $guide->document_number . ' ha sido aceptada',
+      'sunat_note' => '',
+      'sunat_responsecode' => '0',
+      'sunat_soap_error' => '',
+      'enlace' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/simulado',
+      'enlace_del_pdf' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/pdf/simulado',
+      'enlace_del_xml' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/xml/simulado',
+      'enlace_del_cdr' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/cdr/simulado',
+      'cadena_para_codigo_qr' => '|' . $guide->series . '|' . $guide->correlative . '|' . $guide->issue_date->format('Y-m-d') . '|SIMULADO',
+      'simulado' => true,
+    ];
+
+    $this->logRequest([
+      'shipping_guide_id' => $guide->id,
+      'operation' => $operation,
+      'request_payload' => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
+      'response_payload' => json_encode($data, JSON_UNESCAPED_UNICODE),
+      'http_status_code' => 200,
+      'success' => true,
+    ]);
+
+    return [
+      'success' => true,
+      'data' => $data,
+    ];
   }
 }
