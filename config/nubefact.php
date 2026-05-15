@@ -67,6 +67,20 @@ return [
 
   /*
   |--------------------------------------------------------------------------
+  | Simulate Mode
+  |--------------------------------------------------------------------------
+  |
+  | Cuando está en true, no se realizan llamadas reales a Nubefact.
+  | Se simula una respuesta exitosa (aceptada_por_sunat = true) para que
+  | el flujo continúe hacia Dynamics sin emitir comprobantes reales.
+  | Útil para pruebas de integración con Dynamics.
+  |
+  */
+
+  'simulate' => env('NUBEFACT_SIMULATE', false),
+
+  /*
+  |--------------------------------------------------------------------------
   | Timeout
   |--------------------------------------------------------------------------
   |

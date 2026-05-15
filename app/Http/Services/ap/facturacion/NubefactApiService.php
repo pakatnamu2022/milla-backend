@@ -34,6 +34,10 @@ class NubefactApiService
    */
   public function generateDocument($document): array
   {
+    if (config('nubefact.simulate')) {
+      return $this->simulatedSuccessResponse($document, 'generar_comprobante');
+    }
+
     $this->setApiCredentials($document->sede_id);
     $payload = $this->buildDocumentPayload($document);
 
@@ -97,6 +101,10 @@ class NubefactApiService
    */
   public function queryDocument($document): array
   {
+    if (config('nubefact.simulate')) {
+      return $this->simulatedSuccessResponse($document, 'consultar_comprobante');
+    }
+
     $this->setApiCredentials($document->sede_id);
     $body = [
       'operacion' => 'consultar_comprobante',
@@ -542,6 +550,33 @@ class NubefactApiService
       '4' => 'nota_debito/consultar',
       default => 'comprobante/consultar',
     };
+  }
+
+  /**
+   * Devuelve una respuesta simulada exitosa sin llamar a Nubefact.
+   * Activado con NUBEFACT_SIMULATE=true en el .env.
+   */
+  private function simulatedSuccessResponse($document, string $operation): array
+  {
+    $data = [
+      'aceptada_por_sunat' => true,
+      'anulado' => false,
+      'simulado' => true,
+    ];
+
+    $this->logRequest([
+      'ap_billing_electronic_document_id' => $document->id,
+      'operation' => $operation,
+      'request_payload' => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
+      'response_payload' => json_encode($data, JSON_UNESCAPED_UNICODE),
+      'http_status_code' => 200,
+      'success' => true,
+    ]);
+
+    return [
+      'success' => true,
+      'data' => $data,
+    ];
   }
 
   /**
