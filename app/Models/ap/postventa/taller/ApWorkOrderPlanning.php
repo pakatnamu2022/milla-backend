@@ -218,7 +218,7 @@ class ApWorkOrderPlanning extends Model
    * Verifica si todos los plannings de la orden de trabajo están completados
    * y actualiza el estado de la orden a FINISHED si es así
    */
-  protected function checkAndUpdateWorkOrderStatus(): void
+  public function checkAndUpdateWorkOrderStatus(): void
   {
     $workOrder = $this->workOrder;
 

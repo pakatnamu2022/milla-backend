@@ -1453,6 +1453,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Work Order Planning - Completar trabajo por supervisor
+      Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
+
       // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
       Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
       Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);

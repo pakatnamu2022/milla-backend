@@ -579,4 +579,67 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
     return $workers;
   }
+
+  /**
+   * Permite al supervisor finalizar manualmente un trabajo cuando el trabajador olvida hacerlo
+   * Recibe la hora fin y valida que no sea mayor a la hora programada
+   */
+  public function supervisorComplete($id, array $data)
+  {
+    $planning = $this->find($id);
+
+    // Validar que el trabajo esté en progreso
+    if ($planning->status !== 'in_progress') {
+      throw new Exception('Solo se pueden completar trabajos que estén en progreso.');
+    }
+
+    $endDatetime = Carbon::parse($data['end_datetime']);
+    $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
+
+    // Validar que la fecha sea la misma que la programada
+    if ($endDatetime->format('Y-m-d') !== $plannedEndDatetime->format('Y-m-d')) {
+      throw new Exception(
+        'La fecha debe ser la misma en la que se programó el trabajo (' .
+        $plannedEndDatetime->format('d/m/Y') . ').'
+      );
+    }
+
+    // Validar que la hora fin no sea mayor a la hora programada
+    if ($endDatetime->greaterThan($plannedEndDatetime)) {
+      throw new Exception(
+        'La hora de finalización (' . $endDatetime->format('H:i') . ') ' .
+        'no puede ser mayor a la hora programada (' . $plannedEndDatetime->format('H:i') . ').'
+      );
+    }
+
+    // 1. Finalizar sesión activa si existe
+    $activeSession = $planning->activeSession();
+    if ($activeSession) {
+      $activeSession->end_datetime = $endDatetime;
+
+      // Calcular horas trabajadas de la sesión
+      $startDatetime = Carbon::parse($activeSession->start_datetime);
+      $minutesWorked = $startDatetime->diffInMinutes($endDatetime);
+      $activeSession->hours_worked = round($minutesWorked / 60, 2);
+      $activeSession->status = 'completed';
+
+      $activeSession->save();
+    }
+
+    // 2. Calcular actual_hours sumando todas las sesiones
+    $planning->actual_hours = $planning->calculateTotalHoursWorked();
+
+    // 3. Actualizar actual_end_datetime
+    $planning->actual_end_datetime = $endDatetime;
+
+    // 4. Cambiar estado a completed
+    $planning->status = 'completed';
+
+    $planning->save();
+
+    // 5. Verificar y actualizar estado de Work Order si todos los trabajos están completados
+    $planning->checkAndUpdateWorkOrderStatus();
+
+    return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+  }
 }
