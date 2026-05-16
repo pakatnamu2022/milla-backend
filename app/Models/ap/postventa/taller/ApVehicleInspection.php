@@ -146,6 +146,8 @@ class ApVehicleInspection extends Model
     'inspected_by' => '=',
     'ap_work_order_id' => '=',
     'createdByWorkOrder.sede_id' => '=',
+    'createdByWorkOrder.vehicle_id' => '=',
+    'createdByWorkOrder.is_delivery' => '=',
     'is_cancelled' => '=',
   ];
 

@@ -1728,6 +1728,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
+
+    // Low Stock Notifications
+    Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
+    Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
   });
 });
 
