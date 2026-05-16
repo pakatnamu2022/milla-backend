@@ -18,10 +18,10 @@ class WorkOrderPlanningSessionService
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que no se pueda iniciar antes de la hora programada (permitiendo 5 minutos de antelación)
+    // Validar que no se pueda iniciar antes de la hora programada (permitiendo 0 minutos de antelación)
     if ($planning->planned_start_datetime) {
       $now = now();
-      $allowedStartTime = $planning->planned_start_datetime->copy()->subMinutes(5);
+      $allowedStartTime = $planning->planned_start_datetime->copy()->subMinutes(0);
 
       if ($now->lt($allowedStartTime)) {
         $plannedTime = $planning->planned_start_datetime->format('d/m/Y h:i A');
@@ -59,7 +59,7 @@ class WorkOrderPlanningSessionService
     // Validar que no tenga otro trabajo en progreso (evitar trabajos en paralelo)
     $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
       ->where('id', '!=', $planning->id)
-      ->whereHas('sessions', function($query) {
+      ->whereHas('sessions', function ($query) {
         $query->where('status', 'in_progress')->whereNull('end_datetime');
       })
       ->first();
@@ -206,7 +206,7 @@ class WorkOrderPlanningSessionService
     // Validar que no tenga otro trabajo en progreso (evitar trabajos en paralelo)
     $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
       ->where('id', '!=', $planning->id)
-      ->whereHas('sessions', function($query) {
+      ->whereHas('sessions', function ($query) {
         $query->where('status', 'in_progress')->whereNull('end_datetime');
       })
       ->first();

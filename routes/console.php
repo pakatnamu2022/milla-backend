@@ -128,3 +128,11 @@ Schedule::command('inventory:sync-adjustments-dynamics')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Notificar a encargados de almacén sobre stock bajo
+// Ejecuta diariamente a las 8:00 AM hora Lima
+Schedule::command('warehouse:notify-low-stock')
+  ->dailyAt('08:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

@@ -414,7 +414,11 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     }
 
     if ($planning->status === 'completed') {
-      throw new Exception('No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo.');
+      throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido completado.');
+    }
+
+    if ($planning->status === 'canceled') {
+      throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
     }
 
     $planning->delete();
