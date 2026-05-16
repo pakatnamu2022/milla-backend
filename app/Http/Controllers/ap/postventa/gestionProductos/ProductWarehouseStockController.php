@@ -27,13 +27,24 @@ class ProductWarehouseStockController extends Controller
     }
   }
 
-  /**
-   * Get stock by multiple product IDs
-   * Returns stock information for multiple products across all warehouses
-   *
-   * @param Request $request
-   * @return JsonResponse
-   */
+  public function update(Request $request, $id)
+  {
+    try {
+      //validamos el $request
+      $data = $request->validate([
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'product_id' => 'required|integer|exists:products,id',
+        'minimum_stock' => 'required|integer|min:0',
+        'maximum_stock' => 'required|integer|min:0',
+      ]);
+
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function getStockByProductIds(Request $request): JsonResponse
   {
     try {
@@ -71,12 +82,6 @@ class ProductWarehouseStockController extends Controller
     }
   }
 
-  /**
-   * Compare stock between local system and Dynamics
-   *
-   * @param Request $request
-   * @return JsonResponse
-   */
   public function compareStockWithDynamics(Request $request): JsonResponse
   {
     try {

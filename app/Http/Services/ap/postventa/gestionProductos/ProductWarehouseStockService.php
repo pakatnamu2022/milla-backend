@@ -77,6 +77,22 @@ class ProductWarehouseStockService extends BaseService
     );
   }
 
+  public function find($id)
+  {
+    $productWarehouseStock = ProductWarehouseStock::where('id', $id)->first();
+    if (!$productWarehouseStock) {
+      throw new Exception('Registro de stock no encontrado');
+    }
+    return $productWarehouseStock;
+  }
+
+  public function update(mixed $data)
+  {
+    $productWarehouseStock = $this->find($data['id']);
+    $productWarehouseStock->update($data);
+    return new ProductWarehouseStockResource($productWarehouseStock);
+  }
+
   /**
    * Add stock to warehouse with automatic currency conversion to PEN (base currency)
    *

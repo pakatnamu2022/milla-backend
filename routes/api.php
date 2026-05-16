@@ -1239,6 +1239,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Product Warehouse Stock - Stock de Productos por Almacén
       Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
         'index',
+        'update'
       ]);
       Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
       Route::get('productWarehouseStock/export/inventory', [ProductWarehouseStockController::class, 'exportInventory']);
