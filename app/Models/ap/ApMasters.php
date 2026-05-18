@@ -44,6 +44,10 @@ class ApMasters extends Model
   const int NUM_DIGITS_PASSPORT = 9;
   const int NUM_DIGITS_DEFAULT = 20;
 
+  // TIPO DE COMPROBANTE
+  const int CREDIT_NOTE_ID = 801;
+  const int DEBIT_NOTE_ID = 802;
+
   // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS
   const array DOCUMENT_TYPE_DIGITS = [
     809 => self::NUM_DIGITS_DNI,   // DNI

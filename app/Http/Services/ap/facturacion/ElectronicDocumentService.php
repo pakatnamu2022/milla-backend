@@ -2416,9 +2416,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   private function validateInternalSaleTotal(array $data): void
   {
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+    $series = AssignSalesSeries::find($data['series_id']);
+    $isCreditNote = $series->type_receipt_id === ApMasters::CREDIT_NOTE_ID;
+    $isDebitNote = $series->type_receipt_id === ApMasters::DEBIT_NOTE_ID;
 
     // Only validate for internal sales (is_advance_payment = 0)
-    if ($isAdvancePayment) {
+    if ($isAdvancePayment || $isCreditNote || $isDebitNote) {
       return;
     }
 
