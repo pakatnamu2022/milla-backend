@@ -1075,6 +1075,7 @@ class ProductWarehouseStockService extends BaseService
           $q->where('product_id', $productId);
         }, 'currency'])
         ->orderBy('movement_date', 'desc')
+        ->orderBy('id', 'desc')
         ->first();
 
       // Calculate prices
@@ -1157,7 +1158,50 @@ class ProductWarehouseStockService extends BaseService
       if ($lastPurchaseMovement && $lastPurchaseMovement->details->isNotEmpty()) {
         $purchaseDetail = $lastPurchaseMovement->details->first();
         $lastPurchaseQuantity = (float)$purchaseDetail->quantity;
-        $stockBeforeLastPurchase = $currentStock - $lastPurchaseQuantity;
+
+        // Calculate the stock at the time IMMEDIATELY AFTER the last purchase
+        // by reversing all movements that occurred AFTER the last purchase
+        $stockAfterLastPurchase = $currentStock;
+
+        // Get all approved movements for this product/warehouse that occurred AFTER the last purchase
+        $movementsAfterPurchase = InventoryMovement::whereHas('details', function ($q) use ($productId) {
+          $q->where('product_id', $productId);
+        })
+          ->where('warehouse_id', $warehouseId)
+          ->where('status', InventoryMovement::STATUS_APPROVED)
+          ->where(function ($q) use ($lastPurchaseMovement) {
+            $q->where('movement_date', '>', $lastPurchaseMovement->movement_date)
+              ->orWhere(function ($q2) use ($lastPurchaseMovement) {
+                $q2->where('movement_date', '=', $lastPurchaseMovement->movement_date)
+                  ->where('id', '>', $lastPurchaseMovement->id);
+              });
+          })
+          ->with(['details' => function ($q) use ($productId) {
+            $q->where('product_id', $productId);
+          }])
+          ->orderBy('movement_date', 'desc')
+          ->orderBy('id', 'desc')
+          ->get();
+
+        // Reverse each movement to get stock at time of purchase
+        foreach ($movementsAfterPurchase as $movement) {
+          if ($movement->details->isEmpty()) continue;
+
+          $detail = $movement->details->first();
+          $quantity = abs((float)$detail->quantity);
+
+          // Reverse the movement:
+          // - If it was inbound (added stock), subtract it
+          // - If it was outbound (removed stock), add it back
+          if ($movement->is_inbound) {
+            $stockAfterLastPurchase -= $quantity;
+          } else {
+            $stockAfterLastPurchase += $quantity;
+          }
+        }
+
+        // Now calculate stock BEFORE the last purchase
+        $stockBeforeLastPurchase = $stockAfterLastPurchase - $lastPurchaseQuantity;
 
         // Calculate what the previous average cost was (before last purchase)
         // From formula: newAverage = (oldStock × oldAvg + newQty × newCost) / (oldStock + newQty)
@@ -1165,7 +1209,7 @@ class ProductWarehouseStockService extends BaseService
         // We have: averageCost (new), stockBeforeLastPurchase (old), lastPurchaseQuantity (new), lastPurchasePrice (new cost)
         if ($stockBeforeLastPurchase > 0) {
           $previousAverageCost = round(
-            ($averageCost * $currentStock - $lastPurchaseQuantity * $lastPurchasePrice) / $stockBeforeLastPurchase,
+            ($averageCost * $stockAfterLastPurchase - $lastPurchaseQuantity * $lastPurchasePrice) / $stockBeforeLastPurchase,
             2
           );
         } else {
@@ -1193,6 +1237,7 @@ class ProductWarehouseStockService extends BaseService
         : "No hay costo promedio calculado. Esto ocurre cuando no se han registrado compras con costo unitario para este producto.";
 
       // Add detailed calculation if last purchase exists
+      $step2CalculationDetails = '';
       if ($stockBeforeLastPurchase !== null && $lastPurchaseQuantity !== null && $previousAverageCost !== null) {
         $step2Data['stock_before_last_purchase'] = $stockBeforeLastPurchase;
         $step2Data['last_purchase_quantity'] = $lastPurchaseQuantity;
@@ -1202,10 +1247,21 @@ class ProductWarehouseStockService extends BaseService
         $step2Development['previous_average_cost'] = $previousAverageCost;
         $step2Development['last_purchase_quantity'] = $lastPurchaseQuantity;
         $step2Development['last_purchase_unit_cost'] = $lastPurchasePrice;
-        $step2Development['stock_after_purchase'] = $currentStock;
+        $step2Development['stock_after_purchase'] = $stockAfterLastPurchase;
         $step2Development['average_cost_after_purchase'] = $averageCost;
         $step2Development['calculation_explanation'] = "En el método addStock(), se usa el stock ANTES de la compra ($stockBeforeLastPurchase unidades) y el costo promedio ANTERIOR ($previousAverageCost) para calcular el nuevo promedio ponderado.";
         $step2Development['formula_applied'] = "($stockBeforeLastPurchase × $previousAverageCost + $lastPurchaseQuantity × $lastPurchasePrice) / ($stockBeforeLastPurchase + $lastPurchaseQuantity) = $averageCost";
+
+        // Build detailed step-by-step calculation
+        $numeratorPart1 = $stockBeforeLastPurchase * $previousAverageCost;
+        $numeratorPart2 = $lastPurchaseQuantity * $lastPurchasePrice;
+        $numeratorTotal = $numeratorPart1 + $numeratorPart2;
+        $denominatorTotal = $stockBeforeLastPurchase + $lastPurchaseQuantity;
+
+        $step2CalculationDetails = "Costo_Promedio = ($stockBeforeLastPurchase × $previousAverageCost + $lastPurchaseQuantity × $lastPurchasePrice) / ($stockBeforeLastPurchase + $lastPurchaseQuantity)\n" .
+          "Costo_Promedio = ($numeratorPart1 + $numeratorPart2) / $denominatorTotal\n" .
+          "Costo_Promedio = $numeratorTotal / $denominatorTotal\n" .
+          "Costo_Promedio = $averageCost";
 
         // Verify calculation
         if ($stockBeforeLastPurchase > 0 || $lastPurchaseQuantity > 0) {
@@ -1217,7 +1273,7 @@ class ProductWarehouseStockService extends BaseService
           $step2Development['matches_stored_average'] = abs($calculatedAverage - $averageCost) < 0.01;
         }
 
-        $step2Message = "Antes de la última compra había $stockBeforeLastPurchase unidades con costo promedio de PEN $previousAverageCost. Se compraron $lastPurchaseQuantity unidades a PEN $lastPurchasePrice, llegando al stock actual de $currentStock unidades. El nuevo costo promedio ponderado es PEN $averageCost.";
+        $step2Message = "Antes de la última compra había $stockBeforeLastPurchase unidades con costo promedio de PEN $previousAverageCost. Se compraron $lastPurchaseQuantity unidades a PEN $lastPurchasePrice, llegando al stock después de la compra de $stockAfterLastPurchase unidades. El nuevo costo promedio ponderado es PEN $averageCost.";
       }
 
       $calculationSteps[] = [
@@ -1227,6 +1283,7 @@ class ProductWarehouseStockService extends BaseService
         'data' => $step2Data,
         'development' => $step2Development,
         'formula' => 'Costo_Promedio = (Stock_Antes_Compra × Costo_Promedio_Anterior + Cantidad_Comprada × Costo_Unitario_Compra) / (Stock_Antes_Compra + Cantidad_Comprada)',
+        'calculation_details' => $step2CalculationDetails,
         'message' => $step2Message
       ];
 
