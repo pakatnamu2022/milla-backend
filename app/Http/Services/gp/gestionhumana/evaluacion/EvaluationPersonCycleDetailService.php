@@ -831,19 +831,23 @@ class EvaluationPersonCycleDetailService extends BaseService
 
   public function destroy($id)
   {
-    $personCycleDetail = $this->find($id);
-    DB::transaction(function () use ($personCycleDetail) {
-      $clone = $personCycleDetail->replicate();
+    $detail = $this->find($id);
 
-      // Solo eliminar el EvaluationPerson específico de este detalle
-      // NO eliminar EvaluationPersonResult ni EvaluationPersonCompetenceDetail
-      // ya que la persona puede tener otros objetivos en el mismo ciclo
-      $this->cleanupSingleDetailEvaluation($personCycleDetail);
+    DB::transaction(function () use ($detail) {
+      $allPersonDetails = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+        ->where('cycle_id', $detail->cycle_id)
+        ->whereNull('deleted_at')
+        ->get();
 
-      $personCycleDetail->delete();
-      $this->recalculateWeights($clone->id, $clone);
+      $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, $allPersonDetails);
+
+      EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+        ->where('cycle_id', $detail->cycle_id)
+        ->whereNull('deleted_at')
+        ->delete();
     });
-    return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
+
+    return response()->json(['message' => 'Persona eliminada del ciclo correctamente']);
   }
 
   /**
