@@ -848,7 +848,20 @@ class EvaluationPersonCycleDetailService extends BaseService
           ->delete();
       } else {
         $clone = $detail->replicate();
-        $this->cleanupSingleDetailEvaluation($detail);
+
+        $remainingCount = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->where('id', '!=', $detail->id)
+          ->count();
+
+        if ($remainingCount === 0) {
+          // Es el último detalle: limpiar toda la data de evaluación
+          $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, collect([$detail]));
+        } else {
+          $this->cleanupSingleDetailEvaluation($detail);
+        }
+
         $detail->delete();
         $this->recalculateWeights($clone->id, $clone);
       }
