@@ -48,7 +48,7 @@ class WorkOrderPlanningController extends Controller
   public function update(UpdateWorkOrderPlanningRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
