@@ -217,6 +217,12 @@ return [
       'description' => 'Permite enviar notificaciones a usuarios o grupos',
       'icon' => 'Bell',
       'policy_method' => 'notify',
+    ],
+    'salesforce' => [
+      'label' => 'Salesforce',
+      'description' => 'Permite habilitar opciones de Salesforce',
+      'icon' => 'XCircle',
+      'policy_method' => 'salesforce',
     ]
   ],
 

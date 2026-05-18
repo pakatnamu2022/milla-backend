@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\Opportunity;
+use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -245,6 +247,15 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         'status_delivery' => 'completed',
         'real_delivery_date' => now(),
       ]);
+
+    $delivery = ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)->first();
+    if ($delivery?->vehicle_id) {
+      $quote = PurchaseRequestQuote::where('ap_vehicle_id', $delivery->vehicle_id)->first();
+      if ($quote?->opportunity_id) {
+        Opportunity::where('id', $quote->opportunity_id)
+          ->update(['opportunity_status_id' => Opportunity::DELIVERED_ID]);
+      }
+    }
   }
 
   /**
