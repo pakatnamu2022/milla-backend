@@ -9,6 +9,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\StoreManyWorkerToCycleRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCycleDetailRequest;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailService;
+use Illuminate\Http\Request;
 
 class EvaluationPersonCycleDetailController extends Controller
 {
@@ -84,10 +85,12 @@ class EvaluationPersonCycleDetailController extends Controller
    * @param $id
    * @return \Illuminate\Http\JsonResponse
    */
-  public function destroy($id)
+  public function destroy(Request $request, $id)
   {
     try {
-      return $this->service->destroy($id);
+      $deleteAllForPerson = filter_var($request->query('delete_all_for_person', false), FILTER_VALIDATE_BOOLEAN);
+      $deactivateCategoryObjective = filter_var($request->query('deactivate_category_objective', false), FILTER_VALIDATE_BOOLEAN);
+      return $this->service->destroy($id, $deleteAllForPerson, $deactivateCategoryObjective);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -171,7 +171,7 @@ class EvaluationPersonService extends BaseService
     }
   }
 
-  public function destroy($id)
+  public function destroy($id, bool $alsoRemoveFromCycle = false)
   {
     DB::beginTransaction();
     try {
@@ -180,9 +180,12 @@ class EvaluationPersonService extends BaseService
       $personId = $evaluationPerson->person_id;
 
       $evaluationPerson->delete();
-
-      // Recalcular resultados después de eliminar
       $this->recalculatePersonResults($evaluationId, $personId);
+
+      if ($alsoRemoveFromCycle) {
+        $cycleId = Evaluation::findOrFail($evaluationId)->cycle_id;
+        $this->cleanupPersonFromCycle($personId, $cycleId);
+      }
 
       DB::commit();
       return response()->json(['message' => 'Evaluación de persona eliminada correctamente']);
@@ -190,6 +193,36 @@ class EvaluationPersonService extends BaseService
       DB::rollBack();
       throw $e;
     }
+  }
+
+  private function cleanupPersonFromCycle(int $personId, int $cycleId): void
+  {
+    $evaluationIds = Evaluation::where('cycle_id', $cycleId)->pluck('id');
+    $details = EvaluationPersonCycleDetail::where('person_id', $personId)
+      ->where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->get();
+
+    $detailIds = $details->pluck('id');
+
+    foreach ($evaluationIds as $evaluationId) {
+      EvaluationPerson::whereIn('person_cycle_detail_id', $detailIds)
+        ->where('evaluation_id', $evaluationId)
+        ->delete();
+
+      EvaluationPersonResult::where('evaluation_id', $evaluationId)
+        ->where('person_id', $personId)
+        ->delete();
+
+      EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+        ->where('person_id', $personId)
+        ->delete();
+    }
+
+    EvaluationPersonCycleDetail::where('person_id', $personId)
+      ->where('cycle_id', $cycleId)
+      ->whereNull('deleted_at')
+      ->delete();
   }
 
   /**

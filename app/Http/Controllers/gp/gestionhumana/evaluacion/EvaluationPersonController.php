@@ -7,6 +7,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonService;
+use Illuminate\Http\Request;
 
 class EvaluationPersonController extends Controller
 {
@@ -64,10 +65,11 @@ class EvaluationPersonController extends Controller
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(Request $request, int $id)
   {
     try {
-      return $this->success($this->service->destroy($id));
+      $alsoRemoveFromCycle = filter_var($request->query('also_remove_from_cycle', false), FILTER_VALIDATE_BOOLEAN);
+      return $this->service->destroy($id, $alsoRemoveFromCycle);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

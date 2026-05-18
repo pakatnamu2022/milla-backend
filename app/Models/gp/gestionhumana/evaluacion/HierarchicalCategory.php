@@ -25,7 +25,7 @@ class HierarchicalCategory extends BaseModel
   ];
 
   const filters = [
-    'search' => ['name', 'description'],
+    'search' => ['name', 'description', 'accessor:workers_category'],
     'excluded_from_evaluation' => '=',
     'pass' => 'virtual_bool',
     'hasObjectives' => '=',
@@ -104,6 +104,11 @@ class HierarchicalCategory extends BaseModel
       'id',
       'position_id'
     )->where('rrhh_persona.status_id', 22)->where('rrhh_persona.status_deleted', 1)->where('rrhh_persona.b_empleado', 1);
+  }
+
+  public function getWorkersCategoryAttribute()
+  {
+    return $this->workers()->implode('nombre_completo', ', ');
   }
 
   public static function whereAllPersonsHaveJefe(bool $hasObjectives, $cutOffDate = null)

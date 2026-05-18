@@ -829,21 +829,73 @@ class EvaluationPersonCycleDetailService extends BaseService
   }
 
 
-  public function destroy($id)
+  public function destroy($id, bool $deleteAllForPerson = false, bool $deactivateCategoryObjective = false)
   {
-    $personCycleDetail = $this->find($id);
-    DB::transaction(function () use ($personCycleDetail) {
-      $clone = $personCycleDetail->replicate();
+    $detail = $this->find($id);
 
-      // Solo eliminar el EvaluationPerson específico de este detalle
-      // NO eliminar EvaluationPersonResult ni EvaluationPersonCompetenceDetail
-      // ya que la persona puede tener otros objetivos en el mismo ciclo
-      $this->cleanupSingleDetailEvaluation($personCycleDetail);
+    DB::transaction(function () use ($detail, $deleteAllForPerson, $deactivateCategoryObjective) {
+      if ($deleteAllForPerson) {
+        $allPersonDetails = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->get();
 
-      $personCycleDetail->delete();
-      $this->recalculateWeights($clone->id, $clone);
+        $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, $allPersonDetails);
+
+        if ($deactivateCategoryObjective) {
+          $this->deactivateCategoryObjectivesForPerson($detail->person_id, $detail->category_id);
+        }
+
+        EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->delete();
+      } else {
+        $clone = $detail->replicate();
+
+        $remainingCount = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->where('id', '!=', $detail->id)
+          ->count();
+
+        if ($remainingCount === 0) {
+          $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, collect([$detail]));
+        } else {
+          $this->cleanupSingleDetailEvaluation($detail);
+        }
+
+        if ($deactivateCategoryObjective) {
+          $this->deactivateCategoryObjectiveForDetail($detail);
+        }
+
+        $detail->delete();
+        $this->recalculateWeights($clone->id, $clone);
+      }
     });
-    return response()->json(['message' => 'Detalle de Ciclo Persona eliminado correctamente']);
+
+    $message = $deleteAllForPerson
+      ? 'Persona eliminada del ciclo correctamente'
+      : 'Detalle de Ciclo Persona eliminado correctamente';
+
+    return response()->json(['message' => $message]);
+  }
+
+  private function deactivateCategoryObjectiveForDetail(EvaluationPersonCycleDetail $detail): void
+  {
+    EvaluationCategoryObjectiveDetail::where('objective_id', $detail->objective_id)
+      ->where('category_id', $detail->category_id)
+      ->where('person_id', $detail->person_id)
+      ->whereNull('deleted_at')
+      ->update(['active' => 0, 'weight' => 0]);
+  }
+
+  private function deactivateCategoryObjectivesForPerson(int $personId, int $categoryId): void
+  {
+    EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at')
+      ->update(['active' => 0, 'weight' => 0]);
   }
 
   /**
