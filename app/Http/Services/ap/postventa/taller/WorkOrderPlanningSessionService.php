@@ -13,10 +13,14 @@ class WorkOrderPlanningSessionService
 {
   /**
    * Inicia una nueva sesión de trabajo
+   * @throws Exception
    */
   public function startSession($planningId, ?string $notes = null)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
+
+    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    $this->validateWorkHours('iniciar');
 
     // Validar que no se pueda iniciar antes de la hora programada (permitiendo 0 minutos de antelación)
     if ($planning->planned_start_datetime) {
@@ -119,10 +123,14 @@ class WorkOrderPlanningSessionService
 
   /**
    * Pausa el trabajo actual
+   * @throws Exception
    */
   public function pauseSession($planningId, ?string $pauseReason = null)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
+
+    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    $this->validateWorkHours('pausar');
 
     if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
       throw new Exception('No se puede pausar una sesión de un trabajo con fecha planificada pasada');
@@ -161,6 +169,7 @@ class WorkOrderPlanningSessionService
 
   /**
    * Continúa un trabajo pausado
+   * @throws Exception
    */
   public function continueSession($planningId, ?string $notes = null)
   {
@@ -169,6 +178,9 @@ class WorkOrderPlanningSessionService
     if (!$planning) {
       throw new Exception('Planificación no encontrada');
     }
+
+    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    $this->validateWorkHours('continuar');
 
     // Validar que sea un trabajo del día actual (trabajos de días anteriores usan startSession)
     if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
@@ -222,10 +234,14 @@ class WorkOrderPlanningSessionService
 
   /**
    * Completa el trabajo
+   * @throws Exception
    */
   public function completeWork($planningId)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
+
+    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    $this->validateWorkHours('completar');
 
     if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
       throw new Exception('No se puede completar un trabajo con fecha planificada pasada');
@@ -294,5 +310,30 @@ class WorkOrderPlanningSessionService
     $sessions = $planning->sessions()->orderBy('start_datetime', 'desc')->get();
 
     return WorkOrderPlanningSessionResource::collection($sessions);
+  }
+
+  /**
+   * Validar hora de entrada y salida
+   */
+  private function validateWorkHours(string $event): void
+  {
+    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    $now = now();
+    $workStartTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_START_TIME);
+    $workEndTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_END_TIME);
+
+    if ($now->lessThan($workStartTime)) {
+      throw new Exception(
+        'No puede ' . $event . ' el trabajo antes de la hora de entrada (' . ApWorkOrderPlanning::WORK_START_TIME . '). ' .
+        'Hora actual: ' . $now->format('H:i')
+      );
+    }
+
+    if ($now->greaterThan($workEndTime)) {
+      throw new Exception(
+        'No puede ' . $event . ' el trabajo después de la hora de salida (' . ApWorkOrderPlanning::WORK_END_TIME . '). ' .
+        'Hora actual: ' . $now->format('H:i')
+      );
+    }
   }
 }

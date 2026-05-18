@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderPlanningRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderPlanningRequest;
+use App\Http\Requests\ap\postventa\taller\SupervisorCompleteWorkOrderPlanningRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderPlanningRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderPlanningService;
 
@@ -47,7 +48,7 @@ class WorkOrderPlanningController extends Controller
   public function update(UpdateWorkOrderPlanningRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
@@ -81,6 +82,19 @@ class WorkOrderPlanningController extends Controller
   {
     try {
       return $this->success($this->service->getWorkers($workOrderId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Permite al supervisor finalizar manualmente un trabajo cuando el trabajador olvida hacerlo
+   * POST /api/workOrderPlanning/{id}/supervisor-complete
+   */
+  public function supervisorComplete(SupervisorCompleteWorkOrderPlanningRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->supervisorComplete($id, $request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

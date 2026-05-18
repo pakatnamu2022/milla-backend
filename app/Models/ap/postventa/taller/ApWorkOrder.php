@@ -111,7 +111,7 @@ class ApWorkOrder extends Model
     'advisor_id' => '=',
     'sede_id' => '=',
     'opening_date' => 'date_between',
-    'estimated_delivery_date' => 'between',
+    'estimated_delivery_date' => 'date_between',
     'actual_delivery_date' => 'between',
     'diagnosis_date' => 'between',
     'is_invoiced' => '=',

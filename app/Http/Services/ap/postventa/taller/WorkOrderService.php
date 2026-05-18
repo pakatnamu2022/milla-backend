@@ -122,6 +122,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
             throw new Exception('El vehículo de la inspección no coincide con el vehículo de la cita');
           }
         }
+
+        if ($vehicleIdInspection->createdByWorkOrder->is_delivery) {
+          throw new Exception('No se puede crear una orden de trabajo con una recepción de un vehículo que ya fue entregado');
+        }
       }
 
       // Obtener tipo de cambio actual para USD

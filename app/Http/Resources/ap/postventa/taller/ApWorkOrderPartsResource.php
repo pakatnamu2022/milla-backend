@@ -29,6 +29,7 @@ class ApWorkOrderPartsResource extends JsonResource
       'registered_by' => $this->registered_by,
       'is_delivered' => (bool)$this->is_delivered,
       'registered_by_name' => $this->registeredBy ? $this->registeredBy->name : null,
+      'part_fully_delivered' => $this->deliveries->sum('delivered_quantity') >= $this->quantity_used,
     ];
   }
 }
