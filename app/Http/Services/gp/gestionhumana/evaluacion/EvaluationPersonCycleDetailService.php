@@ -829,25 +829,36 @@ class EvaluationPersonCycleDetailService extends BaseService
   }
 
 
-  public function destroy($id)
+  public function destroy($id, bool $deleteAllForPerson = false)
   {
     $detail = $this->find($id);
 
-    DB::transaction(function () use ($detail) {
-      $allPersonDetails = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
-        ->where('cycle_id', $detail->cycle_id)
-        ->whereNull('deleted_at')
-        ->get();
+    DB::transaction(function () use ($detail, $deleteAllForPerson) {
+      if ($deleteAllForPerson) {
+        $allPersonDetails = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->get();
 
-      $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, $allPersonDetails);
+        $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, $allPersonDetails);
 
-      EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
-        ->where('cycle_id', $detail->cycle_id)
-        ->whereNull('deleted_at')
-        ->delete();
+        EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
+          ->where('cycle_id', $detail->cycle_id)
+          ->whereNull('deleted_at')
+          ->delete();
+      } else {
+        $clone = $detail->replicate();
+        $this->cleanupSingleDetailEvaluation($detail);
+        $detail->delete();
+        $this->recalculateWeights($clone->id, $clone);
+      }
     });
 
-    return response()->json(['message' => 'Persona eliminada del ciclo correctamente']);
+    $message = $deleteAllForPerson
+      ? 'Persona eliminada del ciclo correctamente'
+      : 'Detalle de Ciclo Persona eliminado correctamente';
+
+    return response()->json(['message' => $message]);
   }
 
   /**
