@@ -89,7 +89,8 @@ class EvaluationPersonCycleDetailController extends Controller
   {
     try {
       $deleteAllForPerson = filter_var($request->query('delete_all_for_person', false), FILTER_VALIDATE_BOOLEAN);
-      return $this->service->destroy($id, $deleteAllForPerson);
+      $deactivateCategoryObjective = filter_var($request->query('deactivate_category_objective', false), FILTER_VALIDATE_BOOLEAN);
+      return $this->service->destroy($id, $deleteAllForPerson, $deactivateCategoryObjective);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

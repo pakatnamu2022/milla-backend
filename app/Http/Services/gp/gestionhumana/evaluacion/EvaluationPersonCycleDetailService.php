@@ -829,11 +829,11 @@ class EvaluationPersonCycleDetailService extends BaseService
   }
 
 
-  public function destroy($id, bool $deleteAllForPerson = false)
+  public function destroy($id, bool $deleteAllForPerson = false, bool $deactivateCategoryObjective = false)
   {
     $detail = $this->find($id);
 
-    DB::transaction(function () use ($detail, $deleteAllForPerson) {
+    DB::transaction(function () use ($detail, $deleteAllForPerson, $deactivateCategoryObjective) {
       if ($deleteAllForPerson) {
         $allPersonDetails = EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
           ->where('cycle_id', $detail->cycle_id)
@@ -841,6 +841,10 @@ class EvaluationPersonCycleDetailService extends BaseService
           ->get();
 
         $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, $allPersonDetails);
+
+        if ($deactivateCategoryObjective) {
+          $this->deactivateCategoryObjectivesForPerson($detail->person_id, $detail->category_id);
+        }
 
         EvaluationPersonCycleDetail::where('person_id', $detail->person_id)
           ->where('cycle_id', $detail->cycle_id)
@@ -856,10 +860,13 @@ class EvaluationPersonCycleDetailService extends BaseService
           ->count();
 
         if ($remainingCount === 0) {
-          // Es el último detalle: limpiar toda la data de evaluación
           $this->cleanupAssociatedEvaluationsForPerson($detail->person_id, collect([$detail]));
         } else {
           $this->cleanupSingleDetailEvaluation($detail);
+        }
+
+        if ($deactivateCategoryObjective) {
+          $this->deactivateCategoryObjectiveForDetail($detail);
         }
 
         $detail->delete();
@@ -872,6 +879,23 @@ class EvaluationPersonCycleDetailService extends BaseService
       : 'Detalle de Ciclo Persona eliminado correctamente';
 
     return response()->json(['message' => $message]);
+  }
+
+  private function deactivateCategoryObjectiveForDetail(EvaluationPersonCycleDetail $detail): void
+  {
+    EvaluationCategoryObjectiveDetail::where('objective_id', $detail->objective_id)
+      ->where('category_id', $detail->category_id)
+      ->where('person_id', $detail->person_id)
+      ->whereNull('deleted_at')
+      ->update(['active' => 0, 'weight' => 0]);
+  }
+
+  private function deactivateCategoryObjectivesForPerson(int $personId, int $categoryId): void
+  {
+    EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+      ->where('person_id', $personId)
+      ->whereNull('deleted_at')
+      ->update(['active' => 0, 'weight' => 0]);
   }
 
   /**
