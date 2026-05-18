@@ -61,6 +61,11 @@ class ProductWarehouseStock extends Model
     'created_at',
   ];
 
+  // Método de cálculo de precio de venta:
+  // 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+  // 2: PVP = Costo / (1 - (margen + impuesto))
+  const int PRICE_CALCULATION_METHOD = 2;
+
   // Relationships
   public function product(): BelongsTo
   {

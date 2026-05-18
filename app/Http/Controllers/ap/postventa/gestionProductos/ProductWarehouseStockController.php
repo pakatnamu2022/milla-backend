@@ -101,4 +101,30 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get detailed price calculation explanation for a product
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getPriceCalculationDetails(Request $request): JsonResponse
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'product_id' => 'required|integer|exists:products,id',
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+      ]);
+
+      $productId = $request->input('product_id');
+      $warehouseId = $request->input('warehouse_id');
+
+      $result = $this->service->getPriceCalculationDetails($productId, $warehouseId);
+
+      return response()->json($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

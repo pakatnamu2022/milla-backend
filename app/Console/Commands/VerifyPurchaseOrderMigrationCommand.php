@@ -13,7 +13,6 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
   /**
    * The name and signature of the console command.
-   *
    * @var string
    */
   protected $signature = 'po:verify-migration {--id= : ID de la orden de compra específica} {--all : Verificar todas las órdenes pendientes} {--limit=100 : Número máximo de órdenes a procesar (default: 100)} {--sync : Ejecutar inmediatamente sin usar cola}';
