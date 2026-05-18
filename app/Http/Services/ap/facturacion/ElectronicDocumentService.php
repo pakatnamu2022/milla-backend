@@ -1066,7 +1066,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('El documento original no tiene ítems');
     }
 
-    return $document->items->map(function (ElectronicDocumentItem $item) {
+    return $document->items->where('anticipo_regularizacion', false)->map(function (ElectronicDocumentItem $item) {
       // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
       // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
       $cantidad = max((float)$item->cantidad, 0.000001);
@@ -1097,7 +1097,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function buildItemsFromSelectedIds(ElectronicDocument $document, array $detailIds): array
   {
-    $selectedItems = $document->items->whereIn('id', $detailIds);
+    $selectedItems = $document->items->whereIn('id', $detailIds)->where('anticipo_regularizacion', false);
 
     if ($selectedItems->isEmpty()) {
       throw new Exception('Ninguno de los ítems especificados pertenece al documento original');
@@ -1124,6 +1124,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
         'igv' => $item->igv,
         'total' => $item->total,
+        'anticipo_regularizacion' => (bool)$item->anticipo_regularizacion,
       ];
     })->values()->toArray();
   }
