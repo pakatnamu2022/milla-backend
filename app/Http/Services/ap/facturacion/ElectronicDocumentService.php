@@ -1066,28 +1066,46 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('El documento original no tiene ítems');
     }
 
-    return $document->items->map(function (ElectronicDocumentItem $item) {
-      // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
-      // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
-      $cantidad = max((float)$item->cantidad, 0.000001);
-      $netValueUnit = round((float)$item->subtotal / $cantidad, 10);
-      $netPriceUnit = round((float)$item->total / $cantidad, 10);
+    $normalItems = $document->items->where('anticipo_regularizacion', false);
+
+    if ($normalItems->isEmpty()) {
+      throw new Exception('El documento original no tiene ítems');
+    }
+
+    // Si el documento original tenía anticipos, escalar los ítems al total neto
+    // para que la NC sume exactamente el monto que fue facturado (sin anticipo).
+    $scale = 1.0;
+    $hasAnticipo = $document->items->contains('anticipo_regularizacion', true);
+    if ($hasAnticipo) {
+      $sumProductTotal = $normalItems->sum(fn($i) => (float)$i->total);
+      if ($sumProductTotal != 0) {
+        $scale = (float)$document->total / $sumProductTotal;
+      }
+    }
+
+    return $normalItems->map(function (ElectronicDocumentItem $item) use ($scale) {
+      $scaledSubtotal = round((float)$item->subtotal * $scale, 2);
+      $scaledIgv     = round((float)$item->igv * $scale, 2);
+      $scaledTotal   = round((float)$item->total * $scale, 2);
+
+      $cantidad     = max((float)$item->cantidad, 0.000001);
+      $netValueUnit = round($scaledSubtotal / $cantidad, 10);
+      $netPriceUnit = round($scaledTotal / $cantidad, 10);
 
       return [
-        'account_plan_id' => $item->account_plan_id,
-        'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $item->codigo,
-        'codigo_producto_sunat' => $item->codigo_producto_sunat,
-        'descripcion' => $item->descripcion,
-        'cantidad' => $item->cantidad,
-        'valor_unitario' => $netValueUnit,
-        'precio_unitario' => $netPriceUnit,
-        'descuento' => 0,
-        'subtotal' => $item->subtotal,
+        'account_plan_id'           => $item->account_plan_id,
+        'unidad_de_medida'          => $item->unidad_de_medida,
+        'codigo'                    => $item->codigo,
+        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
+        'descripcion'               => $item->descripcion,
+        'cantidad'                  => $item->cantidad,
+        'valor_unitario'            => $netValueUnit,
+        'precio_unitario'           => $netPriceUnit,
+        'descuento'                 => 0,
+        'subtotal'                  => $scaledSubtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv' => $item->igv,
-        'total' => $item->total,
-        'anticipo_regularizacion' => (bool)$item->anticipo_regularizacion,
+        'igv'                       => $scaledIgv,
+        'total'                     => $scaledTotal,
       ];
     })->values()->toArray();
   }
@@ -1098,7 +1116,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function buildItemsFromSelectedIds(ElectronicDocument $document, array $detailIds): array
   {
-    $selectedItems = $document->items->whereIn('id', $detailIds);
+    $selectedItems = $document->items->whereIn('id', $detailIds)->where('anticipo_regularizacion', false);
 
     if ($selectedItems->isEmpty()) {
       throw new Exception('Ninguno de los ítems especificados pertenece al documento original');
@@ -1107,25 +1125,24 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $selectedItems->map(function (ElectronicDocumentItem $item) {
       // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
       // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
-      $cantidad = max((float)$item->cantidad, 0.000001);
+      $cantidad     = max((float)$item->cantidad, 0.000001);
       $netValueUnit = round((float)$item->subtotal / $cantidad, 10);
       $netPriceUnit = round((float)$item->total / $cantidad, 10);
 
       return [
-        'account_plan_id' => $item->account_plan_id,
-        'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $item->codigo,
-        'codigo_producto_sunat' => $item->codigo_producto_sunat,
-        'descripcion' => $item->descripcion,
-        'cantidad' => $item->cantidad,
-        'valor_unitario' => $netValueUnit,
-        'precio_unitario' => $netPriceUnit,
-        'descuento' => 0,
-        'subtotal' => $item->subtotal,
+        'account_plan_id'           => $item->account_plan_id,
+        'unidad_de_medida'          => $item->unidad_de_medida,
+        'codigo'                    => $item->codigo,
+        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
+        'descripcion'               => $item->descripcion,
+        'cantidad'                  => $item->cantidad,
+        'valor_unitario'            => $netValueUnit,
+        'precio_unitario'           => $netPriceUnit,
+        'descuento'                 => 0,
+        'subtotal'                  => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv' => $item->igv,
-        'total' => $item->total,
-        'anticipo_regularizacion' => (bool)$item->anticipo_regularizacion,
+        'igv'                       => $item->igv,
+        'total'                     => $item->total,
       ];
     })->values()->toArray();
   }
