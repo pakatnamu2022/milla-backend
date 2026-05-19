@@ -172,13 +172,15 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
       ]));
 
-      return new PurchaseRequestQuoteResource($purchaseRequestQuote);
+      return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh(['others']));
     });
   }
 
   public function show($id)
   {
-    return (new PurchaseRequestQuoteResource($this->find($id)))->showExtra();
+    $quote = $this->find($id);
+    $quote->load(['others']);
+    return (new PurchaseRequestQuoteResource($quote))->showExtra();
   }
 
   public function update(mixed $data)
@@ -225,7 +227,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       }
       $this->refreshMargin($purchaseRequestQuote);
 
-      return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh());
+      return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh(['others']));
     });
   }
 
@@ -809,10 +811,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $totalIncome   = $clientRevenue + $bonusTotal;
     $vehicleCosts  = $billedCost + $giftTotal;
     $netDiff       = ($totalIncome - $vehicleCosts) / 1.18;
-    $freightCost   = (float) ($vehicle->model?->transport_cost ?? 0);
     $othersTotal   = (float) $quote->others->sum('amount');
 
-    $realMarginAmount = $netDiff - $freightCost - $othersTotal;
+    $realMarginAmount = $netDiff - $othersTotal;
     $netSalePrice     = $salePrice / 1.18;
     $realMarginPct    = $netSalePrice > 0 ? ($realMarginAmount / $netSalePrice) * 100 : 0;
 
@@ -824,7 +825,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
   private function refreshMargin(PurchaseRequestQuote $quote): void
   {
-    $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.model', 'vehicle.purchaseOrder']);
+    $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.purchaseOrder']);
     $quote->update($this->calculateMargin($quote));
   }
 
