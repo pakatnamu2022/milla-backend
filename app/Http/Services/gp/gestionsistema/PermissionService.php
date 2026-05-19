@@ -19,49 +19,60 @@ class PermissionService extends BaseService
   protected $model = Permission::class;
 
   /**
-   * Guardar/actualizar permisos de un rol SIN eliminar los existentes
-   * Solo crea nuevos o actualiza existentes, pero mantiene todos los permisos previos
-   *
    * @param int $roleId
-   * @param array $permissionIds Array de IDs de permisos
+   * @param array $permissionIds IDs que deben quedar asignados
+   * @param array $permissionsToRemove IDs que deben desasignarse
    * @return array
    */
-  public function savePermissionsToRole(int $roleId, array $permissionIds): array
+  public function savePermissionsToRole(int $roleId, array $permissionIds, array $permissionsToRemove = []): array
   {
     DB::beginTransaction();
     try {
-      $role = Role::findOrFail($roleId);
+      Role::findOrFail($roleId);
 
-      // Procesar cada permiso individualmente
+      // 1. Desasignar permisos removidos
+      if (!empty($permissionsToRemove)) {
+        $viewVistasToRemove = Permission::whereIn('id', $permissionsToRemove)
+          ->whereNotNull('vista_id')
+          ->where('code', 'like', '%.view')
+          ->pluck('vista_id');
+
+        if ($viewVistasToRemove->isNotEmpty()) {
+          Access::where('role_id', $roleId)
+            ->whereIn('vista_id', $viewVistasToRemove)
+            ->delete();
+        }
+
+        RolePermission::where('role_id', $roleId)
+          ->whereIn('permission_id', $permissionsToRemove)
+          ->delete();
+      }
+
+      // 2. Upsert de permisos asignados
       foreach ($permissionIds as $permissionId) {
-        // Verificar si ya existe la relación
         $exists = RolePermission::where('role_id', $roleId)
           ->where('permission_id', $permissionId)
           ->exists();
 
         if (!$exists) {
-          // Crear solo si no existe
           RolePermission::create([
             'role_id' => $roleId,
             'permission_id' => $permissionId,
             'granted' => true,
           ]);
         } else {
-          // Actualizar si ya existe
           RolePermission::where('role_id', $roleId)
             ->where('permission_id', $permissionId)
-            ->update([
-              'granted' => true,
-              'updated_at' => now(),
-            ]);
+            ->update(['granted' => true, 'updated_at' => now()]);
         }
       }
 
-      // Actualizar permisos de "view" en config_asigxvistaxrole
+      // 3. Reflejar permisos .view en config_asigxvistaxrole
       $this->updateViewPermissionsToAccess($roleId, $permissionIds);
 
       DB::commit();
-      return ['message' => 'Permisos guardados correctamente'];
+
+      return ['permissions' => $this->getPermissionsByRole($roleId)];
     } catch (\Exception $e) {
       DB::rollBack();
       throw new \Exception("Error al guardar permisos: " . $e->getMessage());
@@ -103,6 +114,35 @@ class PermissionService extends BaseService
         ]
       );
     }
+  }
+
+  /**
+   * Retorna el diff de permisos sin aplicar cambios.
+   * El frontend usa esta respuesta para mostrar el prompt de confirmación.
+   *
+   * @return array{to_assign: Collection, to_remove: Collection, unchanged: Collection}
+   */
+  public function previewPermissionsSync(int $roleId, array $permissionIds, array $permissionsToRemove): array
+  {
+    $role = Role::findOrFail($roleId);
+
+    $currentIds = RolePermission::where('role_id', $roleId)
+      ->where('granted', true)
+      ->pluck('permission_id')
+      ->toArray();
+
+    $toAssignIds = array_diff($permissionIds, $currentIds);
+    $toRemoveIds = array_intersect($permissionsToRemove, $currentIds);
+    $unchangedIds = array_intersect($permissionIds, $currentIds);
+
+    $fields = ['id', 'code', 'name', 'module'];
+
+    return [
+      'role'      => ['id' => $role->id, 'name' => $role->name],
+      'to_assign' => Permission::whereIn('id', $toAssignIds)->get($fields),
+      'to_remove' => Permission::whereIn('id', $toRemoveIds)->get($fields),
+      'unchanged' => Permission::whereIn('id', $unchangedIds)->get($fields),
+    ];
   }
 
   /**

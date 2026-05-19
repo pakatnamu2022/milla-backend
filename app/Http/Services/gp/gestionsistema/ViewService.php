@@ -125,17 +125,17 @@ class ViewService extends BaseService
 
     $newView = View::create([
       'descripcion' => $view->descripcion . $suffix,
-      'slug'        => $view->slug ? $view->slug . $routeSuffix : null,
-      'route'       => $view->route ? $view->route . $routeSuffix : null,
-      'ruta'        => $view->ruta ? $view->ruta . $routeSuffix : null,
-      'icono'       => $view->icono,
-      'icon'        => $view->icon,
-      'submodule'   => $view->submodule,
-      'company_id'  => $view->company_id,
-      'parent_id'   => $parentId,
-      'idPadre'     => $view->idPadre,
-      'idSubPadre'  => $view->idSubPadre,
-      'idHijo'      => $view->idHijo,
+      'slug' => $view->slug ? $view->slug . $routeSuffix : null,
+      'route' => $view->route ? $view->route . $routeSuffix : null,
+      'ruta' => $view->ruta ? $view->ruta . $routeSuffix : null,
+      'icono' => $view->icono,
+      'icon' => $view->icon,
+      'submodule' => $view->submodule,
+      'company_id' => $view->company_id,
+      'parent_id' => $parentId,
+      'idPadre' => $view->idPadre,
+      'idSubPadre' => $view->idSubPadre,
+      'idHijo' => $view->idHijo,
       'status_deleted' => 1,
     ]);
 
@@ -149,13 +149,13 @@ class ViewService extends BaseService
         : $permission->code . $routeSuffix;
 
       Permission::create([
-        'code'          => $newCode,
-        'name'          => $permission->name,
-        'description'   => $permission->description,
-        'module'        => $newRoute ?? $permission->module,
-        'vista_id'      => $newView->id,
+        'code' => $newCode,
+        'name' => $permission->name,
+        'description' => $permission->description,
+        'module' => $newRoute ?? $permission->module,
+        'vista_id' => $newView->id,
         'policy_method' => $permission->policy_method,
-        'is_active'     => $permission->is_active,
+        'is_active' => $permission->is_active,
       ]);
     }
 
@@ -207,7 +207,7 @@ class ViewService extends BaseService
         'icon' => $view->icon,
         'parent_id' => $view->parent_id,
         'company' => $view->company?->name ?? null,
-        'padre' => $view->padre?->descripcion ?? null,
+        'padre' => $view->parent?->descripcion ?? null,
         'subPadre' => $view->subPadre?->descripcion ?? null,
         'hijo' => $view->hijo?->descripcion ?? null,
         'permissions' => $permissions,

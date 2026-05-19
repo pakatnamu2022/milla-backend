@@ -86,4 +86,13 @@ class ApAssignBrandConsultantController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function getWorkerConfig($workerId)
+  {
+    try {
+      return $this->success($this->service->getWorkerConfig((int) $workerId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

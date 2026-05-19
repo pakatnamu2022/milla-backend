@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
     Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
+    Route::post('role/{id}/duplicate', [RoleController::class, 'duplicate'])->name('role.duplicate');
     Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
     // USER-ROLE ASSIGNMENT
@@ -320,6 +321,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
     Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
+    Route::post('permission/preview-permissions-sync', [PermissionController::class, 'previewSync'])->name('permission.previewPermissionsSync');
     Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
   });
 
@@ -838,9 +840,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('assignCompanyBranch/{sedeId}/workers', [ApAssignCompanyBranchController::class, 'getWorkersBySede']);
 
       Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+      Route::get('assignBrandConsultant/worker/{workerId}/config', [ApAssignBrandConsultantController::class, 'getWorkerConfig']);
       Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
       Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
-//      Route::get('assignBrandConsultant/{advisorId}/branches', [ApAssignBrandConsultantController::class, 'getBranchesByAdvisor']);
       Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
         'index',
         'store',
