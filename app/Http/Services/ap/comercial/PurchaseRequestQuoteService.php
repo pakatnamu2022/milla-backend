@@ -16,6 +16,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\comercial\PurchaseRequestQuoteOther;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
@@ -160,6 +161,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
       }
 
+      // Guardar costos internos (OTROS) y calcular margen
+      $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float) $data['base_selling_price']);
+      $this->refreshMargin($purchaseRequestQuote);
+
       // Enviar correo de notificación
       $this->sendQuoteCreatedEmail($purchaseRequestQuote->fresh()->load([
         'holder', 'opportunity.worker', 'apModelsVn.family.brand',
@@ -214,6 +219,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         }
       }
 
+      // Guardar costos internos (OTROS) y recalcular margen
+      if (array_key_exists('others', $data)) {
+        $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float) ($data['base_selling_price'] ?? $purchaseRequestQuote->base_selling_price));
+      }
+      $this->refreshMargin($purchaseRequestQuote);
+
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh());
     });
   }
@@ -226,6 +237,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       //ap_vehicle_id
       $purchaseRequestQuote = $this->find($data['id']);
       $purchaseRequestQuote->update($data);
+      $this->refreshMargin($purchaseRequestQuote);
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
     } catch (Exception $e) {
@@ -258,8 +270,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       }
 
       $purchaseRequestQuote->ap_vehicle_id = null;
+      $purchaseRequestQuote->margin_amount = 0;
+      $purchaseRequestQuote->margin_pct = 0;
       $purchaseRequestQuote->save();
-
 
       $movementService = new VehicleMovementService();
       $isInInventory = $vehicle->vehicleMovements()
@@ -747,6 +760,72 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
+  }
+
+  private function saveOthers(int $quoteId, array $others, float $salePrice): void
+  {
+    PurchaseRequestQuoteOther::where('purchase_request_quote_id', $quoteId)->delete();
+    foreach ($others as $item) {
+      $amount = $item['type'] === 'PORCENTAJE'
+        ? $salePrice * (float) $item['value'] / 100
+        : (float) $item['value'];
+      PurchaseRequestQuoteOther::create([
+        'purchase_request_quote_id' => $quoteId,
+        'description' => $item['description'],
+        'type'        => $item['type'],
+        'value'       => $item['value'],
+        'amount'      => $amount,
+      ]);
+    }
+  }
+
+  private function calculateMargin(PurchaseRequestQuote $quote): array
+  {
+    $vehicle    = $quote->vehicle;
+    $salePrice  = (float) $quote->base_selling_price;
+    $billedCost = $vehicle ? (float) $vehicle->purchase_price : 0;
+
+    if (!$vehicle || !$vehicle->vin || $billedCost <= 0 || $salePrice <= 0) {
+      return ['margin_amount' => 0, 'margin_pct' => 0];
+    }
+
+    $bonusTotal    = 0.0;
+    $discountTotal = 0.0;
+    foreach ($quote->discountCoupons as $d) {
+      $d->is_negative
+        ? $discountTotal += (float) $d->precio_unitario
+        : $bonusTotal    += (float) $d->precio_unitario;
+    }
+
+    $paidAccTotal = 0.0;
+    $giftTotal    = 0.0;
+    foreach ($quote->accessories as $acc) {
+      $acc->type === 'OBSEQUIO'
+        ? $giftTotal    += (float) $acc->total
+        : $paidAccTotal += (float) $acc->total;
+    }
+
+    $clientRevenue = $salePrice - $discountTotal + $paidAccTotal;
+    $totalIncome   = $clientRevenue + $bonusTotal;
+    $vehicleCosts  = $billedCost + $giftTotal;
+    $netDiff       = ($totalIncome - $vehicleCosts) / 1.18;
+    $freightCost   = (float) ($vehicle->model?->transport_cost ?? 0);
+    $othersTotal   = (float) $quote->others->sum('amount');
+
+    $realMarginAmount = $netDiff - $freightCost - $othersTotal;
+    $netSalePrice     = $salePrice / 1.18;
+    $realMarginPct    = $netSalePrice > 0 ? ($realMarginAmount / $netSalePrice) * 100 : 0;
+
+    return [
+      'margin_amount' => round($realMarginAmount, 4),
+      'margin_pct'    => round($realMarginPct, 4),
+    ];
+  }
+
+  private function refreshMargin(PurchaseRequestQuote $quote): void
+  {
+    $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.model', 'vehicle.purchaseOrder']);
+    $quote->update($this->calculateMargin($quote));
   }
 
   /**
