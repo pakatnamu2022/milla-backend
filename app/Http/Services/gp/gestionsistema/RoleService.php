@@ -76,4 +76,40 @@ class RoleService extends BaseService
     $users = $role->users()->get();
     return UserResource::collection($users);
   }
+
+  public function duplicate($id)
+  {
+    $original = $this->find($id);
+
+    $copy = Role::create([
+      'nombre'         => $original->nombre . ' (copia)',
+      'descripcion'    => $original->descripcion,
+      'creator_user'   => auth()->user()->id,
+      'updater_user'   => auth()->user()->id,
+      'status_deleted' => 1,
+    ]);
+
+    // Duplicar accesos por vista (CRUD)
+    foreach ($original->accesses as $access) {
+      $copy->accesses()->create([
+        'vista_id'       => $access->vista_id,
+        'crear'          => $access->crear,
+        'ver'            => $access->ver,
+        'editar'         => $access->editar,
+        'anular'         => $access->anular,
+        'status_deleted' => $access->status_deleted,
+      ]);
+    }
+
+    // Duplicar permisos granulares
+    $permissions = $original->permissions()->withPivot('granted')->get();
+    $sync = $permissions->mapWithKeys(fn($p) => [
+      $p->id => ['granted' => $p->pivot->granted],
+    ])->toArray();
+    if (!empty($sync)) {
+      $copy->permissions()->sync($sync);
+    }
+
+    return new RoleResource(Role::with(['accesses', 'permissions'])->find($copy->id));
+  }
 }

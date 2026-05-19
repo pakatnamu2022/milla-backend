@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
     Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
+    Route::post('role/{id}/duplicate', [RoleController::class, 'duplicate'])->name('role.duplicate');
     Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
     // USER-ROLE ASSIGNMENT
