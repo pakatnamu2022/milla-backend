@@ -321,6 +321,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
     Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
     Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
+    Route::post('permission/preview-permissions-sync', [PermissionController::class, 'previewSync'])->name('permission.previewPermissionsSync');
     Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
   });
 

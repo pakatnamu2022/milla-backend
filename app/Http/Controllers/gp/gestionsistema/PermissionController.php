@@ -52,7 +52,24 @@ class PermissionController extends Controller
     try {
       return $this->success($this->service->savePermissionsToRole(
         $request->role_id,
-        $request->permissions
+        $request->permissions ?? [],
+        $request->permissions_to_remove ?? []
+      ));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Preview del diff de permisos sin aplicar cambios (para confirmación en frontend)
+   */
+  public function previewSync(StoreMultiplePermissionRoleRequest $request)
+  {
+    try {
+      return $this->success($this->service->previewPermissionsSync(
+        $request->role_id,
+        $request->permissions ?? [],
+        $request->permissions_to_remove ?? []
       ));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

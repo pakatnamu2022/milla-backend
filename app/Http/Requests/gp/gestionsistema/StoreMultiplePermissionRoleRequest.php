@@ -14,6 +14,8 @@ class StoreMultiplePermissionRoleRequest extends StoreRequest
       'role_id' => 'required|exists:config_roles,id',
       'permissions' => 'nullable|array',
       'permissions.*' => 'exists:permission,id',
+      'permissions_to_remove' => 'nullable|array',
+      'permissions_to_remove.*' => 'exists:permission,id',
     ];
   }
 
@@ -25,6 +27,7 @@ class StoreMultiplePermissionRoleRequest extends StoreRequest
     return [
       'role_id' => 'rol',
       'permissions' => 'permisos',
+      'permissions_to_remove' => 'permisos a eliminar',
     ];
   }
 }
