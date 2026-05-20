@@ -1246,6 +1246,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
       Route::get('productWarehouseStock/export/inventory', [ProductWarehouseStockController::class, 'exportInventory']);
       Route::get('productWarehouseStock/compare-dynamics', [ProductWarehouseStockController::class, 'compareStockWithDynamics']);
+      Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
