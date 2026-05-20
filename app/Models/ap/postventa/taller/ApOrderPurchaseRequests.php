@@ -51,6 +51,7 @@ class ApOrderPurchaseRequests extends Model
     'currency_id' => '=',
     'requested_date' => 'between',
     'supply_type' => 'in',
+    'area_id' => '='
   ];
 
   const sorts = [
