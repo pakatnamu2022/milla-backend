@@ -43,6 +43,7 @@ class UpdateCustomerKycDeclarationRequest extends StoreRequest
 
       // ── Solo Persona Natural (prohibido si se sabe que es Jurídica) ──────
       'occupation'              => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
+      'cargo'                   => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
       'fixed_phone'             => $isJuridica ? 'prohibited' : 'nullable|string|max:20',
       'pep_status'              => $isJuridica ? 'prohibited' : 'sometimes|string|in:' . implode(',', CustomerKycDeclaration::PEP_STATUSES),
       'pep_collaborator_status' => $isJuridica ? 'prohibited' : 'sometimes|string|in:' . implode(',', CustomerKycDeclaration::PEP_COLLABORATOR_STATUSES),
@@ -55,6 +56,8 @@ class UpdateCustomerKycDeclarationRequest extends StoreRequest
       'pep_relative_data'                 => $isJuridica ? 'prohibited' : 'nullable|array',
       'pep_relative_data.*.pep_full_name' => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
       'pep_relative_data.*.relationship'  => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
+      'pep_relative_data.*.cargo'         => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
+      'pep_relative_data.*.institution'   => $isJuridica ? 'prohibited' : 'nullable|string|max:255',
 
       // ── Solo Persona Jurídica (prohibido si se sabe que es Natural) ──────
       'company_name'            => $isNatural ? 'prohibited' : 'nullable|string|max:500',

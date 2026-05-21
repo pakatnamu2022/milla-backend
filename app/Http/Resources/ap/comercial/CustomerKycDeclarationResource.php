@@ -86,6 +86,7 @@ class CustomerKycDeclarationResource extends JsonResource
 
       // Campos propios
       'occupation'              => $this->occupation,
+      'cargo'                   => $this->cargo,
       'fixed_phone'             => $this->fixed_phone,
       'pep_status'              => $this->pep_status,
       'pep_collaborator_status' => $this->pep_collaborator_status,
