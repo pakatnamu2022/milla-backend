@@ -14,6 +14,7 @@ class TypePlanningWorkOrder extends Model
   protected $fillable = [
     'code',
     'description',
+    'notes',
     'validate_receipt',
     'validate_labor',
     'type_document',
@@ -52,5 +53,10 @@ class TypePlanningWorkOrder extends Model
   public function setDescriptionAttribute($value)
   {
     $this->attributes['description'] = strtoupper($value);
+  }
+
+  public function setNotesAttribute($value)
+  {
+    $this->attributes['notes'] = strtoupper($value);
   }
 }

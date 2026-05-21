@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -154,6 +155,9 @@ class SyncAccountingStatusJob implements ShouldQueue
   /**
    * Crear movimiento de inventario para cotización totalmente pagada
    *
+   * Ahora primero evalúa y actualiza el estado de pago usando el método centralizado
+   * en ApOrderQuotationsService antes de crear el movimiento de inventario.
+   *
    * @param int $quotationId
    * @return void
    */
@@ -165,6 +169,14 @@ class SyncAccountingStatusJob implements ShouldQueue
       if (!$quotation) {
         return;
       }
+
+      // Evaluar y actualizar el estado de pago de la cotización
+      // Este método centralizado actualiza is_fully_paid y status si cumple las condiciones
+      $quotationService = app(ApOrderQuotationsService::class);
+      $quotationService->evaluateAndUpdateQuotationPaymentStatus($quotationId);
+
+      // Refrescar el modelo para obtener los valores actualizados
+      $quotation->refresh();
 
       // Verificar que la cotización esté totalmente pagada Y no tenga salida de inventario generada
       if (!$quotation->is_fully_paid || $quotation->output_generation_warehouse) {

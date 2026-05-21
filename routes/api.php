@@ -1369,7 +1369,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
       Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
       Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
-      Route::get('orderQuotations/for-purchase-request/list', [ApOrderQuotationsController::class, 'listForPurchaseRequest']);
+      Route::get('orderQuotations/for-purchase-request-taller/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestTaller']);
+      Route::get('orderQuotations/for-purchase-request-meson/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestMeson']);
       Route::patch('orderQuotations/{id}/invoice-to', [ApOrderQuotationsController::class, 'invoiceTo']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
