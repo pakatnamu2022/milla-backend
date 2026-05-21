@@ -55,7 +55,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Validate supplier order exists
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
-      if (is_null($supplierOrder->approved_by)) {
+      if (is_null($supplierOrder->approved_by) && is_null($supplierOrder->order_number_external)) {
         throw new Exception('El pedido a proveedor debe estar aprobada para generar una recepción');
       }
 

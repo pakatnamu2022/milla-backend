@@ -20,6 +20,7 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
           ->ignore($this->route('typePlanningWorkOrder')),
       ],
       'description' => 'sometimes|string|max:255',
+      'notes' => 'nullable|string|max:255',
       'validate_receipt' => 'sometimes|boolean',
       'validate_labor' => 'sometimes|boolean',
       'type_document' => 'sometimes|string|in:' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,

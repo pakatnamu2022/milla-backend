@@ -18,6 +18,7 @@ class TypePlanningWorkOrderResource extends JsonResource
       'id' => $this->id,
       'code' => $this->code,
       'description' => $this->description,
+      'notes' => $this->notes,
       'validate_receipt' => $this->validate_receipt,
       'validate_labor' => $this->validate_labor,
       'type_document' => $this->type_document,

@@ -18,6 +18,7 @@ class StoreTypePlanningWorkOrderRequest extends StoreRequest
           ->whereNull('deleted_at'),
       ],
       'description' => 'required|string|max:255',
+      'notes' => 'nullable|string|max:255',
       'validate_receipt' => 'required|boolean',
       'validate_labor' => 'required|boolean',
       'type_document' => 'required|string|in:' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,

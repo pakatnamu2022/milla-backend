@@ -32,10 +32,19 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  public function listForPurchaseRequest(Request $request)
+  public function listForPurchaseRequestTaller(Request $request)
   {
     try {
-      return $this->service->listForPurchaseRequest($request);
+      return $this->service->listForPurchaseRequestTaller($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function listForPurchaseRequestMeson(Request $request)
+  {
+    try {
+      return $this->service->listForPurchaseRequestMeson($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
