@@ -38,17 +38,12 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
       $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
 
-      // Solo validar conflicto para equipos que NO son compartidos
-      $nonCompartidoIds = Equipment::whereIn('id', $equipmentIds)
-        ->where('compartido', false)
-        ->pluck('id')
-        ->toArray();
-
-      if (!empty($nonCompartidoIds)) {
+      // Por ahora todo equipo solo puede tener una asignación activa a la vez
+      if (!empty($equipmentIds)) {
         $conflicting = EquipmentAssigment::where('status_deleted', 1)
           ->whereNull('unassigned_at')
-          ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $nonCompartidoIds))
-          ->with(['items' => fn($q) => $q->whereIn('equipo_id', $nonCompartidoIds)->with('equipment')])
+          ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $equipmentIds))
+          ->with(['items' => fn($q) => $q->whereIn('equipo_id', $equipmentIds)->with('equipment')])
           ->first();
 
         if ($conflicting) {
