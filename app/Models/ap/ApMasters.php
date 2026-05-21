@@ -76,6 +76,7 @@ class ApMasters extends Model
   const int FINISHED_WORK_ORDER_ID = 891;
   const int CLOSED_WORK_ORDER_ID = 892;
   const int CANCELED_WORK_ORDER_ID = 893;
+  const int BILL_WORK_ORDER_ID = 896;
 
   // IDS de TIPO DE OPERACION CITA
   const int OP_TYPE_APPT_PDI_ID = 965;
