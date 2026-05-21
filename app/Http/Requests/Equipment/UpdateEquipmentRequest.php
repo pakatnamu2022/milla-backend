@@ -21,6 +21,7 @@ class UpdateEquipmentRequest extends StoreRequest
             'estado_uso' => 'sometimes|required|in:NUEVO,USADO',
             'sede_id' => 'sometimes|required|integer|exists:config_sede,id',
             'pertenece_sede' => 'boolean|sometimes',
+            'compartido' => 'boolean|sometimes',
             'tipo_adquisicion' => 'nullable|string|in:CONTRATO,COMPRA',
             'factura' => 'nullable|string|max:255|required_if:tipo_adquisicion,COMPRA',
             'contrato' => 'nullable|string|max:255|required_if:tipo_adquisicion,CONTRATO',

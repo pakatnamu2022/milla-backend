@@ -48,7 +48,8 @@ class Equipment extends BaseModel
     'status_id' => '=',
     'tipo_adquisicion' => '=',
     'estado_uso' => '=',
-    'isAssigned' => 'accessor_bool',
+    'isAssigned'  => 'accessor_bool',
+    'assignable'  => 'accessor_bool',
   ];
 
   const sorts = [
@@ -107,9 +108,17 @@ class Equipment extends BaseModel
       ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
   }
 
-  public function getIsAssignedAttribute()
+  public function getIsAssignedAttribute(): bool
   {
+    if ($this->relationLoaded('activeAssignments')) {
+      return $this->activeAssignments->isNotEmpty();
+    }
     return $this->activeAssignments()->exists();
+  }
+
+  public function getAssignableAttribute(): bool
+  {
+    return !$this->isAssigned || (bool) $this->compartido;
   }
 
 }
