@@ -128,6 +128,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
       $newInvoice = trim($result->NroDocProvDocumento);
       $newReceipt = trim($result->NumeroDocumento);
+      $invoiceDate = $result->FechaDocumento ?? null;
 
       // CASO 1: OC con factura y migration_status='completed' y tiene NC
       // Verificar si la factura cambió (nueva OC con punto)
@@ -137,6 +138,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
           'receipt_dynamics' => $newReceipt,
+          'invoice_date_dyn' => $invoiceDate,
           'migration_status' => 'updated_with_nc',
           'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) // Si son iguales, marcar como false (anulada)
         ]);
@@ -173,7 +175,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
           'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt
+          'receipt_dynamics' => $newReceipt,
+          'invoice_date_dyn' => $invoiceDate
         ]);
 
         if ($purchaseOrder->reception) {

@@ -35,6 +35,7 @@ class PurchaseOrderResource extends JsonResource
       'invoice_number' => $this->invoice_number,
       'emission_date' => $this->emission_date?->format('Y-m-d'),
       'due_date' => $this->due_date?->format('Y-m-d'),
+      'invoice_date_dyn' => $this->invoice_date_dyn?->format('Y-m-d'),
 
       // Valores
       'subtotal' => (float)$this->subtotal,

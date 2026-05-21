@@ -1543,7 +1543,11 @@ class InventoryMovementService extends BaseService
         'purchaseOrderItem:id,unit_price,quantity,total',
         'product:id,name,code,dyn_code'
       ])
-      ->orderBy('created_at', 'desc');
+      ->join('purchase_receptions', 'purchase_reception_details.purchase_reception_id', '=', 'purchase_receptions.id')
+      ->join('ap_purchase_order', 'purchase_receptions.purchase_order_id', '=', 'ap_purchase_order.id')
+      ->whereNotNull('ap_purchase_order.invoice_dynamics')
+      ->orderBy('purchase_receptions.reception_date', 'desc')
+      ->select('purchase_reception_details.*');
 
     // Get all results
     $receptionDetails = $query->get();
@@ -1945,10 +1949,23 @@ class InventoryMovementService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      // Actualizar quantity_pending_credit_note (NO restar del stock normal)
-      // Esto SOLO resta de quantity_pending_credit_note, no afecta el stock disponible
+      // CRITICAL: Reverse weighted average cost calculation and recalculate PVP
+      // This removes the contribution of returned items from average cost as if the purchase never happened
+      // Steps performed by removeStockFromCreditNote():
+      // 1. Validate sufficient quantity_pending_credit_note
+      // 2. Reverse weighted average cost: (stock × avgCost - qty × unitCostNC) / (stock - qty)
+      // 3. Update cost_price to previous purchase (before the one being reversed)
+      // 4. Recalculate sale_price (PVP) with new average_cost
+      // 5. Subtract from quantity_pending_credit_note and quantity
+      // 6. Update available_quantity
       foreach ($creditNote->details as $detail) {
-        $this->stockService->removePendingCreditNote($detail->product_id, $warehouseId, $detail->quantity);
+        $this->stockService->removeStockFromCreditNote(
+          $detail->product_id,
+          $warehouseId,
+          $detail->quantity,
+          $detail->unit_price,  // ItemCostoUnitario from Dynamics stored in unit_price
+          true  // fromPendingCreditNote = true (remove from quantity_pending_credit_note)
+        );
       }
 
       DB::commit();
@@ -2050,9 +2067,23 @@ class InventoryMovementService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      // Restar directamente del stock disponible (available_quantity)
+      // CRITICAL: Remove from available stock AND reverse weighted average cost calculation + recalculate PVP
+      // This handles invoice-voided scenarios where stock was already made available (not in quantity_pending_credit_note)
+      // Steps performed by removeStockFromCreditNote():
+      // 1. Validate sufficient quantity in available stock
+      // 2. Reverse weighted average cost: (stock × avgCost - qty × unitCostNC) / (stock - qty)
+      // 3. Update cost_price to previous purchase (before the one being reversed)
+      // 4. Recalculate sale_price (PVP) with new average_cost
+      // 5. Subtract directly from quantity (not from quantity_pending_credit_note)
+      // 6. Update available_quantity
       foreach ($creditNote->details as $detail) {
-        $this->stockService->removeStock($detail->product_id, $warehouseId, $detail->quantity);
+        $this->stockService->removeStockFromCreditNote(
+          $detail->product_id,
+          $warehouseId,
+          $detail->quantity,
+          $detail->unit_price,  // ItemCostoUnitario from Dynamics stored in unit_price
+          false  // fromPendingCreditNote = false (remove directly from quantity, invoice voided)
+        );
       }
 
       DB::commit();
