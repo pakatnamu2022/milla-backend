@@ -995,6 +995,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy',
       ]);
 
+
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',
         'show',

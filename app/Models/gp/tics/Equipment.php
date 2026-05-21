@@ -30,6 +30,7 @@ class Equipment extends BaseModel
     'sede_id',
     'status_id',
     'pertenece_sede',
+    'compartido',
     'tipo_adquisicion', // CONTRATO, COMPRA
     'factura',
     'contrato',
@@ -47,7 +48,8 @@ class Equipment extends BaseModel
     'status_id' => '=',
     'tipo_adquisicion' => '=',
     'estado_uso' => '=',
-    'isAssigned' => 'accessor_bool',
+    'isAssigned'  => 'accessor_bool',
+    'assignable'  => 'accessor_bool',
   ];
 
   const sorts = [
@@ -92,9 +94,31 @@ class Equipment extends BaseModel
       ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
   }
 
-  public function getIsAssignedAttribute()
+  public function activeAssignments()
   {
-    return $this->activeAssignment()->exists();
+    return $this->hasManyThrough(
+      EquipmentAssigment::class,
+      EquipmentItemAssigment::class,
+      'equipo_id',
+      'id',
+      'id',
+      'asig_equipo_id'
+    )->where('help_asig_equipos.status_deleted', false)
+      ->whereNull('help_asig_equipos.unassigned_at')
+      ->with(['worker' => fn($q) => $q->withoutGlobalScopes()]);
+  }
+
+  public function getIsAssignedAttribute(): bool
+  {
+    if ($this->relationLoaded('activeAssignments')) {
+      return $this->activeAssignments->isNotEmpty();
+    }
+    return $this->activeAssignments()->exists();
+  }
+
+  public function getAssignableAttribute(): bool
+  {
+    return !$this->isAssigned || (bool) $this->compartido;
   }
 
 }
