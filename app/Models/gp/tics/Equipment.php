@@ -118,7 +118,7 @@ class Equipment extends BaseModel
 
   public function getAssignableAttribute(): bool
   {
-    return !$this->isAssigned || (bool) $this->compartido;
+    return !$this->isAssigned;
   }
 
 }
