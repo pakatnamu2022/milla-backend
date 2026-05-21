@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * — Persona Natural —
  * @property string|null $occupation
+ * @property string|null $cargo
  * @property string|null $fixed_phone
  * @property string|null $pep_status
  * @property string|null $pep_collaborator_status
@@ -94,6 +95,7 @@ class CustomerKycDeclaration extends BaseModel
 
     // Persona Natural
     'occupation',
+    'cargo',
     'fixed_phone',
     'pep_status',
     'pep_collaborator_status',

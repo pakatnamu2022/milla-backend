@@ -41,6 +41,7 @@ class StoreCustomerKycDeclarationRequest extends StoreRequest
 
       // ── Solo Persona Natural ─────────────────────────────────────────────
       'occupation'  => $isNatural ? 'nullable|string|max:255' : 'prohibited',
+      'cargo'       => $isNatural ? 'nullable|string|max:255' : 'prohibited',
       'fixed_phone' => $isNatural ? 'nullable|string|max:20'  : 'prohibited',
 
       'pep_status'              => $isNatural ? 'required|string|in:' . implode(',', CustomerKycDeclaration::PEP_STATUSES)              : 'prohibited',
@@ -52,8 +53,10 @@ class StoreCustomerKycDeclarationRequest extends StoreRequest
       'pep_spouse_name'         => $isNatural ? 'nullable|string|max:255' : 'prohibited',
       'is_pep_relative'         => $isNatural ? 'required|string|in:' . implode(',', CustomerKycDeclaration::PEP_RELATIVE_STATUSES) : 'prohibited',
       'pep_relative_data'                    => $isNatural ? 'nullable|array'          : 'prohibited',
-      'pep_relative_data.*.pep_full_name'    => $isNatural ? 'nullable|string|max:255' : 'prohibited',
-      'pep_relative_data.*.relationship'     => $isNatural ? 'nullable|string|max:255' : 'prohibited',
+      'pep_relative_data.*.pep_full_name' => $isNatural ? 'nullable|string|max:255' : 'prohibited',
+      'pep_relative_data.*.relationship'  => $isNatural ? 'nullable|string|max:255' : 'prohibited',
+      'pep_relative_data.*.cargo'         => $isNatural ? 'nullable|string|max:255' : 'prohibited',
+      'pep_relative_data.*.institution'   => $isNatural ? 'nullable|string|max:255' : 'prohibited',
 
       // ── Solo Persona Jurídica ────────────────────────────────────────────
       'company_name'            => $isJuridica ? 'nullable|string|max:500'  : 'prohibited',

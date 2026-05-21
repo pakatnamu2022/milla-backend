@@ -391,10 +391,14 @@
     <div class="card-title">7–9. OCUPACIÓN, CONTACTO Y PROPÓSITO</div>
     <table class="dt">
       <tr>
-        <td class="lbl" style="width:18%;">7. Ocupación / Cargo</td>
+        <td class="lbl" style="width:18%;">7. Ocupación</td>
         <td style="width:28%;">{{ $declaration->occupation ?? '—' }}</td>
-        <td class="lbl" style="width:18%;">8. Teléfono Fijo (cód. ciudad)</td>
-        <td>{{ $declaration->fixed_phone ?? '—' }}</td>
+        <td class="lbl" style="width:18%;">Cargo</td>
+        <td>{{ $declaration->cargo ?? '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">8. Teléfono Fijo (cód. ciudad)</td>
+        <td colspan="3">{{ $declaration->fixed_phone ?? '—' }}</td>
       </tr>
       <tr>
         <td class="lbl">Celular</td>
@@ -503,15 +507,19 @@
         <td colspan="4" style="padding: 4px 8px;">
           <table class="rt">
             <tr>
-              <th style="width:6%;">#</th>
+              <th style="width:5%;">#</th>
               <th>Nombres y Apellidos del PEP</th>
-              <th style="width:30%;">Parentesco</th>
+              <th style="width:20%;">Parentesco</th>
+              <th style="width:20%;">Cargo</th>
+              <th style="width:22%;">Institución</th>
             </tr>
             @foreach($declaration->pep_relative_data as $i => $rel)
             <tr>
               <td style="text-align:center;">{{ $i + 1 }}</td>
               <td>{{ $rel['pep_full_name'] ?? '—' }}</td>
               <td>{{ $rel['relationship'] ?? '—' }}</td>
+              <td>{{ $rel['cargo'] ?? '—' }}</td>
+              <td>{{ $rel['institution'] ?? '—' }}</td>
             </tr>
             @endforeach
           </table>
