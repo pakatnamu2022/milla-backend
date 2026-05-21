@@ -12,7 +12,6 @@ use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
-use App\Http\Controllers\ap\comercial\CustomerKycDeclarationLegalController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
@@ -996,18 +995,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy',
       ]);
 
-      // Declaración Jurada Conocimiento del Cliente (KYC) – Persona Jurídica
-      Route::get('customerKycDeclarationsLegal/{id}/pdf', [CustomerKycDeclarationLegalController::class, 'downloadPdf']);
-      Route::post('customerKycDeclarationsLegal/{id}/upload-signed', [CustomerKycDeclarationLegalController::class, 'uploadSignedDocument']);
-      Route::post('customerKycDeclarationsLegal/{id}/confirm-legal-review', [CustomerKycDeclarationLegalController::class, 'confirmLegalReview']);
-      Route::post('customerKycDeclarationsLegal/{id}/reject-legal-review', [CustomerKycDeclarationLegalController::class, 'rejectLegalReview']);
-      Route::apiResource('customerKycDeclarationsLegal', CustomerKycDeclarationLegalController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy',
-      ]);
 
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',
