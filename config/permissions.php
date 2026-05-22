@@ -212,17 +212,29 @@ return [
       'icon' => 'Bell',
       'policy_method' => 'notify',
     ],
+    'salesforce' => [
+      'label' => 'Salesforce',
+      'description' => 'Permite habilitar opciones de Salesforce',
+      'icon' => 'XCircle',
+      'policy_method' => 'salesforce',
+    ],
     'addSparePartsOT' => [
       'label' => 'Agregar Repuestos a OT',
       'description' => 'Permite agregar repuestos a una orden de trabajo',
       'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
     ],
-    'salesforce' => [
-      'label' => 'Salesforce',
-      'description' => 'Permite habilitar opciones de Salesforce',
+    'canRemoveSparePartsOT' => [
+      'label' => 'Quitar Repuestos de OT',
+      'description' => 'Permite quitar repuestos de una orden de trabajo',
       'icon' => 'XCircle',
-      'policy_method' => 'salesforce',
+      'policy_method' => 'canRemoveSparePartsOT',
+    ],
+    'canAssignSparePartsOT' => [
+      'label' => 'Asignar Repuestos a OT',
+      'description' => 'Permite asignar repuestos a una orden de trabajo',
+      'icon' => 'XCircle',
+      'policy_method' => 'canAssignSparePartsOT',
     ]
   ],
 
