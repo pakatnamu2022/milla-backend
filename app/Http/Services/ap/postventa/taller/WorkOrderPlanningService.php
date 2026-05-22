@@ -234,7 +234,25 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // 1. Validar solapamiento de horarios
     $this->validateNoOverlap($workerPlannings, $plannedStart, $plannedEnd, $type);
 
-    // 2. Validaciones específicas según el tipo
+    // 2. Validar que el nuevo trabajo empiece después del último asignado (solo para tipo 'internal')
+    if ($type === 'internal') {
+      $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya ordenado desc por planned_end_datetime
+
+      if ($lastInternalWork) {
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+
+        // El nuevo trabajo debe comenzar desde la hora fin del último trabajo en adelante
+        if ($plannedStart->lt($lastEndTime)) {
+          throw new Exception(
+            "Ya existe un trabajo asignado para este trabajador que termina a las {$lastEndTime->format('H:i')}. " .
+            "El nuevo trabajo debe comenzar a partir de las {$lastEndTime->format('H:i')} en adelante. " .
+            "El horario que intenta asignar comienza a las {$plannedStart->format('H:i')}."
+          );
+        }
+      }
+    }
+
+    // 3. Validaciones específicas según el tipo
     if ($type === 'external') {
       $this->validateExternalType($workerPlannings, $plannedStart, $plannedEnd);
     } else {
@@ -397,32 +415,40 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede editar esta planificación porque el trabajo ya ha sido cancelado.');
       }
 
+      // Parsear las fechas
+      $plannedStart = Carbon::parse($data['planned_start_datetime']);
+      $plannedEnd = Carbon::parse($data['planned_end_datetime']);
+
+      // Validar que la fecha final no sea menor que la inicial
+      if ($plannedEnd->lessThanOrEqualTo($plannedStart)) {
+        throw new Exception('La fecha de fin debe ser posterior a la fecha de inicio.');
+      }
+
+      // Validar que estén dentro del horario laboral
+      $this->validateWorkingHours($plannedStart, $plannedEnd);
+
+      // Calcular las horas estimadas basándose en la diferencia de tiempo
+      $minutesDiff = $plannedStart->diffInMinutes($plannedEnd);
+      $estimatedHours = round($minutesDiff / 60, 2);
+
       // Preparar datos para validación mergeando con datos existentes
       $validationData = [
         'worker_id' => $planning->worker_id,
         'type' => $planning->type,
-        'estimated_hours' => $data['estimated_hours'] ?? $planning->estimated_hours,
-        'planned_start_datetime' => $data['planned_start_datetime'] ?? $planning->planned_start_datetime,
+        'estimated_hours' => $estimatedHours,
+        'planned_start_datetime' => $data['planned_start_datetime'],
+        'planned_end_datetime' => $data['planned_end_datetime'],
       ];
-
-      // Calcular planned_end_datetime si se modificó estimated_hours o planned_start_datetime
-      $validationData = $this->calculatePlannedEndDatetime($validationData);
 
       // Validar antes de actualizar (excluyendo el ID actual)
       $this->validateWorkerSchedule($validationData, $planning->id);
 
       // Preparar datos finales para actualización
-      $updateData = [];
-      if (isset($data['estimated_hours'])) {
-        $updateData['estimated_hours'] = $data['estimated_hours'];
-      }
-      if (isset($data['planned_start_datetime'])) {
-        $updateData['planned_start_datetime'] = $data['planned_start_datetime'];
-      }
-      // Actualizar planned_end_datetime si se calculó
-      if (isset($validationData['planned_end_datetime'])) {
-        $updateData['planned_end_datetime'] = $validationData['planned_end_datetime'];
-      }
+      $updateData = [
+        'planned_start_datetime' => $data['planned_start_datetime'],
+        'planned_end_datetime' => $data['planned_end_datetime'],
+        'estimated_hours' => $estimatedHours,
+      ];
 
       $planning->update($updateData);
       return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
@@ -455,8 +481,79 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       }
 
       $planning->delete();
+
+      // Verificar si todos los trabajos restantes de la OT están completados
+      // Si es así, marcar la OT como trabajo terminado
+      $pendingPlannings = $workOrder->plannings()
+        ->whereIn('status', ['planned', 'in_progress'])
+        ->count();
+
+      if ($pendingPlannings === 0) {
+        // Verificar que haya al menos un trabajo completado
+        $completedPlannings = $workOrder->plannings()
+          ->where('status', 'completed')
+          ->count();
+
+        if ($completedPlannings > 0) {
+          $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
+          $workOrder->save();
+        }
+      }
+
       return response()->json(['message' => 'Planificación eliminada correctamente']);
     });
+  }
+
+  /**
+   * Valida que las fechas estén dentro del horario laboral
+   */
+  private function validateWorkingHours(Carbon $plannedStart, Carbon $plannedEnd): void
+  {
+    $startTime = $plannedStart->format('H:i');
+    $endTime = $plannedEnd->format('H:i');
+
+    // Usar constantes del modelo
+    $workStart = ApWorkOrderPlanning::WORK_START_TIME;
+    $lunchStart = ApWorkOrderPlanning::LUNCH_START_TIME;
+    $lunchEnd = ApWorkOrderPlanning::LUNCH_END_TIME;
+    $workEnd = ApWorkOrderPlanning::WORK_END_TIME;
+
+    // Validar que ambas fechas sean del mismo día
+    if ($plannedStart->format('Y-m-d') !== $plannedEnd->format('Y-m-d')) {
+      throw new Exception(
+        "Las fechas de inicio y fin deben ser del mismo día."
+      );
+    }
+
+    // Validar que la hora de inicio esté dentro del horario laboral
+    if ($startTime < $workStart || $startTime >= $workEnd) {
+      throw new Exception(
+        "La hora de inicio ($startTime) debe estar dentro del horario laboral ($workStart - $workEnd)."
+      );
+    }
+
+    // Validar que la hora de fin esté dentro del horario laboral
+    if ($endTime <= $workStart || $endTime > $workEnd) {
+      throw new Exception(
+        "La hora de fin ($endTime) debe estar dentro del horario laboral ($workStart - $workEnd)."
+      );
+    }
+
+    // Validar que NO caiga dentro del periodo de almuerzo (ni inicio, ni fin, ni que lo cruce)
+    // Rechazar cualquier horario que toque el periodo de almuerzo
+    if (
+      // Si la hora de inicio está dentro del almuerzo
+      ($startTime >= $lunchStart && $startTime < $lunchEnd) ||
+      // Si la hora de fin está dentro del almuerzo
+      ($endTime > $lunchStart && $endTime <= $lunchEnd) ||
+      // Si el horario cruza el periodo de almuerzo (empieza antes y termina después)
+      ($startTime < $lunchStart && $endTime > $lunchStart)
+    ) {
+      throw new Exception(
+        "El horario asignado no puede caer ni cruzar el periodo de almuerzo ($lunchStart - $lunchEnd). " .
+        "Los horarios válidos son: Mañana ($workStart - $lunchStart) o Tarde ($lunchEnd - $workEnd)."
+      );
+    }
   }
 
   /**
@@ -465,9 +562,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   private function validateWorkOrderState(ApWorkOrder $workOrder): void
   {
     $statusMessageMap = [
-      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado',
-      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado',
-      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado',
+      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado de la OT',
+      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado de la OT',
+      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado de la OT',
     ];
 
     if (isset($statusMessageMap[$workOrder->status_id])) {

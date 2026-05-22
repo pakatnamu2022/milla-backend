@@ -1336,9 +1336,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo debe tener un operario asignado.');
       }
 
-      // Validate that all parts are fully delivered if work order has parts
+      // Validate that all parts are fully delivered and received by technician if work order has parts
       if ($workOrder->parts->count() > 0 && $validateLabor) {
         $partsNotFullyDelivered = [];
+        $partsNotReceivedByTechnician = [];
 
         foreach ($workOrder->parts as $part) {
           // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
@@ -1346,26 +1347,60 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
             ->whereNull('deleted_at')
             ->sum('delivered_quantity');
 
+          // Calculate total received quantity by technician (only deliveries confirmed as received)
+          $totalReceived = $part->deliveries
+            ->whereNull('deleted_at')
+            ->where('is_received', true)
+            ->sum('delivered_quantity');
+
+          // Get pending deliveries (not yet received by technician)
+          $pendingReceipt = $part->deliveries
+            ->whereNull('deleted_at')
+            ->where('is_received', false)
+            ->sum('delivered_quantity');
+
           // Compare with quantity_used
           $quantityUsed = (float)$part->quantity_used;
           $totalDelivered = (float)$totalDelivered;
+          $totalReceived = (float)$totalReceived;
+          $pendingReceipt = (float)$pendingReceipt;
+
+          $productName = $part->product->name ?? "Producto ID: {$part->product_id}";
 
           // If not fully delivered, add to list
           if ($totalDelivered < $quantityUsed) {
             $partsNotFullyDelivered[] = sprintf(
-              '%s (Usado: %.2f, Entregado: %.2f, Pendiente: %.2f)',
-              $part->product->name ?? "Producto ID: {$part->product_id}",
+              '%s (Usado: %.2f, Entregado: %.2f, Pendiente de entrega: %.2f)',
+              $productName,
               $quantityUsed,
               $totalDelivered,
               $quantityUsed - $totalDelivered
+            );
+          }
+
+          // If not fully received by technician, add to list
+          if ($totalReceived < $quantityUsed) {
+            $partsNotReceivedByTechnician[] = sprintf(
+              '%s (Usado: %.2f, Recibido: %.2f, Pendiente de confirmar recepción: %.2f)',
+              $productName,
+              $quantityUsed,
+              $totalReceived,
+              $pendingReceipt
             );
           }
         }
 
         if (count($partsNotFullyDelivered) > 0) {
           throw new Exception(
-            'No se puede facturar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
+            'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
             implode('; ', $partsNotFullyDelivered)
+          );
+        }
+
+        if (count($partsNotReceivedByTechnician) > 0) {
+          throw new Exception(
+            'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido confirmados como recibidos por el técnico: ' .
+            implode('; ', $partsNotReceivedByTechnician)
           );
         }
       }
@@ -1384,6 +1419,53 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       $workOrder->update([
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Anular/Cancelar una orden de trabajo
+   */
+  public function cancel($id): WorkOrderResource
+  {
+    return DB::transaction(function () use ($id) {
+      $workOrder = ApWorkOrder::with(['advancesWorkOrder'])->find($id);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que no esté ya cancelada
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('La orden de trabajo ya está anulada');
+      }
+
+      // Validar que no esté cerrada
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede anular una orden de trabajo cerrada');
+      }
+
+      // Validar que no tenga anticipos
+      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
+      }
+
+      // Actualizar el estado a cancelado
+      $workOrder->update([
+        'status_id' => ApMasters::CANCELED_WORK_ORDER_ID,
+      ]);
+
+      // Recargar relaciones
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
       ]);
 
       return new WorkOrderResource($workOrder);
