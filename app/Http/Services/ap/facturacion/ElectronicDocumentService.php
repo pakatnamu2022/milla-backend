@@ -2279,58 +2279,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
-    if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede facturar una orden de trabajo cancelada.');
+    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+      throw new Exception('No se puede generar una factura a una orden de trabajo anulada');
     }
 
-    $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
-
-    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment && $validateLabor) {
-      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede generar una factura a una orden de trabajo cerrada');
     }
 
-    if (!$isAdvancePayment && $validateLabor) {
-      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
-        return $labour->worker_id !== null && $labour->deleted_at === null;
-      });
-
-      if ($laboursWithWorker->count() === 0) {
-        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
-      }
-    }
-
-    // Validate that all parts are fully delivered if work order has parts
-    if (!$isAdvancePayment && $workOrder->parts->count() > 0 && $validateLabor) {
-      $partsNotFullyDelivered = [];
-
-      foreach ($workOrder->parts as $part) {
-        // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
-        $totalDelivered = $part->deliveries
-          ->whereNull('deleted_at')
-          ->sum('delivered_quantity');
-
-        // Compare with quantity_used
-        $quantityUsed = (float)$part->quantity_used;
-        $totalDelivered = (float)$totalDelivered;
-
-        // If not fully delivered, add to list
-        if ($totalDelivered < $quantityUsed) {
-          $partsNotFullyDelivered[] = sprintf(
-            '%s (Usado: %.2f, Entregado: %.2f, Pendiente: %.2f)',
-            $part->product->name ?? "Producto ID: {$part->product_id}",
-            $quantityUsed,
-            $totalDelivered,
-            $quantityUsed - $totalDelivered
-          );
-        }
-      }
-
-      if (count($partsNotFullyDelivered) > 0) {
-        throw new Exception(
-          'No se puede facturar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
-          implode('; ', $partsNotFullyDelivered)
-        );
-      }
+    if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID && !$isAdvancePayment) {
+      throw new Exception('No se puede generar una factura final a una orden de trabajo que aún no ha sido finalizada. Solo se pueden generar anticipos.');
     }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)

@@ -11,6 +11,7 @@ use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkOrderPlanningService extends BaseService implements BaseServiceInterface
 {
@@ -41,51 +42,50 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
   public function store(mixed $data)
   {
-    // Establecer valor por defecto para type si no se envía
-    $data['type'] = $data['type'] ?? 'internal';
+    return DB::transaction(function () use ($data) {
+      $data['type'] = $data['type'] ?? 'internal';
 
-    // obtenemos la OT y validamos que exista
-    $workOrder = ApWorkOrder::find($data['work_order_id']);
-    $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
+      $workOrder = ApWorkOrder::find($data['work_order_id']);
 
-    if (!$workOrder) {
-      throw new Exception('Orden de trabajo no encontrada');
-    }
-
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede agregar planificación a una orden de trabajo cerrada');
-    }
-
-    if ($workOrder->vehicleInspection === null && $validateReceipt) {
-      throw new Exception('No se puede planificar un trabajo si la OT no tiene una recepción de vehículo asociada.');
-    }
-
-    // Calcular planned_end_datetime si es necesario
-    $data = $this->calculatePlannedEndDatetime($data);
-
-    // Para tipo 'internal', dividir automáticamente si cruza almuerzo o excede horario laboral
-    if ($data['type'] === 'internal') {
-      $timeBlocks = $this->splitIntoTimeBlocks($data);
-
-      // Validar cada bloque antes de crear
-      foreach ($timeBlocks as $block) {
-        $this->validateWorkerSchedule($block);
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
       }
 
-      // Crear todos los bloques
-      $plannings = [];
-      foreach ($timeBlocks as $block) {
-        $plannings[] = ApWorkOrderPlanning::create($block);
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      $this->validateWorkOrderState($workOrder);
+
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede planificar un trabajo si la OT no tiene una recepción de vehículo asociada.');
       }
 
-      // Retornar el primer planning creado con su relación
-      return new WorkOrderPlanningResource($plannings[0]->load(['worker', 'workOrder']));
-    }
+      // Calcular planned_end_datetime si es necesario
+      $data = $this->calculatePlannedEndDatetime($data);
 
-    // Para tipo 'external', crear normalmente
-    $this->validateWorkerSchedule($data);
-    $planning = ApWorkOrderPlanning::create($data);
-    return new WorkOrderPlanningResource($planning->load(['worker', 'workOrder']));
+      // Para tipo 'internal', dividir automáticamente si cruza almuerzo o excede horario laboral
+      if ($data['type'] === 'internal') {
+        $timeBlocks = $this->splitIntoTimeBlocks($data);
+
+        // Validar cada bloque antes de crear
+        foreach ($timeBlocks as $block) {
+          $this->validateWorkerSchedule($block);
+        }
+
+        // Crear todos los bloques
+        $plannings = [];
+        foreach ($timeBlocks as $block) {
+          $plannings[] = ApWorkOrderPlanning::create($block);
+        }
+
+        // Retornar el primer planning creado con su relación
+        return new WorkOrderPlanningResource($plannings[0]->load(['worker', 'workOrder']));
+      }
+
+      // Para tipo 'external', crear normalmente
+      $this->validateWorkerSchedule($data);
+      $planning = ApWorkOrderPlanning::create($data);
+      return new WorkOrderPlanningResource($planning->load(['worker', 'workOrder']));
+    });
   }
 
   /**
@@ -234,7 +234,25 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // 1. Validar solapamiento de horarios
     $this->validateNoOverlap($workerPlannings, $plannedStart, $plannedEnd, $type);
 
-    // 2. Validaciones específicas según el tipo
+    // 2. Validar que el nuevo trabajo empiece después del último asignado (solo para tipo 'internal')
+    if ($type === 'internal') {
+      $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya ordenado desc por planned_end_datetime
+
+      if ($lastInternalWork) {
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+
+        // El nuevo trabajo debe comenzar desde la hora fin del último trabajo en adelante
+        if ($plannedStart->lt($lastEndTime)) {
+          throw new Exception(
+            "Ya existe un trabajo asignado para este trabajador que termina a las {$lastEndTime->format('H:i')}. " .
+            "El nuevo trabajo debe comenzar a partir de las {$lastEndTime->format('H:i')} en adelante. " .
+            "El horario que intenta asignar comienza a las {$plannedStart->format('H:i')}."
+          );
+        }
+      }
+    }
+
+    // 3. Validaciones específicas según el tipo
     if ($type === 'external') {
       $this->validateExternalType($workerPlannings, $plannedStart, $plannedEnd);
     } else {
@@ -371,74 +389,187 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
   public function update(mixed $data)
   {
-    $planning = $this->find($data['id']);
+    return DB::transaction(function () use ($data) {
+      $planning = $this->find($data['id']);
+      $workOrder = ApWorkOrder::find($planning->work_order_id);
 
-    if (!$planning) {
-      throw new Exception('Planificación no encontrada');
-    }
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
 
-    if ($planning->status === 'in_progress') {
-      throw new Exception('No se puede editar esta planificación porque el técnico ya ha iniciado el trabajo.');
-    }
+      $this->validateWorkOrderState($workOrder);
 
-    if ($planning->status === 'completed') {
-      throw new Exception('No se puede editar esta planificación porque el trabajo ya ha sido completado.');
-    }
+      if (!$planning) {
+        throw new Exception('Planificación no encontrada');
+      }
 
-    if ($planning->status === 'canceled') {
-      throw new Exception('No se puede editar esta planificación porque el trabajo ya ha sido cancelado.');
-    }
+      if ($planning->status === 'in_progress') {
+        throw new Exception('No se puede editar esta planificación porque el técnico ya ha iniciado el trabajo.');
+      }
 
-    // Preparar datos para validación mergeando con datos existentes
-    $validationData = [
-      'worker_id' => $planning->worker_id,
-      'type' => $planning->type,
-      'estimated_hours' => $data['estimated_hours'] ?? $planning->estimated_hours,
-      'planned_start_datetime' => $data['planned_start_datetime'] ?? $planning->planned_start_datetime,
-    ];
+      if ($planning->status === 'completed') {
+        throw new Exception('No se puede editar esta planificación porque el trabajo ya ha sido completado.');
+      }
 
-    // Calcular planned_end_datetime si se modificó estimated_hours o planned_start_datetime
-    $validationData = $this->calculatePlannedEndDatetime($validationData);
+      if ($planning->status === 'canceled') {
+        throw new Exception('No se puede editar esta planificación porque el trabajo ya ha sido cancelado.');
+      }
 
-    // Validar antes de actualizar (excluyendo el ID actual)
-    $this->validateWorkerSchedule($validationData, $planning->id);
+      // Parsear las fechas
+      $plannedStart = Carbon::parse($data['planned_start_datetime']);
+      $plannedEnd = Carbon::parse($data['planned_end_datetime']);
 
-    // Preparar datos finales para actualización
-    $updateData = [];
-    if (isset($data['estimated_hours'])) {
-      $updateData['estimated_hours'] = $data['estimated_hours'];
-    }
-    if (isset($data['planned_start_datetime'])) {
-      $updateData['planned_start_datetime'] = $data['planned_start_datetime'];
-    }
-    // Actualizar planned_end_datetime si se calculó
-    if (isset($validationData['planned_end_datetime'])) {
-      $updateData['planned_end_datetime'] = $validationData['planned_end_datetime'];
-    }
+      // Validar que la fecha final no sea menor que la inicial
+      if ($plannedEnd->lessThanOrEqualTo($plannedStart)) {
+        throw new Exception('La fecha de fin debe ser posterior a la fecha de inicio.');
+      }
 
-    $planning->update($updateData);
-    return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+      // Validar que estén dentro del horario laboral
+      $this->validateWorkingHours($plannedStart, $plannedEnd);
+
+      // Calcular las horas estimadas basándose en la diferencia de tiempo
+      $minutesDiff = $plannedStart->diffInMinutes($plannedEnd);
+      $estimatedHours = round($minutesDiff / 60, 2);
+
+      // Preparar datos para validación mergeando con datos existentes
+      $validationData = [
+        'worker_id' => $planning->worker_id,
+        'type' => $planning->type,
+        'estimated_hours' => $estimatedHours,
+        'planned_start_datetime' => $data['planned_start_datetime'],
+        'planned_end_datetime' => $data['planned_end_datetime'],
+      ];
+
+      // Validar antes de actualizar (excluyendo el ID actual)
+      $this->validateWorkerSchedule($validationData, $planning->id);
+
+      // Preparar datos finales para actualización
+      $updateData = [
+        'planned_start_datetime' => $data['planned_start_datetime'],
+        'planned_end_datetime' => $data['planned_end_datetime'],
+        'estimated_hours' => $estimatedHours,
+      ];
+
+      $planning->update($updateData);
+      return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+    });
   }
 
   public function destroy($id)
   {
-    $planning = $this->find($id);
+    return DB::transaction(function () use ($id) {
+      $planning = $this->find($id);
+      $workOrder =
+        ApWorkOrder::find($planning->work_order_id);
 
-    // Validar que el trabajo no haya sido iniciado
-    if ($planning->status === 'in_progress') {
-      throw new Exception('No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo.');
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      $this->validateWorkOrderState($workOrder);
+
+      if ($planning->status === 'in_progress') {
+        throw new Exception('No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo.');
+      }
+
+      if ($planning->status === 'completed') {
+        throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido completado.');
+      }
+
+      if ($planning->status === 'canceled') {
+        throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
+      }
+
+      $planning->delete();
+
+      // Verificar si todos los trabajos restantes de la OT están completados
+      // Si es así, marcar la OT como trabajo terminado
+      $pendingPlannings = $workOrder->plannings()
+        ->whereIn('status', ['planned', 'in_progress'])
+        ->count();
+
+      if ($pendingPlannings === 0) {
+        // Verificar que haya al menos un trabajo completado
+        $completedPlannings = $workOrder->plannings()
+          ->where('status', 'completed')
+          ->count();
+
+        if ($completedPlannings > 0) {
+          $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
+          $workOrder->save();
+        }
+      }
+
+      return response()->json(['message' => 'Planificación eliminada correctamente']);
+    });
+  }
+
+  /**
+   * Valida que las fechas estén dentro del horario laboral
+   */
+  private function validateWorkingHours(Carbon $plannedStart, Carbon $plannedEnd): void
+  {
+    $startTime = $plannedStart->format('H:i');
+    $endTime = $plannedEnd->format('H:i');
+
+    // Usar constantes del modelo
+    $workStart = ApWorkOrderPlanning::WORK_START_TIME;
+    $lunchStart = ApWorkOrderPlanning::LUNCH_START_TIME;
+    $lunchEnd = ApWorkOrderPlanning::LUNCH_END_TIME;
+    $workEnd = ApWorkOrderPlanning::WORK_END_TIME;
+
+    // Validar que ambas fechas sean del mismo día
+    if ($plannedStart->format('Y-m-d') !== $plannedEnd->format('Y-m-d')) {
+      throw new Exception(
+        "Las fechas de inicio y fin deben ser del mismo día."
+      );
     }
 
-    if ($planning->status === 'completed') {
-      throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido completado.');
+    // Validar que la hora de inicio esté dentro del horario laboral
+    if ($startTime < $workStart || $startTime >= $workEnd) {
+      throw new Exception(
+        "La hora de inicio ($startTime) debe estar dentro del horario laboral ($workStart - $workEnd)."
+      );
     }
 
-    if ($planning->status === 'canceled') {
-      throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
+    // Validar que la hora de fin esté dentro del horario laboral
+    if ($endTime <= $workStart || $endTime > $workEnd) {
+      throw new Exception(
+        "La hora de fin ($endTime) debe estar dentro del horario laboral ($workStart - $workEnd)."
+      );
     }
 
-    $planning->delete();
-    return response()->json(['message' => 'Planificación eliminada correctamente']);
+    // Validar que NO caiga dentro del periodo de almuerzo (ni inicio, ni fin, ni que lo cruce)
+    // Rechazar cualquier horario que toque el periodo de almuerzo
+    if (
+      // Si la hora de inicio está dentro del almuerzo
+      ($startTime >= $lunchStart && $startTime < $lunchEnd) ||
+      // Si la hora de fin está dentro del almuerzo
+      ($endTime > $lunchStart && $endTime <= $lunchEnd) ||
+      // Si el horario cruza el periodo de almuerzo (empieza antes y termina después)
+      ($startTime < $lunchStart && $endTime > $lunchStart)
+    ) {
+      throw new Exception(
+        "El horario asignado no puede caer ni cruzar el periodo de almuerzo ($lunchStart - $lunchEnd). " .
+        "Los horarios válidos son: Mañana ($workStart - $lunchStart) o Tarde ($lunchEnd - $workEnd)."
+      );
+    }
+  }
+
+  /**
+   * Validar el estado de la orden de trabajo
+   */
+  private function validateWorkOrderState(ApWorkOrder $workOrder): void
+  {
+    $statusMessageMap = [
+      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado de la OT',
+      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado de la OT',
+      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado de la OT',
+    ];
+
+    if (isset($statusMessageMap[$workOrder->status_id])) {
+      throw new Exception($statusMessageMap[$workOrder->status_id]);
+    }
   }
 
   public function consolidated($workOrderId)

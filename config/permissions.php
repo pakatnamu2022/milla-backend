@@ -206,12 +206,6 @@ return [
       'icon' => 'CheckCircle',
       'policy_method' => 'confirmCancellationReception',
     ],
-    'addSparePartsOT' => [
-      'label' => 'Agregar Repuestos a OT',
-      'description' => 'Permite agregar repuestos a una orden de trabajo',
-      'icon' => 'Plus',
-      'policy_method' => 'addSparePartsOT',
-    ],
     'notify' => [
       'label' => 'Notificar',
       'description' => 'Permite enviar notificaciones a usuarios o grupos',
@@ -223,6 +217,24 @@ return [
       'description' => 'Permite habilitar opciones de Salesforce',
       'icon' => 'XCircle',
       'policy_method' => 'salesforce',
+    ],
+    'addSparePartsOT' => [
+      'label' => 'Agregar Repuestos a OT',
+      'description' => 'Permite agregar repuestos a una orden de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'addSparePartsOT',
+    ],
+    'canRemoveSparePartsOT' => [
+      'label' => 'Quitar Repuestos de OT',
+      'description' => 'Permite quitar repuestos de una orden de trabajo',
+      'icon' => 'XCircle',
+      'policy_method' => 'canRemoveSparePartsOT',
+    ],
+    'canAssignSparePartsOT' => [
+      'label' => 'Asignar Repuestos a OT',
+      'description' => 'Permite asignar repuestos a una orden de trabajo',
+      'icon' => 'XCircle',
+      'policy_method' => 'canAssignSparePartsOT',
     ]
   ],
 
