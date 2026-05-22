@@ -13,6 +13,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
@@ -1304,7 +1305,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function sendToFinished(mixed $data): WorkOrderResource
   {
     return DB::transaction(function () use ($data) {
-      $workOrder = ApWorkOrder::with(['labours', 'parts.deliveries', 'items.typePlanning'])->find($data['id']);
+      $workOrder = ApWorkOrder::with(['labours', 'parts.deliveries', 'items.typePlanning', 'discountRequests'])->find($data['id']);
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
@@ -1315,6 +1316,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if ($validateReceipt && $workOrder->vehicleInspection === null) {
         throw new Exception('La orden de trabajo debe tener una recepción');
+      }
+
+      // Validar que no haya descuentos pendientes en repuestos o mano de obra
+      $pendingDiscounts = $workOrder->discountRequests()
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
+        ->whereIn('part_labour_model', [ApWorkOrderParts::class, WorkOrderLabour::class])
+        ->exists();
+
+      if ($pendingDiscounts) {
+        throw new Exception('No se puede finalizar la orden de trabajo. Hay solicitudes de descuento pendientes de aprobación. Por favor, apruebe o rechace las solicitudes antes de continuar.');
       }
 
       $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
