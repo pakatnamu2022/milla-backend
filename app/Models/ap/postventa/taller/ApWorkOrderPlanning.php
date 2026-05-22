@@ -233,7 +233,7 @@ class ApWorkOrderPlanning extends Model
 
     // Si no hay plannings pendientes, marcar la orden como terminada
     if ($pendingPlannings === 0) {
-      $workOrder->status_id = ApMasters::FINISHED_WORK_ORDER_ID;
+      $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
       $workOrder->save();
     }
   }

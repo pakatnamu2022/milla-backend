@@ -232,4 +232,14 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function sendToFinished($id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->sendToFinished($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

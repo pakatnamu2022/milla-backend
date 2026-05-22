@@ -559,4 +559,24 @@ class ApWorkOrder extends Model
       'parts' => $allParts,
     ];
   }
+
+  /**
+   * Obtiene el flag de validación de labor del tipo de
+   * planificación
+   */
+  public function shouldValidateLabor(): bool
+  {
+    return (bool)
+    $this->items->first()?->typePlanning->validate_labor;
+  }
+
+  /**
+   * Obtiene el flag de validación de recepción del tipo de
+   * planificación
+   */
+  public function shouldValidateReceipt(): bool
+  {
+    return (bool)
+    $this->items->first()?->typePlanning->validate_receipt;
+  }
 }

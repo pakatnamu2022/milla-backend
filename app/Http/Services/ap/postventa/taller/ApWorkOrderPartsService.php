@@ -141,24 +141,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($data) {
       $workOrder = ApWorkOrder::find($data['work_order_id']);
-      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
-      }
-
-      if ($workOrder->vehicleInspection === null && $validateReceipt) {
-        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción vehicular');
-      }
-
-      // Validar que no existan avances de factura
-      if ($workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
-      }
+      $this->validateWorkOrderState($workOrder);
 
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
@@ -655,12 +643,18 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $delivery = $deliveries->firstWhere('id', $deliveryId);
 
         if (!$delivery) {
-          $errors[] = "Registro de entrega ID {$deliveryId} no encontrado";
+          $errors[] = "Usuario no encontrado";
+          continue;
+        }
+
+        // Validar que el usuario autenticado sea el asignado al repuesto
+        if ($delivery->delivered_to !== $currentUser->id) {
+          $errors[] = "La entrega de repuesto debe ser confirmada por el técnico asignado.";
           continue;
         }
 
         if ($delivery->is_received) {
-          $errors[] = "La entrega ID {$deliveryId} ya ha sido confirmada";
+          $errors[] = "La entrega del repuesto ya ha sido confirmada";
           continue;
         }
 
@@ -783,5 +777,31 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       ->get();
 
     return ApWorkOrderPartDeliveryResource::collection($deliveries);
+  }
+
+  /**
+   * Validar el estado de la orden de trabajo
+   */
+  private function validateWorkOrderState(ApWorkOrder $workOrder): void
+  {
+    $validateReceipt = $workOrder->shouldValidateReceipt();
+
+    $statusMessageMap = [
+      ApMasters::CANCELED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cancelada de la OT',
+      ApMasters::FINISHED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo finalizada de la OT',
+      ApMasters::CLOSED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cerrada de la OT',
+    ];
+
+    if (isset($statusMessageMap[$workOrder->status_id])) {
+      throw new Exception($statusMessageMap[$workOrder->status_id]);
+    }
+
+    if ($workOrder->vehicleInspection === null && $validateReceipt) {
+      throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
+    }
+
+    if ($workOrder->advancesWorkOrder()->exists()) {
+      throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
+    }
   }
 }

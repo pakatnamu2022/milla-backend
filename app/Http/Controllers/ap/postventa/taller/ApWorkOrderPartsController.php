@@ -81,7 +81,7 @@ class ApWorkOrderPartsController extends Controller
     try {
       $data = $request->validate([
         'delivered_to' => 'required|integer|exists:rrhh_persona,id',
-        'delivered_quantity' => 'required|numeric|min:0.01',
+        'delivered_quantity' => 'required|integer|min:1',
       ]);
 
       return $this->success($this->service->assignToTechnician($id, $data));

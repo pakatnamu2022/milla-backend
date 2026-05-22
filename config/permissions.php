@@ -206,17 +206,29 @@ return [
       'icon' => 'CheckCircle',
       'policy_method' => 'confirmCancellationReception',
     ],
+    'notify' => [
+      'label' => 'Notificar',
+      'description' => 'Permite enviar notificaciones a usuarios o grupos',
+      'icon' => 'Bell',
+      'policy_method' => 'notify',
+    ],
     'addSparePartsOT' => [
       'label' => 'Agregar Repuestos a OT',
       'description' => 'Permite agregar repuestos a una orden de trabajo',
       'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
     ],
-    'notify' => [
-      'label' => 'Notificar',
-      'description' => 'Permite enviar notificaciones a usuarios o grupos',
-      'icon' => 'Bell',
-      'policy_method' => 'notify',
+    'removeSparePartsOT' => [
+      'label' => 'Eliminar Repuestos de OT',
+      'description' => 'Permite eliminar repuestos de una orden de trabajo',
+      'icon' => 'Trash2',
+      'policy_method' => 'removeSparePartsOT',
+    ],
+    'assignSparePartsOT' => [
+      'label' => 'Asignar Repuestos a OT',
+      'description' => 'Permite asignar repuestos a una orden de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'assignSparePartsOT',
     ]
   ],
 

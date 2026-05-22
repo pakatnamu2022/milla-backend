@@ -40,81 +40,20 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
-      // Convertir time_spent a decimal para el cálculo si es necesario
-      $timeSpentDecimal = is_numeric($data['time_spent'])
-        ? floatval($data['time_spent'])
-        : $this->timeToDecimal($data['time_spent']);
+      $timeSpentDecimal = $this->convertToDecimalTime($data['time_spent']);
 
-      // obtenemos la OT y validamos que exista
       $workOrder = ApWorkOrder::find($data['work_order_id']);
-      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
-
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede agregar mano de obra a una orden de trabajo cerrada');
-      }
+      $this->validateWorkOrderState($workOrder);
 
-      if ($workOrder->vehicleInspection === null && $validateReceipt) {
-        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
-      }
+      $this->handleQuotationDetail($data['quotation_detail_id'] ?? null);
 
-      // Validar que no existan avances de factura
-      if ($workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede agregar mano de obra porque la orden de trabajo ya tiene avances de factura');
-      }
+      $factor = $this->getCurrencyConversionFactor($workOrder);
+      $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
 
-      // Si llega quotation_detail_id, validar y marcar como tomado
-      if (isset($data['quotation_detail_id'])) {
-        $quotationDetail = ApOrderQuotationDetails::find($data['quotation_detail_id']);
-
-        if (!$quotationDetail) {
-          throw new Exception('Detalle de cotización no encontrado');
-        }
-
-        if ($quotationDetail->status === ApOrderQuotationDetails::STATUS_TAKEN) {
-          throw new Exception('Este ítem de cotización ya está siendo utilizado en otra mano de obra');
-        }
-
-        // Marcar como tomado
-        $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_TAKEN]);
-      }
-
-      if ($workOrder->order_quotation_id) {
-        $orderQuotation = $workOrder->orderQuotation;
-        if ($orderQuotation->currency_id === $workOrder->currency_id) { // MISMA MONEDA
-          $factor = 1;
-        } else {
-          if ($workOrder->currency_id === TypeCurrency::PEN_ID) { //SI LA OT ESTA EN SOLES SE ENTIENDE QUE LA COTIZACION ESTA EN DOLARES
-            $factor = $orderQuotation->exchange_rate;
-          } else if ($workOrder->currency_id === TypeCurrency::USD_ID) { //SI LA OT ESTA EN DOLARES SE ENTIENDE QUE LA COTIZACION ESTA EN SOLES
-            $factor = 1;
-          } else {
-            throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
-          }
-        }
-      } else {
-        $factor = 1;
-      }
-
-      // Calcular el costo total automáticamente
-      if (isset($data['time_spent']) && isset($data['hourly_rate'])) {
-        $discountPercentage = $data['discount_percentage'] ?? 0;
-        $costBase = $timeSpentDecimal * floatval($data['hourly_rate']) * $factor;
-
-        // Calculamos el monto total
-        $data['total_cost'] = $costBase;
-
-        // Aplicar descuento si existe
-        if ($discountPercentage > 0) {
-          $discountAmount = $costBase * ($discountPercentage / 100);
-          $data['net_amount'] = $costBase - $discountAmount;
-        } else {
-          $data['net_amount'] = $costBase;
-        }
-      }
       $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
       $data['time_spent'] = $timeSpentDecimal;
 
@@ -162,57 +101,23 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $workOrderLabour = $this->find($data['id']);
       $workOrder = $workOrderLabour->workOrder;
 
-      // Calcular el costo total automáticamente si se actualizan time_spent, hourly_rate o discount_percentage
+      $this->validateWorkOrderState($workOrder);
+
       if (isset($data['time_spent']) || isset($data['hourly_rate']) || isset($data['discount_percentage'])) {
-        // Obtener time_spent en formato decimal
-        if (isset($data['time_spent'])) {
-          $timeSpent = is_numeric($data['time_spent'])
-            ? floatval($data['time_spent'])
-            : $this->timeToDecimal($data['time_spent']);
-        } else {
-          $timeSpent = $workOrderLabour->time_spent_decimal;
-        }
+        $timeSpent = isset($data['time_spent'])
+          ? $this->convertToDecimalTime($data['time_spent'])
+          : $workOrderLabour->time_spent_decimal;
 
         $hourlyRate = $data['hourly_rate'] ?? $workOrderLabour->hourly_rate;
         $discountPercentage = $data['discount_percentage'] ?? $workOrderLabour->discount_percentage ?? 0;
 
-        // Obtener el factor de conversión de moneda si hay cotización asociada
-        if ($workOrder->order_quotation_id) {
-          $orderQuotation = $workOrder->orderQuotation;
-          if ($orderQuotation->currency_id === $workOrder->currency_id) {
-            $factor = 1;
-          } else {
-            if ($workOrder->currency_id === TypeCurrency::PEN_ID) {
-              $factor = $orderQuotation->exchange_rate;
-            } else if ($workOrder->currency_id === TypeCurrency::USD_ID) {
-              $factor = 1;
-            } else {
-              throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
-            }
-          }
-        } else {
-          $factor = 1;
-        }
+        $factor = $this->getCurrencyConversionFactor($workOrder);
+        $this->calculateLabourCosts($data, $timeSpent, floatval($hourlyRate), $discountPercentage, $factor);
 
-        // Calcular costo base con el factor de conversión
-        $costBase = $timeSpent * floatval($hourlyRate) * $factor;
-
-        $data['total_cost'] = $costBase;
-
-        // Aplicar descuento si existe
-        if ($discountPercentage > 0) {
-          $discountAmount = $costBase * ($discountPercentage / 100);
-          $data['net_amount'] = $costBase - $discountAmount;
-        } else {
-          $data['net_amount'] = $costBase;
-        }
-
-        // Actualizar hourly_rate con el factor si cambió
         if (isset($data['hourly_rate'])) {
           $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
         }
 
-        // Actualizar time_spent si cambió
         if (isset($data['time_spent'])) {
           $data['time_spent'] = $timeSpent;
         }
@@ -270,5 +175,105 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     });
 
     return response()->json(['message' => 'Mano de obra eliminada correctamente']);
+  }
+
+  /**
+   * Convertir time_spent a decimal
+   */
+  private function convertToDecimalTime(mixed $timeValue): float
+  {
+    return is_numeric($timeValue)
+      ? floatval($timeValue)
+      : $this->timeToDecimal($timeValue);
+  }
+
+  /**
+   * Validar el estado de la orden de trabajo
+   */
+  private function validateWorkOrderState(ApWorkOrder $workOrder): void
+  {
+    $validateReceipt = $workOrder->shouldValidateReceipt();
+
+    $statusMessageMap = [
+      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado de la OT',
+      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado de la OT',
+      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado de la OT',
+    ];
+
+    if (isset($statusMessageMap[$workOrder->status_id])) {
+      throw new Exception($statusMessageMap[$workOrder->status_id]);
+    }
+
+    if ($workOrder->vehicleInspection === null && $validateReceipt) {
+      throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
+    }
+
+    if ($workOrder->advancesWorkOrder()->exists()) {
+      throw new Exception('No se puede agregar mano de obra porque la orden de trabajo ya tiene avances de factura');
+    }
+  }
+
+  /**
+   * Obtener el factor de conversión de moneda
+   */
+  private function getCurrencyConversionFactor(ApWorkOrder $workOrder): float
+  {
+    if (!$workOrder->order_quotation_id) {
+      return 1;
+    }
+
+    $orderQuotation = $workOrder->orderQuotation;
+
+    if ($orderQuotation->currency_id === $workOrder->currency_id) {
+      return 1;
+    }
+
+    if ($workOrder->currency_id === TypeCurrency::PEN_ID) {
+      return $orderQuotation->exchange_rate;
+    }
+
+    if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+      return 1;
+    }
+
+    throw new Exception('Moneda no soportada para la cotización de la orden de trabajo');
+  }
+
+  /**
+   * Calcular los costos de mano de obra
+   */
+  private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): void
+  {
+    $costBase = $timeSpent * $hourlyRate * $factor;
+    $data['total_cost'] = $costBase;
+
+    if ($discountPercentage > 0) {
+      $discountAmount = $costBase * ($discountPercentage / 100);
+      $data['net_amount'] = $costBase - $discountAmount;
+    } else {
+      $data['net_amount'] = $costBase;
+    }
+  }
+
+  /**
+   * Manejar el detalle de cotización
+   */
+  private function handleQuotationDetail(?int $quotationDetailId): void
+  {
+    if ($quotationDetailId === null) {
+      return;
+    }
+
+    $quotationDetail = ApOrderQuotationDetails::find($quotationDetailId);
+
+    if (!$quotationDetail) {
+      throw new Exception('Detalle de cotización no encontrado');
+    }
+
+    if ($quotationDetail->status === ApOrderQuotationDetails::STATUS_TAKEN) {
+      throw new Exception('Este ítem de cotización ya está siendo utilizado en otra mano de obra');
+    }
+
+    $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_TAKEN]);
   }
 }
