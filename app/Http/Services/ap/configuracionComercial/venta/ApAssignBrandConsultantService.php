@@ -6,11 +6,13 @@ use App\Http\Resources\ap\configuracionComercial\venta\ApAssignBrandConsultantRe
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
+use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
+use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
 use App\Models\ap\configuracionComercial\venta\ApGoalSellOutIn;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
 use Exception;
-use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use Illuminate\Support\Facades\DB;
 
 class ApAssignBrandConsultantService extends BaseService implements BaseServiceInterface
@@ -221,5 +223,55 @@ class ApAssignBrandConsultantService extends BaseService implements BaseServiceI
   public function show(int $id)
   {
     // TODO: Implement show() method.
+  }
+
+  public function getWorkerConfig(int $workerId)
+  {
+    $worker = Worker::select('id', 'nombre_completo')->find($workerId);
+
+    if (!$worker) {
+      throw new Exception('Trabajador no encontrado.');
+    }
+
+    $year = (int) date('Y');
+    $month = (int) date('m');
+
+    $sedeAssignments = ApAssignCompanyBranch::with(['sede:id,localidad,abreviatura'])
+      ->where('worker_id', $workerId)
+      ->where('year', $year)
+      ->where('month', $month)
+      ->where('status', true)
+      ->get();
+
+    $brandAssignments = ApAssignBrandConsultant::with([
+      'sede:id,localidad,abreviatura',
+      'brand:id,name,code',
+    ])
+      ->where('worker_id', $workerId)
+      ->where('year', $year)
+      ->where('month', $month)
+      ->where('status', true)
+      ->get();
+
+    $sedes = $sedeAssignments->map(fn($a) => [
+      'id'          => $a->sede->id,
+      'localidad'   => $a->sede->localidad,
+      'abreviatura' => $a->sede->abreviatura,
+    ])->values();
+
+    $brands = $brandAssignments->map(fn($a) => [
+      'id'          => $a->brand->id,
+      'name'        => $a->brand->name,
+      'code'        => $a->brand->code,
+      'sede_id'     => $a->sede_id,
+      'sede'        => $a->sede->abreviatura,
+    ])->values();
+
+    return [
+      'worker'  => ['id' => $worker->id, 'nombre_completo' => $worker->nombre_completo],
+      'period'  => ['year' => $year, 'month' => $month],
+      'sedes'   => $sedes,
+      'brands'  => $brands,
+    ];
   }
 }

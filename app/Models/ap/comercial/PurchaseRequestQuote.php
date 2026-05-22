@@ -35,6 +35,8 @@ class PurchaseRequestQuote extends Model
     'sale_price',
     'doc_sale_price',
     'down_payment',
+    'margin_amount',
+    'margin_pct',
     'comment',
     'is_invoiced',
     'is_approved',
@@ -137,6 +139,11 @@ class PurchaseRequestQuote extends Model
   public function discountCoupons()
   {
     return $this->hasMany(DiscountCoupons::class, 'purchase_request_quote_id');
+  }
+
+  public function others(): HasMany
+  {
+    return $this->hasMany(PurchaseRequestQuoteOther::class, 'purchase_request_quote_id');
   }
 
   public function accessories(): HasMany

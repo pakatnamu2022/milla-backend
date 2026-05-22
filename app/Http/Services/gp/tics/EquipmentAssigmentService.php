@@ -6,6 +6,7 @@ use App\Http\Resources\gp\tics\EquipmentAssigmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
@@ -35,19 +36,20 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
       $items = $data['items'] ?? [];
       unset($data['items']);
 
-      // Validar que ningún equipo esté actualmente asignado.
-      // status_deleted = false significa asignación activa (no desasignada).
       $equipmentIds = collect($items)->pluck('equipo_id')->toArray();
 
-      $conflicting = EquipmentAssigment::where('status_deleted', 1)
-        ->whereNull('unassigned_at')
-        ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $equipmentIds))
-        ->with(['items' => fn($q) => $q->whereIn('equipo_id', $equipmentIds)->with('equipment')])
-        ->first();
+      // Por ahora todo equipo solo puede tener una asignación activa a la vez
+      if (!empty($equipmentIds)) {
+        $conflicting = EquipmentAssigment::where('status_deleted', 1)
+          ->whereNull('unassigned_at')
+          ->whereHas('items', fn($q) => $q->whereIn('equipo_id', $equipmentIds))
+          ->with(['items' => fn($q) => $q->whereIn('equipo_id', $equipmentIds)->with('equipment')])
+          ->first();
 
-      if ($conflicting) {
-        $name = $conflicting->items->first()?->equipment?->equipo ?? 'Equipo desconocido';
-        throw new Exception("El equipo '{$name}' ya está asignado a '{$conflicting->worker->nombre_completo}' en la asignación '{$conflicting->id}'. Debe liberarlo antes de asignarlo nuevamente.");
+        if ($conflicting) {
+          $name = $conflicting->items->first()?->equipment?->equipo ?? 'Equipo desconocido';
+          throw new Exception("El equipo '{$name}' ya está asignado a '{$conflicting->worker->nombre_completo}' en la asignación '{$conflicting->id}'. Debe liberarlo antes de asignarlo nuevamente.");
+        }
       }
 
       $assignment = EquipmentAssigment::create($data);

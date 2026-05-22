@@ -56,16 +56,27 @@ class Opportunity extends Model
 
   const array OPEN_STATUS_CODES = [self::COLD, self::WARM, self::HOT];
 
+  // Cambia manualmente vía UpdateOpportunityRequest (asesor desde el frontend)
   const int COLD_ID = 856;
+  // Cambia manualmente vía UpdateOpportunityRequest (asesor desde el frontend)
   const int WARM_ID = 857;
+  // Cambia manualmente vía UpdateOpportunityRequest (asesor desde el frontend)
   const int HOT_ID = 858;
+  // Cambia automáticamente en ElectronicDocument::booted() al guardar una factura/boleta
+  // con migration_status = COMPLETED y area_id = COMERCIAL
   const int SOLD_ID = 859;
+  // Cambia automáticamente en SyncShippingGuideDynamicsJob::processCommercialDeliveryGuide()
+  // cuando la guía de salida comercial (serie CV-) queda contabilizada en Dynamics
+  const int DELIVERED_ID = 992;
+  // Cambia manualmente vía OpportunityService::close() o automáticamente en
+  // BusinessPartnersService cuando la última acción fue negativa y tiene >= 5 días de antigüedad
   const int CLOSED_ID = 860;
   const array OPPORTUNITY_STATUS_ID = [
     self::COLD_ID,
     self::WARM_ID,
     self::HOT_ID,
     self::SOLD_ID,
+    self::DELIVERED_ID,
     self::CLOSED_ID,
   ];
 

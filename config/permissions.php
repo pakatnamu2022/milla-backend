@@ -218,17 +218,11 @@ return [
       'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
     ],
-    'removeSparePartsOT' => [
-      'label' => 'Eliminar Repuestos de OT',
-      'description' => 'Permite eliminar repuestos de una orden de trabajo',
-      'icon' => 'Trash2',
-      'policy_method' => 'removeSparePartsOT',
-    ],
-    'assignSparePartsOT' => [
-      'label' => 'Asignar Repuestos a OT',
-      'description' => 'Permite asignar repuestos a una orden de trabajo',
-      'icon' => 'Plus',
-      'policy_method' => 'assignSparePartsOT',
+    'salesforce' => [
+      'label' => 'Salesforce',
+      'description' => 'Permite habilitar opciones de Salesforce',
+      'icon' => 'XCircle',
+      'policy_method' => 'salesforce',
     ]
   ],
 

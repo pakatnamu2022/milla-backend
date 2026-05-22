@@ -32,6 +32,8 @@ class PurchaseRequestQuoteResource extends JsonResource
       'sale_price' => round($this->sale_price, 2),
       'doc_sale_price' => round($this->doc_sale_price, 2),
       'down_payment' => $this->down_payment ? round($this->down_payment, 2) : null,
+      'margin_amount' => $this->margin_amount ? round($this->margin_amount, 2) : null,
+      'margin_pct' => $this->margin_pct ? round($this->margin_pct, 4) : null,
       'type_currency_id' => $this->type_currency_id,
       'type_currency' => $this->typeCurrency->code ?? null,
       'type_currency_symbol' => $this->typeCurrency->code . ' ' . $this->typeCurrency->symbol ?? null,
@@ -92,6 +94,13 @@ class PurchaseRequestQuoteResource extends JsonResource
           'type_currency_symbol' => $accessory->typeCurrency->symbol ?? null,
         ];
       }),
+      'others' => $this->relationLoaded('others') ? $this->others->map(fn($o) => [
+        'id'          => $o->id,
+        'description' => $o->description,
+        'type'        => $o->type,
+        'value'       => $o->value,
+        'amount'      => round($o->amount, 2),
+      ]) : [],
       'sede_id' => $this->sede_id ?? null,
       'sede' => $this->sede->abreviatura ?? null,
       'kyc_declaration_id' => $this->relationLoaded('kycDeclaration') ? $this->kycDeclaration?->id : null,
