@@ -21,6 +21,7 @@ class InventoryMovementResource extends JsonResource
     return [
       'id' => $this->id,
       'movement_number' => $this->movement_number,
+      'movement_number_dyn' => $this->movement_number_dyn,
       'movement_type' => $this->movement_type,
       'item_type' => $this->item_type ?? 'PRODUCTO', // PRODUCTO or SERVICIO
       'movement_date' => $this->movement_date,

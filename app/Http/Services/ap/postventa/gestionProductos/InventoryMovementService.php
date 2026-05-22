@@ -108,8 +108,7 @@ class InventoryMovementService extends BaseService
 
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($reception) {
       // Get currency and exchange rate from Purchase Order
       $purchaseOrder = $reception->purchaseOrder;
       $currencyId = $purchaseOrder->currency_id ?? TypeCurrency::PEN_ID;  // Default to PEN if not set
@@ -184,18 +183,13 @@ class InventoryMovementService extends BaseService
       // Update stock automatically since movement is created as APPROVED
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
 
-      DB::commit();
       return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function createAdjustment(array $data, array $details): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($data, $details) {
       // Validate movement type
       $validTypes = [
         InventoryMovement::TYPE_ADJUSTMENT_IN,
@@ -282,18 +276,13 @@ class InventoryMovementService extends BaseService
       // Update stock automatically since movement is created as APPROVED
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
 
-      DB::commit();
       return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function updateAdjustment(Mixed $data): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($data) {
       $adjustmentInventory = $this->find($data['id']);
 
       if ($adjustmentInventory->status === InventoryMovement::STATUS_CANCELLED) {
@@ -313,12 +302,8 @@ class InventoryMovementService extends BaseService
         'notes' => $data['notes'] ?? $adjustmentInventory->notes,
       ]);
 
-      DB::commit();
       return $adjustmentInventory;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
@@ -355,8 +340,7 @@ class InventoryMovementService extends BaseService
 
   public function createTransfer(array $transferData, array $details): array
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($transferData, $details) {
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
         if ($transferData['transport_company_id'] === null) {
           throw new Exception('Modalidad de "TRASPORTE PUBLICO" el proveedor de transporte es obligatorio (RUC)');
@@ -605,22 +589,16 @@ class InventoryMovementService extends BaseService
         $this->stockService->moveStockToInTransit($movementOut->fresh('details'));
       }
 
-      DB::commit();
       return [
         'movement' => $movementOut->load(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
         'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
       ];
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function updateTransfer(array $transferData, int $movementId): array
   {
-    DB::beginTransaction();
-    try {
-      // Find movement
+    return DB::transaction(function () use ($transferData, $movementId) {
       $movement = $this->find($movementId);
 
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
@@ -722,21 +700,16 @@ class InventoryMovementService extends BaseService
         $shippingGuide->update($shippingGuideData);
       }
 
-      DB::commit();
       return [
         'movement' => $movement->fresh(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
         'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
       ];
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
-  public function destroyTransfer(int $movementId): void
+  public function destroyTransfer(int $movementId)
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($movementId) {
       // Find movement
       $movement = $this->find($movementId);
 
@@ -807,12 +780,7 @@ class InventoryMovementService extends BaseService
 
       // Delete movement
       $movement->delete();
-
-      DB::commit();
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function cancelTransfer(int $movementId): array
@@ -1431,10 +1399,10 @@ class InventoryMovementService extends BaseService
           );
         }
 
-        if ($stock->available_quantity < $part->quantity) {
+        if ($stock->available_quantity < $part->quantity_used) {
           throw new Exception(
             "Stock insuficiente para producto '{$part->product->name}'. " .
-            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity}"
+            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity_used}"
           );
         }
       }
@@ -1462,14 +1430,14 @@ class InventoryMovementService extends BaseService
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movement->id,
           'product_id' => $part->product_id,
-          'quantity' => $part->quantity,
+          'quantity' => $part->quantity_used,
           'unit_cost' => $part->unit_price,
-          'total_cost' => $part->total_amount,
+          'total_cost' => $part->net_amount,
           'notes' => "Venta orden de trabajo {$workOrder->correlative} - {$part->product->name}",
         ]);
 
         $totalItems++;
-        $totalQuantity += $part->quantity;
+        $totalQuantity += $part->quantity_used;
       }
 
       // Update movement totals
