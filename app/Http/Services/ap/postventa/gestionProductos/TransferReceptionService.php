@@ -402,18 +402,6 @@ class TransferReceptionService extends BaseService
       'is_received' => true, // Marca que se procesó la reversión
     ]);
 
-    Log::info('Movimiento de reversión TRANSFER_IN generado exitosamente', [
-      'shipping_guide_id' => $shippingGuide->id,
-      'transfer_reception_id' => $reception->id,
-      'reversal_movement_id' => $reversalMovement->id,
-      'reversal_movement_type' => 'TRANSFER_IN',
-      'cancelled_transfer_out_id' => $cancelledTransferOutMovement->id,
-      'original_transfer_in_id' => $originalTransferIn->id,
-      'reception_status_changed_to' => TransferReception::STATUS_APPROVED,
-      'warehouse_origin' => $cancelledTransferOutMovement->warehouse_id,
-      'warehouse_destination' => $cancelledTransferOutMovement->warehouse_destination_id
-    ]);
-
     return $reversalMovement;
   }
 
