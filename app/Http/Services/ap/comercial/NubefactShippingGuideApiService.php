@@ -600,16 +600,25 @@ class NubefactShippingGuideApiService
   /**
    * Devuelve una respuesta simulada exitosa sin llamar a Nubefact.
    * Activado con NUBEFACT_SIMULATE=true en el .env.
+   *
+   * En modo simulación:
+   * - generar_guia: Envía pero queda PENDIENTE de aceptación
+   * - consultar_guia: Ahí recién se ACEPTA automáticamente
    */
   private function simulatedSuccessResponse($guide, string $operation): array
   {
+    // Determinar el estado según la operación
+    $isAccepted = ($operation === 'consultar_guia');
+
     $data = [
       'serie' => $guide->series,
       'numero' => $guide->correlative,
-      'aceptada_por_sunat' => true,
-      'sunat_description' => 'La Guia de Remision numero ' . $guide->document_number . ' ha sido aceptada',
-      'sunat_note' => '',
-      'sunat_responsecode' => '0',
+      'aceptada_por_sunat' => $isAccepted,
+      'sunat_description' => $isAccepted
+        ? 'La Guia de Remision numero ' . $guide->document_number . ' ha sido aceptada'
+        : 'La Guia de Remision numero ' . $guide->document_number . ' ha sido enviada y está pendiente de aceptación',
+      'sunat_note' => $isAccepted ? '' : 'Pendiente de procesamiento',
+      'sunat_responsecode' => $isAccepted ? '0' : '',
       'sunat_soap_error' => '',
       'enlace' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/simulado',
       'enlace_del_pdf' => 'https://app.nubefact.com/guia/' . $guide->document_number . '/pdf/simulado',

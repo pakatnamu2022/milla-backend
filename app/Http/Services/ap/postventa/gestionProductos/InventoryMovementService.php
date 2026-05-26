@@ -601,12 +601,33 @@ class InventoryMovementService extends BaseService
     return DB::transaction(function () use ($transferData, $movementId) {
       $movement = $this->find($movementId);
 
+      if ($movement->reference_type !== ShippingGuides::class || !$movement->reference_id) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      $shippingGuide = $movement->reference;
+
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
+      }
+
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
+      }
+
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
+        $transferData["driver_doc"] = '';
+        $transferData["driver_name"] = '';
+        $transferData["license"] = '';
         if ($transferData['transport_company_id'] === null) {
           throw new Exception('Modalidad de transporte publico el proveedor de transporte es obligatorio');
         }
       } else {
-        if ($transferData['driver_doc'] === null) {
+        if (is_null($transferData['driver_doc']) || is_null($transferData['plate'])) {
           throw new Exception('Modalidad de transporte privado el dni del conductor, licencia, placa y nombres deben ser obligatorios');
         }
       }
@@ -658,7 +679,7 @@ class InventoryMovementService extends BaseService
         $shippingGuideData['license'] = $transferData['license'];
       }
 
-      if (isset($transferData['plate'])) {
+      if (array_key_exists('plate', $transferData)) {
         $shippingGuideData['plate'] = $transferData['plate'];
       }
 
@@ -725,9 +746,16 @@ class InventoryMovementService extends BaseService
 
       $shippingGuide = $movement->reference;
 
-      // Validate shipping guide has NOT been sent to SUNAT
-      if ($shippingGuide && $shippingGuide->is_sunat_registered) {
-        throw new Exception('No se puede eliminar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
+      }
+
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
       }
 
       // Load movement details
@@ -939,7 +967,7 @@ class InventoryMovementService extends BaseService
           'warehouse_id' => $newMovementOut->warehouse_destination_id, // Almacén destino de la reversa (origen original)
           'reception_date' => now(),
           'item_type' => $movement->item_type,
-          'status' => TransferReception::STATUS_PENDING,
+          'status' => TransferReception::STATUS_APPROVED,
           'notes' => "Recepción automática por anulación de transferencia {$movement->movement_number}",
           'received_by' => Auth::id(),
           'total_items' => $totalItems,
@@ -959,7 +987,8 @@ class InventoryMovementService extends BaseService
           ]);
         }
 
-        MigrateProductReceptionToDynamicsJob::dispatch($transferReception->id);
+        // Migrar la cancelación a Dynamics usando el shipping_guide_id
+        MigrateProductReceptionToDynamicsJob::dispatch($shippingGuides->id);
       }
 
       DB::commit();
