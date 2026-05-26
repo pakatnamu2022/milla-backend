@@ -7,7 +7,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\ap\postventa\gestionProductos\TransferReception;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -29,7 +29,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
    * Create a new job instance.
    */
   public function __construct(
-    public int $transferReceptionId
+    public int $shippingGuideId
   )
   {
     $this->onQueue('shipping_guides');
@@ -43,10 +43,10 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     $this->syncService = $syncService;
 
     try {
-      $this->processProductReception($this->transferReceptionId);
+      $this->processProductTransfer($this->shippingGuideId);
     } catch (Exception $e) {
       Log::error('Error en MigrateProductReceptionToDynamicsJob', [
-        'transfer_reception_id' => $this->transferReceptionId,
+        'shipping_guide_id' => $this->shippingGuideId,
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
@@ -55,25 +55,27 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa la migración de una recepción de productos
+   * Procesa la migración de una transferencia de productos (sin necesidad de recepción física)
    */
-  protected function processProductReception(int $receptionId): void
+  protected function processProductTransfer(int $shippingGuideId): void
   {
-    $reception = TransferReception::with([
-      'transferMovement.warehouse',
-      'transferMovement.warehouseDestination',
-      'warehouse.sede',
-      'shippingGuide',
-      'details.product.articleClass'
-    ])->find($receptionId);
+    $shippingGuide = ShippingGuides::with([
+      'inventoryMovement.warehouse',
+      'inventoryMovement.warehouseDestination',
+      'inventoryMovement.details.product.articleClass'
+    ])->find($shippingGuideId);
 
-    if (!$reception) {
-      throw new Exception("Recepción de transferencia no encontrada. ID: {$receptionId}");
+    if (!$shippingGuide) {
+      throw new Exception("Guía de remisión no encontrada. ID: {$shippingGuideId}");
     }
 
-    $shippingGuide = $reception->shippingGuide;
-    if (!$shippingGuide) {
-      throw new Exception("Guía de remisión no encontrada para la recepción. ID: {$receptionId}");
+    $transferOutMovement = $shippingGuide->inventoryMovement;
+    if (!$transferOutMovement) {
+      throw new Exception("Movimiento de inventario no encontrado para la guía. ID: {$shippingGuideId}");
+    }
+
+    if ($transferOutMovement->movement_type !== InventoryMovement::TYPE_TRANSFER_OUT) {
+      throw new Exception("El movimiento asociado no es de tipo TRANSFER_OUT. Tipo: {$transferOutMovement->movement_type}");
     }
 
     // Actualizar estado general a 'in_progress' si está pending
@@ -82,28 +84,28 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     }
 
     // 1. Verificar y sincronizar artículos (productos) PRIMERO
-    $this->verifyAndSyncProducts($shippingGuide, $reception);
+    $this->verifyAndSyncProducts($shippingGuide, $transferOutMovement);
 
     // 2. Crear logs de transferencia (solo después de que productos estén en proceso)
-    $this->ensureProductTransferLogsExist($shippingGuide, $reception);
+    $this->ensureProductTransferLogsExist($shippingGuide);
 
     // 3. Verificar y sincronizar detalle de transferencia (Detail)
-    $this->verifyInventoryTransferDetail($shippingGuide, $reception);
+    $this->verifyInventoryTransferDetail($shippingGuide, $transferOutMovement);
 
     // 4. Verificar y sincronizar transferencia de inventario (Header)
-    $this->verifyInventoryTransfer($shippingGuide, $reception);
+    $this->verifyInventoryTransfer($shippingGuide, $transferOutMovement);
 
     // 5. Verificar si todo está completo
     $this->checkAndUpdateCompletionStatus($shippingGuide);
   }
 
   /**
-   * Verifica y sincroniza los artículos (productos) de la recepción
+   * Verifica y sincroniza los artículos (productos) de la transferencia
    */
-  protected function verifyAndSyncProducts(ShippingGuides $shippingGuide, TransferReception $reception): void
+  protected function verifyAndSyncProducts(ShippingGuides $shippingGuide, InventoryMovement $transferOutMovement): void
   {
-    // Obtener items con productos
-    $items = $reception->details()->with('product')->get();
+    // Obtener items con productos del movimiento de salida
+    $items = $transferOutMovement->details()->with('product')->get();
 
     if ($items->isEmpty()) {
       return;
@@ -161,7 +163,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   /**
    * Asegura que existan los logs para transferencias de productos
    */
-  protected function ensureProductTransferLogsExist(ShippingGuides $shippingGuide, TransferReception $reception): void
+  protected function ensureProductTransferLogsExist(ShippingGuides $shippingGuide): void
   {
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
@@ -207,7 +209,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   /**
    * Verifica el estado de la transferencia de inventario en la BD intermedia (Header)
    */
-  protected function verifyInventoryTransfer(ShippingGuides $shippingGuide, TransferReception $reception): void
+  protected function verifyInventoryTransfer(ShippingGuides $shippingGuide, InventoryMovement $transferOutMovement): void
   {
     // Determinar si está cancelada PRIMERO para buscar el step correcto
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
@@ -259,7 +261,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
     if (!$existingTransfer) {
       // NO EXISTE → SINCRONIZAR
-      $this->syncInventoryTransfer($shippingGuide, $reception, $isCancelled);
+      $this->syncInventoryTransfer($shippingGuide, $transferOutMovement, $isCancelled);
       return;
     }
 
@@ -272,7 +274,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   /**
    * Verifica el estado del detalle de transferencia en la BD intermedia (Detail)
    */
-  protected function verifyInventoryTransferDetail(ShippingGuides $shippingGuide, TransferReception $reception): void
+  protected function verifyInventoryTransferDetail(ShippingGuides $shippingGuide, InventoryMovement $transferOutMovement): void
   {
     // Determinar si está cancelada PRIMERO para buscar el step correcto
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
@@ -312,8 +314,8 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       }
     }
 
-    // Contar cuántos detalles deberían existir
-    $expectedDetailsCount = $reception->details->filter(function ($detail) {
+    // Contar cuántos detalles deberían existir (del movimiento de salida)
+    $expectedDetailsCount = $transferOutMovement->details->filter(function ($detail) {
       return $detail->product && $detail->product->dyn_code;
     })->count();
 
@@ -332,7 +334,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       ->count();
 
     if ($existingDetailsCount < $expectedDetailsCount) {
-      $this->syncInventoryTransferDetail($shippingGuide, $reception, $isCancelled);
+      $this->syncInventoryTransferDetail($shippingGuide, $transferOutMovement, $isCancelled);
       return;
     }
 
@@ -343,7 +345,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   /**
    * Sincroniza la cabecera de transferencia de inventario (Header)
    */
-  protected function syncInventoryTransfer(ShippingGuides $shippingGuide, TransferReception $reception, bool $isCancelled): void
+  protected function syncInventoryTransfer(ShippingGuides $shippingGuide, InventoryMovement $transferOutMovement, bool $isCancelled): void
   {
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
@@ -390,7 +392,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al sincronizar transferencia de inventario (productos)', [
         'shipping_guide_id' => $shippingGuide->id,
-        'transfer_reception_id' => $reception->id,
+        'transfer_out_movement_id' => $transferOutMovement->id,
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
@@ -403,7 +405,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
    * Sincroniza el detalle de transferencia de inventario (Detail)
    * UNO POR UNO para cada producto
    */
-  protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, TransferReception $reception, bool $isCancelled): void
+  protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, InventoryMovement $transferOutMovement, bool $isCancelled): void
   {
     $step = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
@@ -426,7 +428,6 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       // Preparar TransferenciaId con asterisco si está cancelada
       $transferId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
 
-      $transferOutMovement = $reception->transferMovement;
       $warehouseOrigin = $transferOutMovement->warehouse;
       $warehouseDestination = $transferOutMovement->warehouseDestination;
 
@@ -444,17 +445,18 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       $almacenIdFin = $warehouseDestinationCode;
 
       $sedeOrigin = $warehouseOrigin->sede;
-      $sede = $reception->warehouse->sede;
-      if (!$sede) {
-        throw new Exception("Sede del almacén de recepción no encontrada.");
+      $sedeDestination = $warehouseDestination->sede;
+
+      if (!$sedeDestination) {
+        throw new Exception("Sede del almacén de destino no encontrada.");
       }
 
-      // Sincronizar cada producto UNO POR UNO
+      // Sincronizar cada producto UNO POR UNO usando los detalles del movimiento de salida
       $lineNumber = 1;
-      foreach ($reception->details as $detail) {
+      foreach ($transferOutMovement->details as $detail) {
         if (!$detail->product) {
-          Log::warning('Detalle de recepción sin producto asociado', [
-            'transfer_reception_detail_id' => $detail->id
+          Log::warning('Detalle de movimiento sin producto asociado', [
+            'inventory_movement_detail_id' => $detail->id
           ]);
           continue;
         }
@@ -474,11 +476,11 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
           continue;
         }
 
-        // Cantidad total (recibida + observada)
-        $quantity = $detail->quantity_received + $detail->observed_quantity;
+        // Cantidad del movimiento de salida (cantidad enviada/fiscal)
+        $quantity = $detail->quantity;
 
         // Obtener almacenes para este producto específico según su article_class (para cuentas contables)
-        $warehouseQuery = Warehouse::where('sede_id', $sede->id)
+        $warehouseQuery = Warehouse::where('sede_id', $sedeDestination->id)
           ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA) // TIPO_OPERACION_POSTVENTA
           ->where('article_class_id', $product->ap_class_article_id)
           ->where('status', true);
@@ -492,9 +494,9 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
 
         // Cuentas contables
         // IMPORTANTE: Si está cancelada, los almacenes ya están invertidos en el movimiento,
-        // por lo que $sedeOrigin y $sede ya reflejan la inversión correctamente
+        // por lo que $sedeOrigin y $sedeDestination ya reflejan la inversión correctamente
         $inventoryAccount = $warehouseStart->inventory_account . '-' . $sedeOrigin->dyn_code;
-        $counterpartInventoryAccount = $warehouseEnd->inventory_account . '-' . $sede->dyn_code;
+        $counterpartInventoryAccount = $warehouseEnd->inventory_account . '-' . $sedeDestination->dyn_code;
 
         // Preparar datos para este producto
         $detailData = [
@@ -523,7 +525,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al sincronizar detalle de transferencia de inventario (productos)', [
         'shipping_guide_id' => $shippingGuide->id,
-        'transfer_reception_id' => $reception->id,
+        'transfer_out_movement_id' => $transferOutMovement->id,
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
@@ -629,7 +631,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
   public function failed(\Throwable $exception): void
   {
     Log::error('MigrateProductReceptionToDynamicsJob falló completamente', [
-      'transfer_reception_id' => $this->transferReceptionId,
+      'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
       'trace' => $exception->getTraceAsString()
     ]);

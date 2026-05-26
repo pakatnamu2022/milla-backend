@@ -4,7 +4,6 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\TransferReceptionResource;
 use App\Http\Services\BaseService;
-use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -125,16 +124,7 @@ class TransferReceptionService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      if ($itemType === TransferReception::ITEM_TYPE_PRODUCT) {
-        if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
-          // Diferenciar entre productos de posventa y vehículos según area_id
-          if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
-            // Migrar productos de posventa a Dynamics
-            MigrateProductReceptionToDynamicsJob::dispatch($reception->id);
-          }
-        }
-      } else {
-        // For SERVICIO type, we can directly generate the inventory movement without waiting for GR migration
+      if ($itemType === TransferReception::ITEM_TYPE_SERVICE) {
         $this->generateInventoryMovement($reception, $transferOutMovement);
       }
 

@@ -601,6 +601,24 @@ class InventoryMovementService extends BaseService
     return DB::transaction(function () use ($transferData, $movementId) {
       $movement = $this->find($movementId);
 
+      if ($movement->reference_type !== ShippingGuides::class || !$movement->reference_id) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      $shippingGuide = $movement->reference;
+
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
+      }
+
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
+      }
+
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
         $transferData["driver_doc"] = '';
         $transferData["driver_name"] = '';
@@ -728,11 +746,18 @@ class InventoryMovementService extends BaseService
 
       $shippingGuide = $movement->reference;
 
-      // Validate shipping guide has NOT been sent to SUNAT
-      if ($shippingGuide && $shippingGuide->is_sunat_registered) {
-        throw new Exception('No se puede eliminar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
       }
 
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
+      }
+      
       // Load movement details
       $movement->load('details');
 
@@ -962,7 +987,8 @@ class InventoryMovementService extends BaseService
           ]);
         }
 
-        MigrateProductReceptionToDynamicsJob::dispatch($transferReception->id);
+        // Migrar la cancelación a Dynamics usando el shipping_guide_id
+        MigrateProductReceptionToDynamicsJob::dispatch($shippingGuides->id);
       }
 
       DB::commit();
