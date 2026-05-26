@@ -757,7 +757,7 @@ class InventoryMovementService extends BaseService
       if ($shippingGuide->sent_at !== null) {
         throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
       }
-      
+
       // Load movement details
       $movement->load('details');
 
@@ -967,7 +967,7 @@ class InventoryMovementService extends BaseService
           'warehouse_id' => $newMovementOut->warehouse_destination_id, // Almacén destino de la reversa (origen original)
           'reception_date' => now(),
           'item_type' => $movement->item_type,
-          'status' => TransferReception::STATUS_PENDING,
+          'status' => TransferReception::STATUS_APPROVED,
           'notes' => "Recepción automática por anulación de transferencia {$movement->movement_number}",
           'received_by' => Auth::id(),
           'total_items' => $totalItems,
