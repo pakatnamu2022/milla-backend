@@ -602,11 +602,14 @@ class InventoryMovementService extends BaseService
       $movement = $this->find($movementId);
 
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
+        $transferData["driver_doc"] = '';
+        $transferData["driver_name"] = '';
+        $transferData["license"] = '';
         if ($transferData['transport_company_id'] === null) {
           throw new Exception('Modalidad de transporte publico el proveedor de transporte es obligatorio');
         }
       } else {
-        if ($transferData['driver_doc'] === null) {
+        if (is_null($transferData['driver_doc']) || is_null($transferData['plate'])) {
           throw new Exception('Modalidad de transporte privado el dni del conductor, licencia, placa y nombres deben ser obligatorios');
         }
       }
@@ -658,7 +661,7 @@ class InventoryMovementService extends BaseService
         $shippingGuideData['license'] = $transferData['license'];
       }
 
-      if (isset($transferData['plate'])) {
+      if (array_key_exists('plate', $transferData)) {
         $shippingGuideData['plate'] = $transferData['plate'];
       }
 
