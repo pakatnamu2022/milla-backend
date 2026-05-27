@@ -191,7 +191,7 @@
   <!-- PRIMERA SECCIÓN: CLIENTE E INFORMACIÓN -->
   <div class="two-column">
     <div class="column-left">
-      <div class="section-box" style="padding: 10px; min-height: 150px; box-sizing: border-box;">
+      <div class="section-box" style="padding: 10px; min-height: 50px; box-sizing: border-box;">
         <div class="section-row">
           <span class="section-label">Propietario</span>
           <span class="section-value">: {{ strtoupper($workOrder->vehicle->customer->full_name ?? 'N/A') }}</span>
@@ -209,7 +209,7 @@
     </div>
 
     <div class="column-right">
-      <div class="section-box" style="text-align: center; padding: 10px; min-height: 150px; box-sizing: border-box;">
+      <div class="section-box" style="text-align: center; padding: 10px; min-height: 50px; box-sizing: border-box;">
         <div style="font-size: 10px; font-weight: bold; margin-bottom: 5px;">
           {{ $workOrder->appointment_planning_id !== null ? 'CON CITA' : 'SIN CITA' }}
         </div>
@@ -294,7 +294,7 @@
         <td>: {{ strtoupper($workOrder->advisor->tel_referencia_3 ?? 'N/A') }}</td>
       </tr>
       <tr>
-        <td class="info-label">EMAIL RECEPCIONISTA</td>
+        <td class="info-label">EMAIL</td>
         <td>: {{ strtolower($workOrder->advisor->email2 ?? 'N/A') }}</td>
       </tr>
     </table>
