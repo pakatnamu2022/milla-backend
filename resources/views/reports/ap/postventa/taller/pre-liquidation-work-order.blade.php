@@ -191,7 +191,7 @@
   <!-- PRIMERA SECCIÓN: CLIENTE E INFORMACIÓN -->
   <div class="two-column">
     <div class="column-left">
-      <div class="section-box" style="padding: 10px; min-height: 50px; box-sizing: border-box;">
+      <div class="section-box" style="padding: 10px; min-height: 68px; box-sizing: border-box;">
         <div class="section-row">
           <span class="section-label">Propietario</span>
           <span class="section-value">: {{ strtoupper($workOrder->vehicle->customer->full_name ?? 'N/A') }}</span>
@@ -209,7 +209,7 @@
     </div>
 
     <div class="column-right">
-      <div class="section-box" style="text-align: center; padding: 10px; min-height: 50px; box-sizing: border-box;">
+      <div class="section-box" style="text-align: center; padding: 10px; min-height: 68px; box-sizing: border-box;">
         <div style="font-size: 10px; font-weight: bold; margin-bottom: 5px;">
           {{ $workOrder->appointment_planning_id !== null ? 'CON CITA' : 'SIN CITA' }}
         </div>
@@ -230,7 +230,7 @@
   <!-- INFORMACIÓN DEL VEHÍCULO Y CLIENTE -->
   <div class="two-column">
     <div class="column-left">
-      <div class="section-box">
+      <div class="section-box" style="min-height: 92px; box-sizing: border-box;">
         <table class="info-table">
           <tr>
             <td class="info-label">RUC</td>
@@ -257,7 +257,7 @@
     </div>
 
     <div class="column-right">
-      <div class="section-box">
+      <div class="section-box" style="min-height: 92px; box-sizing: border-box;">
         <table class="info-table">
           <tr>
             <td class="info-label">PLACA</td>
