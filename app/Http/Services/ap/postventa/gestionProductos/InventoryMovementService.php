@@ -20,6 +20,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -366,6 +367,9 @@ class InventoryMovementService extends BaseService
         throw new Exception('Debe proporcionar al menos un producto');
       }
 
+      // Validate that there are no duplicate products in the transfer
+      ProductWarehouseStock::validateUniqueProducts($details);
+
       // Get item type (PRODUCTO or SERVICIO)
       $itemType = $transferData['item_type'] ?? 'PRODUCTO';
 
@@ -413,48 +417,11 @@ class InventoryMovementService extends BaseService
           }
         }
 
-        // Validate stock availability in origin warehouse
-        foreach ($details as $detail) {
-          // Skip validation if it's a service (description instead of product_id)
-          if (!isset($detail['product_id'])) {
-            continue;
-          }
+        // Validate stock availability in origin warehouse (centralized)
+        ProductWarehouseStock::validateStockAvailability($details, $transferData['warehouse_origin_id'], $this->stockService);
 
-          $stock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_origin_id']);
-          $product = Products::find($detail['product_id']);
-          $productName = $product ? $product->name : "ID {$detail['product_id']}";
-
-          if (!$stock) {
-            throw new Exception(
-              "No se encontró registro de stock para el producto '{$productName}' en el almacén de origen"
-            );
-          }
-
-          if ($stock->available_quantity < $detail['quantity']) {
-            throw new Exception(
-              "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
-              "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
-            );
-          }
-        }
-
-        // Validate that all products have warehouse assignment in destination
-        foreach ($details as $detail) {
-          // Skip validation if it's a service (description instead of product_id)
-          if (!isset($detail['product_id'])) {
-            continue;
-          }
-
-          $destinationStock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_destination_id']);
-          $product = Products::find($detail['product_id']);
-          $productName = $product ? $product->name : "ID {$detail['product_id']}";
-
-          if (!$destinationStock) {
-            throw new Exception(
-              "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
-            );
-          }
-        }
+        // Validate that all products have warehouse assignment in destination (centralized)
+        ProductWarehouseStock::validateProductsExistInWarehouse($details, $transferData['warehouse_destination_id'], $this->stockService);
       } else {
         // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
         // Transmitter siempre tiene sede, intentar obtener su almacén

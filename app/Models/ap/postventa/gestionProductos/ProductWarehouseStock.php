@@ -182,6 +182,105 @@ class ProductWarehouseStock extends Model
     $this->save();
   }
 
+  /**
+   * Valida que no haya productos duplicados en un array de detalles de transferencia
+   *
+   * @param array $details Array de detalles con product_id
+   * @throws \Exception Si hay productos duplicados
+   * @return void
+   */
+  public static function validateUniqueProducts(array $details): void
+  {
+    $productIds = [];
+
+    foreach ($details as $index => $detail) {
+      // Skip validation if it's a service (no product_id)
+      if (!isset($detail['product_id']) || $detail['product_id'] === null) {
+        continue;
+      }
+
+      $productId = $detail['product_id'];
+
+      // Check if this product_id already exists in the array
+      if (in_array($productId, $productIds)) {
+        // Find the product to show a better error message
+        $product = Products::find($productId);
+        $productName = $product ? $product->name : "ID {$productId}";
+
+        throw new \Exception(
+          "El producto '{$productName}' está duplicado en la transferencia. Cada producto debe aparecer solo una vez."
+        );
+      }
+
+      $productIds[] = $productId;
+    }
+  }
+
+  /**
+   * Valida que hay stock suficiente disponible en un almacén para un array de productos
+   *
+   * @param array $details Array de detalles con product_id y quantity
+   * @param int $warehouseId ID del almacén a validar
+   * @param object $stockService Instancia del servicio de stock
+   * @throws \Exception Si no hay stock suficiente para algún producto
+   * @return void
+   */
+  public static function validateStockAvailability(array $details, int $warehouseId, object $stockService): void
+  {
+    foreach ($details as $detail) {
+      // Skip validation if it's a service (no product_id)
+      if (!isset($detail['product_id']) || $detail['product_id'] === null) {
+        continue;
+      }
+
+      $stock = $stockService->getStock($detail['product_id'], $warehouseId);
+      $product = Products::find($detail['product_id']);
+      $productName = $product ? $product->name : "ID {$detail['product_id']}";
+
+      if (!$stock) {
+        throw new \Exception(
+          "No se encontró registro de stock para el producto '{$productName}' en el almacén de origen"
+        );
+      }
+
+      if ($stock->available_quantity < $detail['quantity']) {
+        throw new \Exception(
+          "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
+          "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
+        );
+      }
+    }
+  }
+
+  /**
+   * Valida que los productos existen y están asignados a un almacén
+   *
+   * @param array $details Array de detalles con product_id
+   * @param int $warehouseId ID del almacén a validar
+   * @param object $stockService Instancia del servicio de stock
+   * @throws \Exception Si algún producto no está asignado al almacén
+   * @return void
+   */
+  public static function validateProductsExistInWarehouse(array $details, int $warehouseId, object $stockService): void
+  {
+    foreach ($details as $detail) {
+      // Skip validation if it's a service (no product_id)
+      if (!isset($detail['product_id']) || $detail['product_id'] === null) {
+        continue;
+      }
+
+      $stock = $stockService->getStock($detail['product_id'], $warehouseId);
+      $product = Products::find($detail['product_id']);
+      $productName = $product ? $product->name : "ID {$detail['product_id']}";
+
+      if (!$stock) {
+        throw new \Exception(
+          "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
+        );
+      }
+    }
+  }
+
   public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice): array
   {
     // Obtener el warehouse físico de postventa para la sede
