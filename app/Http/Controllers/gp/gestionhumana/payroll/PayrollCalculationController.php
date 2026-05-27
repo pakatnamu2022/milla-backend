@@ -221,4 +221,15 @@ class PayrollCalculationController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function testPromedio6Meses(Request $request)
+  {
+    $result = PayrollCalculation::calcularPromedioUltimos6Meses(
+      (int) $request->input('period_id'),
+      (int) $request->input('worker_id'),
+      (int) $request->input('company_id')
+    );
+
+    return response()->json($result);
+  }
 }
