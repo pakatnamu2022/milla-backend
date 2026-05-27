@@ -9,6 +9,7 @@ use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -155,8 +156,19 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
       // Determinar el tipo de movimiento
       $movementType = $this->getMovementType($firstLine->Tipo_Movimiento);
 
-      // Determinar las notas
-      $notes = $this->getNotes($firstLine->Tipo_Movimiento, $firstLine->Motivo ?? '');
+      // Determinar usuario
+      $numDocUser = $firstLine->Usuario;
+      $existUser = Worker::where('vat', $numDocUser)->first();
+
+      if ($existUser) {
+        if ($existUser->user) {
+          $userId = $existUser->user->id;
+        } else {
+          $notes = $firstLine->Motivo;
+        }
+      } else {
+        $notes = $firstLine->Motivo . ' Usuario: ' . $numDocUser;
+      }
 
       // Obtener el warehouse_id
       $warehouse = $this->getWarehouse($firstLine->Almacen);
@@ -179,9 +191,9 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
         'item_type' => 'PRODUCTO',
         'movement_date' => $movementDate,
         'warehouse_id' => $warehouse->id,
-        'user_id' => 1862,
+        'user_id' => $userId ?? null, // Sincronización automática desde Dynamics
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => $notes,
+        'notes' => $notes ?? null,
         'total_items' => count($lines),
       ]);
 
