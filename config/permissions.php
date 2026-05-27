@@ -224,17 +224,17 @@ return [
       'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
     ],
-    'canRemoveSparePartsOT' => [
+    'removeSparePartsOT' => [
       'label' => 'Quitar Repuestos de OT',
       'description' => 'Permite quitar repuestos de una orden de trabajo',
       'icon' => 'XCircle',
-      'policy_method' => 'canRemoveSparePartsOT',
+      'policy_method' => 'removeSparePartsOT',
     ],
-    'canAssignSparePartsOT' => [
+    'assignSparePartsOT' => [
       'label' => 'Asignar Repuestos a OT',
       'description' => 'Permite asignar repuestos a una orden de trabajo',
       'icon' => 'XCircle',
-      'policy_method' => 'canAssignSparePartsOT',
+      'policy_method' => 'assignSparePartsOT',
     ]
   ],
 
