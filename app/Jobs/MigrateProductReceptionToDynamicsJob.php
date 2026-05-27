@@ -69,7 +69,23 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
       throw new Exception("Guía de remisión no encontrada. ID: {$shippingGuideId}");
     }
 
-    $transferOutMovement = $shippingGuide->inventoryMovement;
+    // Si la guía está cancelada, obtener el movimiento de reversa (el que NO está cancelado)
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    if ($isCancelled) {
+      // Buscar el movimiento de reversa (el que NO está cancelado y tiene cancelled_inventory_movement_id)
+      $transferOutMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+        ->where('reference_id', $shippingGuide->id)
+        ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+        ->where('status', '!=', InventoryMovement::STATUS_CANCELLED)
+        ->whereNotNull('cancelled_inventory_movement_id')
+        ->with(['warehouse', 'warehouseDestination', 'details.product.articleClass'])
+        ->first();
+    } else {
+      // Usar el movimiento normal de la relación
+      $transferOutMovement = $shippingGuide->inventoryMovement;
+    }
+
     if (!$transferOutMovement) {
       throw new Exception("Movimiento de inventario no encontrado para la guía. ID: {$shippingGuideId}");
     }

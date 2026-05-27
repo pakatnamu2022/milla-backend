@@ -943,6 +943,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       if ($movement && $movement->item_type === 'SERVICIO') {
         throw new Exception('Las guías de remisión como SERVICIO no se sincronizan con Dynamics');
       }
+
+      if ($movement && $movement->item_type === 'PRODUCTO') {
+        $transferReception = $shippingGuide->transferReceptions()->first();
+
+        if (!$transferReception) {
+          throw new Exception('Debe realizar la recepción de la guía de remisión antes de sincronizar con Dynamics');
+        }
+      }
     }
 
     // Despachar el job para sincronizar con Dynamics

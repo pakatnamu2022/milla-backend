@@ -81,6 +81,13 @@ class TransferReceptionService extends BaseService
       // Generate reception number
       $receptionNumber = TransferReception::generateReceptionNumber();
 
+      // Estado de recepción
+      if ($shippingGuide->is_accounted) {
+        $statusReception = TransferReception::STATUS_APPROVED;
+      } else {
+        $statusReception = TransferReception::STATUS_PENDING;
+      };
+
       // Create reception header
       $reception = TransferReception::create([
         'reception_number' => $receptionNumber,
@@ -89,7 +96,7 @@ class TransferReceptionService extends BaseService
         'warehouse_id' => $data['warehouse_id'],
         'reception_date' => $data['reception_date'],
         'item_type' => $itemType,
-        'status' => TransferReception::STATUS_PENDING,
+        'status' => $statusReception,
         'notes' => $data['notes'] ?? "Recepción de transferencia {$transferOutMovement->movement_number}",
         'received_by' => Auth::id(),
         'total_items' => 0,
