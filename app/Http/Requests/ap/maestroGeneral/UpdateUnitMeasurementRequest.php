@@ -34,7 +34,7 @@ class UpdateUnitMeasurementRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('unitMeasurement')),
       ],
-      'number_decimals' => ['required', 'integer', 'max:4'],
+      'number_decimals' => ['required', 'integer', 'max:5'],
       'status' => ['nullable', 'boolean'],
     ];
   }
@@ -56,7 +56,7 @@ class UpdateUnitMeasurementRequest extends StoreRequest
 
       'number_decimals.required' => 'El número de decimales es obligatorio.',
       'number_decimals.integer' => 'El número de decimales debe ser un número entero.',
-      'number_decimals.max' => 'El número de decimales no debe exceder los 4 caracteres.',
+      'number_decimals.max' => 'El número de decimales no debe exceder los 5 caracteres.',
     ];
   }
 }
