@@ -572,6 +572,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id) {
       $workOrder = $this->find($id);
 
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
       if ($workOrder->order_quotation_id === null) {
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
@@ -625,9 +633,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
       }
+
       // Update work order
       $workOrder->update($data);
 
@@ -1244,9 +1257,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      // Validar que no esté anulada
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
       // Validar que no esté cerrada
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo cerrada');
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
       }
 
       // Validar que no tenga cotización asociada
@@ -1428,10 +1446,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   /**
    * Anular/Cancelar una orden de trabajo
    */
-  public function cancel($id): WorkOrderResource
+  public function cancel($data): WorkOrderResource
   {
-    return DB::transaction(function () use ($id) {
-      $workOrder = ApWorkOrder::with(['advancesWorkOrder'])->find($id);
+    return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::with(['advancesWorkOrder'])->find($data['id']);
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
@@ -1455,6 +1473,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Actualizar el estado a cancelado
       $workOrder->update([
         'status_id' => ApMasters::CANCELED_WORK_ORDER_ID,
+        'discarded_at' => now(),
+        'discarded_by' => auth()->id(),
+        'discard_reason_id' => $data['discard_reason_id'],
+        'discarded_note' => $data['discarded_note'] ?? null,
       ]);
 
       // Recargar relaciones
