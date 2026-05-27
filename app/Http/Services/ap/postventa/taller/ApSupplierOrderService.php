@@ -11,6 +11,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
@@ -100,6 +101,18 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         $duplicates = array_unique(array_diff_assoc($productIds, array_unique($productIds)));
         if (!empty($duplicates)) {
           throw new Exception('No se permite registrar el mismo producto más de una vez en la orden. Productos duplicados: ' . implode(', ', $duplicates));
+        }
+      }
+
+      // Validar decimales según la unidad de medida de cada producto
+      if (!empty($details)) {
+        foreach ($details as $detail) {
+          if (isset($detail['product_id']) && isset($detail['quantity'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product) {
+              $product->validateDecimals($detail['quantity']);
+            }
+          }
         }
       }
 
@@ -211,6 +224,16 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         $duplicates = array_unique(array_diff_assoc($productIds, array_unique($productIds)));
         if (!empty($duplicates)) {
           throw new Exception('No se permite registrar el mismo producto más de una vez en la orden. Productos duplicados: ' . implode(', ', $duplicates));
+        }
+
+        // Validar decimales según la unidad de medida de cada producto
+        foreach ($details as $detail) {
+          if (isset($detail['product_id']) && isset($detail['quantity'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product) {
+              $product->validateDecimals($detail['quantity']);
+            }
+          }
         }
 
         // Calculate new net_amount from details

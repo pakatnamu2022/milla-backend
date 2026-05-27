@@ -89,6 +89,18 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         $this->validateProductsInWarehouse($details, $data['warehouse_id']);
       }
 
+      // Validar decimales según la unidad de medida de cada producto
+      if (!empty($details)) {
+        foreach ($details as $detail) {
+          if (isset($detail['product_id']) && isset($detail['quantity'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product) {
+              $product->validateDecimals($detail['quantity']);
+            }
+          }
+        }
+      }
+
       // Mark quotation as taken if provided
       if (isset($data['ap_order_quotation_id'])) {
         ApOrderQuotations::find($data['ap_order_quotation_id'])
@@ -175,6 +187,18 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       } elseif ($details !== null) {
         // If warehouse_id is not in data, use the current warehouse_id
         $this->validateProductsInWarehouse($details, $purchaseRequest->warehouse_id);
+      }
+
+      // Validar decimales según la unidad de medida de cada producto
+      if ($details !== null) {
+        foreach ($details as $detail) {
+          if (isset($detail['product_id']) && isset($detail['quantity'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product) {
+              $product->validateDecimals($detail['quantity']);
+            }
+          }
+        }
       }
 
       // Update purchase request
