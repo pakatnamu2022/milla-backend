@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\tp\facturacion\FacInvoice;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -28,36 +27,43 @@ class SyncFacInvoiceJob implements ShouldQueue
     $processed = 0;
 
     try {
-      $records = DB::connection('dbtp2')
-        ->table('RM20101_MILLA_DOCFV')
-        ->get();
+      $records = DB::table('fac_invoice')
+        ->whereNotNull('serie')
+        ->whereNotNull('numero')
+        ->where('status_envio_gp', 1)
+        ->where('status_deleted', 1)
+        ->where('status_envio_sunat', 1)
+        ->whereYear('fecha_emision', 2026)
+        ->get(['serie', 'numero', 'fecha_vencimiento']);
 
-      $chunks = $records->chunk(500);
-
-      foreach ($chunks as $chunk) {
+      foreach ($records->chunk(500) as $chunk) {
         $rows = $chunk->map(function ($record) {
+          $documentoId = 'FA ' . trim($record->serie) . '-' . str_pad(trim($record->numero), 8, '0', STR_PAD_LEFT);
+
           return [
-            'DocumentoId'       => trim($record->DOCNUMBR ?? ''),
-            'FechaVencimiento'  => $this->parseDate($record->DUEDATE ?? null),
+            'DocumentoId' => $documentoId,
+            'FechaVencimiento' => $this->parseDate($record->fecha_vencimiento),
           ];
-        })->filter(fn($row) => $row['DocumentoId'] !== '')->values()->toArray();
+        })->filter(fn($row) => $row['DocumentoId'] !== 'FA-00000000')->values()->toArray();
 
         if (empty($rows)) {
           continue;
         }
 
-        FacInvoice::upsert(
-          $rows,
-          ['DocumentoId'],
-          ['FechaVencimiento']
-        );
+        DB::connection('dbtp2')
+          ->table('RM20101_MILLA_DOCFV')
+          ->upsert(
+            $rows,
+            ['DocumentoId'],
+            ['FechaVencimiento']
+          );
 
         $processed += count($rows);
       }
 
       Log::info('SyncFacInvoiceJob completado', [
         'total_procesados' => $processed,
-        'synced_at'        => $syncedAt,
+        'synced_at' => $syncedAt,
       ]);
     } catch (Throwable $e) {
       Log::error('SyncFacInvoiceJob error', [
