@@ -34,6 +34,7 @@ class UpdateUnitMeasurementRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('unitMeasurement')),
       ],
+      'number_decimals' => ['required', 'integer', 'max:4'],
       'status' => ['nullable', 'boolean'],
     ];
   }
@@ -52,6 +53,10 @@ class UpdateUnitMeasurementRequest extends StoreRequest
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 100 caracteres.',
       'description.unique' => 'La descripción ya existe.',
+
+      'number_decimals.required' => 'El número de decimales es obligatorio.',
+      'number_decimals.integer' => 'El número de decimales debe ser un número entero.',
+      'number_decimals.max' => 'El número de decimales no debe exceder los 4 caracteres.',
     ];
   }
 }

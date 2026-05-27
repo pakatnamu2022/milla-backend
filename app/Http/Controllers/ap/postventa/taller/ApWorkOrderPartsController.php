@@ -81,7 +81,7 @@ class ApWorkOrderPartsController extends Controller
     try {
       $data = $request->validate([
         'delivered_to' => 'required|integer|exists:rrhh_persona,id',
-        'delivered_quantity' => 'required|integer|min:1',
+        'delivered_quantity' => 'required|numeric|min:0.0001',
       ]);
 
       return $this->success($this->service->assignToTechnician($id, $data));
@@ -121,6 +121,15 @@ class ApWorkOrderPartsController extends Controller
   {
     try {
       return $this->success($this->service->getDeliveriesByWorkOrderPart($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function unassignFromTechnician($deliveryId)
+  {
+    try {
+      return $this->success($this->service->unassignFromTechnician($deliveryId));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

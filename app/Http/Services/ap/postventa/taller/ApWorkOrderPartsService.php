@@ -171,6 +171,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $data['registered_by'] = auth()->user()->id;
       }
 
+      // Validar decimales según la unidad de medida del producto
+      $product = Products::find($data['product_id']);
+      $product->validateDecimals($data['quantity_used']);
+
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
 
@@ -273,6 +277,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $newProductId = $data['product_id'] ?? $oldProductId;
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
       $newQuantity = $data['quantity_used'] ?? $oldQuantity;
+
+      // Validar decimales si cambió la cantidad o el producto
+      if (isset($data['quantity_used']) || isset($data['product_id'])) {
+        $product = Products::find($newProductId);
+        $product->validateDecimals($newQuantity);
+      }
 
       // Si cambió el producto, almacén o cantidad, ajustar el stock
       if ($newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity) {
@@ -574,6 +584,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $deliveredQuantity = $data['delivered_quantity'];
       $deliveredTo = Worker::find($data['delivered_to'])->user->id;
 
+      // Validar decimales según la unidad de medida del producto
+      $workOrderPart->product->validateDecimals($deliveredQuantity);
+
       // Calcular cantidad ya asignada
       $totalAssigned = $workOrderPart->assigned_quantity ?? 0;
 
@@ -777,6 +790,42 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       ->get();
 
     return ApWorkOrderPartDeliveryResource::collection($deliveries);
+  }
+
+  public function unassignFromTechnician(int $deliveryId)
+  {
+    return DB::transaction(function () use ($deliveryId) {
+      // Buscar el registro de entrega
+      $delivery = ApWorkOrderPartDelivery::find($deliveryId);
+
+      if (!$delivery) {
+        throw new Exception('Registro de entrega no encontrado');
+      }
+
+      // Validar que no haya sido confirmado por el técnico
+      if ($delivery->is_received) {
+        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
+      }
+
+      // Obtener el repuesto asociado
+      $workOrderPart = $delivery->workOrderPart;
+
+      if (!$workOrderPart) {
+        throw new Exception('Repuesto de orden de trabajo no encontrado');
+      }
+
+      // Restar la cantidad asignada
+      $workOrderPart->assigned_quantity = ($workOrderPart->assigned_quantity ?? 0) - $delivery->delivered_quantity;
+      $workOrderPart->save();
+
+      // Eliminar el registro de entrega
+      $delivery->delete();
+
+      return [
+        'message' => 'Asignación eliminada correctamente',
+        'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
+      ];
+    });
   }
 
   /**

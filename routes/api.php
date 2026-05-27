@@ -1337,6 +1337,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
       Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+      Route::post('workOrderParts/{id}/unassign', [ApWorkOrderPartsController::class, 'unassignFromTechnician']);
       Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
       Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
       Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);

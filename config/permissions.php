@@ -235,6 +235,12 @@ return [
       'description' => 'Permite asignar repuestos a una orden de trabajo',
       'icon' => 'XCircle',
       'policy_method' => 'assignSparePartsOT',
+    ],
+    'removeAssignSparePartsOT' => [
+      'label' => 'Remover Asignación de Repuestos a OT',
+      'description' => 'Permite quitar repuestos a ot',
+      'icon' => 'XCircle',
+      'policy_method' => 'removeAssignSparePartsOT',
     ]
   ],
 
