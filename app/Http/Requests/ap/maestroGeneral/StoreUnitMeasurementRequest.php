@@ -34,7 +34,7 @@ class StoreUnitMeasurementRequest extends StoreRequest
       'number_decimals' => [
         'required',
         'integer',
-        'max:4',
+        'max:5',
       ]
     ];
   }
@@ -59,7 +59,7 @@ class StoreUnitMeasurementRequest extends StoreRequest
 
       'number_decimals.required' => 'El número de decimales es obligatorio.',
       'number_decimals.integer' => 'El número de decimales debe ser un número entero.',
-      'number_decimals.max' => 'El número de decimales no debe exceder los 4 caracteres.',
+      'number_decimals.max' => 'El número de decimales no debe exceder los 5 caracteres.',
     ];
   }
 }

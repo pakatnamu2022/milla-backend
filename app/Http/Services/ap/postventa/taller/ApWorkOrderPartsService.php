@@ -386,9 +386,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede eliminar el repuesto porque la orden de trabajo ya tiene avances de factura');
       }
 
-      //validar que si ya se asignó y técnico confirmo la recepción no permita eliminar
-      if ($workOrderPart->deliveries()->where('is_received', true)->exists()) {
-        throw new Exception('No se puede eliminar el repuesto porque ya ha sido asignado a un técnico y confirmado su recepción');
+      // Validar que no existan asignaciones a técnicos (entregas)
+      if ($workOrderPart->deliveries()->exists()) {
+        throw new Exception('No se puede eliminar el repuesto porque tiene asignaciones a técnicos. Debe eliminar todas las asignaciones antes de eliminar el repuesto');
       }
 
       // Validar si existe una solicitud de descuento activa
@@ -502,6 +502,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           'discount_percentage' => $detail->discount_percentage ?? 0,
           'group_number' => $data['group_number'],
         ];
+
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($detail->product_id);
+        $product->validateDecimals($detail->quantity);
 
         // Calcular precios y totales automáticamente
         $this->calculatePricesAndTotals($partData);
