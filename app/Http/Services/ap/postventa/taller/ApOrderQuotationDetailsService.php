@@ -55,6 +55,12 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Only validate price for products, not for labor
       if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($data['product_id']);
+        if ($product) {
+          $product->validateDecimals($data['quantity']);
+        }
+
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $data['product_id'],
           $sedeId,
@@ -106,6 +112,14 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Validate if quotation is already associated with a work order
       $this->validateQuotationNotAssociatedWithWorkOrder($apOrderQuotationDetails->order_quotation_id);
+
+      // Validar decimales para productos
+      if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+        $product = Products::find($data['product_id']);
+        if ($product) {
+          $product->validateDecimals($data['quantity']);
+        }
+      }
 
       // Calculate total_amount from percentage
       $data['total_amount'] = $this->calculateDetailTotal($data);
