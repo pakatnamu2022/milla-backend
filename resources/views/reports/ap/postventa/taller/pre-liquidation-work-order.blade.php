@@ -213,27 +213,15 @@
         <div style="font-size: 10px; font-weight: bold; margin-bottom: 5px;">
           {{ $workOrder->appointment_planning_id !== null ? 'CON CITA' : 'SIN CITA' }}
         </div>
-        <div style="font-size: 10px; font-weight: bold; margin-bottom: 5px;">ORDEN DE TRABAJO</div>
         <div style="font-size: 9px; margin-bottom: 8px;">AUTOMOTORES PAKATNAMU S.A.C. |
           {{ $workOrder->sede->abreviatura ?? 'N/A' }}</div>
         <div style="margin-bottom: 5px;">
           <span style="font-weight: bold;">NÚMERO</span>
           <span style="margin-left: 10px;">: {{ $workOrder->correlative }}</span>
         </div>
-        <div style="margin-bottom: 5px;">
-          <span style="font-weight: bold;">PLACA</span>
-          <span style="margin-left: 10px;">: {{ $vehicle->plate ?? 'N/A' }}</span>
-        </div>
         <div style="margin-bottom: 5px; font-size: 9px;">
           <span style="font-weight: bold;">TIPO SERVICIO</span>
           <span>: {{ $workOrder->items->first()->typePlanning->description ?? 'N/A' }}</span>
-        </div>
-        <div style="margin-bottom: 5px; font-size: 9px;">
-          <span style="font-weight: bold;">ASISTENTE</span>
-          <span class="checkbox" style="margin-left: 10px;"></span>
-        </div>
-        <div style="font-size: 9px;">
-          <span style="font-weight: bold;">FEC. ASISTENCIA</span>
         </div>
       </div>
     </div>
@@ -288,10 +276,6 @@
             <td>: {{ $vehicle->vin ?? 'N/A' }}</td>
           </tr>
           <tr>
-            <td class="info-label">CHASIS</td>
-            <td colspan="3">: {{ $vehicle->vin ?? 'N/A' }}</td>
-          </tr>
-          <tr>
             <td class="info-label">FEC. VENTA</td>
             <td>: {{ $vehicle->created_at ? \Carbon\Carbon::parse($vehicle->created_at)->format('d/m/Y') : 'N/A' }}</td>
           </tr>
@@ -304,22 +288,14 @@
   <div class="section-box">
     <table class="info-table">
       <tr>
-        <td class="info-label" style="width: 110px;">NRO PRESUPUESTO</td>
-        <td style="width: 200px;">:</td>
+        <td class="info-label">RECEPCIONISTA</td>
+        <td>: {{ strtoupper($workOrder->advisor->nombre_completo ?? 'N/A') }}</td>
         <td class="info-label" style="width: 110px;">TEL. RECEPCIONISTA</td>
         <td>: {{ strtoupper($workOrder->advisor->tel_referencia_3 ?? 'N/A') }}</td>
       </tr>
       <tr>
         <td class="info-label">EMAIL RECEPCIONISTA</td>
         <td>: {{ strtolower($workOrder->advisor->email2 ?? 'N/A') }}</td>
-        <td class="info-label">RECEPCIONISTA</td>
-        <td>: {{ strtoupper($workOrder->advisor->nombre_completo ?? 'N/A') }}</td>
-      </tr>
-      <tr>
-        <td class="info-label">SINIESTRO</td>
-        <td>:</td>
-        <td class="info-label">LIQ.</td>
-        <td>:</td>
       </tr>
     </table>
   </div>
@@ -339,25 +315,6 @@
           <div style="font-weight: bold; margin-bottom: 5px; text-align: center;">RESULTADO REQUERIMIENTO</div>
         </div>
       </div>
-    </div>
-    <div style="margin-top: 10px; border-top: 1px solid #000; padding-top: 5px;">
-      <table style="width: 100%;">
-        <tr>
-          <td style="width: 25%; vertical-align: top;">
-            <div class="bold">CUANDO</div>
-            <div class="bold">FRECUENCIA</div>
-          </td>
-          <td style="width: 25%; vertical-align: top;">
-            <div class="bold">C.CALIDAD</div>
-          </td>
-          <td style="width: 25%; vertical-align: top;">
-            <div class="bold">DONDE</div>
-          </td>
-          <td style="width: 25%; vertical-align: top;">
-            <div class="bold">LUZ ADVERTENCIA</div>
-          </td>
-        </tr>
-      </table>
     </div>
   </div>
 
