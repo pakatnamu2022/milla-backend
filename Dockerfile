@@ -4,6 +4,10 @@ FROM php:8.3-fpm-bookworm
 ENV TZ=America/Lima
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# Usar mirror alternativo por bloqueo de Fastly CDN
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list 2>/dev/null; true
+
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     git unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
