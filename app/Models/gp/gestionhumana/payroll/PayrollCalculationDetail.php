@@ -11,7 +11,6 @@ class PayrollCalculationDetail extends BaseModel
 
   protected $fillable = [
     'calculation_id',
-    'concept_id',
     'concept_code',
     'concept_name',
     'type',
@@ -45,7 +44,6 @@ class PayrollCalculationDetail extends BaseModel
 
   const filters = [
     'calculation_id' => '=',
-    'concept_id' => '=',
     'type' => '=',
   ];
 
@@ -60,37 +58,5 @@ class PayrollCalculationDetail extends BaseModel
   public function calculation(): BelongsTo
   {
     return $this->belongsTo(PayrollCalculation::class, 'calculation_id');
-  }
-
-  /**
-   * Get the concept for this detail
-   */
-  public function concept(): BelongsTo
-  {
-    return $this->belongsTo(PayrollConcept::class, 'concept_id');
-  }
-
-  /**
-   * Scope to get earnings
-   */
-  public function scopeEarnings($query)
-  {
-    return $query->where('type', PayrollConcept::TYPE_EARNING);
-  }
-
-  /**
-   * Scope to get deductions
-   */
-  public function scopeDeductions($query)
-  {
-    return $query->where('type', PayrollConcept::TYPE_DEDUCTION);
-  }
-
-  /**
-   * Scope to get employer contributions
-   */
-  public function scopeEmployerContributions($query)
-  {
-    return $query->where('type', PayrollConcept::TYPE_EMPLOYER_CONTRIBUTION);
   }
 }

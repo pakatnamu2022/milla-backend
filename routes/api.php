@@ -105,7 +105,6 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
@@ -1695,10 +1694,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Formula Variables
     Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
 
-    // Concepts
-    Route::post('concepts/{id}/test-formula', [PayrollConceptController::class, 'testFormula']);
-    Route::apiResource('concepts', PayrollConceptController::class);
-
     // Periods
     Route::get('periods/current', [PayrollPeriodController::class, 'current']);
     Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
@@ -1721,8 +1716,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::delete('workers/{workerId}/attendance-rules/{code}', [WorkerAttendanceRuleController::class, 'destroy']);
 
     // Calculations
-    Route::post('calculations/calculate', [PayrollCalculationController::class, 'calculate']);
-    Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
     Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
     Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
     Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
