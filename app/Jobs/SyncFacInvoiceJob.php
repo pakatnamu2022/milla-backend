@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\tp\comercial\FacInvoice;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -27,39 +28,33 @@ class SyncFacInvoiceJob implements ShouldQueue
     $processed = 0;
 
     try {
-      $records = DB::table('fac_invoice')
+      FacInvoice::with('tipoComprobante')
         ->whereNotNull('serie')
         ->whereNotNull('numero')
         ->where('status_envio_gp', 1)
         ->where('status_deleted', 1)
         ->where('status_envio_sunat', 1)
-        ->whereYear('fecha_emision', 2026)
-        ->get(['serie', 'numero', 'fecha_vencimiento']);
-
-      foreach ($records->chunk(500) as $chunk) {
-        $rows = $chunk->map(function ($record) {
-          $documentoId = 'FA ' . trim($record->serie) . '-' . str_pad(trim($record->numero), 8, '0', STR_PAD_LEFT);
-
-          return [
-            'DocumentoId' => $documentoId,
+        ->select(['id', 'serie', 'numero', 'fecha_vencimiento', 'tipo_comprobante_id'])
+        ->chunk(500, function ($chunk) use (&$processed) {
+          $rows = $chunk->map(fn($record) => [
+            'DocumentoId' => $record->documento_id,
             'FechaVencimiento' => $this->parseDate($record->fecha_vencimiento),
-          ];
-        })->filter(fn($row) => $row['DocumentoId'] !== 'FA-00000000')->values()->toArray();
+          ])->filter(fn($row) => !str_ends_with($row['DocumentoId'], '-00000000'))->values()->toArray();
 
-        if (empty($rows)) {
-          continue;
-        }
+          if (empty($rows)) {
+            return;
+          }
 
-        DB::connection('dbtp2')
-          ->table('RM20101_MILLA_DOCFV')
-          ->upsert(
-            $rows,
-            ['DocumentoId'],
-            ['FechaVencimiento']
-          );
+          DB::connection('dbtp2')
+            ->table('RM20101_MILLA_DOCFV')
+            ->upsert(
+              $rows,
+              ['DocumentoId'],
+              ['FechaVencimiento']
+            );
 
-        $processed += count($rows);
-      }
+          $processed += count($rows);
+        });
 
       Log::info('SyncFacInvoiceJob completado', [
         'total_procesados' => $processed,
