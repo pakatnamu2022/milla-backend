@@ -136,3 +136,10 @@ Schedule::command('warehouse:notify-low-stock')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Sincronizar FAC_INVOICE desde RM20101_MILLA_DOCFV (DBTP2) — Módulo Transportes
+Schedule::command('tp:sync-fac-invoice')
+  ->dailyAt('22:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
