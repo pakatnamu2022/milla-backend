@@ -59,7 +59,7 @@ jobs:
           
           echo "♻️ Restarting services..."
           docker compose restart app
-          docker compose exec -T app php artisan queue:restart
+          docker compose exec -T horizon php artisan horizon:terminate
           docker compose exec -T app php artisan schedule:clear-cache
           docker compose exec -T app php -r "if(function_exists('opcache_reset')) opcache_reset();"
           
