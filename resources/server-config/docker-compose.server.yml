@@ -2,6 +2,8 @@ services:
     app:
         build: .
         working_dir: /var/www/html
+        ports:
+            - "127.0.0.1:9000:9000"
         volumes:
             - ./app:/var/www/html
             - ./ops/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
