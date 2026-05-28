@@ -133,6 +133,62 @@ class Products extends Model
     return $this->warehouseStocks()->sum('available_quantity');
   }
 
+  /**
+   * Valida que la cantidad tenga el número correcto de decimales según la unidad de medida
+   *
+   * @param float|int $quantity
+   * @return void
+   * @throws \Exception
+   */
+  public function validateDecimals($quantity): void
+  {
+    // Cargar la unidad de medida si no está cargada
+    if (!$this->relationLoaded('unitMeasurement')) {
+      $this->load('unitMeasurement');
+    }
+
+    if (!$this->unitMeasurement) {
+      throw new \Exception("El producto '{$this->name}' no tiene una unidad de medida asignada.");
+    }
+
+    $numberDecimals = $this->unitMeasurement->number_decimals;
+
+    // Validar que el valor sea numérico
+    if (!is_numeric($quantity)) {
+      throw new \Exception("La cantidad para el producto '{$this->name}' debe ser un valor numérico.");
+    }
+
+    // Si no acepta decimales, validar que sea entero
+    if ($numberDecimals == 0 && floor($quantity) != $quantity) {
+      throw new \Exception(
+        "El producto '{$this->name}' solo acepta números enteros sin decimales según su unidad de medida."
+      );
+    }
+
+    // Si acepta decimales, validar que no exceda el límite
+    if ($numberDecimals > 0) {
+      $stringValue = (string) $quantity;
+
+      // Si tiene punto decimal, validar
+      if (strpos($stringValue, '.') !== false) {
+        $parts = explode('.', $stringValue);
+        $decimalPart = $parts[1] ?? '';
+        $actualDecimals = strlen($decimalPart);
+
+        if ($actualDecimals > $numberDecimals) {
+          // Construir mensaje amigable según el número de decimales
+          $decimalText = $numberDecimals == 1
+            ? "1 decimal"
+            : "{$numberDecimals} decimales";
+
+          throw new \Exception(
+            "El producto '{$this->name}' solo acepta números con {$decimalText} según su unidad de medida. Ejemplo: " . number_format(12.34, $numberDecimals, '.', '')
+          );
+        }
+      }
+    }
+  }
+
   // Static Methods
 
   /**

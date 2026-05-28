@@ -13,6 +13,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
@@ -208,6 +209,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   {
     return DB::transaction(function () use ($data) {
       $workOrder = $this->find($data['id']);
+
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
+      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo finalizada');
+      }
 
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
@@ -563,6 +572,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id) {
       $workOrder = $this->find($id);
 
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
+      }
+
       if ($workOrder->order_quotation_id === null) {
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
@@ -616,9 +633,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede modificar una orden de trabajo cerrada');
       }
+
       // Update work order
       $workOrder->update($data);
 
@@ -1235,9 +1257,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      // Validar que no esté anulada
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede modificar una orden de trabajo anulada');
+      }
+
       // Validar que no esté cerrada
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo cerrada');
+        throw new Exception('No se puede modificar una orden de trabajo cerrada');
       }
 
       // Validar que no tenga cotización asociada
@@ -1284,6 +1311,183 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'creator',
         'items.typePlanning',
         'typeCurrency'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Enviar a facturar OT
+   */
+  public function sendToFinished(mixed $data): WorkOrderResource
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::with(['labours', 'parts.deliveries', 'items.typePlanning', 'discountRequests'])->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      $validateLabor = $workOrder->shouldValidateLabor();
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      if ($validateReceipt && $workOrder->vehicleInspection === null) {
+        throw new Exception('La orden de trabajo debe tener una recepción');
+      }
+
+      // Validar que no haya descuentos pendientes en repuestos o mano de obra
+      $pendingDiscounts = $workOrder->discountRequests()
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
+        ->whereIn('part_labour_model', [ApWorkOrderParts::class, WorkOrderLabour::class])
+        ->exists();
+
+      if ($pendingDiscounts) {
+        throw new Exception('No se puede finalizar la orden de trabajo. Hay solicitudes de descuento pendientes de aprobación. Por favor, apruebe o rechace las solicitudes antes de continuar.');
+      }
+
+      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
+        return $labour->worker_id !== null && $labour->deleted_at === null;
+      });
+
+      if ($validateLabor && $laboursWithWorker->count() === 0) {
+        throw new Exception('La orden de trabajo debe tener un operario asignado.');
+      }
+
+      // Validate that all parts are fully delivered and received by technician if work order has parts
+      if ($workOrder->parts->count() > 0 && $validateLabor) {
+        $partsNotFullyDelivered = [];
+        $partsNotReceivedByTechnician = [];
+
+        foreach ($workOrder->parts as $part) {
+          // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
+          $totalDelivered = $part->deliveries
+            ->whereNull('deleted_at')
+            ->sum('delivered_quantity');
+
+          // Calculate total received quantity by technician (only deliveries confirmed as received)
+          $totalReceived = $part->deliveries
+            ->whereNull('deleted_at')
+            ->where('is_received', true)
+            ->sum('delivered_quantity');
+
+          // Get pending deliveries (not yet received by technician)
+          $pendingReceipt = $part->deliveries
+            ->whereNull('deleted_at')
+            ->where('is_received', false)
+            ->sum('delivered_quantity');
+
+          // Compare with quantity_used
+          $quantityUsed = (float)$part->quantity_used;
+          $totalDelivered = (float)$totalDelivered;
+          $totalReceived = (float)$totalReceived;
+          $pendingReceipt = (float)$pendingReceipt;
+
+          $productName = $part->product->name ?? "Producto ID: {$part->product_id}";
+
+          // If not fully delivered, add to list
+          if ($totalDelivered < $quantityUsed) {
+            $partsNotFullyDelivered[] = sprintf(
+              '%s (Usado: %.2f, Entregado: %.2f, Pendiente de entrega: %.2f)',
+              $productName,
+              $quantityUsed,
+              $totalDelivered,
+              $quantityUsed - $totalDelivered
+            );
+          }
+
+          // If not fully received by technician, add to list
+          if ($totalReceived < $quantityUsed) {
+            $partsNotReceivedByTechnician[] = sprintf(
+              '%s (Usado: %.2f, Recibido: %.2f, Pendiente de confirmar recepción: %.2f)',
+              $productName,
+              $quantityUsed,
+              $totalReceived,
+              $pendingReceipt
+            );
+          }
+        }
+
+        if (count($partsNotFullyDelivered) > 0) {
+          throw new Exception(
+            'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
+            implode('; ', $partsNotFullyDelivered)
+          );
+        }
+
+        if (count($partsNotReceivedByTechnician) > 0) {
+          throw new Exception(
+            'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido confirmados como recibidos por el técnico: ' .
+            implode('; ', $partsNotReceivedByTechnician)
+          );
+        }
+      }
+
+      if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('No se puede facturar una orden de trabajo cancelada.');
+      }
+
+      if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && $validateLabor) {
+        throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+      }
+
+      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('La orden de trabajo ya se encuentra en proceso de facturación');
+      }
+
+      $workOrder->update([
+        'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Anular/Cancelar una orden de trabajo
+   */
+  public function cancel($data): WorkOrderResource
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::with(['advancesWorkOrder'])->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que no esté ya cancelada
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        throw new Exception('La orden de trabajo ya está anulada');
+      }
+
+      // Validar que no esté cerrada
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('No se puede anular una orden de trabajo cerrada');
+      }
+
+      // Validar que no tenga anticipos
+      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
+      }
+
+      // Actualizar el estado a cancelado
+      $workOrder->update([
+        'status_id' => ApMasters::CANCELED_WORK_ORDER_ID,
+        'discarded_at' => now(),
+        'discarded_by' => auth()->id(),
+        'discard_reason_id' => $data['discard_reason_id'],
+        'discarded_note' => $data['discarded_note'] ?? null,
+      ]);
+
+      // Recargar relaciones
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
       ]);
 
       return new WorkOrderResource($workOrder);

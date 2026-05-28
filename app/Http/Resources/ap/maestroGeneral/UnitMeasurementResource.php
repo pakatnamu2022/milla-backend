@@ -14,6 +14,7 @@ class UnitMeasurementResource extends JsonResource
       'dyn_code' => $this->dyn_code,
       'nubefac_code' => $this->nubefac_code,
       'description' => $this->description,
+      'number_decimals' => $this->number_decimals,
       'status' => (bool)$this->status,
     ];
   }

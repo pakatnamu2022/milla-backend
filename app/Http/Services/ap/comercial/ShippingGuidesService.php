@@ -731,6 +731,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           // CASO 1: Recién se aceptó
           DB::beginTransaction();
           $guide->markAsAccepted($responseData);
+
+          // Si es una guía de productos de posventa, migrar a Dynamics inmediatamente
+          if ($guide->area_id === ApMasters::AREA_POSVENTA) {
+            $inventoryMovement = $guide->inventoryMovement;
+            if ($inventoryMovement && $inventoryMovement->item_type === 'PRODUCTO') {
+              \App\Jobs\MigrateProductReceptionToDynamicsJob::dispatch($guide->id);
+            }
+          }
+
           DB::commit();
           $message = 'La guía ha sido aceptada por SUNAT';
         } elseif (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && $guide->aceptada_por_sunat) {
@@ -848,27 +857,6 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     ];
   }
 
-  public function checkResources($id)
-  {
-    $shippingGuide = $this->find($id);
-
-    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-
-    $result = [
-      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
-      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
-      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
-    ];
-
-    // Para guías de VENTA incluir también el preview del asiento contable,
-    // tal como lo hace SyncAccountingEntryJob al sincronizar con Dynamics.
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
-      $result['accounting_entry'] = $this->buildAccountingEntryPreview($shippingGuide);
-    }
-
-    return $result;
-  }
-
   /**
    * Construye el preview del asiento contable que se enviará a Dynamics
    * para una guía de remisión de venta.
@@ -954,6 +942,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       if ($movement && $movement->item_type === 'SERVICIO') {
         throw new Exception('Las guías de remisión como SERVICIO no se sincronizan con Dynamics');
+      }
+
+      if ($movement && $movement->item_type === 'PRODUCTO') {
+        $transferReception = $shippingGuide->transferReceptions()->first();
+
+        if (!$transferReception) {
+          throw new Exception('Debe realizar la recepción de la guía de remisión antes de sincronizar con Dynamics');
+        }
       }
     }
 

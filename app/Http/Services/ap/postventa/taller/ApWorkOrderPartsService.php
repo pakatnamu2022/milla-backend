@@ -141,24 +141,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($data) {
       $workOrder = ApWorkOrder::find($data['work_order_id']);
-      $validateReceipt = $workOrder->items->first()?->typePlanning->validate_receipt;
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede agregar repuestos a una orden de trabajo cerrada');
-      }
-
-      if ($workOrder->vehicleInspection === null && $validateReceipt) {
-        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción vehicular');
-      }
-
-      // Validar que no existan avances de factura
-      if ($workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
-      }
+      $this->validateWorkOrderState($workOrder);
 
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
@@ -182,6 +170,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
       }
+
+      // Validar decimales según la unidad de medida del producto
+      $product = Products::find($data['product_id']);
+      $product->validateDecimals($data['quantity_used']);
 
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
@@ -286,6 +278,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
       $newQuantity = $data['quantity_used'] ?? $oldQuantity;
 
+      // Validar decimales si cambió la cantidad o el producto
+      if (isset($data['quantity_used']) || isset($data['product_id'])) {
+        $product = Products::find($newProductId);
+        $product->validateDecimals($newQuantity);
+      }
+
       // Si cambió el producto, almacén o cantidad, ajustar el stock
       if ($newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity) {
         // Liberar el stock antiguo
@@ -388,9 +386,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede eliminar el repuesto porque la orden de trabajo ya tiene avances de factura');
       }
 
-      //validar que si ya se asignó y técnico confirmo la recepción no permita eliminar
-      if ($workOrderPart->deliveries()->where('is_received', true)->exists()) {
-        throw new Exception('No se puede eliminar el repuesto porque ya ha sido asignado a un técnico y confirmado su recepción');
+      // Validar que no existan asignaciones a técnicos (entregas)
+      if ($workOrderPart->deliveries()->exists()) {
+        throw new Exception('No se puede eliminar el repuesto porque tiene asignaciones a técnicos. Debe eliminar todas las asignaciones antes de eliminar el repuesto');
       }
 
       // Validar si existe una solicitud de descuento activa
@@ -505,6 +503,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           'group_number' => $data['group_number'],
         ];
 
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($detail->product_id);
+        $product->validateDecimals($detail->quantity);
+
         // Calcular precios y totales automáticamente
         $this->calculatePricesAndTotals($partData);
 
@@ -586,6 +588,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $deliveredQuantity = $data['delivered_quantity'];
       $deliveredTo = Worker::find($data['delivered_to'])->user->id;
 
+      // Validar decimales según la unidad de medida del producto
+      $workOrderPart->product->validateDecimals($deliveredQuantity);
+
       // Calcular cantidad ya asignada
       $totalAssigned = $workOrderPart->assigned_quantity ?? 0;
 
@@ -655,12 +660,18 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $delivery = $deliveries->firstWhere('id', $deliveryId);
 
         if (!$delivery) {
-          $errors[] = "Registro de entrega ID {$deliveryId} no encontrado";
+          $errors[] = "Usuario no encontrado";
+          continue;
+        }
+
+        // Validar que el usuario autenticado sea el asignado al repuesto
+        if ($delivery->delivered_to !== $currentUser->id) {
+          $errors[] = "La entrega de repuesto debe ser confirmada por el técnico asignado.";
           continue;
         }
 
         if ($delivery->is_received) {
-          $errors[] = "La entrega ID {$deliveryId} ya ha sido confirmada";
+          $errors[] = "La entrega del repuesto ya ha sido confirmada";
           continue;
         }
 
@@ -783,5 +794,67 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       ->get();
 
     return ApWorkOrderPartDeliveryResource::collection($deliveries);
+  }
+
+  public function unassignFromTechnician(int $deliveryId)
+  {
+    return DB::transaction(function () use ($deliveryId) {
+      // Buscar el registro de entrega
+      $delivery = ApWorkOrderPartDelivery::find($deliveryId);
+
+      if (!$delivery) {
+        throw new Exception('Registro de entrega no encontrado');
+      }
+
+      // Validar que no haya sido confirmado por el técnico
+      if ($delivery->is_received) {
+        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
+      }
+
+      // Obtener el repuesto asociado
+      $workOrderPart = $delivery->workOrderPart;
+
+      if (!$workOrderPart) {
+        throw new Exception('Repuesto de orden de trabajo no encontrado');
+      }
+
+      // Restar la cantidad asignada
+      $workOrderPart->assigned_quantity = ($workOrderPart->assigned_quantity ?? 0) - $delivery->delivered_quantity;
+      $workOrderPart->save();
+
+      // Eliminar el registro de entrega
+      $delivery->delete();
+
+      return [
+        'message' => 'Asignación eliminada correctamente',
+        'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
+      ];
+    });
+  }
+
+  /**
+   * Validar el estado de la orden de trabajo
+   */
+  private function validateWorkOrderState(ApWorkOrder $workOrder): void
+  {
+    $validateReceipt = $workOrder->shouldValidateReceipt();
+
+    $statusMessageMap = [
+      ApMasters::CANCELED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cancelada de la OT',
+      ApMasters::FINISHED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo finalizada de la OT',
+      ApMasters::CLOSED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cerrada de la OT',
+    ];
+
+    if (isset($statusMessageMap[$workOrder->status_id])) {
+      throw new Exception($statusMessageMap[$workOrder->status_id]);
+    }
+
+    if ($workOrder->vehicleInspection === null && $validateReceipt) {
+      throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
+    }
+
+    if ($workOrder->advancesWorkOrder()->exists()) {
+      throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
+    }
   }
 }

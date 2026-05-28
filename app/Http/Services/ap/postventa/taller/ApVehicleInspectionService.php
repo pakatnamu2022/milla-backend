@@ -59,9 +59,7 @@ class ApVehicleInspectionService extends BaseService
 
   public function store(mixed $data)
   {
-    try {
-      DB::beginTransaction();
-
+    return DB::transaction(function () use ($data) {
       // Set inspected_by if authenticated
       if (auth()->check()) {
         $data['inspected_by'] = auth()->user()->id;
@@ -84,10 +82,14 @@ class ApVehicleInspectionService extends BaseService
       //Actualizamos en ap_work_order_id el id de la recepción creada
       $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
 
-      $validateReception = $workOrder->items->first()?->typePlanning->validate_receipt;
+      $validateReceipt = $workOrder->shouldValidateReceipt();
 
-      if (!$validateReception) {
+      if (!$validateReceipt) {
         throw new Exception('No se puede crear una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
+      }
+
+      if ($workOrder->status_id !== ApMasters::OPENING_WORK_ORDER_ID) {
+        throw new Exception('No se puede crear una recepción para esta orden de trabajo, el estado de la orden de trabajo no es APERTURADO');
       }
 
       // Crear la recepción
@@ -103,7 +105,7 @@ class ApVehicleInspectionService extends BaseService
         $this->processSignature($inspection, $customerSignature);
       }
 
-      // Procesar imagenes de front, back, left y right
+      // Procesar imágenes de front, back, left y right
       if (isset($data['photos_inspection'])) {
         $this->processPhotosInspection($inspection, $data['photos_inspection'], 'photo_inspection');
       }
@@ -113,16 +115,11 @@ class ApVehicleInspectionService extends BaseService
         $this->processDamages($inspection, $damages, 'damage_photo');
       }
 
-      DB::commit();
-
       // Recargar con relaciones
       $inspection->load(['damages', 'createdByWorkOrder', 'inspectionBy']);
 
       return new ApVehicleInspectionResource($inspection);
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function show($id)
@@ -138,9 +135,7 @@ class ApVehicleInspectionService extends BaseService
       $inspection = $this->find($data['id']);
       $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
 
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $this->validateWorkOrderState($workOrder);
 
       // Update allow_editing_inspection to true to allow editing
       $workOrder->update([
@@ -156,9 +151,7 @@ class ApVehicleInspectionService extends BaseService
 
   public function destroy(int $id)
   {
-    try {
-      DB::beginTransaction();
-
+    return DB::transaction(function () use ($id) {
       $inspection = $this->find($id);
 
       // Eliminar firmas si existen
@@ -170,12 +163,31 @@ class ApVehicleInspectionService extends BaseService
       // Eliminar la recepción
       $inspection->delete();
 
-      DB::commit();
-
       return response()->json(['message' => 'Inspección vehicular eliminada correctamente']);
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
+    });
+  }
+
+  /**
+   * Validar el estado de la orden de trabajo
+   */
+  private function validateWorkOrderState(ApWorkOrder $workOrder): void
+  {
+    $validateReceipt = $workOrder->shouldValidateReceipt();
+
+    if (!$validateReceipt) {
+      throw new Exception('No se puede actualizar una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
+    }
+
+    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+      throw new Exception('No se puede modificar una orden de trabajo anulada');
+    }
+
+    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+      throw new Exception('No se puede modificar una orden de trabajo finalizada');
+    }
+
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede modificar una orden de trabajo cerrada');
     }
   }
 

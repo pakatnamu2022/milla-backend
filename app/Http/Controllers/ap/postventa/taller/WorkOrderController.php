@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
@@ -228,6 +229,27 @@ class WorkOrderController extends Controller
       ]);
       $data['id'] = $id;
       return $this->success($this->service->changeCurrency($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function sendToFinished($id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->sendToFinished($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function cancel(CancelWorkOrderRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->cancel($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

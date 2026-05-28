@@ -20,6 +20,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -108,8 +109,7 @@ class InventoryMovementService extends BaseService
 
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($reception) {
       // Get currency and exchange rate from Purchase Order
       $purchaseOrder = $reception->purchaseOrder;
       $currencyId = $purchaseOrder->currency_id ?? TypeCurrency::PEN_ID;  // Default to PEN if not set
@@ -184,18 +184,13 @@ class InventoryMovementService extends BaseService
       // Update stock automatically since movement is created as APPROVED
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
 
-      DB::commit();
       return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function createAdjustment(array $data, array $details): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($data, $details) {
       // Validate movement type
       $validTypes = [
         InventoryMovement::TYPE_ADJUSTMENT_IN,
@@ -282,18 +277,13 @@ class InventoryMovementService extends BaseService
       // Update stock automatically since movement is created as APPROVED
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
 
-      DB::commit();
       return $movement;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function updateAdjustment(Mixed $data): InventoryMovement
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($data) {
       $adjustmentInventory = $this->find($data['id']);
 
       if ($adjustmentInventory->status === InventoryMovement::STATUS_CANCELLED) {
@@ -313,12 +303,8 @@ class InventoryMovementService extends BaseService
         'notes' => $data['notes'] ?? $adjustmentInventory->notes,
       ]);
 
-      DB::commit();
       return $adjustmentInventory;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
@@ -355,8 +341,7 @@ class InventoryMovementService extends BaseService
 
   public function createTransfer(array $transferData, array $details): array
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($transferData, $details) {
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
         if ($transferData['transport_company_id'] === null) {
           throw new Exception('Modalidad de "TRASPORTE PUBLICO" el proveedor de transporte es obligatorio (RUC)');
@@ -381,6 +366,9 @@ class InventoryMovementService extends BaseService
       if (empty($details)) {
         throw new Exception('Debe proporcionar al menos un producto');
       }
+
+      // Validate that there are no duplicate products in the transfer
+      ProductWarehouseStock::validateUniqueProducts($details);
 
       // Get item type (PRODUCTO or SERVICIO)
       $itemType = $transferData['item_type'] ?? 'PRODUCTO';
@@ -429,48 +417,11 @@ class InventoryMovementService extends BaseService
           }
         }
 
-        // Validate stock availability in origin warehouse
-        foreach ($details as $detail) {
-          // Skip validation if it's a service (description instead of product_id)
-          if (!isset($detail['product_id'])) {
-            continue;
-          }
+        // Validate stock availability in origin warehouse (centralized)
+        ProductWarehouseStock::validateStockAvailability($details, $transferData['warehouse_origin_id'], $this->stockService);
 
-          $stock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_origin_id']);
-          $product = Products::find($detail['product_id']);
-          $productName = $product ? $product->name : "ID {$detail['product_id']}";
-
-          if (!$stock) {
-            throw new Exception(
-              "No se encontró registro de stock para el producto '{$productName}' en el almacén de origen"
-            );
-          }
-
-          if ($stock->available_quantity < $detail['quantity']) {
-            throw new Exception(
-              "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
-              "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
-            );
-          }
-        }
-
-        // Validate that all products have warehouse assignment in destination
-        foreach ($details as $detail) {
-          // Skip validation if it's a service (description instead of product_id)
-          if (!isset($detail['product_id'])) {
-            continue;
-          }
-
-          $destinationStock = $this->stockService->getStock($detail['product_id'], $transferData['warehouse_destination_id']);
-          $product = Products::find($detail['product_id']);
-          $productName = $product ? $product->name : "ID {$detail['product_id']}";
-
-          if (!$destinationStock) {
-            throw new Exception(
-              "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
-            );
-          }
-        }
+        // Validate that all products have warehouse assignment in destination (centralized)
+        ProductWarehouseStock::validateProductsExistInWarehouse($details, $transferData['warehouse_destination_id'], $this->stockService);
       } else {
         // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
         // Transmitter siempre tiene sede, intentar obtener su almacén
@@ -605,30 +556,45 @@ class InventoryMovementService extends BaseService
         $this->stockService->moveStockToInTransit($movementOut->fresh('details'));
       }
 
-      DB::commit();
       return [
         'movement' => $movementOut->load(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
         'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
       ];
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function updateTransfer(array $transferData, int $movementId): array
   {
-    DB::beginTransaction();
-    try {
-      // Find movement
+    return DB::transaction(function () use ($transferData, $movementId) {
       $movement = $this->find($movementId);
 
+      if ($movement->reference_type !== ShippingGuides::class || !$movement->reference_id) {
+        throw new Exception('No se encontró la guía de remisión asociada a este movimiento');
+      }
+
+      $shippingGuide = $movement->reference;
+
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
+      }
+
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
+      }
+
       if ((int)$transferData['transfer_modality_id'] === SunatConcepts::TYPE_TRANSPORTATION_PUBLICO) {
+        $transferData["driver_doc"] = '';
+        $transferData["driver_name"] = '';
+        $transferData["license"] = '';
         if ($transferData['transport_company_id'] === null) {
           throw new Exception('Modalidad de transporte publico el proveedor de transporte es obligatorio');
         }
       } else {
-        if ($transferData['driver_doc'] === null) {
+        if (is_null($transferData['driver_doc']) || is_null($transferData['plate'])) {
           throw new Exception('Modalidad de transporte privado el dni del conductor, licencia, placa y nombres deben ser obligatorios');
         }
       }
@@ -680,7 +646,7 @@ class InventoryMovementService extends BaseService
         $shippingGuideData['license'] = $transferData['license'];
       }
 
-      if (isset($transferData['plate'])) {
+      if (array_key_exists('plate', $transferData)) {
         $shippingGuideData['plate'] = $transferData['plate'];
       }
 
@@ -722,21 +688,16 @@ class InventoryMovementService extends BaseService
         $shippingGuide->update($shippingGuideData);
       }
 
-      DB::commit();
       return [
         'movement' => $movement->fresh(['warehouse', 'warehouseDestination', 'user', 'details.product', 'reference']),
         'shipping_guide' => $shippingGuide->fresh(['sedeTransmitter', 'sedeReceiver', 'transferReason', 'transferModality']),
       ];
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
-  public function destroyTransfer(int $movementId): void
+  public function destroyTransfer(int $movementId)
   {
-    DB::beginTransaction();
-    try {
+    return DB::transaction(function () use ($movementId) {
       // Find movement
       $movement = $this->find($movementId);
 
@@ -752,9 +713,16 @@ class InventoryMovementService extends BaseService
 
       $shippingGuide = $movement->reference;
 
-      // Validate shipping guide has NOT been sent to SUNAT
-      if ($shippingGuide && $shippingGuide->is_sunat_registered) {
-        throw new Exception('No se puede eliminar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      if (!$shippingGuide) {
+        throw new Exception('La guía de remisión no pudo ser cargada');
+      }
+
+      if ($shippingGuide->is_sunat_registered) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada a SUNAT');
+      }
+
+      if ($shippingGuide->sent_at !== null) {
+        throw new Exception('No se puede editar una transferencia cuya guía de remisión ya fue enviada');
       }
 
       // Load movement details
@@ -807,12 +775,7 @@ class InventoryMovementService extends BaseService
 
       // Delete movement
       $movement->delete();
-
-      DB::commit();
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    });
   }
 
   public function cancelTransfer(int $movementId): array
@@ -971,7 +934,7 @@ class InventoryMovementService extends BaseService
           'warehouse_id' => $newMovementOut->warehouse_destination_id, // Almacén destino de la reversa (origen original)
           'reception_date' => now(),
           'item_type' => $movement->item_type,
-          'status' => TransferReception::STATUS_PENDING,
+          'status' => TransferReception::STATUS_APPROVED,
           'notes' => "Recepción automática por anulación de transferencia {$movement->movement_number}",
           'received_by' => Auth::id(),
           'total_items' => $totalItems,
@@ -991,7 +954,8 @@ class InventoryMovementService extends BaseService
           ]);
         }
 
-        MigrateProductReceptionToDynamicsJob::dispatch($transferReception->id);
+        // Migrar la cancelación a Dynamics usando el shipping_guide_id
+        MigrateProductReceptionToDynamicsJob::dispatch($shippingGuides->id);
       }
 
       DB::commit();
@@ -1431,10 +1395,10 @@ class InventoryMovementService extends BaseService
           );
         }
 
-        if ($stock->available_quantity < $part->quantity) {
+        if ($stock->available_quantity < $part->quantity_used) {
           throw new Exception(
             "Stock insuficiente para producto '{$part->product->name}'. " .
-            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity}"
+            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity_used}"
           );
         }
       }
@@ -1462,14 +1426,14 @@ class InventoryMovementService extends BaseService
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movement->id,
           'product_id' => $part->product_id,
-          'quantity' => $part->quantity,
+          'quantity' => $part->quantity_used,
           'unit_cost' => $part->unit_price,
-          'total_cost' => $part->total_amount,
+          'total_cost' => $part->net_amount,
           'notes' => "Venta orden de trabajo {$workOrder->correlative} - {$part->product->name}",
         ]);
 
         $totalItems++;
-        $totalQuantity += $part->quantity;
+        $totalQuantity += $part->quantity_used;
       }
 
       // Update movement totals

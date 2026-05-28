@@ -139,7 +139,6 @@ class InventoryMovementController extends Controller
 
       return $this->success([
         'message' => 'Transferencia cancelada correctamente. Se ha generado una nueva transferencia inversa.',
-        'movement' => $result['movement'],
         'shipping_guide' => $result['shipping_guide'],
         'cancelled_movement' => $result['cancelled_movement'],
       ]);
