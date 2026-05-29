@@ -151,3 +151,12 @@ Schedule::command('tp:sync-fac-invoice')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Sync attendance punches from ZKBioTime — 4 times daily
+foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
+  Schedule::command('sync:attendance')
+    ->dailyAt($time)
+    ->timezone('America/Lima')
+    ->withoutOverlapping()
+    ->runInBackground();
+}
+
