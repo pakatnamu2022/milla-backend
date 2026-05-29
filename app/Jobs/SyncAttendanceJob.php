@@ -71,8 +71,8 @@ class SyncAttendanceJob implements ShouldQueue
     $rows = collect();
 
     DB::connection('zkbiotime')
-      ->table('iclock_transaction as t')
-      ->join('personnel_employee as e', 'e.id', '=', 't.emp_id')
+      ->table('db_owner.iclock_transaction as t')
+      ->join('db_owner.personnel_employee as e', 'e.id', '=', 't.emp_id')
       ->select([
         't.id as transaction_id',
         'e.emp_code',
@@ -100,12 +100,20 @@ class SyncAttendanceJob implements ShouldQueue
     $count    = $punches->count();
     $personId = $personMap[$empCode] ?? null;
 
-    $types = $count === 2
-      ? ['check_in', 'check_out']
-      : ['check_in', 'lunch_out', 'lunch_in', 'check_out'];
+    $types = match(true) {
+      $count >= 4 => ['check_in', 'lunch_out', 'lunch_in', 'check_out'],
+      $count === 3 => ['check_in', 'lunch_out', 'check_out'],
+      default     => ['check_in', 'check_out'],
+    };
 
     return $punches->take(count($types))->values()->map(function ($row, int $idx) use ($types, $empCode, $date, $personId) {
-      $punched = Carbon::parse($row->punch_time);
+      $punched  = Carbon::parse($row->punch_time);
+      $markType = $types[$idx];
+
+      // Punch at or after 18:00 is always check_out, never lunch_in
+      if ($markType === 'lunch_in' && $punched->hour >= 18) {
+        $markType = 'check_out';
+      }
 
       return [
         'zkbio_transaction_id' => (int) $row->transaction_id,
@@ -113,7 +121,7 @@ class SyncAttendanceJob implements ShouldQueue
         'emp_code'             => $empCode,
         'full_name'            => $row->full_name ?? '',
         'date'                 => $date,
-        'mark_type'            => $types[$idx],
+        'mark_type'            => $markType,
         'time'                 => $punched->format('H:i:s'),
         'area'                 => $row->area_alias ?: null,
         'punch_state_original' => (string) $row->punch_state,
@@ -124,9 +132,9 @@ class SyncAttendanceJob implements ShouldQueue
   private function buildPersonMap(): array
   {
     return DB::table('rrhh_persona')
-      ->whereNotNull('dni')
+      ->whereNotNull('vat')
       ->where('status_deleted', 1)
-      ->pluck('id', 'dni')
+      ->pluck('id', 'vat')
       ->toArray();
   }
 
