@@ -95,11 +95,13 @@ class AttendanceSyncService extends BaseService
     );
 
     $data = $rows->map(function (object $row) {
-      $checkIn  = $row->check_in;
-      $checkOut = $row->check_out;
+      $checkIn   = $row->check_in;
+      $checkOut  = $row->check_out;
+      $isSaturday = Carbon::parse($row->date)->dayOfWeek === 6;
+      $capOut     = $isSaturday ? '13:00:00' : '18:00:00';
 
-      if ($checkOut && $checkOut > '18:00:00') {
-        $checkOut = '18:00:00';
+      if ($checkOut && $checkOut > $capOut) {
+        $checkOut = $capOut;
       }
 
       $hoursWorked = ($checkIn && $checkOut)
@@ -130,7 +132,7 @@ class AttendanceSyncService extends BaseService
         'vat'          => 'DNI',
         'full_name'    => 'Nombre Completo',
         'check_in'     => 'Entrada',
-        'check_out'    => 'Salida (cap. 18:00)',
+        'check_out'    => 'Salida',
         'hours_worked' => 'Horas Trabajadas',
       ];
       $filename = 'sunafil_' . $request->date_from . '_' . $request->date_to . '.xlsx';
