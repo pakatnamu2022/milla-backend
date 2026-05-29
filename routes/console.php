@@ -131,7 +131,7 @@ Schedule::command('inventory:sync-adjustments-dynamics')
 
 // Calentar cache del dashboard de adopción cada 10 minutos en horario laboral
 Schedule::job(new WarmAdoptionCacheJob())
-  ->everyTenMinutes()
+  ->everySixHours()
   ->between('7:00', '20:00')
   ->timezone('America/Lima')
   ->withoutOverlapping();
