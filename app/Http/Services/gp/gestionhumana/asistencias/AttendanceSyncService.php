@@ -214,19 +214,16 @@ class AttendanceSyncService extends BaseService
       $lunchIn  = $row->lunch_in;
       $checkOut = $row->check_out;
 
+      $dayOfWeek     = Carbon::parse($row->date)->dayOfWeek;
+      $isSaturday    = $dayOfWeek === 6;
+      $expectedHours = $isSaturday ? 5.0 : 8.6;
+
       $hoursWorked = null;
       if ($checkIn && $checkOut) {
-        if ($lunchOut && $lunchIn) {
-          $hoursWorked = (Carbon::parse($lunchOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600
-            + (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($lunchIn)->getTimestamp()) / 3600;
-        } else {
-          $hoursWorked = (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600;
-        }
-        $hoursWorked = round($hoursWorked, 2);
+        $grossMinutes  = (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 60;
+        $lunchMinutes  = $isSaturday ? 0 : 84; // 1h 24min Mon–Fri; no lunch on Saturday
+        $hoursWorked   = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
       }
-
-      $dayOfWeek     = Carbon::parse($row->date)->dayOfWeek;
-      $expectedHours = $dayOfWeek === 6 ? 5.0 : 8.6;
 
       return [
         'date'           => $row->date,
@@ -314,19 +311,16 @@ class AttendanceSyncService extends BaseService
         $lunchIn  = $row->lunch_in;
         $checkOut = $row->check_out;
 
+        $dayOfWeek     = Carbon::parse($row->date)->dayOfWeek;
+        $isSaturday    = $dayOfWeek === 6;
+        $expectedHours = $isSaturday ? 5.0 : 8.6;
+
         $hoursWorked = null;
         if ($checkIn && $checkOut) {
-          if ($lunchOut && $lunchIn) {
-            $hoursWorked = (Carbon::parse($lunchOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600
-              + (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($lunchIn)->getTimestamp()) / 3600;
-          } else {
-            $hoursWorked = (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600;
-          }
-          $hoursWorked = round($hoursWorked, 2);
+          $grossMinutes = (Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 60;
+          $lunchMinutes = $isSaturday ? 0 : 84; // 1h 24min Mon–Fri; no lunch on Saturday
+          $hoursWorked  = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
         }
-
-        $dayOfWeek     = Carbon::parse($row->date)->dayOfWeek;
-        $expectedHours = $dayOfWeek === 6 ? 5.0 : 8.6;
 
         return [
           'date'           => $row->date,
