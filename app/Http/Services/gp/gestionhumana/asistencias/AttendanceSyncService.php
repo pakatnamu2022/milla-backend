@@ -225,22 +225,30 @@ class AttendanceSyncService extends BaseService
         $hoursWorked   = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
       }
 
+      $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
+
       return [
         'date'           => $row->date,
         'check_in'       => $checkIn,
         'lunch_out'      => $lunchOut,
         'lunch_in'       => $lunchIn,
         'check_out'      => $checkOut,
-        'hours_worked'   => $hoursWorked,
-        'expected_hours' => $expectedHours,
-        'balance'        => $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null,
+        '_worked_raw'    => $hoursWorked,
+        '_expected_raw'  => $expectedHours,
+        '_balance_raw'   => $balance,
+        'hours_worked'   => $this->toHm($hoursWorked),
+        'expected_hours' => $this->toHm($expectedHours),
+        'balance'        => $this->toHm($balance),
       ];
     })->sortBy('date')->values();
 
-    $complete      = $daily->whereNotNull('hours_worked');
-    $daysPresent   = $daily->count();
-    $totalWorked   = round($complete->sum('hours_worked'), 2);
-    $totalExpected = round($complete->sum('expected_hours'), 2);
+    $withData      = $daily->whereNotNull('_worked_raw');
+    $totalWorked   = round($withData->sum('_worked_raw'), 2);
+    $totalExpected = round($withData->sum('_expected_raw'), 2);
+
+    $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw', '_balance_raw'])));
+
+    $daysPresent = $daily->count();
 
     return response()->json([
       'person_id'      => $first->person_id,
@@ -250,9 +258,9 @@ class AttendanceSyncService extends BaseService
       'date_from'      => $dateFrom,
       'date_to'        => $dateTo,
       'days_present'   => $daysPresent,
-      'expected_hours' => $totalExpected,
-      'hours_worked'   => $totalWorked,
-      'balance'        => round($totalWorked - $totalExpected, 2),
+      'expected_hours' => $this->toHm($totalExpected),
+      'hours_worked'   => $this->toHm($totalWorked),
+      'balance'        => $this->toHm(round($totalWorked - $totalExpected, 2)),
       'daily'          => $daily,
     ]);
   }
@@ -322,35 +330,48 @@ class AttendanceSyncService extends BaseService
           $hoursWorked  = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
         }
 
+        $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
+
         return [
           'date'           => $row->date,
           'check_in'       => $checkIn,
           'lunch_out'      => $lunchOut,
           'lunch_in'       => $lunchIn,
           'check_out'      => $checkOut,
-          'hours_worked'   => $hoursWorked,
-          'expected_hours' => $expectedHours,
-          'balance'        => $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null,
+          '_worked_raw'    => $hoursWorked,
+          '_expected_raw'  => $expectedHours,
+          'hours_worked'   => $this->toHm($hoursWorked),
+          'expected_hours' => $this->toHm($expectedHours),
+          'balance'        => $this->toHm($balance),
         ];
       })->sortBy('date')->values();
 
       $first         = $dayRows->first();
+      $withData      = $daily->whereNotNull('_worked_raw');
+      $totalWorked   = round($withData->sum('_worked_raw'), 2);
+      $totalExpected = round($withData->sum('_expected_raw'), 2);
+      $daily         = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
       $daysPresent   = $daily->count();
-      $complete      = $daily->whereNotNull('hours_worked');
-      $totalWorked   = round($complete->sum('hours_worked'), 2);
-      $totalExpected = round($complete->sum('expected_hours'), 2);
 
       return [
         'person_id'      => $first->person_id,
         'emp_code'       => $empCode,
         'full_name'      => $first->full_name,
         'days_present'   => $daysPresent,
-        'expected_hours' => $totalExpected,
-        'hours_worked'   => $totalWorked,
-        'balance'        => round($totalWorked - $totalExpected, 2),
+        'expected_hours' => $this->toHm($totalExpected),
+        'hours_worked'   => $this->toHm($totalWorked),
+        'balance'        => $this->toHm(round($totalWorked - $totalExpected, 2)),
         'daily'          => $daily,
       ];
     })->sortBy('full_name')->values();
+  }
+
+  private function toHm(?float $hours): ?string
+  {
+    if ($hours === null) return null;
+    $sign  = $hours < 0 ? '-' : '';
+    $total = (int) round(abs($hours) * 60);
+    return "{$sign}" . intdiv($total, 60) . 'h ' . ($total % 60) . 'min';
   }
 
   private function streamCsv(\Illuminate\Support\Collection $data, string $filename, array $headers): Response
