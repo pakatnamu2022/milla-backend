@@ -5,10 +5,13 @@ namespace App\Http\Services\Dashboard;
 use App\Models\AuditLogs;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdoptionDashboardService
 {
+  private const CACHE_TTL = 700; // seconds (~11 min, slightly above the 10-min warm job interval)
+
   // Points per action
   private const ACTION_POINTS = [
     'created' => 5,
@@ -57,110 +60,155 @@ class AdoptionDashboardService
   ];
 
   // -------------------------------------------------------------------------
-  // Public API
+  // Cache helpers
+  // -------------------------------------------------------------------------
+
+  private function cacheKey(string $section, array $filters): string
+  {
+    return 'adoption:' . $section . ':' . md5(serialize($filters));
+  }
+
+  public function getLastUpdated(array $filters): ?string
+  {
+    return Cache::get('adoption:last_updated:' . md5(serialize($filters)));
+  }
+
+  /**
+   * Warms all cache sections sequentially with a pause between each query
+   * to avoid saturating the DB. Called by WarmAdoptionCacheJob.
+   */
+  public function warmAll(array $filters): void
+  {
+    // Forget all keys so Cache::remember recomputes on the next call
+    $sections = ['summary', 'trend', 'modules', 'sedes', 'users', 'compliance', 'champions', 'alerts'];
+    foreach ($sections as $section) {
+      Cache::forget($this->cacheKey($section, $filters));
+    }
+
+    // Order matters: modules & sedes before alerts (alerts reads them from cache)
+    $this->getExecutiveSummary($filters);   sleep(3);
+    $this->getTrend($filters);              sleep(3);
+    $this->getModuleUsage($filters);        sleep(3);
+    $this->getSedeRanking($filters);        sleep(3);
+    $this->getUserRanking($filters);        sleep(3);
+    $this->getCompliance($filters);         sleep(3);
+    $this->getChampionsAndAtRisk($filters); sleep(3);
+    $this->getAlerts($filters);
+
+    Cache::put(
+      'adoption:last_updated:' . md5(serialize($filters)),
+      now()->toISOString(),
+      self::CACHE_TTL + 300
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Public API (each method is cache-backed)
   // -------------------------------------------------------------------------
 
   public function getExecutiveSummary(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
+    return Cache::remember($this->cacheKey('summary', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
+      $periodDays = max(1, $from->diffInDays($to) + 1);
 
-    $baseQuery = $this->baseQuery($from, $to, $filters);
+      $baseQuery = $this->baseQuery($from, $to, $filters);
 
-    $totalOps = (clone $baseQuery)->count();
-    $activeUsers = (clone $baseQuery)->distinct('user_id')->count('user_id');
+      $totalOps = (clone $baseQuery)->count();
+      $activeUsers = (clone $baseQuery)->distinct('user_id')->count('user_id');
 
-    // Sede with highest adoption (most ops)
-    $topSede = (clone $baseQuery)
-      ->select('s.localidad as sede_name', DB::raw('COUNT(*) as ops'))
-      ->join('usr_users as u', 'audit_logs.user_id', '=', 'u.id')
-      ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
-      ->join('config_sede as s', 'w.sede_id', '=', 's.id')
-      ->groupBy('s.id', 's.localidad')
-      ->orderByDesc('ops')
-      ->first();
+      $topSede = (clone $baseQuery)
+        ->select('s.localidad as sede_name', DB::raw('COUNT(*) as ops'))
+        ->join('usr_users as u', 'audit_logs.user_id', '=', 'u.id')
+        ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
+        ->join('config_sede as s', 'w.sede_id', '=', 's.id')
+        ->groupBy('s.id', 's.localidad')
+        ->orderByDesc('ops')
+        ->first();
 
-    // Trend comparison: current period vs previous period of same length
-    $prevFrom = $from->copy()->subDays($periodDays);
-    $prevTo = $from->copy()->subDay();
-    $prevOps = AuditLogs::whereBetween('created_at', [$prevFrom, $prevTo])
-      ->whereIn('action', array_keys(self::ACTION_POINTS))
-      ->count();
+      $prevFrom = $from->copy()->subDays($periodDays);
+      $prevTo = $from->copy()->subDay();
+      $prevOps = AuditLogs::whereBetween('created_at', [$prevFrom, $prevTo])
+        ->whereIn('action', array_keys(self::ACTION_POINTS))
+        ->count();
 
-    $trend7 = $this->trendSummary($filters, 7);
-    $trend30 = $this->trendSummary($filters, 30);
+      $trend7 = $this->trendSummary($filters, 7);
+      $trend30 = $this->trendSummary($filters, 30);
 
-    // Total registered users (expected adopters)
-    $expectedUsers = User::whereNull('status_deleted')->count();
+      $expectedUsers = User::whereNull('status_deleted')->count();
 
-    $globalScore = $activeUsers > 0
-      ? $this->computeGlobalScore($from, $to, $filters)
-      : 0;
+      $globalScore = $activeUsers > 0
+        ? $this->computeGlobalScore($from, $to, $filters)
+        : 0;
 
-    return [
-      'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
-      'active_users' => $activeUsers,
-      'expected_users' => $expectedUsers,
-      'total_ops' => $totalOps,
-      'top_sede' => $topSede ? $topSede->sede_name : null,
-      'global_adoption_index' => round($globalScore, 1),
-      'trend_vs_previous_period' => $prevOps > 0
-        ? round((($totalOps - $prevOps) / $prevOps) * 100, 1)
-        : null,
-      'trend_7_days' => $trend7,
-      'trend_30_days' => $trend30,
-    ];
+      return [
+        'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+        'active_users' => $activeUsers,
+        'expected_users' => $expectedUsers,
+        'total_ops' => $totalOps,
+        'top_sede' => $topSede ? $topSede->sede_name : null,
+        'global_adoption_index' => round($globalScore, 1),
+        'trend_vs_previous_period' => $prevOps > 0
+          ? round((($totalOps - $prevOps) / $prevOps) * 100, 1)
+          : null,
+        'trend_7_days' => $trend7,
+        'trend_30_days' => $trend30,
+      ];
+    });
   }
 
   public function getUserRanking(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
+    return Cache::remember($this->cacheKey('users', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
+      $periodDays = max(1, $from->diffInDays($to) + 1);
 
-    $rows = $this->rawUserStats($from, $to, $filters);
-    $totalModules = $this->countDistinctModules($from, $to, $filters);
+      $rows = $this->rawUserStats($from, $to, $filters);
+      $totalModules = $this->countDistinctModules($from, $to, $filters);
 
-    return $rows->map(function ($row) use ($periodDays, $totalModules) {
-      $score = $this->computeUserScore($row, $periodDays, $totalModules);
-      return [
-        'user_id' => $row->user_id,
-        'user_name' => $row->user_name,
-        'sede_id' => $row->sede_id,
-        'sede_name' => $row->sede_name ?? 'Sin sede',
-        'total_ops' => (int)$row->total_ops,
-        'creates' => (int)$row->creates,
-        'updates' => (int)$row->updates,
-        'deletes' => (int)$row->deletes,
-        'action_score' => (int)$row->action_score,
-        'active_days' => (int)$row->active_days,
-        'unique_modules' => (int)$row->unique_modules,
-        'modules_list' => $this->decodeModules($row->modules_raw ?? ''),
-        'adoption_score' => round($score['total'], 1),
-        'score_breakdown' => $score['breakdown'],
-        'badge' => $this->assignBadge($score['total'], (int)$row->unique_modules, (int)$row->active_days, $periodDays),
-      ];
-    })
-      ->sortByDesc('adoption_score')
-      ->values()
-      ->all();
+      return $rows->map(function ($row) use ($periodDays, $totalModules) {
+        $score = $this->computeUserScore($row, $periodDays, $totalModules);
+        return [
+          'user_id' => $row->user_id,
+          'user_name' => $row->user_name,
+          'sede_id' => $row->sede_id,
+          'sede_name' => $row->sede_name ?? 'Sin sede',
+          'total_ops' => (int)$row->total_ops,
+          'creates' => (int)$row->creates,
+          'updates' => (int)$row->updates,
+          'deletes' => (int)$row->deletes,
+          'action_score' => (int)$row->action_score,
+          'active_days' => (int)$row->active_days,
+          'unique_modules' => (int)$row->unique_modules,
+          'modules_list' => $this->decodeModules($row->modules_raw ?? ''),
+          'adoption_score' => round($score['total'], 1),
+          'score_breakdown' => $score['breakdown'],
+          'badge' => $this->assignBadge($score['total'], (int)$row->unique_modules, (int)$row->active_days, $periodDays),
+        ];
+      })
+        ->sortByDesc('adoption_score')
+        ->values()
+        ->all();
+    });
   }
 
   public function getSedeRanking(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
+    return Cache::remember($this->cacheKey('sedes', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
+      $periodDays = max(1, $from->diffInDays($to) + 1);
 
-    $rows = DB::table('audit_logs as al')
-      ->select(
-        's.id as sede_id',
-        's.localidad as sede_name',
-        's.suc_abrev as sede_code',
-        DB::raw('COUNT(*) as total_ops'),
-        DB::raw('COUNT(DISTINCT al.user_id) as active_users'),
-        DB::raw('SUM(al.action = \'created\') as creates'),
-        DB::raw('SUM(al.action = \'updated\') as updates'),
-        DB::raw('SUM(al.action = \'deleted\') as deletes'),
-        DB::raw('SUM(
+      $rows = DB::table('audit_logs as al')
+        ->select(
+          's.id as sede_id',
+          's.localidad as sede_name',
+          's.suc_abrev as sede_code',
+          DB::raw('COUNT(*) as total_ops'),
+          DB::raw('COUNT(DISTINCT al.user_id) as active_users'),
+          DB::raw('SUM(al.action = \'created\') as creates'),
+          DB::raw('SUM(al.action = \'updated\') as updates'),
+          DB::raw('SUM(al.action = \'deleted\') as deletes'),
+          DB::raw('SUM(
                     CASE al.action
                         WHEN \'created\'  THEN 5
                         WHEN \'updated\'  THEN 2
@@ -169,309 +217,314 @@ class AdoptionDashboardService
                         ELSE 0
                     END
                 ) as action_score'),
-        DB::raw('COUNT(DISTINCT DATE(al.created_at)) as active_days'),
-        DB::raw('COUNT(DISTINCT al.auditable_type) as unique_models')
-      )
-      ->join('usr_users as u', 'al.user_id', '=', 'u.id')
-      ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
-      ->join('config_sede as s', 'w.sede_id', '=', 's.id')
-      ->whereIn('al.action', array_keys(self::ACTION_POINTS))
-      ->whereBetween('al.created_at', [$from, $to])
-      ->when(isset($filters['sede_id']), fn($q) => $q->where('s.id', $filters['sede_id']))
-      ->groupBy('s.id', 's.localidad', 's.suc_abrev')
-      ->orderByDesc('action_score')
-      ->get();
+          DB::raw('COUNT(DISTINCT DATE(al.created_at)) as active_days'),
+          DB::raw('COUNT(DISTINCT al.auditable_type) as unique_models')
+        )
+        ->join('usr_users as u', 'al.user_id', '=', 'u.id')
+        ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
+        ->join('config_sede as s', 'w.sede_id', '=', 's.id')
+        ->whereIn('al.action', array_keys(self::ACTION_POINTS))
+        ->whereBetween('al.created_at', [$from, $to])
+        ->when(isset($filters['sede_id']), fn($q) => $q->where('s.id', $filters['sede_id']))
+        ->groupBy('s.id', 's.localidad', 's.suc_abrev')
+        ->orderByDesc('action_score')
+        ->get();
 
-    // Expected users per sede
-    $expectedBySede = DB::table('rrhh_persona as w')
-      ->select('w.sede_id', DB::raw('COUNT(DISTINCT u.id) as expected'))
-      ->join('usr_users as u', 'w.id', '=', 'u.partner_id')
-      ->whereNull('u.status_deleted')
-      ->groupBy('w.sede_id')
-      ->pluck('expected', 'sede_id');
+      $expectedBySede = DB::table('rrhh_persona as w')
+        ->select('w.sede_id', DB::raw('COUNT(DISTINCT u.id) as expected'))
+        ->join('usr_users as u', 'w.id', '=', 'u.partner_id')
+        ->whereNull('u.status_deleted')
+        ->groupBy('w.sede_id')
+        ->pluck('expected', 'sede_id');
 
-    $totalModules = $this->countDistinctModules($from, $to, $filters);
+      $totalModules = $this->countDistinctModules($from, $to, $filters);
 
-    return $rows->map(function ($row) use ($periodDays, $expectedBySede, $totalModules) {
-      $expected = $expectedBySede[$row->sede_id] ?? 1;
-      $opsPerUser = $row->active_users > 0
-        ? round($row->total_ops / $row->active_users, 1)
-        : 0;
+      return $rows->map(function ($row) use ($periodDays, $expectedBySede, $totalModules) {
+        $expected = $expectedBySede[$row->sede_id] ?? 1;
+        $opsPerUser = $row->active_users > 0
+          ? round($row->total_ops / $row->active_users, 1)
+          : 0;
 
-      $score = $this->computeSedeScore($row, $periodDays, $expected, $totalModules);
+        $score = $this->computeSedeScore($row, $periodDays, $expected, $totalModules);
 
-      return [
-        'sede_id' => $row->sede_id,
-        'sede_name' => $row->sede_name,
-        'sede_code' => $row->sede_code,
-        'total_ops' => (int)$row->total_ops,
-        'active_users' => (int)$row->active_users,
-        'expected_users' => (int)$expected,
-        'ops_per_user' => $opsPerUser,
-        'unique_models' => (int)$row->unique_models,
-        'adoption_index' => round($score, 1),
-        'compliance_semaphore' => $this->semaphore($score),
-      ];
-    })->all();
+        return [
+          'sede_id' => $row->sede_id,
+          'sede_name' => $row->sede_name,
+          'sede_code' => $row->sede_code,
+          'total_ops' => (int)$row->total_ops,
+          'active_users' => (int)$row->active_users,
+          'expected_users' => (int)$expected,
+          'ops_per_user' => $opsPerUser,
+          'unique_models' => (int)$row->unique_models,
+          'adoption_index' => round($score, 1),
+          'compliance_semaphore' => $this->semaphore($score),
+        ];
+      })->all();
+    });
   }
 
   public function getModuleUsage(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
+    return Cache::remember($this->cacheKey('modules', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
 
-    $rows = $this->baseQuery($from, $to, $filters)
-      ->select(
-        'audit_logs.auditable_type',
-        DB::raw('COUNT(*) as total_ops'),
-        DB::raw('COUNT(DISTINCT audit_logs.user_id) as users'),
-        DB::raw('COUNT(DISTINCT DATE(audit_logs.created_at)) as active_days'),
-        DB::raw('SUM(audit_logs.action = \'created\') as creates'),
-        DB::raw('SUM(audit_logs.action = \'updated\') as updates'),
-        DB::raw('SUM(audit_logs.action = \'deleted\') as deletes')
-      )
-      ->groupBy('audit_logs.auditable_type')
-      ->orderByDesc('total_ops')
-      ->get();
+      $rows = $this->baseQuery($from, $to, $filters)
+        ->select(
+          'audit_logs.auditable_type',
+          DB::raw('COUNT(*) as total_ops'),
+          DB::raw('COUNT(DISTINCT audit_logs.user_id) as users'),
+          DB::raw('COUNT(DISTINCT DATE(audit_logs.created_at)) as active_days'),
+          DB::raw('SUM(audit_logs.action = \'created\') as creates'),
+          DB::raw('SUM(audit_logs.action = \'updated\') as updates'),
+          DB::raw('SUM(audit_logs.action = \'deleted\') as deletes')
+        )
+        ->groupBy('audit_logs.auditable_type')
+        ->orderByDesc('total_ops')
+        ->get();
 
-    // Group by module/submodule
-    $grouped = [];
-    foreach ($rows as $row) {
-      $module = $this->extractModuleLabel($row->auditable_type);
-      if (!isset($grouped[$module])) {
-        $grouped[$module] = [
-          'module' => $module,
-          'total_ops' => 0,
-          'users' => 0,
-          'active_days' => 0,
-          'creates' => 0,
-          'updates' => 0,
-          'deletes' => 0,
-          'models' => [],
+      $grouped = [];
+      foreach ($rows as $row) {
+        $module = $this->extractModuleLabel($row->auditable_type);
+        if (!isset($grouped[$module])) {
+          $grouped[$module] = [
+            'module' => $module,
+            'total_ops' => 0,
+            'users' => 0,
+            'active_days' => 0,
+            'creates' => 0,
+            'updates' => 0,
+            'deletes' => 0,
+            'models' => [],
+          ];
+        }
+        $grouped[$module]['total_ops'] += $row->total_ops;
+        $grouped[$module]['users'] = max($grouped[$module]['users'], $row->users);
+        $grouped[$module]['active_days'] = max($grouped[$module]['active_days'], $row->active_days);
+        $grouped[$module]['creates'] += $row->creates;
+        $grouped[$module]['updates'] += $row->updates;
+        $grouped[$module]['deletes'] += $row->deletes;
+        $grouped[$module]['models'][] = [
+          'model' => class_basename($row->auditable_type),
+          'total_ops' => (int)$row->total_ops,
+          'users' => (int)$row->users,
         ];
       }
-      $grouped[$module]['total_ops'] += $row->total_ops;
-      $grouped[$module]['users'] = max($grouped[$module]['users'], $row->users);
-      $grouped[$module]['active_days'] = max($grouped[$module]['active_days'], $row->active_days);
-      $grouped[$module]['creates'] += $row->creates;
-      $grouped[$module]['updates'] += $row->updates;
-      $grouped[$module]['deletes'] += $row->deletes;
-      $grouped[$module]['models'][] = [
-        'model' => class_basename($row->auditable_type),
-        'total_ops' => (int)$row->total_ops,
-        'users' => (int)$row->users,
-      ];
-    }
 
-    $totalOps = array_sum(array_column($grouped, 'total_ops'));
+      $totalOps = array_sum(array_column($grouped, 'total_ops'));
 
-    return array_values(array_map(function ($m) use ($totalOps) {
-      $m['share_pct'] = $totalOps > 0 ? round($m['total_ops'] / $totalOps * 100, 1) : 0;
-      return $m;
-    }, $grouped));
+      return array_values(array_map(function ($m) use ($totalOps) {
+        $m['share_pct'] = $totalOps > 0 ? round($m['total_ops'] / $totalOps * 100, 1) : 0;
+        return $m;
+      }, $grouped));
+    });
   }
 
   public function getCompliance(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
-    $expectedOpsPerUser = (int)($filters['expected_ops_per_day'] ?? self::DAILY_TARGET_OPS) * $periodDays;
+    return Cache::remember($this->cacheKey('compliance', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
+      $periodDays = max(1, $from->diffInDays($to) + 1);
+      $expectedOpsPerUser = (int)($filters['expected_ops_per_day'] ?? self::DAILY_TARGET_OPS) * $periodDays;
 
-    $userStats = $this->rawUserStats($from, $to, $filters);
+      $userStats = $this->rawUserStats($from, $to, $filters);
 
-    $expectedUsers = User::whereNull('status_deleted')->pluck('name', 'id');
-    $activeUserIds = $userStats->pluck('user_id')->flip();
+      $expectedUsers = User::whereNull('status_deleted')->pluck('name', 'id');
+      $activeUserIds = $userStats->pluck('user_id')->flip();
 
-    $result = $userStats->map(function ($row) use ($expectedOpsPerUser) {
-      $ratio = $expectedOpsPerUser > 0 ? min($row->total_ops / $expectedOpsPerUser, 1) : 0;
+      $result = $userStats->map(function ($row) use ($expectedOpsPerUser) {
+        $ratio = $expectedOpsPerUser > 0 ? min($row->total_ops / $expectedOpsPerUser, 1) : 0;
+        return [
+          'user_id' => $row->user_id,
+          'user_name' => $row->user_name,
+          'sede_name' => $row->sede_name ?? 'Sin sede',
+          'actual_ops' => (int)$row->total_ops,
+          'expected_ops' => $expectedOpsPerUser,
+          'compliance_pct' => round($ratio * 100, 1),
+          'semaphore' => $this->semaphore($ratio * 100),
+        ];
+      })->sortByDesc('compliance_pct')->values();
+
+      $inactive = $expectedUsers->filter(fn($name, $id) => !isset($activeUserIds[$id]))
+        ->map(fn($name, $id) => [
+          'user_id' => $id,
+          'user_name' => $name,
+          'sede_name' => null,
+          'actual_ops' => 0,
+          'expected_ops' => $expectedOpsPerUser,
+          'compliance_pct' => 0,
+          'semaphore' => 'red',
+        ])->values();
+
       return [
-        'user_id' => $row->user_id,
-        'user_name' => $row->user_name,
-        'sede_name' => $row->sede_name ?? 'Sin sede',
-        'actual_ops' => (int)$row->total_ops,
-        'expected_ops' => $expectedOpsPerUser,
-        'compliance_pct' => round($ratio * 100, 1),
-        'semaphore' => $this->semaphore($ratio * 100),
+        'active_compliance' => $result->all(),
+        'inactive_users' => $inactive->all(),
+        'summary' => [
+          'green' => $result->where('semaphore', 'green')->count(),
+          'yellow' => $result->where('semaphore', 'yellow')->count(),
+          'red' => $result->where('semaphore', 'red')->count() + $inactive->count(),
+        ],
       ];
-    })->sortByDesc('compliance_pct')->values();
-
-    // Inactive expected users
-    $inactive = $expectedUsers->filter(fn($name, $id) => !isset($activeUserIds[$id]))
-      ->map(fn($name, $id) => [
-        'user_id' => $id,
-        'user_name' => $name,
-        'sede_name' => null,
-        'actual_ops' => 0,
-        'expected_ops' => $expectedOpsPerUser,
-        'compliance_pct' => 0,
-        'semaphore' => 'red',
-      ])->values();
-
-    return [
-      'active_compliance' => $result->all(),
-      'inactive_users' => $inactive->all(),
-      'summary' => [
-        'green' => $result->where('semaphore', 'green')->count(),
-        'yellow' => $result->where('semaphore', 'yellow')->count(),
-        'red' => $result->where('semaphore', 'red')->count() + $inactive->count(),
-      ],
-    ];
+    });
   }
 
   public function getChampionsAndAtRisk(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
-    $totalModules = $this->countDistinctModules($from, $to, $filters);
+    return Cache::remember($this->cacheKey('champions', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
+      $periodDays = max(1, $from->diffInDays($to) + 1);
+      $totalModules = $this->countDistinctModules($from, $to, $filters);
 
-    $rows = $this->rawUserStats($from, $to, $filters);
+      $rows = $this->rawUserStats($from, $to, $filters);
 
-    $champions = [];
-    $atRisk = [];
+      $champions = [];
+      $atRisk = [];
 
-    foreach ($rows as $row) {
-      $score = $this->computeUserScore($row, $periodDays, $totalModules);
-      $s = $score['total'];
-      $badge = $this->assignBadge($s, (int)$row->unique_modules, (int)$row->active_days, $periodDays);
+      foreach ($rows as $row) {
+        $score = $this->computeUserScore($row, $periodDays, $totalModules);
+        $s = $score['total'];
+        $badge = $this->assignBadge($s, (int)$row->unique_modules, (int)$row->active_days, $periodDays);
 
-      $entry = [
-        'user_id' => $row->user_id,
-        'user_name' => $row->user_name,
-        'sede_name' => $row->sede_name ?? 'Sin sede',
-        'adoption_score' => round($s, 1),
-        'total_ops' => (int)$row->total_ops,
-        'active_days' => (int)$row->active_days,
-        'unique_modules' => (int)$row->unique_modules,
-      ];
+        $entry = [
+          'user_id' => $row->user_id,
+          'user_name' => $row->user_name,
+          'sede_name' => $row->sede_name ?? 'Sin sede',
+          'adoption_score' => round($s, 1),
+          'total_ops' => (int)$row->total_ops,
+          'active_days' => (int)$row->active_days,
+          'unique_modules' => (int)$row->unique_modules,
+        ];
 
-      if ($badge) {
-        $champions[] = array_merge($entry, ['badge' => $badge]);
-      } elseif ($s < self::RISK_MEDIUM) {
-        $risk = $s < self::RISK_HIGH ? 'alto' : 'medio';
-        $atRisk[] = array_merge($entry, ['risk_level' => $risk]);
+        if ($badge) {
+          $champions[] = array_merge($entry, ['badge' => $badge]);
+        } elseif ($s < self::RISK_MEDIUM) {
+          $risk = $s < self::RISK_HIGH ? 'alto' : 'medio';
+          $atRisk[] = array_merge($entry, ['risk_level' => $risk]);
+        }
       }
-    }
 
-    // Users with zero activity (expected but not in audit_logs)
-    $activeIds = $rows->pluck('user_id')->flip();
-    $zeroActivity = User::whereNull('status_deleted')
-      ->whereNotIn('id', $activeIds->keys()->all())
-      ->with(['person.sede'])
-      ->limit(100)
-      ->get()
-      ->map(fn($u) => [
-        'user_id' => $u->id,
-        'user_name' => $u->name,
-        'sede_name' => optional(optional($u->person)->sede)->localidad ?? 'Sin sede',
-        'adoption_score' => 0,
-        'total_ops' => 0,
-        'active_days' => 0,
-        'unique_modules' => 0,
-        'risk_level' => 'alto',
-      ]);
+      $activeIds = $rows->pluck('user_id')->flip();
+      $zeroActivity = User::whereNull('status_deleted')
+        ->whereNotIn('id', $activeIds->keys()->all())
+        ->with(['person.sede'])
+        ->limit(100)
+        ->get()
+        ->map(fn($u) => [
+          'user_id' => $u->id,
+          'user_name' => $u->name,
+          'sede_name' => optional(optional($u->person)->sede)->localidad ?? 'Sin sede',
+          'adoption_score' => 0,
+          'total_ops' => 0,
+          'active_days' => 0,
+          'unique_modules' => 0,
+          'risk_level' => 'alto',
+        ]);
 
-    usort($champions, fn($a, $b) => $b['adoption_score'] <=> $a['adoption_score']);
-    usort($atRisk, fn($a, $b) => $a['adoption_score'] <=> $b['adoption_score']);
+      usort($champions, fn($a, $b) => $b['adoption_score'] <=> $a['adoption_score']);
+      usort($atRisk, fn($a, $b) => $a['adoption_score'] <=> $b['adoption_score']);
 
-    return [
-      'champions' => $champions,
-      'at_risk' => array_merge($atRisk, $zeroActivity->all()),
-      'champion_count' => count($champions),
-      'at_risk_count' => count($atRisk) + $zeroActivity->count(),
-    ];
+      return [
+        'champions' => $champions,
+        'at_risk' => array_merge($atRisk, $zeroActivity->all()),
+        'champion_count' => count($champions),
+        'at_risk_count' => count($atRisk) + $zeroActivity->count(),
+      ];
+    });
   }
 
   public function getAlerts(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
-    $periodDays = max(1, $from->diffInDays($to) + 1);
-    $totalModules = $this->countDistinctModules($from, $to, $filters);
+    return Cache::remember($this->cacheKey('alerts', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
 
-    $alerts = [];
+      $alerts = [];
 
-    // 1. Trained users with zero activity
-    $activeIds = $this->baseQuery($from, $to, $filters)
-      ->distinct('user_id')->pluck('user_id');
-    $inactiveCount = User::whereNull('status_deleted')
-      ->whereNotIn('id', $activeIds)->count();
-    if ($inactiveCount > 0) {
-      $alerts[] = [
-        'type' => 'inactive_trained_users',
-        'severity' => 'high',
-        'message' => "$inactiveCount usuario(s) capacitado(s) sin ninguna actividad en el período.",
-        'count' => $inactiveCount,
-      ];
-    }
+      // 1. Trained users with zero activity
+      $activeIds = $this->baseQuery($from, $to, $filters)
+        ->distinct('user_id')->pluck('user_id');
+      $inactiveCount = User::whereNull('status_deleted')
+        ->whereNotIn('id', $activeIds)->count();
+      if ($inactiveCount > 0) {
+        $alerts[] = [
+          'type' => 'inactive_trained_users',
+          'severity' => 'high',
+          'message' => "$inactiveCount usuario(s) capacitado(s) sin ninguna actividad en el período.",
+          'count' => $inactiveCount,
+        ];
+      }
 
-    // 2. Lagging sedes (adoption index < 40)
-    $sedeRanking = $this->getSedeRanking($filters);
-    $laggingSedes = array_filter($sedeRanking, fn($s) => $s['adoption_index'] < 40);
-    foreach ($laggingSedes as $sede) {
-      $alerts[] = [
-        'type' => 'lagging_sede',
-        'severity' => 'medium',
-        'message' => "Sede «{$sede['sede_name']}» con índice de adopción bajo ({$sede['adoption_index']}%).",
-        'sede' => $sede['sede_name'],
-      ];
-    }
+      // 2. Lagging sedes — reads from cache if already warmed
+      $sedeRanking = $this->getSedeRanking($filters);
+      $laggingSedes = array_filter($sedeRanking, fn($s) => $s['adoption_index'] < 40);
+      foreach ($laggingSedes as $sede) {
+        $alerts[] = [
+          'type' => 'lagging_sede',
+          'severity' => 'medium',
+          'message' => "Sede «{$sede['sede_name']}» con índice de adopción bajo ({$sede['adoption_index']}%).",
+          'sede' => $sede['sede_name'],
+        ];
+      }
 
-    // 3. Underused modules (less than 3% of total ops)
-    $moduleUsage = $this->getModuleUsage($filters);
-    $underused = array_filter($moduleUsage, fn($m) => $m['share_pct'] < 3 && $m['total_ops'] < 10);
-    foreach ($underused as $mod) {
-      $alerts[] = [
-        'type' => 'underused_module',
-        'severity' => 'low',
-        'message' => "Módulo «{$mod['module']}» con muy baja adopción ({$mod['total_ops']} ops).",
-        'module' => $mod['module'],
-      ];
-    }
+      // 3. Underused modules — reads from cache if already warmed
+      $moduleUsage = $this->getModuleUsage($filters);
+      $underused = array_filter($moduleUsage, fn($m) => $m['share_pct'] < 3 && $m['total_ops'] < 10);
+      foreach ($underused as $mod) {
+        $alerts[] = [
+          'type' => 'underused_module',
+          'severity' => 'low',
+          'message' => "Módulo «{$mod['module']}» con muy baja adopción ({$mod['total_ops']} ops).",
+          'module' => $mod['module'],
+        ];
+      }
 
-    // 4. Activity drop: compare last 7 days vs previous 7 days
-    $last7From = $to->copy()->subDays(6);
-    $prev7From = $last7From->copy()->subDays(7);
-    $prev7To = $last7From->copy()->subDay();
-    $last7Ops = AuditLogs::whereBetween('created_at', [$last7From, $to])
-      ->whereIn('action', array_keys(self::ACTION_POINTS))->count();
-    $prev7Ops = AuditLogs::whereBetween('created_at', [$prev7From, $prev7To])
-      ->whereIn('action', array_keys(self::ACTION_POINTS))->count();
-    if ($prev7Ops > 0 && $last7Ops < $prev7Ops * 0.7) {
-      $drop = round((1 - $last7Ops / $prev7Ops) * 100);
-      $alerts[] = [
-        'type' => 'activity_drop',
-        'severity' => 'high',
-        'message' => "Caída de actividad del {$drop}% en los últimos 7 días vs. los 7 días anteriores.",
-        'drop_pct' => $drop,
-      ];
-    }
+      // 4. Activity drop: compare last 7 days vs previous 7 days
+      $last7From = $to->copy()->subDays(6);
+      $prev7From = $last7From->copy()->subDays(7);
+      $prev7To = $last7From->copy()->subDay();
+      $last7Ops = AuditLogs::whereBetween('created_at', [$last7From, $to])
+        ->whereIn('action', array_keys(self::ACTION_POINTS))->count();
+      $prev7Ops = AuditLogs::whereBetween('created_at', [$prev7From, $prev7To])
+        ->whereIn('action', array_keys(self::ACTION_POINTS))->count();
+      if ($prev7Ops > 0 && $last7Ops < $prev7Ops * 0.7) {
+        $drop = round((1 - $last7Ops / $prev7Ops) * 100);
+        $alerts[] = [
+          'type' => 'activity_drop',
+          'severity' => 'high',
+          'message' => "Caída de actividad del {$drop}% en los últimos 7 días vs. los 7 días anteriores.",
+          'drop_pct' => $drop,
+        ];
+      }
 
-    return $alerts;
+      return $alerts;
+    });
   }
 
   public function getTrend(array $filters): array
   {
-    [$from, $to] = $this->resolveDateRange($filters);
+    return Cache::remember($this->cacheKey('trend', $filters), self::CACHE_TTL, function () use ($filters) {
+      [$from, $to] = $this->resolveDateRange($filters);
 
-    $daily = $this->baseQuery($from, $to, $filters)
-      ->select(
-        DB::raw('DATE(audit_logs.created_at) as day'),
-        DB::raw('COUNT(*) as total_ops'),
-        DB::raw('COUNT(DISTINCT audit_logs.user_id) as active_users'),
-        DB::raw('SUM(audit_logs.action = \'created\') as creates'),
-        DB::raw('SUM(audit_logs.action = \'updated\') as updates'),
-        DB::raw('SUM(audit_logs.action = \'deleted\') as deletes')
-      )
-      ->groupBy('day')
-      ->orderBy('day')
-      ->get();
+      $daily = $this->baseQuery($from, $to, $filters)
+        ->select(
+          DB::raw('DATE(audit_logs.created_at) as day'),
+          DB::raw('COUNT(*) as total_ops'),
+          DB::raw('COUNT(DISTINCT audit_logs.user_id) as active_users'),
+          DB::raw('SUM(audit_logs.action = \'created\') as creates'),
+          DB::raw('SUM(audit_logs.action = \'updated\') as updates'),
+          DB::raw('SUM(audit_logs.action = \'deleted\') as deletes')
+        )
+        ->groupBy('day')
+        ->orderBy('day')
+        ->get();
 
-    return $daily->map(fn($d) => [
-      'day' => $d->day,
-      'total_ops' => (int)$d->total_ops,
-      'active_users' => (int)$d->active_users,
-      'creates' => (int)$d->creates,
-      'updates' => (int)$d->updates,
-      'deletes' => (int)$d->deletes,
-    ])->all();
+      return $daily->map(fn($d) => [
+        'day' => $d->day,
+        'total_ops' => (int)$d->total_ops,
+        'active_users' => (int)$d->active_users,
+        'creates' => (int)$d->creates,
+        'updates' => (int)$d->updates,
+        'deletes' => (int)$d->deletes,
+      ])->all();
+    });
   }
 
   // -------------------------------------------------------------------------

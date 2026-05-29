@@ -1585,6 +1585,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/champions', [AdoptionDashboardController::class, 'champions']);
     Route::get('/alerts', [AdoptionDashboardController::class, 'alerts']);
     Route::get('/trend', [AdoptionDashboardController::class, 'trend']);
+    Route::get('/all', [AdoptionDashboardController::class, 'all']);
+    Route::post('/refresh', [AdoptionDashboardController::class, 'refresh']);
   });
 
   // GP - Gestión Humana - Viáticos Routes
