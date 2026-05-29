@@ -329,7 +329,7 @@ class AdoptionDashboardService
       $userStats = $this->rawUserStats($from, $to, $filters);
 
       $expectedUsers = User::whereNull('status_deleted')->pluck('name', 'id');
-      $activeUserIds = $userStats->pluck('user_id')->flip();
+      $activeUserIds = $userStats->pluck('user_id')->filter()->flip();
 
       $result = $userStats->map(function ($row) use ($expectedOpsPerUser) {
         $ratio = $expectedOpsPerUser > 0 ? min($row->total_ops / $expectedOpsPerUser, 1) : 0;
@@ -402,7 +402,7 @@ class AdoptionDashboardService
         }
       }
 
-      $activeIds = $rows->pluck('user_id')->flip();
+      $activeIds = $rows->pluck('user_id')->filter()->flip();
       $zeroActivity = User::whereNull('status_deleted')
         ->whereNotIn('id', $activeIds->keys()->all())
         ->with(['person.sede'])
