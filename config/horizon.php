@@ -421,6 +421,7 @@ return [
             'supervisor-mail'                 => ['minProcesses' => 1, 'maxProcesses' => 3],
             'supervisor-evaluation-dashboards'=> ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 2],
+            'supervisor-fac-invoice-sync'     => ['minProcesses' => 2, 'maxProcesses' => 4],
         ],
 
         'local' => [
