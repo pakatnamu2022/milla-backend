@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApMastersController;
+use App\Http\Controllers\gp\GpMastersController;
 use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
@@ -114,6 +115,8 @@ use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1741,6 +1744,27 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Insurances
     Route::apiResource('insurances', PayrollInsuranceController::class);
+
+    // Loans
+    Route::apiResource('loans', PayrollLoanController::class);
+
+    // Loan Extra Discounts
+    Route::apiResource('loan-extra-discounts', PayrollLoanExtraDiscountController::class);
+  });
+
+  /**
+   * Routes for General Process Masters (GP)
+   */
+  Route::group(['prefix' => 'gp'], function () {
+    // Maestros General
+    Route::get('gpMasters/types', [GpMastersController::class, 'getTypes']);
+    Route::apiResource('gpMasters', GpMastersController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
   });
 
   // NOTIFICATIONS
