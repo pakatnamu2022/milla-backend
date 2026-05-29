@@ -100,9 +100,11 @@ class SyncAttendanceJob implements ShouldQueue
     $count    = $punches->count();
     $personId = $personMap[$empCode] ?? null;
 
-    $types = $count === 2
-      ? ['check_in', 'check_out']
-      : ['check_in', 'lunch_out', 'lunch_in', 'check_out'];
+    $types = match(true) {
+      $count >= 4 => ['check_in', 'lunch_out', 'lunch_in', 'check_out'],
+      $count === 3 => ['check_in', 'lunch_out', 'check_out'],
+      default     => ['check_in', 'check_out'],
+    };
 
     return $punches->take(count($types))->values()->map(function ($row, int $idx) use ($types, $empCode, $date, $personId) {
       $punched = Carbon::parse($row->punch_time);
