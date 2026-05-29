@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\asistencias;
 
 use App\Exports\GeneralExport;
 use App\Http\Controllers\Controller;
+use App\Http\Traits\Filterable;
 use App\Jobs\SyncAttendanceJob;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
@@ -16,6 +17,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceSyncController extends Controller
 {
+  use Filterable;
   public function index(Request $request): JsonResponse
   {
     $query = AttendanceSync::query()->with('person');
@@ -108,9 +110,12 @@ class AttendanceSyncController extends Controller
     $request->validate([
       'date_from' => ['required', 'date_format:Y-m-d'],
       'date_to'   => ['required', 'date_format:Y-m-d', 'gte:date_from'],
+      'emp_code'  => ['nullable', 'string'],
+      'person_id' => ['nullable', 'integer'],
+      'search'    => ['nullable', 'string', 'max:100'],
     ]);
 
-    $rows = $this->buildPivotedRows($request->date_from, $request->date_to);
+    $rows = $this->buildPivotedRows($request->date_from, $request->date_to, $request->person_id ? (int) $request->person_id : null, $request);
 
     $data = $rows->map(function (object $row) {
       $checkIn  = $row->check_in;
@@ -156,18 +161,7 @@ class AttendanceSyncController extends Controller
       return Excel::download(new GeneralExport($data, $columns, 'SUNAFIL'), $filename);
     }
 
-    $perPage = min((int) $request->get('per_page', 50), 500);
-    $page    = (int) $request->get('page', 1);
-    $total   = $data->count();
-    $items   = $data->slice(($page - 1) * $perPage, $perPage)->values();
-
-    return response()->json([
-      'data'         => $items,
-      'total'        => $total,
-      'per_page'     => $perPage,
-      'current_page' => $page,
-      'last_page'    => (int) ceil($total / $perPage),
-    ]);
+    return $this->paginateCollection($data, $request);
   }
 
   public function reportInternal(Request $request): Response|JsonResponse|BinaryFileResponse
@@ -176,9 +170,11 @@ class AttendanceSyncController extends Controller
       'date_from' => ['required', 'date_format:Y-m-d'],
       'date_to'   => ['required', 'date_format:Y-m-d', 'gte:date_from'],
       'person_id' => ['nullable', 'integer'],
+      'emp_code'  => ['nullable', 'string'],
+      'search'    => ['nullable', 'string', 'max:100'],
     ]);
 
-    $rows    = $this->buildPivotedRows($request->date_from, $request->date_to, $request->person_id);
+    $rows    = $this->buildPivotedRows($request->date_from, $request->date_to, $request->person_id ? (int) $request->person_id : null, $request);
     $summary = $this->buildInternalSummary($rows);
 
     if ($request->get('export') === 'xlsx') {
@@ -212,18 +208,7 @@ class AttendanceSyncController extends Controller
       return Excel::download(new GeneralExport($flat, $columns, 'Reporte Interno'), $filename);
     }
 
-    $perPage = min((int) $request->get('per_page', 25), 200);
-    $page    = (int) $request->get('page', 1);
-    $total   = $summary->count();
-    $items   = $summary->slice(($page - 1) * $perPage, $perPage)->values();
-
-    return response()->json([
-      'data'         => $items,
-      'total'        => $total,
-      'per_page'     => $perPage,
-      'current_page' => $page,
-      'last_page'    => (int) ceil($total / $perPage),
-    ]);
+    return $this->paginateCollection($summary, $request);
   }
 
   public function personDashboard(int $person_id, Request $request): JsonResponse
@@ -236,7 +221,7 @@ class AttendanceSyncController extends Controller
     $dateFrom = $request->get('date_from', now()->startOfMonth()->toDateString());
     $dateTo   = $request->get('date_to', now()->toDateString());
 
-    $rows = $this->buildPivotedRows($dateFrom, $dateTo, $person_id);
+    $rows = $this->buildPivotedRows($dateFrom, $dateTo, $person_id, null);
 
     if ($rows->isEmpty()) {
       return response()->json(['message' => 'No attendance records found for this person in the given range.'], 404);
@@ -297,7 +282,7 @@ class AttendanceSyncController extends Controller
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  private function buildPivotedRows(string $dateFrom, string $dateTo, ?int $personId = null): \Illuminate\Support\Collection
+  private function buildPivotedRows(string $dateFrom, string $dateTo, ?int $personId = null, ?Request $request = null): \Illuminate\Support\Collection
   {
     $query = DB::table('attendance_sync as a')
       ->leftJoin('rrhh_persona as p', 'p.id', '=', 'a.person_id')
@@ -320,6 +305,21 @@ class AttendanceSyncController extends Controller
 
     if ($personId) {
       $query->where('a.person_id', $personId);
+    }
+
+    if ($request) {
+      if ($request->filled('emp_code')) {
+        $query->where('a.emp_code', $request->emp_code);
+      }
+
+      if ($request->filled('search')) {
+        $term = $request->search;
+        $query->where(function ($q) use ($term) {
+          $q->where('a.emp_code', 'like', "%{$term}%")
+            ->orWhere('p.nombre_completo', 'like', "%{$term}%")
+            ->orWhere('a.full_name', 'like', "%{$term}%");
+        });
+      }
     }
 
     return $query->get();
