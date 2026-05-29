@@ -38,13 +38,17 @@ class AppServiceProvider extends ServiceProvider
       );
     });
 
+    // Aumentar memoria disponible para generación de docs
+    ini_set('memory_limit', '1024M');
+
     // Optimización: Filtrar solo rutas API (excluir rutas de autenticación, etc.)
     if (!$this->app->runningInConsole()) {
       Scramble::routes(function ($route) {
         return str_starts_with($route->uri, 'api/')
           && !str_contains($route->uri, 'sanctum')
           && !str_contains($route->uri, 'login')
-          && !str_contains($route->uri, 'register');
+          && !str_contains($route->uri, 'register')
+          && !($route->getAction('uses') instanceof \Closure);
       });
     }
 

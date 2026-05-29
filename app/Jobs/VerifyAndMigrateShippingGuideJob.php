@@ -64,6 +64,15 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'shipping_guide_id' => $this->shippingGuideId,
         'error' => $e->getMessage(),
       ]);
+
+      // Update guide status to failed so the scheduled command stops re-dispatching it
+      if ($this->shippingGuideId) {
+        $guide = ShippingGuides::find($this->shippingGuideId);
+        if ($guide) {
+          $this->checkAndUpdateCompletionStatus($guide);
+        }
+      }
+
       throw $e;
     }
   }
@@ -1216,5 +1225,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       'shipping_guide_id' => $this->shippingGuideId,
       'error' => $exception->getMessage(),
     ]);
+
+    if ($this->shippingGuideId) {
+      ShippingGuides::where('id', $this->shippingGuideId)
+        ->update(['migration_status' => 'failed']);
+    }
   }
 }

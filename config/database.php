@@ -168,6 +168,20 @@ return [
       'trust_server_certificate' => env('DBTP3_TRUST_SERVER_CERTIFICATE', 'true'),
     ],
 
+    'dbdp2' => [
+      'driver' => env('DBDP2_CONNECTION', 'sqlsrv'),
+      'host' => env('DBDP2_HOST'),
+      'port' => env('DBDP2_PORT', '2122'),
+      'database' => env('DBDP2_DATABASE'),
+      'username' => env('DBDP2_USERNAME'),
+      'password' => env('DBDP2_PASSWORD'),
+      'charset' => 'utf8',
+      'prefix' => '',
+      'prefix_indexes' => true,
+      'encrypt' => env('DBDP2_ENCRYPT', 'yes'),
+      'trust_server_certificate' => env('DBDP2_TRUST_SERVER_CERTIFICATE', 'true'),
+    ],
+
   ],
 
   /*

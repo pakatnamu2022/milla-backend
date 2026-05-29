@@ -11,6 +11,7 @@ use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
+use App\Http\Controllers\dp\comercial\CuentasPorCobrarController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
@@ -142,6 +143,7 @@ use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
+use App\Http\Controllers\tp\comercial\FacInvoiceController;
 use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\common\NotificationController;
 
@@ -242,6 +244,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
 
     });
+
+    Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
 
   });
 
@@ -1533,6 +1537,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
   });
 
+  /**
+   * Routes for Deposito Pakatnamu
+   */
+  Route::group(['prefix' => 'dp'], function () {
+    Route::group(['prefix' => 'commercial'], function () {
+      // Cuentas por Cobrar
+      Route::post('cuentasPorCobrar/sync', [CuentasPorCobrarController::class, 'sync']);
+      Route::get('cuentasPorCobrar/{id}', [CuentasPorCobrarController::class, 'show']);
+      Route::post('cuentasPorCobrar/{id}/comments', [CuentasPorCobrarController::class, 'storeComment']);
+      Route::get('cuentasPorCobrar', [CuentasPorCobrarController::class, 'index']);
+    });
+  });
+
   // Document Validation Routes
   Route::group(['prefix' => 'document-validation'], function () {
     Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
@@ -1672,20 +1689,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // GP - Gestión Humana - Payroll (Nómina) Routes
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
-    // TEST ROUTE - Calcular promedio 6 meses
-    Route::get('test-promedio-6-meses', function (\Illuminate\Http\Request $request) {
-      $periodId = $request->input('period_id');
-      $workerId = $request->input('worker_id');
-      $companyId = $request->input('company_id');
-
-      $result = \App\Models\gp\gestionhumana\payroll\PayrollCalculation::calcularPromedioUltimos6Meses(
-        $periodId,
-        $workerId,
-        $companyId
-      );
-
-      return response()->json($result);
-    });
+    Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
 
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
