@@ -122,11 +122,23 @@ class AdoptionDashboardController extends Controller
 
     /**
      * Todos los datos del dashboard en una sola request (lee desde cache).
+     * Si el cache está frío encola el warming y devuelve 202 para que el
+     * frontend reintente en unos segundos en lugar de esperar 5+ minutos.
      */
     public function all(Request $request)
     {
         try {
             $filters = $this->filters($request);
+
+            if (!$this->service->isCacheReady($filters)) {
+                WarmAdoptionCacheJob::dispatch($filters);
+                return response()->json([
+                    'status'      => 'warming',
+                    'message'     => 'Generando datos del dashboard. Intente nuevamente en 2 minutos.',
+                    'retry_after' => 120,
+                ], 202);
+            }
+
             return $this->success([
                 'last_updated' => $this->service->getLastUpdated($filters),
                 'summary'      => $this->service->getExecutiveSummary($filters),
