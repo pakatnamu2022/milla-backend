@@ -105,6 +105,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
@@ -1752,6 +1753,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
     Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
   });
+});
+
+// ATTENDANCE — ZKBioTime sync
+Route::group(['prefix' => 'admin/attendance'], function () {
+  Route::get('/', [AttendanceSyncController::class, 'index']);
+  Route::get('/{id}', [AttendanceSyncController::class, 'show']);
+  Route::post('/sync', [AttendanceSyncController::class, 'sync']);
 });
 
 // PUBLIC ROUTES - No authentication required
