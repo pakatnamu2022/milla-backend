@@ -111,6 +111,9 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1729,6 +1732,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
     Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
+
+    // Liquidation BBSS
+    Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
+
+    // Bonuses
+    Route::apiResource('bonuses', PayrollBonusController::class);
+
+    // Insurances
+    Route::apiResource('insurances', PayrollInsuranceController::class);
   });
 
   // NOTIFICATIONS
