@@ -12,6 +12,10 @@ class AdoptionDashboardService
 {
   private const CACHE_TTL = 700; // seconds (~11 min, slightly above the 10-min warm job interval)
 
+  // Per-request memo to avoid repeating the same heavy queries within one cache-miss cycle
+  private array $memoUserStats = [];
+  private array $memoModuleCount = [];
+
   // Points per action
   private const ACTION_POINTS = [
     'created' => 5,
@@ -73,26 +77,39 @@ class AdoptionDashboardService
     return Cache::get('adoption:last_updated:' . md5(serialize($filters)));
   }
 
+  public function isCacheReady(array $filters): bool
+  {
+    foreach (['summary', 'trend', 'modules', 'sedes', 'users', 'compliance', 'champions', 'alerts'] as $section) {
+      if (!Cache::has($this->cacheKey($section, $filters))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /**
-   * Warms all cache sections sequentially with a pause between each query
-   * to avoid saturating the DB. Called by WarmAdoptionCacheJob.
+   * Warms all cache sections sequentially. Called by WarmAdoptionCacheJob.
+   * Memo properties persist across calls so rawUserStats runs only once.
    */
   public function warmAll(array $filters): void
   {
-    // Forget all keys so Cache::remember recomputes on the next call
     $sections = ['summary', 'trend', 'modules', 'sedes', 'users', 'compliance', 'champions', 'alerts'];
     foreach ($sections as $section) {
       Cache::forget($this->cacheKey($section, $filters));
     }
 
+    // Reset memos so this warm cycle starts fresh
+    $this->memoUserStats = [];
+    $this->memoModuleCount = [];
+
     // Order matters: modules & sedes before alerts (alerts reads them from cache)
-    $this->getExecutiveSummary($filters);   sleep(3);
-    $this->getTrend($filters);              sleep(3);
-    $this->getModuleUsage($filters);        sleep(3);
-    $this->getSedeRanking($filters);        sleep(3);
-    $this->getUserRanking($filters);        sleep(3);
-    $this->getCompliance($filters);         sleep(3);
-    $this->getChampionsAndAtRisk($filters); sleep(3);
+    $this->getExecutiveSummary($filters);   sleep(1);
+    $this->getTrend($filters);              sleep(1);
+    $this->getModuleUsage($filters);        sleep(1);
+    $this->getSedeRanking($filters);        sleep(1);
+    $this->getUserRanking($filters);        sleep(1);
+    $this->getCompliance($filters);         sleep(1);
+    $this->getChampionsAndAtRisk($filters); sleep(1);
     $this->getAlerts($filters);
 
     Cache::put(
@@ -165,8 +182,9 @@ class AdoptionDashboardService
 
       $rows = $this->rawUserStats($from, $to, $filters);
       $totalModules = $this->countDistinctModules($from, $to, $filters);
+      $modulesMap = $this->rawUserModulesMap($from, $to, $filters);
 
-      return $rows->map(function ($row) use ($periodDays, $totalModules) {
+      return $rows->map(function ($row) use ($periodDays, $totalModules, $modulesMap) {
         $score = $this->computeUserScore($row, $periodDays, $totalModules);
         return [
           'user_id' => $row->user_id,
@@ -180,7 +198,7 @@ class AdoptionDashboardService
           'action_score' => (int)$row->action_score,
           'active_days' => (int)$row->active_days,
           'unique_modules' => (int)$row->unique_modules,
-          'modules_list' => $this->decodeModules($row->modules_raw ?? ''),
+          'modules_list' => $this->decodeModules($modulesMap[$row->user_id] ?? ''),
           'adoption_score' => round($score['total'], 1),
           'score_breakdown' => $score['breakdown'],
           'badge' => $this->assignBadge($score['total'], (int)$row->unique_modules, (int)$row->active_days, $periodDays),
@@ -556,7 +574,12 @@ class AdoptionDashboardService
 
   private function rawUserStats(Carbon $from, Carbon $to, array $filters)
   {
-    return DB::table('audit_logs as al')
+    $key = md5(serialize([$from->toISOString(), $to->toISOString(), $filters]));
+    if (isset($this->memoUserStats[$key])) {
+      return $this->memoUserStats[$key];
+    }
+
+    return $this->memoUserStats[$key] = DB::table('audit_logs as al')
       ->select(
         'al.user_id',
         DB::raw('MAX(al.user_name) as user_name'),
@@ -577,8 +600,7 @@ class AdoptionDashboardService
                     END
                 ) as action_score'),
         DB::raw('COUNT(DISTINCT DATE(al.created_at)) as active_days'),
-        DB::raw('COUNT(DISTINCT al.auditable_type) as unique_modules'),
-        DB::raw('GROUP_CONCAT(DISTINCT al.auditable_type SEPARATOR \'|\') as modules_raw')
+        DB::raw('COUNT(DISTINCT al.auditable_type) as unique_modules')
       )
       ->leftJoin('usr_users as u', 'al.user_id', '=', 'u.id')
       ->leftJoin('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
@@ -592,6 +614,30 @@ class AdoptionDashboardService
       })
       ->groupBy('al.user_id', 'w.sede_id')
       ->get();
+  }
+
+  // Separate lightweight query — GROUP_CONCAT only needed for getUserRanking display
+  private function rawUserModulesMap(Carbon $from, Carbon $to, array $filters): array
+  {
+    return DB::table('audit_logs as al')
+      ->select(
+        'al.user_id',
+        DB::raw('GROUP_CONCAT(DISTINCT al.auditable_type SEPARATOR \'|\') as modules_raw')
+      )
+      ->whereIn('al.action', array_keys(self::ACTION_POINTS))
+      ->whereBetween('al.created_at', [$from, $to])
+      ->when(isset($filters['user_id']), fn($q) => $q->where('al.user_id', $filters['user_id']))
+      ->when(isset($filters['sede_id']), function ($q) use ($filters) {
+        $q->join('usr_users as u', 'al.user_id', '=', 'u.id')
+          ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
+          ->where('w.sede_id', $filters['sede_id']);
+      })
+      ->when(isset($filters['module']), function ($q) use ($filters) {
+        $q->where('al.auditable_type', 'like', '%\\' . $filters['module'] . '\\%');
+      })
+      ->groupBy('al.user_id')
+      ->pluck('modules_raw', 'user_id')
+      ->all();
   }
 
   private function computeUserScore(object $row, int $periodDays, int $totalModules): array
@@ -646,10 +692,16 @@ class AdoptionDashboardService
 
   private function countDistinctModules(Carbon $from, Carbon $to, array $filters): int
   {
+    $key = md5(serialize([$from->toISOString(), $to->toISOString(), $filters]));
+    if (isset($this->memoModuleCount[$key])) {
+      return $this->memoModuleCount[$key];
+    }
+
     $count = $this->baseQuery($from, $to, $filters)
       ->distinct('auditable_type')
       ->count('auditable_type');
-    return max($count, self::TARGET_MODULES);
+
+    return $this->memoModuleCount[$key] = max($count, self::TARGET_MODULES);
   }
 
   private function semaphore(float $pct): string
@@ -704,15 +756,19 @@ class AdoptionDashboardService
   {
     $to = Carbon::now()->endOfDay();
     $from = Carbon::now()->subDays($days - 1)->startOfDay();
-    $ops = AuditLogs::whereIn('action', array_keys(self::ACTION_POINTS))
-      ->whereBetween('created_at', [$from, $to])
-      ->when(isset($filters['sede_id']), function ($q) use ($filters) {
-        $q->whereHas('user.person.sede', fn($sq) => $sq->where('id', $filters['sede_id']));
-      })
-      ->count();
-    $users = AuditLogs::whereIn('action', array_keys(self::ACTION_POINTS))
-      ->whereBetween('created_at', [$from, $to])
-      ->distinct('user_id')->count('user_id');
+
+    $base = DB::table('audit_logs')
+      ->whereIn('audit_logs.action', array_keys(self::ACTION_POINTS))
+      ->whereBetween('audit_logs.created_at', [$from, $to]);
+
+    if (isset($filters['sede_id'])) {
+      $base->join('usr_users as u', 'audit_logs.user_id', '=', 'u.id')
+        ->join('rrhh_persona as w', 'u.partner_id', '=', 'w.id')
+        ->where('w.sede_id', $filters['sede_id']);
+    }
+
+    $ops   = (clone $base)->count();
+    $users = (clone $base)->distinct('audit_logs.user_id')->count('audit_logs.user_id');
 
     return ['ops' => $ops, 'active_users' => $users, 'days' => $days];
   }

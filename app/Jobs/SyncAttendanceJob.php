@@ -72,17 +72,17 @@ class SyncAttendanceJob implements ShouldQueue
 
     DB::connection('zkbiotime')
       ->table('iclock_transaction as t')
-      ->join('personnel_employee as e', 'e.emp_code', '=', 't.emp_code')
+      ->join('personnel_employee as e', 'e.id', '=', 't.emp_id')
       ->select([
         't.id as transaction_id',
-        't.emp_code',
+        'e.emp_code',
         DB::raw("LTRIM(RTRIM(ISNULL(e.first_name,'')+' '+ISNULL(e.last_name,''))) AS full_name"),
         't.punch_time',
         't.punch_state',
         't.area_alias',
       ])
       ->whereDate('t.punch_time', $date)
-      ->orderBy('t.emp_code')
+      ->orderBy('e.emp_code')
       ->orderBy('t.punch_time')
       ->chunk(500, function ($chunk) use (&$rows) {
         $rows = $rows->concat($chunk);

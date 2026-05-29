@@ -11,7 +11,7 @@ class WarmAdoptionCacheJob implements ShouldQueue
   use Queueable;
 
   public int $tries = 1;
-  public int $timeout = 180;
+  public int $timeout = 600;
 
   public function __construct(private array $filters = [])
   {
