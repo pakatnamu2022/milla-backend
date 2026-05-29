@@ -389,6 +389,22 @@ return [
             'timeout' => 90,
             'nice' => 0,
         ],
+        'supervisor-fac-invoice-sync' => [
+            'connection' => 'redis',
+            'queue' => ['fac_invoice_sync'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 2,
+            'maxProcesses' => 4,
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 90,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -405,6 +421,7 @@ return [
             'supervisor-mail'                 => ['minProcesses' => 1, 'maxProcesses' => 3],
             'supervisor-evaluation-dashboards'=> ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 2],
+            'supervisor-fac-invoice-sync'     => ['minProcesses' => 2, 'maxProcesses' => 4],
         ],
 
         'local' => [
@@ -420,6 +437,7 @@ return [
             'supervisor-mail'                 => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-evaluation-dashboards'=> ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-fac-invoice-sync'     => ['minProcesses' => 1, 'maxProcesses' => 1],
         ],
     ],
 
