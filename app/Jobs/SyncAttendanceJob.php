@@ -107,7 +107,13 @@ class SyncAttendanceJob implements ShouldQueue
     };
 
     return $punches->take(count($types))->values()->map(function ($row, int $idx) use ($types, $empCode, $date, $personId) {
-      $punched = Carbon::parse($row->punch_time);
+      $punched  = Carbon::parse($row->punch_time);
+      $markType = $types[$idx];
+
+      // Punch at or after 18:00 is always check_out, never lunch_in
+      if ($markType === 'lunch_in' && $punched->hour >= 18) {
+        $markType = 'check_out';
+      }
 
       return [
         'zkbio_transaction_id' => (int) $row->transaction_id,
@@ -115,7 +121,7 @@ class SyncAttendanceJob implements ShouldQueue
         'emp_code'             => $empCode,
         'full_name'            => $row->full_name ?? '',
         'date'                 => $date,
-        'mark_type'            => $types[$idx],
+        'mark_type'            => $markType,
         'time'                 => $punched->format('H:i:s'),
         'area'                 => $row->area_alias ?: null,
         'punch_state_original' => (string) $row->punch_state,

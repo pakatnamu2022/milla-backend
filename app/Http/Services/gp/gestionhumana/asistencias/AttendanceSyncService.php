@@ -240,9 +240,10 @@ class AttendanceSyncService extends BaseService
       ];
     })->sortBy('date')->values();
 
+    $complete      = $daily->whereNotNull('hours_worked');
     $daysPresent   = $daily->count();
-    $totalWorked   = round($daily->whereNotNull('hours_worked')->sum('hours_worked'), 2);
-    $totalExpected = round($daily->sum('expected_hours'), 2);
+    $totalWorked   = round($complete->sum('hours_worked'), 2);
+    $totalExpected = round($complete->sum('expected_hours'), 2);
 
     return response()->json([
       'person_id'      => $first->person_id,
@@ -341,8 +342,9 @@ class AttendanceSyncService extends BaseService
 
       $first         = $dayRows->first();
       $daysPresent   = $daily->count();
-      $totalWorked   = round($daily->whereNotNull('hours_worked')->sum('hours_worked'), 2);
-      $totalExpected = round($daily->sum('expected_hours'), 2);
+      $complete      = $daily->whereNotNull('hours_worked');
+      $totalWorked   = round($complete->sum('hours_worked'), 2);
+      $totalExpected = round($complete->sum('expected_hours'), 2);
 
       return [
         'person_id'      => $first->person_id,
