@@ -434,6 +434,22 @@ return [
             'timeout' => 180,
             'nice' => 10, // baja prioridad del proceso para no competir con otros workers
         ],
+        'supervisor-attendance' => [
+            'connection' => 'redis',
+            'queue' => ['attendance'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -452,6 +468,7 @@ return [
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-fac-invoice-sync'     => ['minProcesses' => 2, 'maxProcesses' => 4],
             'supervisor-receivable-accounts'  => ['minProcesses' => 2, 'maxProcesses' => 4],
+            'supervisor-attendance'           => ['minProcesses' => 1, 'maxProcesses' => 2],
         ],
 
         'local' => [
@@ -469,6 +486,7 @@ return [
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-fac-invoice-sync'     => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-receivable-accounts'  => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-attendance'           => ['minProcesses' => 1, 'maxProcesses' => 1],
         ],
     ],
 

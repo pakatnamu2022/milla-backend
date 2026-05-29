@@ -527,6 +527,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         //        OBJECTIVES
+        Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
+        Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
         Route::apiResource('objective', EvaluationObjectiveController::class)->only([
           'index',
           'show',
@@ -1758,8 +1760,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 // ATTENDANCE — ZKBioTime sync
 Route::group(['prefix' => 'admin/attendance'], function () {
   Route::get('/', [AttendanceSyncController::class, 'index']);
+  Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
+  Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+  Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
   Route::get('/{id}', [AttendanceSyncController::class, 'show']);
   Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+  Route::post('/sync-range', [AttendanceSyncController::class, 'syncRange']);
 });
 
 // PUBLIC ROUTES - No authentication required

@@ -71,8 +71,8 @@ class SyncAttendanceJob implements ShouldQueue
     $rows = collect();
 
     DB::connection('zkbiotime')
-      ->table('iclock_transaction as t')
-      ->join('personnel_employee as e', 'e.id', '=', 't.emp_id')
+      ->table('db_owner.iclock_transaction as t')
+      ->join('db_owner.personnel_employee as e', 'e.id', '=', 't.emp_id')
       ->select([
         't.id as transaction_id',
         'e.emp_code',
@@ -124,9 +124,9 @@ class SyncAttendanceJob implements ShouldQueue
   private function buildPersonMap(): array
   {
     return DB::table('rrhh_persona')
-      ->whereNotNull('dni')
+      ->whereNotNull('vat')
       ->where('status_deleted', 1)
-      ->pluck('id', 'dni')
+      ->pluck('id', 'vat')
       ->toArray();
   }
 
