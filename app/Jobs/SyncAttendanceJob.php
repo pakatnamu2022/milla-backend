@@ -97,23 +97,19 @@ class SyncAttendanceJob implements ShouldQueue
     string $date,
     array $personMap
   ): \Illuminate\Support\Collection {
-    $count    = $punches->count();
     $personId = $personMap[$empCode] ?? null;
 
-    $types = match(true) {
-      $count >= 4 => ['check_in', 'lunch_out', 'lunch_in', 'check_out'],
-      $count === 3 => ['check_in', 'lunch_out', 'check_out'],
-      default     => ['check_in', 'check_out'],
-    };
-
-    return $punches->take(count($types))->values()->map(function ($row, int $idx) use ($types, $empCode, $date, $personId) {
+    return $punches->map(function ($row) use ($empCode, $date, $personId) {
       $punched  = Carbon::parse($row->punch_time);
-      $markType = $types[$idx];
+      $minutes  = $punched->hour * 60 + $punched->minute;
 
-      // Punch at or after 18:00 is always check_out, never lunch_in
-      if ($markType === 'lunch_in' && $punched->hour >= 18) {
-        $markType = 'check_out';
-      }
+      $markType = match(true) {
+        $minutes < 300  => 'check_out',  // 00:00–04:59 salida nocturna
+        $minutes < 720  => 'check_in',   // 05:00–11:59 entrada
+        $minutes < 840  => 'lunch_out',  // 12:00–13:59 salida a almorzar
+        $minutes < 1020 => 'lunch_in',   // 14:00–16:59 regreso de almuerzo
+        default         => 'check_out',  // 17:00–23:59 salida
+      };
 
       return [
         'zkbio_transaction_id' => (int) $row->transaction_id,

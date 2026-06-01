@@ -23,14 +23,9 @@ class AttendanceSyncController extends Controller
     return $this->service->show($id);
   }
 
-  public function sync(): JsonResponse
+  public function sync(Request $request): JsonResponse
   {
-    return $this->service->sync();
-  }
-
-  public function syncRange(Request $request): JsonResponse
-  {
-    return $this->service->syncRange($request);
+    return $this->service->sync($request);
   }
 
   public function reportSunafil(Request $request): Response|JsonResponse|BinaryFileResponse
