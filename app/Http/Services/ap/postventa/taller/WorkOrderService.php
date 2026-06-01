@@ -1465,6 +1465,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede anular una orden de trabajo cerrada');
       }
 
+      // Validar que no esté en trabajo
+      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
+        throw new Exception('No se puede anular una orden de trabajo que se encuentra en trabajo');
+      } else {
+        $hasPlanning = $workOrder->plannings()->where('status', '!=', 'canceled')->count();
+        if ($hasPlanning > 0) {
+          throw new Exception("No se puede anular una orden de trabajo que tiene planificación de trabajo registrada. Encontrados: {$hasPlanning}");
+        }
+      }
+
       // Validar que no tenga anticipos
       if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
         throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');

@@ -241,6 +241,12 @@ return [
       'description' => 'Permite quitar repuestos a ot',
       'icon' => 'XCircle',
       'policy_method' => 'removeAssignSparePartsOT',
+    ],
+    'completePlannedWork' => [
+      'label' => 'Completar Trabajo Planificado',
+      'description' => 'Permite completar un trabajo planificado en una orden de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'completePlannedWork',
     ]
   ],
 

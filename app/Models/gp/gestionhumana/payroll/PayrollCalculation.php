@@ -173,36 +173,6 @@ class PayrollCalculation extends BaseModel
   }
 
   /**
-   * Get earnings details
-   */
-  public function earnings(): HasMany
-  {
-    return $this->hasMany(PayrollCalculationDetail::class, 'calculation_id')
-      ->where('type', PayrollConcept::TYPE_EARNING)
-      ->orderBy('calculation_order');
-  }
-
-  /**
-   * Get deductions details
-   */
-  public function deductions(): HasMany
-  {
-    return $this->hasMany(PayrollCalculationDetail::class, 'calculation_id')
-      ->where('type', PayrollConcept::TYPE_DEDUCTION)
-      ->orderBy('calculation_order');
-  }
-
-  /**
-   * Get employer contributions details
-   */
-  public function employerContributions(): HasMany
-  {
-    return $this->hasMany(PayrollCalculationDetail::class, 'calculation_id')
-      ->where('type', PayrollConcept::TYPE_EMPLOYER_CONTRIBUTION)
-      ->orderBy('calculation_order');
-  }
-
-  /**
    * Scope to get calculations by period
    */
   public function scopeByPeriod($query, int $periodId)

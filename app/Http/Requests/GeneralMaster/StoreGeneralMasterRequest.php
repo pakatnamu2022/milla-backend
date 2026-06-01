@@ -17,6 +17,7 @@ class StoreGeneralMasterRequest extends StoreRequest
         'max:255',
         Rule::unique('general_masters', 'code')
           ->where('status', 1)
+          ->where('type', $this->input('type'))
           ->whereNull('deleted_at'),
       ],
       'description' => 'required|string|max:255',

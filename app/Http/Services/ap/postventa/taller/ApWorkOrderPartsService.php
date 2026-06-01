@@ -807,9 +807,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       }
 
       // Validar que no haya sido confirmado por el técnico
-      if ($delivery->is_received) {
-        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
-      }
+//      if ($delivery->is_received) {
+//        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
+//      }
 
       // Obtener el repuesto asociado
       $workOrderPart = $delivery->workOrderPart;

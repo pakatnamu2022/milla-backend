@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\postventa\taller\CancelWorkOrderPlanningRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderPlanningRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderPlanningRequest;
 use App\Http\Requests\ap\postventa\taller\SupervisorCompleteWorkOrderPlanningRequest;
@@ -95,6 +96,20 @@ class WorkOrderPlanningController extends Controller
   {
     try {
       return $this->success($this->service->supervisorComplete($id, $request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Cancela un trabajo de planificación
+   * POST /api/workOrderPlanning/{id}/cancel
+   */
+  public function cancel(CancelWorkOrderPlanningRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      return $this->success($this->service->cancel($id, $data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

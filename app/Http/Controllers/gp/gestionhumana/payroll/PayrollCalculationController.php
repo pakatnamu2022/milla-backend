@@ -21,10 +21,11 @@ class PayrollCalculationController extends Controller
 
   public function __construct(
     PayrollCalculatorService $calculatorService,
-    PayrollReportService $reportService,
-    PayrollSummaryService $summaryService,
-    PayrollPrintService $printService
-  ) {
+    PayrollReportService     $reportService,
+    PayrollSummaryService    $summaryService,
+    PayrollPrintService      $printService
+  )
+  {
     $this->calculatorService = $calculatorService;
     $this->reportService = $reportService;
     $this->summaryService = $summaryService;
@@ -56,22 +57,6 @@ class PayrollCalculationController extends Controller
   }
 
   /**
-   * Calculate payroll for a period
-   */
-  public function calculate(CalculatePayrollRequest $request)
-  {
-    try {
-      $result = $this->calculatorService->calculatePayroll($request->validated());
-      return $this->success([
-        'data' => $result,
-        'message' => "Payroll calculated successfully for {$result['calculations_count']} workers"
-      ]);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
    * Approve a single calculation
    */
   public function approve(int $id)
@@ -80,27 +65,6 @@ class PayrollCalculationController extends Controller
       return $this->success([
         'data' => $this->calculatorService->approve($id),
         'message' => 'Calculation approved successfully'
-      ]);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
-   * Approve all calculations for a period
-   */
-  public function approveAll(Request $request)
-  {
-    try {
-      $periodId = $request->input('period_id');
-      if (!$periodId) {
-        return $this->error('Period ID is required');
-      }
-
-      $result = $this->calculatorService->approveAll($periodId);
-      return $this->success([
-        'data' => $result,
-        'message' => "{$result['approved_count']} calculations approved successfully"
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
