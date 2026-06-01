@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 
 # Instalar extensiones PHP básicas
 RUN docker-php-ext-configure gd --with-jpeg
-RUN docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath intl zip gd opcache
+RUN docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath intl zip gd opcache calendar
 
 # Configurar timezone de PHP
 RUN echo "date.timezone = America/Lima" > /usr/local/etc/php/conf.d/timezone.ini
