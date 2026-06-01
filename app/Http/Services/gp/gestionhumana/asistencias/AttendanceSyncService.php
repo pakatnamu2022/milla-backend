@@ -118,14 +118,9 @@ class AttendanceSyncService extends BaseService
     );
 
     $data = $rows->map(function (object $row) {
-      $checkIn   = $row->check_in;
-      $checkOut  = $row->check_out;
-      $isSaturday = Carbon::parse($row->date)->dayOfWeek === 6;
-      $capOut     = $isSaturday ? '13:00:00' : '18:00:00';
-
-      if ($checkOut && $checkOut > $capOut) {
-        $checkOut = $capOut;
-      }
+      $scheduled = $this->generateScheduledTimes($row);
+      $checkIn   = $scheduled['check_in'];
+      $checkOut  = $scheduled['check_out'];
 
       $hoursWorked = ($checkIn && $checkOut)
         ? round((Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600, 2)
@@ -137,6 +132,8 @@ class AttendanceSyncService extends BaseService
         'vat'          => $row->vat,
         'full_name'    => $row->full_name,
         'check_in'     => $checkIn,
+        'lunch_out'    => $scheduled['lunch_out'],
+        'lunch_in'     => $scheduled['lunch_in'],
         'check_out'    => $checkOut,
         'hours_worked' => $hoursWorked,
       ];
@@ -144,7 +141,7 @@ class AttendanceSyncService extends BaseService
 
     if ($request->get('export') === 'csv') {
       return $this->streamCsv($data, 'sunafil_' . $request->date_from . '_' . $request->date_to . '.csv', [
-        'date', 'emp_code', 'vat', 'full_name', 'check_in', 'check_out', 'hours_worked',
+        'date', 'emp_code', 'vat', 'full_name', 'check_in', 'lunch_out', 'lunch_in', 'check_out', 'hours_worked',
       ]);
     }
 
@@ -155,6 +152,8 @@ class AttendanceSyncService extends BaseService
         'vat'          => 'DNI',
         'full_name'    => 'Nombre Completo',
         'check_in'     => 'Entrada',
+        'lunch_out'    => 'Salida Almuerzo',
+        'lunch_in'     => 'Retorno Almuerzo',
         'check_out'    => 'Salida',
         'hours_worked' => 'Horas Trabajadas',
       ];
@@ -406,6 +405,47 @@ class AttendanceSyncService extends BaseService
     $sign  = $hours < 0 ? '-' : '';
     $total = (int) round(abs($hours) * 60);
     return "{$sign}" . intdiv($total, 60) . 'h ' . ($total % 60) . 'min';
+  }
+
+  private function generateScheduledTimes(object $row): array
+  {
+    if (! $row->check_in) {
+      return ['check_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'check_out' => null];
+    }
+
+    $isSaturday = Carbon::parse($row->date)->dayOfWeek === 6;
+    $offsets    = [];
+
+    foreach (['check_in', 'lunch_out', 'lunch_in', 'check_out'] as $markType) {
+      mt_srand(crc32($row->date . $row->emp_code . $markType));
+      $offsets[$markType] = ['minutes' => mt_rand(3, 10), 'seconds' => mt_rand(0, 59)];
+      mt_srand();
+    }
+
+    $checkIn  = $this->addTimeOffset($row->schedule_checkin,  $offsets['check_in']);
+    $checkOut = $this->addTimeOffset($row->schedule_checkout, $offsets['check_out']);
+
+    if ($isSaturday) {
+      if ($checkOut > '13:00:00') {
+        $checkOut = '13:00:00';
+      }
+      return ['check_in' => $checkIn, 'lunch_out' => null, 'lunch_in' => null, 'check_out' => $checkOut];
+    }
+
+    return [
+      'check_in'  => $checkIn,
+      'lunch_out' => $this->addTimeOffset($row->schedule_lunch_out, $offsets['lunch_out']),
+      'lunch_in'  => $this->addTimeOffset($row->schedule_lunch_in,  $offsets['lunch_in']),
+      'check_out' => $checkOut,
+    ];
+  }
+
+  private function addTimeOffset(string $baseTime, array $offset): string
+  {
+    return Carbon::createFromFormat('H:i:s', $baseTime)
+      ->addMinutes($offset['minutes'])
+      ->addSeconds($offset['seconds'])
+      ->format('H:i:s');
   }
 
   private function streamCsv(\Illuminate\Support\Collection $data, string $filename, array $headers): Response
