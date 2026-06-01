@@ -108,8 +108,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
    */
   private function splitIntoTimeBlocks(array $data): array
   {
-    $start = Carbon::parse($data['planned_start_datetime']);
-    $end = Carbon::parse($data['planned_end_datetime']);
+    // Truncar segundos para evitar problemas con decimales
+    $start = Carbon::parse($data['planned_start_datetime'])->startOfMinute();
+    $end = Carbon::parse($data['planned_end_datetime'])->startOfMinute();
     $currentDate = $start->format('Y-m-d');
 
     // Construir los límites de horarios usando las constantes

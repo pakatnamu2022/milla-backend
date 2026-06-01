@@ -1423,11 +1423,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
         throw new Exception('No se puede facturar una orden de trabajo cancelada.');
       }
 
-      if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && $validateLabor) {
+      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID && $validateLabor) {
         throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
       }
 
