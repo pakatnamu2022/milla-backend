@@ -37,6 +37,7 @@ class Worker extends BaseModel
     'tel_referencia_3',
     'sueldo',
     'horas_jornada',
+    'work_schedule_id',
     'status_id',
   ];
 
@@ -210,5 +211,10 @@ class Worker extends BaseModel
   public function signature()
   {
     return $this->hasOne(WorkerSignature::class, 'worker_id', 'id');
+  }
+
+  public function workSchedule()
+  {
+    return $this->belongsTo(WorkSchedule::class, 'work_schedule_id');
   }
 }

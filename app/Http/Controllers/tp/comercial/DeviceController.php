@@ -40,9 +40,14 @@ class DeviceController extends Controller
 
             if (!$driver) {
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Conductor no encontrado'
-                ], 404);
+                    'success' => true,
+                    'data' => [
+                        'is_active' => false,
+                        'serial' => null,
+                        'equipment_id' => null,
+                        'equipment_name' => null
+                    ]
+                ]);
             }
 
             $status = $this->deviceAssignmentService->getDeviceStatus($driver->id);
