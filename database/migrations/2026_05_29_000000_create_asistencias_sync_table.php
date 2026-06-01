@@ -4,14 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
   public function up(): void
   {
     Schema::create('attendance_sync', function (Blueprint $table) {
       $table->id();
       $table->unsignedInteger('zkbio_transaction_id')->unique();
-      $table->unsignedBigInteger('person_id')->nullable();
+      $table->integer('person_id')->nullable();
       $table->string('emp_code', 20);
       $table->string('full_name', 200);
       $table->date('date');
