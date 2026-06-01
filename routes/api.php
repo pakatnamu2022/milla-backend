@@ -1823,7 +1823,6 @@ Route::group(['prefix' => 'admin/attendance'], function () {
   Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
   Route::get('/{id}', [AttendanceSyncController::class, 'show']);
   Route::post('/sync', [AttendanceSyncController::class, 'sync']);
-  Route::post('/sync-range', [AttendanceSyncController::class, 'syncRange']);
 });
 
 // PUBLIC ROUTES - No authentication required

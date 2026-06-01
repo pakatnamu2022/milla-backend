@@ -35,34 +35,38 @@ class AttendanceSyncService extends BaseService
     return response()->json(new AttendanceSyncResource($record));
   }
 
-  public function sync(): JsonResponse
+  public function sync(Request $request): JsonResponse
   {
-    $date = now()->toDateString();
-    $before = AttendanceSync::whereDate('date', $date)->count();
+    $validRanges = ['today', 'yesterday', 'this_week', 'this_month', 'last_month', 'last_3_months', 'last_6_months', 'custom'];
 
-    SyncAttendanceJob::dispatchSync($date);
-
-    $after = AttendanceSync::whereDate('date', $date)->count();
-
-    return response()->json([
-      'message'       => "Sync completed for {$date}.",
-      'new_records'   => max(0, $after - $before),
-      'total_for_day' => $after,
-    ]);
-  }
-
-  public function syncRange(Request $request): JsonResponse
-  {
     $request->validate([
-      'date_from' => ['required', 'date_format:Y-m-d'],
-      'date_to'   => ['required', 'date_format:Y-m-d', 'gte:date_from'],
+      'range'     => ['required', 'string', 'in:' . implode(',', $validRanges)],
+      'date_from' => ['required_if:range,custom', 'nullable', 'date_format:Y-m-d'],
+      'date_to'   => ['required_if:range,custom', 'nullable', 'date_format:Y-m-d', 'gte:date_from'],
     ]);
 
-    $from = Carbon::createFromFormat('Y-m-d', $request->date_from);
-    $to   = Carbon::createFromFormat('Y-m-d', $request->date_to);
+    [$from, $to] = $this->resolveRange($request->range, $request->date_from, $request->date_to);
 
-    if ($from->diffInDays($to) > 90) {
-      return response()->json(['message' => 'Date range cannot exceed 90 days.'], 422);
+    if ($from->diffInDays($to) > 180) {
+      return response()->json(['message' => 'El rango no puede superar 180 días.'], 422);
+    }
+
+    if ($request->range === 'today') {
+      $date   = $from->toDateString();
+      $before = AttendanceSync::whereDate('date', $date)->count();
+
+      SyncAttendanceJob::dispatchSync($date);
+
+      $after = AttendanceSync::whereDate('date', $date)->count();
+
+      return response()->json([
+        'message'       => "Sync completado para {$date}.",
+        'range'         => 'today',
+        'date_from'     => $date,
+        'date_to'       => $date,
+        'new_records'   => max(0, $after - $before),
+        'total_for_day' => $after,
+      ]);
     }
 
     $days = 0;
@@ -72,9 +76,28 @@ class AttendanceSyncService extends BaseService
     }
 
     return response()->json([
-      'message' => "{$days} jobs dispatched for {$from->toDateString()} → {$to->toDateString()}.",
-      'days'    => $days,
+      'message'   => "{$days} jobs despachados para {$from->toDateString()} → {$to->toDateString()}.",
+      'range'     => $request->range,
+      'date_from' => $from->toDateString(),
+      'date_to'   => $to->toDateString(),
+      'days'      => $days,
     ]);
+  }
+
+  private function resolveRange(string $range, ?string $dateFrom, ?string $dateTo): array
+  {
+    $now = now()->timezone('America/Lima');
+
+    return match ($range) {
+      'today'         => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+      'yesterday'     => [$now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay()],
+      'this_week'     => [$now->copy()->startOfWeek(), $now->copy()],
+      'this_month'    => [$now->copy()->startOfMonth(), $now->copy()],
+      'last_month'    => [$now->copy()->subMonthNoOverflow()->startOfMonth(), $now->copy()->subMonthNoOverflow()->endOfMonth()],
+      'last_3_months' => [$now->copy()->subMonths(3)->startOfMonth(), $now->copy()],
+      'last_6_months' => [$now->copy()->subMonths(6)->startOfMonth(), $now->copy()],
+      'custom'        => [Carbon::createFromFormat('Y-m-d', $dateFrom), Carbon::createFromFormat('Y-m-d', $dateTo)],
+    };
   }
 
   public function reportSunafil(Request $request): Response|JsonResponse|BinaryFileResponse
@@ -273,20 +296,29 @@ class AttendanceSyncService extends BaseService
   {
     $query = DB::table('attendance_sync as a')
       ->leftJoin('rrhh_persona as p', 'p.id', '=', 'a.person_id')
+      ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
       ->select([
         'a.date',
         'a.emp_code',
         DB::raw("UPPER(COALESCE(p.nombre_completo, a.full_name)) AS full_name"),
         'a.person_id',
         'p.vat',
-        DB::raw("MAX(CASE WHEN a.mark_type = 'check_in'  THEN a.time END) AS check_in"),
-        DB::raw("MAX(CASE WHEN a.mark_type = 'lunch_out' THEN a.time END) AS lunch_out"),
-        DB::raw("MAX(CASE WHEN a.mark_type = 'lunch_in'  THEN a.time END) AS lunch_in"),
+        DB::raw("COALESCE(ws.checkin,   '08:00:00') AS schedule_checkin"),
+        DB::raw("COALESCE(ws.lunch_out, '13:00:00') AS schedule_lunch_out"),
+        DB::raw("COALESCE(ws.lunch_in,  '14:24:00') AS schedule_lunch_in"),
+        DB::raw("COALESCE(ws.checkout,  '18:00:00') AS schedule_checkout"),
+        DB::raw("MIN(CASE WHEN a.mark_type = 'check_in'  THEN a.time END) AS check_in"),
+        DB::raw("MIN(CASE WHEN a.mark_type = 'lunch_out' THEN a.time END) AS lunch_out"),
+        DB::raw("MIN(CASE WHEN a.mark_type = 'lunch_in'  THEN a.time END) AS lunch_in"),
         DB::raw("MAX(CASE WHEN a.mark_type = 'check_out' THEN a.time END) AS check_out"),
       ])
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
-      ->groupBy('a.date', 'a.emp_code', 'a.person_id', 'p.vat', 'p.nombre_completo', 'a.full_name')
+      ->groupBy(
+        'a.date', 'a.emp_code', 'a.person_id',
+        'p.vat', 'p.nombre_completo', 'a.full_name',
+        'ws.checkin', 'ws.lunch_out', 'ws.lunch_in', 'ws.checkout'
+      )
       ->orderBy('a.emp_code')
       ->orderBy('a.date');
 
