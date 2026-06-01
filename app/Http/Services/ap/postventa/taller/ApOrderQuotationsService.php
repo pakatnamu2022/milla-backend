@@ -13,6 +13,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\Sede;
@@ -207,11 +208,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      // Validar precios de venta al público para cada producto en details
+      // Validar precios de venta al público y decimales para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
+        $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($productId);
+        if ($product) {
+          $product->validateDecimals($quantity);
+        }
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
@@ -395,11 +403,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
-      // Validar precios de venta al público para cada producto en details
+      // Validar precios de venta al público y decimales para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
+        $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($productId);
+        if ($product) {
+          $product->validateDecimals($quantity);
+        }
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(

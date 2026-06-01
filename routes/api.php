@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ap\ApMastersController;
+use App\Http\Controllers\gp\GpMastersController;
 use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
@@ -107,12 +108,16 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1530,6 +1535,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Order Planning - Completar trabajo por supervisor
       Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
 
+      // Work Order Planning - Cancelar trabajo
+      Route::post('workOrderPlanning/{id}/cancel', [WorkOrderPlanningController::class, 'cancel']);
+
       // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
       Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
       Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
@@ -1762,10 +1770,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Formula Variables
     Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
 
-    // Concepts
-    Route::post('concepts/{id}/test-formula', [PayrollConceptController::class, 'testFormula']);
-    Route::apiResource('concepts', PayrollConceptController::class);
-
     // Periods
     Route::get('periods/current', [PayrollPeriodController::class, 'current']);
     Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
@@ -1788,8 +1792,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::delete('workers/{workerId}/attendance-rules/{code}', [WorkerAttendanceRuleController::class, 'destroy']);
 
     // Calculations
-    Route::post('calculations/calculate', [PayrollCalculationController::class, 'calculate']);
-    Route::post('calculations/approve-all', [PayrollCalculationController::class, 'approveAll']);
     Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
     Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
     Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
@@ -1799,6 +1801,36 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
     Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
+
+    // Liquidation BBSS
+    Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
+
+    // Bonuses
+    Route::apiResource('bonuses', PayrollBonusController::class);
+
+    // Insurances
+    Route::apiResource('insurances', PayrollInsuranceController::class);
+
+    // Loans
+    Route::apiResource('loans', PayrollLoanController::class);
+
+    // Loan Extra Discounts
+    Route::apiResource('loan-extra-discounts', PayrollLoanExtraDiscountController::class);
+  });
+
+  /**
+   * Routes for General Process Masters (GP)
+   */
+  Route::group(['prefix' => 'gp'], function () {
+    // Maestros General
+    Route::get('gpMasters/types', [GpMastersController::class, 'getTypes']);
+    Route::apiResource('gpMasters', GpMastersController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy'
+    ]);
   });
 
   // NOTIFICATIONS

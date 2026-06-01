@@ -4,6 +4,7 @@ namespace App\Models\ap\postventa\taller;
 
 use App\Models\ap\ApMasters;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,6 +29,9 @@ class ApWorkOrderPlanning extends Model
     'group_number',
     'worker_id',
     'work_order_id',
+    'canceled_note',
+    'canceled_by',
+    'canceled_at'
   ];
 
   protected $casts = [
@@ -37,6 +41,7 @@ class ApWorkOrderPlanning extends Model
     'planned_end_datetime' => 'datetime',
     'actual_start_datetime' => 'datetime',
     'actual_end_datetime' => 'datetime',
+    'canceled_at' => 'datetime',
   ];
 
   // Constantes de horario laboral
@@ -67,20 +72,19 @@ class ApWorkOrderPlanning extends Model
     $this->attributes['description'] = strtoupper($value);
   }
 
-  /**
-   * Relación con la orden de trabajo
-   */
   public function workOrder(): BelongsTo
   {
     return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
   }
 
-  /**
-   * Relación con el trabajador
-   */
   public function worker(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'worker_id');
+  }
+
+  public function canceledBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'canceled_by');
   }
 
   /**

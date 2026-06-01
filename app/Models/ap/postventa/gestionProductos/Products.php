@@ -134,7 +134,7 @@ class Products extends Model
   }
 
   /**
-   * Valida que la cantidad tenga el número correcto de decimales según la unidad de medida
+   * Válida que la cantidad tenga el número correcto de decimales según la unidad de medida
    *
    * @param float|int $quantity
    * @return void
@@ -167,7 +167,7 @@ class Products extends Model
 
     // Si acepta decimales, validar que no exceda el límite
     if ($numberDecimals > 0) {
-      $stringValue = (string) $quantity;
+      $stringValue = (string)$quantity;
 
       // Si tiene punto decimal, validar
       if (strpos($stringValue, '.') !== false) {
