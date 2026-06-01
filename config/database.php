@@ -60,6 +60,7 @@ return [
       'options' => extension_loaded('pdo_mysql') ? array_filter([
         PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
       ]) : [],
+      'timezone' => '-05:00',
     ],
 
     'mariadb' => [
@@ -180,6 +181,20 @@ return [
       'prefix_indexes' => true,
       'encrypt' => env('DBDP2_ENCRYPT', 'yes'),
       'trust_server_certificate' => env('DBDP2_TRUST_SERVER_CERTIFICATE', 'true'),
+    ],
+
+    'zkbiotime' => [
+      'driver' => env('DBZKBIO_CONNECTION', 'sqlsrv'),
+      'host' => env('DBZKBIO_HOST'),
+      'port' => env('DBZKBIO_PORT', '1433'),
+      'database' => env('DBZKBIO_DATABASE'),
+      'username' => env('DBZKBIO_USERNAME'),
+      'password' => env('DBZKBIO_PASSWORD'),
+      'charset' => 'utf8',
+      'prefix' => '',
+      'prefix_indexes' => true,
+      'encrypt' => env('DBZKBIO_ENCRYPT', 'yes'),
+      'trust_server_certificate' => env('DBZKBIO_TRUST_SERVER_CERTIFICATE', 'true'),
     ],
 
   ],

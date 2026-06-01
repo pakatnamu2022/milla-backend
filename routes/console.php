@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -128,6 +129,13 @@ Schedule::command('inventory:sync-adjustments-dynamics')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Calentar cache del dashboard de adopción cada 10 minutos en horario laboral
+Schedule::job(new WarmAdoptionCacheJob())
+  ->everySixHours()
+  ->between('7:00', '20:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
+
 // Notificar a encargados de almacén sobre stock bajo
 // Ejecuta diariamente a las 8:00 AM hora Lima
 Schedule::command('warehouse:notify-low-stock')
@@ -142,4 +150,13 @@ Schedule::command('tp:sync-fac-invoice')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Sync attendance punches from ZKBioTime — 4 times daily
+foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
+  Schedule::command('sync:attendance')
+    ->dailyAt($time)
+    ->timezone('America/Lima')
+    ->withoutOverlapping()
+    ->runInBackground();
+}
 

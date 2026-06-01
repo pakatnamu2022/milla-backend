@@ -106,6 +106,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
@@ -152,7 +153,11 @@ use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 use App\Http\Controllers\tp\comercial\FacInvoiceController;
 use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\common\NotificationController;
-
+use App\Http\Controllers\tp\comercial\DeviceController;
+use App\Http\Controllers\tp\comercial\DriverController;
+use App\Http\Controllers\tp\comercial\DriverLocationConfigurationController;
+use App\Http\Controllers\tp\comercial\DriverLocationController;
+use App\Http\Controllers\tp\comercial\DriverStatusLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -179,6 +184,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     'store',
     'destroy'
   ]);
+
+
 
 // TP - COMERCIAL - CONTROL VIAJES
   Route::group(['prefix' => 'tp/comercial'], function () {
@@ -251,9 +258,61 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     });
 
+
+    Route::group(['prefix' => 'public/monitoreo'], function () {
+        Route::post('location', [DriverLocationController::class, 'store']);
+        Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
+        Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
+    });
+
+    
+    Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
+        
+        // Ubicaciones
+        Route::prefix('locations')->controller(DriverLocationController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('latest', 'latest');
+            Route::get('{id}', 'show');
+        });
+        
+        // Conductores
+        Route::prefix('drivers')->controller(DriverController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('stats', 'stats');
+            Route::get('{id}', 'show');
+            Route::post('{id}/refresh-status', 'refreshStatus');
+            Route::post('{id}/assign-device', 'assignDevice');
+            Route::post('{id}/remove-device', 'removeDevice');
+        });
+        
+        // Configuraciones
+        Route::prefix('config')->controller(DriverLocationConfigurationController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::get('{key}', 'show');
+            Route::put('{key}', 'update');
+            Route::delete('{key}', 'destroy');
+        });
+        
+        // Logs de estado
+        Route::prefix('status-logs')->controller(DriverStatusLogController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('driver/{id}', 'byDriver');
+        });
+
+        Route::prefix('device')->controller(DeviceController::class)->group(function (){
+            Route::get('status', 'status');
+            Route::post('auto-activate', 'autoActivate');
+            Route::post('register', 'register');
+            Route::post('unregister', 'unregister');
+            Route::post('validate-serial', 'validateSerial');
+            Route::post('equipment', 'getEquipment');
+        });
+    });
     Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
 
   });
+
 
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
@@ -531,6 +590,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         //        OBJECTIVES
+        Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
+        Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
         Route::apiResource('objective', EvaluationObjectiveController::class)->only([
           'index',
           'show',
@@ -1593,6 +1654,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/champions', [AdoptionDashboardController::class, 'champions']);
     Route::get('/alerts', [AdoptionDashboardController::class, 'alerts']);
     Route::get('/trend', [AdoptionDashboardController::class, 'trend']);
+    Route::get('/all', [AdoptionDashboardController::class, 'all']);
+    Route::post('/refresh', [AdoptionDashboardController::class, 'refresh']);
   });
 
   // GP - Gestión Humana - Viáticos Routes
@@ -1782,6 +1845,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
     Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
   });
+});
+
+// ATTENDANCE — ZKBioTime sync
+Route::group(['prefix' => 'admin/attendance'], function () {
+  Route::get('/', [AttendanceSyncController::class, 'index']);
+  Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
+  Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+  Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
+  Route::get('/{id}', [AttendanceSyncController::class, 'show']);
+  Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+  Route::post('/sync-range', [AttendanceSyncController::class, 'syncRange']);
 });
 
 // PUBLIC ROUTES - No authentication required

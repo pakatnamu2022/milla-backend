@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\evaluacion\ActivateObjectiveInCategoriesRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationObjectiveRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationObjectiveRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationObjectiveRequest;
@@ -61,6 +62,25 @@ class EvaluationObjectiveController extends Controller
   {
     try {
       return $this->success($this->service->destroy($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function activateInCategories(ActivateObjectiveInCategoriesRequest $request, $id)
+  {
+    try {
+      $categoryIds = $request->validated()['category_ids'] ?? null;
+      return $this->success($this->service->activateInCategories((int)$id, $categoryIds));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function previewActivateInCategories($id)
+  {
+    try {
+      return $this->success($this->service->previewActivateInCategories((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
