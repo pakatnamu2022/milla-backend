@@ -121,17 +121,7 @@ class DriverLocationService extends BaseService
 
     public function getLatestForDriver($driverId)
     {
-        Log::info("ID DEL DRIVER", [
-            'driver' => $driverId
-        ]);
-
         try{
-            
-            Log::info("DRIVER LOCATION", [
-            'DATOS DEL DRIVER' => DriverLocation::where('driver_id', $driverId)
-               ->with('driver')
-               ->first()
-            ]);
             return DriverLocation::where('driver_id', $driverId)
                 ->with('driver')
                 ->first();

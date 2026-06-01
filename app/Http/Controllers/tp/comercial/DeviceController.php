@@ -81,9 +81,6 @@ class DeviceController extends Controller
         
         // Buscar dispositivo asignado en TICS
         $equipment = $this->deviceAssignmentService->getAssignedEquipmentByDriver($driver->id);
-        Log::info("equipment", [
-            'equipment' => $equipment
-        ]);
         
         if (!$equipment) {
             return response()->json([
@@ -99,14 +96,6 @@ class DeviceController extends Controller
                 'message' => 'El dispositivo asignado no es un teléfono móvil válido para tracking'
             ], 400);
         }
-        
-        // Registrar en logs la activación automática
-        Log::info('Dispositivo activado automáticamente', [
-            'driver_id' => $driver->id,
-            'driver_name' => $driver->nombre_completo,
-            'serial' => $equipment->serie,
-            'equipment_name' => $equipment->equipo
-        ]);
         
         return response()->json([
             'success' => true,
@@ -133,13 +122,6 @@ class DeviceController extends Controller
                 'message' => 'Conductor no encontrado'
             ], 404);
         }
-        
-        // Nota: No eliminamos la asignación en TICS, solo registramos que el conductor
-        // ha desactivado el tracking desde su dispositivo
-        Log::info('Dispositivo desactivado por el conductor', [
-            'driver_id' => $driver->id,
-            'driver_name' => $driver->nombre_completo
-        ]);
         
         return response()->json([
             'success' => true,
