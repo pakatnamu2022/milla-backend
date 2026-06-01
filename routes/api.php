@@ -297,6 +297,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         Route::prefix('device')->controller(DeviceController::class)->group(function (){
             Route::get('status', 'status');
+            Route::post('auto-activate', 'autoActivate');
             Route::post('register', 'register');
             Route::post('unregister', 'unregister');
             Route::post('validate-serial', 'validateSerial');

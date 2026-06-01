@@ -3,32 +3,74 @@
 namespace App\Http\Services\tp\comercial;
 
 use App\Http\Services\BaseService;
-use App\Models\tp\Driver;
+use App\Models\gp\tics\Equipment;
+use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\tp\comercial\DriverLocation;
+use App\Models\tp\Driver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class DriverLocationService extends BaseService
 {
+    protected $deviceAssignmentService;
+
+    public function __construct(DeviceAssignmentService $deviceAssignmentService)
+    {
+        $this->deviceAssignmentService = $deviceAssignmentService;
+    }
     public function registerLocation(array $data)
     {
         return DB::transaction(function() use ($data) {
-            //observaciones
-            //falta validar que el conductor este activo
-            Log::info("DATOS DEL DEVICE ID", [
-                'device_id' => [
-                    $data['device_id']
-                ]
-            ]);
-            $driver = Driver::where('device_id',$data['device_id'])->first();
+           
+            $equipment = Equipment::where('serie', $data['device_id'])
+                ->where('status_deleted', 1)
+                ->where('tipo_equipo_id', 3) // Solo celulares
+                ->first();
 
-            if(!$driver){
-                throw new \Exception('Dispositivo no registrado o conductor inactivo');
+            if (!$equipment) {
+                Log::warning('Intento de envío desde equipo no registrado', [
+                    'serial' => $data['device_id']
+                ]);
+                throw new \Exception('El dispositivo no está registrado en el sistema TICS');
             }
 
-            //verificar que reported_at este en hora peru
-            $reportedAt = isset($data['timestamp']) ? \Carbon\Carbon::parse($data['timestamp'])->setTimeZone('America/Lima') : now();
+            $assignment = EquipmentAssigment::where('status_deleted', 1)
+                ->whereNull('unassigned_at')
+                ->whereHas('items', function($q) use ($equipment) {
+                    $q->where('equipo_id', $equipment->id);
+                })
+                ->first();
+
+            if (!$assignment) {
+                Log::warning('Intento de envío desde equipo no asignado', [
+                    'serial' => $data['device_id'],
+                    'equipment_id' => $equipment->id,
+                    'equipment_name' => $equipment->equipo
+                ]);
+                throw new \Exception('El dispositivo no está asignado actualmente a ningún conductor');
+            }
+            $driver = Driver::find($assignment->persona_id);
+
+            if (!$driver) {
+                Log::error('Conductor no encontrado para asignación', [
+                    'assignment_id' => $assignment->id,
+                    'persona_id' => $assignment->persona_id
+                ]);
+                throw new \Exception('El conductor asociado al dispositivo no existe');
+            }
+
+            Log::info('Ubicación recibida correctamente', [
+                'driver_id' => $driver->id,
+                'driver_name' => $driver->nombre_completo,
+                'serial' => $data['device_id'],
+                'assignment_id' => $assignment->id
+            ]);
+
+            // 4. Procesar la ubicación (sin usar device_id de rrhh_persona)
+            $reportedAt = isset($data['timestamp']) 
+                ? \Carbon\Carbon::parse($data['timestamp'])->setTimeZone('America/Lima') 
+                : now();
 
             $location = DriverLocation::updateOrCreate(
                 ['driver_id' => $driver->id],
@@ -42,8 +84,7 @@ class DriverLocationService extends BaseService
                 ]
             );
 
-            //actualizar el estado del conductor
-
+            // 5. Actualizar el estado del conductor
             $driver->updateStatus();
 
             return $location;
@@ -83,14 +124,25 @@ class DriverLocationService extends BaseService
         Log::info("ID DEL DRIVER", [
             'driver' => $driverId
         ]);
-        Log::info("DRIVER LOCATION", [
+
+        try{
+            
+            Log::info("DRIVER LOCATION", [
             'DATOS DEL DRIVER' => DriverLocation::where('driver_id', $driverId)
                ->with('driver')
                ->first()
-        ]);
-        return DriverLocation::where('driver_id', $driverId)
-               ->with('driver')
-               ->first();
+            ]);
+            return DriverLocation::where('driver_id', $driverId)
+                ->with('driver')
+                ->first();
+
+        }catch(\Exception $e){
+            Log::error("Error al obtener ubicación del driver", [
+                'driver_id' => $driverId,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
 
     }
 

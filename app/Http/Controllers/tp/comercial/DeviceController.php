@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\tp\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Services\tp\comercial\DeviceValidationService;
+use App\Http\Services\tp\comercial\DeviceAssignmentService;
 use App\Models\gp\tics\Equipment;
 use App\Models\tp\Driver;
 use Illuminate\Http\Request;
@@ -13,14 +13,11 @@ use Throwable;
 
 class DeviceController extends Controller
 {
-    protected $deviceService;
+    protected $deviceAssignmentService;
 
-
-   
-
-    public function __construct(DeviceValidationService $deviceService)
+    public function __construct(DeviceAssignmentService  $deviceAssignmentService)
     {
-        $this->deviceService = $deviceService;
+        $this->deviceAssignmentService = $deviceAssignmentService;
     }
 
     private function getAuthenticatedDriver(): ?Driver
@@ -48,22 +45,11 @@ class DeviceController extends Controller
                 ], 404);
             }
 
-            // Buscar el equipo asociado al device_id (que es el IMEI)
-            $equipment = null;
-            if ($driver->device_id) {
-                $equipment = Equipment::where('serie', $driver->device_id)
-                    ->where('status_deleted', 1)
-                    ->first();
-            }
+            $status = $this->deviceAssignmentService->getDeviceStatus($driver->id);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'is_active' => !is_null($driver->device_id),
-                    'serial' => $driver->device_id,
-                    'equipment_id' => $equipment?->id,
-                    'equipment_name' => $equipment?->equipo,
-                ]
+                'data' => $status
             ]);
         } catch (Throwable $th) {
             Log::error('DeviceController@status error: ' . $th->getMessage());
@@ -79,99 +65,117 @@ class DeviceController extends Controller
      */
     public function register(Request $request)
     {
-        try {
-            $request->validate([
-                'serial' => 'required|string|min:15|max:50',
-            ]);
+         return $this->autoActivate($request);
+    }
 
-            $driver = $this->getAuthenticatedDriver();
-            if (!$driver) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Conductor no encontrado'
-                ], 404);
-            }
-
-            // Validar y registrar el dispositivo
-            $result = $this->deviceService->registerDevice($driver->id, $request->serial);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Dispositivo registrado correctamente',
-                'data' => [
-                    'device_id' => $result->device_id
-                ]
-            ]);
-        } catch (Throwable $th) {
-            Log::error('DeviceController@register error: ' . $th->getMessage());
+    public function autoActivate(Request $request)
+    {
+        $driver = $this->getAuthenticatedDriver();
+        
+        if (!$driver) {
             return response()->json([
                 'success' => false,
-                'message' => $th->getMessage()
+                'message' => 'Conductor no encontrado'
+            ], 404);
+        }
+        
+        // Buscar dispositivo asignado en TICS
+        $equipment = $this->deviceAssignmentService->getAssignedEquipmentByDriver($driver->id);
+        Log::info("equipment", [
+            'equipment' => $equipment
+        ]);
+        
+        if (!$equipment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tiene ningún dispositivo asignado. Contacte al administrador.'
             ], 400);
         }
+        
+        // Verificar que sea un celular válido
+        if ($equipment->tipo_equipo_id !== 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El dispositivo asignado no es un teléfono móvil válido para tracking'
+            ], 400);
+        }
+        
+        // Registrar en logs la activación automática
+        Log::info('Dispositivo activado automáticamente', [
+            'driver_id' => $driver->id,
+            'driver_name' => $driver->nombre_completo,
+            'serial' => $equipment->serie,
+            'equipment_name' => $equipment->equipo
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Dispositivo activado correctamente',
+            'data' => [
+                'is_active' => true,
+                'serial' => $equipment->serie,
+                'equipment_name' => $equipment->equipo,
+                'equipment_id' => $equipment->id
+            ]
+        ]);
     }
 
     /**
      * Desactivar dispositivo del conductor
      */
-    public function unregister()
+    public function unregister(Request $request)
     {
-        try {
-            $driver = $this->getAuthenticatedDriver();
-
-            if (!$driver) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Conductor no encontrado'
-                ], 404);
-            }
-
-            // Desregistrar el dispositivo
-            $result = $this->deviceService->unregisterDevice($driver->id);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Dispositivo desactivado correctamente',
-                'data' => [
-                    'device_id' => $result->device_id
-                ]
-            ]);
-        } catch (Throwable $th) {
-            Log::error('DeviceController@unregister error: ' . $th->getMessage());
+        $driver = $this->getAuthenticatedDriver();
+        
+        if (!$driver) {
             return response()->json([
                 'success' => false,
-                'message' => $th->getMessage()
-            ], 500);
+                'message' => 'Conductor no encontrado'
+            ], 404);
         }
+        
+        // Nota: No eliminamos la asignación en TICS, solo registramos que el conductor
+        // ha desactivado el tracking desde su dispositivo
+        Log::info('Dispositivo desactivado por el conductor', [
+            'driver_id' => $driver->id,
+            'driver_name' => $driver->nombre_completo
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Dispositivo desactivado correctamente'
+        ]);
     }
 
     
-    public function validateSerial(Request $request)
+public function validateSerial(Request $request)
     {
-        try {
-            $request->validate([
-                'serial' => 'required|string|min:15|max:50',
-            ]);
-
-            $equipment = $this->deviceService->validateDevice($request->serial);
-
-            return response()->json([
-                'success' => true,
-                'valid' => true,
-                'data' => [
-                    'equipment_id' => $equipment->id,
-                    'equipment_name' => $equipment->equipo,
-                    'serial' => $equipment->serie,
-                ]
-            ]);
-        } catch (Throwable $th) {
-            Log::error('DeviceController@register error: ' . $th->getMessage());
+        $request->validate([
+            'serial' => 'required|string'
+        ]);
+        
+        $equipment = Equipment::where('serie', $request->serial)
+            ->where('status_deleted', 1)
+            ->where('tipo_equipo_id', 3)
+            ->first();
+        
+        if (!$equipment) {
             return response()->json([
                 'success' => false,
                 'valid' => false,
-                'message' => $th->getMessage()
-            ], 400);
+                'message' => 'Dispositivo no válido o no es un teléfono móvil'
+            ]);
         }
+        
+        return response()->json([
+            'success' => true,
+            'valid' => true,
+            'data' => [
+                'equipment_id' => $equipment->id,
+                'equipment_name' => $equipment->equipo,
+                'serial' => $equipment->serie
+            ]
+        ]);
     }
 
      public function getEquipment(Request $request)
@@ -181,7 +185,9 @@ class DeviceController extends Controller
                 'serial' => 'required|string|min:5|max:50',
             ]);
 
-            $equipment = $this->deviceService->getEquipmentBySerial($request->serial);
+            $equipment = Equipment::where('serie', $request->serial)
+                ->where('status_deleted', 1)
+                ->first();
 
             if (!$equipment) {
                 return response()->json([
@@ -192,12 +198,7 @@ class DeviceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'id' => $equipment->id,
-                    'name' => $equipment->equipo,
-                    'serial' => $equipment->serie,
-                    'type' => $equipment->tipo_equipo_id,
-                ]
+                'data' => $equipment
             ]);
         } catch (Throwable $th) {
             return response()->json([
@@ -205,6 +206,40 @@ class DeviceController extends Controller
                 'message' => $th->getMessage()
             ], 500);
         }
+    }
+
+    public function byDeviceId($deviceId)
+    {
+        $driver = Driver::where('device_id', $deviceId)
+            ->with('latestLocation')
+            ->first();
+
+        if (!$driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Conductor no encontrado para el device_id proporcionado'
+            ], 404);
+        }
+
+        $isAssigned = app(DeviceAssignmentService::class)->isEquipmentAssignedToDriver($deviceId, $driver->id);
+
+        if (!$isAssigned) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El dispositivo no está asignado actualmente a este conductor'
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $driver->id,
+                'code' => $driver->vat,
+                'name' => $driver->full_name,
+                'is_active' => true,
+                'last_location' => $driver->latestLocation
+            ]
+        ]);
     }
     
 

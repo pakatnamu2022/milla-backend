@@ -2,6 +2,7 @@
 
 namespace App\Models\tp;
 
+use App\Http\Services\tp\comercial\DeviceAssignmentService;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\tp\comercial\DriverLocation;
@@ -21,7 +22,6 @@ class Driver extends BaseModel
         'email',
         'email2',
         'email3',
-        'device_id'
     ];
 
     const filters = [
@@ -237,6 +237,21 @@ class Driver extends BaseModel
             'device_id' => $this->device_id,
             'is_active' => true
         ];
+    }
+
+    public function getAssignedDevice()
+    {
+        $service = app(DeviceAssignmentService::class);
+        return $service->getAssignedEquipmentByDriver($this->id);
+    }
+    public function hasDeviceAssigned(): bool
+    {
+        return !is_null($this->getAssignedDevice());
+    }
+    public function getDeviceSerialAttribute(): ?string
+    {
+        $device = $this->getAssignedDevice();
+        return $device?->serie;
     }
 
 
