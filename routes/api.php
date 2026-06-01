@@ -148,7 +148,11 @@ use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 use App\Http\Controllers\tp\comercial\FacInvoiceController;
 use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\common\NotificationController;
-
+use App\Http\Controllers\tp\comercial\DeviceController;
+use App\Http\Controllers\tp\comercial\DriverController;
+use App\Http\Controllers\tp\comercial\DriverLocationConfigurationController;
+use App\Http\Controllers\tp\comercial\DriverLocationController;
+use App\Http\Controllers\tp\comercial\DriverStatusLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -175,6 +179,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     'store',
     'destroy'
   ]);
+
+
 
 // TP - COMERCIAL - CONTROL VIAJES
   Route::group(['prefix' => 'tp/comercial'], function () {
@@ -247,9 +253,61 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     });
 
+
+    Route::group(['prefix' => 'public/monitoreo'], function () {
+        Route::post('location', [DriverLocationController::class, 'store']);
+        Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
+        Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
+    });
+
+    
+    Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
+        
+        // Ubicaciones
+        Route::prefix('locations')->controller(DriverLocationController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('latest', 'latest');
+            Route::get('{id}', 'show');
+        });
+        
+        // Conductores
+        Route::prefix('drivers')->controller(DriverController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('stats', 'stats');
+            Route::get('{id}', 'show');
+            Route::post('{id}/refresh-status', 'refreshStatus');
+            Route::post('{id}/assign-device', 'assignDevice');
+            Route::post('{id}/remove-device', 'removeDevice');
+        });
+        
+        // Configuraciones
+        Route::prefix('config')->controller(DriverLocationConfigurationController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::get('{key}', 'show');
+            Route::put('{key}', 'update');
+            Route::delete('{key}', 'destroy');
+        });
+        
+        // Logs de estado
+        Route::prefix('status-logs')->controller(DriverStatusLogController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('driver/{id}', 'byDriver');
+        });
+
+        Route::prefix('device')->controller(DeviceController::class)->group(function (){
+            Route::get('status', 'status');
+            Route::post('auto-activate', 'autoActivate');
+            Route::post('register', 'register');
+            Route::post('unregister', 'unregister');
+            Route::post('validate-serial', 'validateSerial');
+            Route::post('equipment', 'getEquipment');
+        });
+    });
     Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
 
   });
+
 
   //    SYSTEM
   Route::group(['prefix' => 'configuration'], function () {
