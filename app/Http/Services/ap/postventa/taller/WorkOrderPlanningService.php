@@ -577,6 +577,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Obtener todos los registros de planificación para la orden de trabajo
     $plannings = ApWorkOrderPlanning::with(['worker'])
       ->where('work_order_id', $workOrderId)
+      ->where('status', '!=', 'canceled')
       ->get();
 
     if ($plannings->isEmpty()) {
@@ -803,5 +804,165 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $planning->checkAndUpdateWorkOrderStatus();
 
     return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+  }
+
+  /**
+   * Cancela un trabajo de planificación
+   * Valida que el técnico haya iniciado trabajo y finaliza la última sesión con la hora proporcionada
+   */
+  public function cancel($id, array $data)
+  {
+    return DB::transaction(function () use ($id, $data) {
+      $planning = $this->find($id);
+
+      // Validar que el trabajo no esté ya cancelado
+      if ($planning->status === 'canceled') {
+        throw new Exception('Este trabajo ya ha sido cancelado.');
+      }
+
+      // Validar que el trabajo no esté completado
+      if ($planning->status === 'completed') {
+        throw new Exception('No se puede cancelar un trabajo que ya ha sido completado.');
+      }
+
+      $actualEndDatetime = Carbon::parse($data['actual_end_datetime']);
+
+      // 1. Validar que la fecha y hora no sea mayor a la actual
+      if ($actualEndDatetime->greaterThan(Carbon::now())) {
+        throw new Exception(
+          'La fecha y hora de finalización (' . $actualEndDatetime->format('d/m/Y H:i') . ') ' .
+          'no puede ser mayor a la fecha y hora actual.'
+        );
+      }
+
+      // 2. Validar que existan sesiones de trabajo
+      $sessions = $planning->sessions;
+      if ($sessions->isEmpty()) {
+        throw new Exception('Solo se anulan registros que ya se encuentran en el trabajo.');
+      }
+
+      // 2. Validar horario laboral para actual_end_datetime
+      $this->validateWorkingHoursForCancellation($actualEndDatetime);
+
+      // 3. Validar que actual_end_datetime no sea mayor a planned_end_datetime
+      $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
+      if ($actualEndDatetime->greaterThan($plannedEndDatetime)) {
+        throw new Exception(
+          'La hora de finalización (' . $actualEndDatetime->format('H:i') . ') ' .
+          'no puede ser mayor a la hora planeada de finalización (' . $plannedEndDatetime->format('H:i') . ').'
+        );
+      }
+
+      // 4. Obtener la última sesión (puede estar activa o pausada)
+      $lastSession = $sessions->sortByDesc('start_datetime')->first();
+
+      // 4. Validar que actual_end_datetime sea mayor o igual al último start_datetime
+      $lastStartDatetime = Carbon::parse($lastSession->start_datetime);
+      if ($actualEndDatetime->lessThan($lastStartDatetime)) {
+        throw new Exception(
+          'La hora de finalización (' . $actualEndDatetime->format('H:i') . ') ' .
+          'debe ser mayor o igual a la hora de inicio del último trabajo (' . $lastStartDatetime->format('H:i') . ').'
+        );
+      }
+
+      // 5. Finalizar la última sesión si está activa (sin end_datetime)
+      if (is_null($lastSession->end_datetime)) {
+        $lastSession->end_datetime = $actualEndDatetime;
+
+        // Calcular horas trabajadas de la sesión
+        $minutesWorked = $lastStartDatetime->diffInMinutes($actualEndDatetime);
+        $lastSession->hours_worked = round($minutesWorked / 60, 2);
+        $lastSession->status = 'completed';
+
+        $lastSession->save();
+      } else {
+        // Si la sesión ya tiene end_datetime (está pausada), actualizar el end_datetime
+        $lastSession->end_datetime = $actualEndDatetime;
+
+        // Recalcular horas trabajadas de la sesión
+        $minutesWorked = $lastStartDatetime->diffInMinutes($actualEndDatetime);
+        $lastSession->hours_worked = round($minutesWorked / 60, 2);
+        $lastSession->status = 'completed';
+
+        $lastSession->save();
+      }
+
+      // 6. Calcular actual_hours sumando todas las sesiones
+      $planning->actual_hours = $planning->calculateTotalHoursWorked();
+
+      // 7. Actualizar el planning con los datos de cancelación
+      $planning->actual_end_datetime = $actualEndDatetime;
+      $planning->planned_end_datetime = $actualEndDatetime; // Liberar al técnico actualizando el horario planeado
+      $planning->status = 'canceled';
+      $planning->canceled_note = $data['canceled_note'];
+      $planning->canceled_by = auth()->id();
+      $planning->canceled_at = now();
+
+      $planning->save();
+
+      // 8. Verificar si la OT debe retroceder a estado anterior o marcarla como terminada
+      $workOrder = ApWorkOrder::findOrFail($planning->work_order_id);
+      $activeOrPlannedWorks = $workOrder->plannings()
+        ->whereIn('status', ['planned', 'in_progress'])
+        ->count();
+
+      if ($activeOrPlannedWorks === 0) {
+        // No hay trabajos activos ni planificados
+        // Verificar si hay al menos un trabajo completado
+        $completedWorks = $workOrder->plannings()
+          ->where('status', 'completed')
+          ->count();
+
+        if ($completedWorks > 0) {
+          // Si hay trabajos completados, marcar la OT como "trabajo terminado"
+          $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
+        } else {
+          // Si NO hay trabajos completados (solo cancelados), retroceder al estado según validación
+          $validateReceipt = $workOrder->shouldValidateReceipt();
+
+          if ($validateReceipt) {
+            // Si valida recepción, retroceder a estado "recepcionado"
+            $workOrder->status_id = ApMasters::RECEIVED_WORK_ORDER_ID;
+          } else {
+            // Si no valida recepción, retroceder a estado "aperturado"
+            $workOrder->status_id = ApMasters::OPENING_WORK_ORDER_ID;
+          }
+        }
+
+        $workOrder->save();
+      }
+
+      return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions', 'canceledBy']));
+    });
+  }
+
+  /**
+   * Valida que la hora esté dentro del horario laboral para cancelación
+   */
+  private function validateWorkingHoursForCancellation(Carbon $datetime): void
+  {
+    $time = $datetime->format('H:i');
+
+    // Validar que esté después de las 08:00
+    if ($time < ApWorkOrderPlanning::WORK_START_TIME) {
+      throw new Exception(
+        'La hora de finalización no puede ser anterior a las ' . ApWorkOrderPlanning::WORK_START_TIME . '.'
+      );
+    }
+
+    // Validar que esté antes de las 18:00
+    if ($time > ApWorkOrderPlanning::WORK_END_TIME) {
+      throw new Exception(
+        'La hora de finalización no puede ser posterior a las ' . ApWorkOrderPlanning::WORK_END_TIME . '.'
+      );
+    }
+
+    // Validar que NO esté en horario de almuerzo (13:00 - 14:24)
+    if ($time >= ApWorkOrderPlanning::LUNCH_START_TIME && $time < ApWorkOrderPlanning::LUNCH_END_TIME) {
+      throw new Exception(
+        'La hora de finalización no puede estar en horario de almuerzo (' .
+        ApWorkOrderPlanning::LUNCH_START_TIME . ' - ' . ApWorkOrderPlanning::LUNCH_END_TIME . ').'
+      );
+    }
   }
 }
