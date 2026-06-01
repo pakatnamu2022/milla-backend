@@ -19,9 +19,6 @@ class ApVehicleInspectionController extends Controller
     $this->service = $service;
   }
 
-  /**
-   * Display a listing of the resource.
-   */
   public function index(IndexApVehicleInspectionRequest $request)
   {
     try {
@@ -31,9 +28,6 @@ class ApVehicleInspectionController extends Controller
     }
   }
 
-  /**
-   * Store a newly created resource in storage.
-   */
   public function store(StoreApVehicleInspectionRequest $request)
   {
     try {
@@ -78,9 +72,6 @@ class ApVehicleInspectionController extends Controller
     }
   }
 
-  /**
-   * Display the specified resource.
-   */
   public function show($id)
   {
     try {
@@ -101,9 +92,6 @@ class ApVehicleInspectionController extends Controller
     }
   }
 
-  /**
-   * Remove the specified resource from storage.
-   */
   public function destroy($id)
   {
     try {
@@ -113,9 +101,6 @@ class ApVehicleInspectionController extends Controller
     }
   }
 
-  /**
-   * Generate reception report PDF.
-   */
   public function generateReceptionReport($id)
   {
     try {

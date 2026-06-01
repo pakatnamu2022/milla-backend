@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use Carbon\Carbon;
 use Exception;
@@ -480,6 +481,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
       }
 
+      // Validar que el técnico no tenga asignaciones de repuestos pendientes por confirmar
+      $this->validatePartDeliveries($planning, true);
+
       $planning->delete();
 
       // Verificar si todos los trabajos restantes de la OT están completados
@@ -741,6 +745,15 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       throw new Exception('Solo se pueden completar trabajos que estén en progreso.');
     }
 
+    // Validar que solo pueda realizarse después del horario laboral (después de las 6PM)
+    $currentTime = Carbon::now()->format('H:i');
+    if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
+      throw new Exception(
+        'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
+        ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
+      );
+    }
+
     $endDatetime = Carbon::parse($data['end_datetime']);
     $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
 
@@ -824,6 +837,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       if ($planning->status === 'completed') {
         throw new Exception('No se puede cancelar un trabajo que ya ha sido completado.');
       }
+
+      // Validar que el técnico no tenga asignaciones de repuestos (confirmadas o pendientes)
+      $this->validatePartDeliveries($planning, false);
 
       $actualEndDatetime = Carbon::parse($data['actual_end_datetime']);
 
@@ -963,6 +979,42 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         'La hora de finalización no puede estar en horario de almuerzo (' .
         ApWorkOrderPlanning::LUNCH_START_TIME . ' - ' . ApWorkOrderPlanning::LUNCH_END_TIME . ').'
       );
+    }
+  }
+
+  /**
+   * Valida si el técnico tiene asignaciones de repuestos en la orden de trabajo
+   * @param ApWorkOrderPlanning $planning
+   * @param bool $onlyPending Si es true, solo valida asignaciones pendientes. Si es false, valida todas (confirmadas y pendientes)
+   * @throws Exception
+   */
+  private function validatePartDeliveries(ApWorkOrderPlanning $planning, bool $onlyPending = false): void
+  {
+    $workOrder = $planning->workOrder;
+    $userId = $planning->worker->user->id;
+
+    // Obtener todas las entregas de repuestos para este técnico en esta OT
+    $deliveriesQuery = ApWorkOrderPartDelivery::whereHas('workOrderPart', function ($query) use ($workOrder) {
+      $query->where('work_order_id', $workOrder->id);
+    })->where('delivered_to', $userId);
+
+    // Si solo validamos pendientes, filtrar por is_received = false
+    if ($onlyPending) {
+      $deliveriesQuery->where('is_received', false);
+    }
+
+    $deliveriesCount = $deliveriesQuery->count();
+
+    if ($deliveriesCount > 0) {
+      if ($onlyPending) {
+        throw new Exception(
+          'No se puede eliminar esta planificación porque el técnico tiene asignaciones de repuestos pendientes por confirmar en esta orden de trabajo.'
+        );
+      } else {
+        throw new Exception(
+          'No se puede cancelar esta planificación porque el técnico tiene asignaciones de repuestos en esta orden de trabajo.'
+        );
+      }
     }
   }
 }

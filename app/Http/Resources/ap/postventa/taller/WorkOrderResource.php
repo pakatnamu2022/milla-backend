@@ -76,6 +76,10 @@ class WorkOrderResource extends JsonResource
       'num_doc_contact' => $this->num_doc_contact,
       'full_contact_name' => $this->full_contact_name,
       'phone_contact' => $this->phone_contact,
+      'discard_reason' => $this->discardReason?->description,
+      'discarded_note' => $this->discarded_note,
+      'discarded_by_name' => $this->discardedBy?->name,
+      'discarded_at' => $this->discarded_at,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
