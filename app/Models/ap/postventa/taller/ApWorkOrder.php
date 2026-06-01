@@ -72,6 +72,10 @@ class ApWorkOrder extends Model
     'created_by',
     'post_service_follow_up',
     'signature_delivery_url',
+    'discard_reason_id',
+    'discarded_note',
+    'discarded_by',
+    'discarded_at',
   ];
 
   protected $casts = [
@@ -96,6 +100,7 @@ class ApWorkOrder extends Model
     'allow_remove_associated_quote' => 'boolean',
     'allow_editing_inspection' => 'boolean',
     'post_service_follow_up' => 'array',
+    'discarded_at' => 'datetime',
   ];
 
   const filters = [
@@ -167,6 +172,13 @@ class ApWorkOrder extends Model
   {
     if ($value) {
       $this->attributes['vehicle_vin'] = Str::upper($value);
+    }
+  }
+
+  public function setDiscardedNoteAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['discarded_note'] = Str::upper($value);
     }
   }
 
@@ -255,6 +267,16 @@ class ApWorkOrder extends Model
   public function exchangeRate(): BelongsTo
   {
     return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
+  }
+
+  public function discardReason(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'discard_reason_id');
+  }
+
+  public function discardedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'discarded_by');
   }
 
   // Helper methods
@@ -558,5 +580,25 @@ class ApWorkOrder extends Model
       'labours' => $allLabours,
       'parts' => $allParts,
     ];
+  }
+
+  /**
+   * Obtiene el flag de validación de labor del tipo de
+   * planificación
+   */
+  public function shouldValidateLabor(): bool
+  {
+    return (bool)
+    $this->items->first()?->typePlanning->validate_labor;
+  }
+
+  /**
+   * Obtiene el flag de validación de recepción del tipo de
+   * planificación
+   */
+  public function shouldValidateReceipt(): bool
+  {
+    return (bool)
+    $this->items->first()?->typePlanning->validate_receipt;
   }
 }

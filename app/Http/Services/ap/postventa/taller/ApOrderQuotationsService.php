@@ -11,6 +11,7 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -21,8 +22,10 @@ use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
@@ -58,7 +61,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     );
   }
 
-  public function listForPurchaseRequest(Request $request)
+  public function listForPurchaseRequestTaller(Request $request): JsonResponse
   {
     // Query base con las condiciones requeridas para solicitudes de compra
     // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
@@ -76,6 +79,43 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
             // Condición 2: Cotizaciones asociadas a OT con factura generada
             $q->where('has_invoice_generated', true);
           });
+      });
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApOrderQuotations::filters,
+      ApOrderQuotations::sorts,
+      ApOrderQuotationsResource::class
+    );
+  }
+
+  public function listForPurchaseRequestMeson(Request $request): JsonResponse
+  {
+    // Query base con las condiciones requeridas para solicitudes de compra
+    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
+    $query = ApOrderQuotations::query()
+      ->where(function ($query) {
+        $query->where(function ($q) {
+          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área mesón
+          $q->where('area_id', ApMasters::AREA_MESON)
+            ->where('is_take', false)
+            ->where('status', ApOrderQuotations::STATUS_POR_FACTURAR)
+            ->where('has_invoice_generated', true)
+            ->where(function ($q2) {
+              $q2->whereNotNull('chief_approval_by')
+                ->orWhereNotNull('manager_approval_by');
+            });
+        })
+          ->orWhereHas('advancesOrderQuotation', function ($q) {
+            // Condición 2: Cotizaciones con anticipo de pago registrado y contabilizado
+            $q->where('is_advance_payment', 1)
+              ->where('is_accounted', true);
+          });
+      })
+      // Condición 3: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
+      ->whereHas('details', function ($q) {
+        $q->whereIn('supply_type', ['LOCAL', 'CENTRAL', 'IMPORTACION']);
       });
 
     return $this->getFilteredResults(
@@ -1307,5 +1347,62 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       return new ApOrderQuotationsResource($apOrderQuotations);
     });
+  }
+
+  /**
+   * Evalúa y actualiza el estado de pago de la cotización
+   * Actualiza is_fully_paid y status si cumple las condiciones:
+   * 1. El total pagado >= total de la cotización
+   * 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+   *
+   * Este método centraliza la lógica de marcado como totalmente pagado
+   * para facilitar el mantenimiento y permitir flexibilidad en el flujo de negocio
+   *
+   * @param int $quotationId
+   * @return bool True si se actualizó como totalmente pagado, false si no
+   */
+  public function evaluateAndUpdateQuotationPaymentStatus(int $quotationId): bool
+  {
+    try {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        return false;
+      }
+
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      // Incluye anticipos + facturas de regularización/venta directa
+      $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->sum('total');
+
+      // Verificar si existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
+      // La venta interna es el documento que cierra la operación (puede ser por 0 o mayor)
+      $hasInternalSale = ElectronicDocument::where('order_quotation_id', $quotationId)
+        ->where('is_advance_payment', 0)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', false)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      // Actualizar si cumple condiciones
+      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
+        $quotation->update([
+          'is_fully_paid' => true,
+          'status' => ApOrderQuotations::STATUS_FACTURADO
+        ]);
+        return true;
+      }
+
+      return false;
+    } catch (Exception $e) {
+      Log::error('Error al evaluar y actualizar estado de pago de cotización', [
+        'quotation_id' => $quotationId,
+        'error' => $e->getMessage(),
+      ]);
+      return false;
+    }
   }
 }

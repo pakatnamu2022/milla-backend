@@ -10,10 +10,13 @@ class IndexCustomerKycDeclarationRequest extends IndexRequest
   {
     return [
       'business_partner_id' => 'nullable|integer|exists:business_partners,id',
-      'sede_id' => 'nullable|integer|exists:config_sede,id',
-      'beneficiary_type' => 'nullable|string',
-      'is_signed' => 'nullable|boolean',
-      'declaration_date' => 'nullable|date',
+      'sede_id'             => 'nullable|integer|exists:config_sede,id',
+      'person_type'         => 'nullable|string|in:NATURAL,JURIDICA',
+      'beneficiary_type'    => 'nullable|string',
+      'status'              => 'nullable|string',
+      'legal_review_status' => 'nullable|string',
+      'is_signed'           => 'nullable|boolean',
+      'declaration_date'    => 'nullable|date',
       'per_page' => 'nullable|integer|min:1|max:200',
       'page' => 'nullable|integer|min:1',
       'sort_by' => 'nullable|string',

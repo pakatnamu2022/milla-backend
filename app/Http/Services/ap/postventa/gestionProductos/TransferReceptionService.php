@@ -4,7 +4,6 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\postventa\gestionProductos\TransferReceptionResource;
 use App\Http\Services\BaseService;
-use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -82,6 +81,13 @@ class TransferReceptionService extends BaseService
       // Generate reception number
       $receptionNumber = TransferReception::generateReceptionNumber();
 
+      // Estado de recepción
+      if ($shippingGuide->is_accounted) {
+        $statusReception = TransferReception::STATUS_APPROVED;
+      } else {
+        $statusReception = TransferReception::STATUS_PENDING;
+      };
+
       // Create reception header
       $reception = TransferReception::create([
         'reception_number' => $receptionNumber,
@@ -90,7 +96,7 @@ class TransferReceptionService extends BaseService
         'warehouse_id' => $data['warehouse_id'],
         'reception_date' => $data['reception_date'],
         'item_type' => $itemType,
-        'status' => TransferReception::STATUS_PENDING,
+        'status' => $statusReception,
         'notes' => $data['notes'] ?? "Recepción de transferencia {$transferOutMovement->movement_number}",
         'received_by' => Auth::id(),
         'total_items' => 0,
@@ -125,16 +131,7 @@ class TransferReceptionService extends BaseService
         'total_quantity' => $totalQuantity,
       ]);
 
-      if ($itemType === TransferReception::ITEM_TYPE_PRODUCT) {
-        if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
-          // Diferenciar entre productos de posventa y vehículos según area_id
-          if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
-            // Migrar productos de posventa a Dynamics
-            MigrateProductReceptionToDynamicsJob::dispatch($reception->id);
-          }
-        }
-      } else {
-        // For SERVICIO type, we can directly generate the inventory movement without waiting for GR migration
+      if ($itemType === TransferReception::ITEM_TYPE_SERVICE) {
         $this->generateInventoryMovement($reception, $transferOutMovement);
       }
 
@@ -410,18 +407,6 @@ class TransferReceptionService extends BaseService
     // Marcar la guía como procesada (reversión completada)
     $shippingGuide->update([
       'is_received' => true, // Marca que se procesó la reversión
-    ]);
-
-    Log::info('Movimiento de reversión TRANSFER_IN generado exitosamente', [
-      'shipping_guide_id' => $shippingGuide->id,
-      'transfer_reception_id' => $reception->id,
-      'reversal_movement_id' => $reversalMovement->id,
-      'reversal_movement_type' => 'TRANSFER_IN',
-      'cancelled_transfer_out_id' => $cancelledTransferOutMovement->id,
-      'original_transfer_in_id' => $originalTransferIn->id,
-      'reception_status_changed_to' => TransferReception::STATUS_APPROVED,
-      'warehouse_origin' => $cancelledTransferOutMovement->warehouse_id,
-      'warehouse_destination' => $cancelledTransferOutMovement->warehouse_destination_id
     ]);
 
     return $reversalMovement;

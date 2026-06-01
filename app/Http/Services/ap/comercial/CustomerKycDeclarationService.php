@@ -17,7 +17,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
   public function list(Request $request)
   {
     $query = CustomerKycDeclaration::query()
-      ->with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department']);
+      ->with($this->baseRelations());
 
     return $this->getFilteredResults(
       $query,
@@ -32,10 +32,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
   {
     $declaration = CustomerKycDeclaration::create($data);
 
-    return new CustomerKycDeclarationResource(
-      CustomerKycDeclaration::with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department'])
-        ->find($declaration->id)
-    );
+    return new CustomerKycDeclarationResource($this->loadRelations($declaration->id));
   }
 
   public function show($id)
@@ -49,10 +46,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
     unset($data['id']);
     $declaration->update($data);
 
-    return new CustomerKycDeclarationResource(
-      CustomerKycDeclaration::with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department'])
-        ->find($declaration->id)
-    );
+    return new CustomerKycDeclarationResource($this->loadRelations($declaration->id));
   }
 
   public function destroy($id)
@@ -64,11 +58,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
 
   public function find($id)
   {
-    $declaration = CustomerKycDeclaration::with([
-      'businessPartner.documentType',
-      'businessPartner.maritalStatus',
-      'businessPartner.district.province.department',
-    ])->where('id', $id)->first();
+    $declaration = $this->loadRelations($id);
 
     if (!$declaration) {
       throw new \Exception("Declaración jurada KYC con ID {$id} no encontrada.");
@@ -86,16 +76,18 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
       $declaration->save();
     }
 
-    $filename = "declaracion-jurada-kyc_{$declaration->id}_{$declaration->declaration_date->format('Y-m-d')}.pdf";
+    $type     = strtolower($declaration->person_type); // 'natural' | 'juridica'
+    $view     = "exports.customer-kyc-declaration-{$type}";
+    $filename = "declaracion-jurada-kyc-{$type}_{$declaration->id}_{$declaration->declaration_date->format('Y-m-d')}.pdf";
 
-    return Pdf::loadView('exports.customer-kyc-declaration', compact('declaration'))
+    return Pdf::loadView($view, compact('declaration'))
       ->setPaper('a4', 'portrait')
       ->stream($filename);
   }
 
   public function uploadSignedDocument($id, UploadedFile $file)
   {
-    $declaration = $this->find($id);
+    $declaration        = $this->find($id);
     $digitalFileService = new DigitalFileService();
 
     if ($declaration->status === CustomerKycDeclaration::STATUS_FIRMADO && $declaration->signed_file_path) {
@@ -112,7 +104,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
       $declaration->getTable()
     );
 
-    $digitalFile = $digitalFileResource->resource;
+    $digitalFile           = $digitalFileResource->resource;
     $digitalFile->id_model = $id;
     $digitalFile->save();
 
@@ -120,10 +112,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
     $declaration->setAttribute('signed_file_path', $digitalFile->url);
     $declaration->save();
 
-    return new CustomerKycDeclarationResource(
-      CustomerKycDeclaration::with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department'])
-        ->find($declaration->id)
-    );
+    return new CustomerKycDeclarationResource($this->loadRelations($declaration->id));
   }
 
   public function confirmLegalReview($id, $userId)
@@ -140,10 +129,7 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
     $declaration->setAttribute('legal_review_comments', null);
     $declaration->save();
 
-    return new CustomerKycDeclarationResource(
-      CustomerKycDeclaration::with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department', 'reviewedBy'])
-        ->find($declaration->id)
-    );
+    return new CustomerKycDeclarationResource($this->loadRelations($declaration->id));
   }
 
   public function rejectLegalReview($id, $userId, $comments)
@@ -164,9 +150,22 @@ class CustomerKycDeclarationService extends BaseService implements BaseServiceIn
     $declaration->setAttribute('legal_review_comments', $comments);
     $declaration->save();
 
-    return new CustomerKycDeclarationResource(
-      CustomerKycDeclaration::with(['businessPartner.documentType', 'businessPartner.maritalStatus', 'businessPartner.district.province.department', 'reviewedBy'])
-        ->find($declaration->id)
-    );
+    return new CustomerKycDeclarationResource($this->loadRelations($declaration->id));
+  }
+
+  private function loadRelations($id)
+  {
+    return CustomerKycDeclaration::with($this->baseRelations())->find($id);
+  }
+
+  private function baseRelations(): array
+  {
+    return [
+      'businessPartner.documentType',
+      'businessPartner.maritalStatus',
+      'businessPartner.district.province.department',
+      'officeDistrict.province.department',
+      'reviewedBy',
+    ];
   }
 }

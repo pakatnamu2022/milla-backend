@@ -1085,27 +1085,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return $normalItems->map(function (ElectronicDocumentItem $item) use ($scale) {
       $scaledSubtotal = round((float)$item->subtotal * $scale, 2);
-      $scaledIgv     = round((float)$item->igv * $scale, 2);
-      $scaledTotal   = round((float)$item->total * $scale, 2);
+      $scaledIgv = round((float)$item->igv * $scale, 2);
+      $scaledTotal = round((float)$item->total * $scale, 2);
 
-      $cantidad     = max((float)$item->cantidad, 0.000001);
+      $cantidad = max((float)$item->cantidad, 0.000001);
       $netValueUnit = round($scaledSubtotal / $cantidad, 10);
       $netPriceUnit = round($scaledTotal / $cantidad, 10);
 
       return [
-        'account_plan_id'           => $item->account_plan_id,
-        'unidad_de_medida'          => $item->unidad_de_medida,
-        'codigo'                    => $item->codigo,
-        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
-        'descripcion'               => $item->descripcion,
-        'cantidad'                  => $item->cantidad,
-        'valor_unitario'            => $netValueUnit,
-        'precio_unitario'           => $netPriceUnit,
-        'descuento'                 => 0,
-        'subtotal'                  => $scaledSubtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
+        'subtotal' => $scaledSubtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                       => $scaledIgv,
-        'total'                     => $scaledTotal,
+        'igv' => $scaledIgv,
+        'total' => $scaledTotal,
       ];
     })->values()->toArray();
   }
@@ -1125,24 +1125,24 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     return $selectedItems->map(function (ElectronicDocumentItem $item) {
       // Credit notes cannot have item-level discounts (Nubefact/SUNAT rule).
       // Absorb any discount into valor_unitario so LineExtensionAmount = cantidad * valor_unitario = subtotal.
-      $cantidad     = max((float)$item->cantidad, 0.000001);
+      $cantidad = max((float)$item->cantidad, 0.000001);
       $netValueUnit = round((float)$item->subtotal / $cantidad, 10);
       $netPriceUnit = round((float)$item->total / $cantidad, 10);
 
       return [
-        'account_plan_id'           => $item->account_plan_id,
-        'unidad_de_medida'          => $item->unidad_de_medida,
-        'codigo'                    => $item->codigo,
-        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
-        'descripcion'               => $item->descripcion,
-        'cantidad'                  => $item->cantidad,
-        'valor_unitario'            => $netValueUnit,
-        'precio_unitario'           => $netPriceUnit,
-        'descuento'                 => 0,
-        'subtotal'                  => $item->subtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'codigo' => $item->codigo,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
+        'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                       => $item->igv,
-        'total'                     => $item->total,
+        'igv' => $item->igv,
+        'total' => $item->total,
       ];
     })->values()->toArray();
   }
@@ -2058,7 +2058,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Update quotation invoice status
    * Marks has_invoice_generated = true when a document is created
-   * Marks is_fully_paid = true when total paid (accepted docs, non-advance) >= quotation total
+   *
+   * NOTE: Este método ya NO actualiza is_fully_paid ni status.
+   * Esa lógica ahora se ejecuta en SyncAccountingStatusJob después de que
+   * Dynamics contabilice el documento, garantizando sincronización entre sistemas.
    *
    * @param int $quotationId
    * @return void
@@ -2073,35 +2076,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         return;
       }
 
-      // Marcar que se generó factura
+      // Solo marcar que se generó factura
+      // La actualización de is_fully_paid y status se realiza en SyncAccountingStatusJob
+      // una vez que Dynamics haya contabilizado el documento
       $quotation->update(['has_invoice_generated' => true]);
-
-      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
-      // Incluye anticipos + facturas de regularización/venta directa
-      $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
-
-      // Verificar si existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
-      // La venta interna es el documento que cierra la operación (puede ser por 0 o mayor)
-      $hasInternalSale = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('is_advance_payment', 0)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->exists();
-
-      // Marcar como totalmente pagado solo si:
-      // 1. El total pagado >= total de la cotización
-      // 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
-      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
-        $quotation->update([
-          'is_fully_paid' => true,
-          'status' => ApOrderQuotations::STATUS_FACTURADO
-        ]);
-      }
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
         'quotation_id' => $quotationId,
@@ -2301,58 +2279,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
-    if ($workOrder->status_id == ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede facturar una orden de trabajo cancelada.');
+    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+      throw new Exception('No se puede generar una factura a una orden de trabajo anulada');
     }
 
-    $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
-
-    if ($workOrder->status_id == ApMasters::AT_WORK_WORK_ORDER_ID && !$isAdvancePayment && $validateLabor) {
-      throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
+    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+      throw new Exception('No se puede generar una factura a una orden de trabajo cerrada');
     }
 
-    if (!$isAdvancePayment && $validateLabor) {
-      $laboursWithWorker = $workOrder->plannings->filter(function ($labour) {
-        return $labour->worker_id !== null && $labour->deleted_at === null;
-      });
-
-      if ($laboursWithWorker->count() === 0) {
-        throw new Exception('La orden de trabajo debe tener al menos una mano de obra con trabajador asignado.');
-      }
-    }
-
-    // Validate that all parts are fully delivered if work order has parts
-    if (!$isAdvancePayment && $workOrder->parts->count() > 0) {
-      $partsNotFullyDelivered = [];
-
-      foreach ($workOrder->parts as $part) {
-        // Calculate total delivered quantity for this part (excluding soft deleted deliveries)
-        $totalDelivered = $part->deliveries
-          ->whereNull('deleted_at')
-          ->sum('delivered_quantity');
-
-        // Compare with quantity_used
-        $quantityUsed = (float)$part->quantity_used;
-        $totalDelivered = (float)$totalDelivered;
-
-        // If not fully delivered, add to list
-        if ($totalDelivered < $quantityUsed) {
-          $partsNotFullyDelivered[] = sprintf(
-            '%s (Usado: %.2f, Entregado: %.2f, Pendiente: %.2f)',
-            $part->product->name ?? "Producto ID: {$part->product_id}",
-            $quantityUsed,
-            $totalDelivered,
-            $quantityUsed - $totalDelivered
-          );
-        }
-      }
-
-      if (count($partsNotFullyDelivered) > 0) {
-        throw new Exception(
-          'No se puede facturar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
-          implode('; ', $partsNotFullyDelivered)
-        );
-      }
+    if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID && !$isAdvancePayment) {
+      throw new Exception('No se puede generar una factura final a una orden de trabajo que aún no ha sido finalizada. Solo se pueden generar anticipos.');
     }
 
     // Calculate work order total using centralized method (includes labour, parts, discount, and tax)

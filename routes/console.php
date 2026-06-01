@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -49,9 +50,9 @@ Schedule::command('shipping-guide:verify-migration --all --limit=10')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Verificar y migrar recepciones de POSVENTA (productos) pendientes
+// Verificar y migrar guías de remisión de POSVENTA (productos) pendientes
 // Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
-Schedule::command('product-reception:verify-migration --all --limit=10')
+Schedule::command('shipping-guides-postventa:verify-migration --all --limit=10')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -128,6 +129,13 @@ Schedule::command('inventory:sync-adjustments-dynamics')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Calentar cache del dashboard de adopción cada 10 minutos en horario laboral
+Schedule::job(new WarmAdoptionCacheJob())
+  ->everySixHours()
+  ->between('7:00', '20:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
+
 // Notificar a encargados de almacén sobre stock bajo
 // Ejecuta diariamente a las 8:00 AM hora Lima
 Schedule::command('warehouse:notify-low-stock')
@@ -135,4 +143,20 @@ Schedule::command('warehouse:notify-low-stock')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Sincronizar FAC_INVOICE desde RM20101_MILLA_DOCFV (DBTP2) — Módulo Transportes
+Schedule::command('tp:sync-fac-invoice')
+  ->dailyAt('08:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Sync attendance punches from ZKBioTime — 4 times daily
+foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
+  Schedule::command('sync:attendance')
+    ->dailyAt($time)
+    ->timezone('America/Lima')
+    ->withoutOverlapping()
+    ->runInBackground();
+}
 

@@ -31,6 +31,11 @@ class StoreUnitMeasurementRequest extends StoreRequest
         Rule::unique('unit_measurement', 'description')
           ->whereNull('deleted_at'),
       ],
+      'number_decimals' => [
+        'required',
+        'integer',
+        'max:5',
+      ]
     ];
   }
 
@@ -51,6 +56,10 @@ class StoreUnitMeasurementRequest extends StoreRequest
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 100 caracteres.',
       'description.unique' => 'La descripción ya existe.',
+
+      'number_decimals.required' => 'El número de decimales es obligatorio.',
+      'number_decimals.integer' => 'El número de decimales debe ser un número entero.',
+      'number_decimals.max' => 'El número de decimales no debe exceder los 5 caracteres.',
     ];
   }
 }

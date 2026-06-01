@@ -11,6 +11,7 @@ use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
+use App\Http\Controllers\dp\comercial\CuentasPorCobrarController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
@@ -104,6 +105,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollConceptController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
@@ -143,6 +145,7 @@ use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 
 //TP - Controller
+use App\Http\Controllers\tp\comercial\FacInvoiceController;
 use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\common\NotificationController;
 use App\Http\Controllers\tp\comercial\DeviceController;
@@ -251,9 +254,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
 
-    // ============================================================
-    // RUTAS PÚBLICAS (para la app móvil - sin autenticación)
-    // ============================================================
     Route::group(['prefix' => 'public/monitoreo'], function () {
         Route::post('location', [DriverLocationController::class, 'store']);
         Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
@@ -303,6 +303,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
             Route::post('equipment', 'getEquipment');
         });
     });
+    Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
 
   });
 
@@ -583,6 +584,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         //        OBJECTIVES
+        Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
+        Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
         Route::apiResource('objective', EvaluationObjectiveController::class)->only([
           'index',
           'show',
@@ -1056,6 +1059,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy',
       ]);
 
+
       Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
         'index',
         'show',
@@ -1159,7 +1163,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
       Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
-      Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
       Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
@@ -1354,11 +1357,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
       Route::patch('workOrders/{id}/change-currency', [WorkOrderController::class, 'changeCurrency']);
+      Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
+      Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
       Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
         'show',
@@ -1395,6 +1401,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
       Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+      Route::post('workOrderParts/{id}/unassign', [ApWorkOrderPartsController::class, 'unassignFromTechnician']);
       Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
       Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
       Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);
@@ -1432,7 +1439,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
       Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
       Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
-      Route::get('orderQuotations/for-purchase-request/list', [ApOrderQuotationsController::class, 'listForPurchaseRequest']);
+      Route::get('orderQuotations/for-purchase-request-taller/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestTaller']);
+      Route::get('orderQuotations/for-purchase-request-meson/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestMeson']);
       Route::patch('orderQuotations/{id}/invoice-to', [ApOrderQuotationsController::class, 'invoiceTo']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
@@ -1590,6 +1598,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
   });
 
+  /**
+   * Routes for Deposito Pakatnamu
+   */
+  Route::group(['prefix' => 'dp'], function () {
+    Route::group(['prefix' => 'commercial'], function () {
+      // Cuentas por Cobrar
+      Route::post('cuentasPorCobrar/sync', [CuentasPorCobrarController::class, 'sync']);
+      Route::get('cuentasPorCobrar/{id}', [CuentasPorCobrarController::class, 'show']);
+      Route::post('cuentasPorCobrar/{id}/comments', [CuentasPorCobrarController::class, 'storeComment']);
+      Route::get('cuentasPorCobrar', [CuentasPorCobrarController::class, 'index']);
+    });
+  });
+
   // Document Validation Routes
   Route::group(['prefix' => 'document-validation'], function () {
     Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
@@ -1624,6 +1645,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('/champions', [AdoptionDashboardController::class, 'champions']);
     Route::get('/alerts', [AdoptionDashboardController::class, 'alerts']);
     Route::get('/trend', [AdoptionDashboardController::class, 'trend']);
+    Route::get('/all', [AdoptionDashboardController::class, 'all']);
+    Route::post('/refresh', [AdoptionDashboardController::class, 'refresh']);
   });
 
   // GP - Gestión Humana - Viáticos Routes
@@ -1729,20 +1752,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // GP - Gestión Humana - Payroll (Nómina) Routes
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
-    // TEST ROUTE - Calcular promedio 6 meses
-    Route::get('test-promedio-6-meses', function (\Illuminate\Http\Request $request) {
-      $periodId = $request->input('period_id');
-      $workerId = $request->input('worker_id');
-      $companyId = $request->input('company_id');
-
-      $result = \App\Models\gp\gestionhumana\payroll\PayrollCalculation::calcularPromedioUltimos6Meses(
-        $periodId,
-        $workerId,
-        $companyId
-      );
-
-      return response()->json($result);
-    });
+    Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
 
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
@@ -1802,6 +1812,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
     Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
   });
+});
+
+// ATTENDANCE — ZKBioTime sync
+Route::group(['prefix' => 'admin/attendance'], function () {
+  Route::get('/', [AttendanceSyncController::class, 'index']);
+  Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
+  Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+  Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
+  Route::get('/{id}', [AttendanceSyncController::class, 'show']);
+  Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+  Route::post('/sync-range', [AttendanceSyncController::class, 'syncRange']);
 });
 
 // PUBLIC ROUTES - No authentication required

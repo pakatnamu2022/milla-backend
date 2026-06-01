@@ -46,6 +46,7 @@ class EquipmentResource extends JsonResource
             'status_deleted' => $this->status_deleted,
 
 //            ESTADO DE ASIGNACIÓN (calculado)
+            'compartido'        => (bool) $this->compartido,
             'assignment_status' => $this->computeAssignmentStatus(),
             'assigned_to' => $this->activeAssignment
               ? [
@@ -55,6 +56,14 @@ class EquipmentResource extends JsonResource
                 'fecha'         => $this->activeAssignment->fecha,
               ]
               : null,
+            'assigned_to_list' => $this->whenLoaded('activeAssignments', fn() =>
+              $this->activeAssignments->map(fn($a) => [
+                'assignment_id' => $a->id,
+                'persona_id'    => $a->persona_id,
+                'worker_name'   => $a->worker?->nombre_completo,
+                'fecha'         => $a->fecha,
+              ])
+            ),
         ];
     }
 

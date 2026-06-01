@@ -16,6 +16,7 @@ class UnitMeasurement extends Model
     'dyn_code',
     'nubefac_code',
     'description',
+    'number_decimals',
     'status'
   ];
 

@@ -185,6 +185,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
       'error_message' => $errorMessage,
       'proceso_estado' => $procesoEstado,
       'last_attempt_at' => now(),
+      'attempts' => $this->attempts + 1,
     ]);
   }
 
