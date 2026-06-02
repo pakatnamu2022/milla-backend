@@ -450,6 +450,19 @@ return [
             'timeout' => 120,
             'nice' => 0,
         ],
+        'supervisor-accounts-receivable-reports' => [
+            'connection' => 'redis',
+            'queue' => ['accounts-receivable-reports'],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 600,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -468,7 +481,8 @@ return [
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-fac-invoice-sync'     => ['minProcesses' => 2, 'maxProcesses' => 4],
             'supervisor-receivable-accounts'  => ['minProcesses' => 2, 'maxProcesses' => 4],
-            'supervisor-attendance'           => ['minProcesses' => 1, 'maxProcesses' => 2],
+            'supervisor-attendance'                    => ['minProcesses' => 1, 'maxProcesses' => 2],
+            'supervisor-accounts-receivable-reports'  => ['minProcesses' => 1, 'maxProcesses' => 1],
         ],
 
         'local' => [
@@ -486,7 +500,8 @@ return [
             'supervisor-validate-documents'   => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-fac-invoice-sync'     => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-receivable-accounts'  => ['minProcesses' => 1, 'maxProcesses' => 1],
-            'supervisor-attendance'           => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-attendance'                    => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-accounts-receivable-reports'  => ['minProcesses' => 1, 'maxProcesses' => 1],
         ],
     ],
 

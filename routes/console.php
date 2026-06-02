@@ -151,6 +151,13 @@ Schedule::command('tp:sync-fac-invoice')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Enviar reportes de CxC por vencer (≤2 días) — diariamente a las 8am
+Schedule::command('ar:send-due-reports')
+  ->dailyAt('08:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
 // Sync attendance punches from ZKBioTime — 4 times daily
 foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
   Schedule::command('sync:attendance')

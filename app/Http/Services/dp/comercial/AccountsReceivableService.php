@@ -5,18 +5,27 @@ namespace App\Http\Services\dp\comercial;
 use App\Http\Resources\dp\comercial\AccountReceivableCommentResource;
 use App\Http\Resources\dp\comercial\AccountReceivableResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
 use App\Models\dp\comercial\AccountReceivable;
 use App\Models\dp\comercial\AccountReceivableComment;
+use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AccountsReceivableService extends BaseService
 {
+  // TODO: change to $worker->email2 ?? $worker->email in production
+  private const TEST_EMAIL = 'hvaldiviezos@automotorespakatnamu.com';
+
   private const COMPANY_CONNECTION_MAP = [
     'deposito' => 'dbdp2',
   ];
+
+  public function __construct(private EmailService $emailService) {}
 
   public function sync(string $company = 'deposito'): array
   {
@@ -193,6 +202,118 @@ class AccountsReceivableService extends BaseService
     $comment->load(['user', 'sede']);
 
     return new AccountReceivableCommentResource($comment);
+  }
+
+  public function sendSedeReports(string $company = 'deposito'): array
+  {
+    return $this->executeSedeReports(
+      $company,
+      fn($q) => $q->where('balance_pen', '>', 0)->orderByDesc('overdue_days'),
+      'Cuentas por Cobrar',
+      'CxC'
+    );
+  }
+
+  public function sendDueSedeReports(string $company = 'deposito'): array
+  {
+    return $this->executeSedeReports(
+      $company,
+      fn($q) => $q->where('balance_pen', '>', 0)->whereBetween('overdue_days', [-2, 0])->orderBy('overdue_days'),
+      'CxC Por Vencer (≤2 días)',
+      'CxC_PorVencer'
+    );
+  }
+
+  private function executeSedeReports(string $company, callable $queryModifier, string $subjectPrefix, string $filePrefix): array
+  {
+    $positionIds = HierarchicalCategoryDetail::where('hierarchical_category_id', 13)
+      ->pluck('position_id');
+
+    if ($positionIds->isEmpty()) {
+      return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron cargos para la categoría jerárquica 13.'];
+    }
+
+    $workers = Worker::whereIn('cargo_id', $positionIds)
+      ->whereNotNull('sede_id')
+      ->with('sede:id,localidad,suc_abrev')
+      ->get();
+
+    if ($workers->isEmpty()) {
+      return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron trabajadores activos en la categoría jerárquica 13.'];
+    }
+
+    $sent    = 0;
+    $skipped = 0;
+
+    foreach ($workers->groupBy('sede_id') as $sedeId => $sedeWorkers) {
+      $sede         = $sedeWorkers->first()->sede;
+      $sedeAbrev    = $sede?->suc_abrev ?? "Sede {$sedeId}";
+      $sedeFullName = $sede?->localidad ?? $sedeAbrev;
+
+      $records = $queryModifier(
+        AccountReceivable::where('company', $company)->where('sede_id', $sedeId)
+      )->get();
+
+      if ($records->isEmpty()) {
+        $skipped++;
+        continue;
+      }
+
+      $summary = [
+        'total_documents'     => $records->count(),
+        'total_balance_pen'   => $this->pen($records->sum('balance_pen')),
+        'overdue_balance_pen' => $this->pen($records->sum(fn($r) => ($r->overdue_days ?? 0) > 0 ? $r->balance_pen : 0)),
+        'current_balance_pen' => $this->pen($records->sum(fn($r) => ($r->overdue_days ?? 0) <= 0 ? $r->balance_pen : 0)),
+      ];
+
+      $recordsData = $records->map(fn($r) => [
+        'client_name'       => $r->client_name,
+        'client_id'         => $r->client_id,
+        'document_number'   => $r->document_number,
+        'document_date'     => $r->document_date?->format('d/m/Y'),
+        'document_due_date' => $r->document_due_date?->format('d/m/Y'),
+        'overdue_days'      => $r->overdue_days,
+        'overdue_status'    => $r->overdue_status,
+        'currency'          => $r->currency,
+        'balance'           => (float) $r->balance,
+        'balance_pen'       => $this->pen($r->balance_pen),
+        'seller'            => $r->seller,
+      ])->toArray();
+
+      $emailData = [
+        'sede_name'   => $sedeFullName,
+        'sede_abrev'  => $sedeAbrev,
+        'company'     => $company,
+        'report_date' => now()->format('d/m/Y H:i'),
+        'summary'     => $summary,
+        'records'     => $recordsData,
+      ];
+
+      $pdf     = Pdf::loadView('pdf.accounts-receivable-sede-report', $emailData)->setPaper('a4', 'landscape');
+      $pdfPath = tempnam(sys_get_temp_dir(), 'ar_report_') . '.pdf';
+      file_put_contents($pdfPath, $pdf->output());
+
+      $pdfFileName = "{$filePrefix}_{$sedeAbrev}_{$company}_" . now()->format('Ymd') . '.pdf';
+
+      foreach ($sedeWorkers as $worker) {
+        $this->emailService->send([
+          'to'          => self::TEST_EMAIL,
+          'subject'     => "{$subjectPrefix} — {$sedeFullName} | " . now()->format('d/m/Y'),
+          'template'    => 'emails.accounts-receivable-sede-report',
+          'data'        => array_merge($emailData, ['worker_name' => $worker->nombre_completo]),
+          'attachments' => [['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']],
+        ]);
+        $sent++;
+      }
+
+      @unlink($pdfPath);
+    }
+
+    return [
+      'sent'    => $sent,
+      'skipped' => $skipped,
+      'message' => "Se enviaron {$sent} correo(s). {$skipped} sede(s) sin documentos.",
+    ];
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────

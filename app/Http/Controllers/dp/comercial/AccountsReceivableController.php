@@ -73,4 +73,14 @@ class AccountsReceivableController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function sendReports(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      return $this->success($this->service->sendSedeReports($company));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
