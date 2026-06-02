@@ -428,11 +428,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * Crear los items
        */
       if (isset($data['items']) && is_array($data['items'])) {
-        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        // Determinar si es un anticipo para pasar al método de enriquecimiento
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+
+        // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
+        // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
         if (!empty($data['order_quotation_id'])) {
-          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id']);
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id'], $isAdvancePayment);
         } elseif (!empty($data['work_order_id'])) {
-          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id']);
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id'], $isAdvancePayment);
         }
 
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
@@ -668,11 +672,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar items si se proporcionan
       if (isset($data['items']) && is_array($data['items'])) {
-        // Enriquecer el campo `codigo` de cada item antes de crearlos
+        // Determinar si es un anticipo para pasar al método de enriquecimiento
+        $isAdvancePayment = isset($data['is_advance_payment'])
+          ? $data['is_advance_payment'] == 1
+          : $document->is_advance_payment == 1;
+
+        // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
+        // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
         if (!empty($effectiveQuotationId)) {
-          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId);
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId, $isAdvancePayment);
         } elseif (!empty($effectiveWorkOrderId)) {
-          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId);
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId, $isAdvancePayment);
         }
 
         // Eliminar items existentes
@@ -829,9 +839,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $this->updateQuotationInvoiceStatus($document->order_quotation_id);
         }
 
-        // Actualizar estado de orden de trabajo si el documento tiene work_order_id
+        // Actualizar estado de orden de trabajo si el documento tiene work_order_id (POSTVENTA)
         if ($document->work_order_id) {
-          $this->updateWorkOrderInvoiceStatus($document->work_order_id, $document->is_advance_payment);
+          $this->updateWorkOrderInvoiceStatus(
+            $document->work_order_id,
+            $document->is_advance_payment,
+            $document->sunat_concept_document_type_id
+          );
         }
 
         // NOTA: La creación del movimiento de inventario se realiza en SyncAccountingStatusJob
@@ -1041,19 +1055,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $concept = SunatConcepts::find($data['sunat_concept_credit_note_type_id']);
     $typeCode = $concept?->code_nubefact;
 
-    switch ($typeCode) {
-      case SunatConcepts::CODE_CREDIT_NOTE_ANULACION:       // '01'
-      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_TOTAL: // '06'
-        return $this->buildItemsFromAllOriginalItems($originalDocument);
+    $items = match ($typeCode) {
+      SunatConcepts::CODE_CREDIT_NOTE_ANULACION,       // '01'
+      SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_TOTAL // '06'
+        => $this->buildItemsFromAllOriginalItems($originalDocument),
 
-      case SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_ITEM: // '07'
-        return $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']);
+      SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_ITEM  // '07'
+        => $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']),
 
-      case SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL: // '04'
-        return $this->buildDiscountGlobalItem($originalDocument, $data);
+      SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL // '04'
+        => $this->buildDiscountGlobalItem($originalDocument, $data),
 
-      default:
-        throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}");
+      default => throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}")
+    };
+
+    // Enriquecer items con dyn_code desde account_plan_id
+    $this->enrichCreditNoteItemsWithDynCode($items);
+
+    return $items;
+  }
+
+  /**
+   * Enriquece los items de una nota de crédito con dyn_code desde account_plan_id
+   *
+   * @param array $items Array de items (se pasa por referencia)
+   * @return void
+   */
+  private function enrichCreditNoteItemsWithDynCode(array &$items): void
+  {
+    foreach ($items as &$item) {
+      // Si el item tiene account_plan_id, setear dyn_code desde code_dynamics
+      if (!empty($item['account_plan_id'])) {
+        $accountPlan = ApAccountingAccountPlan::find($item['account_plan_id']);
+        if ($accountPlan && $accountPlan->code_dynamics) {
+          $item['dyn_code'] = $accountPlan->code_dynamics;
+        }
+      }
     }
   }
 
@@ -2056,14 +2093,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
-   * Update quotation invoice status
+   * Actualiza el estado de facturación de una cotización (COMERCIAL - area_id: 826)
    * Marks has_invoice_generated = true when a document is created
    *
    * NOTE: Este método ya NO actualiza is_fully_paid ni status.
    * Esa lógica ahora se ejecuta en SyncAccountingStatusJob después de que
    * Dynamics contabilice el documento, garantizando sincronización entre sistemas.
    *
-   * @param int $quotationId
+   * @param int $quotationId ID de la cotización
    * @return void
    * @throws Exception
    */
@@ -2445,7 +2482,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  private function updateWorkOrderInvoiceStatus(int $workOrderId, bool $isAdvancePayment = true): void
+  /**
+   * Actualiza el estado de facturación de una orden de trabajo (POSTVENTA)
+   *
+   * @param int $workOrderId ID de la orden de trabajo
+   * @param bool $isAdvancePayment Si es un anticipo (true) o venta final (false)
+   * @param int $documentType Tipo de documento (factura, boleta, nota crédito, etc.)
+   * @return void
+   */
+  private function updateWorkOrderInvoiceStatus(
+    int $workOrderId,
+    bool $isAdvancePayment = true,
+    int $documentType = ElectronicDocument::TYPE_FACTURA
+  ): void
   {
     try {
       $workOrder = ApWorkOrder::find($workOrderId);
@@ -2457,21 +2506,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Siempre marcar que se generó factura
       $workOrder->update(['has_invoice_generated' => true]);
 
-      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
+      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT, excluyendo notas de crédito)
       $totalPaid = ElectronicDocument::where('work_order_id', $workOrderId)
+        ->whereIn('sunat_concept_document_type_id', [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA,
+        ])
         ->where('aceptada_por_sunat', true)
         ->where('anulado', false)
         ->whereNull('deleted_at')
         ->sum('total');
 
-      // Verificar si la suma de anticipos coincide con el monto total de la OT
-      // Marcar como totalmente facturado si el total pagado >= monto final de la OT y no sea un anticipo (la venta interna es la que cierra la operación)
+      // Verificar si la suma de pagos coincide con el monto total de la OT
+      // Marcar como totalmente facturado si el total pagado >= monto final de la OT y no sea un anticipo
       if ((float)$totalPaid >= (float)$workOrder->final_amount && !$isAdvancePayment) {
         $workOrder->update(['is_invoiced' => true]);
       }
 
-      // Si no es anticipo (es venta interna), cerrar la orden de trabajo
-      if (!$isAdvancePayment) {
+      // SOLO cerrar OT si:
+      // 1. Es venta final (no anticipo)
+      // 2. Es FACTURA o BOLETA (no notas de crédito/débito)
+      // Las notas de crédito NO deben cerrar la OT
+      $isInvoiceDocument = in_array($documentType, [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA
+      ]);
+
+      if (!$isAdvancePayment && $isInvoiceDocument) {
         $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
       }
     } catch (Exception $e) {
@@ -2486,9 +2547,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * Enriquece los campos `codigo` y `dyn_code` de cada item desde el producto.
    * El frontend envía `product_id` (opcional) en cada item.
    * No aplica a items de anticipo (anticipo_regularizacion = true).
+   *
+   * @param array $items Array de items a enriquecer (se pasa por referencia)
+   * @param int $quotationId ID de la cotización
+   * @param bool $isAdvancePayment Indica si es un anticipo
    */
-  private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId): void
+  private function enrichItemsCodigoFromQuotation(array &$items, int $quotationId, bool $isAdvancePayment = false): void
   {
+    // Si es anticipo, setear dyn_code desde account_plan_id
+    if ($isAdvancePayment) {
+      foreach ($items as &$item) {
+        // Saltar items de regularización de anticipo
+        if (!empty($item['anticipo_regularizacion'])) {
+          continue;
+        }
+
+        // Para anticipos, usar el code_dynamics del plan de cuentas
+        if (!empty($item['account_plan_id'])) {
+          $accountPlan = ApAccountingAccountPlan::find($item['account_plan_id']);
+          if ($accountPlan && $accountPlan->code_dynamics) {
+            $item['dyn_code'] = $accountPlan->code_dynamics;
+          }
+        }
+      }
+      return;
+    }
+
+    // Lógica normal para ventas (NO anticipos)
     // Recopilar todos los product_ids de items que no son anticipos
     $productIds = [];
     foreach ($items as $item) {
@@ -2544,23 +2629,47 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * Usa el campo `codigo` del item (enviado por el frontend) como ID de part o labour.
    * - Repuestos (parts con product_id): mapea codigo y dyn_code del producto.
    * - Mano de obra (labours sin product_id): valor fijo 'V0000011' o 'V0000012'.
+   *
+   * @param array $items Array de items a enriquecer (se pasa por referencia)
+   * @param int $workOrderId ID de la orden de trabajo
+   * @param bool $isAdvancePayment Indica si es un anticipo
    */
-  private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId): void
+  private function enrichItemsCodigoFromWorkOrder(array &$items, int $workOrderId, bool $isAdvancePayment = false): void
   {
+    // Si es anticipo, setear dyn_code desde account_plan_id
+    if ($isAdvancePayment) {
+      foreach ($items as &$item) {
+        // Saltar items de regularización de anticipo
+        if (!empty($item['anticipo_regularizacion'])) {
+          continue;
+        }
+
+        // Para anticipos, usar el code_dynamics del plan de cuentas
+        if (!empty($item['account_plan_id'])) {
+          $accountPlan = ApAccountingAccountPlan::find($item['account_plan_id']);
+          if ($accountPlan && $accountPlan->code_dynamics) {
+            $item['dyn_code'] = $accountPlan->code_dynamics;
+          }
+        }
+      }
+      return;
+    }
+
+    // Lógica normal para ventas (NO anticipos)
     $workOrder = ApWorkOrder::with(['parts.product', 'labours'])->find($workOrderId);
 
     if (!$workOrder) {
       return;
     }
 
-    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code ?? 'V0000011';
+    $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code_dynamics ?? 'V0000011';
 
     // Indexar parts y labours por ID para búsqueda rápida
     $parts = $workOrder->parts->keyBy('id');
     $labours = $workOrder->labours->keyBy('id');
 
     foreach ($items as $index => &$item) {
-      // Saltar items de anticipo
+      // Saltar items de anticipo regularización
       if (!empty($item['anticipo_regularizacion'])) {
         continue;
       }
@@ -2610,7 +2719,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $unidadMedidaDyn = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
 
         if ($descripcionNormalizada === 'materiales') {
-          $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
+          $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code_dynamics ?? 'V0000012';
           $item['codigo'] = $materialsCode;
           $item['dyn_code'] = $materialsCode;
           $item['unidad_medida_dyn'] = $unidadMedidaDyn;
