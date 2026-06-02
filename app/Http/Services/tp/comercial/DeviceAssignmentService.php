@@ -73,19 +73,19 @@ class DeviceAssignmentService
    */
   public function getAssignedEquipmentByDriver(int $driverId): ?Equipment
   {
-
-    $assignment = EquipmentAssigment::where('status_deleted', self::ASSIGNMENT_ACTIVE_STATUS)
+    $assignmentIds = EquipmentAssigment::where('status_deleted', self::ASSIGNMENT_ACTIVE_STATUS)
       ->whereNull('unassigned_at')
       ->where('persona_id', $driverId)
-      ->first();
+      ->pluck('id');
 
-    if (!$assignment) {
+    if ($assignmentIds->isEmpty()) {
       return null;
     }
 
-    $item = EquipmentItemAssigment::where('asig_equipo_id', $assignment->id)
+    $item = EquipmentItemAssigment::whereIn('asig_equipo_id', $assignmentIds)
       ->whereHas('equipment', function ($q) {
-        $q->where('tipo_equipo_id', self::MOBILE_EQUIPMENT_TYPE_ID);
+        $q->where('tipo_equipo_id', self::MOBILE_EQUIPMENT_TYPE_ID)
+          ->where('status_deleted', self::EQUIPMENT_ACTIVE_STATUS);
       })
       ->first();
 
@@ -93,10 +93,7 @@ class DeviceAssignmentService
       return null;
     }
 
-    return Equipment::where('id', $item->equipo_id)
-      ->where('status_deleted', self::EQUIPMENT_ACTIVE_STATUS)
-      ->where('tipo_equipo_id', self::MOBILE_EQUIPMENT_TYPE_ID)
-      ->first();
+    return $item->equipment;
   }
 
   /**
