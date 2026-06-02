@@ -62,6 +62,7 @@ class AccountReceivable extends BaseModel
     'seller' => 'like',
     'document_date' => 'date_between',
     'document_due_date' => 'date_between',
+    'due_year' => '=',
   ];
 
   const sorts = [

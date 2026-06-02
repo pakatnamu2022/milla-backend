@@ -23,7 +23,7 @@ class AccountsReceivableService extends BaseService
     $connection = self::COMPANY_CONNECTION_MAP[$company]
       ?? throw new \Exception("Company '{$company}' has no configured connection.");
 
-    $pdo  = DB::connection($connection)->getPdo();
+    $pdo = DB::connection($connection)->getPdo();
     $stmt = $pdo->prepare("EXEC GP_Reporte_Indicador_Comercial_CuentasPorCobrar '%'");
     $stmt->execute();
 
@@ -36,12 +36,12 @@ class AccountsReceivableService extends BaseService
     } while ($stmt->nextRowset());
 
     $sedeMap = $this->buildSedeMap();
-    $now     = now()->toDateTimeString();
+    $now = now()->toDateTimeString();
 
     collect($rows)
       ->chunk(100)
       ->each(function ($chunk) use ($company, $sedeMap, $now) {
-        $records = $chunk->map(fn($row) => $this->mapRow((array) $row, $company, $sedeMap, $now))->toArray();
+        $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $company, $sedeMap, $now))->toArray();
 
         AccountReceivable::upsert(
           $records,
@@ -64,8 +64,8 @@ class AccountsReceivableService extends BaseService
     $total = count($rows);
 
     return [
-      'message' => "Sync completed for company '{$company}'.",
-      'synced'  => $total,
+      'message' => "Sincronización completa. Total registros procesados: {$total}.",
+      'synced' => $total,
     ];
   }
 
@@ -90,11 +90,11 @@ class AccountsReceivableService extends BaseService
 
     $extra = [
       'summary' => [
-        'total_documents'     => (int) ($agg->total_documents ?? 0),
-        'total_balance_pen'   => $this->pen($agg->total_balance_pen),
+        'total_documents' => (int)($agg->total_documents ?? 0),
+        'total_balance_pen' => $this->pen($agg->total_balance_pen),
         'overdue_balance_pen' => $this->pen($agg->overdue_balance_pen),
         'current_balance_pen' => $this->pen($agg->current_balance_pen),
-        'breakdown'           => $this->buildBreakdown(clone $summaryBase, $request),
+        'breakdown' => $this->buildBreakdown(clone $summaryBase, $request),
       ],
     ];
 
@@ -144,9 +144,9 @@ class AccountsReceivableService extends BaseService
 
         if (!isset($tree[$sedeId])) {
           $tree[$sedeId] = [
-            'sede_id'   => $sedeId,
+            'sede_id' => $sedeId,
             'sede_name' => $row->sede?->suc_abrev ?? $row->sede?->localidad ?? "Sede {$sedeId}",
-            'statuses'  => [],
+            'statuses' => [],
           ];
         }
 
@@ -155,7 +155,7 @@ class AccountsReceivableService extends BaseService
         if (!isset($tree[$sedeId]['statuses'][$status])) {
           $tree[$sedeId]['statuses'][$status] = [
             'status' => $status,
-            'years'  => [],
+            'years' => [],
           ];
         }
 
@@ -185,9 +185,9 @@ class AccountsReceivableService extends BaseService
 
     $comment = AccountReceivableComment::create([
       'accounts_receivable_id' => $record->id,
-      'sede_id'                => $record->sede_id,
-      'user_id'                => auth()->id(),
-      'comment'                => $data['comment'],
+      'sede_id' => $record->sede_id,
+      'user_id' => auth()->id(),
+      'comment' => $data['comment'],
     ]);
 
     $comment->load(['user', 'sede']);
@@ -236,21 +236,21 @@ class AccountsReceivableService extends BaseService
       ->orderByDesc('total_balance_pen')
       ->get();
 
-    $sedeIds  = $rows->pluck('sede_id')->filter()->unique()->toArray();
-    $sedeMap  = Sede::select('id', 'suc_abrev', 'localidad')
+    $sedeIds = $rows->pluck('sede_id')->filter()->unique()->toArray();
+    $sedeMap = Sede::select('id', 'suc_abrev', 'localidad')
       ->whereIn('id', $sedeIds)
       ->get()
       ->keyBy('id');
 
     return $rows->map(function ($row) use ($sedeMap) {
-      $sede  = $sedeMap[$row->sede_id] ?? null;
+      $sede = $sedeMap[$row->sede_id] ?? null;
       $label = $sede?->suc_abrev ?? $sede?->localidad ?? "Sede {$row->sede_id}";
 
       return [
-        'label'               => $label,
-        'sede_id'             => $row->sede_id,
-        'total_documents'     => (int) ($row->total_documents ?? 0),
-        'total_balance_pen'   => $this->pen($row->total_balance_pen),
+        'label' => $label,
+        'sede_id' => $row->sede_id,
+        'total_documents' => (int)($row->total_documents ?? 0),
+        'total_balance_pen' => $this->pen($row->total_balance_pen),
         'overdue_balance_pen' => $this->pen($row->overdue_balance_pen),
         'current_balance_pen' => $this->pen($row->current_balance_pen),
       ];
@@ -260,9 +260,9 @@ class AccountsReceivableService extends BaseService
   private function formatBreakdown($rows, string $groupBy): array
   {
     return $rows->map(fn($row) => [
-      'label'               => (string) ($row->label ?? ''),
-      'total_documents'     => (int) ($row->total_documents ?? 0),
-      'total_balance_pen'   => $this->pen($row->total_balance_pen),
+      'label' => (string)($row->label ?? ''),
+      'total_documents' => (int)($row->total_documents ?? 0),
+      'total_balance_pen' => $this->pen($row->total_balance_pen),
       'overdue_balance_pen' => $this->pen($row->overdue_balance_pen),
       'current_balance_pen' => $this->pen($row->current_balance_pen),
     ])->values()->toArray();
@@ -330,52 +330,52 @@ class AccountsReceivableService extends BaseService
 
     return [
       'synced_at' => $syncedAt,
-      'summary'   => [
-        'total_documents'    => (int) ($summary->total_documents ?? 0),
-        'total_amount_pen'   => $this->pen($summary->total_amount_pen),
-        'total_balance_pen'  => $this->pen($summary->total_balance_pen),
+      'summary' => [
+        'total_documents' => (int)($summary->total_documents ?? 0),
+        'total_amount_pen' => $this->pen($summary->total_amount_pen),
+        'total_balance_pen' => $this->pen($summary->total_balance_pen),
         'overdue_balance_pen' => $this->pen($summary->overdue_balance_pen),
         'current_balance_pen' => $this->pen($summary->current_balance_pen),
       ],
       'charts' => [
         [
-          'id'       => 'balance_by_status',
-          'title'    => 'Saldo por Estado de Vencimiento',
-          'type'     => 'pie',
-          'labels'   => $byStatus->pluck('label')->values()->toArray(),
+          'id' => 'balance_by_status',
+          'title' => 'Saldo por Estado de Vencimiento',
+          'type' => 'pie',
+          'labels' => $byStatus->pluck('label')->values()->toArray(),
           'datasets' => [[
             'label' => 'Saldo (S/)',
-            'data'  => $byStatus->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
+            'data' => $byStatus->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
           ]],
         ],
         [
-          'id'       => 'balance_by_sede',
-          'title'    => 'Saldo por Sede',
-          'type'     => 'bar',
-          'labels'   => $bySede->map(fn($r) => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? "Sede {$r->sede_id}")->values()->toArray(),
+          'id' => 'balance_by_sede',
+          'title' => 'Saldo por Sede',
+          'type' => 'bar',
+          'labels' => $bySede->map(fn($r) => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? "Sede {$r->sede_id}")->values()->toArray(),
           'datasets' => [[
             'label' => 'Saldo (S/)',
-            'data'  => $bySede->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
+            'data' => $bySede->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
           ]],
         ],
         [
-          'id'       => 'balance_by_month',
-          'title'    => 'Saldo por Mes de Vencimiento',
-          'type'     => 'line',
-          'labels'   => $byMonth->map(fn($r) => "{$r->due_month} {$r->due_year}")->values()->toArray(),
+          'id' => 'balance_by_month',
+          'title' => 'Saldo por Mes de Vencimiento',
+          'type' => 'line',
+          'labels' => $byMonth->map(fn($r) => "{$r->due_month} {$r->due_year}")->values()->toArray(),
           'datasets' => [[
             'label' => 'Saldo (S/)',
-            'data'  => $byMonth->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
+            'data' => $byMonth->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
           ]],
         ],
         [
-          'id'       => 'aging',
-          'title'    => 'Antigüedad de Cartera Vencida',
-          'type'     => 'bar',
-          'labels'   => ['1-30 días', '31-60 días', '61-90 días', '91-120 días', '120+ días'],
+          'id' => 'aging',
+          'title' => 'Antigüedad de Cartera Vencida',
+          'type' => 'bar',
+          'labels' => ['1-30 días', '31-60 días', '61-90 días', '91-120 días', '120+ días'],
           'datasets' => [[
             'label' => 'Saldo (S/)',
-            'data'  => [
+            'data' => [
               $this->pen($aging->d_1_30),
               $this->pen($aging->d_31_60),
               $this->pen($aging->d_61_90),
@@ -385,13 +385,13 @@ class AccountsReceivableService extends BaseService
           ]],
         ],
         [
-          'id'       => 'top_sellers',
-          'title'    => 'Top 10 Vendedores por Saldo',
-          'type'     => 'bar',
-          'labels'   => $topSellers->pluck('label')->values()->toArray(),
+          'id' => 'top_sellers',
+          'title' => 'Top 10 Vendedores por Saldo',
+          'type' => 'bar',
+          'labels' => $topSellers->pluck('label')->values()->toArray(),
           'datasets' => [[
             'label' => 'Saldo (S/)',
-            'data'  => $topSellers->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
+            'data' => $topSellers->pluck('value')->map(fn($v) => $this->pen($v))->values()->toArray(),
           ]],
         ],
       ],
@@ -400,48 +400,48 @@ class AccountsReceivableService extends BaseService
 
   private function pen(mixed $value): float
   {
-    return round((float) ($value ?? 0), 2);
+    return round((float)($value ?? 0), 2);
   }
 
   private function mapRow(array $row, string $company, array $sedeMap, string $now): array
   {
-    $branch   = trim($row['Sucursal'] ?? '');
+    $branch = trim($row['Sucursal'] ?? '');
     $currency = strtoupper(trim($row['Moneda'] ?? 'PEN'));
-    $amount   = (float) ($row['DocumentoImporte'] ?? 0);
-    $balance  = (float) ($row['DocumentoDeuda'] ?? 0);
-    $rate     = (float) ($row['DocumentoTasaCambio'] ?? 1) ?: 1;
+    $amount = (float)($row['DocumentoImporte'] ?? 0);
+    $balance = (float)($row['DocumentoDeuda'] ?? 0);
+    $rate = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
 
     $amountPen = $currency === 'PEN' ? $amount : $amount * $rate;
     $balancePen = $currency === 'PEN' ? $balance : $balance * $rate;
 
     return [
-      'company'         => $company,
-      'sede_id'         => $this->resolveSede($branch, $sedeMap),
-      'seller'          => $row['Vendedor'] ?? null,
-      'cashier'         => $row['Caja'] ?? null,
+      'company' => $company,
+      'sede_id' => $this->resolveSede($branch, $sedeMap),
+      'seller' => $row['Vendedor'] ?? null,
+      'cashier' => $row['Caja'] ?? null,
       'document_number' => trim($row['DocumentoNumero'] ?? ''),
-      'client_id'       => $row['ClienteId'] ?? null,
-      'client_name'     => $row['ClienteNombre'] ?? null,
-      'client_id_real'  => $row['ClienteIdReal'] ?: null,
+      'client_id' => $row['ClienteId'] ?? null,
+      'client_name' => $row['ClienteNombre'] ?? null,
+      'client_id_real' => $row['ClienteIdReal'] ?: null,
       'client_name_real' => $row['ClienteNombreReal'] ?: null,
-      'document_date'    => $this->parseDate($row['DocumentoFecha'] ?? null),
+      'document_date' => $this->parseDate($row['DocumentoFecha'] ?? null),
       'document_due_date' => $this->parseDate($row['DocumentoVencimiento'] ?? null),
-      'due_year'         => $row['Anho_Vencimiento'] ?? null,
-      'due_month'        => $row['Mes_Vencimiento'] ?? null,
-      'overdue_days'     => $row['DiasVencidos'] ?? null,
-      'overdue_status'   => $row['Estado_Vencido'] ?? null,
-      'currency'         => $row['Moneda'] ?? null,
-      'exchange_rate'    => $row['DocumentoTasaCambio'] ?? null,
-      'amount'           => $amount,
-      'balance'          => $balance,
-      'amount_pen'       => $amountPen,
-      'balance_pen'      => $balancePen,
-      'branch'           => $branch ?: null,
-      'observations'     => $row['Observaciones'] ?: null,
-      'collection_date'  => $this->parseDate(trim($row['CobroFecha'] ?? '')),
-      'synced_at'        => $now,
-      'created_at'       => $now,
-      'updated_at'       => $now,
+      'due_year' => $row['Anho_Vencimiento'] ?? null,
+      'due_month' => $row['Mes_Vencimiento'] ?? null,
+      'overdue_days' => $row['DiasVencidos'] ?? null,
+      'overdue_status' => $row['Estado_Vencido'] ?? null,
+      'currency' => $row['Moneda'] ?? null,
+      'exchange_rate' => $row['DocumentoTasaCambio'] ?? null,
+      'amount' => $amount,
+      'balance' => $balance,
+      'amount_pen' => $amountPen,
+      'balance_pen' => $balancePen,
+      'branch' => $branch ?: null,
+      'observations' => $row['Observaciones'] ?: null,
+      'collection_date' => $this->parseDate(trim($row['CobroFecha'] ?? '')),
+      'synced_at' => $now,
+      'created_at' => $now,
+      'updated_at' => $now,
     ];
   }
 
