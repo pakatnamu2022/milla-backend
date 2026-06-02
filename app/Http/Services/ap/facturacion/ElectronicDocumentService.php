@@ -2607,16 +2607,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $labour = $labours->get($itemId);
       if ($labour) {
         $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
+        $unidadMedidaDyn = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
 
         if ($descripcionNormalizada === 'materiales') {
           $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code ?? 'V0000012';
           $item['codigo'] = $materialsCode;
           $item['dyn_code'] = $materialsCode;
-          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
+          $item['unidad_medida_dyn'] = $unidadMedidaDyn;
         } else {
           $item['codigo'] = $labourCode;
           $item['dyn_code'] = $labourCode;
-          $item['unidad_medida_dyn'] = UnitMeasurement::SERVICE_UOM_ABBR;
+          $item['unidad_medida_dyn'] = $unidadMedidaDyn;
         }
       }
     }

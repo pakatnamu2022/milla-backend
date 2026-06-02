@@ -548,6 +548,9 @@ class SyncSalesDocumentJob implements ShouldQueue
       $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
       $articuloId = ($descripcionNormalizada === 'materiales') ? $materialsCode : $labourCode;
 
+      // Determinar unidad medida dyn
+      $unidadMedidaDyn = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
+
       // Construir el item en formato Dynamics
       $itemData = [
         'EmpresaId' => Company::AP_DYNAMICS,
@@ -557,7 +560,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
         'ArticuloDescripcionLarga' => $description,
         'SitioId' => $warehouse,
-        'UnidadMedidaId' => UnitMeasurement::SERVICE_UOM_ABBR,
+        'UnidadMedidaId' => $unidadMedidaDyn,
         'Cantidad' => $timeSpentHours,
         'PrecioUnitario' => $unitPrice,
         'DescuentoUnitario' => $discountPercentage,

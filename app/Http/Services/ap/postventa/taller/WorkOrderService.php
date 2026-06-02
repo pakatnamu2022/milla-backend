@@ -1455,17 +1455,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      // Validar que no esté ya cancelada
       if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
         throw new Exception('La orden de trabajo ya está anulada');
       }
 
-      // Validar que no esté cerrada
       if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
         throw new Exception('No se puede anular una orden de trabajo cerrada');
       }
 
-      // Validar que no esté en trabajo
+      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
+      }
+
       if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
         throw new Exception('No se puede anular una orden de trabajo que se encuentra en trabajo');
       } else {
@@ -1475,12 +1476,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Validar que no tenga anticipos
-      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
-        throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
-      }
-
-      // Actualizar el estado a cancelado
       $workOrder->update([
         'status_id' => ApMasters::CANCELED_WORK_ORDER_ID,
         'discarded_at' => now(),
@@ -1489,7 +1484,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'discarded_note' => $data['discarded_note'] ?? null,
       ]);
 
-      // Recargar relaciones
       $workOrder->load([
         'appointmentPlanning',
         'vehicle',

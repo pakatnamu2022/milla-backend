@@ -31,7 +31,8 @@ class UnitMeasurement extends Model
     'description',
   ];
 
-  const string SERVICE_UOM_ABBR = 'UNS';
+  /** IDs Unidad de Medida*/
+  const int SERVICE_ID = 8;
 
   public function setDynCodeAttribute($value)
   {
