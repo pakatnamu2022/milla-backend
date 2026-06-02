@@ -1614,6 +1614,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::group(['prefix' => 'commercial'], function () {
       // Accounts Receivable
       Route::post('accountsReceivable/sync', [AccountsReceivableController::class, 'sync']);
+      Route::get('accountsReceivable/filterTree', [AccountsReceivableController::class, 'filterTree']);
       Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);
       Route::post('accountsReceivable/{id}/comments', [AccountsReceivableController::class, 'storeComment']);
       Route::get('accountsReceivable', [AccountsReceivableController::class, 'index']);

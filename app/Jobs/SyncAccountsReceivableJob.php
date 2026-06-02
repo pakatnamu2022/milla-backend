@@ -2,10 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\dp\comercial\AccountsReceivableService;
 use App\Models\dp\comercial\AccountReceivable;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SyncAccountsReceivableJob implements ShouldQueue
@@ -80,6 +82,8 @@ class SyncAccountsReceivableJob implements ShouldQueue
           ]
         );
       });
+
+    Cache::forget(AccountsReceivableService::filterTreeCacheKey($this->company));
   }
 
   private function mapRow(array $row, array $sedeMap, string $now): array

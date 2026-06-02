@@ -9,6 +9,7 @@ use App\Jobs\SyncAccountsReceivableJob;
 use App\Models\dp\comercial\AccountReceivable;
 use App\Models\dp\comercial\AccountReceivableComment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AccountsReceivableService extends BaseService
 {
@@ -39,6 +40,59 @@ class AccountsReceivableService extends BaseService
     $record = AccountReceivable::with(['sede', 'comments.user', 'comments.sede'])->findOrFail($id);
 
     return new AccountReceivableResource($record);
+  }
+
+  public static function filterTreeCacheKey(string $company): string
+  {
+    return "accounts_receivable:filter_tree:{$company}";
+  }
+
+  public function filterTree(string $company = 'deposito'): array
+  {
+    return Cache::rememberForever(self::filterTreeCacheKey($company), function () use ($company) {
+      $rows = AccountReceivable::query()
+        ->select('sede_id', 'overdue_status', 'due_year')
+        ->with('sede:id,suc_abrev,localidad')
+        ->where('company', $company)
+        ->whereNotNull('sede_id')
+        ->whereNotNull('overdue_status')
+        ->whereNotNull('due_year')
+        ->distinct()
+        ->orderBy('sede_id')
+        ->orderBy('overdue_status')
+        ->orderByDesc('due_year')
+        ->get();
+
+      $tree = [];
+
+      foreach ($rows as $row) {
+        $sedeId = $row->sede_id;
+
+        if (!isset($tree[$sedeId])) {
+          $tree[$sedeId] = [
+            'sede_id'   => $sedeId,
+            'sede_name' => $row->sede?->suc_abrev ?? $row->sede?->localidad ?? "Sede {$sedeId}",
+            'statuses'  => [],
+          ];
+        }
+
+        $status = $row->overdue_status;
+
+        if (!isset($tree[$sedeId]['statuses'][$status])) {
+          $tree[$sedeId]['statuses'][$status] = [
+            'status' => $status,
+            'years'  => [],
+          ];
+        }
+
+        $tree[$sedeId]['statuses'][$status]['years'][] = $row->due_year;
+      }
+
+      return array_values(array_map(function ($sede) {
+        $sede['statuses'] = array_values($sede['statuses']);
+        return $sede;
+      }, $tree));
+    });
   }
 
   public function storeComment(int $id, array $data): AccountReceivableCommentResource
