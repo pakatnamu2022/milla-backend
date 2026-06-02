@@ -5,6 +5,7 @@ namespace App\Http\Controllers\dp\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\dp\comercial\StoreAccountReceivableCommentRequest;
 use App\Http\Services\dp\comercial\AccountsReceivableService;
+use App\Jobs\SendDueAccountsReceivableReportsJob;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -79,6 +80,17 @@ class AccountsReceivableController extends Controller
     try {
       $company = $request->input('company', 'deposito');
       return $this->success($this->service->sendSedeReports($company));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function sendDueReports(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      SendDueAccountsReceivableReportsJob::dispatch($company);
+      return $this->success(['message' => "Job despachado para company: {$company}"]);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
