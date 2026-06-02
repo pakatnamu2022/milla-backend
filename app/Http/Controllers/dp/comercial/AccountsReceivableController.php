@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\dp\comercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\dp\comercial\StoreCuentaPorCobrarComentarioRequest;
-use App\Http\Services\dp\comercial\CuentasPorCobrarService;
+use App\Http\Requests\dp\comercial\StoreAccountReceivableCommentRequest;
+use App\Http\Services\dp\comercial\AccountsReceivableService;
 use Illuminate\Http\Request;
 use Throwable;
 
-class CuentasPorCobrarController extends Controller
+class AccountsReceivableController extends Controller
 {
-  protected CuentasPorCobrarService $service;
+  protected AccountsReceivableService $service;
 
-  public function __construct(CuentasPorCobrarService $service)
+  public function __construct(AccountsReceivableService $service)
   {
     $this->service = $service;
   }
@@ -45,7 +45,17 @@ class CuentasPorCobrarController extends Controller
     }
   }
 
-  public function storeComment(StoreCuentaPorCobrarComentarioRequest $request, $id)
+  public function filterTree(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      return $this->success($this->service->filterTree($company));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeComment(StoreAccountReceivableCommentRequest $request, $id)
   {
     try {
       return $this->success($this->service->storeComment($id, $request->validated()));

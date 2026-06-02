@@ -7,7 +7,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class CuentaPorCobrar extends BaseModel
+class AccountReceivable extends BaseModel
 {
   protected $table = 'accounts_receivable';
 
@@ -80,6 +80,6 @@ class CuentaPorCobrar extends BaseModel
 
   public function comments(): HasMany
   {
-    return $this->hasMany(CuentaPorCobrarComentario::class, 'accounts_receivable_id')->latest();
+    return $this->hasMany(AccountReceivableComment::class, 'accounts_receivable_id')->latest();
   }
 }

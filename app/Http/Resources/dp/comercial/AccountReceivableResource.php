@@ -5,7 +5,7 @@ namespace App\Http\Resources\dp\comercial;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class CuentaPorCobrarResource extends JsonResource
+class AccountReceivableResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
@@ -40,7 +40,7 @@ class CuentaPorCobrarResource extends JsonResource
       'collection_date'   => $this->collection_date?->format('Y-m-d'),
       'synced_at'         => $this->synced_at?->format('Y-m-d H:i:s'),
       'comments_count'    => $this->whenCounted('comments'),
-      'comments'          => CuentaPorCobrarComentarioResource::collection($this->whenLoaded('comments')),
+      'comments'          => AccountReceivableCommentResource::collection($this->whenLoaded('comments')),
       'created_at'        => $this->created_at?->format('Y-m-d H:i:s'),
       'updated_at'        => $this->updated_at?->format('Y-m-d H:i:s'),
     ];

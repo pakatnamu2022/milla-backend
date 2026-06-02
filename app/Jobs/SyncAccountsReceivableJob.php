@@ -2,13 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Models\dp\comercial\CuentaPorCobrar;
+use App\Http\Services\dp\comercial\AccountsReceivableService;
+use App\Models\dp\comercial\AccountReceivable;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
-class SyncCuentasPorCobrarJob implements ShouldQueue
+class SyncAccountsReceivableJob implements ShouldQueue
 {
   use Queueable;
 
@@ -51,7 +53,7 @@ class SyncCuentasPorCobrarJob implements ShouldQueue
       ->each(function ($chunk) use ($sedeMap, $now) {
         $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $sedeMap, $now))->toArray();
 
-        CuentaPorCobrar::upsert(
+        AccountReceivable::upsert(
           $records,
           ['company', 'document_number'],
           [
@@ -80,6 +82,8 @@ class SyncCuentasPorCobrarJob implements ShouldQueue
           ]
         );
       });
+
+    Cache::forget(AccountsReceivableService::filterTreeCacheKey($this->company));
   }
 
   private function mapRow(array $row, array $sedeMap, string $now): array
@@ -151,6 +155,6 @@ class SyncCuentasPorCobrarJob implements ShouldQueue
 
   public function failed(\Throwable $exception): void
   {
-    // Log::error("SyncCuentasPorCobrarJob failed for company {$this->company}: {$exception->getMessage()}");
+    //
   }
 }
