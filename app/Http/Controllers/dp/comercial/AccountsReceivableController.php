@@ -90,7 +90,7 @@ class AccountsReceivableController extends Controller
     try {
       $company = $request->input('company', 'deposito');
       SendDueAccountsReceivableReportsJob::dispatch($company);
-      return $this->success(['message' => "Job despachado para company: {$company}"]);
+      return $this->success(['message' => "Reportes enviados a los correos"]);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
