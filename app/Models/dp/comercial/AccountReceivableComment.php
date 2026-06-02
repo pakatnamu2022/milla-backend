@@ -7,7 +7,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class CuentaPorCobrarComentario extends BaseModel
+class AccountReceivableComment extends BaseModel
 {
   protected $table = 'accounts_receivable_comments';
 
@@ -20,7 +20,7 @@ class CuentaPorCobrarComentario extends BaseModel
 
   public function accountsReceivable(): BelongsTo
   {
-    return $this->belongsTo(CuentaPorCobrar::class, 'accounts_receivable_id');
+    return $this->belongsTo(AccountReceivable::class, 'accounts_receivable_id');
   }
 
   public function sede(): BelongsTo
