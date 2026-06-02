@@ -2409,48 +2409,48 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $entityTotal = 0;
     $entityName = '';
     $entityId = null;
-    $entityField = null;
+    $totalAdvances = 0;
 
-    // Determine which entity we're working with
+    // Determine which entity we're working with and get active advances using centralized method
     if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
-      $entityField = 'order_quotation_id';
       $entityId = $data['order_quotation_id'];
       $quotation = ApOrderQuotations::find($entityId);
       if ($quotation) {
         $entityTotal = (float)$quotation->total_amount;
         $entityName = 'cotización';
+        // Use getActiveAdvances() method for quotations
+        $totalAdvances = $quotation->getActiveAdvances()->sum('total');
       }
     } elseif (isset($data['work_order_id']) && $data['work_order_id']) {
-      $entityField = 'work_order_id';
       $entityId = $data['work_order_id'];
       $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
       if ($workOrder) {
         // Calculate total using centralized method (includes labour, parts, discount, and tax)
         $entityTotal = (float)$workOrder->final_amount;
         $entityName = 'orden de trabajo';
+        // Use getActiveAdvances() method for work orders
+        $totalAdvances = $workOrder->getActiveAdvances()->sum('total');
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
-      $entityField = 'purchase_request_quote_id';
       $entityId = $data['purchase_request_quote_id'];
       $purchaseRequestQuote = PurchaseRequestQuote::find($entityId);
       if ($purchaseRequestQuote) {
         $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
         $entityName = 'solicitud de cotización';
+        // For purchase request quotes, keep the original logic
+        $totalAdvances = ElectronicDocument::where('purchase_request_quote_id', $entityId)
+          ->where('is_advance_payment', 1)
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', false)
+          ->whereNull('deleted_at')
+          ->sum('total');
       }
     }
 
     // If no entity found, skip validation
-    if (!$entityId || !$entityField || $entityTotal <= 0) {
+    if (!$entityId || $entityTotal <= 0) {
       return;
     }
-
-    // Calculate total advances already accepted by SUNAT
-    $totalAdvances = ElectronicDocument::where($entityField, $entityId)
-      ->where('is_advance_payment', 1)
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->whereNull('deleted_at')
-      ->sum('total');
 
     // Calculate expected total (advances + current invoice)
     // Round to 2 decimals to ensure exact comparison
