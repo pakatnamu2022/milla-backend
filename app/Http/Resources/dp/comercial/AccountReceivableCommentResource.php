@@ -5,7 +5,7 @@ namespace App\Http\Resources\dp\comercial;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class CuentaPorCobrarComentarioResource extends JsonResource
+class AccountReceivableCommentResource extends JsonResource
 {
   public function toArray(Request $request): array
   {

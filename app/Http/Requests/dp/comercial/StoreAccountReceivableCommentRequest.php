@@ -4,7 +4,7 @@ namespace App\Http\Requests\dp\comercial;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreCuentaPorCobrarComentarioRequest extends FormRequest
+class StoreAccountReceivableCommentRequest extends FormRequest
 {
   public function authorize(): bool
   {
@@ -21,8 +21,8 @@ class StoreCuentaPorCobrarComentarioRequest extends FormRequest
   public function messages(): array
   {
     return [
-      'comment.required' => 'El comentario es obligatorio.',
-      'comment.max'      => 'El comentario no puede superar los 2000 caracteres.',
+      'comment.required' => 'Comment is required.',
+      'comment.max'      => 'Comment cannot exceed 2000 characters.',
     ];
   }
 }

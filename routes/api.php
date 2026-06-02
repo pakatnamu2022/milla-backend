@@ -12,7 +12,7 @@ use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
-use App\Http\Controllers\dp\comercial\CuentasPorCobrarController;
+use App\Http\Controllers\dp\comercial\AccountsReceivableController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
@@ -1612,11 +1612,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
    */
   Route::group(['prefix' => 'dp'], function () {
     Route::group(['prefix' => 'commercial'], function () {
-      // Cuentas por Cobrar
-      Route::post('cuentasPorCobrar/sync', [CuentasPorCobrarController::class, 'sync']);
-      Route::get('cuentasPorCobrar/{id}', [CuentasPorCobrarController::class, 'show']);
-      Route::post('cuentasPorCobrar/{id}/comments', [CuentasPorCobrarController::class, 'storeComment']);
-      Route::get('cuentasPorCobrar', [CuentasPorCobrarController::class, 'index']);
+      // Accounts Receivable
+      Route::post('accountsReceivable/sync', [AccountsReceivableController::class, 'sync']);
+      Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);
+      Route::post('accountsReceivable/{id}/comments', [AccountsReceivableController::class, 'storeComment']);
+      Route::get('accountsReceivable', [AccountsReceivableController::class, 'index']);
     });
   });
 
