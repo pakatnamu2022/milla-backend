@@ -146,7 +146,17 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
+
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
+      }
+
+      if ($workOrder->advancesWorkOrder()->exists()) {
+        throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
+      }
 
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
@@ -830,31 +840,5 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
       ];
     });
-  }
-
-  /**
-   * Validar el estado de la orden de trabajo
-   */
-  private function validateWorkOrderState(ApWorkOrder $workOrder): void
-  {
-    $validateReceipt = $workOrder->shouldValidateReceipt();
-
-    $statusMessageMap = [
-      ApMasters::CANCELED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cancelada de la OT',
-      ApMasters::FINISHED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo finalizada de la OT',
-      ApMasters::CLOSED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cerrada de la OT',
-    ];
-
-    if (isset($statusMessageMap[$workOrder->status_id])) {
-      throw new Exception($statusMessageMap[$workOrder->status_id]);
-    }
-
-    if ($workOrder->vehicleInspection === null && $validateReceipt) {
-      throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
-    }
-
-    if ($workOrder->advancesWorkOrder()->exists()) {
-      throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
-    }
   }
 }

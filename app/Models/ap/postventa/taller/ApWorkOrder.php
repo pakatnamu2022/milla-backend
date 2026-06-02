@@ -601,4 +601,87 @@ class ApWorkOrder extends Model
     return (bool)
     $this->items->first()?->typePlanning->validate_receipt;
   }
+
+  /**
+   * Get active advances (not cancelled) for this work order
+   * Returns advances that are:
+   * - Accepted by SUNAT (aceptada_por_sunat == 1)
+   * - Marked as advance payment (is_advance_payment == 1)
+   * - Either invoice or boleta type
+   * - Not linked to credit or debit notes
+   * - Not annulled
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getActiveAdvances()
+  {
+    return $this->advancesWorkOrder->filter(function ($advance) {
+      return $advance->aceptada_por_sunat == 1
+        && $advance->is_advance_payment == 1
+        && in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        && $advance->credit_note_id === null
+        && $advance->debit_note_id === null
+        && $advance->anulado != 1;
+    });
+  }
+
+  /**
+   * Get cancelled advances for this work order
+   * Returns advances that are:
+   * - Accepted by SUNAT (aceptada_por_sunat == 1)
+   * - Marked as advance payment (is_advance_payment == 1)
+   * - Either invoice or boleta type
+   * - Linked to credit/debit notes OR annulled
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getCancelledAdvances()
+  {
+    return $this->advancesWorkOrder->filter(function ($advance) {
+      return $advance->aceptada_por_sunat == 1
+        && $advance->is_advance_payment == 1
+        && in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        && ($advance->credit_note_id !== null || $advance->debit_note_id !== null || $advance->anulado == 1);
+    });
+  }
+
+  /**
+   * Valida que la orden de trabajo NO esté en los estados prohibidos
+   *
+   * @param array $forbiddenStatuses Estados a validar
+   * @param string|null $action Acción que se está intentando (opcional, para personalizar mensaje)
+   * @throws \Exception
+   */
+  public function ensureNotInStates(array $forbiddenStatuses, ?string $action = null): void
+  {
+    if (in_array($this->status_id, $forbiddenStatuses, true)) {
+      $statusNames = [
+        ApMasters::CANCELED_WORK_ORDER_ID => 'anulada',
+        ApMasters::FINISHED_WORK_ORDER_ID => 'finalizada',
+        ApMasters::CLOSED_WORK_ORDER_ID => 'cerrada',
+      ];
+
+      $statusName = $statusNames[$this->status_id] ?? 'este estado';
+      $message = $action
+        ? "No se puede {$action} en una orden de trabajo {$statusName}"
+        : "Esta acción no está permitida en una orden de trabajo {$statusName}";
+
+      throw new \Exception($message);
+    }
+  }
+
+  /**
+   * Valida que la orden de trabajo pueda ser modificada
+   * (no esté anulada, finalizada o cerrada)
+   *
+   * @throws \Exception
+   */
+  public function ensureCanBeModified(): void
+  {
+    $this->ensureNotInStates([
+      ApMasters::CANCELED_WORK_ORDER_ID,
+      ApMasters::FINISHED_WORK_ORDER_ID,
+      ApMasters::CLOSED_WORK_ORDER_ID,
+    ]);
+  }
 }

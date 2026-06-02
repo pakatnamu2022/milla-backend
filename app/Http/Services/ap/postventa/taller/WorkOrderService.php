@@ -210,17 +210,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($data) {
       $workOrder = $this->find($data['id']);
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo anulada');
-      }
-
-      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo finalizada');
-      }
-
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $workOrder->ensureCanBeModified();
 
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
       if (isset($data['estimated_delivery_time'])) {
@@ -326,9 +316,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'modificar');
+
       // Update work order
       $workOrder->update($data);
 
@@ -351,9 +340,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   {
     $workOrder = $this->find($id);
 
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede eliminar una orden de trabajo cerrada');
-    }
+    $workOrder->ensureNotInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'eliminar');
 
     if ($workOrder->appointment_planning_id !== null) {
       $appointmentPlanning = AppointmentPlanning::find($workOrder->appointment_planning_id);
@@ -400,8 +387,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Usar el método del modelo para calcular totales
     $totals = $workOrder->getTotalsArray($groupNumber);
 
-    // Calculate total advances
-    $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
+    // Calculate total advances using centralized logic (only active advances)
+    $activeAdvances = $workOrder->getActiveAdvances();
+    $totalAdvances = $activeAdvances->sum('total') ?? 0;
 
     // Calculate remaining balance (total - advances)
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
@@ -449,8 +437,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $labours = $dynamicItems['labours'];
     $parts = $dynamicItems['parts'];
 
-    // Calcular anticipos y saldo
-    $totalAdvances = $workOrder->advancesWorkOrder->sum('total') ?? 0;
+    // Calcular anticipos y saldo using centralized logic (only active advances)
+    $activeAdvances = $workOrder->getActiveAdvances();
+    $totalAdvances = $activeAdvances->sum('total') ?? 0;
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     $data = [
@@ -459,7 +448,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'vehicle' => $vehicle,
       'labours' => $labours,
       'parts' => $parts,
-      'advances' => $workOrder->advancesWorkOrder,
+      'advances' => $activeAdvances,
       'currencySymbol' => $currencySymbol,
       'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
@@ -572,13 +561,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id) {
       $workOrder = $this->find($id);
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo anulada');
-      }
-
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ], 'modificar');
 
       if ($workOrder->order_quotation_id === null) {
         throw new Exception('La orden de trabajo no tiene cotización asociada');
@@ -633,13 +619,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo anulada');
-      }
-
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ], 'modificar');
 
       // Update work order
       $workOrder->update($data);
@@ -1257,15 +1240,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      // Validar que no esté anulada
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo anulada');
-      }
-
-      // Validar que no esté cerrada
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede modificar una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ], 'modificar');
 
       // Validar que no tenga cotización asociada
       if ($workOrder->order_quotation_id !== null) {
@@ -1354,8 +1332,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo debe tener un operario asignado.');
       }
 
+      // Verificar si hay planificaciones activas (no canceladas ni eliminadas)
+      $activePlannings = $workOrder->plannings()
+        ->where('status', '!=', 'canceled')
+        ->whereNull('deleted_at')
+        ->count();
+
       // Validate that all parts are fully delivered and received by technician if work order has parts
-      if ($workOrder->parts->count() > 0 && $validateLabor) {
+      // SOLO si hay planificaciones activas
+      if ($workOrder->parts->count() > 0 && $validateLabor && $activePlannings > 0) {
         $partsNotFullyDelivered = [];
         $partsNotReceivedByTechnician = [];
 
@@ -1463,7 +1448,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede anular una orden de trabajo cerrada');
       }
 
-      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
+      if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
       }
 

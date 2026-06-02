@@ -135,7 +135,13 @@ class ApVehicleInspectionService extends BaseService
       $inspection = $this->find($data['id']);
       $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
 
-      $this->validateWorkOrderState($workOrder);
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      if (!$validateReceipt) {
+        throw new Exception('No se puede actualizar una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
+      }
+
+      $workOrder->ensureCanBeModified();
 
       // Update allow_editing_inspection to true to allow editing
       $workOrder->update([
@@ -165,30 +171,6 @@ class ApVehicleInspectionService extends BaseService
 
       return response()->json(['message' => 'Inspección vehicular eliminada correctamente']);
     });
-  }
-
-  /**
-   * Validar el estado de la orden de trabajo
-   */
-  private function validateWorkOrderState(ApWorkOrder $workOrder): void
-  {
-    $validateReceipt = $workOrder->shouldValidateReceipt();
-
-    if (!$validateReceipt) {
-      throw new Exception('No se puede actualizar una recepción para esta orden de trabajo, el tipo de planificación no permite validación de recepción');
-    }
-
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede modificar una orden de trabajo anulada');
-    }
-
-    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-      throw new Exception('No se puede modificar una orden de trabajo finalizada');
-    }
-
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede modificar una orden de trabajo cerrada');
-    }
   }
 
   /**

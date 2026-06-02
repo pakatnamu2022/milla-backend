@@ -362,4 +362,47 @@ class ApOrderQuotations extends Model
     $frontendUrl = config('app.frontend_url');
     return "{$frontendUrl}/confirmacion-cotizacion/{$this->confirmation_token}";
   }
+
+  /**
+   * Get active advances (not cancelled) for this quotation
+   * Returns advances that are:
+   * - Accepted by SUNAT (aceptada_por_sunat == 1)
+   * - Marked as advance payment (is_advance_payment == 1)
+   * - Either invoice or boleta type
+   * - Not linked to credit or debit notes
+   * - Not annulled
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getActiveAdvances()
+  {
+    return $this->advancesOrderQuotation->filter(function ($advance) {
+      return $advance->aceptada_por_sunat == 1
+        && $advance->is_advance_payment == 1
+        && in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        && $advance->credit_note_id === null
+        && $advance->debit_note_id === null
+        && $advance->anulado != 1;
+    });
+  }
+
+  /**
+   * Get cancelled advances for this quotation
+   * Returns advances that are:
+   * - Accepted by SUNAT (aceptada_por_sunat == 1)
+   * - Marked as advance payment (is_advance_payment == 1)
+   * - Either invoice or boleta type
+   * - Linked to credit/debit notes OR annulled
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getCancelledAdvances()
+  {
+    return $this->advancesOrderQuotation->filter(function ($advance) {
+      return $advance->aceptada_por_sunat == 1
+        && $advance->is_advance_payment == 1
+        && in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        && ($advance->credit_note_id !== null || $advance->debit_note_id !== null || $advance->anulado == 1);
+    });
+  }
 }

@@ -54,7 +54,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       $validateReceipt = $workOrder->shouldValidateReceipt();
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
 
       if ($workOrder->vehicleInspection === null && $validateReceipt) {
         throw new Exception('No se puede planificar un trabajo si la OT no tiene una recepción de vehículo asociada.');
@@ -399,7 +399,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
 
       if (!$planning) {
         throw new Exception('Planificación no encontrada');
@@ -468,7 +468,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
 
       if ($planning->status === 'in_progress') {
         throw new Exception('No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo.');
@@ -558,22 +558,6 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         "El horario asignado no puede caer ni cruzar el periodo de almuerzo ($lunchStart - $lunchEnd). " .
         "Los horarios válidos son: Mañana ($workStart - $lunchStart) o Tarde ($lunchEnd - $workEnd)."
       );
-    }
-  }
-
-  /**
-   * Validar el estado de la orden de trabajo
-   */
-  private function validateWorkOrderState(ApWorkOrder $workOrder): void
-  {
-    $statusMessageMap = [
-      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado de la OT',
-      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado de la OT',
-      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado de la OT',
-    ];
-
-    if (isset($statusMessageMap[$workOrder->status_id])) {
-      throw new Exception($statusMessageMap[$workOrder->status_id]);
     }
   }
 
@@ -834,11 +818,6 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('Este trabajo ya ha sido cancelado.');
       }
 
-      // Validar que el trabajo no esté completado
-      if ($planning->status === 'completed') {
-        throw new Exception('No se puede cancelar un trabajo que ya ha sido completado.');
-      }
-
       // Validar que el técnico no tenga asignaciones de repuestos (confirmadas o pendientes)
       $this->validatePartDeliveries($planning, false);
 
@@ -862,13 +841,13 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $this->validateWorkingHoursForCancellation($actualEndDatetime);
 
       // 3. Validar que actual_end_datetime no sea mayor a planned_end_datetime
-      $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
-      if ($actualEndDatetime->greaterThan($plannedEndDatetime)) {
-        throw new Exception(
-          'La hora de finalización (' . $actualEndDatetime->format('H:i') . ') ' .
-          'no puede ser mayor a la hora planeada de finalización (' . $plannedEndDatetime->format('H:i') . ').'
-        );
-      }
+//      $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
+//      if ($actualEndDatetime->greaterThan($plannedEndDatetime)) {
+//        throw new Exception(
+//          'La hora de finalización (' . $actualEndDatetime->format('H:i') . ') ' .
+//          'no puede ser mayor a la hora planeada de finalización (' . $plannedEndDatetime->format('H:i') . ').'
+//        );
+//      }
 
       // 4. Obtener la última sesión (puede estar activa o pausada)
       $lastSession = $sessions->sortByDesc('start_datetime')->first();
@@ -909,7 +888,9 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       // 7. Actualizar el planning con los datos de cancelación
       $planning->actual_end_datetime = $actualEndDatetime;
-      $planning->planned_end_datetime = $actualEndDatetime; // Liberar al técnico actualizando el horario planeado
+      if ($planning->status !== 'completed') {
+        $planning->planned_end_datetime = $actualEndDatetime; // Liberar al técnico actualizando el horario planeado
+      }
       $planning->status = 'canceled';
       $planning->canceled_note = $data['canceled_note'];
       $planning->canceled_by = auth()->id();

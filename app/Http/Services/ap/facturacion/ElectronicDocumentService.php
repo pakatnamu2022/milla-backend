@@ -2336,12 +2336,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('La orden de trabajo no tiene mano de obra ni repuestos para facturar.');
     }
 
-    // Calculate total already invoiced (accepted documents, not cancelled)
-    $totalInvoiced = ElectronicDocument::where('work_order_id', $workOrderId)
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->whereNull('deleted_at')
-      ->sum('total');
+    // Get active advances using centralized logic from model
+    $activeAdvances = $workOrder->getActiveAdvances();
+    $totalInvoiced = $activeAdvances->sum('total');
 
     // Calculate total with new invoice and round to 2 decimals to avoid floating point precision issues
     $totalWithNewInvoice = round($totalInvoiced + $newTotal, 2);
@@ -2357,13 +2354,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ));
     }
 
-    // Validate currency consistency with previous invoices
-    $firstInvoice = ElectronicDocument::where('work_order_id', $workOrderId)
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->whereNull('deleted_at')
-      ->orderBy('created_at', 'asc')
-      ->first();
+    // Validate currency consistency with previous invoices (using active advances)
+    $firstInvoice = $activeAdvances->sortBy('created_at')->first();
 
     if ($firstInvoice && $currencyId && $firstInvoice->sunat_concept_currency_id != $currencyId) {
       throw new Exception('El tipo de moneda debe ser el mismo que la primera factura emitida para esta orden de trabajo.');
@@ -2376,12 +2368,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     // Validate advance payments don't exceed work order total
     if ($isAdvancePayment) {
-      $totalAdvances = ElectronicDocument::where('work_order_id', $workOrderId)
-        ->where('is_advance_payment', 1)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
+      // Use active advances (already filtered correctly)
+      $totalAdvances = $activeAdvances->sum('total');
 
       // Round to 2 decimals to avoid floating point precision issues
       $totalAdvancesWithNew = round($totalAdvances + $newTotal, 2);
@@ -2749,7 +2737,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
-    $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+    $quotation = ApOrderQuotations::with('advancesOrderQuotation')->find($data['order_quotation_id']);
 
     // Validar que cotización no esté descartada
     if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
@@ -2763,13 +2751,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
       $total = (float)($data['total'] ?? 0);
 
-      // Sumar todos los anticipos aceptados por SUNAT para esta cotización
-      $totalAnticiposExistentes = ElectronicDocument::where('order_quotation_id', $data['order_quotation_id'])
-        ->where('is_advance_payment', 1)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
+      // Get active advances using centralized logic from model
+      $activeAdvances = $quotation->getActiveAdvances();
+      $totalAnticiposExistentes = $activeAdvances->sum('total');
 
       // Sumar el nuevo anticipo
       $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;
