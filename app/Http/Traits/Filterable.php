@@ -521,7 +521,7 @@ trait Filterable
    * @param array $resourceConfig Configuración adicional para el Resource (métodos y parámetros)
    * @return \Illuminate\Http\JsonResponse Respuesta JSON con datos paginados o completos
    */
-  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource, $resourceConfig = [])
+  protected function getFilteredResults($modelOrQuery, $request, $filters, $sorts, $resource, $resourceConfig = [], $extra = [])
   {
     $query = $modelOrQuery instanceof Builder ? $modelOrQuery : $modelOrQuery::query();
 
@@ -620,7 +620,7 @@ trait Filterable
         $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
         $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
 
-        return response()->json([
+        return response()->json(array_merge([
           'data' => $paginatedResourceCollection,
           'links' => [
             'first' => $first,
@@ -637,8 +637,8 @@ trait Filterable
             'per_page' => $perPage,
             'to' => $to,
             'total' => $total,
-          ]
-        ]);
+          ],
+        ], $extra));
       }
 
       return response()->json($resourceCollection);
@@ -675,7 +675,7 @@ trait Filterable
       $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
       $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
 
-      return response()->json([
+      return response()->json(array_merge([
         'data' => $resourceCollection,
         'links' => [
           'first' => $first,
@@ -692,8 +692,8 @@ trait Filterable
           'per_page' => $perPage,
           'to' => $to,
           'total' => $total,
-        ]
-      ]);
+        ],
+      ], $extra));
     }
   }
 

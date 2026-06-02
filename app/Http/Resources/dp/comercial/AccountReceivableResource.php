@@ -35,6 +35,8 @@ class AccountReceivableResource extends JsonResource
       'exchange_rate'     => $this->exchange_rate,
       'amount'            => $this->amount,
       'balance'           => $this->balance,
+      'amount_pen'        => $this->amount_pen,
+      'balance_pen'       => $this->balance_pen,
       'branch'            => $this->branch,
       'observations'      => $this->observations,
       'collection_date'   => $this->collection_date?->format('Y-m-d'),

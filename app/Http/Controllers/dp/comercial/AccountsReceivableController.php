@@ -55,6 +55,16 @@ class AccountsReceivableController extends Controller
     }
   }
 
+  public function dashboard(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      return $this->success($this->service->dashboard($company));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function storeComment(StoreAccountReceivableCommentRequest $request, $id)
   {
     try {
