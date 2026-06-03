@@ -2305,6 +2305,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function validateWorkOrderInvoice(array $data): void
   {
+    // Credit and debit notes adjust existing invoices — skip billing limit checks entirely
+    $documentTypeId = $data['sunat_concept_document_type_id'] ?? null;
+    \Log::error('[validateWorkOrderInvoice] sunat_concept_document_type_id=' . var_export($documentTypeId, true)
+      . ' TYPE_NOTA_CREDITO=' . ElectronicDocument::TYPE_NOTA_CREDITO
+      . ' TYPE_NOTA_DEBITO=' . ElectronicDocument::TYPE_NOTA_DEBITO
+      . ' in_array=' . var_export(in_array($documentTypeId, [ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO]), true)
+    );
+    if (in_array($documentTypeId, [ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO])) {
+      return;
+    }
+
     $workOrderId = $data['work_order_id'];
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
     $newTotal = (float)($data['total'] ?? 0);
@@ -2338,7 +2349,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     // Get active advances using centralized logic from model
     $activeAdvances = $workOrder->getActiveAdvances();
-    $totalInvoiced = $activeAdvances->sum('total');
+    $totalInvoiced = $activeAdvances->sum('net_amount');
 
     // Calculate total with new invoice and round to 2 decimals to avoid floating point precision issues
     $totalWithNewInvoice = round($totalInvoiced + $newTotal, 2);
@@ -2369,7 +2380,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Validate advance payments don't exceed work order total
     if ($isAdvancePayment) {
       // Use active advances (already filtered correctly)
-      $totalAdvances = $activeAdvances->sum('total');
+      $totalAdvances = $activeAdvances->sum('net_amount');
 
       // Round to 2 decimals to avoid floating point precision issues
       $totalAdvancesWithNew = round($totalAdvances + $newTotal, 2);
@@ -2419,7 +2430,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $entityTotal = (float)$quotation->total_amount;
         $entityName = 'cotización';
         // Use getActiveAdvances() method for quotations
-        $totalAdvances = $quotation->getActiveAdvances()->sum('total');
+        $totalAdvances = $quotation->getActiveAdvances()->sum('net_amount');
       }
     } elseif (isset($data['work_order_id']) && $data['work_order_id']) {
       $entityId = $data['work_order_id'];
@@ -2429,7 +2440,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $entityTotal = (float)$workOrder->final_amount;
         $entityName = 'orden de trabajo';
         // Use getActiveAdvances() method for work orders
-        $totalAdvances = $workOrder->getActiveAdvances()->sum('total');
+        $totalAdvances = $workOrder->getActiveAdvances()->sum('net_amount');
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
       $entityId = $data['purchase_request_quote_id'];
@@ -2753,7 +2764,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Get active advances using centralized logic from model
       $activeAdvances = $quotation->getActiveAdvances();
-      $totalAnticiposExistentes = $activeAdvances->sum('total');
+      $totalAnticiposExistentes = $activeAdvances->sum('net_amount');
 
       // Sumar el nuevo anticipo
       $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;

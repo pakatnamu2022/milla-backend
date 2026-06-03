@@ -17,6 +17,9 @@ class ElectronicDocumentResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
+    $creditNote = ($this->creditNote && !$this->creditNote->anulado) ? $this->creditNote : null;
+    $debitNote  = ($this->debitNote  && !$this->debitNote->anulado)  ? $this->debitNote  : null;
+
     return [
       'id' => $this->id,
       'sunat_concept_document_type_id' => $this->sunat_concept_document_type_id,
@@ -35,10 +38,14 @@ class ElectronicDocumentResource extends JsonResource
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
       'order_quotation_id' => $this->order_quotation_id,
       'work_order_id' => $this->work_order_id,
-      'credit_note_id' => $this->creditNote?->anulado ? null : $this->creditNote?->id,
-      'credit_note_number' => $this->creditNote?->full_number ?? null,
-      'debit_note_id' => $this->debitNote?->anulado ? null : $this->debitNote?->id,
-      'debit_note_number' => $this->debitNote?->full_number ?? null,
+      'credit_note_id' => $creditNote?->id,
+      'credit_note_number' => $creditNote?->full_number,
+      'credit_note_type_id' => $creditNote?->sunat_concept_credit_note_type_id,
+      'credit_note_total' => $creditNote ? (float)$creditNote->total : null,
+      'debit_note_id' => $debitNote?->id,
+      'debit_note_number' => $debitNote?->full_number,
+      'debit_note_total' => $debitNote ? (float)$debitNote->total : null,
+      'net_amount' => $this->net_amount,
       'sunat_concept_identity_document_type_id' => $this->sunat_concept_identity_document_type_id,
       'cliente_numero_de_documento' => $this->cliente_numero_de_documento,
       'cliente_denominacion' => $this->cliente_denominacion,

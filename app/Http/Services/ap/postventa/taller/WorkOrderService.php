@@ -389,7 +389,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     // Calculate total advances using centralized logic (only active advances)
     $activeAdvances = $workOrder->getActiveAdvances();
-    $totalAdvances = $activeAdvances->sum('total') ?? 0;
+    $totalAdvances = $activeAdvances->sum('net_amount') ?? 0;
 
     // Calculate remaining balance (total - advances)
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
@@ -439,7 +439,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     // Calcular anticipos y saldo using centralized logic (only active advances)
     $activeAdvances = $workOrder->getActiveAdvances();
-    $totalAdvances = $activeAdvances->sum('total') ?? 0;
+    $totalAdvances = $activeAdvances->sum('net_amount') ?? 0;
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     $data = [
