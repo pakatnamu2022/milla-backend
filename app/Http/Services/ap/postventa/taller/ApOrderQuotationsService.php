@@ -1411,8 +1411,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ->whereNull('deleted_at')
         ->exists();
 
-      // Actualizar si cumple condiciones
-      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
+      // Actualizar si cumple condiciones con tolerancia de redondeo
+      // Permite diferencias mínimas causadas por redondeos acumulativos en cálculos de IGV e items
+      $difference = (float)$totalPaid - (float)$quotation->total_amount;
+      if ($difference >= -ElectronicDocument::ROUNDING_TOLERANCE && $hasInternalSale) {
         $quotation->update([
           'is_fully_paid' => true,
           'status' => ApOrderQuotations::STATUS_FACTURADO

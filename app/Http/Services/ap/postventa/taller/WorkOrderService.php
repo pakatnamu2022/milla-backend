@@ -379,32 +379,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     return "OT-{$year}-{$month}-{$newNumber}";
   }
 
-  public function getPaymentSummary($workOrderId, $groupNumber = 1)
-  {
-    $workOrder = ApWorkOrder::with(['labours', 'advancesWorkOrder', 'parts', 'orderQuotation.details'])
-      ->findOrFail($workOrderId);
-
-    // Usar el método del modelo para calcular totales
-    $totals = $workOrder->getTotalsArray($groupNumber);
-
-    // Calculate total advances using centralized logic (only active advances)
-    $activeAdvances = $workOrder->getActiveAdvances();
-    $totalAdvances = $activeAdvances->sum('net_amount') ?? 0;
-
-    // Calculate remaining balance (total - advances)
-    $remainingBalance = $totals['total_amount'] - $totalAdvances;
-
-    return response()->json([
-      'work_order_id' => $workOrder->id,
-      'correlative' => $workOrder->correlative,
-      'group_number' => $groupNumber,
-      'payment_summary' => array_merge($totals, [
-        'total_advances' => (float)$totalAdvances,
-        'remaining_balance' => (float)$remainingBalance,
-      ])
-    ]);
-  }
-
   public function getPreLiquidationPdf($id)
   {
     $workOrder = $this->find($id);
@@ -439,7 +413,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     // Calcular anticipos y saldo using centralized logic (only active advances)
     $activeAdvances = $workOrder->getActiveAdvances();
-    $totalAdvances = $activeAdvances->sum('net_amount') ?? 0;
+    $totalAdvances = $activeAdvances->sum('total') ?? 0;
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
     $data = [
@@ -617,6 +591,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta orden de trabajo');
       }
 
       $workOrder->ensureNotInStates([

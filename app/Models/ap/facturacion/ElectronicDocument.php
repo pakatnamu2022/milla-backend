@@ -214,6 +214,11 @@ class ElectronicDocument extends BaseModel
   const TYPE_NOTA_CREDITO = SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;    // 31
   const TYPE_NOTA_DEBITO = SunatConcepts::ID_NOTA_DEBITO_ELECTRONICA;      // 32
 
+  // Tolerancia de redondeo para validaciones de montos
+  // Usado en: validateInternalSaleTotal, updateWorkOrderInvoiceStatus, evaluateAndUpdateQuotationPaymentStatus
+  // Permite diferencias mínimas causadas por redondeos acumulativos en cálculos de IGV e items
+  const ROUNDING_TOLERANCE = 0.02;
+
   // Consolidation types
   const string CONSOLIDATION_SIMPLE = 'simple';
   const string CONSOLIDATION_MASSIVE = 'massive';

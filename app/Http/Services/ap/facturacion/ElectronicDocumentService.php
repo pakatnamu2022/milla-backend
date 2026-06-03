@@ -1058,13 +1058,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $items = match ($typeCode) {
       SunatConcepts::CODE_CREDIT_NOTE_ANULACION,       // '01'
       SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_TOTAL // '06'
-        => $this->buildItemsFromAllOriginalItems($originalDocument),
+      => $this->buildItemsFromAllOriginalItems($originalDocument),
 
       SunatConcepts::CODE_CREDIT_NOTE_DEVOLUCION_ITEM  // '07'
-        => $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']),
+      => $this->buildItemsFromSelectedIds($originalDocument, $data['detail_ids']),
 
       SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL // '04'
-        => $this->buildDiscountGlobalItem($originalDocument, $data),
+      => $this->buildDiscountGlobalItem($originalDocument, $data),
 
       default => throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}")
     };
@@ -2307,11 +2307,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     // Credit and debit notes adjust existing invoices — skip billing limit checks entirely
     $documentTypeId = $data['sunat_concept_document_type_id'] ?? null;
-    \Log::error('[validateWorkOrderInvoice] sunat_concept_document_type_id=' . var_export($documentTypeId, true)
-      . ' TYPE_NOTA_CREDITO=' . ElectronicDocument::TYPE_NOTA_CREDITO
-      . ' TYPE_NOTA_DEBITO=' . ElectronicDocument::TYPE_NOTA_DEBITO
-      . ' in_array=' . var_export(in_array($documentTypeId, [ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO]), true)
-    );
     if (in_array($documentTypeId, [ElectronicDocument::TYPE_NOTA_CREDITO, ElectronicDocument::TYPE_NOTA_DEBITO])) {
       return;
     }
@@ -2349,7 +2344,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     // Get active advances using centralized logic from model
     $activeAdvances = $workOrder->getActiveAdvances();
-    $totalInvoiced = $activeAdvances->sum('net_amount');
+    $totalInvoiced = $activeAdvances->sum('total');
 
     // Calculate total with new invoice and round to 2 decimals to avoid floating point precision issues
     $totalWithNewInvoice = round($totalInvoiced + $newTotal, 2);
@@ -2380,7 +2375,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Validate advance payments don't exceed work order total
     if ($isAdvancePayment) {
       // Use active advances (already filtered correctly)
-      $totalAdvances = $activeAdvances->sum('net_amount');
+      $totalAdvances = $activeAdvances->sum('total');
 
       // Round to 2 decimals to avoid floating point precision issues
       $totalAdvancesWithNew = round($totalAdvances + $newTotal, 2);
@@ -2425,22 +2420,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Determine which entity we're working with and get active advances using centralized method
     if (isset($data['order_quotation_id']) && $data['order_quotation_id']) {
       $entityId = $data['order_quotation_id'];
-      $quotation = ApOrderQuotations::find($entityId);
+      $quotation = ApOrderQuotations::with(['advancesOrderQuotation.creditNote'])->find($entityId);
       if ($quotation) {
         $entityTotal = (float)$quotation->total_amount;
         $entityName = 'cotización';
         // Use getActiveAdvances() method for quotations
-        $totalAdvances = $quotation->getActiveAdvances()->sum('net_amount');
+        $totalAdvances = $quotation->getActiveAdvances()->sum('total');
       }
     } elseif (isset($data['work_order_id']) && $data['work_order_id']) {
       $entityId = $data['work_order_id'];
-      $workOrder = ApWorkOrder::with(['labours', 'parts'])->find($entityId);
+      $workOrder = ApWorkOrder::with(['labours', 'parts', 'advancesWorkOrder.creditNote'])->find($entityId);
       if ($workOrder) {
         // Calculate total using centralized method (includes labour, parts, discount, and tax)
         $entityTotal = (float)$workOrder->final_amount;
         $entityName = 'orden de trabajo';
-        // Use getActiveAdvances() method for work orders
-        $totalAdvances = $workOrder->getActiveAdvances()->sum('net_amount');
+        $activeAdvances = $workOrder->getActiveAdvances();
+        $totalAdvances = $activeAdvances->sum('total');
       }
     } elseif (isset($data['purchase_request_quote_id']) && $data['purchase_request_quote_id']) {
       $entityId = $data['purchase_request_quote_id'];
@@ -2464,19 +2459,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Calculate expected total (advances + current invoice)
-    // Round to 2 decimals to ensure exact comparison
+    // Round to 2 decimals to ensure consistent comparison
     $totalWithNewInvoice = round($totalAdvances + $newTotal, 2);
     $entityTotal = round($entityTotal, 2);
 
-    // Validate that sum equals entity total (exact match required)
-    if ($totalWithNewInvoice != $entityTotal) {
+    // Validate that sum equals entity total with rounding tolerance
+    // Permite diferencias mínimas causadas por redondeos acumulativos en cálculos de IGV e items
+    $difference = abs($totalWithNewInvoice - $entityTotal);
+    if ($difference > ElectronicDocument::ROUNDING_TOLERANCE) {
       throw new Exception(sprintf(
-        'La suma de anticipos (%.2f) más el monto de esta factura (%.2f) debe ser igual al monto total de la %s (%.2f). Total actual: %.2f',
+        'La suma de anticipos (%.2f) más el monto de esta factura (%.2f) debe ser igual al monto total de la %s (%.2f). Total actual: %.2f (diferencia: %.2f)',
         $totalAdvances,
         $newTotal,
         $entityName,
         $entityTotal,
-        $totalWithNewInvoice
+        $totalWithNewInvoice,
+        $difference
       ));
     }
   }
@@ -2484,15 +2482,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   /**
    * Actualiza el estado de facturación de una orden de trabajo (POSTVENTA)
    *
+   * IMPORTANTE: Este método se ejecuta cuando un documento es ACEPTADO por SUNAT,
+   * NO cuando es CONTABILIZADO en Dynamics.
+   *
+   * La marcación de is_invoiced=true y el cierre de la OT se manejan en
+   * SyncAccountingStatusJob::createInventoryMovementForWorkOrder() cuando la
+   * factura final es contabilizada en Dynamics (is_accounted = true).
+   *
    * @param int $workOrderId ID de la orden de trabajo
    * @param bool $isAdvancePayment Si es un anticipo (true) o venta final (false)
    * @param int $documentType Tipo de documento (factura, boleta, nota crédito, etc.)
    * @return void
    */
   private function updateWorkOrderInvoiceStatus(
-    int $workOrderId,
+    int  $workOrderId,
     bool $isAdvancePayment = true,
-    int $documentType = ElectronicDocument::TYPE_FACTURA
+    int  $documentType = ElectronicDocument::TYPE_FACTURA
   ): void
   {
     try {
@@ -2502,38 +2507,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         return;
       }
 
-      // Siempre marcar que se generó factura
-      $workOrder->update(['has_invoice_generated' => true]);
-
-      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT, excluyendo notas de crédito)
-      $totalPaid = ElectronicDocument::where('work_order_id', $workOrderId)
-        ->whereIn('sunat_concept_document_type_id', [
-          ElectronicDocument::TYPE_FACTURA,
-          ElectronicDocument::TYPE_BOLETA,
-        ])
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
-
-      // Verificar si la suma de pagos coincide con el monto total de la OT
-      // Marcar como totalmente facturado si el total pagado >= monto final de la OT y no sea un anticipo
-      if ((float)$totalPaid >= (float)$workOrder->final_amount && !$isAdvancePayment) {
-        $workOrder->update(['is_invoiced' => true]);
-      }
-
-      // SOLO cerrar OT si:
-      // 1. Es venta final (no anticipo)
-      // 2. Es FACTURA o BOLETA (no notas de crédito/débito)
-      // Las notas de crédito NO deben cerrar la OT
+      // Solo marcar que se generó factura si es FACTURA o BOLETA (no NC/ND)
       $isInvoiceDocument = in_array($documentType, [
         ElectronicDocument::TYPE_FACTURA,
         ElectronicDocument::TYPE_BOLETA
       ]);
 
-      if (!$isAdvancePayment && $isInvoiceDocument) {
-        $workOrder->update(['status_id' => ApMasters::CLOSED_WORK_ORDER_ID]);
+      if ($isInvoiceDocument) {
+        $workOrder->update(['has_invoice_generated' => true]);
       }
+
+      // NOTA: NO marcamos is_invoiced = true aquí porque eso solo debe hacerse
+      // cuando la factura final sea contabilizada en Dynamics, lo cual se maneja
+      // en SyncAccountingStatusJob::createInventoryMovementForWorkOrder()
+      //
+      // Esto previene que anticipos o notas de crédito marquen incorrectamente
+      // la OT como totalmente facturada.
+
     } catch (Exception $e) {
       Log::error('Error updating work order invoice status', [
         'work_order_id' => $workOrderId,
@@ -2764,7 +2754,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Get active advances using centralized logic from model
       $activeAdvances = $quotation->getActiveAdvances();
-      $totalAnticiposExistentes = $activeAdvances->sum('net_amount');
+      $totalAnticiposExistentes = $activeAdvances->sum('total');
 
       // Sumar el nuevo anticipo
       $totalAnticiposConNuevo = $totalAnticiposExistentes + $total;

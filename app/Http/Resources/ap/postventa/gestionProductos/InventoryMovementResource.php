@@ -4,13 +4,17 @@ namespace App\Http\Resources\ap\postventa\gestionProductos;
 
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\compras\PurchaseReceptionResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\facturacion\SupplierCreditNoteResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Http\Resources\ap\postventa\taller\WorkOrderBasicInfoResource;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\SupplierCreditNote;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -72,6 +76,8 @@ class InventoryMovementResource extends JsonResource
       PurchaseReception::class => PurchaseReceptionResource::class,
       SupplierCreditNote::class => SupplierCreditNoteResource::class,
       TransferReception::class => TransferReceptionResource::class,
+      ApWorkOrder::class => WorkOrderBasicInfoResource::class,
+      ElectronicDocument::class => ElectronicDocumentResource::class,
     ];
 
     $resourceClass = $resourceMap[$this->reference_type] ?? null;
@@ -83,6 +89,7 @@ class InventoryMovementResource extends JsonResource
     // Load specific relations based on reference type
     $relationsMap = [
       ApOrderQuotations::class => ['advancesOrderQuotation'],
+      ApWorkOrder::class => ['advancesWorkOrder'],
     ];
 
     if (isset($relationsMap[$this->reference_type])) {

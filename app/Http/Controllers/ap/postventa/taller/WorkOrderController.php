@@ -76,16 +76,6 @@ class WorkOrderController extends Controller
     }
   }
 
-  public function getPaymentSummary($id, Request $request)
-  {
-    try {
-      $groupNumber = $request->query('group_number');
-      return $this->service->getPaymentSummary($id, $groupNumber);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function getPreLiquidationPdf($id)
   {
     try {

@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderLabourResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -53,10 +54,6 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       if ($workOrder->vehicleInspection === null && $validateReceipt) {
         throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
-      }
-
-      if ($workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede agregar mano de obra porque la orden de trabajo ya tiene avances de factura');
       }
 
       $this->handleQuotationDetail($data['quotation_detail_id'] ?? null);
@@ -131,6 +128,24 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         if (isset($data['time_spent'])) {
           $data['time_spent'] = $timeSpent;
         }
+
+        // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+        $workOrder->refresh();
+        $currentTotals = $workOrder->getTotalsArray();
+
+        // Calcular el cambio en net_amount
+        $oldNetAmount = $workOrderLabour->net_amount;
+        $newNetAmount = $data['net_amount'];
+        $deltaNetAmount = $newNetAmount - $oldNetAmount;
+
+        // Aplicar IGV al delta (usar la misma lógica que ApWorkOrder::getTotalsArray)
+        $deltaWithTax = $deltaNetAmount * (1 + Constants::VAT_TAX / 100);
+
+        // Proyectar el nuevo total (final_amount incluye IGV)
+        $projectedFinalAmount = $currentTotals['total_amount'] + $deltaWithTax;
+
+        // Validar
+        $workOrder->validateMinimumAmount($projectedFinalAmount);
       }
 
       $workOrderLabour->update($data);
@@ -145,10 +160,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
 
-    // Validar que no existan avances de factura
-    if ($workOrder->advancesWorkOrder()->exists()) {
-      throw new Exception('No se puede eliminar la mano de obra porque la orden de trabajo ya tiene avances de factura');
-    }
+    $workOrder->ensureCanBeModified();
 
     // Validar si existe una solicitud de descuento activa
     $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
@@ -163,6 +175,19 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     if ($discountRequest) {
       throw new Exception('No se puede eliminar la mano de obra porque tiene una solicitud de descuento en estado ' . $this->translateDiscountStatus($discountRequest->status));
     }
+
+    // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+    $workOrder->refresh();
+    $currentTotals = $workOrder->getTotalsArray();
+
+    // Calcular el monto del item con IGV incluido (usar la misma lógica que ApWorkOrder::getTotalsArray)
+    $itemNetAmount = $workOrderLabour->net_amount;
+    $itemWithTax = $itemNetAmount * (1 + Constants::VAT_TAX / 100);
+
+    // Proyectar el nuevo total (final_amount incluye IGV)
+    $projectedFinalAmount = $currentTotals['total_amount'] - $itemWithTax;
+
+    $workOrder->validateMinimumAmount($projectedFinalAmount);
 
     DB::transaction(function () use ($workOrderLabour, $workOrder) {
       // Si la OT tiene order_quotation_id, buscar el item en la cotización y liberarlo
