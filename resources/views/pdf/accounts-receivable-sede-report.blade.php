@@ -16,7 +16,7 @@
 
     @page {
       size: A4 landscape;
-      margin: 12mm 12mm 16mm 12mm;
+      margin: 16mm 16mm 20mm 16mm;
     }
 
     body {
@@ -24,7 +24,7 @@
       font-size: 10px;
       color: #22293a;
       background: #ffffff;
-      padding: 0 0 20px;
+      padding: 0 0 24px;
     }
 
     /* ── HEADER ── */
@@ -197,10 +197,10 @@
     /* ── FOOTER FIJO ── */
     .page-footer {
       position: fixed;
-      bottom: -12mm;
+      bottom: -16mm;
       left: 0;
       right: 0;
-      height: 12mm;
+      height: 16mm;
       border-top: 1px solid #cccccc;
       padding-top: 4px;
       background: #ffffff;
