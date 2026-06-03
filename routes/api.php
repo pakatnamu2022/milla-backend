@@ -362,6 +362,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     //        VIEWS
     Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
+    Route::get('view/{id}/roles', [ViewController::class, 'rolesByView'])->name('view.roles');
     Route::post('view/{id}/duplicate', [ViewController::class, 'duplicate'])->name('view.duplicate');
     Route::apiResource('view', ViewController::class)->only([
       'index',

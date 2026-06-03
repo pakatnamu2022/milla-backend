@@ -11,6 +11,7 @@ use App\Http\Requests\ap\comercial\TransferPotentialBuyersRequest;
 use App\Http\Requests\ap\comercial\UpdatePotentialBuyersRequest;
 use App\Http\Services\ap\comercial\PotentialBuyersService;
 use App\Models\ap\comercial\Opportunity;
+use App\Models\ap\comercial\PotentialBuyers;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -33,10 +34,10 @@ class PotentialBuyersController extends Controller
     try {
       $user = auth()->user();
       $requestWorkerId = $request->worker_id;
-      $canViewAllUsers = $user->can('viewAdvisors', Opportunity::class);
+      $canViewAdvisors = $user->can('viewAdvisors', PotentialBuyers::class);
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajador es inválido');
-      return $this->service->myPotentialBuyers($request, $workerId, $requestWorkerId, $canViewAllUsers);
+      return $this->service->myPotentialBuyers($request, $workerId, $requestWorkerId, $canViewAdvisors);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -174,8 +175,12 @@ class PotentialBuyersController extends Controller
   public function transferWorkers(TransferPotentialBuyersRequest $request)
   {
     try {
-      $bossWorkerId = auth()->user()->partner_id;
+      $user = auth()->user();
+      $bossWorkerId = $user->partner_id;
       if (!$bossWorkerId) return $this->error('El trabajador autenticado es inválido');
+
+      $bypassTeamValidation = $user->can('assign', PotentialBuyers::class)
+        && $user->can('viewAdvisors', PotentialBuyers::class);
 
       $result = $this->service->transferWorkers(
         $request->from_worker_id,
@@ -183,7 +188,8 @@ class PotentialBuyersController extends Controller
         $request->input('potential_buyer_ids', []),
         $bossWorkerId,
         $request->date_from,
-        $request->date_to
+        $request->date_to,
+        $bypassTeamValidation
       );
 
       return $result['success']

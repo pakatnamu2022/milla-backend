@@ -44,10 +44,10 @@ class PotentialBuyersService extends BaseService
     );
   }
 
-  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAllUsers)
+  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAdvisors)
   {
     $workerIdToUse = $workerId;
-    if ($canViewAllUsers && $requestWorkerId) {
+    if ($canViewAdvisors && $requestWorkerId) {
       $workerIdToUse = $requestWorkerId;
     }
 
@@ -816,20 +816,22 @@ class PotentialBuyersService extends BaseService
     return $this->exportService->exportFromRequest($request, PotentialBuyers::class);
   }
 
-  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId, ?string $dateFrom = null, ?string $dateTo = null): array
+  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId, ?string $dateFrom = null, ?string $dateTo = null, bool $bypassTeamValidation = false): array
   {
-    $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
-      ->where('year', now()->year)
-      ->where('month', now()->month)
-      ->where('status', true)
-      ->pluck('worker_id')
-      ->toArray();
+    if (!$bypassTeamValidation) {
+      $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
+        ->where('year', now()->year)
+        ->where('month', now()->month)
+        ->where('status', true)
+        ->pluck('worker_id')
+        ->toArray();
 
-    if (!in_array($fromWorkerId, $teamIds) || !in_array($toWorkerId, $teamIds)) {
-      return [
-        'success' => false,
-        'message' => 'Los asesores deben pertenecer a tu equipo en el periodo actual',
-      ];
+      if (!in_array($fromWorkerId, $teamIds) || !in_array($toWorkerId, $teamIds)) {
+        return [
+          'success' => false,
+          'message' => 'Los asesores deben pertenecer a tu equipo en el periodo actual',
+        ];
+      }
     }
 
     $query = PotentialBuyers::where('worker_id', $fromWorkerId)
@@ -857,7 +859,7 @@ class PotentialBuyersService extends BaseService
 
     return [
       'success' => true,
-      'message' => "{$count} potential buyer(s) transferido(s) correctamente",
+      'message' => "{$count} lead(s) transferido(s) correctamente",
       'transferred_count' => $count,
     ];
   }
