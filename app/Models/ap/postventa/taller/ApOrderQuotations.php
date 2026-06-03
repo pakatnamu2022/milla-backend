@@ -19,10 +19,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-/*
-  Modelo para las cotizaciones
-*/
-
 class ApOrderQuotations extends Model
 {
   use softDeletes;
@@ -191,7 +187,7 @@ class ApOrderQuotations extends Model
   {
     return $this->belongsTo(BusinessPartners::class, 'invoice_to');
   }
-  
+
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
