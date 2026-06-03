@@ -48,6 +48,7 @@ class ApVehicleDelivery extends Model
     'sede_id',
     'status_delivery',
     'status_wash',
+    'has_vehicle_delivery' => 'accessor_bool',
   ];
 
   const sorts = [
@@ -106,5 +107,13 @@ class ApVehicleDelivery extends Model
   public function getChecklistStatusAttribute(): ?string
   {
     return $this->deliveryChecklist?->status ?? null;
+  }
+
+  public function getHasVehicleDeliveryAttribute(): bool
+  {
+    return $this->vehicle_id !== null
+      && self::where('vehicle_id', $this->vehicle_id)
+        ->whereNull('deleted_at')
+        ->exists();
   }
 }
