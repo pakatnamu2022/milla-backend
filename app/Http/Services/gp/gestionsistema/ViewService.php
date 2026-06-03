@@ -6,6 +6,7 @@ use App\Http\Resources\gp\gestionsistema\PermissionResource;
 use App\Http\Resources\gp\gestionsistema\ViewResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionsistema\Permission;
+use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\RolePermission;
 use App\Models\gp\gestionsistema\View;
 use Exception;
@@ -213,6 +214,44 @@ class ViewService extends BaseService
         'permissions' => $permissions,
       ];
     });
+  }
+
+  /**
+   * Obtener los roles que tienen al menos un permiso asignado a una vista
+   */
+  public function getRolesByView(int $viewId): array
+  {
+    $view = View::where('id', $viewId)->where('status_deleted', 1)->first();
+    if (!$view) {
+      throw new Exception('Vista no encontrada');
+    }
+
+    return Role::where('status_deleted', 1)
+      ->whereHas('permissions', function ($q) use ($viewId) {
+        $q->where('vista_id', $viewId)
+          ->where('is_active', true)
+          ->where('role_permission.granted', true);
+      })
+      ->with(['permissions' => function ($q) use ($viewId) {
+        $q->where('vista_id', $viewId)
+          ->where('is_active', true)
+          ->where('role_permission.granted', true)
+          ->orderBy('code');
+      }])
+      ->get(['id', 'nombre', 'descripcion'])
+      ->map(fn($role) => [
+        'id'          => $role->id,
+        'nombre'      => $role->nombre,
+        'descripcion' => $role->descripcion,
+        'permissions' => $role->permissions->map(fn($p) => [
+          'id'      => $p->id,
+          'code'    => $p->code,
+          'name'    => $p->name,
+          'type'    => $p->type,
+          'granted' => $p->pivot->granted,
+        ])->values(),
+      ])
+      ->toArray();
   }
 
 //    GRAFICOS

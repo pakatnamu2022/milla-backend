@@ -10,14 +10,15 @@ class PotentialBuyersPolicy extends BasePolicy
   /**
    * Módulo/vista para verificar permisos
    */
-  protected string $module = 'opportunity';
+  protected string $module = 'dashboard-equipo-leads';
 
-  /**
-   * Determina si el usuario puede ver oportunidades de todos los usuarios
-   * Usa el permiso granular: opportunity.view_all_users
-   */
-  public function viewAllUsers(User $user): bool
+  public function viewAdvisors(User $user): bool
   {
-    return $this->hasPermission($user, 'view_all_users');
+    return $this->hasPermission($user, 'viewAdvisors');
+  }
+
+  public function assign(User $user): bool
+  {
+    return $this->hasPermission($user, 'assign');
   }
 }
