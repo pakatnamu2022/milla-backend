@@ -10,6 +10,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -374,6 +375,14 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $data = Vehicles::getElectronicDocumentWithClient($vehicleId);
 
     $vehicle = $data->vehicle;
+
+    // Cargar datos de recepción
+    $vehicle->load([
+      'shippingGuideReceiving.receivingChecklists.receiving',
+      'shippingGuideReceiving.receivingInspection.damages',
+      'shippingGuideReceiving.receivingInspection.inspectedBy',
+      'shippingGuideReceiving.receivedBy',
+    ]);
     $electronicDocument = $data->electronicDocument;
     $client = $data->client;
     $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
@@ -474,7 +483,61 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'facturas' => $facturas,
       'notas_credito' => $notasCredito,
       'notas_debito' => $notasDebito,
+      'reception' => $this->buildReceptionData($vehicle),
     ]);
+  }
+
+  private function buildReceptionData(Vehicles $vehicle): ?array
+  {
+    $guide = $vehicle->shippingGuideReceiving;
+
+    if (!$guide) {
+      return null;
+    }
+
+    $inspection = $guide->receivingInspection;
+
+    $accessoryStatuses = ApReceivingAccessoryStatus::where('shipping_guide_id', $guide->id)->get();
+
+    return [
+      'shipping_guide_id' => $guide->id,
+      'document_number'   => $guide->document_number,
+      'issue_date'        => $guide->issue_date?->format('Y-m-d'),
+      'received_date'     => $guide->received_date?->format('Y-m-d H:i:s'),
+      'note_received'     => $guide->note_received,
+      'received_by'       => $guide->receivedBy?->name,
+      'checklist_items'   => $guide->receivingChecklists->map(fn($c) => [
+        'id'          => $c->id,
+        'description' => $c->receiving?->description,
+        'quantity'    => $c->quantity,
+        'kilometers'  => $c->kilometers,
+      ])->values(),
+      'inspection' => $inspection ? [
+        'id'                   => $inspection->id,
+        'photo_front_url'      => $inspection->photo_front_url,
+        'photo_back_url'       => $inspection->photo_back_url,
+        'photo_left_url'       => $inspection->photo_left_url,
+        'photo_right_url'      => $inspection->photo_right_url,
+        'general_observations' => $inspection->general_observations,
+        'inspected_by'         => $inspection->inspectedBy?->name,
+        'created_at'           => $inspection->created_at?->format('Y-m-d H:i:s'),
+        'damages'              => $inspection->damages->map(fn($d) => [
+          'id'           => $d->id,
+          'damage_type'  => $d->damage_type,
+          'x_coordinate' => $d->x_coordinate,
+          'y_coordinate' => $d->y_coordinate,
+          'description'  => $d->description,
+          'photo_url'    => $d->photo_url,
+        ])->values(),
+      ] : null,
+      'accessories' => $accessoryStatuses->map(fn($a) => [
+        'id'           => $a->id,
+        'description'  => $a->description,
+        'quantity'     => $a->quantity,
+        'received'     => $a->received,
+        'is_installed' => $a->is_installed,
+      ])->values(),
+    ];
   }
 
   /**
