@@ -25,7 +25,9 @@ class AccountsReceivableService extends BaseService
     'deposito' => 'dbdp2',
   ];
 
-  public function __construct(private EmailService $emailService) {}
+  public function __construct(private EmailService $emailService)
+  {
+  }
 
   public function sync(string $company = 'deposito'): array
   {
@@ -45,12 +47,32 @@ class AccountsReceivableService extends BaseService
     } while ($stmt->nextRowset());
 
     $sedeMap = $this->buildSedeMap();
-    $now = now()->toDateTimeString();
+    $batchAt = now()->toDateTimeString();
+
+    $spDocNumbers = collect($rows)
+      ->map(fn($r) => trim((string)($r->DocumentoNumero ?? '')))
+      ->filter()
+      ->values()
+      ->all();
+
+    // Detect reversals: documents locally marked PAGADO that reappear in SP
+    AccountReceivable::where('company', $company)
+      ->where('overdue_status', 'PAGADO')
+      ->whereIn('document_number', $spDocNumbers)
+      ->get()
+      ->each(function (AccountReceivable $record) {
+        AccountReceivableComment::create([
+          'accounts_receivable_id' => $record->id,
+          'sede_id' => $record->sede_id,
+          'user_id' => null,
+          'comment' => 'Documento reingresado al SP: se detectó anulación de cobro. Verificar movimiento.',
+        ]);
+      });
 
     collect($rows)
       ->chunk(100)
-      ->each(function ($chunk) use ($company, $sedeMap, $now) {
-        $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $company, $sedeMap, $now))->toArray();
+      ->each(function ($chunk) use ($company, $sedeMap, $batchAt) {
+        $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $company, $sedeMap, $batchAt))->toArray();
 
         AccountReceivable::upsert(
           $records,
@@ -67,6 +89,12 @@ class AccountsReceivableService extends BaseService
         );
       });
 
+    // Mark records absent from SP as PAGADO
+    AccountReceivable::where('company', $company)
+      ->where('synced_at', '<', $batchAt)
+      ->where('overdue_status', '!=', 'PAGADO')
+      ->update(['overdue_status' => 'PAGADO', 'updated_at' => $batchAt]);
+
     Cache::forget(self::filterTreeCacheKey($company));
     Cache::forget(self::dashboardCacheKey($company));
 
@@ -81,11 +109,13 @@ class AccountsReceivableService extends BaseService
   public function list(Request $request)
   {
     $query = AccountReceivable::query()
+      ->whereNot('overdue_status', 'PAGADO')
       ->with('sede')
       ->withCount('comments');
 
     $summaryBase = $this->applyFilters(
-      AccountReceivable::query(),
+      AccountReceivable::query()
+        ->whereNot('overdue_status', 'PAGADO'),
       $request,
       AccountReceivable::filters,
     );
@@ -135,6 +165,7 @@ class AccountsReceivableService extends BaseService
     return Cache::rememberForever(self::filterTreeCacheKey($company), function () use ($company) {
       $rows = AccountReceivable::query()
         ->select('sede_id', 'overdue_status', 'due_year')
+        ->whereNot('overdue_status', 'PAGADO')
         ->with('sede:id,suc_abrev,localidad')
         ->where('company', $company)
         ->whereNotNull('sede_id')
@@ -226,6 +257,8 @@ class AccountsReceivableService extends BaseService
 
   private function executeSedeReports(string $company, callable $queryModifier, string $subjectPrefix, string $filePrefix): array
   {
+    $this->sync($company);
+
     $positionIds = HierarchicalCategoryDetail::where('hierarchical_category_id', 13)
       ->pluck('position_id');
 
@@ -242,12 +275,12 @@ class AccountsReceivableService extends BaseService
       return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron trabajadores activos en la categoría jerárquica 13.'];
     }
 
-    $sent    = 0;
+    $sent = 0;
     $skipped = 0;
 
     foreach ($workers->groupBy('sede_id') as $sedeId => $sedeWorkers) {
-      $sede         = $sedeWorkers->first()->sede;
-      $sedeAbrev    = $sede?->suc_abrev ?? "Sede {$sedeId}";
+      $sede = $sedeWorkers->first()->sede;
+      $sedeAbrev = $sede?->suc_abrev ?? "Sede {$sedeId}";
       $sedeFullName = $sede?->localidad ?? $sedeAbrev;
 
       $records = $queryModifier(
@@ -260,36 +293,36 @@ class AccountsReceivableService extends BaseService
       }
 
       $summary = [
-        'total_documents'     => $records->count(),
-        'total_balance_pen'   => $this->pen($records->sum('balance_pen')),
+        'total_documents' => $records->count(),
+        'total_balance_pen' => $this->pen($records->sum('balance_pen')),
         'overdue_balance_pen' => $this->pen($records->sum(fn($r) => ($r->overdue_days ?? 0) > 0 ? $r->balance_pen : 0)),
         'current_balance_pen' => $this->pen($records->sum(fn($r) => ($r->overdue_days ?? 0) <= 0 ? $r->balance_pen : 0)),
       ];
 
       $recordsData = $records->map(fn($r) => [
-        'client_name'       => $r->client_name,
-        'client_id'         => $r->client_id,
-        'document_number'   => $r->document_number,
-        'document_date'     => $r->document_date?->format('d/m/Y'),
+        'client_name' => $r->client_name,
+        'client_id' => $r->client_id,
+        'document_number' => $r->document_number,
+        'document_date' => $r->document_date?->format('d/m/Y'),
         'document_due_date' => $r->document_due_date?->format('d/m/Y'),
-        'overdue_days'      => $r->overdue_days,
-        'overdue_status'    => $r->overdue_status,
-        'currency'          => $r->currency,
-        'balance'           => (float) $r->balance,
-        'balance_pen'       => $this->pen($r->balance_pen),
-        'seller'            => $r->seller,
+        'overdue_days' => $r->overdue_days,
+        'overdue_status' => $r->overdue_status,
+        'currency' => $r->currency,
+        'balance' => (float)$r->balance,
+        'balance_pen' => $this->pen($r->balance_pen),
+        'seller' => $r->seller,
       ])->toArray();
 
       $emailData = [
-        'sede_name'   => $sedeFullName,
-        'sede_abrev'  => $sedeAbrev,
-        'company'     => $company,
+        'sede_name' => $sedeFullName,
+        'sede_abrev' => $sedeAbrev,
+        'company' => $company,
         'report_date' => now()->format('d/m/Y H:i'),
-        'summary'     => $summary,
-        'records'     => $recordsData,
+        'summary' => $summary,
+        'records' => $recordsData,
       ];
 
-      $pdf     = Pdf::loadView('pdf.accounts-receivable-sede-report', $emailData)->setPaper('a4', 'landscape');
+      $pdf = Pdf::loadView('pdf.accounts-receivable-sede-report', $emailData)->setPaper('a4', 'landscape');
       $pdfPath = tempnam(sys_get_temp_dir(), 'ar_report_') . '.pdf';
       file_put_contents($pdfPath, $pdf->output());
 
@@ -297,10 +330,10 @@ class AccountsReceivableService extends BaseService
 
       foreach ($sedeWorkers as $worker) {
         $this->emailService->send([
-          'to'          => self::TEST_EMAIL,
-          'subject'     => "{$subjectPrefix} — {$sedeFullName} | " . now()->format('d/m/Y'),
-          'template'    => 'emails.accounts-receivable-sede-report',
-          'data'        => array_merge($emailData, ['worker_name' => $worker->nombre_completo]),
+          'to' => self::TEST_EMAIL,
+          'subject' => "{$subjectPrefix} — {$sedeFullName} | " . now()->format('d/m/Y'),
+          'template' => 'emails.accounts-receivable-sede-report',
+          'data' => array_merge($emailData, ['worker_name' => $worker->nombre_completo]),
           'attachments' => [['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']],
         ]);
         $sent++;
@@ -310,7 +343,7 @@ class AccountsReceivableService extends BaseService
     }
 
     return [
-      'sent'    => $sent,
+      'sent' => $sent,
       'skipped' => $skipped,
       'message' => "Se enviaron {$sent} correo(s). {$skipped} sede(s) sin documentos.",
     ];
@@ -391,7 +424,8 @@ class AccountsReceivableService extends BaseService
 
   private function buildDashboard(string $company): array
   {
-    $base = fn() => AccountReceivable::where('company', $company);
+    $base = fn() => AccountReceivable::where('company', $company)
+      ->whereNot('overdue_status', 'PAGADO');
 
     // KPIs
     $summary = $base()->selectRaw('

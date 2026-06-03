@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Services\dp\comercial\AccountsReceivableService;
 use App\Models\dp\comercial\AccountReceivable;
+use App\Models\dp\comercial\AccountReceivableComment;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -46,12 +47,33 @@ class SyncAccountsReceivableJob implements ShouldQueue
     } while ($stmt->nextRowset());
 
     $sedeMap = $this->buildSedeMap();
-    $now = now()->toDateTimeString();
+    $batchAt = now()->toDateTimeString();
+    $company = $this->company;
+
+    $spDocNumbers = collect($rows)
+      ->map(fn($r) => trim((string)($r->DocumentoNumero ?? '')))
+      ->filter()
+      ->values()
+      ->all();
+
+    // Detect reversals: documents locally marked PAGADO that reappear in SP
+    AccountReceivable::where('company', $company)
+      ->where('overdue_status', 'PAGADO')
+      ->whereIn('document_number', $spDocNumbers)
+      ->get()
+      ->each(function (AccountReceivable $record) {
+        AccountReceivableComment::create([
+          'accounts_receivable_id' => $record->id,
+          'sede_id'                => $record->sede_id,
+          'user_id'                => null,
+          'comment'                => 'Documento reingresado al SP: se detectó anulación de cobro. Verificar movimiento.',
+        ]);
+      });
 
     collect($rows)
       ->chunk(100)
-      ->each(function ($chunk) use ($sedeMap, $now) {
-        $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $sedeMap, $now))->toArray();
+      ->each(function ($chunk) use ($sedeMap, $batchAt, $company) {
+        $records = $chunk->map(fn($row) => $this->mapRow((array)$row, $sedeMap, $batchAt))->toArray();
 
         AccountReceivable::upsert(
           $records,
@@ -74,6 +96,8 @@ class SyncAccountsReceivableJob implements ShouldQueue
             'exchange_rate',
             'amount',
             'balance',
+            'amount_pen',
+            'balance_pen',
             'branch',
             'observations',
             'collection_date',
@@ -83,39 +107,55 @@ class SyncAccountsReceivableJob implements ShouldQueue
         );
       });
 
-    Cache::forget(AccountsReceivableService::filterTreeCacheKey($this->company));
+    // Mark records absent from SP as PAGADO
+    AccountReceivable::where('company', $company)
+      ->where('synced_at', '<', $batchAt)
+      ->where('overdue_status', '!=', 'PAGADO')
+      ->update(['overdue_status' => 'PAGADO', 'updated_at' => $batchAt]);
+
+    Cache::forget(AccountsReceivableService::filterTreeCacheKey($company));
+    Cache::forget(AccountsReceivableService::dashboardCacheKey($company));
   }
 
   private function mapRow(array $row, array $sedeMap, string $now): array
   {
-    $branch = trim($row['Sucursal'] ?? '');
+    $branch   = trim($row['Sucursal'] ?? '');
+    $currency = strtoupper(trim($row['Moneda'] ?? 'PEN'));
+    $amount   = (float)($row['DocumentoImporte'] ?? 0);
+    $balance  = (float)($row['DocumentoDeuda'] ?? 0);
+    $rate     = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
+
+    $amountPen = $currency === 'PEN' ? $amount : $amount * $rate;
+    $balancePen = $currency === 'PEN' ? $balance : $balance * $rate;
 
     return [
-      'company' => $this->company,
-      'sede_id' => $this->resolveSede($branch, $sedeMap),
-      'seller' => $row['Vendedor'] ?? null,
-      'cashier' => $row['Caja'] ?? null,
-      'document_number' => trim($row['DocumentoNumero'] ?? ''),
-      'client_id' => $row['ClienteId'] ?? null,
-      'client_name' => $row['ClienteNombre'] ?? null,
-      'client_id_real' => $row['ClienteIdReal'] ?: null,
+      'company'          => $this->company,
+      'sede_id'          => $this->resolveSede($branch, $sedeMap),
+      'seller'           => $row['Vendedor'] ?? null,
+      'cashier'          => $row['Caja'] ?? null,
+      'document_number'  => trim($row['DocumentoNumero'] ?? ''),
+      'client_id'        => $row['ClienteId'] ?? null,
+      'client_name'      => $row['ClienteNombre'] ?? null,
+      'client_id_real'   => $row['ClienteIdReal'] ?: null,
       'client_name_real' => $row['ClienteNombreReal'] ?: null,
-      'document_date' => $this->parseDate($row['DocumentoFecha'] ?? null),
+      'document_date'    => $this->parseDate($row['DocumentoFecha'] ?? null),
       'document_due_date' => $this->parseDate($row['DocumentoVencimiento'] ?? null),
-      'due_year' => $row['Anho_Vencimiento'] ?? null,
-      'due_month' => $row['Mes_Vencimiento'] ?? null,
-      'overdue_days' => $row['DiasVencidos'] ?? null,
-      'overdue_status' => $row['Estado_Vencido'] ?? null,
-      'currency' => $row['Moneda'] ?? null,
-      'exchange_rate' => $row['DocumentoTasaCambio'] ?? null,
-      'amount' => $row['DocumentoImporte'] ?? null,
-      'balance' => $row['DocumentoDeuda'] ?? null,
-      'branch' => $branch ?: null,
-      'observations' => $row['Observaciones'] ?: null,
-      'collection_date' => $this->parseDate(trim($row['CobroFecha'] ?? '')),
-      'synced_at' => $now,
-      'created_at' => $now,
-      'updated_at' => $now,
+      'due_year'         => $row['Anho_Vencimiento'] ?? null,
+      'due_month'        => $row['Mes_Vencimiento'] ?? null,
+      'overdue_days'     => $row['DiasVencidos'] ?? null,
+      'overdue_status'   => $row['Estado_Vencido'] ?? null,
+      'currency'         => $row['Moneda'] ?? null,
+      'exchange_rate'    => $row['DocumentoTasaCambio'] ?? null,
+      'amount'           => $amount,
+      'balance'          => $balance,
+      'amount_pen'       => $amountPen,
+      'balance_pen'      => $balancePen,
+      'branch'           => $branch ?: null,
+      'observations'     => $row['Observaciones'] ?: null,
+      'collection_date'  => $this->parseDate(trim($row['CobroFecha'] ?? '')),
+      'synced_at'        => $now,
+      'created_at'       => $now,
+      'updated_at'       => $now,
     ];
   }
 
