@@ -34,30 +34,35 @@ class AccountReceivable extends BaseModel
     'branch',
     'observations',
     'collection_date',
+    'amount_pen',
+    'balance_pen',
     'synced_at',
   ];
 
   protected $casts = [
-    'document_date'     => 'date',
+    'document_date' => 'date',
     'document_due_date' => 'date',
-    'collection_date'   => 'date',
-    'synced_at'         => 'datetime',
-    'exchange_rate'     => 'decimal:5',
-    'amount'            => 'decimal:5',
-    'balance'           => 'decimal:5',
-    'overdue_days'      => 'integer',
-    'due_year'          => 'integer',
+    'collection_date' => 'date',
+    'synced_at' => 'datetime',
+    'exchange_rate' => 'decimal:5',
+    'amount' => 'decimal:5',
+    'balance' => 'decimal:5',
+    'amount_pen' => 'decimal:5',
+    'balance_pen' => 'decimal:5',
+    'overdue_days' => 'integer',
+    'due_year' => 'integer',
   ];
 
   const filters = [
-    'search'            => ['document_number', 'client_name', 'client_id', 'seller', 'branch'],
-    'sede_id'           => '=',
-    'company'           => '=',
-    'currency'          => '=',
-    'overdue_status'    => '=',
-    'seller'            => 'like',
-    'document_date'     => 'date_between',
+    'search' => ['document_number', 'client_name', 'client_id', 'seller', 'branch'],
+    'sede_id' => '=',
+    'company' => '=',
+    'currency' => '=',
+    'overdue_status' => '=',
+    'seller' => 'like',
+    'document_date' => 'date_between',
     'document_due_date' => 'date_between',
+    'due_year' => '=',
   ];
 
   const sorts = [
