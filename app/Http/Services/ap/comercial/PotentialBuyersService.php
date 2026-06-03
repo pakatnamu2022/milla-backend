@@ -816,7 +816,7 @@ class PotentialBuyersService extends BaseService
     return $this->exportService->exportFromRequest($request, PotentialBuyers::class);
   }
 
-  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId): array
+  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId, ?string $dateFrom = null, ?string $dateTo = null): array
   {
     $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
       ->where('year', now()->year)
@@ -837,6 +837,11 @@ class PotentialBuyersService extends BaseService
 
     if (!empty($potentialBuyerIds)) {
       $query->whereIn('id', $potentialBuyerIds);
+    } else {
+      $query->whereBetween('created_at', [
+        $dateFrom . ' 00:00:00',
+        $dateTo . ' 23:59:59',
+      ]);
     }
 
     $count = $query->count();
@@ -844,15 +849,15 @@ class PotentialBuyersService extends BaseService
     if ($count === 0) {
       return [
         'success' => false,
-        'message' => 'No hay registros pendientes para transferir',
+        'message' => 'No hay registros pendientes para transferir en el período indicado',
       ];
     }
 
     $query->update(['worker_id' => $toWorkerId]);
 
     return [
-      'success'           => true,
-      'message'           => "{$count} potential buyer(s) transferido(s) correctamente",
+      'success' => true,
+      'message' => "{$count} potential buyer(s) transferido(s) correctamente",
       'transferred_count' => $count,
     ];
   }

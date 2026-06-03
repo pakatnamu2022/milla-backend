@@ -181,7 +181,9 @@ class PotentialBuyersController extends Controller
         $request->from_worker_id,
         $request->to_worker_id,
         $request->input('potential_buyer_ids', []),
-        $bossWorkerId
+        $bossWorkerId,
+        $request->date_from,
+        $request->date_to
       );
 
       return $result['success']
