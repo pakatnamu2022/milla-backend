@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetailResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
@@ -40,6 +41,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
 
   public function store($data)
   {
+    $this->validateCategoryWeightsOrFail($data['hierarchical_category_id']);
     $evaluationCycle = EvaluationCycleCategoryDetail::create($data);
     return new EvaluationCycleCategoryDetailResource(EvaluationCycleCategoryDetail::find($evaluationCycle->id));
   }
@@ -63,7 +65,7 @@ class EvaluationCycleCategoryDetailService extends BaseService
     $toDelete = $existingCycleCategoryIds->diff($newCategoryIds);
 
     foreach ($toInsert as $categoryId) {
-//      create or restore
+      $this->validateCategoryWeightsOrFail($categoryId);
       EvaluationCycleCategoryDetail::create([
         'cycle_id' => $cycleId,
         'hierarchical_category_id' => $categoryId,
@@ -130,5 +132,37 @@ class EvaluationCycleCategoryDetailService extends BaseService
     $evaluationCycle = $this->find($id);
     $evaluationCycle->delete();
     return response()->json(['message' => 'Detalle de Ciclo Categoria eliminado correctamente']);
+  }
+
+  private function validateCategoryWeightsOrFail(int $categoryId): void
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $workers = $category->workers()->get();
+
+    $invalidWorkers = [];
+    foreach ($workers as $worker) {
+      $activeObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $worker->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->get();
+
+      $valid = $activeObjectives->isNotEmpty()
+        && !$activeObjectives->contains(fn($o) => $o->weight == 0)
+        && (int) round($activeObjectives->sum('weight')) === 100;
+
+      if (!$valid) {
+        $invalidWorkers[] = $worker->fullName ?? ($worker->name ?? "ID {$worker->id}");
+      }
+    }
+
+    if (!empty($invalidWorkers)) {
+      $count = count($invalidWorkers);
+      throw new Exception(
+        "La categoría '{$category->name}' tiene {$count} trabajador(es) con pesos inválidos. " .
+        "Corrija los pesos antes de agregar esta categoría al ciclo."
+      );
+    }
   }
 }

@@ -263,4 +263,140 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     }
     return response()->json(['message' => 'Objetivo de Categoria eliminado correctamente']);
   }
+
+  public function weightValidationReport(int $categoryId): array
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $workers = $category->workers()->get();
+
+    $referenceObjectives = $category->objectives()->get()->map(fn($o) => [
+      'objective_id'   => $o->id,
+      'objective_name' => $o->name,
+      'goal_reference' => $o->goalReference,
+      'weight'         => $o->weight,
+      'fixed_weight'   => (bool) $o->fixedWeight,
+    ])->values();
+
+    $report = $workers->map(function ($worker) use ($categoryId) {
+      $activeObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+        ->where('person_id', $worker->id)
+        ->where('active', 1)
+        ->whereNull('deleted_at')
+        ->whereHas('objective', fn($q) => $q->where('active', 1))
+        ->with('objective')
+        ->get();
+
+      $hasObjectives = $activeObjectives->isNotEmpty();
+      $hasZeroWeights = $activeObjectives->contains(fn($o) => $o->weight == 0);
+      $totalWeight = $activeObjectives->sum('weight');
+      $weightSumValid = (int) round($totalWeight) === 100;
+      $valid = $hasObjectives && !$hasZeroWeights && $weightSumValid;
+
+      return [
+        'person_id' => $worker->id,
+        'name' => $worker->nombre_completo ?? '',
+        'valid' => $valid,
+        'total_weight' => $totalWeight,
+        'objectives' => $activeObjectives->map(fn($o) => [
+          'objective_id' => $o->objective_id,
+          'objective_name' => $o->objective->name ?? '',
+          'weight' => $o->weight,
+          'valid' => $o->weight > 0,
+        ])->values(),
+        'issues' => array_values(array_filter([
+          !$hasObjectives ? 'Sin objetivos activos' : null,
+          $hasZeroWeights ? 'Hay objetivos con peso 0' : null,
+          $hasObjectives && !$weightSumValid ? "Suma de pesos = {$totalWeight} (debe ser 100)" : null,
+        ])),
+      ];
+    });
+
+    $validCount = $report->where('valid', true)->count();
+    $invalidCount = $report->where('valid', false)->count();
+
+    return [
+      'category_id'       => $categoryId,
+      'category_name'     => $category->name,
+      'total_workers'     => $report->count(),
+      'valid_workers'     => $validCount,
+      'invalid_workers'   => $invalidCount,
+      'is_valid'          => $invalidCount === 0,
+      'objectives'        => $referenceObjectives,
+      'workers'           => $report->values(),
+    ];
+  }
+
+  public function globalWeightValidationReport(): array
+  {
+    $categories = HierarchicalCategory::where('hasObjectives', true)
+      ->where('excluded_from_evaluation', false)
+      ->get();
+
+    return $categories->map(function ($category) {
+      $workers = $category->workers()->get();
+      $invalidCount = 0;
+      $totalCount = $workers->count();
+
+      foreach ($workers as $worker) {
+        $activeObjectives = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+          ->where('person_id', $worker->id)
+          ->where('active', 1)
+          ->whereNull('deleted_at')
+          ->whereHas('objective', fn($q) => $q->where('active', 1))
+          ->get();
+
+        $valid = $activeObjectives->isNotEmpty()
+          && !$activeObjectives->contains(fn($o) => $o->weight == 0)
+          && (int) round($activeObjectives->sum('weight')) === 100;
+
+        if (!$valid) $invalidCount++;
+      }
+
+      return [
+        'category_id' => $category->id,
+        'category_name' => $category->name,
+        'total_workers' => $totalCount,
+        'valid_workers' => $totalCount - $invalidCount,
+        'invalid_workers' => $invalidCount,
+        'is_valid' => $invalidCount === 0,
+      ];
+    })->values()->all();
+  }
+
+  public function applyReferenceWeightsToAllWorkers(int $categoryId, array $objectives): array
+  {
+    $activeObjectives = array_filter($objectives, fn($obj) => ($obj['active'] ?? true) !== false);
+    $totalWeight = array_sum(array_column($activeObjectives, 'weight'));
+    if ((int) round($totalWeight) !== 100) {
+      throw new Exception("La suma de pesos debe ser 100. Suma actual: {$totalWeight}");
+    }
+
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+
+    DB::transaction(function () use ($categoryId, $workers, $objectives) {
+      foreach ($workers as $workerId) {
+        foreach ($objectives as $obj) {
+          $isActive = ($obj['active'] ?? true) !== false;
+
+          EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+            ->where('person_id', $workerId)
+            ->where('objective_id', $obj['objective_id'])
+            ->delete();
+
+          EvaluationCategoryObjectiveDetail::create([
+            'category_id' => $categoryId,
+            'person_id' => $workerId,
+            'objective_id' => $obj['objective_id'],
+            'weight' => $isActive ? ($obj['weight'] ?? 0) : 0,
+            'goal' => $obj['goal'] ?? null,
+            'fixedWeight' => $isActive && ($obj['weight'] ?? 0) > 0,
+            'active' => $isActive ? 1 : 0,
+          ]);
+        }
+      }
+    });
+
+    return $this->weightValidationReport($categoryId);
+  }
 }

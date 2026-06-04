@@ -145,6 +145,49 @@ class EvaluationObjectiveService extends BaseService
     ];
   }
 
+  public function deactivateInCategories(int $objectiveId, ?array $categoryIds = null): array
+  {
+    $objective = $this->find($objectiveId);
+    $detailService = new EvaluationCategoryObjectiveDetailService();
+    $affectedCategories = 0;
+    $affectedWorkers = 0;
+
+    DB::transaction(function () use ($objective, $detailService, $categoryIds, &$affectedCategories, &$affectedWorkers) {
+      $categories = $this->getRelatedActiveCategories($objective->id, $categoryIds);
+
+      foreach ($categories as $category) {
+        $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+        $categoryAffected = false;
+
+        foreach ($workers as $workerId) {
+          $updated = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+            ->where('person_id', $workerId)
+            ->where('objective_id', $objective->id)
+            ->where('active', 1)
+            ->whereNull('deleted_at')
+            ->update(['active' => 0]);
+
+          if ($updated > 0) {
+            $affectedWorkers++;
+            $categoryAffected = true;
+          }
+
+          $detailService->recalculateWeights($category->id, $workerId);
+        }
+
+        if ($categoryAffected) {
+          $affectedCategories++;
+        }
+      }
+    });
+
+    return [
+      'message' => 'Objetivo desactivado correctamente en categorías relacionadas',
+      'affected_categories' => $affectedCategories,
+      'affected_workers' => $affectedWorkers,
+    ];
+  }
+
   public function previewActivateInCategories(int $objectiveId): array
   {
     $objective = $this->find($objectiveId);
