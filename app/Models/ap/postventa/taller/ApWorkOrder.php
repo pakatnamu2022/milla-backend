@@ -897,6 +897,9 @@ class ApWorkOrder extends Model
 
       $isCancelled = false;
       $cancellationReason = null;
+      $creditNoteNumber = null;
+      $creditNoteTypeId = null;
+      $creditNoteTypeDescription = null;
 
       // Check if it's cancelled
       if ($document->status === ElectronicDocument::STATUS_CANCELLED || $document->anulado == 1) {
@@ -909,6 +912,9 @@ class ApWorkOrder extends Model
         && in_array($document->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes)) {
         $isCancelled = true;
         $cancellationReason = $document->creditNote?->observaciones;
+        $creditNoteNumber = $document->creditNote?->full_number;
+        $creditNoteTypeId = $document->creditNote?->sunat_concept_credit_note_type_id;
+        $creditNoteTypeDescription = $document->creditNote?->creditNoteType?->description;
       }
 
       $documentData = [
@@ -929,6 +935,9 @@ class ApWorkOrder extends Model
 
       if ($isCancelled) {
         $documentData['cancellation_reason'] = $cancellationReason;
+        $documentData['credit_note_number'] = $creditNoteNumber;
+        $documentData['sunat_concept_credit_note_type_id'] = $creditNoteTypeId;
+        $documentData['credit_note_type_description'] = $creditNoteTypeDescription;
         $cancelled[] = $documentData;
       } else {
         // Get credit notes (excluding annulling types)

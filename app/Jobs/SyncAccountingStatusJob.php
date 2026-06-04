@@ -236,7 +236,10 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Crear la salida de inventario
       $inventoryMovementService = app(InventoryMovementService::class);
-      $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
+      $movement = $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
+
+      // Actualizar electronic_document_id con la factura final
+      $movement->update(['electronic_document_id' => $finalInvoice->id]);
 
       // Marcar la OT como facturada y cerrada
       $workOrder->update([

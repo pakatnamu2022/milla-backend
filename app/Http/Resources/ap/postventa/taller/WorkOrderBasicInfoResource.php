@@ -33,8 +33,9 @@ class WorkOrderBasicInfoResource extends JsonResource
 
       // Relaciones simplificadas para evitar sobrecarga de datos
       'invoice_to_client' => BusinessPartnersResource::make($this->invoiceTo),
-      'valid_documents' => ElectronicDocumentResource::collection(
-        $this->whenLoaded('advancesWorkOrder', fn() => $this->getValidDocuments())
+      'vouchers' => $this->when(
+        $this->relationLoaded('advancesWorkOrder'),
+        fn() => $this->getDocumentsTree()
       ),
     ];
   }

@@ -1405,6 +1405,9 @@ class InventoryMovementService extends BaseService
         }
       }
 
+      // Intentar obtener la factura final si existe
+      $finalInvoice = $workOrder->getFinalInvoice();
+
       // Create movement header
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
@@ -1413,6 +1416,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApWorkOrder::class,
         'reference_id' => $workOrder->id,
+        'electronic_document_id' => $finalInvoice?->id,
         'user_id' => $workOrder->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
@@ -1501,9 +1505,10 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ElectronicDocument::class,
         'reference_id' => $creditNote->id,
+        'electronic_document_id' => $creditNote->id,
         'user_id' => Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - OT {$workOrder->correlative}",
+        'notes' => "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - {$workOrder->correlative}",
         'total_items' => 0,
         'total_quantity' => 0,
       ]);
@@ -1567,16 +1572,6 @@ class InventoryMovementService extends BaseService
 
       // Update stock automatically (adds stock back to warehouse)
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
-
-      Log::info('Movimiento de devolución creado por NC', [
-        'credit_note_id' => $creditNote->id,
-        'credit_note_number' => $creditNote->full_number,
-        'work_order_id' => $workOrder->id,
-        'movement_id' => $movement->id,
-        'movement_number' => $movement->movement_number,
-        'total_items' => $totalItems,
-        'total_quantity' => $totalQuantity,
-      ]);
 
       DB::commit();
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);

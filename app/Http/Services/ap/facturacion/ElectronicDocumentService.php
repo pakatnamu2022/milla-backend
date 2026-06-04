@@ -1069,8 +1069,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       default => throw new Exception("Tipo de nota de crédito no reconocido: {$typeCode}")
     };
 
-    // Enriquecer items con dyn_code desde account_plan_id
-    $this->enrichCreditNoteItemsWithDynCode($items);
+    // Enriquecer items con dyn_code según el origen del documento
+    // Para postventa (work_order o order_quotation), usar el mismo enriquecimiento que las facturas
+    // Para comercial, usar account_plan_id
+    if (!empty($originalDocument->order_quotation_id)) {
+      $this->enrichItemsCodigoFromQuotation($items, $originalDocument->order_quotation_id, false);
+    } elseif (!empty($originalDocument->work_order_id)) {
+      $this->enrichItemsCodigoFromWorkOrder($items, $originalDocument->work_order_id, false);
+    } else {
+      // Para comercial, usar account_plan_id
+      $this->enrichCreditNoteItemsWithDynCode($items);
+    }
 
     return $items;
   }
@@ -1132,7 +1141,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return [
         'account_plan_id' => $item->account_plan_id,
         'unidad_de_medida' => $item->unidad_de_medida,
+        'unidad_medida_dyn' => $item->unidad_medida_dyn,
         'codigo' => $item->codigo,
+        'dyn_code' => $item->dyn_code,
         'codigo_producto_sunat' => $item->codigo_producto_sunat,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
@@ -1169,7 +1180,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return [
         'account_plan_id' => $item->account_plan_id,
         'unidad_de_medida' => $item->unidad_de_medida,
+        'unidad_medida_dyn' => $item->unidad_medida_dyn,
         'codigo' => $item->codigo,
+        'dyn_code' => $item->dyn_code,
         'codigo_producto_sunat' => $item->codigo_producto_sunat,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
@@ -1211,6 +1224,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'account_plan_id' => $data['account_plan_id'],
       'unidad_de_medida' => 'NIU',
       'codigo' => null,
+      'dyn_code' => null,
       'codigo_producto_sunat' => null,
       'descripcion' => 'Descuento global',
       'cantidad' => 1,
