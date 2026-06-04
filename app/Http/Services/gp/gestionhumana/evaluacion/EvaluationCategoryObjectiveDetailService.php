@@ -378,19 +378,21 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
       foreach ($workers as $workerId) {
         foreach ($objectives as $obj) {
           $isActive = ($obj['active'] ?? true) !== false;
-          EvaluationCategoryObjectiveDetail::updateOrCreate(
-            [
-              'category_id' => $categoryId,
-              'person_id' => $workerId,
-              'objective_id' => $obj['objective_id'],
-            ],
-            [
-              'weight' => $isActive ? ($obj['weight'] ?? 0) : 0,
-              'goal' => $obj['goal'] ?? null,
-              'fixedWeight' => $isActive && ($obj['weight'] ?? 0) > 0,
-              'active' => $isActive ? 1 : 0,
-            ]
-          );
+
+          EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
+            ->where('person_id', $workerId)
+            ->where('objective_id', $obj['objective_id'])
+            ->delete();
+
+          EvaluationCategoryObjectiveDetail::create([
+            'category_id' => $categoryId,
+            'person_id' => $workerId,
+            'objective_id' => $obj['objective_id'],
+            'weight' => $isActive ? ($obj['weight'] ?? 0) : 0,
+            'goal' => $obj['goal'] ?? null,
+            'fixedWeight' => $isActive && ($obj['weight'] ?? 0) > 0,
+            'active' => $isActive ? 1 : 0,
+          ]);
         }
       }
     });
