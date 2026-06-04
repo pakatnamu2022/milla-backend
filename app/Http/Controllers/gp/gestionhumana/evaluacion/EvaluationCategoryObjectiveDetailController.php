@@ -8,6 +8,8 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjecti
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class EvaluationCategoryObjectiveDetailController extends Controller
 {
@@ -125,6 +127,39 @@ class EvaluationCategoryObjectiveDetailController extends Controller
   {
     try {
       return $this->success($this->service->destroy($request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function weightReport(int $category): JsonResponse
+  {
+    try {
+      return response()->json($this->service->weightValidationReport($category));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function globalWeightReport(): JsonResponse
+  {
+    try {
+      return response()->json($this->service->globalWeightValidationReport());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function applyReferenceWeights(Request $request, int $category): JsonResponse
+  {
+    try {
+      $data = $request->validate([
+        'objectives'                => 'required|array|min:1',
+        'objectives.*.objective_id' => 'required|integer|exists:gh_evaluation_objective,id',
+        'objectives.*.weight'       => 'required|numeric|min:0',
+        'objectives.*.goal'         => 'nullable|numeric',
+      ]);
+      return response()->json($this->service->applyReferenceWeightsToAllWorkers($category, $data['objectives']));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

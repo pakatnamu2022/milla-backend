@@ -639,6 +639,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         //    CATEGORY OBJECTIVE DETAILS
+        Route::get('/categoryObjectiveDetail/global-weight-report', [EvaluationCategoryObjectiveDetailController::class, 'globalWeightReport']);
+        Route::get('/categoryObjectiveDetail/{category}/weight-report', [EvaluationCategoryObjectiveDetailController::class, 'weightReport']);
+        Route::post('/categoryObjectiveDetail/{category}/apply-reference-weights', [EvaluationCategoryObjectiveDetailController::class, 'applyReferenceWeights']);
         Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
         Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
         Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
