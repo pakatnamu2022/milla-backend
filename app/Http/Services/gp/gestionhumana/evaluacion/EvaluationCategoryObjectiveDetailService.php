@@ -365,8 +365,9 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
 
   public function applyReferenceWeightsToAllWorkers(int $categoryId, array $objectives): array
   {
-    $totalWeight = array_sum(array_column($objectives, 'weight'));
-    if (round($totalWeight) !== 100) {
+    $activeObjectives = array_filter($objectives, fn($obj) => ($obj['active'] ?? true) !== false);
+    $totalWeight = array_sum(array_column($activeObjectives, 'weight'));
+    if ((int) round($totalWeight) !== 100) {
       throw new Exception("La suma de pesos debe ser 100. Suma actual: {$totalWeight}");
     }
 
@@ -376,15 +377,20 @@ class EvaluationCategoryObjectiveDetailService extends BaseService
     DB::transaction(function () use ($categoryId, $workers, $objectives) {
       foreach ($workers as $workerId) {
         foreach ($objectives as $obj) {
-          EvaluationCategoryObjectiveDetail::where('category_id', $categoryId)
-            ->where('person_id', $workerId)
-            ->where('objective_id', $obj['objective_id'])
-            ->whereNull('deleted_at')
-            ->update([
-              'weight' => $obj['weight'],
+          $isActive = ($obj['active'] ?? true) !== false;
+          EvaluationCategoryObjectiveDetail::updateOrCreate(
+            [
+              'category_id' => $categoryId,
+              'person_id' => $workerId,
+              'objective_id' => $obj['objective_id'],
+            ],
+            [
+              'weight' => $isActive ? ($obj['weight'] ?? 0) : 0,
               'goal' => $obj['goal'] ?? null,
-              'fixedWeight' => $obj['weight'] > 0,
-            ]);
+              'fixedWeight' => $isActive && ($obj['weight'] ?? 0) > 0,
+              'active' => $isActive ? 1 : 0,
+            ]
+          );
         }
       }
     });

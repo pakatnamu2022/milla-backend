@@ -77,6 +77,16 @@ class EvaluationObjectiveController extends Controller
     }
   }
 
+  public function deactivateInCategories(ActivateObjectiveInCategoriesRequest $request, $id)
+  {
+    try {
+      $categoryIds = $request->validated()['category_ids'] ?? null;
+      return $this->success($this->service->deactivateInCategories((int)$id, $categoryIds));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function previewActivateInCategories($id)
   {
     try {

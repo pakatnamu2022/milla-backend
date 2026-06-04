@@ -156,8 +156,9 @@ class EvaluationCategoryObjectiveDetailController extends Controller
       $data = $request->validate([
         'objectives'                => 'required|array|min:1',
         'objectives.*.objective_id' => 'required|integer|exists:gh_evaluation_objective,id',
-        'objectives.*.weight'       => 'required|numeric|min:0',
+        'objectives.*.weight'       => 'nullable|numeric|min:0',
         'objectives.*.goal'         => 'nullable|numeric',
+        'objectives.*.active'       => 'nullable|boolean',
       ]);
       return response()->json($this->service->applyReferenceWeightsToAllWorkers($category, $data['objectives']));
     } catch (\Throwable $th) {
