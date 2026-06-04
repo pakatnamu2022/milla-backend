@@ -244,4 +244,14 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function revertir($id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->revertir($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

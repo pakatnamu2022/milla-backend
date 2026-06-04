@@ -913,7 +913,7 @@ class ApWorkOrder extends Model
 
       $documentData = [
         'id' => $document->id,
-        'is_advance_payment' => $document->is_advance_payment,
+        'is_advance_payment' => (boolean)$document->is_advance_payment,
         'document_type' => $document->documentType->description,
         'number' => $document->full_number,
         'serie' => $document->serie,

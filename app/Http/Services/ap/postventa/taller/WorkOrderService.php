@@ -1462,6 +1462,52 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Revertir el estado de la orden de trabajo desde finalizada
+   */
+  public function revertir(mixed $data): WorkOrderResource
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = ApWorkOrder::with(['items.typePlanning'])->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
+      }
+
+      $validateReception = $workOrder->shouldValidateReceipt();
+      $validateLabor = $workOrder->shouldValidateLabor();
+
+      // Determinar el estado al que debe retroceder
+      if ($validateLabor) {
+        $newStatusId = ApMasters::END_WORK_WORK_ORDER_ID;
+      } elseif ($validateReception) {
+        $newStatusId = ApMasters::RECEIVED_WORK_ORDER_ID;
+      } else {
+        $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
+      }
+
+      $workOrder->update([
+        'status_id' => $newStatusId,
+      ]);
+
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
    * Procesa una firma de entrega en base64 y la guarda en Digital Ocean
    */
   private function processDeliverySignature(ApWorkOrder $workOrder, string $base64Signature): void
