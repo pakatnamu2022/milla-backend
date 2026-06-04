@@ -83,4 +83,13 @@ class ViewController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function rolesByView(int $id)
+  {
+    try {
+      return $this->success($this->service->getRolesByView($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -74,6 +74,7 @@ class Vehicles extends BaseModel
     'type_operation_id' => '=',
     'is_received' => 'accessor_bool',
     'has_delivery_guide' => 'accessor_bool',
+    'has_vehicle_delivery' => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -99,6 +100,18 @@ class Vehicles extends BaseModel
   public function getHasDeliveryGuideAttribute(): bool
   {
     return $this->vehicleDelivery()->exists();
+  }
+
+  /**
+   * Accesor para determinar si el vehículo tiene registrada una entrega: 'has_vehicle_delivery'
+   * Útil para filtrar vehículos que ya tienen una entrega pendiente o completada.
+   * @return bool
+   */
+  public function getHasVehicleDeliveryAttribute(): bool
+  {
+    return ApVehicleDelivery::where('vehicle_id', $this->id)
+      ->whereNull('deleted_at')
+      ->exists();
   }
 
   public function setPlateAttribute($value)

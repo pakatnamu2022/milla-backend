@@ -44,10 +44,10 @@ class PotentialBuyersService extends BaseService
     );
   }
 
-  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAllUsers)
+  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAdvisors)
   {
     $workerIdToUse = $workerId;
-    if ($canViewAllUsers && $requestWorkerId) {
+    if ($canViewAdvisors && $requestWorkerId) {
       $workerIdToUse = $requestWorkerId;
     }
 
@@ -816,20 +816,22 @@ class PotentialBuyersService extends BaseService
     return $this->exportService->exportFromRequest($request, PotentialBuyers::class);
   }
 
-  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId): array
+  public function transferWorkers(int $fromWorkerId, int $toWorkerId, array $potentialBuyerIds, int $bossWorkerId, ?string $dateFrom = null, ?string $dateTo = null, bool $bypassTeamValidation = false): array
   {
-    $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
-      ->where('year', now()->year)
-      ->where('month', now()->month)
-      ->where('status', true)
-      ->pluck('worker_id')
-      ->toArray();
+    if (!$bypassTeamValidation) {
+      $teamIds = ApAssignmentLeadership::where('boss_id', $bossWorkerId)
+        ->where('year', now()->year)
+        ->where('month', now()->month)
+        ->where('status', true)
+        ->pluck('worker_id')
+        ->toArray();
 
-    if (!in_array($fromWorkerId, $teamIds) || !in_array($toWorkerId, $teamIds)) {
-      return [
-        'success' => false,
-        'message' => 'Los asesores deben pertenecer a tu equipo en el periodo actual',
-      ];
+      if (!in_array($fromWorkerId, $teamIds) || !in_array($toWorkerId, $teamIds)) {
+        return [
+          'success' => false,
+          'message' => 'Los asesores deben pertenecer a tu equipo en el periodo actual',
+        ];
+      }
     }
 
     $query = PotentialBuyers::where('worker_id', $fromWorkerId)
@@ -837,6 +839,11 @@ class PotentialBuyersService extends BaseService
 
     if (!empty($potentialBuyerIds)) {
       $query->whereIn('id', $potentialBuyerIds);
+    } else {
+      $query->whereBetween('created_at', [
+        $dateFrom . ' 00:00:00',
+        $dateTo . ' 23:59:59',
+      ]);
     }
 
     $count = $query->count();
@@ -844,15 +851,15 @@ class PotentialBuyersService extends BaseService
     if ($count === 0) {
       return [
         'success' => false,
-        'message' => 'No hay registros pendientes para transferir',
+        'message' => 'No hay registros pendientes para transferir en el período indicado',
       ];
     }
 
     $query->update(['worker_id' => $toWorkerId]);
 
     return [
-      'success'           => true,
-      'message'           => "{$count} potential buyer(s) transferido(s) correctamente",
+      'success' => true,
+      'message' => "{$count} lead(s) transferido(s) correctamente",
       'transferred_count' => $count,
     ];
   }
