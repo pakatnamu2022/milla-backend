@@ -25,10 +25,12 @@ use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class InventoryMovementService extends BaseService
@@ -1403,6 +1405,9 @@ class InventoryMovementService extends BaseService
         }
       }
 
+      // Intentar obtener la factura final si existe
+      $finalInvoice = $workOrder->getFinalInvoice();
+
       // Create movement header
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
@@ -1411,6 +1416,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApWorkOrder::class,
         'reference_id' => $workOrder->id,
+        'electronic_document_id' => $finalInvoice?->id,
         'user_id' => $workOrder->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
@@ -1452,6 +1458,130 @@ class InventoryMovementService extends BaseService
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
     } catch (Exception $e) {
       DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Create RETURN_IN movement from Credit Note for Work Order
+   *
+   * @param ElectronicDocument $creditNote - The credit note document
+   * @param ApWorkOrder $workOrder - The work order
+   * @param array|null $itemsToReturn - Optional array of items to return (for partial returns)
+   *                                    Format: [['product_id' => 1, 'quantity' => 2], ...]
+   *                                    If null, returns ALL products from work order
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createReturnMovementFromCreditNote($creditNote, $workOrder, $itemsToReturn = null): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Get warehouse from sede
+      $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén asociado a la sede de la orden de trabajo');
+      }
+
+      // Determine credit note type description
+      $creditNoteTypeDescription = 'Desconocido';
+      if ($creditNote->sunat_concept_credit_note_type_id == 68) { // ID_CREDIT_NOTE_ANULACION
+        $creditNoteTypeDescription = 'Anulación de operación';
+      } elseif ($creditNote->sunat_concept_credit_note_type_id == 73) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
+        $creditNoteTypeDescription = 'Devolución total';
+      } elseif ($creditNote->sunat_concept_credit_note_type_id == 74) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
+        $creditNoteTypeDescription = 'Devolución por ítem';
+      }
+
+      // Create return movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_RETURN_IN,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'reference_type' => ElectronicDocument::class,
+        'reference_id' => $creditNote->id,
+        'electronic_document_id' => $creditNote->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - {$workOrder->correlative}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      if ($itemsToReturn === null) {
+        // Full return - return ALL products from work order
+        $productParts = $workOrder->parts->where('product_id', '!=', null);
+
+        foreach ($productParts as $part) {
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $movement->id,
+            'product_id' => $part->product_id,
+            'quantity' => $part->quantity_used,
+            'unit_cost' => $part->unit_price,
+            'total_cost' => $part->net_amount,
+            'notes' => "Devolución NC {$creditNote->full_number} - {$part->product->name}",
+          ]);
+
+          $totalItems++;
+          $totalQuantity += $part->quantity_used;
+        }
+      } else {
+        // Partial return - return only specified items
+        foreach ($itemsToReturn as $item) {
+          $part = $workOrder->parts()
+            ->where('product_id', $item['product_id'])
+            ->first();
+
+          if (!$part) {
+            Log::warning('Producto no encontrado en OT para crear detalle de devolución', [
+              'credit_note_id' => $creditNote->id,
+              'work_order_id' => $workOrder->id,
+              'product_id' => $item['product_id'],
+            ]);
+            continue;
+          }
+
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $movement->id,
+            'product_id' => $item['product_id'],
+            'quantity' => $item['quantity'],
+            'unit_cost' => $part->unit_price,
+            'total_cost' => $part->unit_price * $item['quantity'],
+            'notes' => "Devolución parcial NC {$creditNote->full_number} - {$part->product->name}",
+          ]);
+
+          $totalItems++;
+          $totalQuantity += $item['quantity'];
+        }
+      }
+
+      // Update movement totals
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update stock automatically (adds stock back to warehouse)
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      Log::error('Error al crear movimiento de devolución por NC', [
+        'credit_note_id' => $creditNote->id ?? null,
+        'work_order_id' => $workOrder->id ?? null,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
     }
   }

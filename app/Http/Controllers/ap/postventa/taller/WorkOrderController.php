@@ -76,16 +76,6 @@ class WorkOrderController extends Controller
     }
   }
 
-  public function getPaymentSummary($id, Request $request)
-  {
-    try {
-      $groupNumber = $request->query('group_number');
-      return $this->service->getPaymentSummary($id, $groupNumber);
-    } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
-    }
-  }
-
   public function getPreLiquidationPdf($id)
   {
     try {
@@ -250,6 +240,16 @@ class WorkOrderController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->cancel($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function revertir($id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->revertir($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

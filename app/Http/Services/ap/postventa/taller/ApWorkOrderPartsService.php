@@ -7,6 +7,7 @@ use App\Http\Resources\ap\postventa\taller\ApWorkOrderPartDeliveryResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -146,7 +147,13 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
+
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
+      }
 
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
@@ -242,11 +249,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($data) {
       $workOrderPart = $this->find($data['id']);
+      $workOrder = $workOrderPart->workOrder;
 
-      // Validar que no existan avances de factura
-      if ($workOrderPart->workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede actualizar el repuesto porque la orden de trabajo ya tiene avances de factura');
-      }
+      $workOrder->ensureCanBeModified();
 
       $oldProductId = $workOrderPart->product_id;
       $oldWarehouseId = $workOrderPart->warehouse_id;
@@ -359,6 +364,24 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $data['net_amount'] = $recalcData['net_amount'];
         $data['tax_amount'] = $recalcData['tax_amount'];
         $data['unit_price'] = $recalcData['unit_price'];
+
+        // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+        $workOrder->refresh();
+        $currentTotals = $workOrder->getTotalsArray();
+
+        // Calcular el cambio en net_amount
+        $oldNetAmount = $workOrderPart->net_amount;
+        $newNetAmount = $recalcData['net_amount'];
+        $deltaNetAmount = $newNetAmount - $oldNetAmount;
+
+        // Aplicar IGV al delta (usar la misma lógica que ApWorkOrder::getTotalsArray)
+        $deltaWithTax = $deltaNetAmount * (1 + Constants::VAT_TAX / 100);
+
+        // Proyectar el nuevo total (final_amount incluye IGV)
+        $projectedFinalAmount = $currentTotals['total_amount'] + $deltaWithTax;
+
+        // Validar
+        $workOrder->validateMinimumAmount($projectedFinalAmount);
       }
 
       // Update work order part
@@ -380,11 +403,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
   {
     return DB::transaction(function () use ($id) {
       $workOrderPart = $this->find($id);
+      $workOrder = $workOrderPart->workOrder;
 
-      // Validar que no existan avances de factura
-      if ($workOrderPart->workOrder->advancesWorkOrder()->exists()) {
-        throw new Exception('No se puede eliminar el repuesto porque la orden de trabajo ya tiene avances de factura');
-      }
+      $workOrder->ensureCanBeModified();
 
       // Validar que no existan asignaciones a técnicos (entregas)
       if ($workOrderPart->deliveries()->exists()) {
@@ -404,6 +425,19 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($discountRequest) {
         throw new Exception('No se puede eliminar el repuesto porque tiene una solicitud de descuento en estado ' . $this->translateDiscountStatus($discountRequest->status));
       }
+
+      // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+      $workOrder->refresh();
+      $currentTotals = $workOrder->getTotalsArray();
+
+      // Calcular el monto del item con IGV incluido (usar la misma lógica que ApWorkOrder::getTotalsArray)
+      $itemNetAmount = $workOrderPart->net_amount;
+      $itemWithTax = $itemNetAmount * (1 + Constants::VAT_TAX / 100);
+
+      // Proyectar el nuevo total (final_amount incluye IGV)
+      $projectedFinalAmount = $currentTotals['total_amount'] - $itemWithTax;
+
+      $workOrder->validateMinimumAmount($projectedFinalAmount);
 
       // Liberar el stock reservado
       $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)
@@ -830,31 +864,5 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
       ];
     });
-  }
-
-  /**
-   * Validar el estado de la orden de trabajo
-   */
-  private function validateWorkOrderState(ApWorkOrder $workOrder): void
-  {
-    $validateReceipt = $workOrder->shouldValidateReceipt();
-
-    $statusMessageMap = [
-      ApMasters::CANCELED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cancelada de la OT',
-      ApMasters::FINISHED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo finalizada de la OT',
-      ApMasters::CLOSED_WORK_ORDER_ID => 'No se puede agregar repuestos a una orden de trabajo cerrada de la OT',
-    ];
-
-    if (isset($statusMessageMap[$workOrder->status_id])) {
-      throw new Exception($statusMessageMap[$workOrder->status_id]);
-    }
-
-    if ($workOrder->vehicleInspection === null && $validateReceipt) {
-      throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
-    }
-
-    if ($workOrder->advancesWorkOrder()->exists()) {
-      throw new Exception('No se puede agregar repuestos porque la orden de trabajo ya tiene avances de factura');
-    }
   }
 }

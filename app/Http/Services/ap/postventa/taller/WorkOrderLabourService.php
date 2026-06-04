@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderLabourResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -47,7 +48,13 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
+
+      $validateReceipt = $workOrder->shouldValidateReceipt();
+
+      if ($workOrder->vehicleInspection === null && $validateReceipt) {
+        throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
+      }
 
       $this->handleQuotationDetail($data['quotation_detail_id'] ?? null);
 
@@ -101,7 +108,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $workOrderLabour = $this->find($data['id']);
       $workOrder = $workOrderLabour->workOrder;
 
-      $this->validateWorkOrderState($workOrder);
+      $workOrder->ensureCanBeModified();
 
       if (isset($data['time_spent']) || isset($data['hourly_rate']) || isset($data['discount_percentage'])) {
         $timeSpent = isset($data['time_spent'])
@@ -121,6 +128,24 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         if (isset($data['time_spent'])) {
           $data['time_spent'] = $timeSpent;
         }
+
+        // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+        $workOrder->refresh();
+        $currentTotals = $workOrder->getTotalsArray();
+
+        // Calcular el cambio en net_amount
+        $oldNetAmount = $workOrderLabour->net_amount;
+        $newNetAmount = $data['net_amount'];
+        $deltaNetAmount = $newNetAmount - $oldNetAmount;
+
+        // Aplicar IGV al delta (usar la misma lógica que ApWorkOrder::getTotalsArray)
+        $deltaWithTax = $deltaNetAmount * (1 + Constants::VAT_TAX / 100);
+
+        // Proyectar el nuevo total (final_amount incluye IGV)
+        $projectedFinalAmount = $currentTotals['total_amount'] + $deltaWithTax;
+
+        // Validar
+        $workOrder->validateMinimumAmount($projectedFinalAmount);
       }
 
       $workOrderLabour->update($data);
@@ -135,10 +160,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
 
-    // Validar que no existan avances de factura
-    if ($workOrder->advancesWorkOrder()->exists()) {
-      throw new Exception('No se puede eliminar la mano de obra porque la orden de trabajo ya tiene avances de factura');
-    }
+    $workOrder->ensureCanBeModified();
 
     // Validar si existe una solicitud de descuento activa
     $discountRequest = DiscountRequestsWorkOrder::where('part_labour_id', $id)
@@ -153,6 +175,19 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     if ($discountRequest) {
       throw new Exception('No se puede eliminar la mano de obra porque tiene una solicitud de descuento en estado ' . $this->translateDiscountStatus($discountRequest->status));
     }
+
+    // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+    $workOrder->refresh();
+    $currentTotals = $workOrder->getTotalsArray();
+
+    // Calcular el monto del item con IGV incluido (usar la misma lógica que ApWorkOrder::getTotalsArray)
+    $itemNetAmount = $workOrderLabour->net_amount;
+    $itemWithTax = $itemNetAmount * (1 + Constants::VAT_TAX / 100);
+
+    // Proyectar el nuevo total (final_amount incluye IGV)
+    $projectedFinalAmount = $currentTotals['total_amount'] - $itemWithTax;
+
+    $workOrder->validateMinimumAmount($projectedFinalAmount);
 
     DB::transaction(function () use ($workOrderLabour, $workOrder) {
       // Si la OT tiene order_quotation_id, buscar el item en la cotización y liberarlo
@@ -185,32 +220,6 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     return is_numeric($timeValue)
       ? floatval($timeValue)
       : $this->timeToDecimal($timeValue);
-  }
-
-  /**
-   * Validar el estado de la orden de trabajo
-   */
-  private function validateWorkOrderState(ApWorkOrder $workOrder): void
-  {
-    $validateReceipt = $workOrder->shouldValidateReceipt();
-
-    $statusMessageMap = [
-      ApMasters::CANCELED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cancelado de la OT',
-      ApMasters::FINISHED_WORK_ORDER_ID => 'Esta acción no está permitida en estado finalizado de la OT',
-      ApMasters::CLOSED_WORK_ORDER_ID => 'Esta acción no está permitida en estado cerrado de la OT',
-    ];
-
-    if (isset($statusMessageMap[$workOrder->status_id])) {
-      throw new Exception($statusMessageMap[$workOrder->status_id]);
-    }
-
-    if ($workOrder->vehicleInspection === null && $validateReceipt) {
-      throw new Exception('No se puede agregar mano de obra a una orden de trabajo sin recepción de vehículo');
-    }
-
-    if ($workOrder->advancesWorkOrder()->exists()) {
-      throw new Exception('No se puede agregar mano de obra porque la orden de trabajo ya tiene avances de factura');
-    }
   }
 
   /**

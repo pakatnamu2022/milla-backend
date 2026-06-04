@@ -77,10 +77,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
             });
         })
           ->orWhereHas('workOrders', function ($q) {
-            // Condición 2: Cotizaciones asociadas a OT con factura generada
-            $q->where('has_invoice_generated', true);
+            // Condición 2: Cotizaciones asociadas a OT con factura generada y con al menos un anticipo contabilizado
+            $q->where('has_invoice_generated', true)
+              ->whereHas('advancesWorkOrder', function ($q2) {
+                $q2->where('is_advance_payment', 1)
+                  ->where('is_accounted', true);
+              });
           });
+      })
+      // Condición 3: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
+      ->whereHas('details', function ($q) {
+        $q->whereIn('supply_type', ['LOCAL', 'CENTRAL', 'IMPORTACION']);
       });
+
 
     return $this->getFilteredResults(
       $query,
@@ -1402,8 +1411,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ->whereNull('deleted_at')
         ->exists();
 
-      // Actualizar si cumple condiciones
-      if ($totalPaid >= $quotation->total_amount && $hasInternalSale) {
+      // Actualizar si cumple condiciones con tolerancia de redondeo
+      // Permite diferencias mínimas causadas por redondeos acumulativos en cálculos de IGV e items
+      $difference = (float)$totalPaid - (float)$quotation->total_amount;
+      if ($difference >= -ElectronicDocument::ROUNDING_TOLERANCE && $hasInternalSale) {
         $quotation->update([
           'is_fully_paid' => true,
           'status' => ApOrderQuotations::STATUS_FACTURADO

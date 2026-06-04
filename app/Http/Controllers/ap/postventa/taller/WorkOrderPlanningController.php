@@ -31,7 +31,8 @@ class WorkOrderPlanningController extends Controller
   public function store(StoreWorkOrderPlanningRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->all()));
+      $data = $request->validated();
+      return $this->success($this->service->store($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

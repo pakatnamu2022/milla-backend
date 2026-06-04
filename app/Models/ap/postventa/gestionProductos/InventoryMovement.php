@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\User;
@@ -31,6 +32,7 @@ class InventoryMovement extends Model
     'exchange_rate',
     'reference_type',
     'reference_id',
+    'electronic_document_id',
     'cancelled_inventory_movement_id',
     'user_id',
     'status',
@@ -178,6 +180,11 @@ class InventoryMovement extends Model
   public function cancelledInventoryMovement(): BelongsTo
   {
     return $this->belongsTo(InventoryMovement::class, 'cancelled_inventory_movement_id');
+  }
+
+  public function electronicDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
   }
 
   // Accessors

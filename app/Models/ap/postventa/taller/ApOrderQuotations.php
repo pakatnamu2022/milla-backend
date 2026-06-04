@@ -7,6 +7,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\gp\maestroGeneral\Sede;
@@ -18,10 +19,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-
-/*
-  Modelo para las cotizaciones
-*/
 
 class ApOrderQuotations extends Model
 {
@@ -191,7 +188,7 @@ class ApOrderQuotations extends Model
   {
     return $this->belongsTo(BusinessPartners::class, 'invoice_to');
   }
-  
+
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
@@ -361,5 +358,81 @@ class ApOrderQuotations extends Model
 
     $frontendUrl = config('app.frontend_url');
     return "{$frontendUrl}/confirmacion-cotizacion/{$this->confirmation_token}";
+  }
+
+  /**
+   * Get active advances for this quotation.
+   *
+   * An advance is truly cancelled (and therefore excluded) only when:
+   *   - status = 'cancelled' (voided locally before SUNAT communication)
+   *   - anulado = 1 (low-communication sent to SUNAT)
+   *   - It has a linked credit note of type ANULACION or DEVOLUCION_TOTAL,
+   *     which fully reverses the original transaction to zero.
+   *
+   * Advances with debit notes or partial credit notes (DESCUENTO_GLOBAL,
+   * DEVOLUCION_ITEM, etc.) remain active — they only adjust the amount.
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getActiveAdvances()
+  {
+    $annullingTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    return $this->advancesOrderQuotation->filter(function ($advance) use ($annullingTypes) {
+      if (!$advance->aceptada_por_sunat
+        || !$advance->is_advance_payment
+        || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
+        return false;
+      }
+
+      if ($advance->status === ElectronicDocument::STATUS_CANCELLED || $advance->anulado == 1) {
+        return false;
+      }
+
+      if ($advance->credit_note_id !== null
+        && in_array($advance->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes)) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Get cancelled advances for this quotation.
+   *
+   * An advance is cancelled when:
+   *   - status = 'cancelled', OR
+   *   - anulado = 1, OR
+   *   - It has a linked credit note of type ANULACION or DEVOLUCION_TOTAL.
+   *
+   * Advances with debit notes or partial credit notes are NOT cancelled.
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getCancelledAdvances()
+  {
+    $annullingTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    return $this->advancesOrderQuotation->filter(function ($advance) use ($annullingTypes) {
+      if (!$advance->aceptada_por_sunat
+        || !$advance->is_advance_payment
+        || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
+        return false;
+      }
+
+      if ($advance->status === ElectronicDocument::STATUS_CANCELLED || $advance->anulado == 1) {
+        return true;
+      }
+
+      return $advance->credit_note_id !== null
+        && in_array($advance->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes);
+    });
   }
 }

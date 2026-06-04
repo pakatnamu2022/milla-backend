@@ -5,7 +5,6 @@ namespace App\Http\Resources\ap\postventa\taller;
 use App\Http\Resources\ap\ApMastersResource;
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
-use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
@@ -87,8 +86,13 @@ class WorkOrderResource extends JsonResource
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
-      'advances' => ElectronicDocumentResource::collection(
-        $this->whenLoaded('advancesWorkOrder', fn() => $this->advancesWorkOrder->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
+      'vouchers' => $this->when(
+        $this->relationLoaded('advancesWorkOrder'),
+        fn() => $this->getDocumentsTree()
+      ),
+      'payment_summary' => $this->when(
+        $this->relationLoaded('advancesWorkOrder'),
+        fn() => $this->getPaymentSummary()
       ),
       'internal_note' => new InternalNoteResource($this->whenLoaded('internalNote')),
     ];

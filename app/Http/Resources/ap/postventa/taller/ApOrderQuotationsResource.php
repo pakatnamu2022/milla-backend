@@ -5,8 +5,6 @@ namespace App\Http\Resources\ap\postventa\taller;
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
-use App\Http\Resources\gp\maestroGeneral\SedeResource;
-use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -87,7 +85,10 @@ class ApOrderQuotationsResource extends JsonResource
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
       'advances' => ElectronicDocumentResource::collection(
-        $this->whenLoaded('advancesOrderQuotation', fn() => $this->advancesOrderQuotation->filter(fn($advance) => $advance->aceptada_por_sunat == 1))
+        $this->whenLoaded('advancesOrderQuotation', fn() => $this->getActiveAdvances())
+      ),
+      'advances_cancelled' => ElectronicDocumentResource::collection(
+        $this->whenLoaded('advancesOrderQuotation', fn() => $this->getCancelledAdvances())
       ),
       'client' => $this->client,
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty(),
