@@ -504,7 +504,7 @@ class SyncAccountingStatusJob implements ShouldQueue
       // Crear movimiento de inventario de devolución parcial
       if (!empty($itemsToReturn)) {
         $inventoryService = app(InventoryMovementService::class);
-        $returnMovement = $inventoryService->createReturnMovementFromCreditNote(
+        $returnMovement = $inventoryService->createReturnMovementForWorkOrder(
           $creditNote,
           $workOrder,
           $itemsToReturn // Array de ítems a devolver

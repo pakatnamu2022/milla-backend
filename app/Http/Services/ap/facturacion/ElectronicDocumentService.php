@@ -915,7 +915,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Solo para facturas finales (is_advance_payment = 0) que tienen work_order_id
       if ($document->work_order_id && $document->is_advance_payment == 0) {
         $reversalService = app(ApWorkOrderReversalService::class);
-        $reversalService->reverseWorkOrderStatus($document->work_order_id, null);
+        $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
       }
 
       DB::commit();

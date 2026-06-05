@@ -66,10 +66,10 @@ class ApWorkOrderReversalService
    * Crea un movimiento de devolución (RETURN_IN) sin eliminar el movimiento original de venta
    *
    * @param ApWorkOrder $workOrder
-   * @param ElectronicDocument|null $creditNote Nota de crédito (null si es cancelación de factura)
+   * @param ElectronicDocument|null $relatedDocument Nota de crédito o factura cancelada (null para legacy)
    * @return void
    */
-  public function reverseInventoryForWorkOrder(ApWorkOrder $workOrder, ?ElectronicDocument $creditNote = null): void
+  public function reverseInventoryForWorkOrder(ApWorkOrder $workOrder, ?ElectronicDocument $relatedDocument = null): void
   {
     try {
       // Buscar el movimiento de inventario asociado a la orden de trabajo
@@ -81,9 +81,9 @@ class ApWorkOrderReversalService
       if ($movement) {
         $inventoryService = app(InventoryMovementService::class);
 
-        // Crear movimiento de devolución por NC (mantiene el movimiento original de SALE)
-        $inventoryService->createReturnMovementFromCreditNote(
-          $creditNote,
+        // Crear movimiento de devolución (mantiene el movimiento original de SALE)
+        $inventoryService->createReturnMovementForWorkOrder(
+          $relatedDocument,
           $workOrder,
           null // null = devolución total de todos los productos
         );
@@ -91,7 +91,7 @@ class ApWorkOrderReversalService
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de devolución para orden de trabajo', [
         'work_order_id' => $workOrder->id,
-        'credit_note_id' => $creditNote->id ?? null,
+        'related_document_id' => $relatedDocument->id ?? null,
         'error' => $e->getMessage(),
       ]);
     }
