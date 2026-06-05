@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
@@ -10,6 +11,7 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -23,15 +25,21 @@ use Illuminate\Support\Facades\Log;
  * (migration_status = completed). Su responsabilidad es leer el estado real en Dynamics
  * a través de Stored Procedures y actuar en consecuencia.
  *
- * DOS FLUJOS SEGÚN EL TIPO DE GUÍA:
+ * TRES FLUJOS SEGÚN EL TIPO DE GUÍA:
  *
- *   A) Guía COMERCIAL de VENTA (dyn_series empieza con "CV-"):
+ *   A) Guía COMERCIAL de VENTA (area_id = COMERCIAL, transfer_reason_id = VENTA):
  *      - Consulta SP: EXEC neIvConsultarAjustesInventario
  *      - Si el Numero del resultado coincide con dyn_series → movimiento existente en Dynamics.
- *      - Efectos: marca is_accounted = true, cambia ApVehicleDelivery a status = 'completed'
- *        con fecha de entrega real, y actualiza la Oportunidad a estado DELIVERED.
+ *      - Efectos: marca is_accounted = true, cierra ApVehicleDelivery (status = 'completed')
+ *        con fecha de entrega real, y avanza la Oportunidad a estado DELIVERED.
  *
- *   B) Guía de TRANSFERENCIA (postventa):
+ *   B) Guía COMERCIAL de TRANSFERENCIA (area_id = COMERCIAL, no VENTA; incluye GUIA_INTERNA):
+ *      - Consulta SP: EXEC neIvConsultarTransferenciasInventario '{transactionId}'
+ *      - Verifica si Estado = 'CONTABILIZADO'.
+ *      - Solo actualiza is_accounted / is_annulled. No genera movimientos de inventario
+ *        (eso es exclusivo del área postventa).
+ *
+ *   C) Guía de TRANSFERENCIA (postventa):
  *      - Consulta SP: EXEC neIvConsultarTransferenciasInventario '{transactionId}'
  *      - Verifica si Estado = 'CONTABILIZADO'.
  *      - Guía activa   → marca is_accounted = true y genera movimiento de ENTRADA de inventario
@@ -88,13 +96,17 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
    * Carga en batch todas las guías que aún requieren confirmación contable:
    *   - Guías activas con migration_status = completed e is_accounted = false.
    *   - Guías canceladas con migration_status = completed e is_annulled = false.
+   * Incluye guías internas (GUIA_INTERNA) que no pasan por SUNAT.
    * Procesa cada una llamando a processShippingGuide(); los errores individuales
    * se loguean y no detienen el resto del lote.
    */
   protected function processAllShippingGuides(): void
   {
     $shippingGuides = ShippingGuides::whereNotNull('document_number')
-      ->where('aceptada_por_sunat', true)
+      ->where(function ($q) {
+        $q->where('aceptada_por_sunat', true)
+          ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
+      })
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where(function ($q) {
         $q->where(function ($q2) {
@@ -127,9 +139,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
   /**
    * Orquesta el procesamiento de una guía individual.
-   * Detecta el tipo por el prefijo de dyn_series y bifurca:
-   *   - "CV-" → processCommercialDeliveryGuide() (venta comercial).
-   *   - Otro  → flujo de transferencia postventa via neIvConsultarTransferenciasInventario.
+   * Bifurca según área y motivo de traslado — nunca por el prefijo del dyn_series:
+   *   - COMERCIAL + VENTA         → processCommercialDeliveryGuide()
+   *   - COMERCIAL + otros/GTI     → processCommercialTransferGuide()
+   *   - Otra área (postventa)     → flujo de transferencia con movimientos de inventario
    */
   protected function processShippingGuide(int $shippingGuideId): void
   {
@@ -140,13 +153,16 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     }
 
     try {
-      // Guías comerciales de VENTA (dyn_series con prefijo CV-) → neIvConsultarAjustesInventario
-      if (!empty($shippingGuide->dyn_series) && str_starts_with($shippingGuide->dyn_series, 'CV-')) {
-        $this->processCommercialDeliveryGuide($shippingGuide);
+      if ($shippingGuide->area_id === ApMasters::AREA_COMERCIAL) {
+        if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
+          $this->processCommercialDeliveryGuide($shippingGuide);
+        } else {
+          $this->processCommercialTransferGuide($shippingGuide);
+        }
         return;
       }
 
-      // Guías de transferencia (POSTVENTA) → neIvConsultarTransferenciasInventario
+      // Área POSTVENTA → neIvConsultarTransferenciasInventario + movimientos de inventario
       $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
       $result = $this->consultStoredProcedure($transactionId);
@@ -287,6 +303,47 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if ($quote?->opportunity_id) {
         Opportunity::where('id', $quote->opportunity_id)
           ->update(['opportunity_status_id' => Opportunity::DELIVERED_ID]);
+      }
+    }
+  }
+
+  /**
+   * Flujo TRANSFERENCIA comercial (area COMERCIAL, motivo distinto a VENTA; incluye GUIA_INTERNA).
+   * Consulta neIvConsultarTransferenciasInventario y verifica Estado = 'CONTABILIZADO'.
+   * Solo actualiza is_accounted o is_annulled; no genera movimientos de inventario
+   * porque eso es responsabilidad exclusiva del área postventa.
+   */
+  protected function processCommercialTransferGuide(ShippingGuides $shippingGuide): void
+  {
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+    $transactionId = $shippingGuide->getDynamicsTransferTransactionId($isCancelled);
+    $result = $this->consultStoredProcedure($transactionId);
+
+    if (!$result) {
+      Log::warning('No se encontró resultado en Dynamics para la guía comercial', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transaction_id'    => $transactionId,
+      ]);
+      return;
+    }
+
+    $isAccounted = ($result->Estado === 'CONTABILIZADO');
+
+    if ($isCancelled) {
+      $shippingGuide->update(['is_annulled' => $isAccounted]);
+      if (!$isAccounted) {
+        Log::info('La reversión comercial aún no está contabilizada en Dynamics', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'transaction_id'    => $transactionId,
+        ]);
+      }
+    } else {
+      $shippingGuide->update(['is_accounted' => $isAccounted]);
+      if (!$isAccounted) {
+        Log::info('La transferencia comercial aún no está contabilizada en Dynamics', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'transaction_id'    => $transactionId,
+        ]);
       }
     }
   }

@@ -410,12 +410,17 @@ class ShippingGuides extends BaseModel
 
   public function getTransferPrefix(ShippingGuides $shippingGuide): string
   {
-    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-      return 'CR-';
+    // Las guías internas son traslados internos entre sedes — siempre CT-
+    if ($shippingGuide->document_type === self::DOCUMENT_TYPE_GUIA_INTERNA) {
+      return 'CT-';
     }
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
       return 'CT-';
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      return 'CR-';
     }
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_OTROS) {
