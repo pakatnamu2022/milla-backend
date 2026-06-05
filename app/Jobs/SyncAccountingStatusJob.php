@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -392,31 +393,9 @@ class SyncAccountingStatusJob implements ShouldQueue
    */
   private function reverseWorkOrderStatus(int $workOrderId, ElectronicDocument $creditNote): void
   {
-    try {
-      $workOrder = ApWorkOrder::find($workOrderId);
-
-      if (!$workOrder) {
-        return;
-      }
-
-      // Revertir inventario si existe
-      if ($workOrder->output_generation_warehouse) {
-        $this->reverseInventoryForWorkOrder($workOrder, $creditNote);
-      }
-
-      // Revertir estados
-      $workOrder->update([
-        'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
-        'is_invoiced' => false,
-        'output_generation_warehouse' => false,
-      ]);
-
-    } catch (Exception $e) {
-      Log::error('Error al revertir estado de orden de trabajo', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-    }
+    // Delegar al servicio centralizado
+    $reversalService = app(ApWorkOrderReversalService::class);
+    $reversalService->reverseWorkOrderStatus($workOrderId, $creditNote);
   }
 
   /**
@@ -441,44 +420,6 @@ class SyncAccountingStatusJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al revertir inventario de cotización', [
         'quotation_id' => $quotation->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Revertir movimiento de inventario de una orden de trabajo
-   * Solo repuestos (ApWorkOrderParts), no mano de obra
-   *
-   * Crea un movimiento de devolución (RETURN_IN) sin eliminar el movimiento original de venta
-   *
-   * @param ApWorkOrder $workOrder
-   * @param ElectronicDocument $creditNote
-   * @return void
-   */
-  private function reverseInventoryForWorkOrder(ApWorkOrder $workOrder, ElectronicDocument $creditNote): void
-  {
-    try {
-      // Buscar el movimiento de inventario asociado a la orden de trabajo
-      $movement = InventoryMovement::where('reference_type', ApWorkOrder::class)
-        ->where('reference_id', $workOrder->id)
-        ->where('movement_type', InventoryMovement::TYPE_SALE)
-        ->first();
-
-      if ($movement) {
-        $inventoryService = app(InventoryMovementService::class);
-
-        // Crear movimiento de devolución por NC (mantiene el movimiento original de SALE)
-        $inventoryService->createReturnMovementFromCreditNote(
-          $creditNote,
-          $workOrder,
-          null // null = devolución total de todos los productos
-        );
-      }
-    } catch (Exception $e) {
-      Log::error('Error al crear movimiento de devolución para orden de trabajo', [
-        'work_order_id' => $workOrder->id,
-        'credit_note_id' => $creditNote->id ?? null,
         'error' => $e->getMessage(),
       ]);
     }

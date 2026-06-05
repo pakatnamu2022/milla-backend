@@ -7,11 +7,13 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -241,6 +243,53 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           throw new Exception(
             "Producto ({$detail['description']}): {$validation['message']}"
           );
+        }
+      }
+
+      // Validar stock en sistema externo solo para productos con supply_type = 'STOCK'
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id'])?->id;
+      if (!$warehouseId) {
+        throw new Exception('No se encontró un almacén físico asociado a esta sede para postventa. No se puede validar el stock de los productos.');
+      }
+
+      $inventoryMovementService = app(InventoryMovementService::class);
+
+      foreach ($data['details'] as $index => $detail) {
+        $supplyType = $detail['supply_type'] ?? null;
+
+        // Solo validar stock externo si es tipo STOCK
+        if ($supplyType === 'STOCK') {
+          $productId = $detail['product_id'];
+          $quantity = $detail['quantity'];
+
+          // Obtener el stock del producto en el almacén
+          $stock = ProductWarehouseStock::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if (!$stock) {
+            throw new Exception(
+              "Producto ({$detail['description']}): No se encontró registro de stock en el almacén seleccionado"
+            );
+          }
+
+          // Validar stock en sistema externo
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $stock->product->dyn_code,
+            $stock->warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $quantity) {
+            throw new Exception(
+              "Producto ({$detail['description']}): Stock insuficiente en sistema Dynamics. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$quantity}"
+            );
+          }
         }
       }
 

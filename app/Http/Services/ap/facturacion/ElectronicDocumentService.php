@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
@@ -909,6 +910,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Marcar como cancelado
       $document->markAsLocalCancelled($reason);
+
+      // Revertir estados e inventario si es factura final de orden de trabajo
+      // Solo para facturas finales (is_advance_payment = 0) que tienen work_order_id
+      if ($document->work_order_id && $document->is_advance_payment == 0) {
+        $reversalService = app(ApWorkOrderReversalService::class);
+        $reversalService->reverseWorkOrderStatus($document->work_order_id, null);
+      }
 
       DB::commit();
 

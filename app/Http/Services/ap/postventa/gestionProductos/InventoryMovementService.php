@@ -1465,7 +1465,7 @@ class InventoryMovementService extends BaseService
   /**
    * Create RETURN_IN movement from Credit Note for Work Order
    *
-   * @param ElectronicDocument $creditNote - The credit note document
+   * @param ElectronicDocument|null $creditNote - The credit note document (null if invoice cancellation)
    * @param ApWorkOrder $workOrder - The work order
    * @param array|null $itemsToReturn - Optional array of items to return (for partial returns)
    *                                    Format: [['product_id' => 1, 'quantity' => 2], ...]
@@ -1488,30 +1488,45 @@ class InventoryMovementService extends BaseService
       }
 
       // Determine credit note type description
-      $creditNoteTypeDescription = 'Desconocido';
-      if ($creditNote->sunat_concept_credit_note_type_id == 68) { // ID_CREDIT_NOTE_ANULACION
-        $creditNoteTypeDescription = 'Anulación de operación';
-      } elseif ($creditNote->sunat_concept_credit_note_type_id == 73) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
-        $creditNoteTypeDescription = 'Devolución total';
-      } elseif ($creditNote->sunat_concept_credit_note_type_id == 74) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
-        $creditNoteTypeDescription = 'Devolución por ítem';
+      $creditNoteTypeDescription = 'Cancelación de factura';
+      if ($creditNote) {
+        $creditNoteTypeDescription = 'Desconocido';
+        if ($creditNote->sunat_concept_credit_note_type_id == 68) { // ID_CREDIT_NOTE_ANULACION
+          $creditNoteTypeDescription = 'Anulación de operación';
+        } elseif ($creditNote->sunat_concept_credit_note_type_id == 73) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
+          $creditNoteTypeDescription = 'Devolución total';
+        } elseif ($creditNote->sunat_concept_credit_note_type_id == 74) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
+          $creditNoteTypeDescription = 'Devolución por ítem';
+        }
       }
 
-      // Create return movement header
-      $movement = InventoryMovement::create([
+      // Prepare movement data
+      $movementData = [
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_RETURN_IN,
         'movement_date' => now(),
         'warehouse_id' => $warehouse->id,
-        'reference_type' => ElectronicDocument::class,
-        'reference_id' => $creditNote->id,
-        'electronic_document_id' => $creditNote->id,
         'user_id' => Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - {$workOrder->correlative}",
         'total_items' => 0,
         'total_quantity' => 0,
-      ]);
+      ];
+
+      // Add credit note references if exists
+      if ($creditNote) {
+        $movementData['reference_type'] = ElectronicDocument::class;
+        $movementData['reference_id'] = $creditNote->id;
+        $movementData['electronic_document_id'] = $creditNote->id;
+        $movementData['notes'] = "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - {$workOrder->correlative}";
+      } else {
+        // Cancelación de factura (sin NC)
+        $movementData['reference_type'] = ApWorkOrder::class;
+        $movementData['reference_id'] = $workOrder->id;
+        $movementData['notes'] = "Devolución por {$creditNoteTypeDescription} - {$workOrder->correlative}";
+      }
+
+      // Create return movement header
+      $movement = InventoryMovement::create($movementData);
 
       // Create movement details
       $totalItems = 0;
@@ -1522,13 +1537,17 @@ class InventoryMovementService extends BaseService
         $productParts = $workOrder->parts->where('product_id', '!=', null);
 
         foreach ($productParts as $part) {
+          $detailNotes = $creditNote
+            ? "Devolución NC {$creditNote->full_number} - {$part->product->name}"
+            : "Devolución por cancelación - {$part->product->name}";
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $part->product_id,
             'quantity' => $part->quantity_used,
             'unit_cost' => $part->unit_price,
             'total_cost' => $part->net_amount,
-            'notes' => "Devolución NC {$creditNote->full_number} - {$part->product->name}",
+            'notes' => $detailNotes,
           ]);
 
           $totalItems++;
@@ -1543,12 +1562,16 @@ class InventoryMovementService extends BaseService
 
           if (!$part) {
             Log::warning('Producto no encontrado en OT para crear detalle de devolución', [
-              'credit_note_id' => $creditNote->id,
+              'credit_note_id' => $creditNote->id ?? null,
               'work_order_id' => $workOrder->id,
               'product_id' => $item['product_id'],
             ]);
             continue;
           }
+
+          $detailNotes = $creditNote
+            ? "Devolución parcial NC {$creditNote->full_number} - {$part->product->name}"
+            : "Devolución parcial por cancelación - {$part->product->name}";
 
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
@@ -1556,7 +1579,7 @@ class InventoryMovementService extends BaseService
             'quantity' => $item['quantity'],
             'unit_cost' => $part->unit_price,
             'total_cost' => $part->unit_price * $item['quantity'],
-            'notes' => "Devolución parcial NC {$creditNote->full_number} - {$part->product->name}",
+            'notes' => $detailNotes,
           ]);
 
           $totalItems++;
