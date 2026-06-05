@@ -66,11 +66,15 @@ class ShippingGuideDetailDynamicsResource extends JsonResource
     // Lógica para obtener el almacén de origen (venta)
     $sede = $this->shippingGuide->sedeTransmitter ?? throw new Exception("La guía de remisión no tiene una sede transmisora asociada.");
 
-    $baseQuery = Warehouse::where('sede_id', $sede->id)
-      ->where('type_operation_id', $type_operation_id)
+    $baseQuery = Warehouse::where('type_operation_id', $type_operation_id)
       ->where('article_class_id', $class_id);
 
-    $warehouse = (clone $baseQuery)->where('is_received', true)->first();
+    if ($this->shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+      $sedeReceiver = $this->shippingGuide->sedeReceiver ?? throw new Exception("La guía interna no tiene sede receptora.");
+      $warehouse = (clone $baseQuery)->where('sede_id', $sedeReceiver->id)->where('is_received', false)->first();
+    } else {
+      $warehouse = (clone $baseQuery)->where('sede_id', $sede->id)->where('is_received', true)->first();
+    }
 
     if (!$warehouse) {
       throw new Exception("No se encontró el almacén para la guía de remisión.");

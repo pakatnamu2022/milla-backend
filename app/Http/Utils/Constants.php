@@ -27,6 +27,8 @@ class Constants
   public const int NON_ASSIGN_STATUS = 28;
   public const int ASSIGN_STATUS = 29;
 
+  public const int AP_AUTOMOTORES_PARTNER_ID = 17;
+
   public const array AP_TICS_MAIL = [
     'wsuclupef@automotorespakatnamu.com',
     'dordinolac@grupopakatnamu.com',

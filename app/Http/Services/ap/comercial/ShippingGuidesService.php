@@ -10,6 +10,7 @@ use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\ap\facturacion\AccountingEntryService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
@@ -17,6 +18,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -168,41 +170,41 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // 6. Crear la guía de remisión
       $documentData = [
-        'document_type' => $data['document_type'],
-        'type_voucher_id' => $typeVoucherId,
-        'issuer_type' => $data['issuer_type'],
-        'document_series_id' => $documentSeriesId,
-        'series' => $series,
-        'correlative' => $correlative,
-        'document_number' => $documentNumber,
-        'issue_date' => $data['issue_date'],
-        'requires_sunat' => $data['requires_sunat'] ?? false,
-        'total_packages' => $data['total_packages'] ?? null,
-        'total_weight' => $data['total_weight'] ?? null,
-        'vehicle_movement_id' => $vehicleMovement ? $vehicleMovement->id : null,
-        'sede_transmitter_id' => $data['sede_transmitter_id'],
-        'sede_receiver_id' => $data['sede_receiver_id'],
-        'transmitter_id' => $data['transmitter_id'],
-        'receiver_id' => $data['receiver_id'],
-        'transport_company_id' => $data['transport_company_id'] ?? null,
-        'ruc_transport' => $rucTransport,
+        'document_type'          => $data['document_type'],
+        'type_voucher_id'        => $typeVoucherId,
+        'issuer_type'            => $data['issuer_type'],
+        'document_series_id'     => $documentSeriesId,
+        'series'                 => $series,
+        'correlative'            => $correlative,
+        'document_number'        => $documentNumber,
+        'issue_date'             => $data['issue_date'],
+        'requires_sunat'         => $data['requires_sunat'] ?? false,
+        'total_packages'         => $data['total_packages'] ?? null,
+        'total_weight'           => $data['total_weight'] ?? null,
+        'vehicle_movement_id'    => $vehicleMovement ? $vehicleMovement->id : null,
+        'sede_transmitter_id'    => $data['sede_transmitter_id'],
+        'sede_receiver_id'       => $data['sede_receiver_id'],
+        'transmitter_id'         => $data['transmitter_id'],
+        'receiver_id'            => $data['receiver_id'],
+        'transport_company_id'   => $data['transport_company_id'] ?? null,
+        'ruc_transport'          => $rucTransport,
         'company_name_transport' => $companyNameTransport,
-        'driver_doc' => $data['driver_doc'] ?? null,
-        'license' => $data['license'] ?? null,
-        'plate' => $data['plate'] ?? null,
-        'driver_name' => $data['driver_name'] ?? null,
-        'notes' => $data['notes'] ?? null,
-        'status' => $data['status'] ?? true,
-        'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
-        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
-        'created_by' => Auth::id(),
-        'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
-        'origin_ubigeo' => $origin->ubigeo ?? '-',
-        'origin_address' => $origin->address ?? '-',
-        'destination_ubigeo' => $destination->ubigeo ?? '-',
-        'destination_address' => $destination->address ?? '-',
-        'send_dynamics' => $data['send_dynamics'] ?? true,
-        'is_consignment' => $data['is_consignment'] ?? false,
+        'driver_doc'             => $data['driver_doc'] ?? null,
+        'license'                => $data['license'] ?? null,
+        'plate'                  => $data['plate'] ?? null,
+        'driver_name'            => $data['driver_name'] ?? null,
+        'notes'                  => $data['notes'] ?? null,
+        'status'                 => $data['status'] ?? true,
+        'transfer_reason_id'     => $data['transfer_reason_id'] ?? null,
+        'transfer_modality_id'   => $data['transfer_modality_id'] ?? null,
+        'created_by'             => Auth::id(),
+        'ap_class_article_id'    => $data['ap_class_article_id'] ?? null,
+        'origin_ubigeo'          => $origin->ubigeo ?? '-',
+        'origin_address'         => $origin->address ?? '-',
+        'destination_ubigeo'     => $destination->ubigeo ?? '-',
+        'destination_address'    => $destination->address ?? '-',
+        'send_dynamics'          => $data['send_dynamics'] ?? true,
+        'is_consignment'         => $data['is_consignment'] ?? false,
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -233,6 +235,102 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           'file_url' => $digitalFile->url,
         ]);
       }
+
+      return new ShippingGuidesResource($document);
+    });
+  }
+
+  public function storeInternal(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $vehicle = Vehicles::with(['warehouse', 'purchaseOrder'])->findOrFail($data['ap_vehicle_id']);
+
+      if (!$vehicle->warehouse || $vehicle->warehouse->is_received) {
+        throw new Exception('El vehículo no está en un almacén de existencias pendientes de recibir (EXT).');
+      }
+
+      $sedeTransmitterId = $vehicle->warehouse->sede_id;
+      $classArticleId = $vehicle->warehouse->article_class_id;
+
+      if ($sedeTransmitterId == $data['sede_receiver_id']) {
+        throw new Exception('La sede de origen y destino no pueden ser la misma para una guía interna.');
+      }
+
+      $pendingGuide = ShippingGuides::where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)
+        ->where('status', true)
+        ->where('is_accounted', false)
+        ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $data['ap_vehicle_id']))
+        ->first();
+
+      if ($pendingGuide) {
+        throw new Exception(
+          "El vehículo ya tiene la guía interna {$pendingGuide->document_number} pendiente de contabilizar. " .
+          'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+        );
+      }
+
+      $origin = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+        ->where('sede_id', $sedeTransmitterId)
+        ->firstOrFail();
+
+      $destination = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+        ->where('sede_id', $data['sede_receiver_id'])
+        ->firstOrFail();
+
+      $issueDate = $vehicle->purchaseOrder?->emission_date
+        ?? throw new Exception('El vehículo no tiene una orden de compra registrada para obtener la fecha.');
+
+      // Calcular número de documento antes del movimiento para usarlo como observación
+      $transferSeries = AssignSalesSeries::where('sede_id', $sedeTransmitterId)
+        ->where('type_receipt_id', AssignSalesSeries::GUIA_TRANSFERENCIA_INTERNA)
+        ->where('status', true)
+        ->firstOrFail();
+
+      $correlativeData = ShippingGuides::generateNextCorrelative($transferSeries->id, $transferSeries->correlative_start);
+      $documentNumber = $transferSeries->series . '-' . $correlativeData['correlative'];
+
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        "Traslado interno {$documentNumber}",
+        null  // usar now() como hora real del movimiento
+      );
+
+      $document = ShippingGuides::create([
+        'document_type'        => ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA,
+        'issuer_type'          => ShippingGuides::ISSUER_TYPE_SYSTEM,
+        'document_series_id'   => $transferSeries->id,
+        'series'               => $transferSeries->series,
+        'correlative'          => $correlativeData['correlative'],
+        'document_number'      => $documentNumber,
+        'issue_date'           => $issueDate,
+        'requires_sunat'       => false,
+        'send_dynamics'        => true,
+        'is_consignment'       => false,
+        'area_id'              => ApMasters::AREA_COMERCIAL,
+        'transfer_reason_id'   => SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
+        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
+        'vehicle_movement_id'  => $vehicleMovement->id,
+        'sede_transmitter_id'  => $sedeTransmitterId,
+        'sede_receiver_id'     => $data['sede_receiver_id'],
+        'transmitter_id'       => $origin->id,
+        'receiver_id'          => $destination->id,
+        'origin_ubigeo'        => $origin->ubigeo ?? '-',
+        'origin_address'       => $origin->address ?? '-',
+        'destination_ubigeo'   => $destination->ubigeo ?? '-',
+        'destination_address'  => $destination->address ?? '-',
+        'driver_doc'           => $data['driver_doc'] ?? null,
+        'license'              => $data['license'] ?? null,
+        'plate'                => $data['plate'] ?? null,
+        'driver_name'          => $data['driver_name'] ?? null,
+        'notes'                => $data['notes'] ?? null,
+        'status'               => true,
+        'ap_class_article_id'  => $classArticleId,
+        'created_by'           => Auth::id(),
+      ]);
+
+      VerifyAndMigrateShippingGuideJob::dispatch($document->id)->afterCommit();
 
       return new ShippingGuidesResource($document);
     });
@@ -321,41 +419,41 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       );
 
       $documentData = [
-        'document_type' => $data['document_type'],
-        'type_voucher_id' => $typeVoucherId,
-        'issuer_type' => $data['issuer_type'],
-        'document_series_id' => $documentSeriesId,
-        'series' => $series,
-        'correlative' => $correlative,
-        'document_number' => $documentNumber,
-        'issue_date' => $data['issue_date'],
-        'requires_sunat' => $data['requires_sunat'] ?? false,
-        'total_packages' => $data['total_packages'] ?? null,
-        'total_weight' => $data['total_weight'] ?? null,
-        'vehicle_movement_id' => $vehicleMovement->id,
-        'sede_transmitter_id' => $data['sede_transmitter_id'],
-        'sede_receiver_id' => $data['sede_receiver_id'],
-        'transmitter_id' => $data['transmitter_id'],
-        'receiver_id' => $data['receiver_id'],
-        'transport_company_id' => $data['transport_company_id'] ?? null,
-        'ruc_transport' => $rucTransport,
+        'document_type'          => $data['document_type'],
+        'type_voucher_id'        => $typeVoucherId,
+        'issuer_type'            => $data['issuer_type'],
+        'document_series_id'     => $documentSeriesId,
+        'series'                 => $series,
+        'correlative'            => $correlative,
+        'document_number'        => $documentNumber,
+        'issue_date'             => $data['issue_date'],
+        'requires_sunat'         => $data['requires_sunat'] ?? false,
+        'total_packages'         => $data['total_packages'] ?? null,
+        'total_weight'           => $data['total_weight'] ?? null,
+        'vehicle_movement_id'    => $vehicleMovement->id,
+        'sede_transmitter_id'    => $data['sede_transmitter_id'],
+        'sede_receiver_id'       => $data['sede_receiver_id'],
+        'transmitter_id'         => $data['transmitter_id'],
+        'receiver_id'            => $data['receiver_id'],
+        'transport_company_id'   => $data['transport_company_id'] ?? null,
+        'ruc_transport'          => $rucTransport,
         'company_name_transport' => $companyNameTransport,
-        'driver_doc' => $data['driver_doc'] ?? null,
-        'license' => $data['license'] ?? null,
-        'plate' => $data['plate'] ?? null,
-        'driver_name' => $data['driver_name'] ?? null,
-        'notes' => $data['notes'] ?? null,
-        'status' => $data['status'] ?? true,
-        'transfer_reason_id' => $data['transfer_reason_id'] ?? null,
-        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
-        'created_by' => Auth::id(),
-        'ap_class_article_id' => $data['ap_class_article_id'] ?? null,
-        'origin_ubigeo' => $origin->ubigeo ?? '-',
-        'origin_address' => $origin->address ?? '-',
-        'destination_ubigeo' => $destination->ubigeo ?? '-',
-        'destination_address' => $destination->address ?? '-',
-        'send_dynamics' => false,
-        'is_consignment' => true,
+        'driver_doc'             => $data['driver_doc'] ?? null,
+        'license'                => $data['license'] ?? null,
+        'plate'                  => $data['plate'] ?? null,
+        'driver_name'            => $data['driver_name'] ?? null,
+        'notes'                  => $data['notes'] ?? null,
+        'status'                 => $data['status'] ?? true,
+        'transfer_reason_id'     => $data['transfer_reason_id'] ?? null,
+        'transfer_modality_id'   => $data['transfer_modality_id'] ?? null,
+        'created_by'             => Auth::id(),
+        'ap_class_article_id'    => $data['ap_class_article_id'] ?? null,
+        'origin_ubigeo'          => $origin->ubigeo ?? '-',
+        'origin_address'         => $origin->address ?? '-',
+        'destination_ubigeo'     => $destination->ubigeo ?? '-',
+        'destination_address'    => $destination->address ?? '-',
+        'send_dynamics'          => false,
+        'is_consignment'         => true,
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -377,9 +475,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       if (!empty($data['accessories'])) {
         foreach ($data['accessories'] as $accessory) {
           ShippingGuideAccessory::create([
-            'shipping_guide_id' => $document->id,
-            'description' => $accessory['description'],
-            'quantity' => $accessory['quantity'],
+            'shipping_guide_id'   => $document->id,
+            'description'         => $accessory['description'],
+            'quantity'            => $accessory['quantity'],
             'unit_measurement_id' => $accessory['unit_measurement_id'] ?? null,
           ]);
         }
@@ -528,7 +626,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         // Actualizar el movimiento de vehículo asociado
         if ($document->vehicle_movement_id) {
           $document->vehicleMovement->update([
-            'origin_address' => $originAddress,
+            'origin_address'      => $originAddress,
             'destination_address' => $destinationAddress,
           ]);
         }
@@ -630,9 +728,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $document->update([
         'cancellation_reason' => $cancellationReason,
-        'cancelled_by' => Auth::id(),
-        'cancelled_at' => now(),
-        'status' => false,
+        'cancelled_by'        => Auth::id(),
+        'cancelled_at'        => now(),
+        'status'              => false,
       ]);
 
       // Sincronizar cancelación con Dynamics
@@ -676,15 +774,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $responseData = $response['data'];
 
         $guide->update([
-          'enlace' => $responseData['enlace'] ?? null,
-          'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? null,
-          'enlace_del_xml' => $responseData['enlace_del_xml'] ?? null,
-          'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? null,
+          'enlace'                => $responseData['enlace'] ?? null,
+          'enlace_del_pdf'        => $responseData['enlace_del_pdf'] ?? null,
+          'enlace_del_xml'        => $responseData['enlace_del_xml'] ?? null,
+          'enlace_del_cdr'        => $responseData['enlace_del_cdr'] ?? null,
           'cadena_para_codigo_qr' => $responseData['cadena_para_codigo_qr'] ?? null,
-          'sunat_description' => $responseData['sunat_description'] ?? null,
-          'sunat_note' => $responseData['sunat_note'] ?? null,
-          'sunat_responsecode' => $responseData['sunat_responsecode'] ?? null,
-          'sunat_soap_error' => $responseData['sunat_soap_error'] ?? null,
+          'sunat_description'     => $responseData['sunat_description'] ?? null,
+          'sunat_note'            => $responseData['sunat_note'] ?? null,
+          'sunat_responsecode'    => $responseData['sunat_responsecode'] ?? null,
+          'sunat_soap_error'      => $responseData['sunat_soap_error'] ?? null,
         ]);
 
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat']) {
@@ -702,9 +800,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       DB::commit();
 
       return response()->json([
-        'success' => $response['success'],
-        'message' => $message,
-        'data' => new ShippingGuidesResource($guide->fresh()),
+        'success'           => $response['success'],
+        'message'           => $message,
+        'data'              => new ShippingGuidesResource($guide->fresh()),
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
@@ -745,10 +843,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         } elseif (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat'] && $guide->aceptada_por_sunat) {
           // CASO 2: Ya estaba aceptada (consulta posterior)
           $guide->update([
-            'enlace' => $responseData['enlace'] ?? $guide->enlace,
-            'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
-            'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $guide->enlace_del_xml,
-            'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $guide->enlace_del_cdr,
+            'enlace'                => $responseData['enlace'] ?? $guide->enlace,
+            'enlace_del_pdf'        => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
+            'enlace_del_xml'        => $responseData['enlace_del_xml'] ?? $guide->enlace_del_xml,
+            'enlace_del_cdr'        => $responseData['enlace_del_cdr'] ?? $guide->enlace_del_cdr,
             'cadena_para_codigo_qr' => $responseData['cadena_para_codigo_qr'] ?? $guide->cadena_para_codigo_qr,
           ]);
           $message = 'La guía ya está aceptada por SUNAT'; // ← MENSAJE CORRECTO
@@ -756,10 +854,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         } else {
           // CASO 3: Realmente NO aceptada
           $guide->update([
-            'enlace' => $responseData['enlace'] ?? $guide->enlace,
-            'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
-            'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $guide->enlace_del_xml,
-            'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $guide->enlace_del_cdr,
+            'enlace'                => $responseData['enlace'] ?? $guide->enlace,
+            'enlace_del_pdf'        => $responseData['enlace_del_pdf'] ?? $guide->enlace_del_pdf,
+            'enlace_del_xml'        => $responseData['enlace_del_xml'] ?? $guide->enlace_del_xml,
+            'enlace_del_cdr'        => $responseData['enlace_del_cdr'] ?? $guide->enlace_del_cdr,
             'cadena_para_codigo_qr' => $responseData['cadena_para_codigo_qr'] ?? $guide->cadena_para_codigo_qr,
           ]);
           $message = 'Estado consultado. La guía aún no ha sido aceptada por SUNAT.';
@@ -769,9 +867,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       return response()->json([
-        'success' => $response['success'],
-        'message' => $message,
-        'data' => new ShippingGuidesResource($guide->fresh()),
+        'success'           => $response['success'],
+        'message'           => $message,
+        'data'              => new ShippingGuidesResource($guide->fresh()),
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
@@ -797,16 +895,16 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       $guide->update([
-        'is_received' => true,
+        'is_received'   => true,
         'note_received' => $noteReceived,
-        'received_by' => Auth::id(),
+        'received_by'   => Auth::id(),
         'received_date' => now(),
       ]);
 
       return response()->json([
         'success' => true,
         'message' => 'Guía marcada como recepcionada correctamente',
-        'data' => new ShippingGuidesResource($guide->fresh()),
+        'data'    => new ShippingGuidesResource($guide->fresh()),
       ]);
     });
   }
@@ -828,7 +926,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       return response()->json([
         'success' => true,
         'message' => 'La sincronización a Dynamics ha sido programada y se ejecutará en segundo plano',
-        'data' => new ShippingGuidesResource($guide->fresh()),
+        'data'    => new ShippingGuidesResource($guide->fresh()),
       ]);
     } catch (Exception $e) {
       throw new Exception('Error al programar la sincronización: ' . $e->getMessage());
@@ -851,8 +949,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $documentNumber = $series . '-' . $correlative;
 
     return [
-      'series' => $series,
-      'correlative' => $correlative,
+      'series'          => $series,
+      'correlative'     => $correlative,
       'document_number' => $documentNumber,
     ];
   }
@@ -917,7 +1015,19 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     return [
       'header' => $header->toArray(request()),
-      'lines' => $lines,
+      'lines'  => $lines,
+    ];
+  }
+
+  public function checkResources($id): array
+  {
+    $shippingGuide = $this->find($id);
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle ?? null;
+
+    return [
+      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
     ];
   }
 
@@ -957,7 +1067,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
 
     return [
-      'message' => 'Job de sincronización con Dynamics despachado exitosamente',
+      'message'        => 'Job de sincronización con Dynamics despachado exitosamente',
       'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
     ];
   }
@@ -982,8 +1092,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([
-        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        'error_message' => null,
+        'status'         => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message'  => null,
         'proceso_estado' => 0,
       ]);
 
@@ -994,7 +1104,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     return [
       'message' => "Job de migración despachado para la guía {$guide->document_number}",
-      'resets' => $resetActions,
+      'resets'  => $resetActions,
     ];
   }
 
@@ -1015,16 +1125,16 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
 
         $dispatched[] = [
-          'id' => $guide->id,
-          'number' => $guide->document_number,
+          'id'               => $guide->id,
+          'number'           => $guide->document_number,
           'migration_status' => $guide->migration_status,
-          'reason' => $reason,
+          'reason'           => $reason,
         ];
       });
 
     return [
       'total_dispatched' => count($dispatched),
-      'dispatched' => $dispatched,
+      'dispatched'       => $dispatched,
     ];
   }
 
@@ -1032,9 +1142,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   {
     if ($logs->isEmpty()) {
       return [
-        'type' => 'no_logs',
+        'type'        => 'no_logs',
         'description' => 'Sin logs de migración — despacho inicial',
-        'steps' => [],
+        'steps'       => [],
       ];
     }
 
@@ -1042,9 +1152,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
     if ($nonCompleted->isEmpty()) {
       return [
-        'type' => 'retry',
+        'type'        => 'retry',
         'description' => 'Todos los pasos tienen logs — reintentando migración',
-        'steps' => [],
+        'steps'       => [],
       ];
     }
 
@@ -1052,19 +1162,19 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
 
     $steps = $nonCompleted->map(fn($log) => [
-      'step' => $log->step,
-      'status' => $log->status,
-      'attempts' => $log->attempts,
-      'error' => $log->error_message,
+      'step'            => $log->step,
+      'status'          => $log->status,
+      'attempts'        => $log->attempts,
+      'error'           => $log->error_message,
       'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
     ])->values()->toArray();
 
     return [
-      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
       'description' => $hasFailed
         ? 'Tiene pasos fallidos pendientes de reintento'
         : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
-      'steps' => $steps,
+      'steps'       => $steps,
     ];
   }
 }

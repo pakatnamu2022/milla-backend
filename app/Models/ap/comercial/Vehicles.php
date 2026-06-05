@@ -8,6 +8,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -90,7 +91,7 @@ class Vehicles extends BaseModel
    */
   public function getIsReceivedAttribute()
   {
-    return $this->shippingGuides()->exists();
+    return $this->shippingGuides()->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)->exists();
   }
 
   /**

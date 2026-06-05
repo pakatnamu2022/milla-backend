@@ -2,27 +2,44 @@
 
 namespace App\Jobs;
 
-use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
-use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
-use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
-use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\DatabaseSyncService;
+use App\Http\Services\ap\comercial\dynamics\SaleShippingGuideDynamicsService;
+use App\Http\Services\ap\comercial\dynamics\ShippingGuideMigrationLogService;
+use App\Http\Services\ap\comercial\dynamics\TransferShippingGuideDynamicsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
-use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\gp\gestionsistema\Company;
-use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use function str_pad;
-use const STR_PAD_LEFT;
 
+/**
+ * Migra guías de remisión del área COMERCIAL hacia Microsoft Dynamics 365
+ * escribiendo en la base de datos intermedia (dbtp) y verificando su procesamiento.
+ *
+ * FLUJO GENERAL:
+ *   1. Toma guías con migration_status = pending/in_progress/failed del área COMERCIAL.
+ *   2. Según el motivo de traslado determina el tipo:
+ *      - VENTA   → escribe en neInTbTransaccionInventario (cabecera, detalle, serial/VIN).
+ *      - TRANSFER → escribe en neInTbTransferenciaInventario (cabecera, detalle, serial/VIN).
+ *   3. Para cada uno de los 3 pasos verifica si el registro YA existe en la BD intermedia:
+ *      - Si NO existe → lo sincroniza (inserta) y marca ProcesoEstado = 0 (en espera).
+ *      - Si existe    → lee ProcesoEstado devuelto por Dynamics:
+ *          * 0 = aún procesando   → sin cambios.
+ *          * 1 = aceptado         → marca el step como completado; en transferencias
+ *                                   también actualiza el warehouse_id del vehículo.
+ *   4. Cuando los 3 pasos están en ProcesoEstado = 1, marca la guía como
+ *      migration_status = completed y status_dynamic = 1.
+ *   5. Las cancelaciones usan steps "_REVERSAL" con asterisco en el TransaccionId/TransferenciaId.
+ *
+ * PUEDE DESPACHARSE:
+ *   - Con un $shippingGuideId específico → procesa solo esa guía.
+ *   - Sin ID                             → procesa todas las guías pendientes.
+ *
+ * COLA: shipping_guides | tries: 2 | timeout: 300 s | backoff: 120 s
+ */
 class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
@@ -31,45 +48,38 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
   public int $timeout = 300;
   public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
-  protected DatabaseSyncService $syncService;
-
-  /**
-   * Create a new job instance.
-   */
-  public function __construct(
-    public ?int $shippingGuideId = null
-  )
+  public function __construct(public ?int $shippingGuideId = null)
   {
     $this->onQueue('shipping_guides');
   }
 
   /**
-   * Execute the job.
-   * Si se proporciona un ID, procesa solo esa guía
-   * Si no, procesa todas las guías no migradas
    * @throws Exception
    */
-  public function handle(DatabaseSyncService $syncService): void
+  public function handle(
+    DatabaseSyncService              $syncService,
+    ShippingGuideMigrationLogService $logService
+  ): void
   {
-    $this->syncService = $syncService;
+    $saleService = new SaleShippingGuideDynamicsService($syncService, $logService);
+    $transferService = new TransferShippingGuideDynamicsService($syncService, $logService);
 
     try {
       if ($this->shippingGuideId) {
-        $this->processShippingGuide($this->shippingGuideId);
+        $this->processShippingGuide($this->shippingGuideId, $logService, $saleService, $transferService);
       } else {
-        $this->processAllPendingShippingGuides();
+        $this->processAllPendingShippingGuides($logService, $saleService, $transferService);
       }
     } catch (Exception $e) {
       Log::error('Error en VerifyAndMigrateShippingGuideJob', [
         'shipping_guide_id' => $this->shippingGuideId,
-        'error' => $e->getMessage(),
+        'error'             => $e->getMessage(),
       ]);
 
-      // Update guide status to failed so the scheduled command stops re-dispatching it
       if ($this->shippingGuideId) {
         $guide = ShippingGuides::find($this->shippingGuideId);
         if ($guide) {
-          $this->checkAndUpdateCompletionStatus($guide);
+          $logService->checkAndUpdateCompletionStatus($guide);
         }
       }
 
@@ -77,1153 +87,98 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     }
   }
 
-  /**
-   * Procesa todas las guías de remisión pendientes de migración
-   * SOLO procesa guías del área COMERCIAL (vehículos)
-   */
-  protected function processAllPendingShippingGuides(): void
+  protected function processAllPendingShippingGuides(
+    ShippingGuideMigrationLogService     $logService,
+    SaleShippingGuideDynamicsService     $saleService,
+    TransferShippingGuideDynamicsService $transferService
+  ): void
   {
     $pendingGuides = ShippingGuides::whereIn('migration_status', [
       VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
       VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
-      ->where('aceptada_por_sunat', true)
-      ->where('area_id', ApMasters::AREA_COMERCIAL) // Solo área comercial (vehículos)
+      ->where(function ($q) {
+        $q->where('aceptada_por_sunat', true)
+          ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
+      })
+      ->where('area_id', ApMasters::AREA_COMERCIAL)
       ->whereNull('deleted_at')
       ->get();
 
     foreach ($pendingGuides as $guide) {
       try {
-        $this->processShippingGuide($guide->id);
+        $this->processShippingGuide($guide->id, $logService, $saleService, $transferService);
       } catch (Exception $e) {
         Log::error('Error procesando guía de remisión', [
           'shipping_guide_id' => $guide->id,
-          'error' => $e->getMessage(),
+          'error'             => $e->getMessage(),
         ]);
         continue;
       }
     }
   }
 
-  /**
-   * Procesa una guía de remisión específica
-   * SOLO procesa guías del área COMERCIAL (vehículos)
-   */
-  protected function processShippingGuide(int $shippingGuideId): void
+  protected function processShippingGuide(
+    int                                  $shippingGuideId,
+    ShippingGuideMigrationLogService     $logService,
+    SaleShippingGuideDynamicsService     $saleService,
+    TransferShippingGuideDynamicsService $transferService
+  ): void
   {
     $shippingGuide = ShippingGuides::with([
       'vehicleMovement.vehicle.model',
       'sedeTransmitter',
-      'sedeReceiver'
+      'sedeReceiver',
     ])->find($shippingGuideId);
 
     if (!$shippingGuide) {
       return;
     }
 
-    // Validar que la guía sea del área COMERCIAL
     if ($shippingGuide->area_id !== ApMasters::AREA_COMERCIAL) {
       Log::warning('Guía de remisión no es del área COMERCIAL, se omite la migración', [
         'shipping_guide_id' => $shippingGuide->id,
-        'area_id' => $shippingGuide->area_id,
-        'expected_area_id' => ApMasters::AREA_COMERCIAL
+        'area_id'           => $shippingGuide->area_id,
+        'expected_area_id'  => ApMasters::AREA_COMERCIAL,
       ]);
       return;
     }
 
-    // Validar que tenga vehicle_movement_id
     if (!$shippingGuide->vehicle_movement_id) {
       Log::error('Guía de remisión del área COMERCIAL sin vehicle_movement_id', [
         'shipping_guide_id' => $shippingGuide->id,
-        'area_id' => $shippingGuide->area_id
+        'area_id'           => $shippingGuide->area_id,
       ]);
       throw new Exception("La guía de remisión del área COMERCIAL debe tener un vehicle_movement_id válido. ShippingGuide ID: {$shippingGuide->id}");
     }
 
-    // Actualizar estado general a 'in_progress' si está pending
     if ($shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
       $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
 
-    // Determinar si es una guía de venta o transferencia
-    $isSale = $this->isSaleShippingGuide($shippingGuide);
+    $isSale = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA;
 
     if ($isSale) {
-      // NUEVO: Crear logs si no existen (primera vez)
-      $this->ensureSaleLogsExist($shippingGuide);
-
-      // 1. Verificar y actualizar estado de transacción de inventario (venta)
-      $this->verifySaleInventoryTransaction($shippingGuide);
-
-      // 2. Verificar y actualizar estado de detalle de transacción (venta)
-      $this->verifySaleInventoryTransactionDetail($shippingGuide);
-
-
-      // 3. Verificar y actualizar estado de serial de transacción (venta)
-      $this->verifySaleInventoryTransactionSerial($shippingGuide);
-
+      $logService->ensureSaleLogsExist($shippingGuide);
+      $saleService->verifyTransaction($shippingGuide);
+      $saleService->verifyTransactionDetail($shippingGuide);
+      $saleService->verifyTransactionSerial($shippingGuide);
     } else {
-      // NUEVO: Crear logs si no existen (primera vez)
-      $this->ensureTransferLogsExist($shippingGuide);
-
-      // Verificar guía de TRANSFERENCIA
-      // 1. Verificar y actualizar estado de transferencia de inventario
-      $this->verifyInventoryTransfer($shippingGuide);
-
-      // 2. Verificar y actualizar estado de detalle de transferencia
-      $this->verifyInventoryTransferDetail($shippingGuide);
-
-      // 3. Verificar y actualizar estado de serial de transferencia
-      $this->verifyInventoryTransferSerial($shippingGuide);
+      $logService->ensureTransferLogsExist($shippingGuide);
+      $transferService->verifyTransfer($shippingGuide);
+      $transferService->verifyTransferDetail($shippingGuide);
+      $transferService->verifyTransferSerial($shippingGuide);
     }
 
-    // 4. Verificar si todo está completo
-    $this->checkAndUpdateCompletionStatus($shippingGuide);
-  }
-
-  /**
-   * Verifica el estado de la transferencia de inventario en la BD intermedia
-   * Si no existe, la sincroniza
-   */
-  protected function verifyInventoryTransfer(ShippingGuides $shippingGuide): void
-  {
-    $transferLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER)
-      ->first();
-
-    if (!$transferLog) {
-      return;
-    }
-
-    // Si ya está completado, no hacer nada
-    if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    // Si no tiene dyn_series, necesita sincronizar
-    if (empty($shippingGuide->dyn_series)) {
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransfer($shippingGuide, $isCancelled);
-      return;
-    }
-
-    // NUEVO: Verificar si existe en la BD intermedia
-    $existingTransfer = DB::connection('dbtp')
-      ->table('neInTbTransferenciaInventario')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
-      ->first();
-
-    if (!$existingTransfer) {
-      // NO EXISTE → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransfer($shippingGuide, $isCancelled);
-      return;
-    }
-
-    $transferLog->updateProcesoEstado(
-      $existingTransfer->ProcesoEstado ?? 0,
-      $existingTransfer->ProcesoError ?? null
-    );
-
-    if ($transferLog->proceso_estado === 1) {
-      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-      if (!$vehicle) {
-        throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido." . " ShippingGuide ID: {$shippingGuide->id}");
-      }
-
-      $vehicleMovementService = new VehicleMovementService();
-      $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
-    }
-  }
-
-  /**
-   * Verifica el estado del detalle de transferencia en la BD intermedia
-   * Si no existe, la sincroniza
-   * @throws Exception
-   */
-  protected function verifyInventoryTransferDetail(ShippingGuides $shippingGuide): void
-  {
-
-    $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL)
-      ->first();
-
-    if (!$detailLog) {
-      return;
-    }
-
-    // Si ya está completado, no hacer nada
-    if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    // NUEVO: Verificar si existe en la BD intermedia
-    $existingDetail = DB::connection('dbtp')
-      ->table('neInTbTransferenciaInventarioDet')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
-      ->first();
-
-    if (!$existingDetail) {
-      // NO EXISTE → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransferDetail($shippingGuide, $isCancelled);
-      return;
-    }
-    $detailLog->updateProcesoEstado(1);
-  }
-
-  /**
-   * Verifica el estado del serial de transferencia en la BD intermedia
-   * Si no existe, la sincroniza
-   */
-  protected function verifyInventoryTransferSerial(ShippingGuides $shippingGuide): void
-  {
-    $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL)
-      ->first();
-
-    if (!$serialLog) {
-      return;
-    }
-
-    // Si ya está completado, no hacer nada
-    if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    // NUEVO: Verificar si existe en la BD intermedia
-    $existingSerial = DB::connection('dbtp')
-      ->table('neInTbTransferenciaInventarioDtS')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
-      ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
-      ->first();
-
-    if (!$existingSerial) {
-      // NO EXISTE → SINCRONIZAR
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-      $this->syncInventoryTransferSerial($shippingGuide, $isCancelled);
-      return;
-    }
-
-    // EXISTE → ACTUALIZAR ESTADO
-    $procesoEstado = $existingSerial->ProcesoEstado ?? 0;
-    $serialLog->updateProcesoEstado(1);
-
-    // Si Dynamics aceptó la transferencia (ProcesoEstado = 1), actualizar el warehouse_id del vehículo
-    if ($procesoEstado === "1") {
-      $this->updateVehicleWarehouse($shippingGuide);
-    }
-  }
-
-  /**
-   * Verifica el estado de la transacción de inventario (VENTA) en la BD intermedia
-   * Si no existe, la sincroniza
-   */
-  protected function verifySaleInventoryTransaction(ShippingGuides $shippingGuide): void
-  {
-    // Verificar tanto la versión normal como la reversión
-    $steps = [
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
-      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
-      VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
-    ];
-
-    foreach ($steps as $step) {
-      $transactionLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-        ->where('step', $step)
-        ->first();
-
-      if (!$transactionLog) {
-        continue;
-      }
-
-      // Si ya está completado, no hacer nada
-      if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-        continue;
-      }
-
-      // Si no tiene dyn_series, necesita sincronizar
-      if (empty($shippingGuide->dyn_series)) {
-        $isCancelled = str_contains($step, 'REVERSAL');
-        $this->syncSaleInventoryTransaction($shippingGuide, $isCancelled);
-        continue;
-      }
-
-      // Construir el TransaccionId
-      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
-
-      // NUEVO: Verificar si existe en la BD intermedia
-      $existingTransaction = DB::connection('dbtp')
-        ->table('neInTbTransaccionInventario')
-        ->where('EmpresaId', Company::AP_DYNAMICS)
-        ->where('TransaccionId', $transactionId)
-        ->first();
-
-      if (!$existingTransaction) {
-        // NO EXISTE → SINCRONIZAR
-        $isCancelled = str_contains($step, 'REVERSAL');
-        $this->syncSaleInventoryTransaction($shippingGuide, $isCancelled);
-        continue;
-      }
-
-      // EXISTE → ACTUALIZAR ESTADO
-      $transactionLog->updateProcesoEstado(
-        $existingTransaction->ProcesoEstado ?? 0,
-        $existingTransaction->ProcesoError ?? null
-      );
-
-      // Verificar si la transacción fue aceptada por Dynamics (ProcesoEstado = 1)
-      // y si es una transacción normal (no reversal)
-      if ($existingTransaction->ProcesoEstado == 1 && !str_contains($step, 'REVERSAL')) {
-        // Dispatch job con pequeño delay para asegurar consistencia
-        SyncAccountingEntryJob::dispatch($shippingGuide->id)
-          ->onQueue('sync')
-          ->delay(now()->addSeconds(5));
-      }
-    }
-  }
-
-  /**
-   * Verifica el estado del detalle de transacción de inventario (VENTA) en la BD intermedia
-   * Si no existe, la sincroniza
-   */
-  protected function verifySaleInventoryTransactionDetail(ShippingGuides $shippingGuide): void
-  {
-    // Verificar tanto la versión normal como la reversión
-    $steps = [
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL
-    ];
-
-    foreach ($steps as $step) {
-      $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-        ->where('step', $step)
-        ->first();
-
-      if (!$detailLog) {
-        continue;
-      }
-
-      // Si ya está completado, no hacer nada
-      if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-        continue;
-      }
-
-      // Construir el TransaccionId
-      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
-
-      // NUEVO: Verificar si existe en la BD intermedia
-      $existingDetail = DB::connection('dbtp')
-        ->table('neInTbTransaccionInventarioDet')
-        ->where('EmpresaId', Company::AP_DYNAMICS)
-        ->where('TransaccionId', $transactionId)
-        ->first();
-
-      if (!$existingDetail) {
-        // NO EXISTE → SINCRONIZAR
-        $isCancelled = str_contains($step, 'REVERSAL');
-        $this->syncSaleInventoryTransactionDetail($shippingGuide, $isCancelled);
-        continue;
-      }
-
-      $detailLog->updateProcesoEstado(1);
-    }
-  }
-
-  /**
-   * Verifica el estado del serial de transacción de inventario (VENTA) en la BD intermedia
-   * Si no existe, la sincroniza
-   */
-  protected function verifySaleInventoryTransactionSerial(ShippingGuides $shippingGuide): void
-  {
-    // Verificar tanto la versión normal como la reversión
-    $steps = [
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
-      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL
-    ];
-
-    foreach ($steps as $step) {
-      $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-        ->where('step', $step)
-        ->first();
-
-      if (!$serialLog) {
-        continue;
-      }
-
-      // Si ya está completado, no hacer nada
-      if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-        continue;
-      }
-
-      // Construir el TransaccionId
-      $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
-
-      // NUEVO: Verificar si existe en la BD intermedia
-      $existingSerial = DB::connection('dbtp')
-        ->table('neInTbTransaccionInventarioDtS')
-        ->where('EmpresaId', Company::AP_DYNAMICS)
-        ->where('TransaccionId', $transactionId)
-        ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
-        ->first();
-
-      if (!$existingSerial) {
-        // NO EXISTE → SINCRONIZAR
-        $isCancelled = str_contains($step, 'REVERSAL');
-        $this->syncSaleInventoryTransactionSerial($shippingGuide, $isCancelled);
-        continue;
-      }
-
-      $serialLog->updateProcesoEstado(1);
-    }
-  }
-
-  /**
-   * Determina si una guía de remisión es de venta
-   */
-  protected function isSaleShippingGuide(ShippingGuides $shippingGuide): bool
-  {
-    // transfer_reason_id = 1 es venta (SunatConcepts::TRANSFER_REASON_VENTA)
-    return $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA;
-  }
-
-  /**
-   * Construye el TransaccionId para guías de venta
-   */
-  protected function buildSaleTransactionId(ShippingGuides $shippingGuide, string $step): string
-  {
-    // Si ya tiene dyn_series, usarlo directamente
-    if (!empty($shippingGuide->dyn_series)) {
-      $transactionId = $shippingGuide->dyn_series;
-    } else {
-      // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
-      $transactionId = $prefix . $shippingGuide->document_number;
-    }
-
-    // Si es una reversión, agregar asterisco
-    if (str_contains($step, 'REVERSAL')) {
-      $transactionId .= '*';
-    }
-
-    return $transactionId;
-  }
-
-  /**
-   * Construye el TransferenciaId para guías de transferencia
-   */
-  protected function buildTransferTransactionId(ShippingGuides $shippingGuide, string $step): string
-  {
-    // Si ya tiene dyn_series, usarlo directamente
-    if (!empty($shippingGuide->dyn_series)) {
-      $transactionId = $shippingGuide->dyn_series;
-    } else {
-      // Si no tiene dyn_series, construirlo desde el correlativo
-      $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
-      $transactionId = $prefix . $shippingGuide->document_number;
-    }
-
-    // Si es una reversión, agregar asterisco
-    if (str_contains($step, 'REVERSAL')) {
-      $transactionId .= '*';
-    }
-
-    return $transactionId;
-  }
-
-  /**
-   * Verifica si todos los pasos están completos y actualiza el estado general
-   */
-  protected function checkAndUpdateCompletionStatus(ShippingGuides $shippingGuide): void
-  {
-    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)->get();
-
-    $allCompleted = $logs->every(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
-        $log->proceso_estado === 1;
-    });
-
-
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
-
-    if ($allCompleted && $logs->count() === 3) { // 3 pasos en total para shipping guides
-      // Marcar la guía como sincronizada
-      $shippingGuide->update([
-        'status_dynamic' => 1,
-        'migration_status' => 'completed',
-        'migrated_at' => now(),
-      ]);
-    } elseif ($hasFailed) {
-      Log::error('Migración de guía de remisión fallida', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'document_number' => $shippingGuide->document_number,
-      ]);
-      $shippingGuide->update([
-        'status_dynamic' => 0,
-        'migration_status' => 'failed',
-      ]);
-    }
-  }
-
-  /**
-   * Asegura que existan los logs para guías de VENTA
-   * Crea los logs con estado pendiente si no existen
-   */
-  protected function ensureSaleLogsExist(ShippingGuides $shippingGuide): void
-  {
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
-    // Determinar los steps según si está cancelada o no
-    $steps = $isCancelled
-      ? [
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL,
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL,
-      ]
-      : [
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
-        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
-      ];
-
-    // Tablas correspondientes
-    $tables = [
-      'neInTbTransaccionInventario',
-      'neInTbTransaccionInventarioDet',
-      'neInTbTransaccionInventarioDtS',
-    ];
-
-    // Crear logs para cada step si no existen
-    foreach ($steps as $index => $step) {
-      $existingLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-        ->where('step', $step)
-        ->first();
-
-      if (!$existingLog) {
-        // Construir el TransaccionId para este step
-        $transactionId = $this->buildSaleTransactionId($shippingGuide, $step);
-
-        $this->getOrCreateLog(
-          $shippingGuide->id,
-          $step,
-          $tables[$index],
-          $transactionId,
-          $shippingGuide->vehicleMovement?->vehicle?->id
-        );
-      }
-    }
-  }
-
-  /**
-   * Asegura que existan los logs para guías de TRANSFERENCIA
-   * Crea los logs con estado pendiente si no existen
-   */
-  protected function ensureTransferLogsExist(ShippingGuides $shippingGuide): void
-  {
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
-    // Determinar los steps según si está cancelada o no
-    $steps = $isCancelled
-      ? [
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
-      ]
-      : [
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
-        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
-      ];
-
-    // Tablas correspondientes
-    $tables = [
-      'neInTbTransferenciaInventario',
-      'neInTbTransferenciaInventarioDet',
-      'neInTbTransferenciaInventarioDtS',
-    ];
-
-    // Crear logs para cada step si no existen
-    foreach ($steps as $index => $step) {
-      $existingLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-        ->where('step', $step)
-        ->first();
-
-      if (!$existingLog) {
-        // Construir el TransferenciaId para este step
-        $transactionId = $this->buildTransferTransactionId($shippingGuide, $step);
-
-        $this->getOrCreateLog(
-          $shippingGuide->id,
-          $step,
-          $tables[$index],
-          $transactionId,
-          $shippingGuide->vehicleMovement?->vehicle?->id
-        );
-      }
-    }
-  }
-
-  /**
-   * Actualiza el warehouse_id del vehículo después de que Dynamics acepta la transferencia
-   */
-  protected function updateVehicleWarehouse(ShippingGuides $shippingGuide): void
-  {
-    try {
-      $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-
-      if (!$vehicle) {
-        return;
-      }
-
-      // Determinar el almacén de destino según el tipo de transferencia
-      $warehouseId = null;
-
-      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-        // Para COMPRA: mover al almacén de STOCK (is_received = true) de la sede receptora
-        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
-          ->where('type_operation_id', $vehicle->type_operation_id)
-          ->where('article_class_id', $vehicle->model->class_id)
-          ->where('is_received', true)
-          ->value('id');
-
-      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-        // Para TRASLADO ENTRE SEDES: mover al almacén de STOCK (is_received = true) de la sede receptora
-        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
-          ->where('type_operation_id', $vehicle->type_operation_id)
-          ->where('article_class_id', $vehicle->model->class_id)
-          ->where('is_received', true)
-          ->value('id');
-
-      } else {
-        // Para otros motivos: usar almacén de destino de la sede receptora
-        $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
-          ->where('type_operation_id', $vehicle->type_operation_id)
-          ->where('article_class_id', $vehicle->model->class_id)
-          ->where('is_received', true)
-          ->value('id');
-      }
-
-      if ($warehouseId) {
-        $vehicle->update(['warehouse_id' => $warehouseId]);
-      }
-    } catch (Exception $e) {
-      Log::error('Error al actualizar warehouse_id del vehículo', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage()
-      ]);
-    }
-  }
-
-  /**
-   * ==========================================================================
-   * MÉTODOS DE SINCRONIZACIÓN PARA GUÍAS DE VENTA
-   * ==========================================================================
-   */
-
-  /**
-   * Sincroniza la cabecera de transacción de inventario (venta)
-   * @throws Exception
-   */
-  protected function syncSaleInventoryTransaction(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE;
-
-    $transactionLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transactionLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      // Generar el TransactionId si no existe
-      if (empty($shippingGuide->dyn_series)) {
-        $prefix = $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA ? 'CV-' : 'CS-';
-        $transactionId = $prefix . $shippingGuide->document_number;
-        // Actualizar dyn_series en ShippingGuides
-        $shippingGuide->update([
-          'dyn_series' => $transactionId,
-        ]);
-      }
-      // Transformar datos usando el Resource
-      $resource = new ShippingGuideHeaderDynamicsResource($shippingGuide);
-      $data = $resource->toArray(request());
-      // Sincronizar cabecera de transacción de inventario
-      $transactionLog->markAsInProgress();
-      $this->syncService->sync('inventory_transaction', $data, 'create');
-      $transactionLog->updateProcesoEstado(0); // 0 = En proceso en la BD intermedia
-    } catch (Exception $e) {
-      Log::error('=== ERROR syncSaleInventoryTransaction ===', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transactionLog->markAsFailed("Error al sincronizar transacción de inventario: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Sincroniza el detalle de transacción de inventario (venta)
-   * @throws Exception
-   */
-  protected function syncSaleInventoryTransactionDetail(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-
-    if (!$vehicle_vn_id) {
-      throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
-    }
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL;
-
-    $transactionDetailLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transactionDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      $vehicleVn = Vehicles::findOrFail($vehicle_vn_id);
-
-      // Transformar datos usando el Resource
-      $resource = new ShippingGuideDetailDynamicsResource($vehicleVn, $shippingGuide);
-      $data = $resource->toArray(request());
-
-      // Sincronizar detalle de transacción de inventario
-      $transactionDetailLog->markAsInProgress();
-      $this->syncService->sync('inventory_transaction_dt', $data, 'create');
-      $transactionDetailLog->updateProcesoEstado(0);
-
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar detalle de transacción de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transactionDetailLog->markAsFailed("Error al sincronizar detalle de transacción de inventario: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Sincroniza el serial (VIN) de transacción de inventario (venta)
-   * @throws Exception
-   */
-  protected function syncSaleInventoryTransactionSerial(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL;
-
-    $transactionSerialLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transactionSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      // Transformar datos usando el Resource
-      $resource = new ShippingGuideSeriesDynamicsResource($shippingGuide);
-      $data = $resource->toArray(request());
-
-      // Sincronizar serial de transacción de inventario
-      $transactionSerialLog->markAsInProgress();
-      $this->syncService->sync('inventory_transaction_dts', $data, 'create');
-      $transactionSerialLog->updateProcesoEstado(0);
-
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar serial de transacción de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transactionSerialLog->markAsFailed("Error al sincronizar serial de transacción de inventario: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * ==========================================================================
-   * MÉTODOS DE SINCRONIZACIÓN PARA GUÍAS DE TRANSFERENCIA
-   * ==========================================================================
-   */
-
-  /**
-   * Sincroniza la cabecera de transferencia de inventario
-   * @throws Exception
-   */
-  protected function syncInventoryTransfer(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER;
-
-    $transferLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transferLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . $shippingGuide->document_number;
-      if ($isCancelled) {
-        $transferId .= '*';
-      }
-
-      // Preparar datos para sincronización del detalle
-      $data = [
-        'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $transferId,
-        'FechaEmision' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha de emisión es obligatoria."),
-        'FechaContable' => ($shippingGuide->dynamics_date ?? $shippingGuide->issue_date)?->format('Y-m-d') ?? throw new Exception("La fecha contable es obligatoria."),
-        'Procesar' => 1,
-        'ProcesoEstado' => 0,
-        'ProcesoError' => '',
-        'FechaProceso' => now()->format('Y-m-d H:i:s'),
-      ];
-
-      // Sincronizar cabecera de transferencia
-      $transferLog->markAsInProgress();
-      $this->syncService->sync('inventory_transfer', $data, 'create');
-      $transferLog->updateProcesoEstado(0); // 0 = En proceso en la BD intermedia
-
-      // Actualizar dyn_series en ShippingGuides con el TransferenciaId
-      $shippingGuide->update([
-        'dyn_series' => $transferId,
-      ]);
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar transferencia de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transferLog->markAsFailed("Error al sincronizar transferencia: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Sincroniza el detalle de transferencia de inventario
-   * @throws Exception
-   */
-  protected function syncInventoryTransferDetail(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-
-    if (!$vehicle_vn_id) {
-      throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.");
-    }
-
-    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
-    $transferIdOriginal = $prefix . $shippingGuide->document_number;
-    $transferIdFormatted = $transferIdOriginal;
-
-    // Si está cancelada, agregar asterisco al final del TransferenciaId
-    if ($isCancelled) {
-      $transferIdFormatted .= '*';
-    }
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
-
-    $transferSerialLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transferSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      $vehicleVn = Vehicles::findOrFail(
-        $shippingGuide->vehicleMovement?->vehicle?->id
-        ?? throw new \Exception("El vehículo asociado a la guía de remisión no tiene un ID válido.")
-      );
-
-      $type_operation_id = $vehicleVn->type_operation_id ?? null;
-      $class_id = $vehicleVn->model->class_id ?? null;
-
-      // Lógica diferenciada según el tipo de operación
-      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-        $sede_id = $shippingGuide->sedeReceiver->id ?? null;
-
-        $baseQuery = Warehouse::where('sede_id', $sede_id)
-          ->where('type_operation_id', $type_operation_id)
-          ->where('article_class_id', $class_id)
-          ->where('status', true); // Activo
-
-        $warehouseStart = (clone $baseQuery)->where('is_received', false);
-        $warehouseEnd = (clone $baseQuery)->where('is_received', true);
-
-        $warehouseStartCode = $warehouseStart->value('dyn_code');
-        $warehouseEndCode = $warehouseEnd->value('dyn_code');
-
-        // Si está cancelada, invertir los almacenes
-        if ($isCancelled) {
-          $temp = $warehouseStartCode;
-          $warehouseStartCode = $warehouseEndCode;
-          $warehouseEndCode = $temp;
-        }
-
-        $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
-
-        $inventoryAccount = $warehouseStart->value('inventory_account') ?
-          $warehouseStart->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta de Inventario no fue encontrada.');
-        $counterpartInventoryAccount = $warehouseEnd->value('inventory_account') ?
-          $warehouseEnd->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
-
-        if ($isCancelled) {
-          $tempAccount = $inventoryAccount;
-          $inventoryAccount = $counterpartInventoryAccount;
-          $counterpartInventoryAccount = $tempAccount;
-        }
-
-      } elseif ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-        $sedeTransmitterId = $shippingGuide->sedeTransmitter->id ?? null;
-        $sedeReceiverId = $shippingGuide->sedeReceiver->id ?? null;
-
-        $transmitterQuery = Warehouse::where('sede_id', $sedeTransmitterId)
-          ->where('type_operation_id', $type_operation_id)
-          ->where('article_class_id', $class_id)
-          ->where('is_received', true)
-          ->where('status', true); // Activo
-
-        $receiverQuery = Warehouse::where('sede_id', $sedeReceiverId)
-          ->where('type_operation_id', $type_operation_id)
-          ->where('article_class_id', $class_id)
-          ->where('is_received', true)
-          ->where('status', true); // Activo
-
-        $sedeStart = Sede::findOrFail($sedeTransmitterId)->dyn_code ?? throw new Exception('La Sede transmisora no fue encontrada.');
-        $sedeEnd = Sede::findOrFail($sedeReceiverId)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
-
-        $warehouseStartCode = $transmitterQuery->value('dyn_code');
-        $warehouseEndCode = $receiverQuery->value('dyn_code');
-
-        // Si está cancelada, invertir los almacenes (retorna al almacén anterior)
-        if ($isCancelled) {
-          $temp = $warehouseStartCode;
-          $warehouseStartCode = $warehouseEndCode;
-          $warehouseEndCode = $temp;
-        }
-
-        $inventoryAccount = $transmitterQuery->value('inventory_account') ?
-          $transmitterQuery->value('inventory_account') . '-' . $sedeStart : throw new Exception('La Cuenta de Inventario no fue encontrada.');
-        $counterpartInventoryAccount = $receiverQuery->value('inventory_account') ?
-          $receiverQuery->value('inventory_account') . '-' . $sedeEnd : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
-
-        if ($isCancelled) {
-          $tempAccount = $inventoryAccount;
-          $inventoryAccount = $counterpartInventoryAccount;
-          $counterpartInventoryAccount = $tempAccount;
-        }
-
-      } else {
-        // Otro motivo: usar lógica por defecto (similar a COMPRA)
-        $sede_id = $shippingGuide->sedeReceiver->id ?? null;
-
-        $baseQuery = Warehouse::where('sede_id', $sede_id)
-          ->where('type_operation_id', $type_operation_id)
-          ->where('article_class_id', $class_id)
-          ->where('status', true); // Activo
-
-        $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
-        $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
-
-        // Si está cancelada, invertir los almacenes
-        if ($isCancelled) {
-          $temp = $warehouseStartCode;
-          $warehouseStartCode = $warehouseEndCode;
-          $warehouseEndCode = $temp;
-        }
-
-        $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
-
-        $inventoryAccount = $baseQuery->where('is_received', true)->value('inventory_account') ?
-          $baseQuery->where('is_received', true)->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta de Inventario no fue encontrada.');
-        $counterpartInventoryAccount = $baseQuery->where('is_received', false)->value('inventory_account') ?
-          $baseQuery->where('is_received', false)->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
-
-        if ($isCancelled) {
-          $tempAccount = $inventoryAccount;
-          $inventoryAccount = $counterpartInventoryAccount;
-          $counterpartInventoryAccount = $tempAccount;
-        }
-      }
-
-      $serialData = [
-        'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $transferIdFormatted,
-        'Linea' => 1,
-        'ArticuloId' => $shippingGuide->vehicleMovement?->vehicle?->model->code ?? 'N/A',
-        'Motivo' => '',
-        'UnidadMedidaId' => 'UND',
-        'Cantidad' => 1,
-        'AlmacenId_Ini' => $warehouseStartCode ?? throw new Exception('El Almacén de inicio no fue encontrado.'),
-        'AlmacenId_Fin' => $warehouseEndCode ?? throw new Exception('El Almacén de fin no fue encontrado.'),
-        'CuentaInventario' => $inventoryAccount ?? throw new Exception('La Cuenta de Inventario no fue encontrada.'),
-        'CuentaContrapartida' => $counterpartInventoryAccount ?? throw new Exception('La Cuenta Contrapartida no fue encontrada.'),
-      ];
-
-      // Sincronizar serial de transferencia
-      $transferSerialLog->markAsInProgress();
-      $this->syncService->sync('inventory_transfer_dt', $serialData, 'create');
-      $transferSerialLog->updateProcesoEstado(0);
-
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar detalle de transferencia de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transferSerialLog->markAsFailed("Error al sincronizar serial de transferencia: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Sincroniza el serial (VIN) de transferencia de inventario
-   * @throws Exception
-   */
-  protected function syncInventoryTransferSerial(ShippingGuides $shippingGuide, bool $isCancelled): void
-  {
-    $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
-    $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
-
-    // Si está cancelada, usar el step de reversión para crear un nuevo log
-    $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
-
-    $transferDetailLog = $this->getOrCreateLog(
-      $shippingGuide->id,
-      $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
-      $shippingGuide->document_number,
-      $vehicle_vn_id
-    );
-
-    // Si ya está completado, no hacer nada (para este step específico)
-    if ($transferDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      return;
-    }
-
-    try {
-      // Preparar TransferenciaId con asterisco si está cancelada
-      $transferId = $prefix . $shippingGuide->document_number;
-      if ($isCancelled) {
-        $transferId .= '*';
-      }
-
-      // Preparar datos para sincronización del detalle
-      $detailData = [
-        'EmpresaId' => Company::AP_DYNAMICS,
-        'TransferenciaId' => $transferId,
-        'Linea' => 1,
-        'Serie' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
-        'ArticuloId' => $shippingGuide->vehicleMovement->vehicle->model->code ?? "N/A",
-        'DatoUsuario1' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
-        'DatoUsuario2' => $shippingGuide->vehicleMovement->vehicle->vin ?? "N/A",
-      ];
-
-      // Sincronizar detalle de transferencia
-      $transferDetailLog->markAsInProgress();
-      $this->syncService->sync('inventory_transfer_dts', $detailData, 'create');
-      $transferDetailLog->updateProcesoEstado(0);
-
-    } catch (Exception $e) {
-      Log::error('Error al sincronizar detalle de transferencia de inventario', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-      ]);
-      $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
-      throw $e;
-    }
-  }
-
-  /**
-   * Obtiene o crea un registro de log
-   */
-  protected function getOrCreateLog(int $shippingGuideId, string $step, string $tableName, ?string $externalId = null, ?int $vehicleId = null): VehiclePurchaseOrderMigrationLog
-  {
-    return VehiclePurchaseOrderMigrationLog::firstOrCreate(
-      [
-        'shipping_guide_id' => $shippingGuideId,
-        'step' => $step,
-      ],
-      [
-        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        'table_name' => $tableName,
-        'external_id' => $externalId,
-        'ap_vehicles_id' => $vehicleId,
-      ]
-    );
+    $logService->checkAndUpdateCompletionStatus($shippingGuide);
   }
 
   public function failed(\Throwable $exception): void
   {
     Log::error('VerifyAndMigrateShippingGuideJob falló completamente', [
       'shipping_guide_id' => $this->shippingGuideId,
-      'error' => $exception->getMessage(),
+      'error'             => $exception->getMessage(),
     ]);
 
     if ($this->shippingGuideId) {
