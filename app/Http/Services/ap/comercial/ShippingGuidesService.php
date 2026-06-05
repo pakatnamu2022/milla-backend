@@ -10,6 +10,7 @@ use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\ap\facturacion\AccountingEntryService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\SyncShippingGuideDynamicsJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
@@ -17,6 +18,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -233,6 +235,83 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           'file_url' => $digitalFile->url,
         ]);
       }
+
+      return new ShippingGuidesResource($document);
+    });
+  }
+
+  public function storeInternal(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $vehicle = Vehicles::with(['warehouse', 'purchaseOrder'])->findOrFail($data['ap_vehicle_id']);
+
+      if (!$vehicle->warehouse || $vehicle->warehouse->is_received) {
+        throw new Exception('El vehículo no está en un almacén de existencias pendientes de recibir (EXT).');
+      }
+
+      $sedeTransmitterId = $vehicle->warehouse->sede_id;
+      $classArticleId    = $vehicle->warehouse->article_class_id;
+
+      if ($sedeTransmitterId == $data['sede_receiver_id']) {
+        throw new Exception('La sede de origen y destino no pueden ser la misma para una guía interna.');
+      }
+
+      $origin = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+        ->where('sede_id', $sedeTransmitterId)
+        ->firstOrFail();
+
+      $destination = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+        ->where('sede_id', $data['sede_receiver_id'])
+        ->firstOrFail();
+
+      $issueDate = $vehicle->purchaseOrder?->emission_date
+        ?? throw new Exception('El vehículo no tiene una orden de compra registrada para obtener la fecha.');
+
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        $data['notes'] ?? null,
+        $issueDate
+      );
+
+      $maxCorrelative = ShippingGuides::where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)->max('correlative');
+      $correlativeNumber = $maxCorrelative !== null ? ((int)$maxCorrelative) + 1 : 1;
+      $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
+      $documentNumber = 'GTI-' . $correlative;
+
+      $document = ShippingGuides::create([
+        'document_type'       => ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA,
+        'issuer_type'         => ShippingGuides::ISSUER_TYPE_SYSTEM,
+        'series'              => 'GTI',
+        'correlative'         => $correlative,
+        'document_number'     => $documentNumber,
+        'issue_date'          => $issueDate,
+        'requires_sunat'      => false,
+        'send_dynamics'       => true,
+        'is_consignment'      => false,
+        'transfer_reason_id'  => SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
+        'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
+        'vehicle_movement_id' => $vehicleMovement->id,
+        'sede_transmitter_id' => $sedeTransmitterId,
+        'sede_receiver_id'    => $data['sede_receiver_id'],
+        'transmitter_id'      => $origin->id,
+        'receiver_id'         => $destination->id,
+        'origin_ubigeo'       => $origin->ubigeo ?? '-',
+        'origin_address'      => $origin->address ?? '-',
+        'destination_ubigeo'  => $destination->ubigeo ?? '-',
+        'destination_address' => $destination->address ?? '-',
+        'driver_doc'          => $data['driver_doc'] ?? null,
+        'license'             => $data['license'] ?? null,
+        'plate'               => $data['plate'] ?? null,
+        'driver_name'         => $data['driver_name'] ?? null,
+        'notes'               => $data['notes'] ?? null,
+        'status'              => true,
+        'ap_class_article_id' => $classArticleId,
+        'created_by'          => Auth::id(),
+      ]);
+
+      VerifyAndMigrateShippingGuideJob::dispatch($document->id)->afterCommit();
 
       return new ShippingGuidesResource($document);
     });
@@ -918,6 +997,18 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     return [
       'header' => $header->toArray(request()),
       'lines' => $lines,
+    ];
+  }
+
+  public function checkResources($id): array
+  {
+    $shippingGuide = $this->find($id);
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle ?? null;
+
+    return [
+      'header' => new ShippingGuideHeaderDynamicsResource($shippingGuide),
+      'detail' => $vehicle ? new ShippingGuideDetailDynamicsResource($vehicle, $shippingGuide) : null,
+      'series' => new ShippingGuideSeriesDynamicsResource($shippingGuide),
     ];
   }
 

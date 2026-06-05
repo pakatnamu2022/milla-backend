@@ -1170,12 +1170,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
       Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
       Route::post('shippingGuides/{id}/sync-with-dynamics', [ShippingGuidesController::class, 'syncWithDynamics']);
+      Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
       Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
       Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
+      Route::post('shippingGuides/internal', [ShippingGuidesController::class, 'storeInternal']);
       Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
         'index',
         'show',

@@ -16,7 +16,35 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * php artisan queue:work --tries=3
+ * Consulta Dynamics para confirmar que una guía ya fue contabilizada ("CONTABILIZADO")
+ * y desencadena los efectos posteriores en el sistema local.
+ *
+ * Este job se ejecuta DESPUÉS de que VerifyAndMigrateShippingGuideJob completó la migración
+ * (migration_status = completed). Su responsabilidad es leer el estado real en Dynamics
+ * a través de Stored Procedures y actuar en consecuencia.
+ *
+ * DOS FLUJOS SEGÚN EL TIPO DE GUÍA:
+ *
+ *   A) Guía COMERCIAL de VENTA (dyn_series empieza con "CV-"):
+ *      - Consulta SP: EXEC neIvConsultarAjustesInventario
+ *      - Si el Numero del resultado coincide con dyn_series → movimiento existente en Dynamics.
+ *      - Efectos: marca is_accounted = true, cambia ApVehicleDelivery a status = 'completed'
+ *        con fecha de entrega real, y actualiza la Oportunidad a estado DELIVERED.
+ *
+ *   B) Guía de TRANSFERENCIA (postventa):
+ *      - Consulta SP: EXEC neIvConsultarTransferenciasInventario '{transactionId}'
+ *      - Verifica si Estado = 'CONTABILIZADO'.
+ *      - Guía activa   → marca is_accounted = true y genera movimiento de ENTRADA de inventario
+ *                        en el sistema local (TransferReceptionService::generateInventoryMovement).
+ *      - Guía cancelada → marca is_annulled = true y genera movimiento inverso de devolución
+ *                         (TransferReceptionService::generateReversalInventoryMovement).
+ *
+ * PUEDE DESPACHARSE:
+ *   - Con un $shippingGuideId específico → procesa solo esa guía.
+ *   - Sin ID                             → procesa todas las guías con migration_status = completed
+ *                                          que aún no están contabilizadas o anuladas.
+ *
+ * COLA: shipping_guide_sync | tries: 3 | timeout: 300 s
  */
 class SyncShippingGuideDynamicsJob implements ShouldQueue
 {

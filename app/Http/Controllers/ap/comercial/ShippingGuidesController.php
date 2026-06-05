@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexShippingGuidesRequest;
+use App\Http\Requests\ap\comercial\StoreInternalShippingGuideRequest;
 use App\Http\Requests\ap\comercial\StoreShippingGuidesRequest;
 use App\Http\Requests\ap\comercial\UpdateShippingGuidesRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
@@ -11,7 +12,6 @@ use App\Http\Services\ap\comercial\ShippingGuidesService;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
-use function Pest\Laravel\json;
 
 class ShippingGuidesController extends Controller
 {
@@ -26,6 +26,15 @@ class ShippingGuidesController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeInternal(StoreInternalShippingGuideRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeInternal($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -279,6 +288,21 @@ class ShippingGuidesController extends Controller
       return $this->success($this->service->dispatchAll());
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  public function checkResources($id)
+  {
+    try {
+      return response()->json([
+        'success' => true,
+        'data' => $this->service->checkResources($id)
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
     }
   }
 

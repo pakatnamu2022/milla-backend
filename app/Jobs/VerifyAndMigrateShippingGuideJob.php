@@ -23,6 +23,31 @@ use Illuminate\Support\Facades\Log;
 use function str_pad;
 use const STR_PAD_LEFT;
 
+/**
+ * Migra guías de remisión del área COMERCIAL hacia Microsoft Dynamics 365
+ * escribiendo en la base de datos intermedia (dbtp) y verificando su procesamiento.
+ *
+ * FLUJO GENERAL:
+ *   1. Toma guías con migration_status = pending/in_progress/failed del área COMERCIAL.
+ *   2. Según el motivo de traslado determina el tipo:
+ *      - VENTA   → escribe en neInTbTransaccionInventario (cabecera, detalle, serial/VIN).
+ *      - TRANSFER → escribe en neInTbTransferenciaInventario (cabecera, detalle, serial/VIN).
+ *   3. Para cada uno de los 3 pasos verifica si el registro YA existe en la BD intermedia:
+ *      - Si NO existe → lo sincroniza (inserta) y marca ProcesoEstado = 0 (en espera).
+ *      - Si existe    → lee ProcesoEstado devuelto por Dynamics:
+ *          * 0 = aún procesando   → sin cambios.
+ *          * 1 = aceptado         → marca el step como completado; en transferencias
+ *                                   también actualiza el warehouse_id del vehículo.
+ *   4. Cuando los 3 pasos están en ProcesoEstado = 1, marca la guía como
+ *      migration_status = completed y status_dynamic = 1.
+ *   5. Las cancelaciones usan steps "_REVERSAL" con asterisco en el TransaccionId/TransferenciaId.
+ *
+ * PUEDE DESPACHARSE:
+ *   - Con un $shippingGuideId específico → procesa solo esa guía.
+ *   - Sin ID                             → procesa todas las guías pendientes.
+ *
+ * COLA: shipping_guides | tries: 2 | timeout: 300 s | backoff: 120 s
+ */
 class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
@@ -88,7 +113,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
       VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
-      ->where('aceptada_por_sunat', true)
+      ->where(function ($q) {
+        $q->where('aceptada_por_sunat', true)
+          ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
+      })
       ->where('area_id', ApMasters::AREA_COMERCIAL) // Solo área comercial (vehículos)
       ->whereNull('deleted_at')
       ->get();
@@ -1029,6 +1057,46 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
           $warehouseStart->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta de Inventario no fue encontrada.');
         $counterpartInventoryAccount = $warehouseEnd->value('inventory_account') ?
           $warehouseEnd->value('inventory_account') . '-' . $sede : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
+
+        if ($isCancelled) {
+          $tempAccount = $inventoryAccount;
+          $inventoryAccount = $counterpartInventoryAccount;
+          $counterpartInventoryAccount = $tempAccount;
+        }
+
+      } elseif ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+        // Guía interna: EXT transmitter → EXT receiver (is_received=false en ambas sedes)
+        $sedeTransmitterId = $shippingGuide->sedeTransmitter->id ?? null;
+        $sedeReceiverId = $shippingGuide->sedeReceiver->id ?? null;
+
+        $transmitterQuery = Warehouse::where('sede_id', $sedeTransmitterId)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id)
+          ->where('is_received', false)
+          ->where('status', true);
+
+        $receiverQuery = Warehouse::where('sede_id', $sedeReceiverId)
+          ->where('type_operation_id', $type_operation_id)
+          ->where('article_class_id', $class_id)
+          ->where('is_received', false)
+          ->where('status', true);
+
+        $sedeStart = Sede::findOrFail($sedeTransmitterId)->dyn_code ?? throw new Exception('La Sede transmisora no fue encontrada.');
+        $sedeEnd = Sede::findOrFail($sedeReceiverId)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
+
+        $warehouseStartCode = $transmitterQuery->value('dyn_code');
+        $warehouseEndCode = $receiverQuery->value('dyn_code');
+
+        if ($isCancelled) {
+          $temp = $warehouseStartCode;
+          $warehouseStartCode = $warehouseEndCode;
+          $warehouseEndCode = $temp;
+        }
+
+        $inventoryAccount = $transmitterQuery->value('inventory_account') ?
+          $transmitterQuery->value('inventory_account') . '-' . $sedeStart : throw new Exception('La Cuenta de Inventario no fue encontrada.');
+        $counterpartInventoryAccount = $receiverQuery->value('inventory_account') ?
+          $receiverQuery->value('inventory_account') . '-' . $sedeEnd : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
 
         if ($isCancelled) {
           $tempAccount = $inventoryAccount;
