@@ -50,6 +50,7 @@ class AssignSalesSeries extends Model
   const string PURCHASE = 'PURCHASE';
   const string SALE = 'SALE';
   const string OTHERS = 'OTHERS';
+  const string TRANSFER = 'TRANSFER';
   const int FACTURA = 799;
   const int BOLETA = 800;
   const int NOTA_CREDITO = 801;
@@ -59,6 +60,7 @@ class AssignSalesSeries extends Model
   const int NOTA_CREDITO_NUBEFACT = 31;
   const int NOTA_DEBITO_NUBEFACT = 32;
   const int GUIA_REMISION = 803;
+  const int GUIA_TRANSFERENCIA_INTERNA = 998;
   const int TRAVEL_EXPENSE_FORM = 879;
 
   public function setSeriesAttribute($value)

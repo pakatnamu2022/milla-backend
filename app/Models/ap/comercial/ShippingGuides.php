@@ -410,9 +410,9 @@ class ShippingGuides extends BaseModel
 
   public function getTransferPrefix(ShippingGuides $shippingGuide): string
   {
-    // Las guías internas son traslados internos entre sedes — siempre CT-
+    // Las guías internas entre sedes usan su propio prefijo CI-
     if ($shippingGuide->document_type === self::DOCUMENT_TYPE_GUIA_INTERNA) {
-      return 'CT-';
+      return 'CI-';
     }
 
     if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {

@@ -256,6 +256,19 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('La sede de origen y destino no pueden ser la misma para una guía interna.');
       }
 
+      $pendingGuide = ShippingGuides::where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)
+        ->where('status', true)
+        ->where('is_accounted', false)
+        ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $data['ap_vehicle_id']))
+        ->first();
+
+      if ($pendingGuide) {
+        throw new Exception(
+          "El vehículo ya tiene la guía interna {$pendingGuide->document_number} pendiente de contabilizar. " .
+          'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+        );
+      }
+
       $origin = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
         ->where('sede_id', $sedeTransmitterId)
         ->firstOrFail();
@@ -275,21 +288,26 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $issueDate
       );
 
-      $maxCorrelative = ShippingGuides::where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)->max('correlative');
-      $correlativeNumber = $maxCorrelative !== null ? ((int)$maxCorrelative) + 1 : 1;
-      $correlative = str_pad($correlativeNumber, 8, '0', STR_PAD_LEFT);
-      $documentNumber = 'GTI-' . $correlative;
+      $transferSeries = AssignSalesSeries::where('sede_id', $sedeTransmitterId)
+        ->where('type_receipt_id', AssignSalesSeries::GUIA_TRANSFERENCIA_INTERNA)
+        ->where('status', true)
+        ->firstOrFail();
+
+      $correlativeData = ShippingGuides::generateNextCorrelative($transferSeries->id, $transferSeries->correlative_start);
+      $documentNumber = $transferSeries->series . '-' . $correlativeData['correlative'];
 
       $document = ShippingGuides::create([
         'document_type'        => ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA,
         'issuer_type'          => ShippingGuides::ISSUER_TYPE_SYSTEM,
-        'series'               => 'GTI',
-        'correlative'          => $correlative,
+        'document_series_id'   => $transferSeries->id,
+        'series'               => $transferSeries->series,
+        'correlative'          => $correlativeData['correlative'],
         'document_number'      => $documentNumber,
         'issue_date'           => $issueDate,
         'requires_sunat'       => false,
         'send_dynamics'        => true,
         'is_consignment'       => false,
+        'area_id'              => ApMasters::AREA_COMERCIAL,
         'transfer_reason_id'   => SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
         'transfer_modality_id' => $data['transfer_modality_id'] ?? null,
         'vehicle_movement_id'  => $vehicleMovement->id,
