@@ -280,14 +280,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $issueDate = $vehicle->purchaseOrder?->emission_date
         ?? throw new Exception('El vehículo no tiene una orden de compra registrada para obtener la fecha.');
 
-      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
-        $data['ap_vehicle_id'],
-        $origin->address ?? '-',
-        $destination->address ?? '-',
-        $data['notes'] ?? null,
-        $issueDate
-      );
-
+      // Calcular número de documento antes del movimiento para usarlo como observación
       $transferSeries = AssignSalesSeries::where('sede_id', $sedeTransmitterId)
         ->where('type_receipt_id', AssignSalesSeries::GUIA_TRANSFERENCIA_INTERNA)
         ->where('status', true)
@@ -295,6 +288,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $correlativeData = ShippingGuides::generateNextCorrelative($transferSeries->id, $transferSeries->correlative_start);
       $documentNumber = $transferSeries->series . '-' . $correlativeData['correlative'];
+
+      $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
+        $data['ap_vehicle_id'],
+        $origin->address ?? '-',
+        $destination->address ?? '-',
+        "Traslado interno {$documentNumber}",
+        null  // usar now() como hora real del movimiento
+      );
 
       $document = ShippingGuides::create([
         'document_type'        => ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA,

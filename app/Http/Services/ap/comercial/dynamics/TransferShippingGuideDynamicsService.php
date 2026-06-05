@@ -66,7 +66,13 @@ class TransferShippingGuideDynamicsService
       }
 
       $vehicleMovementService = new VehicleMovementService();
-      $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
+      if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+        // Traslado interno: el vehículo ya está en inventario, solo cambia de sede/almacén
+        $vehicleMovementService->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+      } else {
+        // Compra u otro flujo: el vehículo entra a inventario por primera vez
+        $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
+      }
     }
   }
 
@@ -461,10 +467,14 @@ class TransferShippingGuideDynamicsService
         return;
       }
 
+      // GUIA_INTERNA transfiere entre existencias (is_received = false);
+      // otros flujos (TRASLADO_SEDE, COMPRA) terminan en almacén de recepción (is_received = true).
+      $isReceived = $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA;
+
       $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
         ->where('type_operation_id', $vehicle->type_operation_id)
         ->where('article_class_id', $vehicle->model->class_id)
-        ->where('is_received', true)
+        ->where('is_received', $isReceived)
         ->value('id');
 
       if ($warehouseId) {
