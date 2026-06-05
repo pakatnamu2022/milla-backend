@@ -7,6 +7,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
@@ -179,6 +180,50 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
+   * Create a vehicle movement when an internal transfer (GUIA_INTERNA) is accounted in Dynamics.
+   * Unlike storeInventoryVehicleMovement, keeps the vehicle status unchanged and moves it
+   * to the receiver sede's existencias warehouse (is_received = false).
+   * @throws Throwable
+   */
+  public function storeInternalTransferCompletedVehicleMovement(
+    Vehicles      $vehicle,
+    ShippingGuides $shippingGuide
+  ): VehicleMovement {
+    DB::beginTransaction();
+    try {
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'       => VehicleMovement::INTERNAL_TRANSFER,
+        'ap_vehicle_id'       => $vehicle->id,
+        'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
+        'movement_date'       => now(),
+        'observation'         => "Traslado interno contabilizado: {$shippingGuide->document_number}",
+        'previous_status_id'  => $vehicle->ap_vehicle_status_id,
+        'new_status_id'       => $vehicle->ap_vehicle_status_id,
+      ]);
+
+      $receiverSedeId = $shippingGuide->sedeReceiver?->id;
+      if ($receiverSedeId) {
+        $warehouseId = Warehouse::where('sede_id', $receiverSedeId)
+          ->where('type_operation_id', $vehicle->type_operation_id)
+          ->where('article_class_id', $vehicle->model->class_id ?? null)
+          ->where('is_received', false)
+          ->where('status', true)
+          ->value('id');
+
+        if ($warehouseId) {
+          $vehicle->update(['warehouse_id' => $warehouseId]);
+        }
+      }
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
   }
 

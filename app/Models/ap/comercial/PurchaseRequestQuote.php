@@ -206,7 +206,7 @@ class PurchaseRequestQuote extends Model
 
   protected $reportColumns = [
     'created_at' => [
-      'label' => 'Fecha de Registro',
+      'label' => 'Fecha Registro',
       'formatter' => 'date:d/m/Y H:i',
       'width' => 22,
     ],
@@ -245,6 +245,11 @@ class PurchaseRequestQuote extends Model
       'formatter' => null,
       'width' => 30,
     ],
+    'opportunity.client.full_name' => [
+      'label' => 'Cliente',
+      'formatter' => null,
+      'width' => 30,
+    ],
     'apModelsVn.family.brand.name' => [
       'label' => 'Marca',
       'formatter' => null,
@@ -255,30 +260,110 @@ class PurchaseRequestQuote extends Model
       'formatter' => null,
       'width' => 20,
     ],
+    'apModelsVn.version' => [
+      'label' => 'Versión',
+      'formatter' => null,
+      'width' => 25,
+    ],
+    'apModelsVn.family.description' => [
+      'label' => 'Familia',
+      'formatter' => null,
+      'width' => 22,
+    ],
+    'apModelsVn.model_year' => [
+      'label' => 'Año Modelo',
+      'formatter' => null,
+      'width' => 13,
+    ],
+    'apModelsVn.displacement' => [
+      'label' => 'Cilindrada',
+      'formatter' => null,
+      'width' => 15,
+    ],
+    'apModelsVn.seats_number' => [
+      'label' => 'N° Asientos',
+      'formatter' => null,
+      'width' => 14,
+    ],
+    'apModelsVn.doors_number' => [
+      'label' => 'N° Puertas',
+      'formatter' => null,
+      'width' => 14,
+    ],
     'vehicleColor.description' => [
       'label' => 'Color',
       'formatter' => null,
       'width' => 18,
     ],
+    'vehicle.vin' => [
+      'label' => 'VIN',
+      'formatter' => null,
+      'width' => 22,
+    ],
+    'vehicle.plate' => [
+      'label' => 'Placa',
+      'formatter' => null,
+      'width' => 14,
+    ],
+    'vehicle.year' => [
+      'label' => 'Año Vehículo',
+      'formatter' => null,
+      'width' => 14,
+    ],
+    'vehicle.engine_number' => [
+      'label' => 'N° Motor',
+      'formatter' => null,
+      'width' => 22,
+    ],
     'typeCurrency.code' => [
       'label' => 'Moneda Base',
       'formatter' => null,
-      'width' => 15,
+      'width' => 14,
+    ],
+    'base_selling_price' => [
+      'label' => 'Precio Base',
+      'formatter' => null,
+      'width' => 18,
     ],
     'sale_price' => [
       'label' => 'Precio Venta',
       'formatter' => null,
       'width' => 18,
     ],
+    'down_payment' => [
+      'label' => 'Cuota Inicial',
+      'formatter' => null,
+      'width' => 18,
+    ],
+    'margin_amount' => [
+      'label' => 'Margen (S/)',
+      'formatter' => null,
+      'width' => 16,
+    ],
+    'margin_pct' => [
+      'label' => 'Margen (%)',
+      'formatter' => null,
+      'width' => 14,
+    ],
     'docTypeCurrency.code' => [
       'label' => 'Moneda Doc.',
       'formatter' => null,
-      'width' => 15,
+      'width' => 14,
     ],
     'doc_sale_price' => [
       'label' => 'Precio Doc.',
       'formatter' => null,
       'width' => 18,
+    ],
+    'warranty_years' => [
+      'label' => 'Garantía (Años)',
+      'formatter' => null,
+      'width' => 16,
+    ],
+    'warranty_km' => [
+      'label' => 'Garantía (KM)',
+      'formatter' => null,
+      'width' => 16,
     ],
     'quote_deadline' => [
       'label' => 'Vigencia',
@@ -287,13 +372,33 @@ class PurchaseRequestQuote extends Model
     ],
     'is_approved' => [
       'label' => 'Aprobado',
-      'formatter' => null,
+      'formatter' => 'boolean',
       'width' => 12,
+    ],
+    'is_invoiced' => [
+      'label' => 'Facturado',
+      'formatter' => 'boolean',
+      'width' => 12,
+    ],
+    'is_paid' => [
+      'label' => 'Pagado',
+      'formatter' => 'boolean',
+      'width' => 12,
+    ],
+    'has_vehicle' => [
+      'label' => 'Tiene Vehículo',
+      'formatter' => 'boolean',
+      'width' => 16,
     ],
     'status' => [
       'label' => 'Estado',
-      'formatter' => null,
+      'formatter' => 'boolean',
       'width' => 12,
+    ],
+    'comment' => [
+      'label' => 'Observaciones',
+      'formatter' => null,
+      'width' => 35,
     ],
   ];
 
@@ -305,7 +410,38 @@ class PurchaseRequestQuote extends Model
     'docTypeCurrency',
     'vehicleColor',
     'opportunity.worker',
+    'opportunity.client',
+    'vehicle',
   ];
+
+  protected $reportStyles = [
+    'headerBold' => true,
+    'headerFontSize' => 11,
+    'headerFontColor' => 'FFFFFF',
+    'headerBackgroundColor' => '0D47A1',
+    'bodyFontSize' => 10,
+  ];
+
+  protected $reportColorRules = [
+    'is_approved' => [
+      1 => '4CAF50',
+      0 => 'FFC107',
+    ],
+    'status' => [
+      1 => '4CAF50',
+      0 => 'BDBDBD',
+    ],
+  ];
+
+  public function generateReportSummary($data): array
+  {
+    return [
+      'Total Precio Venta (S/)' => number_format($data->sum('sale_price'), 2),
+      'Total Precio Doc.'       => number_format($data->sum('doc_sale_price'), 2),
+      'Total Aprobadas'         => $data->where('is_approved', 1)->count(),
+      'Activas'                 => $data->where('status', 1)->count(),
+    ];
+  }
 
   public function activate(): void
   {

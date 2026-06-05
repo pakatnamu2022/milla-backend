@@ -38,7 +38,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      Vehicles::class,
+      Vehicles::with('purchaseOrder'),
       $request,
       Vehicles::filters,
       Vehicles::sorts,

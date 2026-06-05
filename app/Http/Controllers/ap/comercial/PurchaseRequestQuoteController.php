@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
 use App\Http\Requests\ap\comercial\SwapVehicleRequest;
+use App\Http\Requests\ap\comercial\ExportPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\UpdatePurchaseRequestQuoteRequest;
@@ -114,7 +115,7 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
-  public function export(Request $request)
+  public function export(ExportPurchaseRequestQuoteRequest $request)
   {
     try {
       return $this->service->export($request);
