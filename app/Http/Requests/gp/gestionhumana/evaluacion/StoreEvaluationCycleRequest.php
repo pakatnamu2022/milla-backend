@@ -3,6 +3,7 @@
 namespace App\Http\Requests\gp\gestionhumana\evaluacion;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Validation\Rule;
 
 class StoreEvaluationCycleRequest extends StoreRequest
@@ -42,6 +43,25 @@ class StoreEvaluationCycleRequest extends StoreRequest
         if ($cutOff < $start || $cutOff > $end) {
           $validator->errors()->add('cut_off_date', 'La fecha de corte debe estar entre la fecha de inicio y la fecha de fin.');
         }
+      }
+
+      $workersWithoutCategories = Worker::where('status_id', 22)
+        ->with(['position.hierarchicalCategory', 'evaluationDetails'])
+        ->get()
+        ->groupBy(fn($w) => trim(strtolower($w->nombre_completo)))
+        ->map(fn($group) => $group->first())
+        ->filter(function ($worker) {
+          if ($worker->evaluationDetails->count() > 0) {
+            return false;
+          }
+          return !($worker->position && $worker->position->hierarchicalCategory);
+        });
+
+      if ($workersWithoutCategories->isNotEmpty()) {
+        $validator->errors()->add(
+          'workers_without_categories',
+          'Existen ' . $workersWithoutCategories->count() . ' persona(s) sin categoría jerárquica asignada. Asigne una categoría antes de crear el ciclo.'
+        );
       }
     });
   }
