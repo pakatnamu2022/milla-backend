@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * php artisan db:seed --class=Database\Seeders\dp\CommentAccountReceivableSeeder
+ * sudo docker compose exec app php artisan db:seed --class=Database\\Seeders\\dp\\CommentAccountReceivableSeeder
  */
 class CommentAccountReceivableSeeder extends Seeder
 {
