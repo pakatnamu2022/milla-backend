@@ -137,25 +137,25 @@ class EvaluationPersonCycleDetailService extends BaseService
             }
 
             $data = [
-              'person_id' => $person->id,
-              'chief_id' => $evaluatorId ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
-              'position_id' => $person->cargo_id,
-              'sede_id' => $person->sede_id,
-              'area_id' => $person->area_id,
-              'cycle_id' => $cycleId,
-              'category_id' => $categoryId,
-              'objective_id' => $objective->id,
-              'isAscending' => $objective->isAscending,
-              'person' => $person->nombre_completo,
-              'chief' => $chief ? $chief->nombre_completo : '',
-              'position' => $person->position ? $person->position->name : '',
-              'sede' => $person->sede ? $person->sede->abreviatura : '',
-              'area' => $person->position?->area ? $person->position->area->name : '',
-              'category' => $category->name,
-              'objective' => $objective->name,
-              'goal' => $goal,
-              'weight' => $weight,
-              'metric' => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
+              'person_id'           => $person->id,
+              'chief_id'            => $evaluatorId ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
+              'position_id'         => $person->cargo_id,
+              'sede_id'             => $person->sede_id,
+              'area_id'             => $person->area_id,
+              'cycle_id'            => $cycleId,
+              'category_id'         => $categoryId,
+              'objective_id'        => $objective->id,
+              'isAscending'         => $objective->isAscending,
+              'person'              => $person->nombre_completo,
+              'chief'               => $chief ? $chief->nombre_completo : '',
+              'position'            => $person->position ? $person->position->name : '',
+              'sede'                => $person->sede ? $person->sede->abreviatura : '',
+              'area'                => $person->position?->area ? $person->position->area->name : '',
+              'category'            => $category->name,
+              'objective'           => $objective->name,
+              'goal'                => $goal,
+              'weight'              => $weight,
+              'metric'              => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
               'end_date_objectives' => $lastCycle->end_date_objectives,
             ];
             EvaluationPersonCycleDetail::create($data);
@@ -296,25 +296,25 @@ class EvaluationPersonCycleDetailService extends BaseService
           }
 
           $data = [
-            'person_id' => $person->id,
-            'chief_id' => $evaluatorId,
-            'position_id' => $person->cargo_id,
-            'sede_id' => $person->sede_id,
-            'area_id' => $person->area_id,
-            'cycle_id' => $cycle->id,
-            'category_id' => $hierarchicalCategory->id,
-            'objective_id' => $objective->id,
-            'isAscending' => $objective->isAscending,
-            'person' => $person->nombre_completo,
-            'chief' => $chief->nombre_completo,
-            'position' => $person->position?->name ?? '',
-            'sede' => $person->sede?->abreviatura ?? '',
-            'area' => $person->position?->area?->name ?? '',
-            'category' => $hierarchicalCategory->name,
-            'objective' => $objective->name,
-            'goal' => $goal,
-            'weight' => $weight,
-            'metric' => $objective->metric?->name ?? '',
+            'person_id'           => $person->id,
+            'chief_id'            => $evaluatorId,
+            'position_id'         => $person->cargo_id,
+            'sede_id'             => $person->sede_id,
+            'area_id'             => $person->area_id,
+            'cycle_id'            => $cycle->id,
+            'category_id'         => $hierarchicalCategory->id,
+            'objective_id'        => $objective->id,
+            'isAscending'         => $objective->isAscending,
+            'person'              => $person->nombre_completo,
+            'chief'               => $chief->nombre_completo,
+            'position'            => $person->position?->name ?? '',
+            'sede'                => $person->sede?->abreviatura ?? '',
+            'area'                => $person->position?->area?->name ?? '',
+            'category'            => $hierarchicalCategory->name,
+            'objective'           => $objective->name,
+            'goal'                => $goal,
+            'weight'              => $weight,
+            'metric'              => $objective->metric?->name ?? '',
             'end_date_objectives' => $cycle->end_date_objectives,
           ];
 
@@ -399,10 +399,10 @@ class EvaluationPersonCycleDetailService extends BaseService
         }
 
         $results[] = [
-          'category_id' => $categoryId,
-          'category_name' => $category->name,
+          'category_id'         => $categoryId,
+          'category_name'       => $category->name,
           'revalidated_persons' => $revalidatedCount,
-          'removed_persons' => $removedCount
+          'removed_persons'     => $removedCount
         ];
       }
 
@@ -410,17 +410,17 @@ class EvaluationPersonCycleDetailService extends BaseService
       $orphanedCount = $this->cleanupOrphanedEvaluationRecords($cycleId);
 
       return [
-        'cycle_id' => $cycleId,
-        'message' => 'Revalidación completada',
-        'results' => $results,
+        'cycle_id'                 => $cycleId,
+        'message'                  => 'Revalidación completada',
+        'results'                  => $results,
         'orphaned_records_cleaned' => $orphanedCount
       ];
     } catch (Exception $e) {
       Log::error('Error en revalidación de personas en ciclo: ' . $e->getMessage(), ['cycle_id' => $cycleId]);
       return [
         'cycle_id' => $cycleId,
-        'message' => 'Error durante la revalidación: ' . $e->getMessage(),
-        'results' => []
+        'message'  => 'Error durante la revalidación: ' . $e->getMessage(),
+        'results'  => []
       ];
     }
   }
@@ -685,26 +685,26 @@ class EvaluationPersonCycleDetailService extends BaseService
     }
 
     $data = [
-      'person_id' => $person->id,
-      'chief_id' => $person->supervisor_id ?? $person->jefe_id ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
-      'position_id' => $person->cargo_id,
-      'sede_id' => $person->sede_id,
-      'area_id' => $person->area_id,
-      'cycle_id' => $cycle->id,
-      'category_id' => $category->id,
-      'objective_id' => $objective->id,
-      'person' => $person->nombre_completo,
-      'chief' => $chief ? $chief->nombre_completo : '',
-      'position' => $person->position ? $person->position->name : '',
-      'sede' => $person->sede ? $person->sede->abreviatura : '',
-      'area' => $person->position?->area ? $person->position->area->name : '',
-      'category' => $category->name,
-      'objective' => $objective->name,
-      'goal' => $goal,
-      'weight' => $weight,
-      'metric' => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
+      'person_id'           => $person->id,
+      'chief_id'            => $person->supervisor_id ?? $person->jefe_id ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
+      'position_id'         => $person->cargo_id,
+      'sede_id'             => $person->sede_id,
+      'area_id'             => $person->area_id,
+      'cycle_id'            => $cycle->id,
+      'category_id'         => $category->id,
+      'objective_id'        => $objective->id,
+      'person'              => $person->nombre_completo,
+      'chief'               => $chief ? $chief->nombre_completo : '',
+      'position'            => $person->position ? $person->position->name : '',
+      'sede'                => $person->sede ? $person->sede->abreviatura : '',
+      'area'                => $person->position?->area ? $person->position->area->name : '',
+      'category'            => $category->name,
+      'objective'           => $objective->name,
+      'goal'                => $goal,
+      'weight'              => $weight,
+      'metric'              => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
       'end_date_objectives' => $cycle->end_date_objectives,
-      'isAscending' => $objective->isAscending,
+      'isAscending'         => $objective->isAscending,
     ];
 
     EvaluationPersonCycleDetail::create($data);
@@ -721,16 +721,16 @@ class EvaluationPersonCycleDetailService extends BaseService
     }
 
     $detail->update([
-      'chief_id' => $person->supervisor_id,
+      'chief_id'    => $person->supervisor_id,
       'position_id' => $person->cargo_id,
-      'sede_id' => $person->sede_id,
-      'area_id' => $person->area_id,
-      'person' => $person->nombre_completo,
-      'chief' => $chief ? $chief->nombre_completo : '',
-      'position' => $person->position ? $person->position->name : '',
-      'sede' => $person->sede ? $person->sede->abreviatura : '',
-      'area' => $person->position?->area ? $person->position->area->name : '',
-      'category' => $category->name,
+      'sede_id'     => $person->sede_id,
+      'area_id'     => $person->area_id,
+      'person'      => $person->nombre_completo,
+      'chief'       => $chief ? $chief->nombre_completo : '',
+      'position'    => $person->position ? $person->position->name : '',
+      'sede'        => $person->sede ? $person->sede->abreviatura : '',
+      'area'        => $person->position?->area ? $person->position->area->name : '',
+      'category'    => $category->name,
     ]);
   }
 
@@ -759,7 +759,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
       if ($categoryObjectiveDetail) {
         $data = [
-          'id' => $categoryObjectiveDetail->id,
+          'id'   => $categoryObjectiveDetail->id,
           'goal' => $personCycleDetail->goal,
         ];
 
@@ -773,10 +773,10 @@ class EvaluationPersonCycleDetailService extends BaseService
 
       foreach ($evaluationPersons as $evaluationPerson) {
         $updateData = [
-          'id' => $evaluationPerson->id,
+          'id'        => $evaluationPerson->id,
           'person_id' => $personCycleDetail->person_id,
-          'chief_id' => $personCycleDetail->chief_id,
-          'chief' => $personCycleDetail->chief,
+          'chief_id'  => $personCycleDetail->chief_id,
+          'chief'     => $personCycleDetail->chief,
         ];
 
         // Si tiene result, agregarlo para que el servicio recalcule compliance y qualification
@@ -825,7 +825,7 @@ class EvaluationPersonCycleDetailService extends BaseService
         : $baseWeight;
 
       $objective->update([
-        'weight' => $objectiveWeight,
+        'weight'      => $objectiveWeight,
         'fixedWeight' => false,
       ]);
     }
@@ -1054,25 +1054,25 @@ class EvaluationPersonCycleDetailService extends BaseService
       $first = $objectives->first();
 
       $needsUpdate[] = [
-        'person_id' => $first->person_id,
-        'person' => $first->person,
-        'category_id' => $first->category_id,
-        'category' => $first->category,
+        'person_id'    => $first->person_id,
+        'person'       => $first->person,
+        'category_id'  => $first->category_id,
+        'category'     => $first->category,
         'total_weight' => $totalWeight,
-        'reasons' => $reasons,
-        'objectives' => $objectives->map(fn($o) => [
-          'id' => $o->id,
-          'objective' => $o->objective,
-          'weight' => $o->weight,
+        'reasons'      => $reasons,
+        'objectives'   => $objectives->map(fn($o) => [
+          'id'          => $o->id,
+          'objective'   => $o->objective,
+          'weight'      => $o->weight,
           'fixedWeight' => (bool)$o->fixedWeight,
         ])->values(),
       ];
     }
 
     return [
-      'cycle_id' => $cycleId,
+      'cycle_id'           => $cycleId,
       'needs_update_count' => count($needsUpdate),
-      'needs_update' => $needsUpdate,
+      'needs_update'       => $needsUpdate,
     ];
   }
 
@@ -1120,9 +1120,9 @@ class EvaluationPersonCycleDetailService extends BaseService
 
       if ($totalWeight == 100.00 && !$hasLowWeight) {
         $skipped[] = [
-          'person_id' => $group->person_id,
-          'person' => $personName,
-          'category' => $categoryName,
+          'person_id'    => $group->person_id,
+          'person'       => $personName,
+          'category'     => $categoryName,
           'total_weight' => $totalWeight,
         ];
         continue;
@@ -1141,20 +1141,20 @@ class EvaluationPersonCycleDetailService extends BaseService
       );
 
       $updated[] = [
-        'person_id' => $group->person_id,
-        'person' => $personName,
-        'category' => $categoryName,
+        'person_id'             => $group->person_id,
+        'person'                => $personName,
+        'category'              => $categoryName,
         'previous_total_weight' => $totalWeight,
-        'new_total_weight' => $newTotal,
+        'new_total_weight'      => $newTotal,
       ];
     }
 
     return [
-      'cycle_id' => $cycleId,
+      'cycle_id'      => $cycleId,
       'updated_count' => count($updated),
       'skipped_count' => count($skipped),
-      'updated' => $updated,
-      'skipped' => $skipped,
+      'updated'       => $updated,
+      'skipped'       => $skipped,
     ];
   }
 
@@ -1200,7 +1200,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       ->get();
 
     // Incluir workers aptos: sin objetivos asignados aún, o con al menos uno pendiente de insertar
-    return $workers->filter(function (Worker $worker) use ($objectivesInCycle) {
+    return $workers->filter(function (Worker $worker) use ($cycleId, $objectivesInCycle) {
       $category = $worker->position?->hierarchicalCategory;
       if (!$category) {
         return false;
@@ -1258,7 +1258,7 @@ class EvaluationPersonCycleDetailService extends BaseService
     // Worker existe con global scope (status_deleted=1, b_empleado=1)
     $worker = Worker::find($workerId);
     $checks['worker_activo'] = [
-      'pass'    => (bool) $worker,
+      'pass'    => (bool)$worker,
       'message' => $worker ? 'Trabajador activo y empleado' : 'Trabajador no encontrado, inactivo o no es empleado',
     ];
 
@@ -1322,9 +1322,9 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     // Categoría configurada en el ciclo
     $categoryInCycle = $validCategory && EvaluationCycleCategoryDetail::whereNull('deleted_at')
-      ->where('cycle_id', $cycleId)
-      ->where('hierarchical_category_id', $category->id)
-      ->exists();
+        ->where('cycle_id', $cycleId)
+        ->where('hierarchical_category_id', $category->id)
+        ->exists();
 
     $checks['categoria_en_ciclo'] = [
       'pass'    => $categoryInCycle,
@@ -1337,9 +1337,9 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     // Objetivos pendientes de insertar en el ciclo (activos con peso > 0)
     $pendingObjectives = 0;
-    $totalObjectives   = 0;
-    $alreadyInCycle    = 0;
-    $withZeroWeight    = 0;
+    $totalObjectives = 0;
+    $alreadyInCycle = 0;
+    $withZeroWeight = 0;
 
     if ($validCategory && $categoryInCycle) {
       $shouldHaveIds = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
@@ -1363,18 +1363,18 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->where('person_id', $workerId)
         ->pluck('objective_id');
 
-      $totalObjectives   = $shouldHaveIds->count();
-      $alreadyInCycle    = $shouldHaveIds->intersect($hasIds)->count();
+      $totalObjectives = $shouldHaveIds->count();
+      $alreadyInCycle = $shouldHaveIds->intersect($hasIds)->count();
       $pendingObjectives = $shouldHaveIds->diff($hasIds)->count();
     }
 
     $checks['objetivos'] = [
-      'pass'              => $categoryInCycle && $pendingObjectives > 0,
-      'total'             => $totalObjectives,
-      'ya_en_ciclo'       => $alreadyInCycle,
-      'pendientes'        => $pendingObjectives,
-      'con_peso_cero'     => $withZeroWeight,
-      'message'           => !$validCategory
+      'pass'          => $categoryInCycle && $pendingObjectives > 0,
+      'total'         => $totalObjectives,
+      'ya_en_ciclo'   => $alreadyInCycle,
+      'pendientes'    => $pendingObjectives,
+      'con_peso_cero' => $withZeroWeight,
+      'message'       => !$validCategory
         ? 'No aplica (categoría inválida)'
         : (!$categoryInCycle
           ? 'No aplica (categoría no configurada en el ciclo)'
@@ -1392,11 +1392,11 @@ class EvaluationPersonCycleDetailService extends BaseService
     return [
       'eligible' => $eligible,
       'worker'   => [
-        'id'             => $worker->id,
-        'nombre'         => $worker->nombre_completo,
-        'cargo_id'       => $worker->cargo_id,
-        'categoria'      => $category?->name,
-        'categoria_id'   => $category?->id,
+        'id'           => $worker->id,
+        'nombre'       => $worker->nombre_completo,
+        'cargo_id'     => $worker->cargo_id,
+        'categoria'    => $category?->name,
+        'categoria_id' => $category?->id,
       ],
       'cycle_id' => $cycleId,
       'checks'   => $checks,
@@ -1432,10 +1432,10 @@ class EvaluationPersonCycleDetailService extends BaseService
     }
 
     return [
-      'added' => $added,
-      'errors' => $errors,
+      'added'   => $added,
+      'errors'  => $errors,
       'summary' => [
-        'added_count' => count($added),
+        'added_count'  => count($added),
         'errors_count' => count($errors),
       ],
     ];
@@ -1547,25 +1547,25 @@ class EvaluationPersonCycleDetailService extends BaseService
       }
 
       EvaluationPersonCycleDetail::create([
-        'person_id' => $person->id,
-        'chief_id' => $evaluatorId,
-        'position_id' => $person->cargo_id,
-        'sede_id' => $person->sede_id,
-        'area_id' => $person->area_id,
-        'cycle_id' => $cycleId,
-        'category_id' => $hierarchicalCategory->id,
-        'objective_id' => $objective->id,
-        'isAscending' => $objective->isAscending,
-        'person' => $person->nombre_completo,
-        'chief' => $chief?->nombre_completo ?? '',
-        'position' => $person->position?->name ?? '',
-        'sede' => $person->sede?->abreviatura ?? '',
-        'area' => $person->position?->area?->name ?? '',
-        'category' => $hierarchicalCategory->name,
-        'objective' => $objective->name,
-        'goal' => $goal,
-        'weight' => $weight,
-        'metric' => $objective->metric?->name
+        'person_id'           => $person->id,
+        'chief_id'            => $evaluatorId,
+        'position_id'         => $person->cargo_id,
+        'sede_id'             => $person->sede_id,
+        'area_id'             => $person->area_id,
+        'cycle_id'            => $cycleId,
+        'category_id'         => $hierarchicalCategory->id,
+        'objective_id'        => $objective->id,
+        'isAscending'         => $objective->isAscending,
+        'person'              => $person->nombre_completo,
+        'chief'               => $chief?->nombre_completo ?? '',
+        'position'            => $person->position?->name ?? '',
+        'sede'                => $person->sede?->abreviatura ?? '',
+        'area'                => $person->position?->area?->name ?? '',
+        'category'            => $hierarchicalCategory->name,
+        'objective'           => $objective->name,
+        'goal'                => $goal,
+        'weight'              => $weight,
+        'metric'              => $objective->metric?->name
           ?? throw new Exception("El objetivo {$objective->name} no tiene una métrica asignada."),
         'end_date_objectives' => $cycle->end_date_objectives,
       ]);
@@ -1608,15 +1608,15 @@ class EvaluationPersonCycleDetailService extends BaseService
 
           if (!$exists) {
             EvaluationPerson::create([
-              'person_id'             => $detail->person_id,
-              'chief_id'              => $detail->chief_id,
-              'chief'                 => $detail->chief,
+              'person_id'              => $detail->person_id,
+              'chief_id'               => $detail->chief_id,
+              'chief'                  => $detail->chief,
               'person_cycle_detail_id' => $detail->id,
-              'evaluation_id'         => $evaluation->id,
-              'result'                => 0,
-              'compliance'            => 0,
-              'qualification'         => 0,
-              'wasEvaluated'          => 0,
+              'evaluation_id'          => $evaluation->id,
+              'result'                 => 0,
+              'compliance'             => 0,
+              'qualification'          => 0,
+              'wasEvaluated'           => 0,
             ]);
           }
         }
