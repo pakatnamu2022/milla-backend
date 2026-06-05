@@ -77,6 +77,14 @@ class VerifyShippingGuideMigrationCommand extends Command
         VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
       ])
         ->where('aceptada_por_sunat', true)
+        ->where(function ($q) {
+          // Guías de compra (transfer_reason_id = 15) solo migran después de ser recepcionadas
+          $q->where(function ($inner) {
+            $inner->where('transfer_reason_id', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+              ->where('is_received', true);
+          })->orWhere('transfer_reason_id', '!=', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+            ->orWhereNull('transfer_reason_id');
+        })
         ->where('area_id', ApMasters::AREA_COMERCIAL)
         ->orderBy('id', 'desc')
         ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
