@@ -49,6 +49,7 @@ class BusinessPartners extends Model
     'status_ap',
     'status_tp',
     'status_dp',
+    'is_insurance',
     'company_status',
     'company_condition',
     'origin_id',
@@ -71,6 +72,7 @@ class BusinessPartners extends Model
     'birth_date' => 'date',
     'driving_license_issue_date' => 'date',
     'driving_license_expiration_date' => 'date',
+    'is_insurance' => 'boolean',
   ];
 
   const filters = [
@@ -87,6 +89,7 @@ class BusinessPartners extends Model
     'status_ap' => '=',
     'status_tp' => '=',
     'status_dp' => '=',
+    'is_insurance' => '='
   ];
 
   const sorts = [
