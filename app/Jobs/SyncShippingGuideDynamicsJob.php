@@ -54,7 +54,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   public int $timeout = 300;
 
   /**
-   * Create a new job instance.
+   * @param int|null $shippingGuideId ID de la guía a procesar; null = procesa todas las pendientes.
    */
   public function __construct(
     public ?int $shippingGuideId = null
@@ -64,9 +64,8 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Execute the job.
-   * Si se proporciona un ID, procesa solo esa guía
-   * Si no, procesa todas las guías que no tienen dyn_series
+   * Punto de entrada del job.
+   * Delega a processShippingGuide() si hay ID, o a processAllShippingGuides() en modo batch.
    */
   public function handle(): void
   {
@@ -86,21 +85,22 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa todas las guías de remisión pendientes de sincronización
+   * Carga en batch todas las guías que aún requieren confirmación contable:
+   *   - Guías activas con migration_status = completed e is_accounted = false.
+   *   - Guías canceladas con migration_status = completed e is_annulled = false.
+   * Procesa cada una llamando a processShippingGuide(); los errores individuales
+   * se loguean y no detienen el resto del lote.
    */
   protected function processAllShippingGuides(): void
   {
-    // Obtener guías activas NO contabilizadas O guías canceladas NO anuladas
     $shippingGuides = ShippingGuides::whereNotNull('document_number')
       ->where('aceptada_por_sunat', true)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where(function ($q) {
-        // Guías activas NO contabilizadas
         $q->where(function ($q2) {
           $q2->where('status', true)
             ->where('is_accounted', false);
         })
-          // O guías canceladas NO anuladas
           ->orWhere(function ($q2) {
             $q2->where('status', false)
               ->where('is_annulled', false);
@@ -116,7 +116,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       try {
         $this->processShippingGuide($guide->id);
       } catch (\Exception $e) {
-        // Continuar con la siguiente guía
         Log::error('Error procesando guía en lote', [
           'shipping_guide_id' => $guide->id,
           'error' => $e->getMessage()
@@ -127,8 +126,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa una guía de remisión específica.
-   * Separa el flujo según el tipo: comercial (venta) vs postventa (transferencia).
+   * Orquesta el procesamiento de una guía individual.
+   * Detecta el tipo por el prefijo de dyn_series y bifurca:
+   *   - "CV-" → processCommercialDeliveryGuide() (venta comercial).
+   *   - Otro  → flujo de transferencia postventa via neIvConsultarTransferenciasInventario.
    */
   protected function processShippingGuide(int $shippingGuideId): void
   {
@@ -253,8 +254,12 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Procesa guías comerciales de VENTA usando neIvConsultarAjustesInventario.
-   * Si el Numero del resultado coincide con el dyn_series → el movimiento fue hecho → entrega completa.
+   * Flujo VENTA comercial (dyn_series con prefijo "CV-").
+   * Consulta neIvConsultarAjustesInventario y busca la fila cuyo Numero coincide con dyn_series.
+   * Si se encuentra:
+   *   1. Marca la guía como is_accounted = true.
+   *   2. Cierra la entrega (ApVehicleDelivery → status_delivery = completed).
+   *   3. Avanza la Oportunidad al estado DELIVERED.
    */
   protected function processCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
   {
@@ -287,7 +292,9 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Consulta el Procedimiento Almacenado
+   * Ejecuta EXEC neIvConsultarTransferenciasInventario '{transactionId}' en dbtest.
+   * Retorna el primer resultado (objeto con campos Documento, Estado, etc.)
+   * o null si el SP no devuelve filas para ese ID de transacción.
    */
   protected function consultStoredProcedure(string $transactionId): ?object
   {
@@ -312,10 +319,11 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Consulta neIvConsultarAjustesInventario para verificar si el movimiento comercial ya existe.
-   * Retorna todos los resultados para que el caller filtre por Numero.
+   * Ejecuta EXEC neIvConsultarAjustesInventario en dbtest y retorna todas las filas.
+   * El filtrado por Numero se hace en el caller (processCommercialDeliveryGuide).
+   *
+   * TODO: pasar $documentNumber como parámetro al SP cuando Dynamics lo soporte.
    */
-  // TODO: Pasar $documentNumber como parámetro al SP cuando esté disponible en Dynamics
   protected function consultAjustesInventario(string $documentNumber): array
   {
     try {
@@ -330,6 +338,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     }
   }
 
+  /**
+   * Callback de Laravel cuando el job agota todos los reintentos.
+   * Deja registro de error con traza completa para diagnóstico manual.
+   */
   public function failed(\Throwable $exception): void
   {
     Log::error('SyncShippingGuideDynamicsJob falló definitivamente', [
