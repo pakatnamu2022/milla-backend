@@ -11,7 +11,8 @@ class StorePayrollLoanExtraDiscountRequest extends StoreRequest
         return [
             'loan_id'         => ['required', 'integer', 'exists:gh_payroll_loans,id'],
             'concept_type_id' => ['required', 'integer', 'exists:general_masters,id'],
-            'amount'          => ['required', 'numeric', 'min:0'],
+            'amount'          => ['required', 'numeric', 'min:0.01'],
+            'scheduled_date'  => ['nullable', 'date'],
             'applied'         => ['nullable', 'boolean'],
             'status'          => ['nullable', 'boolean'],
         ];
@@ -23,6 +24,7 @@ class StorePayrollLoanExtraDiscountRequest extends StoreRequest
             'loan_id'         => 'préstamo',
             'concept_type_id' => 'tipo de concepto',
             'amount'          => 'monto',
+            'scheduled_date'  => 'fecha programada',
             'applied'         => 'aplicado',
         ];
     }
@@ -30,12 +32,12 @@ class StorePayrollLoanExtraDiscountRequest extends StoreRequest
     public function messages(): array
     {
         return [
-            'loan_id.required'         => 'El :attribute es obligatorio.',
-            'loan_id.exists'           => 'El :attribute seleccionado no existe.',
-            'concept_type_id.required' => 'El :attribute es obligatorio.',
-            'concept_type_id.exists'   => 'El :attribute seleccionado no existe.',
-            'amount.required'          => 'El :attribute es obligatorio.',
-            'amount.min'               => 'El :attribute no puede ser negativo.',
+            'loan_id.required'        => 'El :attribute es obligatorio.',
+            'loan_id.exists'          => 'El :attribute seleccionado no existe.',
+            'concept_type_id.required'=> 'El :attribute es obligatorio.',
+            'concept_type_id.exists'  => 'El :attribute seleccionado no existe.',
+            'amount.required'         => 'El :attribute es obligatorio.',
+            'amount.min'              => 'El :attribute debe ser mayor a 0.',
         ];
     }
 }

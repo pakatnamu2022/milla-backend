@@ -3,6 +3,7 @@
 namespace App\Models\gp\gestionhumana\payroll;
 
 use App\Models\BaseModel;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -12,20 +13,28 @@ class PayrollLoanExtraDiscount extends BaseModel
 
     protected $table = 'gh_payroll_loan_extra_discounts';
 
+    // Usado solo internamente por el sistema al generar cuotas automáticas
+    const CONCEPT_TYPE_REGULAR = 'REGULAR';
+
     protected $fillable = [
         'loan_id',
+        'scheduled_date',
         'concept_type',
         'amount',
         'month_number',
         'applied',
+        'confirmed_by',
+        'confirmed_at',
         'status',
     ];
 
     protected $casts = [
-        'amount'       => 'decimal:2',
-        'month_number' => 'integer',
-        'applied'      => 'boolean',
-        'status'       => 'integer',
+        'amount'         => 'decimal:2',
+        'month_number'   => 'integer',
+        'applied'        => 'boolean',
+        'status'         => 'integer',
+        'scheduled_date' => 'date',
+        'confirmed_at'   => 'datetime',
     ];
 
     const filters = [
@@ -39,19 +48,21 @@ class PayrollLoanExtraDiscount extends BaseModel
     const sorts = [
         'loan_id',
         'concept_type',
+        'scheduled_date',
         'month_number',
         'amount',
         'applied',
+        'confirmed_at',
         'created_at',
     ];
-
-    // Concept type constants (opcionales, para referencia)
-    const CONCEPT_TYPE_GRATIFICACION_JULIO = 'GRATIFICACION_JULIO';
-    const CONCEPT_TYPE_GRATIFICACION_DICIEMBRE = 'GRATIFICACION_DICIEMBRE';
-    const CONCEPT_TYPE_UTILIDADES = 'UTILIDADES';
 
     public function loan(): BelongsTo
     {
         return $this->belongsTo(PayrollLoan::class, 'loan_id');
+    }
+
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 }

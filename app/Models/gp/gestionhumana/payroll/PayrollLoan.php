@@ -3,7 +3,6 @@
 namespace App\Models\gp\gestionhumana\payroll;
 
 use App\Models\BaseModel;
-use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,20 +15,23 @@ class PayrollLoan extends BaseModel
     protected $table = 'gh_payroll_loans';
 
     protected $fillable = [
-        'concept_id',
         'worker_id',
         'delivery_date',
         'reason',
         'payment_start',
+        'payment_days',
         'loan_amount',
         'installments_count',
         'installment_amount',
+        'remaining_balance',
         'status',
     ];
 
     protected $casts = [
         'loan_amount'        => 'decimal:2',
         'installment_amount' => 'decimal:2',
+        'remaining_balance'  => 'decimal:2',
+        'payment_days'       => 'array',
         'delivery_date'      => 'date',
         'payment_start'      => 'date',
         'installments_count' => 'integer',
@@ -37,17 +39,16 @@ class PayrollLoan extends BaseModel
     ];
 
     const filters = [
-        'search'       => ['reason'],
-        'worker_id'    => '=',
-        'concept_id'   => '=',
-        'status'       => '=',
+        'search'    => ['reason'],
+        'worker_id' => '=',
+        'status'    => '=',
     ];
 
     const sorts = [
         'worker_id',
-        'concept_id',
         'delivery_date',
         'loan_amount',
+        'remaining_balance',
         'created_at',
     ];
 
@@ -56,13 +57,16 @@ class PayrollLoan extends BaseModel
         return $this->belongsTo(Worker::class, 'worker_id');
     }
 
-    public function concept(): BelongsTo
-    {
-        return $this->belongsTo(GeneralMaster::class, 'concept_id');
-    }
-
     public function extraDiscounts(): HasMany
     {
         return $this->hasMany(PayrollLoanExtraDiscount::class, 'loan_id');
+    }
+
+    public function pendingInstallments(): HasMany
+    {
+        return $this->hasMany(PayrollLoanExtraDiscount::class, 'loan_id')
+            ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+            ->where('applied', false)
+            ->orderBy('scheduled_date');
     }
 }
