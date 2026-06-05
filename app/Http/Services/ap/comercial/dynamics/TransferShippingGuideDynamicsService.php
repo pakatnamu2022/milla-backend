@@ -59,20 +59,14 @@ class TransferShippingGuideDynamicsService
       $existingTransfer->ProcesoError ?? null
     );
 
-    if ($transferLog->proceso_estado === 1) {
+    if ($transferLog->proceso_estado === 1 && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
       $vehicle = $shippingGuide->vehicleMovement?->vehicle;
       if (!$vehicle) {
         throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido. ShippingGuide ID: {$shippingGuide->id}");
       }
 
       $vehicleMovementService = new VehicleMovementService();
-      if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
-        // Traslado interno: el vehículo ya está en inventario, solo cambia de sede/almacén
-        $vehicleMovementService->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
-      } else {
-        // Compra u otro flujo: el vehículo entra a inventario por primera vez
-        $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
-      }
+      $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
     }
   }
 

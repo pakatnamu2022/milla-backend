@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\TransferReceptionService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
@@ -344,6 +345,14 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           'shipping_guide_id' => $shippingGuide->id,
           'transaction_id'    => $transactionId,
         ]);
+        return;
+      }
+
+      if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+        if ($vehicle) {
+          (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+        }
       }
     }
   }
