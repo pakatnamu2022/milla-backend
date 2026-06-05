@@ -76,9 +76,53 @@ class PayrollLoanService extends BaseService implements BaseServiceInterface
         DB::beginTransaction();
         try {
             $record = $this->find($data['id']);
+
+            // Validar que no existan pagos confirmados
+            $hasConfirmedPayments = PayrollLoanExtraDiscount::where('loan_id', $record->id)
+                ->where('applied', true)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if ($hasConfirmedPayments) {
+                throw new Exception('No se puede editar el préstamo porque ya tiene pagos confirmados');
+            }
+
+            $hasDays = !empty($data['payment_days']);
+
+            // Si cambió el monto de la cuota o los días de pago, recalcular el número de cuotas
+            if ($hasDays && (
+                (isset($data['loan_amount']) && $data['loan_amount'] != $record->loan_amount) ||
+                (isset($data['installment_amount']) && $data['installment_amount'] != $record->installment_amount)
+            )) {
+                $loanAmount = $data['loan_amount'] ?? $record->loan_amount;
+                $installmentAmount = $data['installment_amount'] ?? $record->installment_amount;
+                $data['installments_count'] = (int) ceil(
+                    (float) $loanAmount / (float) $installmentAmount
+                );
+            }
+
+            // Si cambió el monto del préstamo, actualizar el saldo restante
+            if (isset($data['loan_amount']) && $data['loan_amount'] != $record->loan_amount) {
+                $data['remaining_balance'] = $data['loan_amount'];
+            }
+
             $record->update($data);
+
+            // Si tiene días de pago configurados, regenerar las cuotas
+            if (!empty($record->payment_days)) {
+                // Eliminar todas las cuotas pendientes (no confirmadas)
+                PayrollLoanExtraDiscount::where('loan_id', $record->id)
+                    ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+                    ->where('applied', false)
+                    ->whereNull('deleted_at')
+                    ->delete();
+
+                // Regenerar las cuotas
+                $this->generateInstallments($record);
+            }
+
             DB::commit();
-            return new PayrollLoanResource($record->fresh());
+            return new PayrollLoanResource($record->fresh()->load('extraDiscounts'));
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
@@ -137,6 +181,7 @@ class PayrollLoanService extends BaseService implements BaseServiceInterface
     /**
      * Confirma una cuota/descuento pendiente.
      * Si el monto varió respecto al programado, lo actualiza y recalcula las cuotas restantes.
+     * Valida que las cuotas se confirmen en orden cronológico.
      */
     public function confirmPayment(int $discountId, array $data): PayrollLoanExtraDiscountResource
     {
@@ -149,6 +194,20 @@ class PayrollLoanService extends BaseService implements BaseServiceInterface
 
             if ($record->applied) {
                 throw new Exception('Esta cuota ya fue confirmada');
+            }
+
+            // Validar que no existan cuotas anteriores sin confirmar (solo para cuotas REGULAR)
+            if ($record->concept_type === PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR) {
+                $previousUnconfirmed = PayrollLoanExtraDiscount::where('loan_id', $record->loan_id)
+                    ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+                    ->where('applied', false)
+                    ->where('scheduled_date', '<', $record->scheduled_date)
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+                if ($previousUnconfirmed) {
+                    throw new Exception('No se puede confirmar esta cuota. Existen cuotas anteriores pendientes que deben confirmarse primero en orden cronológico.');
+                }
             }
 
             $newAmount     = isset($data['amount']) ? (float) $data['amount'] : (float) $record->amount;
@@ -275,26 +334,148 @@ class PayrollLoanService extends BaseService implements BaseServiceInterface
         $loan->update(['installments_count' => $count]);
     }
 
-    private function recalculatePendingInstallments(PayrollLoan $loan, float $newBalance): void
+    /**
+     * Recalcula las cuotas pendientes de un préstamo basándose en un nuevo saldo.
+     * Opcionalmente puede filtrar solo las cuotas posteriores a una fecha.
+     *
+     * @param PayrollLoan $loan El préstamo a recalcular
+     * @param float $newBalance El nuevo saldo pendiente
+     * @param string|null $afterDate Si se proporciona, solo recalcula cuotas después de esta fecha
+     * @return void
+     */
+    public function recalculatePendingInstallments(PayrollLoan $loan, float $newBalance, ?string $afterDate = null): void
     {
-        $pending = PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+        $query = PayrollLoanExtraDiscount::where('loan_id', $loan->id)
             ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
             ->where('applied', false)
-            ->whereNull('deleted_at')
-            ->orderBy('scheduled_date')
-            ->get();
+            ->whereNull('deleted_at');
+
+        if ($afterDate) {
+            $query->where('scheduled_date', '>', $afterDate);
+        }
+
+        $pending = $query->orderBy('scheduled_date')->get();
+        $totalInstallments = $pending->count();
+
+        if ($totalInstallments === 0) {
+            return;
+        }
 
         $remaining = $newBalance;
+        $installmentAmount = (float) $loan->installment_amount;
 
-        foreach ($pending as $installment) {
+        foreach ($pending as $index => $installment) {
+            $isLast = ($index === $totalInstallments - 1);
+
             if ($remaining <= 0) {
+                // Si no queda saldo, eliminar esta cuota
                 $installment->delete();
-            } elseif ($remaining < (float) $installment->amount) {
+            } elseif ($isLast) {
+                // En la última cuota, asignar TODO el saldo restante (sin límite de installment_amount)
                 $installment->update(['amount' => $remaining]);
                 $remaining = 0;
             } else {
-                $remaining = round($remaining - (float) $installment->amount, 2);
+                // En cuotas intermedias, usar el menor entre installment_amount y el saldo restante
+                $newInstallmentAmount = round(min($installmentAmount, $remaining), 2);
+                $installment->update(['amount' => $newInstallmentAmount]);
+                $remaining = round($remaining - $newInstallmentAmount, 2);
             }
+        }
+    }
+
+    /**
+     * Regenera completamente las cuotas futuras después de una fecha específica.
+     * Elimina todas las cuotas REGULAR pendientes posteriores a esa fecha y genera nuevas
+     * basadas en el saldo restante y los días de pago configurados.
+     *
+     * @param PayrollLoan $loan El préstamo
+     * @param float $newBalance El saldo que queda por pagar
+     * @param string $afterDate Fecha a partir de la cual regenerar (exclusive)
+     * @return void
+     */
+    public function regenerateFutureInstallments(PayrollLoan $loan, float $newBalance, string $afterDate): void
+    {
+        if (empty($loan->payment_days)) {
+            throw new Exception('El préstamo no tiene días de pago configurados');
+        }
+
+        // Eliminar todas las cuotas REGULAR pendientes DESPUÉS de esta fecha
+        PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+            ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+            ->where('applied', false)
+            ->where('scheduled_date', '>', $afterDate)
+            ->whereNull('deleted_at')
+            ->delete();
+
+        // Si no hay saldo restante, no generar cuotas
+        if ($newBalance <= 0) {
+            return;
+        }
+
+        // Generar nuevas cuotas desde la fecha siguiente
+        $paymentDays = $loan->payment_days;
+        sort($paymentDays);
+
+        $remaining         = $newBalance;
+        $installmentAmount = (float) $loan->installment_amount;
+        $totalInstallments = (int) ceil($remaining / $installmentAmount);
+
+        // Partir desde el día siguiente a la fecha de referencia
+        $startDate = Carbon::parse($afterDate)->addDay();
+
+        $year       = (int) $startDate->format('Y');
+        $month      = (int) $startDate->format('n');
+        $startDay   = (int) $startDate->format('j');
+        $count      = 0;
+        $records    = [];
+        $firstMonth = true;
+
+        while ($count < $totalInstallments && $remaining > 0) {
+            foreach ($paymentDays as $day) {
+                if ($count >= $totalInstallments || $remaining <= 0) {
+                    break;
+                }
+
+                if ($firstMonth && (int) $day < $startDay) {
+                    continue;
+                }
+
+                $daysInMonth   = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+                $actualDay     = min((int) $day, $daysInMonth);
+                $scheduledDate = Carbon::createFromDate($year, $month, $actualDay)->toDateString();
+
+                // Asegurarse que la fecha sea posterior a la fecha de referencia
+                if ($scheduledDate <= $afterDate) {
+                    continue;
+                }
+
+                $amount    = round(min($installmentAmount, $remaining), 2);
+                $remaining = round($remaining - $amount, 2);
+
+                $records[] = [
+                    'loan_id'        => $loan->id,
+                    'concept_type'   => PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR,
+                    'amount'         => $amount,
+                    'scheduled_date' => $scheduledDate,
+                    'applied'        => false,
+                    'status'         => 1,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+
+                $count++;
+            }
+
+            $firstMonth = false;
+            $month++;
+            if ($month > 12) {
+                $month = 1;
+                $year++;
+            }
+        }
+
+        if (!empty($records)) {
+            PayrollLoanExtraDiscount::insert($records);
         }
     }
 }

@@ -64,7 +64,7 @@ class PayrollLoan extends BaseModel
 
   public function extraDiscounts(): HasMany
   {
-    return $this->hasMany(PayrollLoanExtraDiscount::class, 'loan_id');
+    return $this->hasMany(PayrollLoanExtraDiscount::class, 'loan_id')->orderBy('scheduled_date');
   }
 
   public function pendingInstallments(): HasMany
