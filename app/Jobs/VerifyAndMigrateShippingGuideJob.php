@@ -102,6 +102,14 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         $q->where('aceptada_por_sunat', true)
           ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
       })
+      ->where(function ($q) {
+        // Guías de compra (transfer_reason_id = 15) solo migran después de ser recepcionadas
+        $q->where(function ($inner) {
+          $inner->where('transfer_reason_id', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+            ->where('is_received', true);
+        })->orWhere('transfer_reason_id', '!=', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+          ->orWhereNull('transfer_reason_id');
+      })
       ->where('area_id', ApMasters::AREA_COMERCIAL)
       ->whereNull('deleted_at')
       ->get();
