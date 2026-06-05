@@ -24,13 +24,13 @@ class AssignSalesSeries extends Model
   ];
 
   const filters = [
-    'search' => ['series', 'typeReceipt.description', 'typeOperation.description', 'sede.abreviatura'],
-    'series' => '=',
-    'type' => '=',
-    'type_receipt_id' => '=',
+    'search'            => ['series', 'typeReceipt.description', 'typeOperation.description', 'sede.abreviatura'],
+    'series'            => '=',
+    'type'              => '=',
+    'type_receipt_id'   => '=',
     'type_operation_id' => '=',
-    'sede_id' => '=',
-    'status' => '=',
+    'sede_id'           => '=',
+    'status'            => '=',
   ];
 
   const sorts = [
@@ -60,7 +60,7 @@ class AssignSalesSeries extends Model
   const int NOTA_CREDITO_NUBEFACT = 31;
   const int NOTA_DEBITO_NUBEFACT = 32;
   const int GUIA_REMISION = 803;
-  const int GUIA_TRANSFERENCIA_INTERNA = 998;
+  const int GUIA_TRANSFERENCIA_INTERNA = 1000;
   const int TRAVEL_EXPENSE_FORM = 879;
 
   public function setSeriesAttribute($value)
