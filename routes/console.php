@@ -160,7 +160,7 @@ Schedule::command('ar:send-due-reports')
 
 // Verificar asientos contables procesados por GP y completar entregas de vehículos
 Schedule::command('accounting-entry:verify --all')
-  ->everyMinute()
+  ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
