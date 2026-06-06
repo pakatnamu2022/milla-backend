@@ -11,6 +11,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -115,7 +116,21 @@ class SyncAccountingEntryJob implements ShouldQueue
         $electronicDocument->full_number
       );
 
-      // 6. Generar número de asiento
+      // 6. Guardia anti-duplicado: si ya existe registro en la intermedia, no re-insertar
+      $alreadyExists = DB::connection('dbtp')
+        ->table('neInTbIntegracionAsientoCab')
+        ->where('Referencia', $electronicDocument->full_number)
+        ->exists();
+
+      if ($alreadyExists) {
+        Log::info('SyncAccountingEntryJob: registro ya existe en intermedia, se omite re-inserción', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'referencia' => $electronicDocument->full_number,
+        ]);
+        return;
+      }
+
+      // 7. Generar número de asiento
       $asientoNumber = $accountingService->getNextAsientoNumber();
 
       Log::info('Número de asiento generado', [
@@ -123,7 +138,7 @@ class SyncAccountingEntryJob implements ShouldQueue
         'asiento_number' => $asientoNumber
       ]);
 
-      // 7. Sincronizar cabecera
+      // 8. Sincronizar cabecera
       $headerLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
 
       $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
@@ -137,7 +152,7 @@ class SyncAccountingEntryJob implements ShouldQueue
         'asiento_number' => $asientoNumber
       ]);
 
-      // 8. Generar y sincronizar líneas de detalle
+      // 9. Generar y sincronizar líneas de detalle
       $detailLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
 
       $lines = $accountingService->generateAccountingLines($electronicDocument, $asientoNumber);
