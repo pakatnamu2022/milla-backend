@@ -9,6 +9,7 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
@@ -290,7 +291,12 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       return;
     }
 
+    $wasAlreadyAccounted = $shippingGuide->is_accounted;
     $shippingGuide->update(['is_accounted' => true]);
+
+    if (!$wasAlreadyAccounted) {
+      SyncAccountingEntryJob::dispatch($shippingGuide->id)->onQueue('sync');
+    }
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
