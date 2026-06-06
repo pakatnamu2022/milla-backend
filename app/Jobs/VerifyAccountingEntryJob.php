@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,10 +49,16 @@ class VerifyAccountingEntryJob implements ShouldQueue
 
   protected function processAllPending(): void
   {
+    // Solo guías que ya migraron completamente a Dynamics Y tienen asiento enviado pendiente de confirmación GP
     $pendingLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER)
       ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('proceso_estado', 0)
+      ->where('attempts', '<', 3)
       ->whereNotNull('shipping_guide_id')
+      ->whereHas('shippingGuide', function ($q) {
+        $q->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+          ->where('status_dynamic', 1);
+      })
       ->get();
 
     foreach ($pendingLogs as $log) {
@@ -79,6 +86,12 @@ class VerifyAccountingEntryJob implements ShouldQueue
       return;
     }
 
+    // Registrar intento de consulta a la intermedia
+    $headerLog->update([
+      'attempts' => $headerLog->attempts + 1,
+      'last_attempt_at' => now(),
+    ]);
+
     $asientoRecord = DB::connection('dbtp')
       ->table('neInTbIntegracionAsientoCab')
       ->where('Referencia', $headerLog->external_id)
@@ -88,6 +101,7 @@ class VerifyAccountingEntryJob implements ShouldQueue
       Log::warning('VerifyAccountingEntryJob: registro no encontrado en tabla intermedia', [
         'shipping_guide_id' => $shippingGuideId,
         'referencia' => $headerLog->external_id,
+        'intento' => $headerLog->attempts,
       ]);
       return;
     }
@@ -97,7 +111,7 @@ class VerifyAccountingEntryJob implements ShouldQueue
         'shipping_guide_id' => $shippingGuideId,
         'referencia' => $headerLog->external_id,
         'estado' => $asientoRecord->Estado,
-        'error_gp' => $asientoRecord->Error,
+        'intento' => $headerLog->attempts,
       ]);
       return;
     }
