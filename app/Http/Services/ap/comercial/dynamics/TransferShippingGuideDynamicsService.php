@@ -36,6 +36,11 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
+    if ($this->logService->hasExceededAttemptLimit($transferLog)) {
+      $transferLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+      return;
+    }
+
     if (empty($shippingGuide->dyn_series)) {
       $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncTransfer($shippingGuide, $isCancelled);
@@ -56,7 +61,8 @@ class TransferShippingGuideDynamicsService
 
     $transferLog->updateProcesoEstado(
       $existingTransfer->ProcesoEstado ?? 0,
-      $existingTransfer->ProcesoError ?? null
+      $existingTransfer->ProcesoError ?? null,
+      true
     );
 
     if ($transferLog->proceso_estado === 1 && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
@@ -81,6 +87,11 @@ class TransferShippingGuideDynamicsService
     }
 
     if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
+    if ($this->logService->hasExceededAttemptLimit($detailLog)) {
+      $detailLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
       return;
     }
 
@@ -117,6 +128,11 @@ class TransferShippingGuideDynamicsService
     }
 
     if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
+    if ($this->logService->hasExceededAttemptLimit($serialLog)) {
+      $serialLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
       return;
     }
 

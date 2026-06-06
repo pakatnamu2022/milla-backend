@@ -275,8 +275,8 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
    * Flujo VENTA comercial (dyn_series con prefijo "CV-").
    * Consulta neIvConsultarAjustesInventario y busca la fila cuyo Numero coincide con dyn_series.
    * Si se encuentra:
-   *   1. Marca la guía como is_accounted = true.
-   *   2. Cierra la entrega (ApVehicleDelivery → status_delivery = completed).
+   *   1. Marca la guía como is_accounted = true y despacha SyncAccountingEntryJob.
+   *   2. Avanza ApVehicleDelivery a status_delivery='delivered' y registra real_delivery_date.
    *   3. Avanza la Oportunidad al estado DELIVERED.
    */
   protected function processCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
@@ -300,7 +300,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
-        'status_delivery'    => 'completed',
+        'status_delivery'    => 'delivered',
         'real_delivery_date' => now(),
       ]);
 

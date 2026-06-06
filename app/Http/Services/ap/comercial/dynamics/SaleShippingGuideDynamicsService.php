@@ -44,6 +44,11 @@ class SaleShippingGuideDynamicsService
         continue;
       }
 
+      if ($this->logService->hasExceededAttemptLimit($transactionLog)) {
+        $transactionLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        continue;
+      }
+
       if (empty($shippingGuide->dyn_series)) {
         $isCancelled = str_contains($step, 'REVERSAL');
         $this->syncTransaction($shippingGuide, $isCancelled);
@@ -66,7 +71,8 @@ class SaleShippingGuideDynamicsService
 
       $transactionLog->updateProcesoEstado(
         $existingTransaction->ProcesoEstado ?? 0,
-        $existingTransaction->ProcesoError ?? null
+        $existingTransaction->ProcesoError ?? null,
+        true
       );
     }
   }
@@ -88,6 +94,11 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      if ($this->logService->hasExceededAttemptLimit($detailLog)) {
+        $detailLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
         continue;
       }
 
@@ -126,6 +137,11 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      if ($this->logService->hasExceededAttemptLimit($serialLog)) {
+        $serialLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
         continue;
       }
 
