@@ -49,7 +49,8 @@ class VerifyAccountingEntryJob implements ShouldQueue
 
   protected function processAllPending(): void
   {
-    // Solo guías que ya migraron completamente a Dynamics Y tienen asiento enviado pendiente de confirmación GP
+    // Solo guías que ya migraron completamente a Dynamics, tienen ajuste de inventario confirmado
+    // (is_accounted=true) y tienen asiento enviado a la tabla intermedia pendiente de confirmación GP
     $pendingLogs = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER)
       ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('proceso_estado', 0)
@@ -57,7 +58,8 @@ class VerifyAccountingEntryJob implements ShouldQueue
       ->whereNotNull('shipping_guide_id')
       ->whereHas('shippingGuide', function ($q) {
         $q->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
-          ->where('status_dynamic', 1);
+          ->where('status_dynamic', 1)
+          ->where('is_accounted', true);
       })
       ->get();
 
@@ -172,8 +174,10 @@ class VerifyAccountingEntryJob implements ShouldQueue
       ]);
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuideId)
-      ->where('status_delivery', '!=', 'completed')
-      ->update(['status_delivery' => 'completed']);
+      ->update([
+        'status_delivery' => 'completed',
+        'is_accounted'    => true,
+      ]);
   }
 
   public function failed(Throwable $exception): void

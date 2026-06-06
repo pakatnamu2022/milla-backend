@@ -21,27 +21,18 @@ class ApVehicleDeliveryResource extends JsonResource
       'advisor_name'            => $this->advisor ? $this->advisor->nombre_completo : null,
       'sede_id'                 => $this->sede_id,
       'sede_name'               => $this->sede ? $this->sede->abreviatura : null,
-      'status_wash'             => $this->translateStatus($this->status_wash),
-      'status_delivery'         => $this->translateStatus($this->status_delivery),
+      'status_wash'             => $this->status_wash,
+      'status_delivery'         => $this->status_delivery,
       'client_name'             => $this->client->full_name,
       'shipping_guide_id'       => $this->shipping_guide_id ?? null,
       'aceptada_por_sunat'      => $this->ShippingGuide->aceptada_por_sunat ?? false,
       'sent_at'                 => $this->ShippingGuide->sent_at ?? null,
       'status_dynamic'          => $this->ShippingGuide->status_dynamic ?? null,
+      'is_accounted'            => $this->is_accounted,
       'checklist_status'        => $this->checklist_status,
       'shipping_guide'          => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),
     ];
-  }
-
-  private function translateStatus($status)
-  {
-    $translations = [
-      'pending'   => 'Pendiente',
-      'completed' => 'Completado',
-    ];
-
-    return $translations[strtolower($status)] ?? $status;
   }
 }
