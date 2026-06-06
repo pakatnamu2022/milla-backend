@@ -7,7 +7,11 @@ use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
 use App\Http\Services\ap\comercial\ApVehicleDeliveryService;
+use App\Jobs\SyncAccountingEntryJob;
+use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ApVehicleDeliveryController extends Controller
 {
@@ -132,6 +136,61 @@ class ApVehicleDeliveryController extends Controller
         'success' => false,
         'message' => $th->getMessage()
       ], 400);
+    }
+  }
+
+  /**
+   * Resetea el estado de verificación del asiento contable y despacha el job
+   * si el registro aún no existe en la tabla intermedia de GP.
+   */
+  public function syncAccountingEntry($id)
+  {
+    try {
+      $delivery = ApVehicleDelivery::findOrFail($id);
+
+      if (!$delivery->shipping_guide_id) {
+        return response()->json(['success' => false, 'message' => 'La entrega no tiene guía de remisión asociada.'], 422);
+      }
+
+      $headerLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $delivery->shipping_guide_id)
+        ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER)
+        ->first();
+
+      if (!$headerLog) {
+        return response()->json(['success' => false, 'message' => 'No se encontró log de asiento contable para esta guía.'], 404);
+      }
+
+      // Resetear contadores para que VerifyAccountingEntryJob vuelva a intentarlo
+      $headerLog->update([
+        'attempts'        => 0,
+        'proceso_estado'  => 0,
+        'last_attempt_at' => null,
+      ]);
+
+      // Si ya existe en la intermedia no re-insertamos — el verify job lo procesará
+      $existsInIntermediate = DB::connection('dbtp')
+        ->table('neInTbIntegracionAsientoCab')
+        ->where('Referencia', $headerLog->external_id)
+        ->exists();
+
+      if ($existsInIntermediate) {
+        return response()->json([
+          'success' => true,
+          'message' => 'Estado reseteado. El asiento ya existe en GP, será verificado en el próximo ciclo.',
+          'dispatched' => false,
+        ]);
+      }
+
+      // No existe: despachar job para insertarlo en la intermedia
+      SyncAccountingEntryJob::dispatch($delivery->shipping_guide_id);
+
+      return response()->json([
+        'success'    => true,
+        'message'    => 'Estado reseteado y job de sincronización despachado.',
+        'dispatched' => true,
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json(['success' => false, 'message' => $th->getMessage()], 400);
     }
   }
 }

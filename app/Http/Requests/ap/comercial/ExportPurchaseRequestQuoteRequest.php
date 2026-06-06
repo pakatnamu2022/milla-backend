@@ -9,35 +9,35 @@ class ExportPurchaseRequestQuoteRequest extends IndexRequest
   public function rules(): array
   {
     return [
-      'format'    => 'nullable|in:excel,pdf',
-      'title'     => 'nullable|string|max:255',
-      'columns'   => 'nullable|array',
-      'columns.*' => 'string',
+      'format'                     => 'nullable|in:excel,pdf',
+      'title'                      => 'nullable|string|max:255',
+      'columns'                    => 'nullable|array',
+      'columns.*'                  => 'string',
 
       // Filtros generales
-      'search'              => 'nullable|string|max:255',
-      'sede_id'             => 'nullable|integer|exists:sedes,id',
-      'type_document'       => 'nullable|string|max:50',
-      'type_vehicle'        => 'nullable|string|max:50',
-      'status'              => 'nullable|boolean|in:0,1',
-      'is_approved'         => 'nullable|boolean|in:0,1',
-      'is_invoiced'         => 'nullable|boolean|in:0,1',
-      'has_vehicle'         => 'nullable|boolean|in:0,1',
-      'is_paid'             => 'nullable|boolean|in:0,1',
+      'search'                     => 'nullable|string|max:255',
+      'sede_id'                    => 'nullable|integer|exists:config_sede,id',
+      'type_document'              => 'nullable|string|max:50',
+      'type_vehicle'               => 'nullable|string|max:50',
+      'status'                     => 'nullable|boolean|in:0,1',
+      'is_approved'                => 'nullable|boolean|in:0,1',
+      'is_invoiced'                => 'nullable|boolean|in:0,1',
+      'has_vehicle'                => 'nullable|boolean|in:0,1',
+      'is_paid'                    => 'nullable|boolean|in:0,1',
 
       // Filtros de relaciones
-      'opportunity_id'        => 'nullable|integer|exists:opportunities,id',
-      'holder_id'             => 'nullable|integer|exists:business_partners,id',
-      'ap_models_vn_id'       => 'nullable|integer|exists:ap_models_vn,id',
+      'opportunity_id'             => 'nullable|integer|exists:opportunities,id',
+      'holder_id'                  => 'nullable|integer|exists:business_partners,id',
+      'ap_models_vn_id'            => 'nullable|integer|exists:ap_models_vn,id',
       'apModelsVn.family.brand_id' => 'nullable|integer|exists:ap_brands,id',
-      'vehicle_color_id'      => 'nullable|integer|exists:ap_masters,id',
-      'ap_vehicle_id'         => 'nullable|integer|exists:ap_vehicles,id',
-      'doc_type_currency_id'  => 'nullable|integer|exists:type_currencies,id',
+      'vehicle_color_id'           => 'nullable|integer|exists:ap_masters,id',
+      'ap_vehicle_id'              => 'nullable|integer|exists:ap_vehicles,id',
+      'doc_type_currency_id'       => 'nullable|integer|exists:type_currencies,id',
 
       // Filtro de rango de fechas
-      'created_at'      => 'nullable|array|size:2',
-      'created_at.0'    => 'nullable|date',
-      'created_at.1'    => 'nullable|date|after_or_equal:created_at.0',
+      'created_at'                 => 'nullable|array|size:2',
+      'created_at.0'               => 'nullable|date',
+      'created_at.1'               => 'nullable|date|after_or_equal:created_at.0',
     ];
   }
 
