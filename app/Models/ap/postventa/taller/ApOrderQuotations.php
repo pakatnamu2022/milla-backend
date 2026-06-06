@@ -81,7 +81,7 @@ class ApOrderQuotations extends Model
     'area_id' => '=',
     'currency_id' => '=',
     'discard_reason_id' => '=',
-    'status' => '=',
+    'status' => 'in_or_equal',
     'sede_id' => '=',
     'supply_type' => 'in',
     'has_invoice_generated' => '=',
