@@ -39,7 +39,6 @@ class ApVehicleDeliveryResource extends JsonResource
   {
     $translations = [
       'pending'   => 'Pendiente',
-      'delivered' => 'Entregado',
       'completed' => 'Completado',
     ];
 

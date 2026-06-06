@@ -159,6 +159,22 @@ class ShippingGuideMigrationLogService
     }
   }
 
+  public function hasExceededAttemptLimit(VehiclePurchaseOrderMigrationLog $log): bool
+  {
+    if (in_array($log->status, [
+      VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+    ])) {
+      return $log->attempts >= VehiclePurchaseOrderMigrationLog::MAX_PENDING_ATTEMPTS;
+    }
+
+    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS) {
+      return $log->attempts >= VehiclePurchaseOrderMigrationLog::MAX_IN_PROGRESS_ATTEMPTS;
+    }
+
+    return false;
+  }
+
   public function buildSaleTransactionId(ShippingGuides $shippingGuide, string $step): string
   {
     if (!empty($shippingGuide->dyn_series)) {

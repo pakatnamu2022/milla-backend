@@ -81,6 +81,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STATUS_COMPLETED = 'completed';
   const STATUS_FAILED = 'failed';
 
+  // markAsInProgress y markAsFailed incrementan attempts +1 cada uno (+2 por intento fallido).
+  // Con MAX=6: se bloquea antes del 4to intento → permite exactamente 3 sync fallidos.
+  const MAX_PENDING_ATTEMPTS = 6;
+
+  // markAsInProgress deja attempts=1. updateProcesoEstado(0) suma +1 por cada re-check.
+  // Con MAX=6: se bloquea antes del 6to check → permite exactamente 5 verificaciones en Dynamics.
+  const MAX_IN_PROGRESS_ATTEMPTS = 6;
+
   // Mapeo de pasos a tablas intermedias
   const STEP_TABLE_MAPPING = [
     self::STEP_SUPPLIER => 'neInTbProveedor',
@@ -190,9 +198,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
   }
 
   /**
-   * Actualiza el estado de proceso desde la BD intermedia
+   * Actualiza el estado de proceso desde la BD intermedia.
+   * Pasar $incrementAttempt = true en verify methods que re-verifican un log ya en progreso
+   * para trackear cuántas veces se ha consultado Dynamics sin respuesta definitiva.
    */
-  public function updateProcesoEstado(int $procesoEstado, ?string $errorMessage = null): void
+  public function updateProcesoEstado(int $procesoEstado, ?string $errorMessage = null, bool $incrementAttempt = false): void
   {
     $data = [
       'proceso_estado' => $procesoEstado,
@@ -209,8 +219,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
       $data['status'] = self::STATUS_FAILED;
       $data['error_message'] = $errorMessage;
     } else {
-      // Pendiente: proceso_estado = 0 y sin mensaje de error
+      // Dynamics aún procesando: proceso_estado = 0 y sin error
       $data['status'] = self::STATUS_IN_PROGRESS;
+      if ($incrementAttempt) {
+        $data['attempts'] = $this->attempts + 1;
+      }
     }
 
     $this->update($data);
