@@ -435,4 +435,322 @@ class ApOrderQuotations extends Model
         && in_array($advance->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes);
     });
   }
+
+  /**
+   * Get the final invoice (factura/boleta final) for this quotation.
+   *
+   * A final invoice is:
+   *   - NOT an advance payment (is_advance_payment = false)
+   *   - Accepted by SUNAT
+   *   - Type FACTURA or BOLETA
+   *   - NOT cancelled (status != cancelled && anulado != 1)
+   *   - NOT fully annulled by credit note
+   *
+   * @return ElectronicDocument|null
+   */
+  public function getFinalInvoice()
+  {
+    $annullingTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    return $this->advancesOrderQuotation->first(function ($document) use ($annullingTypes) {
+      // Must be final invoice (not advance)
+      if ($document->is_advance_payment) {
+        return false;
+      }
+
+      // Must be accepted by SUNAT
+      if (!$document->aceptada_por_sunat) {
+        return false;
+      }
+
+      // Must be FACTURA or BOLETA
+      if (!in_array($document->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
+        return false;
+      }
+
+      // Must not be cancelled
+      if ($document->status === ElectronicDocument::STATUS_CANCELLED || $document->anulado == 1) {
+        return false;
+      }
+
+      // Must not have annulling credit note
+      if ($document->credit_note_id !== null
+        && in_array($document->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes)) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Get all valid documents for this quotation (advances + final invoice).
+   *
+   * Returns a collection containing:
+   *   - Active advances (from getActiveAdvances)
+   *   - Final invoice if exists (from getFinalInvoice)
+   *
+   * @return \Illuminate\Database\Eloquent\Collection
+   */
+  public function getValidDocuments()
+  {
+    $documents = collect();
+
+    // Add active advances
+    $activeAdvances = $this->getActiveAdvances();
+    if ($activeAdvances->isNotEmpty()) {
+      $documents = $documents->merge($activeAdvances);
+    }
+
+    // Add final invoice if exists
+    $finalInvoice = $this->getFinalInvoice();
+    if ($finalInvoice) {
+      $documents->push($finalInvoice);
+    }
+
+    return $documents;
+  }
+
+  /**
+   * Obtiene el monto neto pagado en anticipos activos
+   * Considera notas de crédito y débito sobre los anticipos
+   * (suma de anticipos - NC parciales + ND sobre esos anticipos)
+   *
+   * @return float
+   */
+  public function getNetAmountFromAdvances(): float
+  {
+    $activeAdvances = $this->getActiveAdvances();
+
+    $totalNet = 0;
+
+    foreach ($activeAdvances as $advance) {
+      $netAmount = $advance->total;
+
+      // Restar notas de crédito sobre este anticipo (que NO sean de anulación/devolución total)
+      // porque esas ya están excluidas por getActiveAdvances()
+      $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->whereNotIn('sunat_concept_credit_note_type_id', [
+          SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+          SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+        ])
+        ->get();
+
+      foreach ($creditNotesOnAdvance as $creditNote) {
+        $netAmount -= $creditNote->total;
+      }
+
+      // Sumar notas de débito sobre este anticipo
+      $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->get();
+
+      foreach ($debitNotesOnAdvance as $debitNote) {
+        $netAmount += $debitNote->total;
+      }
+
+      $totalNet += $netAmount;
+    }
+
+    return (float)$totalNet;
+  }
+
+  /**
+   * Get all documents organized in a tree structure with cancelled and active documents.
+   * Active documents include their credit/debit note modifications.
+   *
+   * @return array
+   */
+  public function getDocumentsTree(): array
+  {
+    $annullingTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    $cancelled = [];
+    $active = [];
+
+    // Process all documents
+    foreach ($this->advancesOrderQuotation as $document) {
+      // Skip if not accepted by SUNAT or not the right type
+      if (!$document->aceptada_por_sunat
+        || !in_array($document->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+        continue;
+      }
+
+      $isCancelled = false;
+      $cancellationReason = null;
+      $creditNoteNumber = null;
+      $creditNoteTypeId = null;
+      $creditNoteTypeDescription = null;
+
+      // Check if it's cancelled
+      if ($document->status === ElectronicDocument::STATUS_CANCELLED || $document->anulado == 1) {
+        $isCancelled = true;
+        $cancellationReason = $document->observaciones;
+      }
+
+      // Check if it has an annulling credit note
+      if ($document->credit_note_id !== null
+        && in_array($document->creditNote?->sunat_concept_credit_note_type_id, $annullingTypes)) {
+        $isCancelled = true;
+        $cancellationReason = $document->creditNote?->observaciones;
+        $creditNoteNumber = $document->creditNote?->full_number;
+        $creditNoteTypeId = $document->creditNote?->sunat_concept_credit_note_type_id;
+        $creditNoteTypeDescription = $document->creditNote?->creditNoteType?->description;
+      }
+
+      $documentData = [
+        'id' => $document->id,
+        'is_advance_payment' => (boolean)$document->is_advance_payment,
+        'document_type' => $document->documentType->description,
+        'number' => $document->full_number,
+        'serie' => $document->serie,
+        'numero' => $document->numero,
+        'total' => (float)$document->total,
+        'issue_date' => $document->fecha_de_emision?->format('Y-m-d'),
+        'client_name' => $document->cliente_denominacion,
+        'client_document' => $document->cliente_numero_de_documento,
+        'status' => $document->status,
+        'sunat_responsecode' => $document->sunat_responsecode,
+        'enlace_del_pdf' => $document->enlace_del_pdf,
+      ];
+
+      if ($isCancelled) {
+        $documentData['cancellation_reason'] = $cancellationReason;
+        $documentData['credit_note_number'] = $creditNoteNumber;
+        $documentData['sunat_concept_credit_note_type_id'] = $creditNoteTypeId;
+        $documentData['credit_note_type_description'] = $creditNoteTypeDescription;
+        $cancelled[] = $documentData;
+      } else {
+        // Get credit notes (excluding annulling types)
+        $creditNotes = ElectronicDocument::where('original_document_id', $document->id)
+          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', 0)
+          ->whereNotIn('sunat_concept_credit_note_type_id', $annullingTypes)
+          ->get();
+
+        // Get debit notes
+        $debitNotes = ElectronicDocument::where('original_document_id', $document->id)
+          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+          ->where('aceptada_por_sunat', true)
+          ->where('anulado', 0)
+          ->get();
+
+        $modifications = [];
+        $netAmount = $document->total;
+
+        // Add credit notes
+        foreach ($creditNotes as $creditNote) {
+          $modifications[] = [
+            'id' => $creditNote->id,
+            'type' => 'credit_note',
+            'concept_type' => $creditNote->creditNoteType?->description,
+            'concept_type_id' => $creditNote->sunat_concept_credit_note_type_id,
+            'number' => $creditNote->full_number,
+            'serie' => $creditNote->serie,
+            'numero' => $creditNote->numero,
+            'total' => -(float)$creditNote->total,
+            'issue_date' => $creditNote->fecha_de_emision?->format('Y-m-d'),
+            'original_document_id' => $document->id,
+            'observaciones' => $creditNote->observaciones,
+            'enlace_del_pdf' => $creditNote->enlace_del_pdf,
+          ];
+          $netAmount -= $creditNote->total;
+        }
+
+        // Add debit notes
+        foreach ($debitNotes as $debitNote) {
+          $modifications[] = [
+            'id' => $debitNote->id,
+            'type' => 'debit_note',
+            'concept_type' => $debitNote->debitNoteType?->description,
+            'concept_type_id' => $debitNote->sunat_concept_debit_note_type_id,
+            'number' => $debitNote->full_number,
+            'serie' => $debitNote->serie,
+            'numero' => $debitNote->numero,
+            'total' => (float)$debitNote->total,
+            'issue_date' => $debitNote->fecha_de_emision?->format('Y-m-d'),
+            'original_document_id' => $document->id,
+            'observaciones' => $debitNote->observaciones,
+            'enlace_del_pdf' => $debitNote->enlace_del_pdf,
+          ];
+          $netAmount += $debitNote->total;
+        }
+
+        $documentData['net_amount'] = (float)$netAmount;
+        $documentData['has_modifications'] = count($modifications) > 0;
+        $documentData['modifications'] = $modifications;
+
+        $active[] = $documentData;
+      }
+    }
+
+    return [
+      'cancelled' => $cancelled,
+      'active' => $active,
+    ];
+  }
+
+  /**
+   * Get payment summary information for this quotation.
+   *
+   * Returns only payment-related information without duplicating data already
+   * available in the ApOrderQuotationsResource resource header (total_amount, subtotal, etc.)
+   *
+   * Uses rounding tolerance to account for IGV calculation differences.
+   *
+   * @return array
+   */
+  public function getPaymentSummary(): array
+  {
+    $finalInvoice = $this->getFinalInvoice();
+    $activeAdvances = $this->getActiveAdvances();
+
+    // If there's a final invoice, total paid = sum of all active vouchers
+    // Otherwise, only count advances with their credit/debit notes applied
+    if ($finalInvoice) {
+      $paidAmount = $activeAdvances->sum('total') + $finalInvoice->total;
+    } else {
+      $paidAmount = $this->getNetAmountFromAdvances();
+    }
+
+    $pendingAmount = max(0, $this->total_amount - $paidAmount);
+
+    // Account for rounding tolerance (same as ElectronicDocument::ROUNDING_TOLERANCE)
+    // This allows for small differences caused by cumulative rounding in IGV calculations
+    $isFullyPaid = $pendingAmount <= ElectronicDocument::ROUNDING_TOLERANCE;
+
+    return [
+      // Amount already paid/invoiced (advances + final invoice if exists)
+      'paid_amount' => round((float)$paidAmount, 2),
+
+      // Amount remaining to be paid/invoiced (same as remaining_balance for compatibility)
+      'pending_amount' => round((float)$pendingAmount, 2),
+      'remaining_balance' => round((float)$pendingAmount, 2),
+
+      // Payment progress
+      'payment_percentage' => $this->total_amount > 0
+        ? round(($paidAmount / $this->total_amount) * 100, 2)
+        : 0,
+
+      // Payment status indicators
+      'is_fully_paid' => $isFullyPaid,
+      'has_final_invoice' => $finalInvoice !== null,
+      'advances_count' => $activeAdvances->count(),
+    ];
+  }
 }

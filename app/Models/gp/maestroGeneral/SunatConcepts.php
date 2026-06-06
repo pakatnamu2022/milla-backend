@@ -63,10 +63,10 @@ class SunatConcepts extends Model
   // Nota: El tributo 9996 se genera automáticamente cuando sunat_transaction = 04
 
   // IDs específicos de tipos de notas de crédito (BILLING_CREDIT_NOTE_TYPE, status=1)
-  const ID_CREDIT_NOTE_ANULACION = 68;            // Anulación de la operación (code: 01)
-  const ID_CREDIT_NOTE_DESCUENTO_GLOBAL = 71;     // Descuento global (code: 04)
-  const ID_CREDIT_NOTE_DEVOLUCION_TOTAL = 73;     // Devolución total (code: 06)
-  const ID_CREDIT_NOTE_DEVOLUCION_ITEM = 74;      // Devolución por ítem (code: 07)
+  const int ID_CREDIT_NOTE_ANULACION = 68;            // Anulación de la operación (code: 01)
+  const int ID_CREDIT_NOTE_DESCUENTO_GLOBAL = 71;     // Descuento global (code: 04)
+  const int ID_CREDIT_NOTE_DEVOLUCION_TOTAL = 73;     // Devolución total (code: 06)
+  const int ID_CREDIT_NOTE_DEVOLUCION_ITEM = 74;      // Devolución por ítem (code: 07)
 
   // Códigos de tipos de notas de crédito (code_nubefact)
   const CODE_CREDIT_NOTE_ANULACION = '01';
