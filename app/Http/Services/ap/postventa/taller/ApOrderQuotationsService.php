@@ -1411,10 +1411,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       if (!$apOrderQuotations) {
         throw new Exception('Cotización no encontrada');
       }
-
-      if ($apOrderQuotations->has_invoice_generated) {
-        throw new Exception('No se puede generar una orden de trabajo a partir de una cotización que ya tiene una factura generada.');
+      
+      if ($apOrderQuotations->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }
+
       // Update work order
       $apOrderQuotations->update($data);
 

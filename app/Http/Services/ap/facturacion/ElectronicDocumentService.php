@@ -898,14 +898,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('El documento ya está anulado');
       }
 
-      $electronicDocumentItem = ElectronicDocumentItem::where('anticipo_documento_serie', $document->serie)
-        ->where('anticipo_documento_numero', $document->numero)
-        ->whereNull('deleted_at');
-
-      if ($electronicDocumentItem->count() > 0) {
-        throw new Exception('El documento no se puede anular porque tiene anticipos asociados');
-      }
-
       // Enviar anulación a Nubefact
       $response = $this->nubefactService->cancelDocument($document, $reason);
 
