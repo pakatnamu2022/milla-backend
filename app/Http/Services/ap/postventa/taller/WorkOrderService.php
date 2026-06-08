@@ -544,7 +544,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
 
-      if ($workOrder->advancesWorkOrder->count() > 0) {
+      if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
       }
 
@@ -1232,13 +1232,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Validar que no tenga factura generada
-      if ($workOrder->advancesWorkOrder->count() > 0) {
+      if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception("Esta orden de trabajo no puede cambiar de moneda. Ya se han registrado anticipos para esta orden de trabajo.");
-      }
-
-      // Validar que no tenga avances de pago
-      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene avances de pago');
       }
 
       // Verificar que la moneda sea diferente
@@ -1254,6 +1249,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Recalcular labours y parts con el nuevo tipo de cambio
       $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+
+      // Recalcular totales de la orden de trabajo
+      $workOrder->calculateTotals();
 
       // Recargar relaciones
       $workOrder->load([
