@@ -120,13 +120,21 @@ class AttendanceSyncService extends BaseService
     );
 
     $data = $rows->map(function (object $row) {
-      $scheduled = $this->generateScheduledTimes($row);
-      $checkIn   = $scheduled['check_in'];
-      $checkOut  = $scheduled['check_out'];
+      $scheduled  = $this->generateScheduledTimes($row);
+      $checkIn    = $scheduled['check_in'];
+      $checkOut   = $scheduled['check_out'];
+      $lunchOut   = $scheduled['lunch_out'];
+      $lunchIn    = $scheduled['lunch_in'];
 
-      $hoursWorked = ($checkIn && $checkOut)
-        ? round((Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600, 2)
-        : null;
+      if ($checkIn && $checkOut) {
+        $grossSeconds = Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp();
+        $lunchSeconds = ($lunchOut && $lunchIn)
+          ? Carbon::parse($lunchIn)->getTimestamp() - Carbon::parse($lunchOut)->getTimestamp()
+          : 0;
+        $hoursWorked = round(max(0, $grossSeconds - $lunchSeconds) / 3600, 2);
+      } else {
+        $hoursWorked = null;
+      }
 
       return [
         'date'         => $row->date,
