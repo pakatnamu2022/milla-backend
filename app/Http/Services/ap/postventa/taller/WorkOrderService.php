@@ -622,9 +622,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo ya tiene una entrega generada');
       }
 
-      if ($workOrder->status_id !== ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede generar entrega para una que no ha sido facturada');
-      }
+      $workOrder->ensureNotInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
 
       // Extraer firma en base64 del array
       $deliverySignature = $data['signature_delivery'] ?? null;
@@ -1234,8 +1232,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Validar que no tenga factura generada
-      if ($workOrder->has_invoice_generated) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene factura generada');
+      if ($workOrder->advancesWorkOrder->count() > 0) {
+        throw new Exception("Esta orden de trabajo no puede cambiar de moneda. Ya se han registrado anticipos para esta orden de trabajo.");
       }
 
       // Validar que no tenga avances de pago
@@ -1386,17 +1384,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede facturar una orden de trabajo cancelada.');
-      }
-
-      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID && $validateLabor) {
-        throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
-      }
-
-      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('La orden de trabajo ya se encuentra en proceso de facturación');
-      }
+      // Validación de estados
+      $workOrder->ensureCanBeModified();
 
       $workOrder->update([
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
@@ -1418,13 +1407,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('La orden de trabajo ya está anulada');
-      }
-
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede anular una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ], 'cancelar');
 
       if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
@@ -1473,9 +1459,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
-      }
+      $workOrder->ensureNotInStates([ApMasters::FINISHED_WORK_ORDER_ID], 'revertir');
 
       $validateReception = $workOrder->shouldValidateReceipt();
       $validateLabor = $workOrder->shouldValidateLabor();
