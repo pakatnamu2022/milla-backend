@@ -829,6 +829,96 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Valida que un descuento solicitado no reduzca el monto total por debajo de los anticipos pagados
+   * Simula la aplicación del descuento y verifica contra los anticipos
+   *
+   * @param string $type GLOBAL o PARTIAL
+   * @param string $partLabourModel ApWorkOrderParts::class o WorkOrderLabour::class
+   * @param float $discountPercentage Porcentaje de descuento a aplicar
+   * @param int|null $partLabourId ID del ítem específico (solo para PARTIAL)
+   * @throws \Exception Si el descuento reduce el monto por debajo de los anticipos pagados
+   */
+  public function validateDiscountAgainstAdvances(
+    string $type,
+    string $partLabourModel,
+    float $discountPercentage,
+    ?int $partLabourId = null
+  ): void {
+    // Obtener totales actuales
+    $currentTotals = $this->getTotalsArray();
+
+    // Variables para acumular el impacto del descuento
+    $additionalDiscountAmount = 0;
+
+    if ($type === DiscountRequestsWorkOrder::TYPE_PARTIAL) {
+      // Descuento a un ítem específico
+      if (!$partLabourId) {
+        throw new \Exception('Para descuento PARTIAL se requiere el ID del ítem.');
+      }
+
+      // Obtener el ítem
+      if ($partLabourModel === ApWorkOrderParts::class) {
+        $item = $this->parts()->find($partLabourId);
+        if (!$item) {
+          throw new \Exception('Repuesto no encontrado.');
+        }
+      } elseif ($partLabourModel === WorkOrderLabour::class) {
+        $item = $this->labours()->find($partLabourId);
+        if (!$item) {
+          throw new \Exception('Mano de obra no encontrada.');
+        }
+      } else {
+        throw new \Exception('Tipo de ítem no válido.');
+      }
+
+      // Calcular el descuento adicional sobre este ítem
+      $itemTotalCost = (float)$item->total_cost;
+      $itemCurrentDiscount = $itemTotalCost - (float)$item->net_amount;
+
+      // Nuevo descuento sobre el total_cost
+      $newDiscountAmount = $itemTotalCost * ($discountPercentage / 100);
+
+      // Descuento adicional = nuevo descuento - descuento actual
+      $additionalDiscountAmount = $newDiscountAmount - $itemCurrentDiscount;
+
+    } elseif ($type === DiscountRequestsWorkOrder::TYPE_GLOBAL) {
+      // Descuento global a todos los ítems del tipo especificado
+      if ($partLabourModel === ApWorkOrderParts::class) {
+        $items = $this->parts;
+      } elseif ($partLabourModel === WorkOrderLabour::class) {
+        $items = $this->labours;
+      } else {
+        throw new \Exception('Tipo de ítem no válido.');
+      }
+
+      // Calcular el descuento adicional total
+      foreach ($items as $item) {
+        $itemTotalCost = (float)$item->total_cost;
+        $itemCurrentDiscount = $itemTotalCost - (float)$item->net_amount;
+
+        // Nuevo descuento sobre el total_cost
+        $newDiscountAmount = $itemTotalCost * ($discountPercentage / 100);
+
+        // Descuento adicional = nuevo descuento - descuento actual
+        $additionalDiscountAmount += ($newDiscountAmount - $itemCurrentDiscount);
+      }
+    }
+
+    // Calcular el nuevo net_amount (suma de todos los net_amount después del descuento)
+    $currentNetAmount = (float)$currentTotals['net_amount'];
+    $projectedNetAmount = $currentNetAmount - $additionalDiscountAmount;
+
+    // Aplicar IGV sobre el nuevo net_amount
+    $projectedTaxAmount = $projectedNetAmount * (Constants::VAT_TAX / 100);
+
+    // Calcular el nuevo monto total final (incluye IGV)
+    $projectedFinalAmount = $projectedNetAmount + $projectedTaxAmount;
+
+    // Validar contra los anticipos pagados
+    $this->validateMinimumAmount($projectedFinalAmount);
+  }
+
+  /**
    * Valida que la orden de trabajo NO esté en los estados prohibidos
    *
    * @param array $forbiddenStatuses Estados a validar

@@ -40,8 +40,10 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
   public function list(Request $request)
   {
+    $query = DiscountRequestsWorkOrder::whereIn('status', ['approved', 'pending']);
+    
     return $this->getFilteredResults(
-      DiscountRequestsWorkOrder::class,
+      $query,
       $request,
       DiscountRequestsWorkOrder::filters,
       DiscountRequestsWorkOrder::sorts,
@@ -70,14 +72,32 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     // Validación de estados
     $workOrder->ensureCanBeModified();
 
+    // Convertir PART o LABOUR al nombre completo de la clase
+    $partLabourModel = $this->convertToModelClass($data['part_labour_model'] ?? '');
+
     if ($type === DiscountRequestsWorkOrder::TYPE_GLOBAL) {
-      $exists = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
+      // Validar que no exista otro descuento GLOBAL PENDING para este tipo (PART o LABOUR)
+      $existsGlobal = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
         ->where('type', DiscountRequestsWorkOrder::TYPE_GLOBAL)
-        ->where('part_labour_model', $this->convertToModelClass($data['part_labour_model'] ?? ''))
+        ->where('part_labour_model', $partLabourModel)
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
         ->exists();
 
-      if ($exists) {
-        throw new Exception('Ya existe un descuento GLOBAL activo para esta orden de trabajo. Debe eliminarlo antes de crear uno nuevo.');
+      if ($existsGlobal) {
+        $modelType = $partLabourModel === ApWorkOrderParts::class ? 'repuestos' : 'mano de obra';
+        throw new Exception("Ya existe un descuento GLOBAL pendiente para {$modelType} en esta orden de trabajo. Debe procesarlo antes de crear uno nuevo.");
+      }
+
+      // Validar que no existan descuentos PARTIAL PENDING para este tipo
+      $existsPartial = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
+        ->where('type', DiscountRequestsWorkOrder::TYPE_PARTIAL)
+        ->where('part_labour_model', $partLabourModel)
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
+        ->exists();
+
+      if ($existsPartial) {
+        $modelType = $partLabourModel === ApWorkOrderParts::class ? 'repuestos' : 'mano de obra';
+        throw new Exception("No se puede crear un descuento GLOBAL porque existen descuentos PARTIAL pendientes para {$modelType}. Debe procesarlos primero.");
       }
     }
 
@@ -86,18 +106,37 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Para un descuento PARTIAL, debe especificar el ítem (parte o labor).');
       }
 
-      // Convertir PART o LABOUR al nombre completo de la clase
-      $partLabourModel = $this->convertToModelClass($data['part_labour_model']);
-
-      $exists = DiscountRequestsWorkOrder::where('part_labour_id', $data['part_labour_id'])
+      // Validar que no exista un descuento GLOBAL PENDING para este tipo
+      $existsGlobal = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
+        ->where('type', DiscountRequestsWorkOrder::TYPE_GLOBAL)
         ->where('part_labour_model', $partLabourModel)
-        ->where('type', DiscountRequestsWorkOrder::TYPE_PARTIAL)
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
         ->exists();
 
-      if ($exists) {
-        throw new Exception('Ya existe un descuento PARTIAL activo para este ítem. Debe eliminarlo antes de crear uno nuevo.');
+      if ($existsGlobal) {
+        $modelType = $partLabourModel === ApWorkOrderParts::class ? 'repuestos' : 'mano de obra';
+        throw new Exception("No se puede crear un descuento PARTIAL porque existe un descuento GLOBAL pendiente para {$modelType}. Debe procesarlo primero.");
+      }
+
+      // Validar que no exista otro descuento PARTIAL PENDING para el mismo ítem
+      $existsPartial = DiscountRequestsWorkOrder::where('part_labour_id', $data['part_labour_id'])
+        ->where('part_labour_model', $partLabourModel)
+        ->where('type', DiscountRequestsWorkOrder::TYPE_PARTIAL)
+        ->where('status', DiscountRequestsWorkOrder::STATUS_PENDING)
+        ->exists();
+
+      if ($existsPartial) {
+        throw new Exception('Ya existe un descuento PARTIAL pendiente para este ítem. Debe procesarlo antes de crear uno nuevo.');
       }
     }
+
+    // Validar que el descuento no reduzca el monto por debajo de los anticipos pagados
+    $workOrder->validateDiscountAgainstAdvances(
+      $type,
+      $partLabourModel,
+      $data['requested_discount_percentage'],
+      $data['part_labour_id'] ?? null
+    );
 
     $record = DB::transaction(function () use ($data) {
       // Convertir PART o LABOUR al nombre completo de la clase antes de guardar
@@ -150,6 +189,17 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
     // Validación de estados
     $workOrder->ensureCanBeModified();
+
+    // Obtener el porcentaje de descuento final (usar el nuevo si está presente, sino usar el actual)
+    $newDiscountPercentage = $data['requested_discount_percentage'] ?? $record->requested_discount_percentage;
+
+    // Validar que el descuento actualizado no reduzca el monto por debajo de los anticipos pagados
+    $workOrder->validateDiscountAgainstAdvances(
+      $record->type,
+      $record->part_labour_model,
+      $newDiscountPercentage,
+      $record->part_labour_id
+    );
 
     DB::transaction(function () use ($record, $data) {
       $record->update([
