@@ -158,6 +158,14 @@ Schedule::command('ar:send-due-reports')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Verificar asientos contables procesados por GP y completar entregas de vehículos
+Schedule::command('accounting-entry:verify --all')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
 // Sync attendance punches from ZKBioTime — 4 times daily
 foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
   Schedule::command('sync:attendance')

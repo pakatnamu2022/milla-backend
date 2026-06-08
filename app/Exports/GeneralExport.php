@@ -198,7 +198,8 @@ class GeneralExport implements
         $sheet->freezePane('A2');
 
         // Auto filtro
-        $lastColumn = chr(ord('A') + count($this->columns) - 1);
+        $lastColumnIndex = count($this->columns);
+        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColumnIndex);
         $sheet->setAutoFilter("A1:{$lastColumn}1");
 
         // Altura de filas del header
@@ -212,9 +213,9 @@ class GeneralExport implements
         $alignment->setHorizontal('left'); // Alinear a la izquierda para mejor legibilidad
 
         // Ajustar manualmente el ancho de columnas si es necesario
-        // ShouldAutoSize ya hace el trabajo principal, pero podemos refinar
-        foreach (range('A', $lastColumn) as $columnID) {
-          $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        for ($i = 1; $i <= $lastColumnIndex; $i++) {
+          $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+          $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
 
         // Aplicar colores condicionales por columna

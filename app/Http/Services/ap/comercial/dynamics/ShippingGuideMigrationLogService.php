@@ -112,16 +112,34 @@ class ShippingGuideMigrationLogService
 
   public function checkAndUpdateCompletionStatus(ShippingGuides $shippingGuide): void
   {
-    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)->get();
+    $inventorySteps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL,
+      VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL,
+    ];
+
+    $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->whereIn('step', $inventorySteps)
+      ->get();
 
     $allCompleted = $logs->every(function ($log) {
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
         $log->proceso_estado === 1;
     });
 
-    $hasFailed = $logs->contains(function ($log) {
-      return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
-    });
+    $hasFailed = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->whereIn('step', $inventorySteps)
+      ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED)
+      ->exists();
 
     if ($allCompleted && $logs->count() === 3) {
       $shippingGuide->update([
@@ -139,6 +157,22 @@ class ShippingGuideMigrationLogService
         'migration_status' => 'failed',
       ]);
     }
+  }
+
+  public function hasExceededAttemptLimit(VehiclePurchaseOrderMigrationLog $log): bool
+  {
+    if (in_array($log->status, [
+      VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+    ])) {
+      return $log->attempts >= VehiclePurchaseOrderMigrationLog::MAX_PENDING_ATTEMPTS;
+    }
+
+    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS) {
+      return $log->attempts >= VehiclePurchaseOrderMigrationLog::MAX_IN_PROGRESS_ATTEMPTS;
+    }
+
+    return false;
   }
 
   public function buildSaleTransactionId(ShippingGuides $shippingGuide, string $step): string

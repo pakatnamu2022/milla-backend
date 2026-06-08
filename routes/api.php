@@ -1228,6 +1228,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
       Route::post('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
       Route::post('vehiclesDelivery/{id}/send-to-dynamic', [ApVehicleDeliveryController::class, 'sendToDynamic']);
+      Route::post('vehiclesDelivery/{id}/sync-accounting-entry', [ApVehicleDeliveryController::class, 'syncAccountingEntry']);
       Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
         'index',
         'show',

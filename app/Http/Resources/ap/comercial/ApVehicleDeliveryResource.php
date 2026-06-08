@@ -11,37 +11,28 @@ class ApVehicleDeliveryResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'id' => $this->id,
-      'vehicle_id' => $this->vehicle_id,
-      'vin' => $this->vehicle->vin,
+      'id'                      => $this->id,
+      'vehicle_id'              => $this->vehicle_id,
+      'vin'                     => $this->vehicle->vin,
       'scheduled_delivery_date' => $this->scheduled_delivery_date,
-      'wash_date' => $this->wash_date,
-      'observations' => $this->observations,
-      'advisor_id' => $this->advisor_id,
-      'advisor_name' => $this->advisor ? $this->advisor->nombre_completo : null,
-      'sede_id' => $this->sede_id,
-      'sede_name' => $this->sede ? $this->sede->abreviatura : null,
-      'status_wash' => $this->translateStatus($this->status_wash),
-      'status_delivery' => $this->translateStatus($this->status_delivery),
-      'client_name' => $this->client->full_name,
-      'shipping_guide_id' => $this->shipping_guide_id ?? null,
-      'aceptada_por_sunat' => $this->ShippingGuide->aceptada_por_sunat ?? false,
-      'sent_at' => $this->ShippingGuide->sent_at ?? null,
-      'status_dynamic' => $this->ShippingGuide->status_dynamic ?? null,
-      'checklist_status' => $this->checklist_status,
-      'shipping_guide' => $this->whenLoaded('ShippingGuide', function () {
+      'wash_date'               => $this->wash_date,
+      'observations'            => $this->observations,
+      'advisor_id'              => $this->advisor_id,
+      'advisor_name'            => $this->advisor ? $this->advisor->nombre_completo : null,
+      'sede_id'                 => $this->sede_id,
+      'sede_name'               => $this->sede ? $this->sede->abreviatura : null,
+      'status_wash'             => $this->status_wash,
+      'status_delivery'         => $this->status_delivery,
+      'client_name'             => $this->client->full_name,
+      'shipping_guide_id'       => $this->shipping_guide_id ?? null,
+      'aceptada_por_sunat'      => $this->ShippingGuide->aceptada_por_sunat ?? false,
+      'sent_at'                 => $this->ShippingGuide->sent_at ?? null,
+      'status_dynamic'          => $this->ShippingGuide->status_dynamic ?? null,
+      'is_accounted'            => $this->is_accounted,
+      'checklist_status'        => $this->checklist_status,
+      'shipping_guide'          => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),
     ];
-  }
-
-  private function translateStatus($status)
-  {
-    $translations = [
-      'pending' => 'Pendiente',
-      'completed' => 'Completado',
-    ];
-
-    return $translations[strtolower($status)] ?? $status;
   }
 }

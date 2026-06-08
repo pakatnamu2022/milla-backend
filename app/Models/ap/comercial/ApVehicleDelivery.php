@@ -30,6 +30,7 @@ class ApVehicleDelivery extends Model
     'vehicle_movement_id',
     'ap_class_article_id',
     'client_id',
+    'is_accounted',
   ];
 
   protected $casts = [
@@ -37,6 +38,7 @@ class ApVehicleDelivery extends Model
     'real_delivery_date' => 'date',
     'wash_date' => 'date',
     'real_wash_date' => 'date',
+    'is_accounted' => 'boolean',
   ];
 
   const filters = [

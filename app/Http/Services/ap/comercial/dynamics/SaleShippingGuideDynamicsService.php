@@ -6,7 +6,6 @@ use App\Http\Resources\Dynamics\ShippingGuideDetailDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideHeaderDynamicsResource;
 use App\Http\Resources\Dynamics\ShippingGuideSeriesDynamicsResource;
 use App\Http\Services\DatabaseSyncService;
-use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -45,6 +44,11 @@ class SaleShippingGuideDynamicsService
         continue;
       }
 
+      if ($this->logService->hasExceededAttemptLimit($transactionLog)) {
+        $transactionLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        continue;
+      }
+
       if (empty($shippingGuide->dyn_series)) {
         $isCancelled = str_contains($step, 'REVERSAL');
         $this->syncTransaction($shippingGuide, $isCancelled);
@@ -67,14 +71,9 @@ class SaleShippingGuideDynamicsService
 
       $transactionLog->updateProcesoEstado(
         $existingTransaction->ProcesoEstado ?? 0,
-        $existingTransaction->ProcesoError ?? null
+        $existingTransaction->ProcesoError ?? null,
+        true
       );
-
-      if ($existingTransaction->ProcesoEstado == 1 && !str_contains($step, 'REVERSAL')) {
-        SyncAccountingEntryJob::dispatch($shippingGuide->id)
-          ->onQueue('sync')
-          ->delay(now()->addSeconds(5));
-      }
     }
   }
 
@@ -95,6 +94,11 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      if ($this->logService->hasExceededAttemptLimit($detailLog)) {
+        $detailLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
         continue;
       }
 
@@ -133,6 +137,11 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($serialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+        continue;
+      }
+
+      if ($this->logService->hasExceededAttemptLimit($serialLog)) {
+        $serialLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
         continue;
       }
 
