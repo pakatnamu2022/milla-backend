@@ -6,7 +6,6 @@ use App\Http\Resources\ap\postventa\taller\DiscountRequestsWorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
-use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
@@ -68,20 +67,8 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       throw new Exception('Orden de trabajo no encontrada.');
     }
 
-    // Validar que no esté finalizada
-    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está finalizada.');
-    }
-
-    // Validar que no esté cerrada
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cerrada.');
-    }
-
-    // Validar que no esté cancelada
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cancelada.');
-    }
+    // Validación de estados
+    $workOrder->ensureCanBeModified();
 
     if ($type === DiscountRequestsWorkOrder::TYPE_GLOBAL) {
       $exists = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
@@ -161,20 +148,8 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     $record = $this->findNotApproved($data['id']);
     $workOrder = $record->apWorkOrder;
 
-    // Validar que no esté finalizada
-    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está finalizada.');
-    }
-
-    // Validar que no esté cerrada
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cerrada.');
-    }
-
-    // Validar que no esté cancelada
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cancelada.');
-    }
+    // Validación de estados
+    $workOrder->ensureCanBeModified();
 
     DB::transaction(function () use ($record, $data) {
       $record->update([
@@ -200,20 +175,8 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     $record = $this->findNotApproved($id);
     $workOrder = $record->apWorkOrder;
 
-    // Validar que no esté finalizada
-    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está finalizada.');
-    }
-
-    // Validar que no esté cerrada
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cerrada.');
-    }
-
-    // Validar que no esté cancelada
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cancelada.');
-    }
+    // Validación de estados
+    $workOrder->ensureCanBeModified();
 
     DB::transaction(function () use ($record) {
       // Actualizar el estado de la solicitud
@@ -239,20 +202,8 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
     $record = $this->findNotApproved($id);
     $workOrder = $record->apWorkOrder;
 
-    // Validar que no esté finalizada
-    if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está finalizada.');
-    }
-
-    // Validar que no esté cerrada
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cerrada.');
-    }
-
-    // Validar que no esté cancelada
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      throw new Exception('No se puede solicitar un descuento para una orden de trabajo que ya está cancelada.');
-    }
+    // Validación de estados
+    $workOrder->ensureCanBeModified();
 
     DB::transaction(function () use ($record) {
       $record->update([

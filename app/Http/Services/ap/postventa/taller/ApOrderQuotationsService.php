@@ -448,8 +448,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
       }
 
       if ($vehicle && $vehicle->customer_id === null) {
@@ -457,7 +457,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar cambio de moneda si existen pagos registrados
-      if ($quotation->has_invoice_generated && $quotation->currency_id !== $data['currency_id']) {
+      if ($quotation->getActiveAdvances()->count() > 0 && $quotation->currency_id !== $data['currency_id']) {
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
@@ -553,8 +553,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
     }
 
-    if ($quotation->has_invoice_generated) {
-      throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
+    if ($quotation->getActiveAdvances()->count() > 0) {
+      throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
     }
 
     if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
@@ -589,8 +589,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede descartar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede anular una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->discarded_at) {
@@ -913,8 +913,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede confirmar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
@@ -1307,8 +1307,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('Esta cotización ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede enviar link de confirmación a una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->isConfirmed()) {
@@ -1411,7 +1411,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       if (!$apOrderQuotations) {
         throw new Exception('Cotización no encontrada');
       }
-      
+
       if ($apOrderQuotations->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }
