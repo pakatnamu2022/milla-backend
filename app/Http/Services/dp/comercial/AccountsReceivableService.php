@@ -257,7 +257,7 @@ class AccountsReceivableService extends BaseService
   {
     return $this->executeSedeReports(
       $company,
-      fn($q) => $q->where('balance_pen', '>', 0)->orderByDesc('overdue_days'),
+      fn($q) => $q->where('balance_pen', '>', 0)->where('overdue_days', '<=', 0)->whereNot('overdue_status', 'PAGADO')->orderBy('overdue_days'),
       'Cuentas por Cobrar',
       'CxC'
     );

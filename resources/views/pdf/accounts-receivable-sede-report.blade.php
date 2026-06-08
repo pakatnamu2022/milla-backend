@@ -18,7 +18,7 @@
 
     @page {
       size: A4 landscape;
-      margin: 16mm 16mm 20mm 16mm;
+      margin: 22mm 24mm 26mm 24mm;
     }
 
     body {
@@ -26,11 +26,11 @@
       font-size: 10px;
       color: #22293a;
       background: #ffffff;
-      padding: 0 0 24px;
+      padding: 0 0 28px;
     }
 
     /* ── HEADER ── */
-    .page-header { margin-bottom: 8px; }
+    .page-header { margin-bottom: 14px; }
 
     .header-inner {
       display: table;
@@ -101,7 +101,7 @@
       border: 1px solid #cccccc;
       border-radius: 4px;
       overflow: hidden;
-      margin-bottom: 7px;
+      margin-bottom: 12px;
       background: #ffffff;
     }
 
@@ -111,9 +111,11 @@
       font-weight: bold;
       font-size: 10px;
       letter-spacing: 0.3px;
-      padding: 4px 10px;
+      padding: 6px 14px;
       border-bottom: 1px solid #d2d2d2;
     }
+
+    .card-content { padding: 8px 10px 10px; }
 
     /* ── KPI GRID ── */
     .kpi-table {
@@ -122,10 +124,10 @@
     }
 
     .kpi-cell {
-      padding: 7px 14px;
+      padding: 10px 18px;
       vertical-align: top;
       border-right: 1px solid #e8e8e8;
-      width: 25%;
+      width: 33.33%;
     }
 
     .kpi-cell:last-child { border-right: none; }
@@ -152,7 +154,7 @@
     table.records thead tr { background: #f5f5f5; }
 
     table.records thead th {
-      padding: 5px 7px;
+      padding: 7px 10px;
       text-align: left;
       font-size: 8px;
       font-weight: bold;
@@ -167,7 +169,7 @@
     table.records thead th.right { text-align: right; }
 
     table.records tbody td {
-      padding: 4px 7px;
+      padding: 6px 10px;
       color: #1a1a1a;
       border-right: 1px solid #ebebeb;
       border-bottom: 1px solid #ebebeb;
@@ -184,7 +186,7 @@
     table.records tbody td.num { text-align: center; }
 
     table.records tfoot td {
-      padding: 5px 7px;
+      padding: 7px 10px;
       font-size: 9px;
       font-weight: bold;
       color: #22293a;
@@ -257,6 +259,7 @@
 {{-- KPIs --}}
 <div class="card">
   <div class="card-title">Resumen</div>
+  <div class="card-content">
   <table class="kpi-table" cellpadding="0" cellspacing="0" border="0">
     <tr>
       <td class="kpi-cell">
@@ -268,20 +271,18 @@
         <div class="kpi-label">Saldo total</div>
       </td>
       <td class="kpi-cell">
-        <div class="kpi-value-overdue">S/ {{ number_format($summary['overdue_balance_pen'], 2) }}</div>
-        <div class="kpi-label">Saldo vencido</div>
-      </td>
-      <td class="kpi-cell">
         <div class="kpi-value-current">S/ {{ number_format($summary['current_balance_pen'], 2) }}</div>
         <div class="kpi-label">Saldo por vencer</div>
       </td>
     </tr>
   </table>
+  </div>
 </div>
 
 {{-- Detalle --}}
 <div class="card">
   <div class="card-title">Detalle de documentos ({{ count($records) }})</div>
+  <div class="card-content">
   <table class="records">
     <thead>
     <tr>
@@ -326,6 +327,7 @@
     </tr>
     </tfoot>
   </table>
+  </div>
 </div>
 
 </body>
