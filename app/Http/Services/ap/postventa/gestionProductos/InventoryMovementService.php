@@ -1331,7 +1331,7 @@ class InventoryMovementService extends BaseService
           'product_id' => $detail->product_id,
           'quantity' => $detail->quantity,
           'unit_cost' => $detail->unit_price,
-          'total_cost' => $detail->total_amount,
+          'total_cost' => $detail->total_cost,
           'notes' => "Venta cotización {$quotation->quotation_number} - {$detail->description}",
         ]);
 
@@ -1731,7 +1731,7 @@ class InventoryMovementService extends BaseService
             'product_id' => $detail->product_id,
             'quantity' => $detail->quantity,
             'unit_cost' => $detail->unit_price,
-            'total_cost' => $detail->total_amount,
+            'total_cost' => $detail->total_cost,
             'notes' => $detailNotes,
           ]);
 

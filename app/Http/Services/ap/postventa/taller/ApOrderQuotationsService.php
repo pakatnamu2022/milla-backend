@@ -731,7 +731,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
-        'total_amount' => $detail->total_amount,
+        'total_amount' => $detail->net_amount,
         'item_type' => $detail->item_type,
         'supply_type' => $detail->supply_type,
       ];
@@ -743,8 +743,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $totalDiscounts = 0;
 
     foreach ($quotation->details as $detail) {
-      $itemSubtotal = $detail->quantity * $detail->unit_price;
-      $itemDiscount = $itemSubtotal - $detail->total_amount;
+      $itemSubtotal = $detail->total_cost;
+      $itemDiscount = $detail->total_cost - $detail->net_amount;
 
       // Total mano de obra (LABOR) - sin descuento
       if ($detail->item_type === 'LABOR') {
@@ -877,8 +877,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
-        'total_amount' => $detail->total_amount,
-        'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
+        'total_amount' => $detail->net_amount,
+        'total_amount_with_tax' => $detail->net_amount + $detail->tax_amount,
         'item_type' => $detail->item_type,
         'supply_type' => $detail->supply_type,
       ];
@@ -1125,7 +1125,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
             'unit_measure' => $detail->unit_measure,
             'unit_price' => $detail->unit_price,
             'discount_percentage' => $detail->discount_percentage,
-            'total_amount' => $detail->total_amount,
+            'total_amount' => $detail->net_amount,
             'item_type' => $detail->item_type,
             'observations' => $detail->observations ?? '',
           ];
