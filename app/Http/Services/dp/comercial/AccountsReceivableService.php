@@ -25,6 +25,24 @@ class AccountsReceivableService extends BaseService
     'deposito' => 'dbdp2',
   ];
 
+  private const COMPANY_EMPRESA_ID_MAP = [
+    'deposito' => 2,
+  ];
+
+  private const SEDE_EMAIL_MAP = [
+    'deposito' => [
+      'CAJAMARCA'  => 'dp-caj-cotweb@depositopakatnamu.com',
+      'CHIMBOTE'   => 'dp-chb-cotweb@depositopakatnamu.com',
+      'TRUJILLO'   => 'dp-tru-cotweb@depositopakatnamu.com',
+      'PACASMAYO'  => 'dp-pac-cotweb@depositopakatnamu.com',
+      'LAMBAYEQUE' => 'dp-cix-cotweb@depositopakatnamu.com',
+      'LEGUIA'     => 'dp-cix-cotweb@depositopakatnamu.com',
+      'CHICLAYO'   => 'dp-cix-cotweb@depositopakatnamu.com',
+      'SULLANA'    => 'dp-sul-cotweb@depositopakatnamu.com',
+      'PIURA'      => 'dp-sul-cotweb@depositopakatnamu.com',
+    ],
+  ];
+
   public function __construct(private EmailService $emailService)
   {
   }
@@ -239,7 +257,7 @@ class AccountsReceivableService extends BaseService
   {
     return $this->executeSedeReports(
       $company,
-      fn($q) => $q->where('balance_pen', '>', 0)->orderByDesc('overdue_days'),
+      fn($q) => $q->where('balance_pen', '>', 0)->where('overdue_days', '<=', 0)->whereNot('overdue_status', 'PAGADO')->orderBy('overdue_days'),
       'Cuentas por Cobrar',
       'CxC'
     );
@@ -250,7 +268,7 @@ class AccountsReceivableService extends BaseService
     return $this->executeSedeReports(
       $company,
       fn($q) => $q->where('balance_pen', '>', 0)->whereBetween('overdue_days', [-2, 0])->orderBy('overdue_days'),
-      'CxC Por Vencer (≤2 días)',
+      'Cuentas por Cobrar — Vencen en los próximos 2 días',
       'CxC_PorVencer'
     );
   }
@@ -259,29 +277,19 @@ class AccountsReceivableService extends BaseService
   {
     $this->sync($company);
 
-    $positionIds = HierarchicalCategoryDetail::where('hierarchical_category_id', 13)
-      ->pluck('position_id');
+    $recipients = $this->resolveRecipients($company);
 
-    if ($positionIds->isEmpty()) {
-      return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron cargos para la categoría jerárquica 13.'];
-    }
-
-    $workers = Worker::whereIn('cargo_id', $positionIds)
-      ->whereNotNull('sede_id')
-      ->with('sede:id,localidad,suc_abrev')
-      ->get();
-
-    if ($workers->isEmpty()) {
-      return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron trabajadores activos en la categoría jerárquica 13.'];
+    if (empty($recipients)) {
+      return ['sent' => 0, 'skipped' => 0, 'message' => 'No se encontraron destinatarios para la empresa.'];
     }
 
     $sent = 0;
     $skipped = 0;
 
-    foreach ($workers->groupBy('sede_id') as $sedeId => $sedeWorkers) {
-      $sede = $sedeWorkers->first()->sede;
+    foreach ($recipients as $sedeId => $group) {
+      $sede = $group['sede'];
       $sedeAbrev = $sede?->suc_abrev ?? "Sede {$sedeId}";
-      $sedeFullName = $sede?->localidad ?? $sedeAbrev;
+      $sedeFullName = $sede?->localidad ?: $sedeAbrev;
 
       $records = $queryModifier(
         AccountReceivable::where('company', $company)->where('sede_id', $sedeId)
@@ -328,12 +336,12 @@ class AccountsReceivableService extends BaseService
 
       $pdfFileName = "{$filePrefix}_{$sedeAbrev}_{$company}_" . now()->format('Ymd') . '.pdf';
 
-      foreach ($sedeWorkers as $worker) {
+      foreach ($group['entries'] as $entry) {
         $this->emailService->send([
-          'to' => self::TEST_EMAIL,
-          'subject' => "{$subjectPrefix} — {$sedeFullName} | " . now()->format('d/m/Y'),
+          'to' => $entry['email'],
+          'subject' => "{$subjectPrefix} — {$sedeFullName} | {$summary['total_documents']} docs · S/ " . number_format($summary['total_balance_pen'], 2) . ' | ' . now()->format('d/m/Y'),
           'template' => 'emails.accounts-receivable-sede-report',
-          'data' => array_merge($emailData, ['worker_name' => $worker->nombre_completo]),
+          'data' => array_merge($emailData, ['worker_name' => $entry['name'] ?? "Equipo {$sedeFullName}"]),
           'attachments' => [['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']],
         ]);
         $sent++;
@@ -347,6 +355,55 @@ class AccountsReceivableService extends BaseService
       'skipped' => $skipped,
       'message' => "Se enviaron {$sent} correo(s). {$skipped} sede(s) sin documentos.",
     ];
+  }
+
+  private function resolveRecipients(string $company): array
+  {
+    if (isset(self::SEDE_EMAIL_MAP[$company])) {
+      $emailMap = self::SEDE_EMAIL_MAP[$company];
+
+      $empresaId = self::COMPANY_EMPRESA_ID_MAP[$company] ?? null;
+
+      $result = [];
+      Sede::whereIn('suc_abrev', array_keys($emailMap))
+        ->when($empresaId, fn($q) => $q->where(fn($q2) => $q2->where('empresa_id', $empresaId)->orWhereNull('empresa_id')))
+        ->get()
+        ->each(function (Sede $sede) use ($emailMap, &$result) {
+        $email = $emailMap[strtoupper($sede->suc_abrev)] ?? null;
+        if (!$email) return;
+
+        $result[$sede->id] = [
+          'sede' => $sede,
+          'entries' => [['email' => $email, 'name' => null]],
+        ];
+      });
+
+      return $result;
+    }
+
+    $positionIds = HierarchicalCategoryDetail::where('hierarchical_category_id', 13)->pluck('position_id');
+
+    if ($positionIds->isEmpty()) {
+      return [];
+    }
+
+    $workers = Worker::whereIn('cargo_id', $positionIds)
+      ->whereNotNull('sede_id')
+      ->with('sede:id,localidad,suc_abrev')
+      ->get();
+
+    $result = [];
+    foreach ($workers->groupBy('sede_id') as $sedeId => $sedeWorkers) {
+      $result[$sedeId] = [
+        'sede' => $sedeWorkers->first()->sede,
+        'entries' => $sedeWorkers->map(fn($w) => [
+          'email' => self::TEST_EMAIL,
+          'name' => $w->nombre_completo,
+        ])->toArray(),
+      ];
+    }
+
+    return $result;
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
