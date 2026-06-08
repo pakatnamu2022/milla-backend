@@ -352,6 +352,7 @@ class AttendanceSyncService extends BaseService
       ])
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
+      ->where('p.status_id', 22)
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
@@ -530,8 +531,8 @@ class AttendanceSyncService extends BaseService
   {
     $checkIn  = $row->check_in  ?? $row->schedule_checkin;
     $checkOut = $row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout);
-    $lunchOut = $row->lunch_out ?? ($isSaturday ? null : $row->schedule_lunch_out);
-    $lunchIn  = $row->lunch_in  ?? ($isSaturday ? null : $row->schedule_lunch_in);
+    $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
+    $lunchIn  = $isSaturday ? null : ($row->lunch_in  ?? $row->schedule_lunch_in);
 
     $isEstimated = ! $row->check_in || ! $row->check_out;
 
