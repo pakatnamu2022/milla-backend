@@ -37,6 +37,7 @@ class AccountsReceivableService extends BaseService
       'PACASMAYO'  => 'dp-pac-cotweb@depositopakatnamu.com',
       'LAMBAYEQUE' => 'dp-cix-cotweb@depositopakatnamu.com',
       'LEGUIA'     => 'dp-cix-cotweb@depositopakatnamu.com',
+      'CHICLAYO'   => 'dp-cix-cotweb@depositopakatnamu.com',
       'SULLANA'    => 'dp-sul-cotweb@depositopakatnamu.com',
       'PIURA'      => 'dp-sul-cotweb@depositopakatnamu.com',
     ],
