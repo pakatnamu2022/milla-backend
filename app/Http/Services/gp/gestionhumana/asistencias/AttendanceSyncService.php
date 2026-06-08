@@ -120,13 +120,21 @@ class AttendanceSyncService extends BaseService
     );
 
     $data = $rows->map(function (object $row) {
-      $scheduled = $this->generateScheduledTimes($row);
-      $checkIn   = $scheduled['check_in'];
-      $checkOut  = $scheduled['check_out'];
+      $scheduled  = $this->generateScheduledTimes($row);
+      $checkIn    = $scheduled['check_in'];
+      $checkOut   = $scheduled['check_out'];
+      $lunchOut   = $scheduled['lunch_out'];
+      $lunchIn    = $scheduled['lunch_in'];
 
-      $hoursWorked = ($checkIn && $checkOut)
-        ? round((Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp()) / 3600, 2)
-        : null;
+      if ($checkIn && $checkOut) {
+        $grossSeconds = Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp();
+        $lunchSeconds = ($lunchOut && $lunchIn)
+          ? Carbon::parse($lunchIn)->getTimestamp() - Carbon::parse($lunchOut)->getTimestamp()
+          : 0;
+        $hoursWorked = round(max(0, $grossSeconds - $lunchSeconds) / 3600, 2);
+      } else {
+        $hoursWorked = null;
+      }
 
       return [
         'date'         => $row->date,
@@ -344,6 +352,7 @@ class AttendanceSyncService extends BaseService
       ])
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
+      ->where('p.status_id', 22)
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
@@ -522,8 +531,8 @@ class AttendanceSyncService extends BaseService
   {
     $checkIn  = $row->check_in  ?? $row->schedule_checkin;
     $checkOut = $row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout);
-    $lunchOut = $row->lunch_out ?? ($isSaturday ? null : $row->schedule_lunch_out);
-    $lunchIn  = $row->lunch_in  ?? ($isSaturday ? null : $row->schedule_lunch_in);
+    $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
+    $lunchIn  = $isSaturday ? null : ($row->lunch_in  ?? $row->schedule_lunch_in);
 
     $isEstimated = ! $row->check_in || ! $row->check_out;
 

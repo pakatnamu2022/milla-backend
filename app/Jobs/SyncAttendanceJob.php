@@ -36,9 +36,11 @@ class SyncAttendanceJob implements ShouldQueue
       $rows      = $this->fetchTransactions($date);
       $grouped   = $rows->groupBy('emp_code');
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, &$inserted) {
+      $scheduleMap = $this->buildScheduleMap();
+
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, &$inserted) {
         $sorted  = $punches->sortBy('punch_time')->values();
-        $records = $this->classifyPunches($sorted, $empCode, $date, $personMap);
+        $records = $this->classifyPunches($sorted, $empCode, $date, $personMap, $scheduleMap);
 
         $data = $records->map(fn($r) => array_merge($r, [
           'synced_at'  => now()->toDateTimeString(),
@@ -95,34 +97,67 @@ class SyncAttendanceJob implements ShouldQueue
     \Illuminate\Support\Collection $punches,
     string $empCode,
     string $date,
-    array $personMap
+    array $personMap,
+    array $scheduleMap
   ): \Illuminate\Support\Collection {
-    $personId = $personMap[$empCode] ?? null;
+    $personId   = $personMap[$empCode] ?? null;
+    $schedule   = $personId ? ($scheduleMap[$personId] ?? null) : null;
+    $isSaturday = Carbon::parse($date)->dayOfWeek === 6;
 
-    return $punches->map(function ($row) use ($empCode, $date, $personId) {
-      $punched  = Carbon::parse($row->punch_time);
-      $minutes  = $punched->hour * 60 + $punched->minute;
+    $checkin  = $schedule->checkin   ?? '08:00:00';
+    $lunchOut = $schedule->lunch_out ?? '13:00:00';
+    $lunchIn  = $schedule->lunch_in  ?? '14:24:00';
+    $checkout = $schedule->checkout  ?? '18:00:00';
 
-      $markType = match(true) {
-        $minutes < 300  => 'check_out',  // 00:00–04:59 salida nocturna
-        $minutes < 720  => 'check_in',   // 05:00–11:59 entrada
-        $minutes < 840  => 'lunch_out',  // 12:00–13:59 salida a almorzar
-        $minutes < 1020 => 'lunch_in',   // 14:00–16:59 regreso de almuerzo
-        default         => 'check_out',  // 17:00–23:59 salida
-      };
+    // Saturday: only 2 slots (check_in + check_out at lunch_out time = half day)
+    $slots = $isSaturday
+      ? ['check_in' => $checkin, 'check_out' => $lunchOut]
+      : ['check_in' => $checkin, 'lunch_out' => $lunchOut, 'lunch_in' => $lunchIn, 'check_out' => $checkout];
 
-      return [
-        'zkbio_transaction_id' => (int) $row->transaction_id,
-        'person_id'            => $personId,
-        'emp_code'             => $empCode,
-        'full_name'            => $row->full_name ?? '',
-        'date'                 => $date,
-        'mark_type'            => $markType,
-        'time'                 => $punched->format('H:i:s'),
-        'area'                 => $row->area_alias ?: null,
-        'punch_state_original' => (string) $row->punch_state,
-      ];
-    });
+    $usedIndexes = [];
+    $results     = [];
+
+    foreach ($slots as $markType => $targetTime) {
+      $targetMinutes = $this->timeToMinutes($targetTime);
+      $bestDiff      = PHP_INT_MAX;
+      $bestIdx       = -1;
+      $bestRow       = null;
+
+      foreach ($punches as $i => $row) {
+        if (in_array($i, $usedIndexes)) continue;
+
+        $diff = abs($this->timeToMinutes(Carbon::parse($row->punch_time)->format('H:i:s')) - $targetMinutes);
+
+        if ($diff < $bestDiff) {
+          $bestDiff = $diff;
+          $bestIdx  = $i;
+          $bestRow  = $row;
+        }
+      }
+
+      if ($bestRow !== null) {
+        $usedIndexes[] = $bestIdx;
+        $results[] = [
+          'zkbio_transaction_id' => (int) $bestRow->transaction_id,
+          'person_id'            => $personId,
+          'emp_code'             => $empCode,
+          'full_name'            => $bestRow->full_name ?? '',
+          'date'                 => $date,
+          'mark_type'            => $markType,
+          'time'                 => Carbon::parse($bestRow->punch_time)->format('H:i:s'),
+          'area'                 => $bestRow->area_alias ?: null,
+          'punch_state_original' => (string) $bestRow->punch_state,
+        ];
+      }
+    }
+
+    return collect($results);
+  }
+
+  private function timeToMinutes(string $time): int
+  {
+    [$h, $m] = explode(':', $time);
+    return (int) $h * 60 + (int) $m;
   }
 
   private function buildPersonMap(): array
@@ -131,6 +166,24 @@ class SyncAttendanceJob implements ShouldQueue
       ->whereNotNull('vat')
       ->where('status_deleted', 1)
       ->pluck('id', 'vat')
+      ->toArray();
+  }
+
+  private function buildScheduleMap(): array
+  {
+    return DB::table('rrhh_persona as p')
+      ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->whereNotNull('p.vat')
+      ->where('p.status_deleted', 1)
+      ->select([
+        'p.id as person_id',
+        DB::raw("COALESCE(ws.checkin,   '08:00:00') AS checkin"),
+        DB::raw("COALESCE(ws.lunch_out, '13:00:00') AS lunch_out"),
+        DB::raw("COALESCE(ws.lunch_in,  '14:24:00') AS lunch_in"),
+        DB::raw("COALESCE(ws.checkout,  '18:00:00') AS checkout"),
+      ])
+      ->get()
+      ->keyBy('person_id')
       ->toArray();
   }
 
