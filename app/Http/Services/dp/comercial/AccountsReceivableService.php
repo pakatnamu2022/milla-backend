@@ -267,7 +267,7 @@ class AccountsReceivableService extends BaseService
     return $this->executeSedeReports(
       $company,
       fn($q) => $q->where('balance_pen', '>', 0)->whereBetween('overdue_days', [-2, 0])->orderBy('overdue_days'),
-      'CxC Por Vencer (≤2 días)',
+      'Cuentas por Cobrar — Vencen en los próximos 2 días',
       'CxC_PorVencer'
     );
   }
@@ -338,7 +338,7 @@ class AccountsReceivableService extends BaseService
       foreach ($group['entries'] as $entry) {
         $this->emailService->send([
           'to' => $entry['email'],
-          'subject' => "{$subjectPrefix} — {$sedeFullName} | " . now()->format('d/m/Y'),
+          'subject' => "{$subjectPrefix} — {$sedeFullName} | {$summary['total_documents']} docs · S/ " . number_format($summary['total_balance_pen'], 2) . ' | ' . now()->format('d/m/Y'),
           'template' => 'emails.accounts-receivable-sede-report',
           'data' => array_merge($emailData, ['worker_name' => $entry['name'] ?? "Equipo {$sedeFullName}"]),
           'attachments' => [['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']],
@@ -365,7 +365,7 @@ class AccountsReceivableService extends BaseService
 
       $result = [];
       Sede::whereIn('suc_abrev', array_keys($emailMap))
-        ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId))
+        ->when($empresaId, fn($q) => $q->where(fn($q2) => $q2->where('empresa_id', $empresaId)->orWhereNull('empresa_id')))
         ->get()
         ->each(function (Sede $sede) use ($emailMap, &$result) {
         $email = $emailMap[strtoupper($sede->suc_abrev)] ?? null;
