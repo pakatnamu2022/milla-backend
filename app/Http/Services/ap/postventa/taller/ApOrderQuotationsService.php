@@ -325,6 +325,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create details
       foreach ($data['details'] as $detail) {
+        // Calcular total_cost, net_amount y tax_amount
+        $discountPercentage = $detail['discount_percentage'] ?? 0;
+        $totalCost = $detail['quantity'] * $detail['unit_price'];
+        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -332,8 +338,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount_percentage' => $detail['discount_percentage'] ?? 0,
-          'total_amount' => $detail['total_amount'],
+          'discount_percentage' => $discountPercentage,
+          'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
+          'tax_amount' => $taxAmount,
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -513,6 +521,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
+        // Calcular total_cost, net_amount y tax_amount
+        $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
+        $totalCost = $detail['quantity'] * $detail['unit_price'];
+        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -520,8 +534,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount_percentage' => $detail['discount_percentage'] ?? $detail['discount'] ?? 0,
-          'total_amount' => $detail['total_amount'],
+          'discount_percentage' => $discountPercentage,
+          'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
+          'tax_amount' => $taxAmount,
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,

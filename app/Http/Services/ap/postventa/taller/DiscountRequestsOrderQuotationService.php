@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\DiscountRequestsOrderQuotationResourc
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
@@ -236,21 +237,20 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     $discountPercentage = $discountRequest->requested_discount_percentage;
-
-    // Aplicar el porcentaje de descuento al detalle
-    $detail->update([
-      'discount_percentage' => $discountPercentage,
-    ]);
-
-    // Recalcular el total del detalle
     $unitPrice = (float)$detail->unit_price;
     $quantity = (float)$detail->quantity;
-    $subtotal = $unitPrice * $quantity;
-    $discountAmount = $subtotal * ($discountPercentage / 100);
-    $totalAmount = $subtotal - $discountAmount;
 
+    // Calcular total_cost, net_amount y tax_amount
+    $totalCost = $unitPrice * $quantity;
+    $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
+    // Actualizar el detalle con el nuevo descuento y los campos calculados
     $detail->update([
-      'total_amount' => $totalAmount,
+      'discount_percentage' => $discountPercentage,
+      'total_cost' => $totalCost,
+      'net_amount' => $netAmount,
+      'tax_amount' => $taxAmount,
     ]);
   }
 
@@ -271,19 +271,20 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
     // Aplicar el descuento a cada detalle
     foreach ($details as $detail) {
-      $detail->update([
-        'discount_percentage' => $discountPercentage,
-      ]);
-
-      // Recalcular el total del detalle
       $unitPrice = (float)$detail->unit_price;
       $quantity = (float)$detail->quantity;
-      $subtotal = $unitPrice * $quantity;
-      $discountAmount = $subtotal * ($discountPercentage / 100);
-      $totalAmount = $subtotal - $discountAmount;
 
+      // Calcular total_cost, net_amount y tax_amount
+      $totalCost = $unitPrice * $quantity;
+      $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+      $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
+      // Actualizar el detalle con el nuevo descuento y los campos calculados
       $detail->update([
-        'total_amount' => $totalAmount,
+        'discount_percentage' => $discountPercentage,
+        'total_cost' => $totalCost,
+        'net_amount' => $netAmount,
+        'tax_amount' => $taxAmount,
       ]);
     }
   }
@@ -293,40 +294,10 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     // Recargar los detalles para tener los valores actualizados
     $quotation->load('details');
 
-    // Calcular subtotal (suma de todos los totales de detalles)
-    $subtotal = 0;
-    $totalDiscountAmount = 0;
-
-    foreach ($quotation->details as $detail) {
-      $unitPrice = (float)$detail->unit_price;
-      $quantity = (float)$detail->quantity;
-      $discountPercentage = (float)($detail->discount_percentage ?? 0);
-
-      $itemSubtotal = $unitPrice * $quantity;
-      $itemDiscount = $itemSubtotal * ($discountPercentage / 100);
-
-      $subtotal += $itemSubtotal;
-      $totalDiscountAmount += $itemDiscount;
-    }
-
-    // Calcular el porcentaje de descuento global
-    $discountPercentage = $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : 0;
-
-    // Calcular impuestos (18% sobre el subtotal después del descuento)
-    $subtotalAfterDiscount = $subtotal - $totalDiscountAmount;
-    $taxAmount = $subtotalAfterDiscount * 0.18;
-
-    // Calcular total
-    $totalAmount = $subtotalAfterDiscount + $taxAmount;
-
-    // Actualizar la cotización
-    $quotation->update([
-      'subtotal' => $subtotal,
-      'discount_percentage' => $discountPercentage,
-      'discount_amount' => $totalDiscountAmount,
-      'tax_amount' => $taxAmount,
-      'total_amount' => $totalAmount,
-    ]);
+    // Usar el método centralizado del modelo para recalcular todos los totales
+    // Este método ya usa la lógica actualizada con total_cost, net_amount y tax_amount
+    $quotation->calculateTotals();
+    $quotation->save();
   }
 
   private function sendApprovalNotification(DiscountRequestsOrderQuotation $record): void

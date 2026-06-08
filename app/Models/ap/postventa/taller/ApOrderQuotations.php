@@ -282,27 +282,23 @@ class ApOrderQuotations extends Model
     // Get all details for this quotation
     $details = $this->details;
 
-    // Calculate totals
-    $subtotal = 0; // suma de (quantity * unit_price) sin descuentos
-    $sumTotalAmountItems = 0; // suma de total_amount de cada item (ya con descuento aplicado)
+    // Sumar total_cost de todos los items (sin descuento)
+    $subtotal = $details->sum('total_cost') ?? 0;
 
-    foreach ($details as $detail) {
-      $itemSubtotal = $detail->quantity * $detail->unit_price;
-      $subtotal += $itemSubtotal;
-      $sumTotalAmountItems += $detail->total_amount;
-    }
+    // Sumar net_amount de todos los items (con descuento aplicado)
+    $sumNetAmountItems = $details->sum('net_amount') ?? 0;
+
+    // Sumar tax_amount de todos los items (ya calculados a nivel de item)
+    $taxAmount = $details->sum('tax_amount') ?? 0;
 
     // Calculate discount amount (cuánto se descontó en total en dinero)
-    $discountAmount = $subtotal - $sumTotalAmountItems;
+    $discountAmount = $subtotal - $sumNetAmountItems;
 
     // Calculate discount percentage (porcentaje promedio de descuento)
     $discountPercentage = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
 
-    // Calculate tax amount (IGV 18% sobre la suma de total_amount de items)
-    $taxAmount = $sumTotalAmountItems * (Constants::VAT_TAX / 100);
-
-    // Calculate total amount (suma de total_amount items + IGV)
-    $totalAmount = $sumTotalAmountItems + $taxAmount;
+    // Calculate total amount (suma de net_amount items + tax_amount)
+    $totalAmount = $sumNetAmountItems + $taxAmount;
 
     // Update quotation with all calculated values
     $this->subtotal = round($subtotal, 2);

@@ -6,7 +6,7 @@ use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -499,14 +499,30 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
 
     foreach ($labours as $labour) {
-      $newHourlyRate = $labour->hourly_rate * $factor;
-      $newTotalCost = $labour->total_cost * $factor;
-      $newNetAmount = $labour->net_amount * $factor;
+      // Convertir el precio unitario (hourly_rate)
+      $newHourlyRate = round($labour->hourly_rate * $factor, 2);
+
+      // Recalcular total_cost basado en el nuevo hourly_rate
+      // Usar time_spent_decimal para obtener el valor numérico
+      $newTotalCost = $newHourlyRate * $labour->time_spent_decimal;
+
+      // Calcular net_amount aplicando el descuento al nuevo total_cost
+      $discountPercentage = $labour->discount_percentage ?? 0;
+      if ($discountPercentage > 0) {
+        $discountAmount = $newTotalCost * ($discountPercentage / 100);
+        $newNetAmount = $newTotalCost - $discountAmount;
+      } else {
+        $newNetAmount = $newTotalCost;
+      }
+
+      // Calcular tax_amount sobre el net_amount
+      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
 
       $labour->update([
-        'hourly_rate' => round($newHourlyRate, 2),
+        'hourly_rate' => $newHourlyRate,
         'total_cost' => round($newTotalCost, 2),
         'net_amount' => round($newNetAmount, 2),
+        'tax_amount' => round($newTaxAmount, 2),
       ]);
     }
   }
@@ -516,13 +532,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
 
     foreach ($parts as $part) {
-      $newUnitPrice = $part->unit_price * $factor;
-      $newTotalCost = $part->total_cost * $factor;
-      $newNetAmount = $part->net_amount * $factor;
-      $newTaxAmount = $part->tax_amount * $factor;
+      // Convertir el precio unitario
+      $newUnitPrice = round($part->unit_price * $factor, 2);
+
+      // Recalcular total_cost basado en el nuevo unit_price
+      $newTotalCost = $newUnitPrice * $part->quantity_used;
+
+      // Calcular net_amount aplicando el descuento al nuevo total_cost
+      $discountPercentage = $part->discount_percentage ?? 0;
+      if ($discountPercentage > 0) {
+        $discountAmount = $newTotalCost * ($discountPercentage / 100);
+        $newNetAmount = $newTotalCost - $discountAmount;
+      } else {
+        $newNetAmount = $newTotalCost;
+      }
+
+      // Calcular tax_amount sobre el net_amount
+      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
 
       $part->update([
-        'unit_price' => round($newUnitPrice, 2),
+        'unit_price' => $newUnitPrice,
         'total_cost' => round($newTotalCost, 2),
         'net_amount' => round($newNetAmount, 2),
         'tax_amount' => round($newTaxAmount, 2),
@@ -1457,7 +1486,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      $workOrder->ensureNotInStates([ApMasters::FINISHED_WORK_ORDER_ID], 'revertir');
+      if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
+      }
 
       $validateReception = $workOrder->shouldValidateReceipt();
       $validateLabor = $workOrder->shouldValidateLabor();

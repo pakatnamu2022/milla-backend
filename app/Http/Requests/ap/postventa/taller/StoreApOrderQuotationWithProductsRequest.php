@@ -62,11 +62,6 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
         'min:0',
         'max:100',
       ],
-      'details.*.total_amount' => [
-        'required',
-        'numeric',
-        'min:1',
-      ],
       'details.*.observations' => [
         'nullable',
         'string',
@@ -140,10 +135,6 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
       'details.*.discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
       'details.*.discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
-
-      'details.*.total_amount.required' => 'El monto total es obligatorio en todos los detalles.',
-      'details.*.total_amount.numeric' => 'El monto total debe ser un número.',
-      'details.*.total_amount.min' => 'El monto total no puede ser menor a 1.',
 
       'details.*.observations.string' => 'Las observaciones deben ser una cadena de texto.',
 

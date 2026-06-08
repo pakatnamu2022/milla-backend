@@ -5,7 +5,6 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -79,9 +78,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         $data['created_by'] = auth()->user()->id;
       }
 
-      // Calculate total_amount from percentage
-      $data['total_amount'] = $this->calculateDetailTotal($data);
-
       // Create quotation detail
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
@@ -120,9 +116,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
           $product->validateDecimals($data['quantity']);
         }
       }
-
-      // Calculate total_amount from percentage
-      $data['total_amount'] = $this->calculateDetailTotal($data);
 
       // Update quotation detail
       $apOrderQuotationDetails->update($data);
@@ -197,14 +190,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       }
     }
   }
-
-  private function calculateDetailTotal(array $data): float
-  {
-    $subtotal = ($data['quantity'] ?? 0) * ($data['unit_price'] ?? 0);
-    $discountPercentage = $data['discount_percentage'] ?? 0;
-    return round($subtotal - ($subtotal * $discountPercentage / 100), 2);
-  }
-
 
   /**
    * Recalculate work order totals if the quotation is associated with one
