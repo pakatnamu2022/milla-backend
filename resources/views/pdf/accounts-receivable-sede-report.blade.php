@@ -1,8 +1,10 @@
 @php
-  function arBase64Image($path) {
-    $fullPath = public_path($path);
-    if (!file_exists($fullPath)) return '';
-    return 'data:' . mime_content_type($fullPath) . ';base64,' . base64_encode(file_get_contents($fullPath));
+  if (!function_exists('arBase64Image')) {
+    function arBase64Image($path) {
+      $fullPath = public_path($path);
+      if (!file_exists($fullPath)) return '';
+      return 'data:' . mime_content_type($fullPath) . ';base64,' . base64_encode(file_get_contents($fullPath));
+    }
   }
   $logoUrl = arBase64Image(config('companies.logos.dp.large', 'companies/dplargo.png'));
 @endphp
