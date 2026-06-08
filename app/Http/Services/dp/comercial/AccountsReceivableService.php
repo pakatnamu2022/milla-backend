@@ -366,7 +366,6 @@ class AccountsReceivableService extends BaseService
       $result = [];
       Sede::whereIn('suc_abrev', array_keys($emailMap))
         ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId))
-        ->where('status_deleted', 1)
         ->get()
         ->each(function (Sede $sede) use ($emailMap, &$result) {
         $email = $emailMap[strtoupper($sede->suc_abrev)] ?? null;
