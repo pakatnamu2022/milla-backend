@@ -3,12 +3,12 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
-use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
+use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
@@ -158,10 +158,10 @@ class SyncAccountingStatusJob implements ShouldQueue
   }
 
   /**
-   * Crear movimiento de inventario para cotización totalmente pagada
+   * Crear movimiento de inventario para cotización totalmente facturada
    *
-   * Ahora primero evalúa y actualiza el estado de pago usando el método centralizado
-   * en ApOrderQuotationsService antes de crear el movimiento de inventario.
+   * Este método se ejecuta cuando una factura final (is_advance_payment = 0)
+   * de una cotización es contabilizada en Dynamics (is_accounted = true).
    *
    * @param int $quotationId
    * @return void
@@ -175,22 +175,37 @@ class SyncAccountingStatusJob implements ShouldQueue
         return;
       }
 
-      // Evaluar y actualizar el estado de pago de la cotización
-      // Este método centralizado actualiza is_fully_paid y status si cumple las condiciones
-      $quotationService = app(ApOrderQuotationsService::class);
-      $quotationService->evaluateAndUpdateQuotationPaymentStatus($quotationId);
-
-      // Refrescar el modelo para obtener los valores actualizados
-      $quotation->refresh();
-
-      // Verificar que la cotización esté totalmente pagada Y no tenga salida de inventario generada
-      if (!$quotation->is_fully_paid || $quotation->output_generation_warehouse) {
+      // Si ya generó salida de inventario, no hacer nada
+      if ($quotation->output_generation_warehouse) {
         return;
+      }
+
+      // Verificar si existe una factura final (is_advance_payment = 0) contabilizada
+      $finalInvoice = $quotation->getFinalInvoice();
+
+      if (!$finalInvoice) {
+        return; // No hay factura final aún
+      }
+
+      // Verificar que la factura final esté contabilizada en Dynamics
+      if (!$finalInvoice->is_accounted) {
+        return; // La factura final aún no está contabilizada
       }
 
       // Crear la salida de inventario
       $inventoryMovementService = app(InventoryMovementService::class);
-      $inventoryMovementService->createSaleFromQuotation($quotationId);
+      $movement = $inventoryMovementService->createSaleFromQuotation($quotationId);
+
+      // Actualizar electronic_document_id con la factura final
+      $movement->update(['electronic_document_id' => $finalInvoice->id]);
+
+      // Marcar la cotización como totalmente pagada y facturada
+      $quotation->update([
+        'is_fully_paid' => true,
+        'status' => ApOrderQuotations::STATUS_FACTURADO,
+        'output_generation_warehouse' => true,
+      ]);
+
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,
@@ -325,7 +340,7 @@ class SyncAccountingStatusJob implements ShouldQueue
   {
     // Revertir cotización si existe
     if ($originalDocument->order_quotation_id) {
-      $this->reverseQuotationStatus($originalDocument->order_quotation_id);
+      $this->reverseQuotationStatus($originalDocument->order_quotation_id, $creditNote);
     }
 
     // Revertir orden de trabajo si existe
@@ -352,35 +367,14 @@ class SyncAccountingStatusJob implements ShouldQueue
    * Revertir estados e inventario de una cotización
    *
    * @param int $quotationId
+   * @param ElectronicDocument $creditNote
    * @return void
    */
-  private function reverseQuotationStatus(int $quotationId): void
+  private function reverseQuotationStatus(int $quotationId, ElectronicDocument $creditNote): void
   {
-    try {
-      $quotation = ApOrderQuotations::find($quotationId);
-
-      if (!$quotation) {
-        return;
-      }
-
-      // Revertir inventario si existe
-      if ($quotation->output_generation_warehouse) {
-        $this->reverseInventoryForQuotation($quotation);
-      }
-
-      // Revertir estados
-      $quotation->update([
-        'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
-        'is_fully_paid' => false,
-        'output_generation_warehouse' => false,
-      ]);
-
-    } catch (Exception $e) {
-      Log::error('Error al revertir estado de cotización', [
-        'quotation_id' => $quotationId,
-        'error' => $e->getMessage(),
-      ]);
-    }
+    // Delegar al servicio centralizado
+    $reversalService = app(ApOrderQuotationsReversalService::class);
+    $reversalService->reverseQuotationStatus($quotationId, $creditNote);
   }
 
   /**
@@ -392,96 +386,9 @@ class SyncAccountingStatusJob implements ShouldQueue
    */
   private function reverseWorkOrderStatus(int $workOrderId, ElectronicDocument $creditNote): void
   {
-    try {
-      $workOrder = ApWorkOrder::find($workOrderId);
-
-      if (!$workOrder) {
-        return;
-      }
-
-      // Revertir inventario si existe
-      if ($workOrder->output_generation_warehouse) {
-        $this->reverseInventoryForWorkOrder($workOrder, $creditNote);
-      }
-
-      // Revertir estados
-      $workOrder->update([
-        'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
-        'is_invoiced' => false,
-        'output_generation_warehouse' => false,
-      ]);
-
-    } catch (Exception $e) {
-      Log::error('Error al revertir estado de orden de trabajo', [
-        'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Revertir movimiento de inventario de una cotización
-   *
-   * @param ApOrderQuotations $quotation
-   * @return void
-   */
-  private function reverseInventoryForQuotation(ApOrderQuotations $quotation): void
-  {
-    try {
-      // Buscar el movimiento de inventario asociado a la cotización
-      $movement = InventoryMovement::where('reference_type', ApOrderQuotations::class)
-        ->where('reference_id', $quotation->id)
-        ->where('movement_type', InventoryMovement::TYPE_SALE)
-        ->first();
-
-      if ($movement) {
-        $inventoryService = app(InventoryMovementService::class);
-        $inventoryService->reverseStockFromMovement($movement->id);
-      }
-    } catch (Exception $e) {
-      Log::error('Error al revertir inventario de cotización', [
-        'quotation_id' => $quotation->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Revertir movimiento de inventario de una orden de trabajo
-   * Solo repuestos (ApWorkOrderParts), no mano de obra
-   *
-   * Crea un movimiento de devolución (RETURN_IN) sin eliminar el movimiento original de venta
-   *
-   * @param ApWorkOrder $workOrder
-   * @param ElectronicDocument $creditNote
-   * @return void
-   */
-  private function reverseInventoryForWorkOrder(ApWorkOrder $workOrder, ElectronicDocument $creditNote): void
-  {
-    try {
-      // Buscar el movimiento de inventario asociado a la orden de trabajo
-      $movement = InventoryMovement::where('reference_type', ApWorkOrder::class)
-        ->where('reference_id', $workOrder->id)
-        ->where('movement_type', InventoryMovement::TYPE_SALE)
-        ->first();
-
-      if ($movement) {
-        $inventoryService = app(InventoryMovementService::class);
-
-        // Crear movimiento de devolución por NC (mantiene el movimiento original de SALE)
-        $inventoryService->createReturnMovementFromCreditNote(
-          $creditNote,
-          $workOrder,
-          null // null = devolución total de todos los productos
-        );
-      }
-    } catch (Exception $e) {
-      Log::error('Error al crear movimiento de devolución para orden de trabajo', [
-        'work_order_id' => $workOrder->id,
-        'credit_note_id' => $creditNote->id ?? null,
-        'error' => $e->getMessage(),
-      ]);
-    }
+    // Delegar al servicio centralizado
+    $reversalService = app(ApWorkOrderReversalService::class);
+    $reversalService->reverseWorkOrderStatus($workOrderId, $creditNote);
   }
 
   /**
@@ -563,7 +470,7 @@ class SyncAccountingStatusJob implements ShouldQueue
       // Crear movimiento de inventario de devolución parcial
       if (!empty($itemsToReturn)) {
         $inventoryService = app(InventoryMovementService::class);
-        $returnMovement = $inventoryService->createReturnMovementFromCreditNote(
+        $returnMovement = $inventoryService->createReturnMovementForWorkOrder(
           $creditNote,
           $workOrder,
           $itemsToReturn // Array de ítems a devolver

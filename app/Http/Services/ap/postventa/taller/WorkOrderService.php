@@ -6,7 +6,7 @@ use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -499,14 +499,30 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
 
     foreach ($labours as $labour) {
-      $newHourlyRate = $labour->hourly_rate * $factor;
-      $newTotalCost = $labour->total_cost * $factor;
-      $newNetAmount = $labour->net_amount * $factor;
+      // Convertir el precio unitario (hourly_rate)
+      $newHourlyRate = round($labour->hourly_rate * $factor, 2);
+
+      // Recalcular total_cost basado en el nuevo hourly_rate
+      // Usar time_spent_decimal para obtener el valor numérico
+      $newTotalCost = $newHourlyRate * $labour->time_spent_decimal;
+
+      // Calcular net_amount aplicando el descuento al nuevo total_cost
+      $discountPercentage = $labour->discount_percentage ?? 0;
+      if ($discountPercentage > 0) {
+        $discountAmount = $newTotalCost * ($discountPercentage / 100);
+        $newNetAmount = $newTotalCost - $discountAmount;
+      } else {
+        $newNetAmount = $newTotalCost;
+      }
+
+      // Calcular tax_amount sobre el net_amount
+      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
 
       $labour->update([
-        'hourly_rate' => round($newHourlyRate, 2),
+        'hourly_rate' => $newHourlyRate,
         'total_cost' => round($newTotalCost, 2),
         'net_amount' => round($newNetAmount, 2),
+        'tax_amount' => round($newTaxAmount, 2),
       ]);
     }
   }
@@ -516,13 +532,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
 
     foreach ($parts as $part) {
-      $newUnitPrice = $part->unit_price * $factor;
-      $newTotalCost = $part->total_cost * $factor;
-      $newNetAmount = $part->net_amount * $factor;
-      $newTaxAmount = $part->tax_amount * $factor;
+      // Convertir el precio unitario
+      $newUnitPrice = round($part->unit_price * $factor, 2);
+
+      // Recalcular total_cost basado en el nuevo unit_price
+      $newTotalCost = $newUnitPrice * $part->quantity_used;
+
+      // Calcular net_amount aplicando el descuento al nuevo total_cost
+      $discountPercentage = $part->discount_percentage ?? 0;
+      if ($discountPercentage > 0) {
+        $discountAmount = $newTotalCost * ($discountPercentage / 100);
+        $newNetAmount = $newTotalCost - $discountAmount;
+      } else {
+        $newNetAmount = $newTotalCost;
+      }
+
+      // Calcular tax_amount sobre el net_amount
+      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
 
       $part->update([
-        'unit_price' => round($newUnitPrice, 2),
+        'unit_price' => $newUnitPrice,
         'total_cost' => round($newTotalCost, 2),
         'net_amount' => round($newNetAmount, 2),
         'tax_amount' => round($newTaxAmount, 2),
@@ -544,7 +573,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
 
-      if ($workOrder->advancesWorkOrder->count() > 0) {
+      if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
       }
 
@@ -622,9 +651,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo ya tiene una entrega generada');
       }
 
-      if ($workOrder->status_id !== ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede generar entrega para una que no ha sido facturada');
-      }
+      $workOrder->ensureNotInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
 
       // Extraer firma en base64 del array
       $deliverySignature = $data['signature_delivery'] ?? null;
@@ -1234,13 +1261,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Validar que no tenga factura generada
-      if ($workOrder->has_invoice_generated) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene factura generada');
-      }
-
-      // Validar que no tenga avances de pago
-      if ($workOrder->advancesWorkOrder && $workOrder->advancesWorkOrder->count() > 0) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene avances de pago');
+      if ($workOrder->getActiveAdvances()->count() > 0) {
+        throw new Exception("Esta orden de trabajo no puede cambiar de moneda. Ya se han registrado anticipos para esta orden de trabajo.");
       }
 
       // Verificar que la moneda sea diferente
@@ -1256,6 +1278,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Recalcular labours y parts con el nuevo tipo de cambio
       $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+
+      // Recalcular totales de la orden de trabajo
+      $workOrder->calculateTotals();
 
       // Recargar relaciones
       $workOrder->load([
@@ -1386,17 +1411,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('No se puede facturar una orden de trabajo cancelada.');
-      }
-
-      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID && $validateLabor) {
-        throw new Exception('No se puede facturar una OT que aún no ha sido finalizado su trabajo.');
-      }
-
-      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
-        throw new Exception('La orden de trabajo ya se encuentra en proceso de facturación');
-      }
+      // Validación de estados
+      $workOrder->ensureCanBeModified();
 
       $workOrder->update([
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
@@ -1418,13 +1434,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-        throw new Exception('La orden de trabajo ya está anulada');
-      }
-
-      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-        throw new Exception('No se puede anular una orden de trabajo cerrada');
-      }
+      $workOrder->ensureNotInStates([
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ], 'cancelar');
 
       if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');

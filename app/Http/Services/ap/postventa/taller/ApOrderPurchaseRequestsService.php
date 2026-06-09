@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderPurchaseRequestsResource;
+use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
@@ -30,10 +31,12 @@ use Illuminate\Support\Facades\DB;
 class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceInterface
 {
   protected EmailService $emailService;
+  protected ProductsService $productsService;
 
-  public function __construct(EmailService $emailService)
+  public function __construct(EmailService $emailService, ProductsService $productsService)
   {
     $this->emailService = $emailService;
+    $this->productsService = $productsService;
   }
 
   public function list(Request $request)
@@ -84,9 +87,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $details = $data['details'] ?? [];
       unset($data['details']);
 
-      // Validate that all products exist in the warehouse
+      // Ensure that all products are assigned to the warehouse
       if (!empty($details) && isset($data['warehouse_id'])) {
-        $this->validateProductsInWarehouse($details, $data['warehouse_id']);
+        $this->ensureProductsInWarehouse($details, $data['warehouse_id']);
       }
 
       // Validar decimales según la unidad de medida de cada producto
@@ -181,12 +184,12 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $details = $data['details'] ?? null;
       unset($data['details']);
 
-      // Validate that all products exist in the warehouse if details are being updated
+      // Ensure that all products are assigned to the warehouse if details are being updated
       if ($details !== null && isset($data['warehouse_id'])) {
-        $this->validateProductsInWarehouse($details, $data['warehouse_id']);
+        $this->ensureProductsInWarehouse($details, $data['warehouse_id']);
       } elseif ($details !== null) {
         // If warehouse_id is not in data, use the current warehouse_id
-        $this->validateProductsInWarehouse($details, $purchaseRequest->warehouse_id);
+        $this->ensureProductsInWarehouse($details, $purchaseRequest->warehouse_id);
       }
 
       // Validar decimales según la unidad de medida de cada producto
@@ -283,17 +286,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   }
 
   /**
-   * Validate that all products exist in the specified warehouse
+   * Ensure that all products are assigned to the specified warehouse
+   * If a product is not assigned, it will be automatically assigned using ProductsService
    *
    * @param array $details Array of product details
    * @param int $warehouseId Warehouse ID
-   * @throws Exception if any product is not registered in the warehouse
+   * @throws Exception if product assignment fails
    */
-  private function validateProductsInWarehouse(array $details, int $warehouseId): void
+  private function ensureProductsInWarehouse(array $details, int $warehouseId): void
   {
-    $warehouse = Warehouse::find($warehouseId);
-    $warehouseName = $warehouse ? $warehouse->description : "ID: {$warehouseId}";
-
     foreach ($details as $detail) {
       $productId = $detail['product_id'] ?? null;
 
@@ -307,14 +308,19 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         ->first();
 
       if (!$productStock) {
-        // Get product name for better error message
-        $product = Products::find($productId);
-        $productName = $product ? $product->name : "ID: {$productId}";
-
-        throw new Exception(
-          "El producto '{$productName}' no está asignado al almacén '{$warehouseName}'. " .
-          "Por favor, registre el producto en el almacén antes de crear la solicitud de compra."
-        );
+        // Product not assigned to warehouse, assign it automatically using centralized logic
+        try {
+          $this->productsService->assignToWarehouse([
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId
+          ]);
+        } catch (Exception $e) {
+          // If assignment fails for any reason other than "already exists", re-throw
+          if (strpos($e->getMessage(), 'ya está asignado') === false) {
+            throw $e;
+          }
+          // If it's already assigned (race condition), just continue
+        }
       }
     }
   }

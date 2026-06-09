@@ -77,6 +77,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
       'activity_economic_id' => 'sometimes|integer|exists:ap_masters,id',
       'company_id' => 'required|integer|exists:companies,id',
       'type' => 'required|string|in:CLIENTE,PROVEEDOR,AMBOS',
+      'is_insurance' => 'nullable|boolean',
     ];
   }
 

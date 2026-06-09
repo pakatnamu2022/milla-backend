@@ -118,6 +118,9 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollRegisterController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -1820,13 +1823,28 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('bonuses', PayrollBonusController::class);
 
     // Insurances
+    Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
     Route::apiResource('insurances', PayrollInsuranceController::class);
 
     // Loans
+    Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
+    Route::post('loans/{loan}/regenerate-installments', [PayrollLoanController::class, 'regenerateInstallments']);
     Route::apiResource('loans', PayrollLoanController::class);
 
     // Loan Extra Discounts
+    Route::post('loan-extra-discounts/{loanExtraDiscount}/confirm', [PayrollLoanExtraDiscountController::class, 'confirm']);
     Route::apiResource('loan-extra-discounts', PayrollLoanExtraDiscountController::class);
+
+    // Food Card
+    Route::get('food-cards', [PayrollFoodCardController::class, 'index']);
+    Route::post('food-cards', [PayrollFoodCardController::class, 'storeOrUpdate']);
+
+    // Family Allowance
+    Route::get('family-allowances', [PayrollFamilyAllowanceController::class, 'index']);
+    Route::post('family-allowances', [PayrollFamilyAllowanceController::class, 'storeOrUpdate']);
+
+    // Register (Planilla)
+    Route::get('register', [PayrollRegisterController::class, 'index']);
   });
 
   /**

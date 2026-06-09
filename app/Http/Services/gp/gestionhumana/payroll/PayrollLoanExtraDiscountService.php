@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 class PayrollLoanExtraDiscountService extends BaseService implements BaseServiceInterface
 {
+    public function __construct(
+        protected PayrollLoanService $loanService
+    ) {}
     public function list(Request $request)
     {
         return $this->getFilteredResults(
@@ -55,7 +58,40 @@ class PayrollLoanExtraDiscountService extends BaseService implements BaseService
         try {
             DB::beginTransaction();
             $record = $this->find($data['id']);
-            $record->update($data);
+
+            // Si solo se envía el amount, recalcular cuotas futuras
+            if (isset($data['amount']) && $record->concept_type === PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR && !$record->applied) {
+                $newAmount = (float) $data['amount'];
+
+                // Actualizar el monto de esta cuota
+                $record->update(['amount' => $newAmount]);
+
+                // Obtener el préstamo
+                $loan = $record->loan;
+
+                // Calcular cuánto falta por pagar DESPUÉS de esta cuota (asumiendo que se pagará)
+                // El remaining_balance actual incluye todas las cuotas pendientes
+                // Necesitamos saber cuánto quedará después de pagar esta cuota con el nuevo monto
+
+                // Sumar todas las cuotas pendientes ANTES de esta (ya están en remaining_balance)
+                $previousPending = PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+                    ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+                    ->where('applied', false)
+                    ->where('scheduled_date', '<', $record->scheduled_date)
+                    ->whereNull('deleted_at')
+                    ->sum('amount');
+
+                // El saldo que quedará después de pagar las anteriores y esta cuota
+                $balanceAfterThis = round((float) $loan->remaining_balance - (float) $previousPending - $newAmount, 2);
+                $balanceAfterThis = max(0, $balanceAfterThis);
+
+                // Regenerar las cuotas futuras (elimina las existentes y crea nuevas según el saldo)
+                $this->loanService->regenerateFutureInstallments($loan, $balanceAfterThis, $record->scheduled_date);
+            } else {
+                // Actualización normal de otros campos
+                $record->update($data);
+            }
+
             DB::commit();
             return new PayrollLoanExtraDiscountResource($record->fresh());
         } catch (Exception $e) {

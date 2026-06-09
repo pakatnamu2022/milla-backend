@@ -85,8 +85,8 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['net_amount'] = $data['total_cost'];
     }
 
-    // tax_amount en 0 por defecto
-    $data['tax_amount'] = 0;
+    // Calcular tax_amount (IGV del 18% sobre net_amount)
+    $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
   }
 
   private function calculateExchangeRateFactor(int $workOrderId): float

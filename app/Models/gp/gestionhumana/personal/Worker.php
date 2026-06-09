@@ -38,6 +38,7 @@ class Worker extends BaseModel
     'sueldo',
     'horas_jornada',
     'work_schedule_id',
+    'asignacion',
     'status_id',
   ];
 
@@ -51,6 +52,7 @@ class Worker extends BaseModel
     'status_id' => '=',
     'sede_id' => '=',
     'sede.departamento' => '=',
+    'asignacion' => '='
   ];
 
   const sorts = [

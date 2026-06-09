@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\gp\gestionhumana\payroll;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\payroll\ApplyPaymentPayrollLoanRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\IndexPayrollLoanRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollLoanRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollLoanRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollLoanService;
+use App\Models\GeneralMaster;
 use Exception;
 
 class PayrollLoanController extends Controller
@@ -60,6 +62,32 @@ class PayrollLoanController extends Controller
     {
         try {
             return $this->service->destroy($id);
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function applyPayment(ApplyPaymentPayrollLoanRequest $request, int $id)
+    {
+        try {
+            $data = $request->validated();
+
+            if (isset($data['concept_type_id'])) {
+                $master = GeneralMaster::findOrFail($data['concept_type_id']);
+                $data['concept_type'] = $master->description;
+                unset($data['concept_type_id']);
+            }
+
+            return $this->success($this->service->applyPayment($id, $data));
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function regenerateInstallments(int $id)
+    {
+        try {
+            return $this->success($this->service->regenerateInstallments($id));
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }

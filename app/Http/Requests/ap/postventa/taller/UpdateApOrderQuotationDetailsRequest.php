@@ -72,12 +72,6 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         'min:0',
         'max:100',
       ],
-      'total_amount' => [
-        'sometimes',
-        'required',
-        'numeric',
-        'min:0',
-      ],
       'observations' => [
         'sometimes',
         'nullable',
@@ -145,10 +139,6 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
       'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
       'discount_percentage.max' => 'El porcentaje de descuento no puede ser mayor a 100.',
-
-      'total_amount.required' => 'El monto total es obligatorio.',
-      'total_amount.numeric' => 'El monto total debe ser un número.',
-      'total_amount.min' => 'El monto total no puede ser negativo.',
 
       'supply_type.in' => 'El tipo de suministro debe ser STOCK, TRASLADO, LOCAL, CENTRAL, IMPORTACION o M.O.',
 
