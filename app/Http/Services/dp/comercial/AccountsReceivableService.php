@@ -388,7 +388,6 @@ class AccountsReceivableService extends BaseService
 
       return [
         'sede'             => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? '',
-        'branch'           => $r->branch,
         'seller'           => $r->seller,
         'cashier'          => $r->cashier,
         'document_number'  => $r->document_number,
@@ -400,7 +399,7 @@ class AccountsReceivableService extends BaseService
         'document_due_date'=> $r->document_due_date?->format('d/m/Y'),
         'due_year'         => $r->due_year,
         'due_month'        => $r->due_month,
-        'overdue_days'     => $r->overdue_days,
+        'overdue_days'     => (int)($r->overdue_days ?? 0),
         'overdue_status'   => $r->overdue_status,
         'currency'         => $r->currency,
         'exchange_rate'    => (float)$r->exchange_rate,

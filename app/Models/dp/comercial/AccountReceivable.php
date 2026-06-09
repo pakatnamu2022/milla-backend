@@ -16,7 +16,6 @@ class AccountReceivable extends BaseModel
 
   protected array $reportColumns = [
     'sede'              => 'Sede',
-    'branch'            => 'Sucursal',
     'seller'            => 'Vendedor',
     'cashier'           => 'Cajero',
     'document_number'   => 'N° Documento',
