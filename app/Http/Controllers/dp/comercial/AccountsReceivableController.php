@@ -95,4 +95,5 @@ class AccountsReceivableController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
 }
