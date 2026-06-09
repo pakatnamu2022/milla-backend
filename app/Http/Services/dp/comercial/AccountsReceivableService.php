@@ -377,9 +377,9 @@ class AccountsReceivableService extends BaseService
     }
 
     $rows = $records->map(function ($r) {
-      $comments = $r->comments->take(3);
+      $comments = $r->comments->take(5);
       $c = [];
-      for ($i = 0; $i < 3; $i++) {
+      for ($i = 0; $i < 5; $i++) {
         $comment = $comments->get($i);
         $c[] = $comment
           ? ($comment->created_at?->format('d/m/Y') . ': ' . $comment->comment)
@@ -388,7 +388,6 @@ class AccountsReceivableService extends BaseService
 
       return [
         'sede'             => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? '',
-        'branch'           => $r->branch,
         'seller'           => $r->seller,
         'cashier'          => $r->cashier,
         'document_number'  => $r->document_number,
@@ -400,7 +399,7 @@ class AccountsReceivableService extends BaseService
         'document_due_date'=> $r->document_due_date?->format('d/m/Y'),
         'due_year'         => $r->due_year,
         'due_month'        => $r->due_month,
-        'overdue_days'     => $r->overdue_days,
+        'overdue_days'     => (int)($r->overdue_days ?? 0),
         'overdue_status'   => $r->overdue_status,
         'currency'         => $r->currency,
         'exchange_rate'    => (float)$r->exchange_rate,
@@ -408,11 +407,12 @@ class AccountsReceivableService extends BaseService
         'balance'          => (float)$r->balance,
         'amount_pen'       => (float)$r->amount_pen,
         'balance_pen'      => (float)$r->balance_pen,
-        'observations'     => $r->observations,
         'collection_date'  => $r->collection_date?->format('d/m/Y'),
         'comment_1'        => $c[0],
         'comment_2'        => $c[1],
         'comment_3'        => $c[2],
+        'comment_4'        => $c[3],
+        'comment_5'        => $c[4],
       ];
     })->toArray();
 
