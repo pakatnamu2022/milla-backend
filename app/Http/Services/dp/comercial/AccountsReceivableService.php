@@ -255,6 +255,11 @@ class AccountsReceivableService extends BaseService
     return new AccountReceivableCommentResource($comment);
   }
 
+  public function sendGlobalExcel(string $company = 'deposito'): array
+  {
+    return $this->buildAndSendGlobalExcel($company);
+  }
+
   public function sendSedeReports(string $company = 'deposito'): array
   {
     return $this->executeSedeReports(
@@ -437,7 +442,8 @@ class AccountsReceivableService extends BaseService
 
     $this->emailService->send([
       'to'       => self::TEST_EMAIL,
-      'subject'  => 'CxC Vencidas y Por Vencer — ' . $total . ' docs · S/ ' . number_format($totalBalancePen, 2) . ' | ' . now()->format('d/m/Y H:i'),
+      'cc'       => ['fbancess@depositopakatnamu.com', 'xlunan@grupopakatnamu.com'],
+      'subject'  => 'Reporte Final ' . now()->format('d/m/Y') . ' — Cuentas por Cobrar Vencidas y por Vencer',
       'template' => 'emails.accounts-receivable-sede-report',
       'data'     => [
         'sede_name'   => 'Consolidado ' . ucfirst($company),
