@@ -22,6 +22,7 @@ class ElectronicDocumentItemResource extends JsonResource
       'account_plan_id' => $this->account_plan_id,
       'unidad_de_medida' => $this->unidad_de_medida,
       'codigo' => $this->codigo,
+      'dyn_code' => $this->dyn_code,
       'codigo_producto_sunat' => $this->codigo_producto_sunat,
       'descripcion' => $this->descripcion,
       'cantidad' => (int)$this->cantidad,

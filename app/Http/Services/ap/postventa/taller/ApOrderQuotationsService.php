@@ -1432,6 +1432,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }
 
+      if ($apOrderQuotations->getFinalInvoice()) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya se ha generado una factura final para esta cotización');
+      }
+
       // Update work order
       $apOrderQuotations->update($data);
 

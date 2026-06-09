@@ -1326,6 +1326,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'order_quotation_id' => $originalDocument->order_quotation_id ?? null,
         'work_order_id' => $originalDocument->work_order_id ?? null,
         'consolidation_type' => $originalDocument->consolidation_type,
+        'is_advance_payment' => $originalDocument->is_advance_payment,
       ]);
 
       // Crear la nota de crédito
@@ -1401,6 +1402,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'origin_entity_type' => $originalDocument->origin_entity_type,
         'origin_entity_id' => $originalDocument->origin_entity_id,
         'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
+        'order_quotation_id' => $originalDocument->order_quotation_id ?? null,
+        'work_order_id' => $originalDocument->work_order_id ?? null,
+        'consolidation_type' => $originalDocument->consolidation_type,
+        'is_advance_payment' => $originalDocument->is_advance_payment,
       ]);
 
       // Validar límite razonable para notas de débito (200% del original)
@@ -2768,7 +2773,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar stock de productos si no es un anticipo
-    $this->validateQuotationStock($quotation, $data['is_advance_payment']);
+    $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
 
     // Validar suma de anticipos si es anticipo
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
