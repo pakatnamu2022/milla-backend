@@ -106,4 +106,19 @@ class AccountsReceivableController extends Controller
     }
   }
 
+  public function downloadExcel(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      ['content' => $content, 'filename' => $filename] = $this->service->downloadGlobalExcel($company);
+
+      return response($content, 200, [
+        'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+      ]);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
 }
