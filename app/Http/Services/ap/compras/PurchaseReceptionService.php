@@ -10,6 +10,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
@@ -130,11 +131,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // ACTUALIZAR RECEPTION_TYPE DEL ApSupplierOrder
       $this->updateSupplierOrderReceptionType($supplierOrder);
-
-      // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
-      if ($reception->supplierOrder) {
-        $this->notifyRequestUsers($reception->supplierOrder);
-      }
 
       DB::commit();
       return new PurchaseReceptionResource($reception->load([
@@ -347,7 +343,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return PurchaseReceptionResource::collection($receptions);
   }
 
-  protected function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
+  public function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
   {
     $requestDetailsCount = $supplierOrder->requestDetails()->count();
 
@@ -492,6 +488,14 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
     $this->markRequestDetailsAsReceived($purchaseOrder);
+
+    // 10. Notificar usuarios si es POSTVENTA y tiene solicitudes vinculadas
+    if ($purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+      $reception = $purchaseOrder->reception;
+      if ($reception->supplierOrder) {
+        $this->notifyRequestUsers($reception->supplierOrder);
+      }
+    }
   }
 
   protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void

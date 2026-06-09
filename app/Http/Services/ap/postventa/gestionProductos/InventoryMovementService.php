@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -37,10 +38,12 @@ use Illuminate\Http\Request;
 class InventoryMovementService extends BaseService
 {
   protected $stockService;
+  protected $productsService;
 
-  public function __construct(ProductWarehouseStockService $stockService)
+  public function __construct(ProductWarehouseStockService $stockService, ProductsService $productsService)
   {
     $this->stockService = $stockService;
+    $this->productsService = $productsService;
   }
 
   public function list(Request $request)
@@ -423,8 +426,26 @@ class InventoryMovementService extends BaseService
         // Validate stock availability in origin warehouse (centralized)
         ProductWarehouseStock::validateStockAvailability($details, $transferData['warehouse_origin_id'], $this->stockService);
 
-        // Validate that all products have warehouse assignment in destination (centralized)
-        ProductWarehouseStock::validateProductsExistInWarehouse($details, $transferData['warehouse_destination_id'], $this->stockService);
+        // Auto-assign products to destination warehouse if they don't exist
+        foreach ($details as $detail) {
+          // Skip if it's a service (no product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          // Check if product already exists in destination warehouse
+          $existingStock = ProductWarehouseStock::where('product_id', $detail['product_id'])
+            ->where('warehouse_id', $transferData['warehouse_destination_id'])
+            ->first();
+
+          // If product doesn't exist in destination warehouse, auto-assign it
+          if (!$existingStock) {
+            $this->productsService->assignToWarehouse([
+              'product_id' => $detail['product_id'],
+              'warehouse_id' => $transferData['warehouse_destination_id']
+            ]);
+          }
+        }
       } else {
         // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
         // Transmitter siempre tiene sede, intentar obtener su almacén
