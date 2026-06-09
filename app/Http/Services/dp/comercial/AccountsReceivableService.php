@@ -11,10 +11,12 @@ use App\Models\dp\comercial\AccountReceivableComment;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategoryDetail;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Exports\GeneralExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AccountsReceivableService extends BaseService
 {
@@ -350,11 +352,117 @@ class AccountsReceivableService extends BaseService
       @unlink($pdfPath);
     }
 
+    $this->buildAndSendGlobalExcel($company);
+
     return [
       'sent' => $sent,
       'skipped' => $skipped,
       'message' => "Se enviaron {$sent} correo(s). {$skipped} sede(s) sin documentos.",
     ];
+  }
+
+  private function buildAndSendGlobalExcel(string $company): array
+  {
+    $model = new AccountReceivable();
+
+    $records = AccountReceivable::where('company', $company)
+      ->whereIn('overdue_status', ['VENCIDO', 'POR VENCER'])
+      ->with($model->getReportRelations())
+      ->orderBy('overdue_status')
+      ->orderByDesc('overdue_days')
+      ->get();
+
+    if ($records->isEmpty()) {
+      return ['sent' => 0, 'records' => 0, 'message' => 'Sin registros VENCIDO/POR VENCER.'];
+    }
+
+    $rows = $records->map(function ($r) {
+      $comments = $r->comments->take(3);
+      $c = [];
+      for ($i = 0; $i < 3; $i++) {
+        $comment = $comments->get($i);
+        $c[] = $comment
+          ? ($comment->created_at?->format('d/m/Y') . ': ' . $comment->comment)
+          : '';
+      }
+
+      return [
+        'sede'             => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? '',
+        'branch'           => $r->branch,
+        'seller'           => $r->seller,
+        'cashier'          => $r->cashier,
+        'document_number'  => $r->document_number,
+        'client_id'        => $r->client_id,
+        'client_name'      => $r->client_name,
+        'client_id_real'   => $r->client_id_real,
+        'client_name_real' => $r->client_name_real,
+        'document_date'    => $r->document_date?->format('d/m/Y'),
+        'document_due_date'=> $r->document_due_date?->format('d/m/Y'),
+        'due_year'         => $r->due_year,
+        'due_month'        => $r->due_month,
+        'overdue_days'     => $r->overdue_days,
+        'overdue_status'   => $r->overdue_status,
+        'currency'         => $r->currency,
+        'exchange_rate'    => (float)$r->exchange_rate,
+        'amount'           => (float)$r->amount,
+        'balance'          => (float)$r->balance,
+        'amount_pen'       => (float)$r->amount_pen,
+        'balance_pen'      => (float)$r->balance_pen,
+        'observations'     => $r->observations,
+        'collection_date'  => $r->collection_date?->format('d/m/Y'),
+        'comment_1'        => $c[0],
+        'comment_2'        => $c[1],
+        'comment_3'        => $c[2],
+      ];
+    })->toArray();
+
+    $export = new GeneralExport(
+      $rows,
+      $model->getReportableColumns(),
+      'CxC Vencidas y Por Vencer',
+      $model->getReportStyles(),
+      $model->getReportColorRules(),
+    );
+    $content = Excel::raw($export, 'Xlsx');
+
+    $tmpPath = tempnam(sys_get_temp_dir(), 'ar_excel_') . '.xlsx';
+    file_put_contents($tmpPath, $content);
+
+    $fileName = 'CxC_VENCIDO_POR_VENCER_' . ucfirst($company) . '_' . now()->format('Ymd_His') . '.xlsx';
+
+    $total = $records->count();
+    $totalBalancePen = $this->pen($records->sum('balance_pen'));
+    $overdueBalancePen = $this->pen($records->where('overdue_days', '>', 0)->sum('balance_pen'));
+    $currentBalancePen = $this->pen($records->where('overdue_days', '<=', 0)->sum('balance_pen'));
+
+    $this->emailService->send([
+      'to'       => self::TEST_EMAIL,
+      'subject'  => 'CxC Vencidas y Por Vencer — ' . $total . ' docs · S/ ' . number_format($totalBalancePen, 2) . ' | ' . now()->format('d/m/Y H:i'),
+      'template' => 'emails.accounts-receivable-sede-report',
+      'data'     => [
+        'sede_name'   => 'Consolidado ' . ucfirst($company),
+        'sede_abrev'  => strtoupper($company),
+        'company'     => $company,
+        'report_date' => now()->format('d/m/Y H:i'),
+        'summary'     => [
+          'total_documents'     => $total,
+          'total_balance_pen'   => $totalBalancePen,
+          'overdue_balance_pen' => $overdueBalancePen,
+          'current_balance_pen' => $currentBalancePen,
+        ],
+        'records'     => [],
+        'worker_name' => 'Gerencia',
+      ],
+      'attachments' => [[
+        'path' => $tmpPath,
+        'name' => $fileName,
+        'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ]],
+    ]);
+
+    @unlink($tmpPath);
+
+    return ['sent' => 1, 'records' => $total, 'message' => "Excel consolidado enviado a " . self::TEST_EMAIL];
   }
 
   private function resolveRecipients(string $company): array
