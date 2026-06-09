@@ -36,11 +36,7 @@ class AccountReceivable extends BaseModel
     'amount_pen'        => 'Importe PEN (S/)',
     'balance_pen'       => 'Saldo PEN (S/)',
     'collection_date'   => 'Fecha Cobro',
-    'comment_1'         => 'Último Comentario',
-    'comment_2'         => 'Comentario 2',
-    'comment_3'         => 'Comentario 3',
-    'comment_4'         => 'Comentario 4',
-    'comment_5'         => 'Comentario 5',
+    'last_comment'      => 'Último Comentario',
   ];
 
   protected array $reportColorRules = [
