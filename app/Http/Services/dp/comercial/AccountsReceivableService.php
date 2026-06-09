@@ -465,7 +465,8 @@ class AccountsReceivableService extends BaseService
           'current_balance_pen' => $currentBalancePen,
         ],
         'records'     => [],
-        'worker_name' => 'Gerencia',
+        'worker_name' => 'estimados',
+        'description' => 'Se les envía estatus de cobranza según el seguimiento de hoy. Su apoyo con el cumplimiento de los compromisos acordados.'
       ],
       'attachments' => [[
         'path' => $tmpPath,
