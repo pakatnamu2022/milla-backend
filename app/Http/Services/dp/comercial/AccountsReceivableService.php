@@ -21,8 +21,8 @@ use Maatwebsite\Excel\Facades\Excel;
 class AccountsReceivableService extends BaseService
 {
   // TODO: change to $worker->email2 ?? $worker->email in production
-//  private const GENERAL_EMAIL = 'dp-rep-cxc@depositopakatnamu.com';
-  private const GENERAL_EMAIL = 'hvaldiviezos@automotorespakatnamu.com';
+  private const GENERAL_EMAIL = 'dp-rep-cxc@depositopakatnamu.com';
+//  private const GENERAL_EMAIL = 'hvaldiviezos@automotorespakatnamu.com';
 
   private const COMPANY_CONNECTION_MAP = [
     'deposito' => 'dbdp2',
