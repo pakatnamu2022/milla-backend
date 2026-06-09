@@ -377,9 +377,9 @@ class AccountsReceivableService extends BaseService
     }
 
     $rows = $records->map(function ($r) {
-      $comments = $r->comments->take(3);
+      $comments = $r->comments->take(5);
       $c = [];
-      for ($i = 0; $i < 3; $i++) {
+      for ($i = 0; $i < 5; $i++) {
         $comment = $comments->get($i);
         $c[] = $comment
           ? ($comment->created_at?->format('d/m/Y') . ': ' . $comment->comment)
@@ -407,11 +407,12 @@ class AccountsReceivableService extends BaseService
         'balance'          => (float)$r->balance,
         'amount_pen'       => (float)$r->amount_pen,
         'balance_pen'      => (float)$r->balance_pen,
-        'observations'     => $r->observations,
         'collection_date'  => $r->collection_date?->format('d/m/Y'),
         'comment_1'        => $c[0],
         'comment_2'        => $c[1],
         'comment_3'        => $c[2],
+        'comment_4'        => $c[3],
+        'comment_5'        => $c[4],
       ];
     })->toArray();
 
