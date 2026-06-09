@@ -386,14 +386,10 @@ class AccountsReceivableService extends BaseService
       ->get();
 
     $rows = $records->map(function ($r) {
-      $comments = $r->comments->take(5);
-      $c = [];
-      for ($i = 0; $i < 5; $i++) {
-        $comment = $comments->get($i);
-        $c[] = $comment
-          ? ($comment->created_at?->format('d/m/Y') . ': ' . $comment->comment)
-          : '';
-      }
+      $latest = $r->comments->first();
+      $lastComment = $latest
+        ? ($latest->created_at?->format('d/m/Y') . ': ' . $latest->comment)
+        : '';
 
       return [
         'sede'              => $r->sede?->suc_abrev ?? $r->sede?->localidad ?? '',
@@ -417,11 +413,7 @@ class AccountsReceivableService extends BaseService
         'amount_pen'        => (float)$r->amount_pen,
         'balance_pen'       => (float)$r->balance_pen,
         'collection_date'   => $r->collection_date?->format('d/m/Y'),
-        'comment_1'         => $c[0],
-        'comment_2'         => $c[1],
-        'comment_3'         => $c[2],
-        'comment_4'         => $c[3],
-        'comment_5'         => $c[4],
+        'last_comment'      => $lastComment,
       ];
     })->toArray();
 
