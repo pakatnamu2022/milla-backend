@@ -9,26 +9,21 @@ class UpdateApCommercialManagerBrandGroupRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'brand_group_id' => 'required|exists:ap_masters,id',
-      'commercial_managers' => 'nullable|array',
+      'brand_group_id'        => 'required|exists:ap_masters,id',
+      'commercial_managers'   => 'nullable|array',
       'commercial_managers.*' => 'integer|exists:rrhh_persona,id',
-      'year' => 'required|integer|digits:4',
-      'month' => 'required|integer|digits:2',
+      'year'                  => 'required|integer|digits:4',
+      'month'                 => 'required|integer|min:1|max:12',
     ];
   }
 
-  public function messages(): array
+  public function attributes()
   {
     return [
-      'brand_group_id.required' => 'El campo brand_group_id es obligatorio.',
-      'brand_group_id.exists' => 'El grupo de marca proporcionado no existe.',
-
-      'commercial_managers.required' => 'El campo commercial_managers es obligatorio.',
-      'commercial_managers.array' => 'El campo gerente comercial debe ser un arreglo.',
-      'commercial_managers.min' => 'Debe proporcionar al menos un gerente comercial.',
-
-      'commercial_managers.*.integer' => 'Cada gerente comercial debe ser un ID entero válido.',
-      'commercial_managers.*.exists' => 'Uno o más IDs de gerente comercial proporcionados no existen.',
+      'brand_group_id'      => 'grupo de marcas',
+      'commercial_managers' => 'gerentes comerciales',
+      'year'                => 'año',
+      'month'               => 'mes',
     ];
   }
 }
