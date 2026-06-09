@@ -13,6 +13,8 @@
       <p
         style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#111111;">
         Hola <strong style="font-weight:600;">{{ $worker_name }}</strong>,
+
+        {{$description ?? ''}}
       </p>
     </td>
   </tr>
@@ -37,7 +39,8 @@
                   <p
                     style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ number_format($summary['total_documents']) }}</p>
                   <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Documentos pendientes</p>
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Documentos pendientes</p>
                 </td>
               </tr>
             </table>
@@ -57,9 +60,11 @@
                 </td>
                 <td style="vertical-align:top;">
                   <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">S/&nbsp;{{ number_format($summary['total_balance_pen'], 2) }}</p>
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">
+                    S/&nbsp;{{ number_format($summary['total_balance_pen'], 2) }}</p>
                   <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Saldo total pendiente</p>
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Saldo total pendiente</p>
                 </td>
               </tr>
             </table>
@@ -79,9 +84,11 @@
                 </td>
                 <td style="vertical-align:top;">
                   <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#dc2626;line-height:1.2;">S/&nbsp;{{ number_format($summary['overdue_balance_pen'], 2) }}</p>
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#dc2626;line-height:1.2;">
+                    S/&nbsp;{{ number_format($summary['overdue_balance_pen'], 2) }}</p>
                   <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Monto vencido</p>
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Monto vencido</p>
                 </td>
               </tr>
             </table>
@@ -101,9 +108,11 @@
                 </td>
                 <td style="vertical-align:top;">
                   <p
-                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#16a34a;line-height:1.2;">S/&nbsp;{{ number_format($summary['current_balance_pen'], 2) }}</p>
+                    style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#16a34a;line-height:1.2;">
+                    S/&nbsp;{{ number_format($summary['current_balance_pen'], 2) }}</p>
                   <p
-                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Saldo por vencer</p>
+                    style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">
+                    Saldo por vencer</p>
                 </td>
               </tr>
             </table>
