@@ -1623,6 +1623,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('accountsReceivable/sync', [AccountsReceivableController::class, 'sync']);
       Route::post('accountsReceivable/send-reports', [AccountsReceivableController::class, 'sendReports']);
       Route::post('accountsReceivable/send-due-reports', [AccountsReceivableController::class, 'sendDueReports']);
+      Route::post('accountsReceivable/send-global-excel', [AccountsReceivableController::class, 'sendGlobalExcel']);
       Route::get('accountsReceivable/filterTree', [AccountsReceivableController::class, 'filterTree']);
       Route::get('accountsReceivable/dashboard', [AccountsReceivableController::class, 'dashboard']);
       Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);

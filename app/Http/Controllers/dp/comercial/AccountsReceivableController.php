@@ -96,4 +96,14 @@ class AccountsReceivableController extends Controller
     }
   }
 
+  public function sendGlobalExcel(Request $request)
+  {
+    try {
+      $company = $request->input('company', 'deposito');
+      return $this->success($this->service->sendGlobalExcel($company));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
 }
