@@ -652,6 +652,85 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
+  /**
+   * Reenvía una orden de compra para postventa
+   * Clona la recepción y crea una nueva orden de compra con asterisco (*) en el invoice_number
+   *
+   * @param mixed $data
+   * @return PurchaseOrderResource
+   * @throws Exception
+   */
+  public function resendPostventa(mixed $data): PurchaseOrderResource
+  {
+    DB::beginTransaction();
+    try {
+      $originalReceptionId = $data['purchase_reception_id'];
+      $originalReception = PurchaseReception::with('details')->find($originalReceptionId);
+
+      if (!$originalReception) {
+        throw new Exception("Recepción ID {$originalReceptionId} no encontrada");
+      }
+
+      if ($originalReception->status === 'ANNULLED') {
+        throw new Exception("No se puede reenviar una recepción anulada.");
+      }
+
+      // Clonar la recepción
+      $newReception = $originalReception->replicate();
+      $newReception->reception_number = $originalReception->reception_number . '*';
+      $newReception->purchase_order_id = null; // Se vinculará después
+      $newReception->save();
+
+      // Clonar los detalles de la recepción
+      foreach ($originalReception->details as $detail) {
+        $newDetail = $detail->replicate();
+        $newDetail->purchase_reception_id = $newReception->id;
+        $newDetail->purchase_order_item_id = null; // Se vinculará después
+        $newDetail->save();
+      }
+
+      // Guardar items del request temporalmente
+      $items = $data['items'] ?? [];
+
+      // Agregar asterisco (*) al invoice_number
+      $data['invoice_number'] = $data['invoice_number'] . '*';
+
+      // Enriquecer datos de la orden
+      $data = $this->enrichData($data);
+
+      // Crear la orden de compra
+      $purchaseOrder = PurchaseOrder::create($data);
+
+      // si ap_supplier_order_id actualizar su ap_purchase_order_id
+      if (isset($data['ap_supplier_order_id'])) {
+        $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
+        if ($supplierOrder) {
+          $supplierOrder->update([
+            'ap_purchase_order_id' => $purchaseOrder->id,
+          ]);
+        }
+      }
+
+      // Guardar items si existen
+      $this->saveItemsIfExists($items, $purchaseOrder);
+
+      // Vincular la recepción clonada con la nueva orden de compra
+      $this->linkReceptionToInvoice($purchaseOrder, $newReception->id);
+
+      // Despachar job de migración y sincronización si está habilitado
+      // Usa deduplicación para evitar jobs duplicados
+      if (config('database_sync.enabled', false)) {
+        $this->dispatchJobWithDeduplication($purchaseOrder->id);
+      }
+
+      DB::commit();
+      return new PurchaseOrderResource($purchaseOrder);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
   protected function linkReceptionToInvoice(PurchaseOrder $purchaseOrder, int $receptionId): void
   {
     $reception = PurchaseReception::find($receptionId);
