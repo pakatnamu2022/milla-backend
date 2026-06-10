@@ -40,7 +40,7 @@ trait Auditable
 
     // Cuando se elimina un registro (soft delete)
     static::deleted(function ($model) {
-      $action = $model->isForceDeleting() ? 'deleted' : 'deleted';
+      $action = method_exists($model, 'isForceDeleting') && $model->isForceDeleting() ? 'force_deleted' : 'deleted';
       $model->auditAction($action, $model->getAuditableAttributes(), []);
     });
 

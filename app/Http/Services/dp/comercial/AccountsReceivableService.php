@@ -129,14 +129,18 @@ class AccountsReceivableService extends BaseService
 
   public function list(Request $request)
   {
+    $userSedeIds = $this->getUserSedeIds();
+
     $query = AccountReceivable::query()
       ->whereNot('overdue_status', 'PAGADO')
       ->with('sede')
-      ->withCount('comments');
+      ->withCount('comments')
+      ->when($userSedeIds !== null, fn($q) => $q->whereIn('sede_id', $userSedeIds));
 
     $summaryBase = $this->applyFilters(
       AccountReceivable::query()
-        ->whereNot('overdue_status', 'PAGADO'),
+        ->whereNot('overdue_status', 'PAGADO')
+        ->when($userSedeIds !== null, fn($q) => $q->whereIn('sede_id', $userSedeIds)),
       $request,
       AccountReceivable::filters,
     );
@@ -183,51 +187,61 @@ class AccountsReceivableService extends BaseService
 
   public function filterTree(string $company = 'deposito'): array
   {
-    return Cache::rememberForever(self::filterTreeCacheKey($company), function () use ($company) {
-      $rows = AccountReceivable::query()
-        ->select('sede_id', 'overdue_status', 'due_year')
-        ->whereNot('overdue_status', 'PAGADO')
-        ->with('sede:id,suc_abrev,localidad')
-        ->where('company', $company)
-        ->whereNotNull('sede_id')
-        ->whereNotNull('overdue_status')
-        ->whereNotNull('due_year')
-        ->distinct()
-        ->orderBy('sede_id')
-        ->orderBy('overdue_status')
-        ->orderByDesc('due_year')
-        ->get();
+    $userSedeIds = $this->getUserSedeIds();
 
-      $tree = [];
+    if ($userSedeIds !== null) {
+      return $this->buildFilterTree($company, $userSedeIds);
+    }
 
-      foreach ($rows as $row) {
-        $sedeId = $row->sede_id;
+    return Cache::rememberForever(self::filterTreeCacheKey($company), fn() => $this->buildFilterTree($company, null));
+  }
 
-        if (!isset($tree[$sedeId])) {
-          $tree[$sedeId] = [
-            'sede_id'   => $sedeId,
-            'sede_name' => $row->sede?->suc_abrev ?? $row->sede?->localidad ?? "Sede {$sedeId}",
-            'statuses'  => [],
-          ];
-        }
+  private function buildFilterTree(string $company, ?array $sedeIds): array
+  {
+    $rows = AccountReceivable::query()
+      ->select('sede_id', 'overdue_status', 'due_year')
+      ->whereNot('overdue_status', 'PAGADO')
+      ->with('sede:id,suc_abrev,localidad')
+      ->where('company', $company)
+      ->whereNotNull('sede_id')
+      ->whereNotNull('overdue_status')
+      ->whereNotNull('due_year')
+      ->when($sedeIds !== null, fn($q) => $q->whereIn('sede_id', $sedeIds))
+      ->distinct()
+      ->orderBy('sede_id')
+      ->orderBy('overdue_status')
+      ->orderByDesc('due_year')
+      ->get();
 
-        $status = $row->overdue_status;
+    $tree = [];
 
-        if (!isset($tree[$sedeId]['statuses'][$status])) {
-          $tree[$sedeId]['statuses'][$status] = [
-            'status' => $status,
-            'years'  => [],
-          ];
-        }
+    foreach ($rows as $row) {
+      $sedeId = $row->sede_id;
 
-        $tree[$sedeId]['statuses'][$status]['years'][] = $row->due_year;
+      if (!isset($tree[$sedeId])) {
+        $tree[$sedeId] = [
+          'sede_id'   => $sedeId,
+          'sede_name' => $row->sede?->suc_abrev ?? $row->sede?->localidad ?? "Sede {$sedeId}",
+          'statuses'  => [],
+        ];
       }
 
-      return array_values(array_map(function ($sede) {
-        $sede['statuses'] = array_values($sede['statuses']);
-        return $sede;
-      }, $tree));
-    });
+      $status = $row->overdue_status;
+
+      if (!isset($tree[$sedeId]['statuses'][$status])) {
+        $tree[$sedeId]['statuses'][$status] = [
+          'status' => $status,
+          'years'  => [],
+        ];
+      }
+
+      $tree[$sedeId]['statuses'][$status]['years'][] = $row->due_year;
+    }
+
+    return array_values(array_map(function ($sede) {
+      $sede['statuses'] = array_values($sede['statuses']);
+      return $sede;
+    }, $tree));
   }
 
   public static function dashboardCacheKey(string $company): string
@@ -557,6 +571,20 @@ class AccountsReceivableService extends BaseService
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Returns null if the user can view all branches, or an array of allowed sede IDs.
+   */
+  private function getUserSedeIds(): ?array
+  {
+    $user = auth()->user();
+
+    if (!$user || $user->hasPermission('accounts_receivable.viewBranches')) {
+      return null;
+    }
+
+    return $user->sedes()->pluck('config_sede.id')->toArray();
+  }
 
   private function buildBreakdown($query, Request $request): array
   {
