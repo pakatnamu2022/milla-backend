@@ -24,8 +24,10 @@ class ResendPurchaseOrderPostventaRequest extends StorePurchaseOrderRequest
     // Obtener las reglas base del request padre
     $rules = parent::rules();
 
-    // El purchase_reception_id es requerido para este request
-    $rules['purchase_reception_id'] = ['required', 'integer', 'exists:purchase_receptions,id'];
+    // Remover ap_supplier_order_id de required porque se obtiene desde la ruta
+    if (isset($rules['ap_supplier_order_id'])) {
+      unset($rules['ap_supplier_order_id']);
+    }
 
     return $rules;
   }
@@ -33,24 +35,6 @@ class ResendPurchaseOrderPostventaRequest extends StorePurchaseOrderRequest
   public function withValidator($validator)
   {
     $validator->after(function ($validator) {
-      // Validar que la recepción existe y está activa
-      if ($this->has('purchase_reception_id')) {
-        $reception = DB::table('purchase_receptions')
-          ->where('id', $this->purchase_reception_id)
-          ->whereNull('deleted_at')
-          ->first();
-
-        if (!$reception) {
-          $validator->errors()->add('purchase_reception_id', 'La recepción no existe o ha sido eliminada.');
-          return;
-        }
-
-        if ($reception->status === 'ANNULLED') {
-          $validator->errors()->add('purchase_reception_id', 'No se puede reenviar una recepción anulada.');
-          return;
-        }
-      }
-
       // Validar unicidad de factura (serie + número + proveedor) excluyendo las que tienen asterisco
       // porque el asterisco se agrega automáticamente
       if ($this->has('invoice_series') && $this->has('invoice_number') && $this->has('supplier_id')) {
@@ -68,13 +52,5 @@ class ResendPurchaseOrderPostventaRequest extends StorePurchaseOrderRequest
         }
       }
     });
-  }
-
-  public function messages()
-  {
-    return array_merge(parent::messages(), [
-      'purchase_reception_id.required' => 'El ID de la recepción es requerido.',
-      'purchase_reception_id.exists' => 'La recepción especificada no existe.',
-    ]);
   }
 }
