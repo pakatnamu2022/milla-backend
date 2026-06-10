@@ -7,6 +7,7 @@ use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
+use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Utils\Constants;
 use App\Jobs\SyncCreditNoteDynamicsJob;
@@ -533,8 +534,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $quantity = $itemData['quantity'] ?? 1;
         $total = round($unitPrice * $quantity, 2);
 
+        // Obtener unit_measurement_id del producto si no viene en el request
+        $unitMeasurementId = $itemData['unit_measurement_id'] ?? null;
+        if (!$unitMeasurementId && isset($itemData['product_id'])) {
+          $product = \App\Models\ap\postventa\gestionProductos\Products::find($itemData['product_id']);
+          $unitMeasurementId = $product?->unit_measurement_id;
+        }
+
         $purchaseOrder->items()->create([
-          'unit_measurement_id' => $itemData['unit_measurement_id'] ?? null,
+          'unit_measurement_id' => $unitMeasurementId,
           'description' => $itemData['description'] ?? '',
           'unit_price' => $unitPrice,
           'quantity' => $quantity,
@@ -687,7 +695,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       // Clonar la recepción
       $newReception = $originalReception->replicate();
-      $newReception->reception_number = $originalReception->reception_number . '*';
+      $newReception->reception_number = PurchaseReception::generateNextReceptionNumber();
       $newReception->purchase_order_id = null; // Se vinculará después
       // Asegurar que el status sea válido (mantener el mismo si no está anulado)
       // Los status válidos son: APPROVED, PARTIAL
@@ -739,6 +747,12 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
       // Vincular la recepción clonada con la nueva orden de compra
       $this->linkReceptionToInvoice($purchaseOrder, $newReception->id);
+
+      // ACTUALIZAR RECEPTION_TYPE DEL ApSupplierOrder
+      if ($supplierOrder) {
+        $supplierOrderService = new ApSupplierOrderService();
+        $supplierOrderService->updateReceptionType($supplierOrder);
+      }
 
       // Despachar job de migración y sincronización si está habilitado
       // Usa deduplicación para evitar jobs duplicados

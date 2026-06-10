@@ -52,11 +52,6 @@ class StoreApSupplierOrderRequest extends StoreRequest
         'integer',
         'exists:products,id',
       ],
-      'details.*.unit_measurement_id' => [
-        'required',
-        'integer',
-        'exists:unit_measurement,id',
-      ],
       'details.*.note' => [
         'nullable',
         'string',
@@ -110,10 +105,6 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'details.*.product_id.required' => 'El producto es obligatorio en cada detalle.',
       'details.*.product_id.integer' => 'El producto debe ser un entero.',
       'details.*.product_id.exists' => 'El producto seleccionado no es válido.',
-
-      'details.*.unit_measurement_id.required' => 'La unidad de medida es obligatoria en cada detalle.',
-      'details.*.unit_measurement_id.integer' => 'La unidad de medida debe ser un entero.',
-      'details.*.unit_measurement_id.exists' => 'La unidad de medida seleccionada no es válida.',
 
       'details.*.note.string' => 'La nota debe ser una cadena de texto.',
 

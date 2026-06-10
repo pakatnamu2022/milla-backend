@@ -198,4 +198,31 @@ class PurchaseReception extends BaseModel
   {
     return $query->where('reception_type', 'PARTIAL');
   }
+
+  /**
+   * Genera el siguiente número de recepción correlativo
+   * Formato: REC-YYYY-NNNN
+   *
+   * @return string
+   */
+  public static function generateNextReceptionNumber(): string
+  {
+    $year = date('Y');
+    $lastReception = self::withTrashed()
+      ->whereYear('created_at', $year)
+      ->orderBy('id', 'desc')
+      ->first();
+
+    $correlative = 1;
+    if ($lastReception) {
+      // Extraer correlativo: limpiar * de recepciones antiguas si existen
+      $receptionNumber = str_replace('*', '', $lastReception->reception_number);
+      $parts = explode('-', $receptionNumber);
+      if (count($parts) === 3) {
+        $correlative = intval($parts[2]) + 1;
+      }
+    }
+
+    return sprintf('REC-%s-%04d', $year, $correlative);
+  }
 }
