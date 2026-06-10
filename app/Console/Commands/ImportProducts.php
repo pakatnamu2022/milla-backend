@@ -201,7 +201,35 @@ class ImportProducts extends Command
           if ($existingProduct) {
             // ACTUALIZAR: El producto ya existe
             $dataToStore['id'] = $existingProduct->id;
-            // No actualizar warehouses si el producto ya existe (para no afectar stock existente)
+
+            // Obtener almacenes que ya tiene el producto
+            $existingWarehouses = \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::where('product_id', $existingProduct->id)
+              ->pluck('warehouse_id')
+              ->toArray();
+
+            // Filtrar solo los almacenes faltantes
+            $warehousesToAdd = [];
+            foreach ($dataToStore['warehouses'] as $warehouse) {
+              if (!in_array($warehouse['warehouse_id'], $existingWarehouses)) {
+                $warehousesToAdd[] = $warehouse;
+              }
+            }
+
+            // Si hay almacenes faltantes, insertarlos
+            if (!empty($warehousesToAdd)) {
+              foreach ($warehousesToAdd as $warehouseData) {
+                \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::create([
+                  'product_id' => $existingProduct->id,
+                  'warehouse_id' => $warehouseData['warehouse_id'],
+                  'quantity' => $warehouseData['initial_quantity'] ?? 0,
+                  'available_quantity' => $warehouseData['initial_quantity'] ?? 0,
+                  'minimum_stock' => $warehouseData['minimum_stock'] ?? 0,
+                  'maximum_stock' => $warehouseData['maximum_stock'] ?? null,
+                ]);
+              }
+            }
+
+            // No actualizar warehouses en el servicio (ya los manejamos aquí)
             unset($dataToStore['warehouses']);
             unset($dataToStore['current_stock']);
             unset($dataToStore['minimum_stock']);

@@ -3369,6 +3369,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'emission_date' => $invoice->fecha_de_emision?->format('Y-m-d'),
         'due_date' => $invoice->fecha_de_vencimiento?->format('Y-m-d'),
         'currency' => $invoice->currency?->description,
+        'symbol_currency' => $invoice->currency?->symbol,
         'total' => $invoice->total,
         'status' => $invoice->status,
         'consolidation_type' => $invoice->consolidation_type,

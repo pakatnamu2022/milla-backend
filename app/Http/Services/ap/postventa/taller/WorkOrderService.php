@@ -626,10 +626,28 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta orden de trabajo');
       }
 
+      // Validar estado CANCELADO siempre
       $workOrder->ensureNotInStates([
         ApMasters::CANCELED_WORK_ORDER_ID,
-        ApMasters::CLOSED_WORK_ORDER_ID,
       ], 'modificar');
+
+      // Validación especial para estado CERRADO
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        // Cargar la relación con la nota interna si existe
+        $workOrder->load('internalNote');
+
+        // Si tiene nota interna relacionada
+        if ($workOrder->internalNote) {
+          // Si la nota interna ya fue facturada (status = 'invoiced'), no permitir
+          if ($workOrder->internalNote->status === ApInternalNote::STATUS_INVOICED) {
+            throw new Exception('No se puede modificar el destinatario de factura porque la factura de la nota interna ya fue emitida');
+          }
+          // Si status = 'pending', permitir continuar (excepción a la regla)
+        } else {
+          // Si NO tiene nota interna, aplicar validación normal (no permitir)
+          throw new Exception('No se puede modificar en una orden de trabajo cerrada');
+        }
+      }
 
       // Update work order
       $workOrder->update($data);
@@ -1230,6 +1248,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       throw new \Exception('Todas las órdenes deben tener la misma moneda');
     }
 
+    $uniqueSuppliers = $workOrders->pluck('invoice_to')->unique();
+
+    if ($uniqueSuppliers->count() > 1) {
+      throw new \Exception('Todas las órdenes deben tener el mismo destinatario de factura');
+    }
+
     return WorkOrderResource::collection($workOrders);
   }
 
@@ -1245,22 +1269,35 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      // Validar estado CANCELADO siempre
       $workOrder->ensureNotInStates([
         ApMasters::CANCELED_WORK_ORDER_ID,
-        ApMasters::CLOSED_WORK_ORDER_ID,
       ], 'modificar');
+
+      // Validación especial para estado CERRADO
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        // Cargar la relación con la nota interna si existe
+        $workOrder->load('internalNote');
+
+        // Si tiene nota interna relacionada
+        if ($workOrder->internalNote) {
+          // Si la nota interna ya fue facturada (status = 'invoiced'), no permitir
+          if ($workOrder->internalNote->status === ApInternalNote::STATUS_INVOICED) {
+            throw new Exception('No se puede cambiar la moneda porque la factura de la nota interna ya fue emitida');
+          }
+          // Si status = 'pending', permitir continuar (excepción a la regla)
+        } else {
+          // Si NO tiene nota interna, aplicar validación normal (no permitir)
+          throw new Exception('No se puede modificar en una orden de trabajo cerrada');
+        }
+      }
 
       // Validar que no tenga cotización asociada
       if ($workOrder->order_quotation_id !== null) {
         throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene cotización asociada');
       }
 
-      // Validar que no tenga nota interna generada
-      if ($workOrder->internalNote) {
-        throw new Exception('No se puede cambiar la moneda de una orden de trabajo que tiene nota interna generada');
-      }
-
-      // Validar que no tenga factura generada
+      // Validar que no tenga anticipos activos
       if ($workOrder->getActiveAdvances()->count() > 0) {
         throw new Exception("Esta orden de trabajo no puede cambiar de moneda. Ya se han registrado anticipos para esta orden de trabajo.");
       }
