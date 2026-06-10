@@ -655,7 +655,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   /**
    * Reenvía una orden de compra para postventa
    * Busca la recepción por purchase_order_id, obtiene el ap_supplier_order_id,
-   * clona la recepción y crea una nueva orden de compra con asterisco (*) en el invoice_number
+   * clona la recepción y crea una nueva orden de compra con asterisco (*) en number y number_guide
    *
    * @param mixed $data Datos del request con la nueva factura
    * @param int $purchaseOrderId ID de la orden de compra desde la ruta
@@ -666,6 +666,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     DB::beginTransaction();
     try {
+      // Obtener la orden de compra original
+      $originalPO = $this->find($purchaseOrderId);
+
       // Buscar la recepción por purchase_order_id para obtener el ap_supplier_order_id
       $originalReception = PurchaseReception::with('details')
         ->where('purchase_order_id', $purchaseOrderId)
@@ -686,6 +689,9 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $newReception = $originalReception->replicate();
       $newReception->reception_number = $originalReception->reception_number . '*';
       $newReception->purchase_order_id = null; // Se vinculará después
+      // Asegurar que el status sea válido (mantener el mismo si no está anulado)
+      // Los status válidos son: APPROVED, PARTIAL
+      $newReception->status = ($originalReception->status === 'ANNULLED') ? 'APPROVED' : $originalReception->status;
       $newReception->save();
 
       // Clonar los detalles de la recepción
@@ -699,17 +705,26 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items del request temporalmente
       $items = $data['items'] ?? [];
 
-      // Agregar asterisco (*) al invoice_number
-      $data['invoice_number'] = $data['invoice_number'] . '*';
+      // Preparar datos para la nueva OC basándose en la original y el request
+      $newPOData = $data;
+
+      // Agregar asterisco (*) al número y guía (como en resend)
+      $newPOData['number'] = $originalPO->number . '*';
+      $newPOData['number_guide'] = $originalPO->number_guide . '*';
+      $newPOData['number_correlative'] = $originalPO->number_correlative;
 
       // Agregar ap_supplier_order_id a los datos
-      $data['ap_supplier_order_id'] = $apSupplierOrderId;
+      $newPOData['ap_supplier_order_id'] = $apSupplierOrderId;
 
-      // Enriquecer datos de la orden
-      $data = $this->enrichData($data);
+      // Estado inicial de migración
+      $newPOData['migration_status'] = 'pending';
+      $newPOData['status'] = true;
+
+      // Enriquecer datos de la orden (sin generar nuevo correlativo)
+      $newPOData = $this->enrichData($newPOData, false);
 
       // Crear la orden de compra
-      $purchaseOrder = PurchaseOrder::create($data);
+      $purchaseOrder = PurchaseOrder::create($newPOData);
 
       // Actualizar ap_supplier_order para vincular la nueva purchase_order
       $supplierOrder = ApSupplierOrder::find($apSupplierOrderId);
