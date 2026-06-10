@@ -1632,6 +1632,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('accountsReceivable/dashboard', [AccountsReceivableController::class, 'dashboard']);
       Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);
       Route::post('accountsReceivable/{id}/comments', [AccountsReceivableController::class, 'storeComment']);
+      Route::put('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'updateComment']);
+      Route::delete('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'destroyComment']);
       Route::get('accountsReceivable', [AccountsReceivableController::class, 'index']);
     });
   });
