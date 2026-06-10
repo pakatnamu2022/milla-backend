@@ -654,31 +654,44 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
   /**
    * Reenvía una orden de compra para postventa
-   * Clona la recepción y crea una nueva orden de compra con asterisco (*) en el invoice_number
+   * Busca la recepción por purchase_order_id, obtiene el ap_supplier_order_id,
+   * clona la recepción y crea una nueva orden de compra con asterisco (*) en number y number_guide
    *
-   * @param mixed $data
+   * @param mixed $data Datos del request con la nueva factura
+   * @param int $purchaseOrderId ID de la orden de compra desde la ruta
    * @return PurchaseOrderResource
    * @throws Exception
    */
-  public function resendPostventa(mixed $data): PurchaseOrderResource
+  public function resendPostventa(mixed $data, int $purchaseOrderId): PurchaseOrderResource
   {
     DB::beginTransaction();
     try {
-      $originalReceptionId = $data['purchase_reception_id'];
-      $originalReception = PurchaseReception::with('details')->find($originalReceptionId);
+      // Obtener la orden de compra original
+      $originalPO = $this->find($purchaseOrderId);
+
+      // Buscar la recepción por purchase_order_id para obtener el ap_supplier_order_id
+      $originalReception = PurchaseReception::with('details')
+        ->where('purchase_order_id', $purchaseOrderId)
+        ->whereNull('deleted_at')
+        ->first();
 
       if (!$originalReception) {
-        throw new Exception("Recepción ID {$originalReceptionId} no encontrada");
+        throw new Exception("No se encontró una recepción asociada a la orden de compra ID {$purchaseOrderId}");
       }
 
-      if ($originalReception->status === 'ANNULLED') {
-        throw new Exception("No se puede reenviar una recepción anulada.");
+      $apSupplierOrderId = $originalReception->ap_supplier_order_id;
+
+      if (!$apSupplierOrderId) {
+        throw new Exception("La recepción no tiene una orden de proveedor asociada.");
       }
 
       // Clonar la recepción
       $newReception = $originalReception->replicate();
       $newReception->reception_number = $originalReception->reception_number . '*';
       $newReception->purchase_order_id = null; // Se vinculará después
+      // Asegurar que el status sea válido (mantener el mismo si no está anulado)
+      // Los status válidos son: APPROVED, PARTIAL
+      $newReception->status = ($originalReception->status === 'ANNULLED') ? 'APPROVED' : $originalReception->status;
       $newReception->save();
 
       // Clonar los detalles de la recepción
@@ -692,23 +705,33 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       // Guardar items del request temporalmente
       $items = $data['items'] ?? [];
 
-      // Agregar asterisco (*) al invoice_number
-      $data['invoice_number'] = $data['invoice_number'] . '*';
+      // Preparar datos para la nueva OC basándose en la original y el request
+      $newPOData = $data;
 
-      // Enriquecer datos de la orden
-      $data = $this->enrichData($data);
+      // Agregar asterisco (*) al número y guía (como en resend)
+      $newPOData['number'] = $originalPO->number . '*';
+      $newPOData['number_guide'] = $originalPO->number_guide . '*';
+      $newPOData['number_correlative'] = $originalPO->number_correlative;
+
+      // Agregar ap_supplier_order_id a los datos
+      $newPOData['ap_supplier_order_id'] = $apSupplierOrderId;
+
+      // Estado inicial de migración
+      $newPOData['migration_status'] = 'pending';
+      $newPOData['status'] = true;
+
+      // Enriquecer datos de la orden (sin generar nuevo correlativo)
+      $newPOData = $this->enrichData($newPOData, false);
 
       // Crear la orden de compra
-      $purchaseOrder = PurchaseOrder::create($data);
+      $purchaseOrder = PurchaseOrder::create($newPOData);
 
-      // si ap_supplier_order_id actualizar su ap_purchase_order_id
-      if (isset($data['ap_supplier_order_id'])) {
-        $supplierOrder = ApSupplierOrder::find($data['ap_supplier_order_id']);
-        if ($supplierOrder) {
-          $supplierOrder->update([
-            'ap_purchase_order_id' => $purchaseOrder->id,
-          ]);
-        }
+      // Actualizar ap_supplier_order para vincular la nueva purchase_order
+      $supplierOrder = ApSupplierOrder::find($apSupplierOrderId);
+      if ($supplierOrder) {
+        $supplierOrder->update([
+          'ap_purchase_order_id' => $purchaseOrder->id,
+        ]);
       }
 
       // Guardar items si existen

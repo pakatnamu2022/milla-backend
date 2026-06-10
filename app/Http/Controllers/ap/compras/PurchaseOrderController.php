@@ -93,10 +93,10 @@ class PurchaseOrderController extends Controller
    * Reenvía una orden de compra para postventa
    * Clona la recepción asociada y crea nueva OC con asterisco (*)
    */
-  public function resendPostventa(ResendPurchaseOrderPostventaRequest $request)
+  public function resendPostventa(ResendPurchaseOrderPostventaRequest $request, $id)
   {
     try {
-      return $this->success($this->service->resendPostventa($request->validated()));
+      return $this->success($this->service->resendPostventa($request->validated(), $id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
