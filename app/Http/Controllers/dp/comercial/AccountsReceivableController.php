@@ -4,6 +4,7 @@ namespace App\Http\Controllers\dp\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\dp\comercial\StoreAccountReceivableCommentRequest;
+use App\Http\Requests\dp\comercial\UpdateAccountReceivableCommentRequest;
 use App\Http\Services\dp\comercial\AccountsReceivableService;
 use App\Jobs\SendDueAccountsReceivableReportsJob;
 use Illuminate\Http\Request;
@@ -70,6 +71,24 @@ class AccountsReceivableController extends Controller
   {
     try {
       return $this->success($this->service->storeComment($id, $request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updateComment(UpdateAccountReceivableCommentRequest $request, $commentId)
+  {
+    try {
+      return $this->success($this->service->updateComment($commentId, $request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function destroyComment($commentId)
+  {
+    try {
+      return $this->success($this->service->destroyComment($commentId));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

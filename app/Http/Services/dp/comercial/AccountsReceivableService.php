@@ -256,6 +256,33 @@ class AccountsReceivableService extends BaseService
     return new AccountReceivableCommentResource($comment);
   }
 
+  public function updateComment(int $commentId, array $data): AccountReceivableCommentResource
+  {
+    $comment = AccountReceivableComment::findOrFail($commentId);
+
+    if (!$comment->created_at->isToday()) {
+      throw new \Exception('Solo se pueden editar comentarios del día de hoy.');
+    }
+
+    $comment->update(['comment' => $data['comment']]);
+    $comment->load(['user', 'sede']);
+
+    return new AccountReceivableCommentResource($comment);
+  }
+
+  public function destroyComment(int $commentId): array
+  {
+    $comment = AccountReceivableComment::findOrFail($commentId);
+
+    if (!$comment->created_at->isToday()) {
+      throw new \Exception('Solo se pueden eliminar comentarios del día de hoy.');
+    }
+
+    $comment->delete();
+
+    return ['message' => 'Comentario eliminado correctamente.'];
+  }
+
   public function sendGlobalExcel(string $company = 'deposito'): array
   {
     return $this->buildAndSendGlobalExcel($company);
@@ -741,6 +768,7 @@ class AccountsReceivableService extends BaseService
   private function mapRow(array $row, string $company, array $sedeMap, string $now): array
   {
     $branch = trim($row['Sucursal'] ?? '');
+    $abreviatura = trim($row['Abreviatura'] ?? '');
     $currency = strtoupper(trim($row['Moneda'] ?? 'PEN'));
     $amount = (float)($row['DocumentoImporte'] ?? 0);
     $balance = (float)($row['DocumentoDeuda'] ?? 0);
@@ -751,7 +779,7 @@ class AccountsReceivableService extends BaseService
 
     return [
       'company'           => $company,
-      'sede_id'           => $this->resolveSede($branch, $sedeMap),
+      'sede_id'           => $this->resolveSede($abreviatura, $sedeMap),
       'seller'            => $row['Vendedor'] ?? null,
       'cashier'           => $row['Caja'] ?? null,
       'document_number'   => trim($row['DocumentoNumero'] ?? ''),
@@ -782,24 +810,19 @@ class AccountsReceivableService extends BaseService
 
   private function buildSedeMap(): array
   {
-    return Sede::select('id', 'localidad', 'suc_abrev', 'abreviatura')
+    return Sede::select('id', 'suc_abrev')
+      ->where('status_deleted', 1)
       ->get()
-      ->mapWithKeys(fn($s) => [strtoupper(trim($s->suc_abrev ?? $s->abreviatura ?? $s->localidad ?? '')) => $s->id])
+      ->mapWithKeys(fn($s) => [strtoupper(trim($s->suc_abrev ?? '')) => $s->id])
       ->toArray();
   }
 
-  private function resolveSede(string $branch, array $sedeMap): ?int
+  private function resolveSede(string $abreviatura, array $sedeMap): ?int
   {
-    if (empty($branch)) {
+    if (empty($abreviatura)) {
       return null;
     }
-    $key = strtoupper($branch);
-    foreach ($sedeMap as $sedeKey => $sedeId) {
-      if ($sedeKey && (str_contains($key, $sedeKey) || str_contains($sedeKey, $key))) {
-        return $sedeId;
-      }
-    }
-    return null;
+    return $sedeMap[strtoupper($abreviatura)] ?? null;
   }
 
   private function parseDate(?string $value): ?string
