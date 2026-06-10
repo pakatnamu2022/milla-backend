@@ -387,6 +387,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
     return response()->json([
       'data' => $details->map(function ($detail) {
+        // Obtener el stock del producto en el almacén
+        $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+          ->where('warehouse_id', $detail->orderPurchaseRequest->warehouse_id)
+          ->first();
+
         return [
           'id' => $detail->id,
           'ap_purchase_request_id' => $detail->order_purchase_request_id,
@@ -396,6 +401,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'product_name' => $detail->product->name ?? null,
           'product_code' => $detail->product->code ?? null,
           'unit_measurement_id' => $detail->product->unit_measurement_id ?? null,
+          'unit_measurement_code' => $detail->product->unitMeasurement->dyn_code ?? null,
           'quantity' => $detail->quantity,
           'unit_price' => $detail->unit_price,
           'discount_percentage' => $detail->discount_percentage,
@@ -406,6 +412,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           'warehouse_name' => $detail->orderPurchaseRequest->warehouse->description ?? null,
           'created_at' => $detail->created_at,
           'requested_name' => $detail->orderPurchaseRequest->requestedBy->name ?? null,
+          // Información de stock
+          'stock_quantity' => $stock->quantity ?? 0,
+          'stock_available_quantity' => $stock->available_quantity ?? 0,
+          'stock_reserved_quantity' => $stock->reserved_quantity ?? 0,
         ];
       })
     ]);

@@ -77,7 +77,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       }
 
       // Generate reception number
-      $data['reception_number'] = $this->generateReceptionNumber();
+      $data['reception_number'] = PurchaseReception::generateNextReceptionNumber();
 
       // Set received by if not provided
       $data['received_by'] = Auth::id();
@@ -208,7 +208,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // VALIDACIÓN: No permitir eliminar si ya tiene PurchaseOrder (factura) asociada
       if ($reception->purchase_order_id) {
-        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada ya sea activa o anulada. Debe anular la recepción.');
+        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada ya sea activa o anulada.');
       }
 
       // Obtener el supplier order antes de eliminar
@@ -312,26 +312,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         throw new Exception("No puede recibir más de lo ordenado para el producto '{$productName}'. Ordenado: {$supplierOrderDetail->quantity}, Ya recibido: {$alreadyReceived}, Intenta recibir: {$quantityAccepted}");
       }
     }
-  }
-
-  protected function generateReceptionNumber()
-  {
-    $year = date('Y');
-    $lastReception = PurchaseReception::withTrashed()
-      ->whereYear('created_at', $year)
-      ->orderBy('id', 'desc')
-      ->first();
-
-    $correlative = 1;
-    if ($lastReception) {
-      // Extract number from REC-2025-0001
-      $parts = explode('-', $lastReception->reception_number);
-      if (count($parts) === 3) {
-        $correlative = intval($parts[2]) + 1;
-      }
-    }
-
-    return sprintf('REC-%s-%04d', $year, $correlative);
   }
 
   public function getByPurchaseOrder($purchaseOrderId)
@@ -550,7 +530,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
    */
   protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
   {
-    $supplierOrderService = new ApSupplierOrderService(new EmailService());
+    $supplierOrderService = new ApSupplierOrderService();
     $supplierOrderService->updateReceptionType($supplierOrder);
   }
 }

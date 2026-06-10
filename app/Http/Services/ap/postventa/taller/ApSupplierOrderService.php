@@ -27,11 +27,11 @@ use Illuminate\Support\Facades\DB;
 
 class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 {
-  protected EmailService $emailService;
+  protected ?EmailService $emailService;
 
-  public function __construct(EmailService $emailService)
+  public function __construct(?EmailService $emailService = null)
   {
-    $this->emailService = $emailService;
+    $this->emailService = $emailService ?? new EmailService();
   }
 
   public function list(Request $request)
@@ -164,6 +164,15 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       if (!empty($details)) {
         foreach ($details as $detail) {
           $detail['ap_supplier_order_id'] = $supplierOrder->id;
+
+          // Obtener unit_measurement_id desde el producto si no viene en el request
+          if (!isset($detail['unit_measurement_id'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product && $product->unit_measurement_id) {
+              $detail['unit_measurement_id'] = $product->unit_measurement_id;
+            }
+          }
+
           ApSupplierOrderDetails::create($detail);
         }
       }
@@ -269,6 +278,15 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         // Create new details
         foreach ($details as $detail) {
           $detail['ap_supplier_order_id'] = $supplierOrder->id;
+
+          // Obtener unit_measurement_id desde el producto si no viene en el request
+          if (!isset($detail['unit_measurement_id'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product && $product->unit_measurement_id) {
+              $detail['unit_measurement_id'] = $product->unit_measurement_id;
+            }
+          }
+
           ApSupplierOrderDetails::create($detail);
         }
       }
