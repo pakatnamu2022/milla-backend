@@ -657,7 +657,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
 
         //    CATEGORY COMPETENCE DETAILS
+        Route::get('/categoryCompetenceDetail/global-assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'globalAssignmentReport']);
+        Route::post('/categoryCompetenceDetail/fill-all-missing', [EvaluationCategoryCompetenceDetailController::class, 'fillAllMissingCompetences']);
+        Route::get('/categoryCompetenceDetail/{category}/assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'assignmentReport']);
         Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
+        Route::post('/categoryCompetenceDetail/{category}/regenerate-person/{person}', [EvaluationCategoryCompetenceDetailController::class, 'regeneratePersonCompetences']);
         Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
           'index',
           'show',
