@@ -6,9 +6,11 @@ use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountReceivableComment extends BaseModel
 {
+  use SoftDeletes;
   protected $table = 'accounts_receivable_comments';
 
   protected $fillable = [
