@@ -124,4 +124,143 @@ class EvaluationCategoryCompetenceDetailService extends BaseService
       ->whereNull('deleted_at')->delete();
     return response()->json(['message' => 'Competencia de Categoria eliminado correctamente']);
   }
+
+  public function assignmentReport(int $categoryId): array
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $workers = $category->workers()->get();
+
+    $referenceCompetences = $category->competences()->get()->map(fn($c) => [
+      'competence_id'   => $c->id,
+      'competence_name' => $c->nombre,
+    ])->values();
+
+    $report = $workers->map(function ($worker) use ($categoryId, $referenceCompetences) {
+      $assigned = EvaluationCategoryCompetenceDetail::where('category_id', $categoryId)
+        ->where('person_id', $worker->id)
+        ->whereNull('deleted_at')
+        ->pluck('competence_id')
+        ->toArray();
+
+      $missing = $referenceCompetences->filter(fn($c) => !in_array($c['competence_id'], $assigned));
+      $valid = $missing->isEmpty() && $referenceCompetences->isNotEmpty();
+
+      return [
+        'person_id'           => $worker->id,
+        'name'                => $worker->nombre_completo ?? '',
+        'valid'               => $valid,
+        'total_competences'   => $referenceCompetences->count(),
+        'assigned_competences'=> count($assigned),
+        'missing_competences' => $missing->values(),
+        'issues'              => array_values(array_filter([
+          $referenceCompetences->isEmpty() ? 'La categoría no tiene competencias configuradas' : null,
+          $missing->isNotEmpty() ? 'Faltan ' . $missing->count() . ' competencia(s) por asignar' : null,
+        ])),
+      ];
+    });
+
+    $validCount   = $report->where('valid', true)->count();
+    $invalidCount = $report->where('valid', false)->count();
+
+    return [
+      'category_id'      => $categoryId,
+      'category_name'    => $category->name,
+      'total_workers'    => $report->count(),
+      'valid_workers'    => $validCount,
+      'invalid_workers'  => $invalidCount,
+      'is_valid'         => $invalidCount === 0,
+      'competences'      => $referenceCompetences,
+      'workers'          => $report->values(),
+    ];
+  }
+
+  public function globalAssignmentReport(): array
+  {
+    $categories = HierarchicalCategory::where('excluded_from_evaluation', false)->get();
+
+    return $categories->map(function ($category) {
+      $workers = $category->workers()->get();
+      $competenceIds = $category->competences()->pluck('gh_config_competencias.id')->toArray();
+      $totalCount   = $workers->count();
+      $invalidCount = 0;
+
+      foreach ($workers as $worker) {
+        $assignedIds = EvaluationCategoryCompetenceDetail::where('category_id', $category->id)
+          ->where('person_id', $worker->id)
+          ->whereNull('deleted_at')
+          ->pluck('competence_id')
+          ->toArray();
+
+        $allAssigned = empty(array_diff($competenceIds, $assignedIds));
+        $valid = !empty($competenceIds) && $allAssigned;
+
+        if (!$valid) $invalidCount++;
+      }
+
+      return [
+        'category_id'      => $category->id,
+        'category_name'    => $category->name,
+        'total_workers'    => $totalCount,
+        'valid_workers'    => $totalCount - $invalidCount,
+        'invalid_workers'  => $invalidCount,
+        'is_valid'         => $invalidCount === 0,
+      ];
+    })->values()->all();
+  }
+
+  public function regeneratePersonCompetences(int $categoryId, int $personId)
+  {
+    $category = HierarchicalCategory::findOrFail($categoryId);
+    $competences = $category->competences()->pluck('gh_config_competencias.id')->toArray();
+
+    foreach ($competences as $competenceId) {
+      EvaluationCategoryCompetenceDetail::firstOrCreate([
+        'competence_id' => $competenceId,
+        'category_id'   => $categoryId,
+        'person_id'     => $personId,
+      ]);
+    }
+
+    return EvaluationCategoryCompetenceDetailResource::collection(
+      EvaluationCategoryCompetenceDetail::where('category_id', $categoryId)
+        ->where('person_id', $personId)
+        ->whereNull('deleted_at')
+        ->get()
+    );
+  }
+
+  public function fillAllMissingCompetences(): array
+  {
+    $categories = HierarchicalCategory::where('excluded_from_evaluation', false)
+      ->with('competences')
+      ->get();
+
+    $filled = 0;
+    $categoriesProcessed = 0;
+
+    foreach ($categories as $category) {
+      $competenceIds = $category->competences->pluck('id')->toArray();
+      if (empty($competenceIds)) continue;
+
+      $workers = $category->workers()->pluck('rrhh_persona.id')->toArray();
+      $categoriesProcessed++;
+
+      foreach ($workers as $workerId) {
+        foreach ($competenceIds as $competenceId) {
+          [, $created] = EvaluationCategoryCompetenceDetail::firstOrCreate([
+            'competence_id' => $competenceId,
+            'category_id'   => $category->id,
+            'person_id'     => $workerId,
+          ]);
+          if ($created) $filled++;
+        }
+      }
+    }
+
+    return [
+      'message'              => 'Competencias faltantes asignadas correctamente',
+      'categories_processed' => $categoriesProcessed,
+      'assignments_created'  => $filled,
+    ];
+  }
 }
