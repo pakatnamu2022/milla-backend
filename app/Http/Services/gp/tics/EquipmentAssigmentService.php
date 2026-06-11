@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\EquipmentAssigmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\FileManagerService;
 use App\Http\Utils\Constants;
 use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
@@ -13,6 +14,7 @@ use App\Models\gp\tics\PhoneLineWorker;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class EquipmentAssigmentService extends BaseService implements BaseServiceInterface
@@ -226,6 +228,36 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
     });
   }
 
+  public function uploadFile(int $id, UploadedFile $file, string $type): EquipmentAssigmentResource
+  {
+    $assignment = $this->find($id);
+
+    $fileManager = new FileManagerService();
+
+    $options = [
+      'allowed_extensions' => ['pdf', 'jpg', 'jpeg', 'png'],
+      'allowed_mimes'      => ['application/pdf', 'image/jpeg', 'image/png'],
+      'max_size'           => 10 * 1024 * 1024,
+      'prefix'             => "asig_{$id}_{$type}",
+    ];
+
+    $field = $type === 'unassignment' ? 'pdf_unassign_path' : 'pdf_path';
+
+    $oldPath = $assignment->$field;
+    if ($oldPath) {
+      $fileManager->deleteFilePublic($oldPath);
+    }
+
+    $storedPath = $fileManager->storeFilePublic($file, 'tics/assignments', $options);
+    $url = $fileManager->getPublicUrl($storedPath);
+
+    $assignment->update([$field => $url]);
+
+    return new EquipmentAssigmentResource(
+      EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
+    );
+  }
+
   public function destroy($id)
   {
     $assignment = $this->find($id);
@@ -258,7 +290,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
   public function downloadAssignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area'])
       ->findOrFail($id);
 
     $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
@@ -269,7 +301,7 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
   public function downloadUnassignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area'])
       ->findOrFail($id);
 
     $filename = "acta-devolucion_{$assignment->id}.pdf";

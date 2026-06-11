@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\gp\tics\StoreEquipmentAssigmentRequest;
 use App\Http\Requests\gp\tics\UnassignEquipmentRequest;
 use App\Http\Requests\gp\tics\UpdateEquipmentAssigmentRequest;
+use App\Http\Requests\gp\tics\UploadEquipmentAssigmentFileRequest;
 use App\Http\Services\gp\tics\EquipmentAssigmentService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
@@ -131,6 +132,16 @@ class EquipmentAssigmentController extends Controller
   {
     try {
       return $this->service->downloadUnassignmentPdf($id);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function uploadFile(UploadEquipmentAssigmentFileRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      return $this->success($this->service->uploadFile($id, $data['file'], $data['type']));
     } catch (Throwable $e) {
       return $this->error($e->getMessage());
     }

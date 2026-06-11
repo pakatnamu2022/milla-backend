@@ -406,8 +406,6 @@ class AccountsReceivableService extends BaseService
       @unlink($pdfPath);
     }
 
-    $this->buildAndSendGlobalExcel($company);
-
     return [
       'sent'    => $sent,
       'skipped' => $skipped,

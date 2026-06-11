@@ -411,19 +411,15 @@
     <div class="card-title">Datos de la Línea Telefónica</div>
     <table class="line-table">
       <tr>
-        <td style="width:25%;">
+        <td style="width:34%;">
           <span class="field-label">Número de Línea</span>
           <span class="field-value">{{ $assignment->phoneLine?->line_number ?? '—' }}</span>
         </td>
-        <td style="width:25%;">
+        <td style="width:33%;">
           <span class="field-label">Operador</span>
           <span class="field-value">{{ $assignment->phoneLine?->telephoneAccount?->operator ?? '—' }}</span>
         </td>
-        <td style="width:25%;">
-          <span class="field-label">Cuenta</span>
-          <span class="field-value">{{ $assignment->phoneLine?->telephoneAccount?->account_number ?? '—' }}</span>
-        </td>
-        <td style="width:25%;">
+        <td style="width:33%;">
           <span class="field-label">Plan</span>
           <span class="field-value">{{ $assignment->phoneLine?->telephonePlan?->name ?? '—' }}</span>
         </td>
