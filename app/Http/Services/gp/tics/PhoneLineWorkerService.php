@@ -10,6 +10,7 @@ use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
@@ -236,9 +237,11 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
     $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'worker.sede.company', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
       ->findOrFail($id);
 
+    $writeUser = auth()->user()->load('person.position', 'person.signature');
+    $ticSignatureBase64 = (new DigitalFileService())->getBase64ByUrl($writeUser?->person?->signature?->signature_url);
     $filename = "acta-asignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";
 
-    return Pdf::loadView('exports.phone-line-assignment', compact('assignment'))
+    return Pdf::loadView('exports.phone-line-assignment', compact('assignment', 'ticSignatureBase64', 'writeUser'))
       ->download($filename);
   }
 
@@ -247,9 +250,11 @@ class PhoneLineWorkerService extends BaseService implements BaseServiceInterface
     $assignment = PhoneLineWorker::with(['worker.position', 'worker.area', 'worker.sede.company', 'phoneLine.telephoneAccount', 'phoneLine.telephonePlan'])
       ->findOrFail($id);
 
+    $writeUser = auth()->user()->load('person.position', 'person.signature');
+    $ticSignatureBase64 = (new DigitalFileService())->getBase64ByUrl($writeUser?->person?->signature?->signature_url);
     $filename = "acta-desasignacion-linea_{$assignment->id}_{$assignment->phone_line_id}.pdf";
 
-    return Pdf::loadView('exports.phone-line-unassignment', compact('assignment'))
+    return Pdf::loadView('exports.phone-line-unassignment', compact('assignment', 'ticSignatureBase64', 'writeUser'))
       ->download($filename);
   }
 }

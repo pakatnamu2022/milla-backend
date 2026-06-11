@@ -11,6 +11,7 @@ use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
 use App\Models\gp\tics\PhoneLineWorker;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
@@ -290,23 +291,25 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
 
   public function downloadAssignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area', 'writeUser.person.signature'])
       ->findOrFail($id);
 
+    $ticSignatureBase64 = (new DigitalFileService())->getBase64ByUrl($assignment->writeUser?->person?->signature?->signature_url);
     $filename = "acta-asignacion_{$assignment->id}_{$assignment->fecha}.pdf";
 
-    return Pdf::loadView('exports.equipment-assignment', compact('assignment'))
+    return Pdf::loadView('exports.equipment-assignment', compact('assignment', 'ticSignatureBase64'))
       ->download($filename);
   }
 
   public function downloadUnassignmentPdf($id)
   {
-    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area'])
+    $assignment = EquipmentAssigment::with(['worker.position', 'worker.area', 'worker.sede.company', 'items.equipment.equipmentType', 'writeUser.person.position', 'writeUser.person.area', 'writeUser.person.signature'])
       ->findOrFail($id);
 
+    $ticSignatureBase64 = (new DigitalFileService())->getBase64ByUrl($assignment->writeUser?->person?->signature?->signature_url);
     $filename = "acta-devolucion_{$assignment->id}.pdf";
 
-    return Pdf::loadView('exports.equipment-unassignment', compact('assignment'))
+    return Pdf::loadView('exports.equipment-unassignment', compact('assignment', 'ticSignatureBase64'))
       ->download($filename);
   }
 }
