@@ -40,12 +40,12 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
     $this->familias      = ApFamilies::where('status', true)->pluck('id', 'description');
     $this->clases        = ApClassArticle::where('status', true)->pluck('id', 'description');
     $this->combustibles  = ApFuelType::where('status', true)->pluck('id', 'description');
-    $this->tiposVehiculo = ApMasters::where('type', 'VEHICLE_TYPE')->where('status', true)->pluck('id', 'description');
-    $this->carrocerias   = ApMasters::where('type', 'BODY_TYPE')->where('status', true)->pluck('id', 'description');
-    $this->tracciones    = ApMasters::where('type', 'TRACTION_TYPE')->where('status', true)->pluck('id', 'description');
-    $this->transmisiones = ApMasters::where('type', 'TRANSMISSION')->where('status', true)->pluck('id', 'description');
+    $this->tiposVehiculo = ApMasters::where('type', 'TIPO_VEHICULO')->where('status', true)->pluck('id', 'description');
+    $this->carrocerias   = ApMasters::where('type', 'TIPO_CARROCERIA')->where('status', true)->pluck('id', 'description');
+    $this->tracciones    = ApMasters::where('type', 'TIPO_TRACCION')->where('status', true)->pluck('id', 'description');
+    $this->transmisiones = ApMasters::where('type', 'TRANSMISION_VEHICULO')->where('status', true)->pluck('id', 'description');
     $this->monedas       = TypeCurrency::where('status', true)->pluck('id', 'code');
-    $this->tiposOp       = ApMasters::where('type', 'TYPE_OPERATION')->where('status', true)->pluck('id', 'description');
+    $this->tiposOp       = ApMasters::where('type', 'TIPO_OPERACION')->where('status', true)->pluck('id', 'description');
   }
 
   public function collection(Collection $rows): void
