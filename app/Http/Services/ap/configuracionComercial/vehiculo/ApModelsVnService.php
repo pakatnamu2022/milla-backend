@@ -162,12 +162,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $familias      = ApFamilies::where('status', true)->pluck('description')->toArray();
     $clases        = ApClassArticle::where('status', true)->pluck('description')->toArray();
     $combustibles  = ApFuelType::where('status', true)->pluck('description')->toArray();
-    $tiposVehiculo = ApMasters::where('type', 'VEHICLE_TYPE')->where('status', true)->pluck('description')->toArray();
-    $carrocerias   = ApMasters::where('type', 'BODY_TYPE')->where('status', true)->pluck('description')->toArray();
-    $tracciones    = ApMasters::where('type', 'TRACTION_TYPE')->where('status', true)->pluck('description')->toArray();
-    $transmisiones = ApMasters::where('type', 'TRANSMISSION')->where('status', true)->pluck('description')->toArray();
+    $tiposVehiculo = ApMasters::where('type', 'TIPO_VEHICULO')->where('status', true)->pluck('description')->toArray();
+    $carrocerias   = ApMasters::where('type', 'TIPO_CARROCERIA')->where('status', true)->pluck('description')->toArray();
+    $tracciones    = ApMasters::where('type', 'TIPO_TRACCION')->where('status', true)->pluck('description')->toArray();
+    $transmisiones = ApMasters::where('type', 'TRANSMISION_VEHICULO')->where('status', true)->pluck('description')->toArray();
     $monedas       = TypeCurrency::where('status', true)->pluck('code')->toArray();
-    $tiposOp       = ApMasters::where('type', 'TYPE_OPERATION')->where('status', true)->pluck('description')->toArray();
+    $tiposOp       = ApMasters::where('type', 'TIPO_OPERACION')->where('status', true)->pluck('description')->toArray();
 
     $spreadsheet = new Spreadsheet();
 
