@@ -905,6 +905,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::get('modelsVn/template', [ApModelsVnController::class, 'downloadTemplate']);
+      Route::post('modelsVn/import', [ApModelsVnController::class, 'import']);
       Route::apiResource('modelsVn', ApModelsVnController::class)->only([
         'index',
         'show',
