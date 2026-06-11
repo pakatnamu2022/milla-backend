@@ -411,19 +411,15 @@
     <div class="card-title">Datos de la Línea Telefónica</div>
     <table class="line-table">
       <tr>
-        <td style="width:25%;">
+        <td style="width:34%;">
           <span class="field-label">Número de Línea</span>
           <span class="field-value">{{ $assignment->phoneLine?->line_number ?? '—' }}</span>
         </td>
-        <td style="width:25%;">
+        <td style="width:33%;">
           <span class="field-label">Operador</span>
           <span class="field-value">{{ $assignment->phoneLine?->telephoneAccount?->operator ?? '—' }}</span>
         </td>
-        <td style="width:25%;">
-          <span class="field-label">Cuenta</span>
-          <span class="field-value">{{ $assignment->phoneLine?->telephoneAccount?->account_number ?? '—' }}</span>
-        </td>
-        <td style="width:25%;">
+        <td style="width:33%;">
           <span class="field-label">Plan</span>
           <span class="field-value">{{ $assignment->phoneLine?->telephonePlan?->name ?? '—' }}</span>
         </td>
@@ -485,8 +481,18 @@
       <div class="sig-col">
         <div class="sig-hdr">RESPONSABLE TICS</div>
         <div class="sig-body">
-          <span class="sig-line"></span>
-          <div class="sig-sub">ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES</div>
+          @if($ticSignatureBase64)
+            <div style="text-align:center; margin-bottom:4px;"><img src="{{ $ticSignatureBase64 }}" style="max-height:64px; max-width:160px; object-fit:contain;"></div>
+          @else
+            <span class="sig-line"></span>
+          @endif
+          <div class="sig-sub">{{ strtoupper($writeUser?->person?->nombre_completo ?? $writeUser?->name ?? 'ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES') }}</div>
+          @if($writeUser?->person?->position?->name)
+            <div class="sig-sub" style="margin-top:2px;">{{ strtoupper($writeUser->person->position->name) }}</div>
+          @endif
+          @if($writeUser?->person?->vat)
+            <div class="sig-sub" style="margin-top:1px;">DNI: {{ $writeUser->person->vat }}</div>
+          @endif
         </div>
       </div>
     </div>

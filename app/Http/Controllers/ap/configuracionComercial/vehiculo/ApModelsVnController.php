@@ -7,6 +7,8 @@ use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApModelsVnRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApModelsVnService;
+use Illuminate\Http\Request;
+use Throwable;
 
 class ApModelsVnController extends Controller
 {
@@ -60,6 +62,28 @@ class ApModelsVnController extends Controller
     try {
       return $this->service->destroy($id);
     } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function downloadTemplate()
+  {
+    try {
+      return $this->service->downloadTemplate();
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function import(Request $request)
+  {
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls|max:10240',
+    ]);
+
+    try {
+      return $this->success($this->service->importFromExcel($request->file('file')));
+    } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
   }

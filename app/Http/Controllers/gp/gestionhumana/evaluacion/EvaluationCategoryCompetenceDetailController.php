@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryCompete
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryCompetenceDetailRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailService;
+use Illuminate\Http\JsonResponse;
 
 class EvaluationCategoryCompetenceDetailController extends Controller
 {
@@ -60,6 +61,42 @@ class EvaluationCategoryCompetenceDetailController extends Controller
   {
     try {
       return $this->service->destroy($request->validated());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function assignmentReport(int $category): JsonResponse
+  {
+    try {
+      return response()->json($this->service->assignmentReport($category));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function globalAssignmentReport(): JsonResponse
+  {
+    try {
+      return response()->json($this->service->globalAssignmentReport());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function regeneratePersonCompetences(int $category, int $person): JsonResponse
+  {
+    try {
+      return response()->json($this->service->regeneratePersonCompetences($category, $person));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function fillAllMissingCompetences(): JsonResponse
+  {
+    try {
+      return response()->json($this->service->fillAllMissingCompetences());
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
