@@ -118,7 +118,7 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
    * Importa seguros de planilla desde un archivo Excel (formato FESALUD).
    *
    * Columnas requeridas en el Excel:
-   * - N° Doc.
+   * - N° Doc.f
    * - Apellido Paterno
    * - Apellido Materno
    * - Nombres
