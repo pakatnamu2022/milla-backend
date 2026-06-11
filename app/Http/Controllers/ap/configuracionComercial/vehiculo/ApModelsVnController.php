@@ -49,7 +49,7 @@ class ApModelsVnController extends Controller
   public function update(UpdateApModelsVnRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
