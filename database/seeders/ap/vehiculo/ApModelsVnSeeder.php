@@ -194,11 +194,11 @@ class ApModelsVnSeeder extends Seeder
       $class  = ApClassArticle::where('description', $data['class'])->first();
       $fuel   = ApFuelType::where('description', $data['fuel'])->first();
 
-      $vehicleType  = ApMasters::where('type', 'VEHICLE_TYPE')->where('description', $data['vehicle_type'])->first();
-      $bodyType     = ApMasters::where('type', 'BODY_TYPE')->where('description', $data['body_type'])->first();
-      $tractionType = ApMasters::where('type', 'TRACTION_TYPE')->where('description', $data['traction_type'])->first();
-      $transmission = ApMasters::where('type', 'TRANSMISSION')->where('description', $data['transmission'])->first();
-      $typeOp       = ApMasters::where('type', 'TYPE_OPERATION')->where('description', $data['type_operation'])->first();
+      $vehicleType  = ApMasters::where('type', 'TIPO_VEHICULO')->where('description', $data['vehicle_type'])->first();
+      $bodyType     = ApMasters::where('type', 'TIPO_CARROCERIA')->where('description', $data['body_type'])->first();
+      $tractionType = ApMasters::where('type', 'TIPO_TRACCION')->where('description', $data['traction_type'])->first();
+      $transmission = ApMasters::where('type', 'TRANSMISION_VEHICULO')->where('description', $data['transmission'])->first();
+      $typeOp       = ApMasters::where('type', 'TIPO_OPERACION')->where('description', $data['type_operation'])->first();
       $currency     = TypeCurrency::where('code', $data['currency'])->first();
 
       $missing = array_filter([
@@ -268,8 +268,8 @@ class ApModelsVnSeeder extends Seeder
     return ApFamilies::exists()
       && ApClassArticle::exists()
       && ApFuelType::exists()
-      && ApMasters::where('type', 'VEHICLE_TYPE')->exists()
-      && ApMasters::where('type', 'TYPE_OPERATION')->exists()
+      && ApMasters::where('type', 'TIPO_VEHICULO')->exists()
+      && ApMasters::where('type', 'TIPO_OPERACION')->exists()
       && TypeCurrency::exists();
   }
 }
