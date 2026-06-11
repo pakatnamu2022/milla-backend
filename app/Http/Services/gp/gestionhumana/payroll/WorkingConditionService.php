@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
 
-class WorkingConditionService extends BaseService implements BaseServiceInterface
+class WorkingConditionService extends BaseService
 {
   public function list(Request $request)
   {
