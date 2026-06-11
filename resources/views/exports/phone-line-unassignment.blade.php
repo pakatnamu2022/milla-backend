@@ -481,8 +481,18 @@
       <div class="sig-col">
         <div class="sig-hdr">RESPONSABLE TICS</div>
         <div class="sig-body">
-          <span class="sig-line"></span>
-          <div class="sig-sub">ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES</div>
+          @if($ticSignatureBase64)
+            <div style="text-align:center; margin-bottom:4px;"><img src="{{ $ticSignatureBase64 }}" style="max-height:64px; max-width:160px; object-fit:contain;"></div>
+          @else
+            <span class="sig-line"></span>
+          @endif
+          <div class="sig-sub">{{ strtoupper($writeUser?->person?->nombre_completo ?? $writeUser?->name ?? 'ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES') }}</div>
+          @if($writeUser?->person?->position?->name)
+            <div class="sig-sub" style="margin-top:2px;">{{ strtoupper($writeUser->person->position->name) }}</div>
+          @endif
+          @if($writeUser?->person?->vat)
+            <div class="sig-sub" style="margin-top:1px;">DNI: {{ $writeUser->person->vat }}</div>
+          @endif
         </div>
       </div>
     </div>

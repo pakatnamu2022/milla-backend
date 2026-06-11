@@ -520,7 +520,11 @@
       <div class="sig-col">
         <div class="sig-hdr">RESPONSABLE TICS</div>
         <div class="sig-body">
-          <span class="sig-line"></span>
+          @if($ticSignatureBase64)
+            <div style="text-align:center; margin-bottom:4px;"><img src="{{ $ticSignatureBase64 }}" style="max-height:64px; max-width:160px; object-fit:contain;"></div>
+          @else
+            <span class="sig-line"></span>
+          @endif
           <div class="sig-sub">{{ strtoupper($assignment->writeUser?->person?->nombre_completo ?? $assignment->writeUser?->name ?? 'ÁREA DE TECNOLOGÍAS DE INFORMACIÓN Y COMUNICACIONES') }}</div>
           @if($assignment->writeUser?->person?->position?->name)
             <div class="sig-sub" style="margin-top:2px;">{{ strtoupper($assignment->writeUser->person->position->name) }}</div>

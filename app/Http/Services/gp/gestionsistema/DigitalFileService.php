@@ -116,6 +116,20 @@ class DigitalFileService extends BaseService
    * @param string|null $model      Nombre de la tabla relacionada
    * @param int         $idModel    ID del registro relacionado
    */
+  public function getBase64ByUrl(?string $url): ?string
+  {
+    if (!$url) return null;
+    try {
+      $file = DigitalFile::where('url', $url)->first();
+      if (!$file) return null;
+      $content = Storage::disk('s3')->get(ltrim($file->name, '/'));
+      $mime = $file->mimeType ?? 'image/png';
+      return 'data:' . $mime . ';base64,' . base64_encode($content);
+    } catch (\Exception $e) {
+      return null;
+    }
+  }
+
   public function storeFromContent(
     string  $content,
     string  $filename,
