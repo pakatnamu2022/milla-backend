@@ -424,19 +424,26 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     Excel::import($import, $file);
     $results = $import->getResults();
 
-    $hayErrores = !empty($results['errors']);
+    $hayErrores  = !empty($results['errors']);
+    $totalErrors = count($results['errors']);
     $msg = "Importación completada: {$results['created']} creado(s), {$results['skipped']} omitido(s) por duplicado.";
     if ($hayErrores) {
-      $msg .= ' ' . count($results['errors']) . ' fila(s) con error.';
+      $msg .= " {$totalErrors} fila(s) con error.";
     }
 
     return [
       'success'        => !$hayErrores,
       'message'        => $msg,
-      'created'        => $results['created'],
-      'skipped'        => $results['skipped'],
       'rows_processed' => $results['rows_processed'],
+      // errores primero (mayor nivel de alerta)
+      'errors_count'   => $totalErrors,
       'errors'         => $results['errors'],
+      // omitidos
+      'skipped'        => $results['skipped'],
+      'skipped_rows'   => $results['skipped_rows'],
+      // creados
+      'created'        => $results['created'],
+      'created_rows'   => $results['created_rows'],
     ];
   }
 }
