@@ -121,6 +121,7 @@ class StorePurchaseOrderRequest extends StoreRequest
           ->where('invoice_number', $this->invoice_number)
           ->where('supplier_id', $this->supplier_id)
           ->whereNull('deleted_at')
+          ->where('status', true)
           ->exists();
 
         if ($exists) {

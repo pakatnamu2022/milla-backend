@@ -1839,7 +1839,7 @@ class InventoryMovementService extends BaseService
       ->where('product_id', $productId)
       ->whereHas('reception', function ($q) use ($warehouseId, $request) {
         $q->where('warehouse_id', $warehouseId)
-          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+          ->where('status', 'APPROVED');
 
         // Apply date filters on reception_date
         if ($request->has('date_from')) {
@@ -1863,7 +1863,11 @@ class InventoryMovementService extends BaseService
         'reception' => function ($q) {
           $q->with([
             'purchaseOrder' => function ($q) {
-              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+              $q->with([
+                'supplier:id,full_name,num_doc',
+                'currency:id,name,symbol',
+                'exchangeRate:id,rate'
+              ]);
             },
             'receivedByUser:id,name'
           ]);
@@ -1885,6 +1889,21 @@ class InventoryMovementService extends BaseService
       $reception = $detail->reception;
       $purchaseOrder = $reception?->purchaseOrder;
       $orderItem = $detail->purchaseOrderItem;
+
+      // Determinar tipo de cambio según la moneda
+      $currencyId = $purchaseOrder?->currency_id;
+      $exchangeRate = 1; // Por defecto 1 para soles
+
+      if ($currencyId == TypeCurrency::USD_ID) {
+        // Si es dólares, obtener el tipo de cambio
+        $exchangeRate = $purchaseOrder?->exchangeRate?->rate ?? 1;
+      }
+
+      // Calcular precios y totales en soles
+      $unitPrice = $orderItem?->unit_price ?? 0;
+      $totalLine = $orderItem?->total ?? ($detail->quantity_received * $unitPrice);
+      $unitPricePen = $unitPrice * $exchangeRate;
+      $totalLinePen = $totalLine * $exchangeRate;
 
       return [
         'id' => $detail->id,
@@ -1908,22 +1927,25 @@ class InventoryMovementService extends BaseService
           'name' => $purchaseOrder?->currency?->name,
           'symbol' => $purchaseOrder?->currency?->symbol,
         ],
-        'unit_price' => $orderItem?->unit_price ?? 0,
+        'unit_price' => $unitPrice,
+        'unit_price_pen' => round($unitPricePen, 2),
         'quantity_ordered' => $orderItem?->quantity ?? 0,
         'quantity_received' => $detail->quantity_received,
-        'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
+        'total_line' => round($totalLine, 2),
+        'total_line_pen' => round($totalLinePen, 2),
+        'exchange_rate' => $exchangeRate,
         'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
         'received_by' => $reception?->receivedByUser?->name,
         'notes' => $detail->notes,
       ];
     });
 
-    // Calculate summary statistics
+    // Calculate summary statistics (all in PEN - soles)
     $totalQuantity = $purchaseHistory->sum('quantity_received');
-    $totalAmount = $purchaseHistory->sum('total_line');
+    $totalAmount = $purchaseHistory->sum('total_line_pen');
     $averagePrice = $totalQuantity > 0 ? round($totalAmount / $totalQuantity, 2) : 0;
-    $minPrice = $purchaseHistory->min('unit_price') ?? 0;
-    $maxPrice = $purchaseHistory->max('unit_price') ?? 0;
+    $minPrice = $purchaseHistory->min('unit_price_pen') ?? 0;
+    $maxPrice = $purchaseHistory->max('unit_price_pen') ?? 0;
 
     return [
       'product' => [
