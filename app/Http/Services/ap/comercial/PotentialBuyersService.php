@@ -83,8 +83,9 @@ class PotentialBuyersService extends BaseService
 
       $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
-      if ($TypeDocument->code != $NumCharDoc) {
-        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+      if (!ApMasters::validateDocumentLength($TypeDocument->id, $NumCharDoc)) {
+        $desc = ApMasters::getDocumentLengthDescription($TypeDocument->id);
+        throw new Exception("El número de documento debe tener {$desc} caracteres para el tipo de documento seleccionado");
       }
 
       $businessPartner = PotentialBuyers::create($data);
@@ -107,8 +108,9 @@ class PotentialBuyersService extends BaseService
     try {
       $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
-      if ($TypeDocument->code != $NumCharDoc) {
-        throw new Exception("El número de documento debe tener {$TypeDocument->code} caracteres para el tipo de documento seleccionado");
+      if (!ApMasters::validateDocumentLength($TypeDocument->id, $NumCharDoc)) {
+        $desc = ApMasters::getDocumentLengthDescription($TypeDocument->id);
+        throw new Exception("El número de documento debe tener {$desc} caracteres para el tipo de documento seleccionado");
       }
 
       $businessPartner = $this->find($data['id']);
