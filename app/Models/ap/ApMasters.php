@@ -40,6 +40,8 @@ class ApMasters extends Model
   // NUMERO DE DIGITOS
   const int NUM_DIGITS_DNI = 8;
   const int NUM_DIGITS_RUC = 11;
+  const int NUM_DIGITS_CE_MIN = 9;
+  const int NUM_DIGITS_CE_MAX = 12;
   const int NUM_DIGITS_CE = 12;
   const int NUM_DIGITS_PASSPORT = 9;
   const int NUM_DIGITS_DEFAULT = 20;
@@ -48,13 +50,17 @@ class ApMasters extends Model
   const int CREDIT_NOTE_ID = 801;
   const int DEBIT_NOTE_ID = 802;
 
-  // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS
+  // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS EXACTOS
   const array DOCUMENT_TYPE_DIGITS = [
-    809 => self::NUM_DIGITS_DNI,   // DNI
-    810 => self::NUM_DIGITS_RUC,  // RUC
-    811 => self::NUM_DIGITS_CE,   // CE
-    973 => self::NUM_DIGITS_PASSPORT, // PASAPORTE
+    809 => self::NUM_DIGITS_DNI,
+    810 => self::NUM_DIGITS_RUC,
+    973 => self::NUM_DIGITS_PASSPORT,
     974 => self::NUM_DIGITS_DEFAULT,
+  ];
+
+  // TIPOS CON RANGO DE DIGITOS [min, max]
+  const array DOCUMENT_TYPE_DIGITS_RANGE = [
+    811 => [self::NUM_DIGITS_CE_MIN, self::NUM_DIGITS_CE_MAX],
   ];
 
   //  OPERATION TYPE
@@ -137,5 +143,25 @@ class ApMasters extends Model
   public static function getDigitsForDocumentType(int $documentTypeId): ?int
   {
     return self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
+  }
+
+  public static function validateDocumentLength(int $documentTypeId, int $length): bool
+  {
+    if (isset(self::DOCUMENT_TYPE_DIGITS_RANGE[$documentTypeId])) {
+      [$min, $max] = self::DOCUMENT_TYPE_DIGITS_RANGE[$documentTypeId];
+      return $length >= $min && $length <= $max;
+    }
+    $exact = self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
+    return $exact === null || $exact === $length;
+  }
+
+  public static function getDocumentLengthDescription(int $documentTypeId): string
+  {
+    if (isset(self::DOCUMENT_TYPE_DIGITS_RANGE[$documentTypeId])) {
+      [$min, $max] = self::DOCUMENT_TYPE_DIGITS_RANGE[$documentTypeId];
+      return "entre {$min} y {$max}";
+    }
+    $exact = self::DOCUMENT_TYPE_DIGITS[$documentTypeId] ?? null;
+    return $exact ? (string)$exact : 'válidos';
   }
 }
