@@ -1,0 +1,66 @@
+name: Deploy Backend to TEST Server
+on:
+  push:
+    branches: [ develop ]  # Se ejecuta cuando haces push a la rama "develop"
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: '¿Ejecutar migraciones?'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to TEST server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.TEST_HOST }}
+        username: ${{ secrets.TEST_USERNAME }}
+        password: ${{ secrets.TEST_PASSWORD }}
+        port: 22
+        timeout: 30s
+        command_timeout: 15m
+        script: |
+          set -e
+
+          cd /opt/milla-api-test/app
+
+          echo "📥 Pulling latest changes from develop..."
+          git pull origin develop
+
+          cd /opt/milla-api-test
+
+          echo "🐳 Rebuilding Docker..."
+          docker compose up -d --build --remove-orphans
+
+          echo "📦 Installing dependencies..."
+          docker compose exec -T app git config --global --add safe.directory /var/www/html
+          docker compose exec -T app composer install --no-dev --optimize-autoloader
+
+          if [ "${{ github.event.inputs.run_migrations }}" = "true" ]; then
+            echo "🗄️ Running migrations..."
+            docker compose exec -T app php artisan migrate --force
+          else
+            echo "⏭️ Skipping migrations..."
+          fi
+
+          echo "🧹 Clearing caches..."
+          docker compose exec -T app php artisan optimize:clear
+
+          echo "🔄 Regenerating autoload..."
+          docker compose exec -T app composer dump-autoload --optimize
+
+          echo "♻️ Restarting services..."
+          docker compose restart app
+          docker compose exec -T horizon php artisan horizon:terminate
+          docker compose exec -T app php artisan schedule:clear-cache
+          docker compose exec -T app php -r "if(function_exists('opcache_reset')) opcache_reset();"
+
+          echo "✅ Deploy to TEST completed successfully!"

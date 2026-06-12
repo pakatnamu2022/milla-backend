@@ -116,6 +116,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\WorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollRegisterController;
@@ -1837,6 +1838,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Insurances
     Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
     Route::apiResource('insurances', PayrollInsuranceController::class);
+
+    // Working Conditions
+    Route::post('working-conditions/import', [WorkingConditionController::class, 'import']);
+    Route::get('working-conditions', [WorkingConditionController::class, 'index']);
 
     // Loans
     Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
