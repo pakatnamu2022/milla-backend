@@ -14,8 +14,14 @@ class PayrollFamilyAllowanceService extends BaseService
 {
     public function list(Request $request)
     {
+        $query = PayrollFamilyAllowance::query()
+            ->join('gh_payroll_periods', 'gh_payroll_family_allowance.period_id', '=', 'gh_payroll_periods.id')
+            ->select('gh_payroll_family_allowance.*')
+            ->orderBy('gh_payroll_periods.year', 'desc')
+            ->orderBy('gh_payroll_periods.month', 'desc');
+
         return $this->getFilteredResults(
-            PayrollFamilyAllowance::class,
+            $query,
             $request,
             PayrollFamilyAllowance::filters,
             PayrollFamilyAllowance::sorts,

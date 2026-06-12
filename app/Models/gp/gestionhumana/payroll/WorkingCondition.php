@@ -30,6 +30,7 @@ class WorkingCondition extends BaseModel
     'worker_id' => '=',
     'period_id' => '=',
     'status' => '=',
+    'period.company_id' => '='
   ];
 
   const sorts = [
