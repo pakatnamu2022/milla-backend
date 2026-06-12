@@ -30,8 +30,11 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'license' => array_merge($baseResponse, [
         'data' => $this->formatLicenseResponse($providerResponse)
       ]),
-      'soat', 'ce' => array_merge($baseResponse, [
+      'soat' => array_merge($baseResponse, [
         'data' => $this->formatMigracionesResponse($providerResponse)
+      ]),
+      'ce' => array_merge($baseResponse, [
+        'data' => $this->formatCeResponse($providerResponse)
       ]),
       'plate' => array_merge($baseResponse, [
         'data' => $this->formatPlateResponse($providerResponse)
@@ -152,6 +155,24 @@ class StandardResponseFormatter implements ResponseFormatterInterface
       'license_number' => $data['numero_documento'] ?? null,
       'full_name' => $data['nombre_completo'] ?? null,
       'licencia' => $data['licencia'] ?? null,
+    ];
+  }
+
+  protected function formatCeResponse(array $response): ?array
+  {
+    if (!isset($response['message']) || strtolower($response['message']) !== 'exito') {
+      return null;
+    }
+
+    $data = $response['data'] ?? [];
+
+    return [
+      'valid' => true,
+      'document_number' => $data['numero'] ?? null,
+      'names' => trim(($data['apellido_paterno'] ?? '') . ' ' . ($data['apellido_materno'] ?? '') . ' ' . ($data['nombres'] ?? '')),
+      'first_name' => $data['nombres'] ?? null,
+      'paternal_surname' => $data['apellido_paterno'] ?? null,
+      'maternal_surname' => $data['apellido_materno'] ?? null,
     ];
   }
 

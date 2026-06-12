@@ -69,14 +69,9 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
 
   private function processRow(array $row, int $rowNumber): void
   {
-    // Omitir filas vacías (usando val() para ignorar celdas con solo espacios/formato)
-    $camposClave = array_filter([
-      $this->val($row['version_descripcion_del_modelo'] ?? null),
-      $this->val($row['familia'] ?? null),
-      $this->val($row['tipo_de_operacion'] ?? null),
-      $this->val($row['combustible'] ?? null),
-    ]);
-    if (empty($camposClave)) {
+    // Omitir filas sin número de secuencia (columna N° vacía o ≤0 = fila fantasma/vacía)
+    $nro = $row['n'] ?? null;
+    if (!is_numeric($nro) || (int) $nro <= 0) {
       return;
     }
 
