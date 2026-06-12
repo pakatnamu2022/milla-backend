@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -24,6 +25,7 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\gestionProductos\TransferReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -36,10 +38,12 @@ use Illuminate\Http\Request;
 class InventoryMovementService extends BaseService
 {
   protected $stockService;
+  protected $productsService;
 
-  public function __construct(ProductWarehouseStockService $stockService)
+  public function __construct(ProductWarehouseStockService $stockService, ProductsService $productsService)
   {
     $this->stockService = $stockService;
+    $this->productsService = $productsService;
   }
 
   public function list(Request $request)
@@ -422,8 +426,26 @@ class InventoryMovementService extends BaseService
         // Validate stock availability in origin warehouse (centralized)
         ProductWarehouseStock::validateStockAvailability($details, $transferData['warehouse_origin_id'], $this->stockService);
 
-        // Validate that all products have warehouse assignment in destination (centralized)
-        ProductWarehouseStock::validateProductsExistInWarehouse($details, $transferData['warehouse_destination_id'], $this->stockService);
+        // Auto-assign products to destination warehouse if they don't exist
+        foreach ($details as $detail) {
+          // Skip if it's a service (no product_id)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          // Check if product already exists in destination warehouse
+          $existingStock = ProductWarehouseStock::where('product_id', $detail['product_id'])
+            ->where('warehouse_id', $transferData['warehouse_destination_id'])
+            ->first();
+
+          // If product doesn't exist in destination warehouse, auto-assign it
+          if (!$existingStock) {
+            $this->productsService->assignToWarehouse([
+              'product_id' => $detail['product_id'],
+              'warehouse_id' => $transferData['warehouse_destination_id']
+            ]);
+          }
+        }
       } else {
         // Para SERVICIO: intentar obtener almacenes si existen, pero permitir null
         // Transmitter siempre tiene sede, intentar obtener su almacén
@@ -1301,6 +1323,9 @@ class InventoryMovementService extends BaseService
         }
       }
 
+      // Intentar obtener la factura final si existe
+      $finalInvoice = $quotation->getFinalInvoice();
+
       // Create movement header
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
@@ -1309,6 +1334,7 @@ class InventoryMovementService extends BaseService
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApOrderQuotations::class,
         'reference_id' => $quotation->id,
+        'electronic_document_id' => $finalInvoice?->id,
         'user_id' => $quotation->created_by ?? Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
         'notes' => "Salida por venta - Cotización {$quotation->quotation_number}",
@@ -1326,7 +1352,7 @@ class InventoryMovementService extends BaseService
           'product_id' => $detail->product_id,
           'quantity' => $detail->quantity,
           'unit_cost' => $detail->unit_price,
-          'total_cost' => $detail->total_amount,
+          'total_cost' => $detail->total_cost,
           'notes' => "Venta cotización {$quotation->quotation_number} - {$detail->description}",
         ]);
 
@@ -1463,9 +1489,13 @@ class InventoryMovementService extends BaseService
   }
 
   /**
-   * Create RETURN_IN movement from Credit Note for Work Order
+   * Create RETURN_IN movement for Work Order
    *
-   * @param ElectronicDocument $creditNote - The credit note document
+   * Handles both scenarios:
+   * 1. Credit note (NC): Returns stock due to a credit note
+   * 2. Invoice cancellation: Returns stock due to cancelled invoice
+   *
+   * @param ElectronicDocument|null $relatedDocument - Credit note OR cancelled invoice (null for legacy)
    * @param ApWorkOrder $workOrder - The work order
    * @param array|null $itemsToReturn - Optional array of items to return (for partial returns)
    *                                    Format: [['product_id' => 1, 'quantity' => 2], ...]
@@ -1473,7 +1503,7 @@ class InventoryMovementService extends BaseService
    * @return InventoryMovement
    * @throws Exception
    */
-  public function createReturnMovementFromCreditNote($creditNote, $workOrder, $itemsToReturn = null): InventoryMovement
+  public function createReturnMovementForWorkOrder($relatedDocument, $workOrder, $itemsToReturn = null): InventoryMovement
   {
     DB::beginTransaction();
     try {
@@ -1487,31 +1517,55 @@ class InventoryMovementService extends BaseService
         throw new Exception('No se encontró almacén asociado a la sede de la orden de trabajo');
       }
 
-      // Determine credit note type description
-      $creditNoteTypeDescription = 'Desconocido';
-      if ($creditNote->sunat_concept_credit_note_type_id == 68) { // ID_CREDIT_NOTE_ANULACION
-        $creditNoteTypeDescription = 'Anulación de operación';
-      } elseif ($creditNote->sunat_concept_credit_note_type_id == 73) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
-        $creditNoteTypeDescription = 'Devolución total';
-      } elseif ($creditNote->sunat_concept_credit_note_type_id == 74) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
-        $creditNoteTypeDescription = 'Devolución por ítem';
+      // Determine document type and description
+      $isCreditNote = $relatedDocument && $relatedDocument->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+      $description = 'Cancelación de factura';
+
+      if ($isCreditNote) {
+        $description = 'Desconocido';
+        if ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_ANULACION) { // ID_CREDIT_NOTE_ANULACION
+          $description = 'Anulación de operación';
+        } elseif ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
+          $description = 'Devolución total';
+        } elseif ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_ITEM) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
+          $description = 'Devolución por ítem';
+        }
       }
 
-      // Create return movement header
-      $movement = InventoryMovement::create([
+      // Prepare movement data
+      $movementData = [
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_RETURN_IN,
         'movement_date' => now(),
         'warehouse_id' => $warehouse->id,
-        'reference_type' => ElectronicDocument::class,
-        'reference_id' => $creditNote->id,
-        'electronic_document_id' => $creditNote->id,
         'user_id' => Auth::id(),
         'status' => InventoryMovement::STATUS_APPROVED,
-        'notes' => "Devolución por NC {$creditNote->full_number} - {$creditNoteTypeDescription} - {$workOrder->correlative}",
         'total_items' => 0,
         'total_quantity' => 0,
-      ]);
+      ];
+
+      // Configure references based on document type
+      if ($isCreditNote) {
+        // Credit note scenario
+        $movementData['reference_type'] = ElectronicDocument::class;
+        $movementData['reference_id'] = $relatedDocument->id;
+        $movementData['electronic_document_id'] = $relatedDocument->id;
+        $movementData['notes'] = "Devolución por NC {$relatedDocument->full_number} - {$description} - {$workOrder->correlative}";
+      } elseif ($relatedDocument) {
+        // Invoice cancellation scenario
+        $movementData['reference_type'] = ApWorkOrder::class;
+        $movementData['reference_id'] = $workOrder->id;
+        $movementData['electronic_document_id'] = $relatedDocument->id; // Factura cancelada
+        $movementData['notes'] = "Devolución por cancelación de factura {$relatedDocument->full_number} - {$workOrder->correlative}";
+      } else {
+        // Legacy scenario (no document provided)
+        $movementData['reference_type'] = ApWorkOrder::class;
+        $movementData['reference_id'] = $workOrder->id;
+        $movementData['notes'] = "Devolución por {$description} - {$workOrder->correlative}";
+      }
+
+      // Create return movement header
+      $movement = InventoryMovement::create($movementData);
 
       // Create movement details
       $totalItems = 0;
@@ -1522,13 +1576,21 @@ class InventoryMovementService extends BaseService
         $productParts = $workOrder->parts->where('product_id', '!=', null);
 
         foreach ($productParts as $part) {
+          if ($isCreditNote) {
+            $detailNotes = "Devolución NC {$relatedDocument->full_number} - {$part->product->name}";
+          } elseif ($relatedDocument) {
+            $detailNotes = "Devolución por cancelación de factura {$relatedDocument->full_number} - {$part->product->name}";
+          } else {
+            $detailNotes = "Devolución - {$part->product->name}";
+          }
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $part->product_id,
             'quantity' => $part->quantity_used,
             'unit_cost' => $part->unit_price,
             'total_cost' => $part->net_amount,
-            'notes' => "Devolución NC {$creditNote->full_number} - {$part->product->name}",
+            'notes' => $detailNotes,
           ]);
 
           $totalItems++;
@@ -1543,11 +1605,19 @@ class InventoryMovementService extends BaseService
 
           if (!$part) {
             Log::warning('Producto no encontrado en OT para crear detalle de devolución', [
-              'credit_note_id' => $creditNote->id,
+              'related_document_id' => $relatedDocument->id ?? null,
               'work_order_id' => $workOrder->id,
               'product_id' => $item['product_id'],
             ]);
             continue;
+          }
+
+          if ($isCreditNote) {
+            $detailNotes = "Devolución parcial NC {$relatedDocument->full_number} - {$part->product->name}";
+          } elseif ($relatedDocument) {
+            $detailNotes = "Devolución parcial por cancelación de factura {$relatedDocument->full_number} - {$part->product->name}";
+          } else {
+            $detailNotes = "Devolución parcial - {$part->product->name}";
           }
 
           InventoryMovementDetail::create([
@@ -1556,7 +1626,7 @@ class InventoryMovementService extends BaseService
             'quantity' => $item['quantity'],
             'unit_cost' => $part->unit_price,
             'total_cost' => $part->unit_price * $item['quantity'],
-            'notes' => "Devolución parcial NC {$creditNote->full_number} - {$part->product->name}",
+            'notes' => $detailNotes,
           ]);
 
           $totalItems++;
@@ -1586,6 +1656,170 @@ class InventoryMovementService extends BaseService
     }
   }
 
+  /**
+   * Crear movimiento de devolución para una cotización
+   *
+   * @param ElectronicDocument|null $relatedDocument Nota de crédito o factura cancelada
+   * @param ApOrderQuotations $quotation Cotización relacionada
+   * @param array|null $itemsToReturn Array de items a devolver [{product_id, quantity}] o null para devolución total
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createReturnMovementForQuotation($relatedDocument, $quotation, $itemsToReturn = null): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      // Get warehouse from sede
+      $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
+        ->where('is_physical_warehouse', true)
+        ->where('status', true)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén asociado a la sede de la cotización');
+      }
+
+      // Determine document type and description
+      $isCreditNote = $relatedDocument && $relatedDocument->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+      $description = 'Cancelación de factura';
+
+      if ($isCreditNote) {
+        $description = 'Desconocido';
+        if ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_ANULACION) { // ID_CREDIT_NOTE_ANULACION
+          $description = 'Anulación de operación';
+        } elseif ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL) { // ID_CREDIT_NOTE_DEVOLUCION_TOTAL
+          $description = 'Devolución total';
+        } elseif ($relatedDocument->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_ITEM) { // ID_CREDIT_NOTE_DEVOLUCION_ITEM
+          $description = 'Devolución por ítem';
+        }
+      }
+
+      // Prepare movement data
+      $movementData = [
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_RETURN_IN,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ];
+
+      // Configure references based on document type
+      if ($isCreditNote) {
+        // Credit note scenario
+        $movementData['reference_type'] = ElectronicDocument::class;
+        $movementData['reference_id'] = $relatedDocument->id;
+        $movementData['electronic_document_id'] = $relatedDocument->id;
+        $movementData['notes'] = "Devolución por NC {$relatedDocument->full_number} - {$description} - {$quotation->quotation_number}";
+      } elseif ($relatedDocument) {
+        // Invoice cancellation scenario
+        $movementData['reference_type'] = ApOrderQuotations::class;
+        $movementData['reference_id'] = $quotation->id;
+        $movementData['electronic_document_id'] = $relatedDocument->id; // Factura cancelada
+        $movementData['notes'] = "Devolución por cancelación de factura {$relatedDocument->full_number} - Cotización {$quotation->quotation_number}";
+      } else {
+        // Legacy scenario (no document provided)
+        $movementData['reference_type'] = ApOrderQuotations::class;
+        $movementData['reference_id'] = $quotation->id;
+        $movementData['notes'] = "Devolución por {$description} - Cotización {$quotation->quotation_number}";
+      }
+
+      // Create return movement header
+      $movement = InventoryMovement::create($movementData);
+
+      // Create movement details
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      if ($itemsToReturn === null) {
+        // Full return - return ALL products from quotation (only PRODUCT type, not LABOR)
+        $productDetails = $quotation->details->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+          ->where('product_id', '!=', null);
+
+        foreach ($productDetails as $detail) {
+          if ($isCreditNote) {
+            $detailNotes = "Devolución NC {$relatedDocument->full_number} - {$detail->product->name}";
+          } elseif ($relatedDocument) {
+            $detailNotes = "Devolución por cancelación de factura {$relatedDocument->full_number} - {$detail->product->name}";
+          } else {
+            $detailNotes = "Devolución - {$detail->product->name}";
+          }
+
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $movement->id,
+            'product_id' => $detail->product_id,
+            'quantity' => $detail->quantity,
+            'unit_cost' => $detail->unit_price,
+            'total_cost' => $detail->total_cost,
+            'notes' => $detailNotes,
+          ]);
+
+          $totalItems++;
+          $totalQuantity += $detail->quantity;
+        }
+      } else {
+        // Partial return - return only specified items
+        foreach ($itemsToReturn as $item) {
+          $detail = $quotation->details()
+            ->where('product_id', $item['product_id'])
+            ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+            ->first();
+
+          if (!$detail) {
+            Log::warning('Producto no encontrado en cotización para crear detalle de devolución', [
+              'related_document_id' => $relatedDocument->id ?? null,
+              'quotation_id' => $quotation->id,
+              'product_id' => $item['product_id'],
+            ]);
+            continue;
+          }
+
+          if ($isCreditNote) {
+            $detailNotes = "Devolución parcial NC {$relatedDocument->full_number} - {$detail->product->name}";
+          } elseif ($relatedDocument) {
+            $detailNotes = "Devolución parcial por cancelación de factura {$relatedDocument->full_number} - {$detail->product->name}";
+          } else {
+            $detailNotes = "Devolución parcial - {$detail->product->name}";
+          }
+
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $movement->id,
+            'product_id' => $item['product_id'],
+            'quantity' => $item['quantity'],
+            'unit_cost' => $detail->unit_price,
+            'total_cost' => $detail->unit_price * $item['quantity'],
+            'notes' => $detailNotes,
+          ]);
+
+          $totalItems++;
+          $totalQuantity += $item['quantity'];
+        }
+      }
+
+      // Update movement totals
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update stock automatically (adds stock back to warehouse)
+      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      Log::error('Error al crear movimiento de devolución para cotización', [
+        'related_document_id' => $relatedDocument->id ?? null,
+        'quotation_id' => $quotation->id ?? null,
+        'error' => $e->getMessage(),
+      ]);
+      throw $e;
+    }
+  }
+
   public function getProductPurchaseHistory(int $productId, int $warehouseId, Request $request): array
   {
     // Validate product exists
@@ -1605,7 +1839,7 @@ class InventoryMovementService extends BaseService
       ->where('product_id', $productId)
       ->whereHas('reception', function ($q) use ($warehouseId, $request) {
         $q->where('warehouse_id', $warehouseId)
-          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+          ->where('status', 'APPROVED');
 
         // Apply date filters on reception_date
         if ($request->has('date_from')) {
@@ -1629,7 +1863,11 @@ class InventoryMovementService extends BaseService
         'reception' => function ($q) {
           $q->with([
             'purchaseOrder' => function ($q) {
-              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+              $q->with([
+                'supplier:id,full_name,num_doc',
+                'currency:id,name,symbol',
+                'exchangeRate:id,rate'
+              ]);
             },
             'receivedByUser:id,name'
           ]);
@@ -1651,6 +1889,21 @@ class InventoryMovementService extends BaseService
       $reception = $detail->reception;
       $purchaseOrder = $reception?->purchaseOrder;
       $orderItem = $detail->purchaseOrderItem;
+
+      // Determinar tipo de cambio según la moneda
+      $currencyId = $purchaseOrder?->currency_id;
+      $exchangeRate = 1; // Por defecto 1 para soles
+
+      if ($currencyId == TypeCurrency::USD_ID) {
+        // Si es dólares, obtener el tipo de cambio
+        $exchangeRate = $purchaseOrder?->exchangeRate?->rate ?? 1;
+      }
+
+      // Calcular precios y totales en soles
+      $unitPrice = $orderItem?->unit_price ?? 0;
+      $totalLine = $orderItem?->total ?? ($detail->quantity_received * $unitPrice);
+      $unitPricePen = $unitPrice * $exchangeRate;
+      $totalLinePen = $totalLine * $exchangeRate;
 
       return [
         'id' => $detail->id,
@@ -1674,22 +1927,25 @@ class InventoryMovementService extends BaseService
           'name' => $purchaseOrder?->currency?->name,
           'symbol' => $purchaseOrder?->currency?->symbol,
         ],
-        'unit_price' => $orderItem?->unit_price ?? 0,
+        'unit_price' => $unitPrice,
+        'unit_price_pen' => round($unitPricePen, 2),
         'quantity_ordered' => $orderItem?->quantity ?? 0,
         'quantity_received' => $detail->quantity_received,
-        'total_line' => $orderItem?->total ?? ($detail->quantity_received * ($orderItem?->unit_price ?? 0)),
+        'total_line' => round($totalLine, 2),
+        'total_line_pen' => round($totalLinePen, 2),
+        'exchange_rate' => $exchangeRate,
         'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
         'received_by' => $reception?->receivedByUser?->name,
         'notes' => $detail->notes,
       ];
     });
 
-    // Calculate summary statistics
+    // Calculate summary statistics (all in PEN - soles)
     $totalQuantity = $purchaseHistory->sum('quantity_received');
-    $totalAmount = $purchaseHistory->sum('total_line');
+    $totalAmount = $purchaseHistory->sum('total_line_pen');
     $averagePrice = $totalQuantity > 0 ? round($totalAmount / $totalQuantity, 2) : 0;
-    $minPrice = $purchaseHistory->min('unit_price') ?? 0;
-    $maxPrice = $purchaseHistory->max('unit_price') ?? 0;
+    $minPrice = $purchaseHistory->min('unit_price_pen') ?? 0;
+    $maxPrice = $purchaseHistory->max('unit_price_pen') ?? 0;
 
     return [
       'product' => [

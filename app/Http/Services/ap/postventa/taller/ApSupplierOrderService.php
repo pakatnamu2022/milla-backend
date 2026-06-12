@@ -27,11 +27,11 @@ use Illuminate\Support\Facades\DB;
 
 class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 {
-  protected EmailService $emailService;
+  protected ?EmailService $emailService;
 
-  public function __construct(EmailService $emailService)
+  public function __construct(?EmailService $emailService = null)
   {
-    $this->emailService = $emailService;
+    $this->emailService = $emailService ?? new EmailService();
   }
 
   public function list(Request $request)
@@ -155,6 +155,8 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       // OPCIONAL: Vincular solicitudes si se proporcionan
       if (isset($data['request_detail_ids']) && !empty($data['request_detail_ids'])) {
+        // Validar que las fechas de solicitud no sean mayores a la fecha del pedido
+        $this->validateRequestDates($data['request_detail_ids'], $data['order_date']);
         $this->linkPurchaseRequests($supplierOrder, $data['request_detail_ids']);
       }
 
@@ -162,6 +164,15 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       if (!empty($details)) {
         foreach ($details as $detail) {
           $detail['ap_supplier_order_id'] = $supplierOrder->id;
+
+          // Obtener unit_measurement_id desde el producto si no viene en el request
+          if (!isset($detail['unit_measurement_id'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product && $product->unit_measurement_id) {
+              $detail['unit_measurement_id'] = $product->unit_measurement_id;
+            }
+          }
+
           ApSupplierOrderDetails::create($detail);
         }
       }
@@ -267,8 +278,34 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         // Create new details
         foreach ($details as $detail) {
           $detail['ap_supplier_order_id'] = $supplierOrder->id;
+
+          // Obtener unit_measurement_id desde el producto si no viene en el request
+          if (!isset($detail['unit_measurement_id'])) {
+            $product = Products::find($detail['product_id']);
+            if ($product && $product->unit_measurement_id) {
+              $detail['unit_measurement_id'] = $product->unit_measurement_id;
+            }
+          }
+
           ApSupplierOrderDetails::create($detail);
         }
+      }
+
+      // Validar fechas de solicitudes vinculadas si se cambia order_date
+      if (isset($data['order_date']) && $data['order_date'] !== $supplierOrder->order_date) {
+        // Obtener IDs de solicitudes ya vinculadas
+        $linkedRequestDetailIds = $supplierOrder->requestDetails()->pluck('ap_order_purchase_request_details.id')->toArray();
+
+        if (!empty($linkedRequestDetailIds)) {
+          // Validar que las solicitudes vinculadas sigan siendo válidas con la nueva fecha
+          $this->validateRequestDates($linkedRequestDetailIds, $data['order_date']);
+        }
+      }
+
+      // OPCIONAL: Validar nuevas solicitudes si se proporcionan (caso raro en update)
+      if (isset($data['request_detail_ids']) && !empty($data['request_detail_ids'])) {
+        $orderDate = $data['order_date'] ?? $supplierOrder->order_date;
+        $this->validateRequestDates($data['request_detail_ids'], $orderDate);
       }
 
       // Update supplier order
@@ -339,6 +376,54 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         'details.unitMeasurement'
       ]))
     ]);
+  }
+
+  /**
+   * Valida que las fechas de solicitud de compra no sean mayores a la fecha del pedido
+   *
+   * @param array $requestDetailIds
+   * @param string $orderDate
+   * @return void
+   * @throws Exception
+   */
+  protected function validateRequestDates(array $requestDetailIds, string $orderDate): void
+  {
+    if (empty($requestDetailIds)) {
+      return;
+    }
+
+    // Obtener las solicitudes de compra relacionadas con los detalles
+    $requestHeaders = DB::table('ap_order_purchase_request_details as details')
+      ->join('ap_order_purchase_requests as requests', 'details.order_purchase_request_id', '=', 'requests.id')
+      ->whereIn('details.id', $requestDetailIds)
+      ->select('requests.id', 'requests.request_number', 'requests.requested_date')
+      ->distinct()
+      ->get();
+
+    $orderDateCarbon = Carbon::parse($orderDate)->startOfDay();
+    $invalidRequests = [];
+
+    foreach ($requestHeaders as $request) {
+      $requestedDateCarbon = Carbon::parse($request->requested_date)->startOfDay();
+
+      // Validar que la fecha de solicitud no sea mayor a la fecha del pedido
+      if ($requestedDateCarbon->greaterThan($orderDateCarbon)) {
+        $invalidRequests[] = sprintf(
+          'Solicitud %s (Fecha: %s)',
+          $request->request_number,
+          $requestedDateCarbon->format('d/m/Y')
+        );
+      }
+    }
+
+    if (!empty($invalidRequests)) {
+      throw new Exception(
+        'Las siguientes solicitudes de compra tienen fechas posteriores a la fecha del pedido (' .
+        $orderDateCarbon->format('d/m/Y') . '): ' .
+        implode(', ', $invalidRequests) .
+        '. La fecha de solicitud debe ser igual o anterior a la fecha del pedido.'
+      );
+    }
   }
 
   protected function linkPurchaseRequests(ApSupplierOrder $apSupplierOrder, array $requestDetailIds): void

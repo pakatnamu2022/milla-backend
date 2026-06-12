@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -1056,11 +1057,11 @@ class ProductWarehouseStockService extends BaseService
    * @throws Exception
    */
   public function removeStockFromCreditNote(
-    int    $productId,
-    int    $warehouseId,
-    float  $quantity,
-    float  $unitCostToReverse,
-    bool   $fromPendingCreditNote = true
+    int   $productId,
+    int   $warehouseId,
+    float $quantity,
+    float $unitCostToReverse,
+    bool  $fromPendingCreditNote = true
   ): ProductWarehouseStock
   {
     DB::beginTransaction();
@@ -1221,19 +1222,17 @@ class ProductWarehouseStockService extends BaseService
         ->with(['product', 'warehouse'])
         ->firstOrFail();
 
-      // Get ONLY movements that are relevant for average cost analysis
+      // Get ONLY PURCHASE_RECEPTION movements with APPROVED status
+      // AND where the referenced PurchaseReception also has APPROVED status
       // Ordered by CHRONOLOGICAL DATE (movement_date)
       $movements = InventoryMovement::whereHas('details', function ($q) use ($productId) {
         $q->where('product_id', $productId);
       })
         ->where('warehouse_id', $warehouseId)
         ->where('status', InventoryMovement::STATUS_APPROVED)
-        // Filter by movement types relevant for cost analysis
-        ->where(function ($query) {
-          $query->where('movement_type', InventoryMovement::TYPE_PURCHASE_RECEPTION)
-                ->orWhere('movement_type', InventoryMovement::TYPE_ADJUSTMENT_IN)
-                ->orWhere('movement_type', InventoryMovement::TYPE_ADJUSTMENT_OUT)
-                ->orWhere('movement_type', InventoryMovement::TYPE_SALE);
+        ->where('movement_type', InventoryMovement::TYPE_PURCHASE_RECEPTION)
+        ->whereHasMorph('reference', [PurchaseReception::class], function ($q) {
+          $q->where('status', 'APPROVED');
         })
         ->with(['details' => function ($q) use ($productId) {
           $q->where('product_id', $productId);
@@ -1292,7 +1291,7 @@ class ProductWarehouseStockService extends BaseService
         }
 
         // Determine movement type label
-        $movementTypeLabel = match($movement->movement_type) {
+        $movementTypeLabel = match ($movement->movement_type) {
           InventoryMovement::TYPE_PURCHASE_RECEPTION => 'Recepción de Compra',
           InventoryMovement::TYPE_ADJUSTMENT_IN => 'Ajuste de Entrada',
           InventoryMovement::TYPE_ADJUSTMENT_OUT => 'Ajuste de Salida',

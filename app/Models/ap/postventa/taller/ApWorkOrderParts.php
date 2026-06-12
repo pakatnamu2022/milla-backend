@@ -26,8 +26,8 @@ class ApWorkOrderParts extends Model
     'unit_price',
     'discount_percentage',
     'total_cost',
-    'tax_amount',
     'net_amount',
+    'tax_amount',
     'registered_by',
   ];
 
@@ -37,8 +37,8 @@ class ApWorkOrderParts extends Model
     'unit_price' => 'decimal:2',
     'discount_percentage' => 'decimal:2',
     'total_cost' => 'decimal:2',
-    'tax_amount' => 'decimal:2',
     'net_amount' => 'decimal:2',
+    'tax_amount' => 'decimal:2',
   ];
 
   const filters = [

@@ -597,6 +597,7 @@ class ApVehicleInspectionService extends BaseService
     }
 
     $workOrder->update([
+      'vehicle_inspection_id' => null,
       'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
     ]);
 

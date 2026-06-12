@@ -44,6 +44,9 @@ class ApSupplierOrder extends Model
   protected $casts = [
     'status' => 'boolean',
     'discarded_at' => 'datetime',
+    'net_amount' => 'decimal:2',
+    'tax_amount' => 'decimal:2',
+    'total_amount' => 'decimal:2',
   ];
 
   const filters = [

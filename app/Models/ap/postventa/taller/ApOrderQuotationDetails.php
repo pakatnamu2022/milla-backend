@@ -24,7 +24,9 @@ class ApOrderQuotationDetails extends Model
     'unit_measure',
     'unit_price',
     'discount_percentage',
-    'total_amount',
+    'total_cost', //total_amount
+    'net_amount',
+    'tax_amount',
     'observations',
     'retail_price_external',
     'exchange_rate',
@@ -45,8 +47,15 @@ class ApOrderQuotationDetails extends Model
     'id',
     'unit_price',
     'quantity',
-    'total_amount',
+    'total_cost',
     'created_at',
+  ];
+
+  protected $casts = [
+    'discount_percentage' => 'decimal:2',
+    'total_cost' => 'decimal:2',
+    'net_amount' => 'decimal:2',
+    'tax_amount' => 'decimal:2',
   ];
 
   const ITEM_TYPE_PRODUCT = 'PRODUCT';

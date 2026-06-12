@@ -89,51 +89,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   {
     $modelVn = $this->find($data['id']);
 
-    if ($modelVn->type_operation_id != $data['type_operation_id']) {
-      throw new Exception('No puedes editar una marca que no corresponde al modulo respectivo.');
-    }
-
-    if ($data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
-      $familyId = $data['family_id'] ?? null;
-      $modelYear = $data['model_year'] ?? null;
-
-      $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
-      $anioChanged = $modelYear !== null && $modelVn->model_year != $modelYear;
-      $versionChanged = isset($data['version']) && $modelVn->version != $data['version'];
-
-      if ($familiaChanged || $anioChanged || $versionChanged) {
-        $existe = ApModelsVn::where('family_id', $familyId ?? $modelVn->family_id)
-          ->where('model_year', $modelYear ?? $modelVn->model_year)
-          ->where('version', $data['version'] ?? $modelVn->version)
-          ->where('id', '!=', $data['id'])
-          ->whereNull('deleted_at')
-          ->exists();
-
-        if ($existe) {
-          throw new Exception('Ya existe un modelo con esa familia y año.');
-        }
-
-        // Generate new code using model method (separates correlatives by operation type)
-        $data['code'] = ApModelsVn::generateNextCode(
-          $familyId ?? $modelVn->family_id,
-          $modelYear ?? $modelVn->model_year,
-          $modelVn->type_operation_id
-        );
-      }
-    } else {
-      $familyId = $data['family_id'] ?? null;
-      $familiaChanged = $familyId !== null && $modelVn->family_id != $familyId;
-
-      if ($familiaChanged) {
-        // Generate new code using model method (separates correlatives by operation type)
-        $data['code'] = ApModelsVn::generateNextCode(
-          $familyId,
-          date('Y'),
-          $modelVn->type_operation_id
-        );
-      }
-    }
-
+    // Los campos inmutables (code, family_id, model_year, type_operation_id)
+    // ya están bloqueados en el Request y no llegarán aquí
     $modelVn->update($data);
 
     // Invalidar caché

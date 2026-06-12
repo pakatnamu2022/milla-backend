@@ -10,14 +10,6 @@ class UpdateApModelsVnRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'code' => [
-        'nullable',
-        'max:50',
-        Rule::unique('ap_models_vn', 'code')
-          ->where('type_operation_id', $this->input('type_operation_id'))
-          ->ignore($this->route('modelsVn'))
-          ->whereNull('deleted_at'),
-      ],
       'version' => [
         'nullable',
         'max:255',
@@ -25,12 +17,6 @@ class UpdateApModelsVnRequest extends StoreRequest
       'power' => [
         'nullable',
         'max:50',
-      ],
-      'model_year' => [
-        'nullable',
-        'integer',
-        'min:1900',
-        'max:' . (date('Y') + 5),
       ],
       'wheelbase' => [
         'nullable',
@@ -142,11 +128,6 @@ class UpdateApModelsVnRequest extends StoreRequest
         'min:0',
         'max:9999999999.99',
       ],
-      'family_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_families,id',
-      ],
       'class_id' => [
         'nullable',
         'integer',
@@ -182,11 +163,6 @@ class UpdateApModelsVnRequest extends StoreRequest
         'integer',
         'exists:type_currency,id',
       ],
-      'type_operation_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
       'status' => ['nullable', 'boolean']
     ];
   }
@@ -194,10 +170,8 @@ class UpdateApModelsVnRequest extends StoreRequest
   public function attributes()
   {
     return [
-      'code' => 'código',
       'version' => 'versión',
       'power' => 'potencia',
-      'model_year' => 'año del modelo',
       'wheelbase' => 'distancia entre ejes',
       'axles_number' => 'número de ejes',
       'width' => 'ancho',
@@ -222,7 +196,6 @@ class UpdateApModelsVnRequest extends StoreRequest
       'sale_price' => 'precio de venta',
       'margin' => 'margen',
       // Relaciones
-      'family_id' => 'familia',
       'class_id' => 'clase',
       'fuel_id' => 'combustible',
       'vehicle_type_id' => 'tipo de vehículo',
@@ -230,7 +203,6 @@ class UpdateApModelsVnRequest extends StoreRequest
       'traction_type_id' => 'tipo de tracción',
       'transmission_id' => 'transmisión',
       'currency_type_id' => 'tipo de moneda',
-      'type_operation_id' => 'tipo de operación',
     ];
   }
 }

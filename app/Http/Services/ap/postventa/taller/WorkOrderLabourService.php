@@ -262,6 +262,9 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     } else {
       $data['net_amount'] = $costBase;
     }
+
+    // Calcular tax_amount (IGV del 18% sobre net_amount)
+    $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
   }
 
   /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\compras;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\compras\IndexPurchaseOrderRequest;
 use App\Http\Requests\ap\compras\ResendPurchaseOrderRequest;
+use App\Http\Requests\ap\compras\ResendPurchaseOrderPostventaRequest;
 use App\Http\Requests\ap\compras\StorePurchaseOrderRequest;
 use App\Http\Requests\ap\compras\UpdatePurchaseOrderRequest;
 use App\Http\Services\ap\compras\PurchaseOrderService;
@@ -83,6 +84,19 @@ class PurchaseOrderController extends Controller
   {
     try {
       return $this->success($this->service->resend($request->all(), $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Reenvía una orden de compra para postventa
+   * Clona la recepción asociada y crea nueva OC con asterisco (*)
+   */
+  public function resendPostventa(ResendPurchaseOrderPostventaRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->resendPostventa($request->validated(), $id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -24,6 +24,12 @@ class ApSupplierOrderDetails extends Model
     'total',
   ];
 
+  protected $casts = [
+    'unit_price' => 'decimal:2',
+    'quantity' => 'decimal:2',
+    'total' => 'decimal:2',
+  ];
+
   const filters = [
     'ap_supplier_order_id' => '=',
     'product_id' => '=',

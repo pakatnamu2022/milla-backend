@@ -10,6 +10,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
@@ -76,7 +77,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       }
 
       // Generate reception number
-      $data['reception_number'] = $this->generateReceptionNumber();
+      $data['reception_number'] = PurchaseReception::generateNextReceptionNumber();
 
       // Set received by if not provided
       $data['received_by'] = Auth::id();
@@ -130,11 +131,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // ACTUALIZAR RECEPTION_TYPE DEL ApSupplierOrder
       $this->updateSupplierOrderReceptionType($supplierOrder);
-
-      // OPCIONAL: Notificar usuarios si la orden tiene solicitudes vinculadas
-      if ($reception->supplierOrder) {
-        $this->notifyRequestUsers($reception->supplierOrder);
-      }
 
       DB::commit();
       return new PurchaseReceptionResource($reception->load([
@@ -212,7 +208,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // VALIDACIÓN: No permitir eliminar si ya tiene PurchaseOrder (factura) asociada
       if ($reception->purchase_order_id) {
-        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada ya sea activa o anulada. Debe anular la recepción.');
+        throw new Exception('No se puede eliminar una recepción que ya tiene una factura asociada ya sea activa o anulada.');
       }
 
       // Obtener el supplier order antes de eliminar
@@ -318,26 +314,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  protected function generateReceptionNumber()
-  {
-    $year = date('Y');
-    $lastReception = PurchaseReception::withTrashed()
-      ->whereYear('created_at', $year)
-      ->orderBy('id', 'desc')
-      ->first();
-
-    $correlative = 1;
-    if ($lastReception) {
-      // Extract number from REC-2025-0001
-      $parts = explode('-', $lastReception->reception_number);
-      if (count($parts) === 3) {
-        $correlative = intval($parts[2]) + 1;
-      }
-    }
-
-    return sprintf('REC-%s-%04d', $year, $correlative);
-  }
-
   public function getByPurchaseOrder($purchaseOrderId)
   {
     $receptions = PurchaseReception::where('purchase_order_id', $purchaseOrderId)
@@ -347,7 +323,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     return PurchaseReceptionResource::collection($receptions);
   }
 
-  protected function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
+  public function notifyRequestUsers(ApSupplierOrder $supplierOrder): void
   {
     $requestDetailsCount = $supplierOrder->requestDetails()->count();
 
@@ -492,6 +468,14 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
     $this->markRequestDetailsAsReceived($purchaseOrder);
+
+    // 10. Notificar usuarios si es POSTVENTA y tiene solicitudes vinculadas
+    if ($purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+      $reception = $purchaseOrder->reception;
+      if ($reception->supplierOrder) {
+        $this->notifyRequestUsers($reception->supplierOrder);
+      }
+    }
   }
 
   protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void
@@ -546,7 +530,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
    */
   protected function updateSupplierOrderReceptionType(ApSupplierOrder $supplierOrder): void
   {
-    $supplierOrderService = new ApSupplierOrderService(new EmailService());
+    $supplierOrderService = new ApSupplierOrderService();
     $supplierOrderService->updateReceptionType($supplierOrder);
   }
 }

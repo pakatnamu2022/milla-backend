@@ -186,8 +186,8 @@ class ProductWarehouseStock extends Model
    * Valida que no haya productos duplicados en un array de detalles de transferencia
    *
    * @param array $details Array de detalles con product_id
-   * @throws \Exception Si hay productos duplicados
    * @return void
+   * @throws \Exception Si hay productos duplicados
    */
   public static function validateUniqueProducts(array $details): void
   {
@@ -222,8 +222,8 @@ class ProductWarehouseStock extends Model
    * @param array $details Array de detalles con product_id y quantity
    * @param int $warehouseId ID del almacén a validar
    * @param object $stockService Instancia del servicio de stock
-   * @throws \Exception Si no hay stock suficiente para algún producto
    * @return void
+   * @throws \Exception Si no hay stock suficiente para algún producto
    */
   public static function validateStockAvailability(array $details, int $warehouseId, object $stockService): void
   {
@@ -247,35 +247,6 @@ class ProductWarehouseStock extends Model
         throw new \Exception(
           "Stock insuficiente para producto '{$productName}' en almacén de origen. " .
           "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
-        );
-      }
-    }
-  }
-
-  /**
-   * Valida que los productos existen y están asignados a un almacén
-   *
-   * @param array $details Array de detalles con product_id
-   * @param int $warehouseId ID del almacén a validar
-   * @param object $stockService Instancia del servicio de stock
-   * @throws \Exception Si algún producto no está asignado al almacén
-   * @return void
-   */
-  public static function validateProductsExistInWarehouse(array $details, int $warehouseId, object $stockService): void
-  {
-    foreach ($details as $detail) {
-      // Skip validation if it's a service (no product_id)
-      if (!isset($detail['product_id']) || $detail['product_id'] === null) {
-        continue;
-      }
-
-      $stock = $stockService->getStock($detail['product_id'], $warehouseId);
-      $product = Products::find($detail['product_id']);
-      $productName = $product ? $product->name : "ID {$detail['product_id']}";
-
-      if (!$stock) {
-        throw new \Exception(
-          "El producto '{$productName}' no está asignado al almacén de destino. Por favor, asigne el producto al almacén antes de crear la transferencia."
         );
       }
     }

@@ -11,7 +11,8 @@ class UpdatePayrollLoanExtraDiscountRequest extends StoreRequest
         return [
             'loan_id'         => ['nullable', 'integer', 'exists:gh_payroll_loans,id'],
             'concept_type_id' => ['nullable', 'integer', 'exists:general_masters,id'],
-            'amount'          => ['nullable', 'numeric', 'min:0'],
+            'amount'          => ['nullable', 'numeric', 'min:0.01'],
+            'scheduled_date'  => ['nullable', 'date'],
             'applied'         => ['nullable', 'boolean'],
             'status'          => ['nullable', 'boolean'],
         ];
@@ -23,6 +24,7 @@ class UpdatePayrollLoanExtraDiscountRequest extends StoreRequest
             'loan_id'         => 'préstamo',
             'concept_type_id' => 'tipo de concepto',
             'amount'          => 'monto',
+            'scheduled_date'  => 'fecha programada',
             'applied'         => 'aplicado',
         ];
     }
@@ -32,7 +34,7 @@ class UpdatePayrollLoanExtraDiscountRequest extends StoreRequest
         return [
             'loan_id.exists'         => 'El :attribute seleccionado no existe.',
             'concept_type_id.exists' => 'El :attribute seleccionado no existe.',
-            'amount.min'             => 'El :attribute no puede ser negativo.',
+            'amount.min'             => 'El :attribute debe ser mayor a 0.',
         ];
     }
 }

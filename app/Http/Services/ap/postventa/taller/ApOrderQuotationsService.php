@@ -7,11 +7,13 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -244,6 +246,53 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         }
       }
 
+      // Validar stock en sistema externo solo para productos con supply_type = 'STOCK'
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id'])?->id;
+      if (!$warehouseId) {
+        throw new Exception('No se encontró un almacén físico asociado a esta sede para postventa. No se puede validar el stock de los productos.');
+      }
+
+      $inventoryMovementService = app(InventoryMovementService::class);
+
+      foreach ($data['details'] as $index => $detail) {
+        $supplyType = $detail['supply_type'] ?? null;
+
+        // Solo validar stock externo si es tipo STOCK
+        if ($supplyType === 'STOCK') {
+          $productId = $detail['product_id'];
+          $quantity = $detail['quantity'];
+
+          // Obtener el stock del producto en el almacén
+          $stock = ProductWarehouseStock::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if (!$stock) {
+            throw new Exception(
+              "Producto ({$detail['description']}): No se encontró registro de stock en el almacén seleccionado"
+            );
+          }
+
+          // Validar stock en sistema externo
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $stock->product->dyn_code,
+            $stock->warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $quantity) {
+            throw new Exception(
+              "Producto ({$detail['description']}): Stock insuficiente en sistema Dynamics. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$quantity}"
+            );
+          }
+        }
+      }
+
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
       $expiration_date = Carbon::parse($data['expiration_date']);
@@ -276,6 +325,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create details
       foreach ($data['details'] as $detail) {
+        // Calcular total_cost, net_amount y tax_amount
+        $discountPercentage = $detail['discount_percentage'] ?? 0;
+        $totalCost = $detail['quantity'] * $detail['unit_price'];
+        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -283,8 +338,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount_percentage' => $detail['discount_percentage'] ?? 0,
-          'total_amount' => $detail['total_amount'],
+          'discount_percentage' => $discountPercentage,
+          'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
+          'tax_amount' => $taxAmount,
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -399,8 +456,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede actualizar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
       }
 
       if ($vehicle && $vehicle->customer_id === null) {
@@ -408,7 +465,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar cambio de moneda si existen pagos registrados
-      if ($quotation->has_invoice_generated && $quotation->currency_id !== $data['currency_id']) {
+      if ($quotation->getActiveAdvances()->count() > 0 && $quotation->currency_id !== $data['currency_id']) {
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
@@ -464,6 +521,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
+        // Calcular total_cost, net_amount y tax_amount
+        $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
+        $totalCost = $detail['quantity'] * $detail['unit_price'];
+        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -471,8 +534,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $detail['unit_price'],
-          'discount_percentage' => $detail['discount_percentage'] ?? $detail['discount'] ?? 0,
-          'total_amount' => $detail['total_amount'],
+          'discount_percentage' => $discountPercentage,
+          'total_cost' => $totalCost,
+          'net_amount' => $netAmount,
+          'tax_amount' => $taxAmount,
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -504,8 +569,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
     }
 
-    if ($quotation->has_invoice_generated) {
-      throw new Exception('No se puede eliminar una cotización que ya tiene una factura generada.');
+    if ($quotation->getActiveAdvances()->count() > 0) {
+      throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
     }
 
     if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
@@ -540,8 +605,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede descartar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede anular una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->discarded_at) {
@@ -666,7 +731,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
-        'total_amount' => $detail->total_amount,
+        'total_amount' => $detail->net_amount,
         'item_type' => $detail->item_type,
         'supply_type' => $detail->supply_type,
       ];
@@ -678,8 +743,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $totalDiscounts = 0;
 
     foreach ($quotation->details as $detail) {
-      $itemSubtotal = $detail->quantity * $detail->unit_price;
-      $itemDiscount = $itemSubtotal - $detail->total_amount;
+      $itemSubtotal = $detail->total_cost;
+      $itemDiscount = $detail->total_cost - $detail->net_amount;
 
       // Total mano de obra (LABOR) - sin descuento
       if ($detail->item_type === 'LABOR') {
@@ -812,8 +877,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'quantity' => $detail->quantity,
         'unit_price' => $detail->unit_price,
         'discount' => $detail->discount_percentage,
-        'total_amount' => $detail->total_amount,
-        'total_amount_with_tax' => round($detail->total_amount * (1 + Constants::VAT_TAX / 100), 2),
+        'total_amount' => $detail->net_amount,
+        'total_amount_with_tax' => $detail->net_amount + $detail->tax_amount,
         'item_type' => $detail->item_type,
         'supply_type' => $detail->supply_type,
       ];
@@ -864,8 +929,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('No se puede confirmar una cotización que ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
@@ -1060,7 +1125,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
             'unit_measure' => $detail->unit_measure,
             'unit_price' => $detail->unit_price,
             'discount_percentage' => $detail->discount_percentage,
-            'total_amount' => $detail->total_amount,
+            'total_amount' => $detail->net_amount,
             'item_type' => $detail->item_type,
             'observations' => $detail->observations ?? '',
           ];
@@ -1258,8 +1323,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
       }
 
-      if ($quotation->has_invoice_generated) {
-        throw new Exception('Esta cotización ya tiene una factura generada.');
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede enviar link de confirmación a una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->isConfirmed()) {
@@ -1363,72 +1428,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Cotización no encontrada');
       }
 
-      if ($apOrderQuotations->has_invoice_generated) {
-        throw new Exception('No se puede generar una orden de trabajo a partir de una cotización que ya tiene una factura generada.');
+      if ($apOrderQuotations->getActiveAdvances()->count() > 0) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }
+
+      if ($apOrderQuotations->getFinalInvoice()) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya se ha generado una factura final para esta cotización');
+      }
+
       // Update work order
       $apOrderQuotations->update($data);
 
       return new ApOrderQuotationsResource($apOrderQuotations);
     });
-  }
-
-  /**
-   * Evalúa y actualiza el estado de pago de la cotización
-   * Actualiza is_fully_paid y status si cumple las condiciones:
-   * 1. El total pagado >= total de la cotización
-   * 2. Existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
-   *
-   * Este método centraliza la lógica de marcado como totalmente pagado
-   * para facilitar el mantenimiento y permitir flexibilidad en el flujo de negocio
-   *
-   * @param int $quotationId
-   * @return bool True si se actualizó como totalmente pagado, false si no
-   */
-  public function evaluateAndUpdateQuotationPaymentStatus(int $quotationId): bool
-  {
-    try {
-      $quotation = ApOrderQuotations::find($quotationId);
-
-      if (!$quotation) {
-        return false;
-      }
-
-      // Calcular total pagado (suma de todos los documentos aceptados por SUNAT)
-      // Incluye anticipos + facturas de regularización/venta directa
-      $totalPaid = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->sum('total');
-
-      // Verificar si existe al menos una venta interna (is_advance_payment = 0) aceptada por SUNAT
-      // La venta interna es el documento que cierra la operación (puede ser por 0 o mayor)
-      $hasInternalSale = ElectronicDocument::where('order_quotation_id', $quotationId)
-        ->where('is_advance_payment', 0)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
-        ->whereNull('deleted_at')
-        ->exists();
-
-      // Actualizar si cumple condiciones con tolerancia de redondeo
-      // Permite diferencias mínimas causadas por redondeos acumulativos en cálculos de IGV e items
-      $difference = (float)$totalPaid - (float)$quotation->total_amount;
-      if ($difference >= -ElectronicDocument::ROUNDING_TOLERANCE && $hasInternalSale) {
-        $quotation->update([
-          'is_fully_paid' => true,
-          'status' => ApOrderQuotations::STATUS_FACTURADO
-        ]);
-        return true;
-      }
-
-      return false;
-    } catch (Exception $e) {
-      Log::error('Error al evaluar y actualizar estado de pago de cotización', [
-        'quotation_id' => $quotationId,
-        'error' => $e->getMessage(),
-      ]);
-      return false;
-    }
   }
 }
