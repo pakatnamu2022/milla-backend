@@ -161,36 +161,37 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $sheet->setTitle('Modelos VN');
 
     $headers = [
-      'A'  => 'Tipo de Operación *',
-      'B'  => 'Familia *',
-      'C'  => 'Clase *',
-      'D'  => 'Versión / Descripción del Modelo *',
-      'E'  => 'Año del Modelo',
-      'F'  => 'Combustible *',
-      'G'  => 'Tipo de Vehículo *',
-      'H'  => 'Tipo de Carrocería *',
-      'I'  => 'Tipo de Tracción *',
-      'J'  => 'Transmisión *',
-      'K'  => 'Moneda *',
-      'L'  => 'Potencia (HP)',
-      'M'  => 'Distancia entre Ejes (mm)',
-      'N'  => 'N° de Ejes',
-      'O'  => 'Ancho (mm)',
-      'P'  => 'Largo (mm)',
-      'Q'  => 'Alto (mm)',
-      'R'  => 'N° de Asientos',
-      'S'  => 'N° de Puertas',
-      'T'  => 'Peso Neto (kg)',
-      'U'  => 'Peso Bruto (kg)',
-      'V'  => 'Carga Útil (kg)',
-      'W'  => 'Cilindrada (cc)',
-      'X'  => 'N° de Cilindros',
-      'Y'  => 'N° de Pasajeros',
-      'Z'  => 'N° de Ruedas',
-      'AA' => 'Precio Distribuidor',
-      'AB' => 'Costo de Transporte',
-      'AC' => 'Otros Montos',
-      'AD' => 'Descuento de Compra',
+      'A'  => 'N°',
+      'B'  => 'Tipo de Operación *',
+      'C'  => 'Familia *',
+      'D'  => 'Clase *',
+      'E'  => 'Versión / Descripción del Modelo *',
+      'F'  => 'Año del Modelo',
+      'G'  => 'Combustible *',
+      'H'  => 'Tipo de Vehículo *',
+      'I'  => 'Tipo de Carrocería *',
+      'J'  => 'Tipo de Tracción *',
+      'K'  => 'Transmisión *',
+      'L'  => 'Moneda *',
+      'M'  => 'Potencia (HP)',
+      'N'  => 'Distancia entre Ejes (mm)',
+      'O'  => 'N° de Ejes',
+      'P'  => 'Ancho (mm)',
+      'Q'  => 'Largo (mm)',
+      'R'  => 'Alto (mm)',
+      'S'  => 'N° de Asientos',
+      'T'  => 'N° de Puertas',
+      'U'  => 'Peso Neto (kg)',
+      'V'  => 'Peso Bruto (kg)',
+      'W'  => 'Carga Útil (kg)',
+      'X'  => 'Cilindrada (cc)',
+      'Y'  => 'N° de Cilindros',
+      'Z'  => 'N° de Pasajeros',
+      'AA' => 'N° de Ruedas',
+      'AB' => 'Precio Distribuidor',
+      'AC' => 'Costo de Transporte',
+      'AD' => 'Otros Montos',
+      'AE' => 'Descuento de Compra',
     ];
 
     foreach ($headers as $cell => $label) {
@@ -199,36 +200,37 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // ── Fila de ejemplo ──────────────────────────────────────────────────────
     $example = [
-      'A2'  => !empty($tiposOp) ? $tiposOp[0] : 'COMERCIAL',
-      'B2'  => !empty($familias) ? $familias[0] : 'HILUX',
-      'C2'  => !empty($clases) ? $clases[0] : 'VEHICULOS COMERCIALES',
-      'D2'  => 'HILUX 4X4 SRV AT',
-      'E2'  => 2025,
-      'F2'  => !empty($combustibles) ? $combustibles[0] : 'DIESEL',
-      'G2'  => !empty($tiposVehiculo) ? $tiposVehiculo[0] : 'PICK UP',
-      'H2'  => !empty($carrocerias) ? $carrocerias[0] : 'CABINA DOBLE',
-      'I2'  => !empty($tracciones) ? $tracciones[0] : '4X4',
-      'J2'  => !empty($transmisiones) ? $transmisiones[0] : 'AUTOMATICA',
-      'K2'  => !empty($monedas) ? $monedas[0] : 'USD',
-      'L2'  => '204 HP',
-      'M2'  => '3085',
-      'N2'  => '2',
-      'O2'  => '1855',
-      'P2'  => '5335',
-      'Q2'  => '1815',
-      'R2'  => '5',
-      'S2'  => '4',
-      'T2'  => '2080',
-      'U2'  => '3010',
-      'V2'  => '930',
-      'W2'  => '2755',
-      'X2'  => '4',
-      'Y2'  => '5',
-      'Z2'  => '4',
-      'AA2' => 44800.00,
-      'AB2' => 850.00,
-      'AC2' => 0.00,
+      'A2'  => 0,  // N°=0 → se ignora al importar (fila de ejemplo)
+      'B2'  => !empty($tiposOp) ? $tiposOp[0] : 'COMERCIAL',
+      'C2'  => !empty($familias) ? $familias[0] : 'HILUX',
+      'D2'  => !empty($clases) ? $clases[0] : 'VEHICULOS COMERCIALES',
+      'E2'  => 'HILUX 4X4 SRV AT',
+      'F2'  => 2025,
+      'G2'  => !empty($combustibles) ? $combustibles[0] : 'DIESEL',
+      'H2'  => !empty($tiposVehiculo) ? $tiposVehiculo[0] : 'PICK UP',
+      'I2'  => !empty($carrocerias) ? $carrocerias[0] : 'CABINA DOBLE',
+      'J2'  => !empty($tracciones) ? $tracciones[0] : '4X4',
+      'K2'  => !empty($transmisiones) ? $transmisiones[0] : 'AUTOMATICA',
+      'L2'  => !empty($monedas) ? $monedas[0] : 'USD',
+      'M2'  => '204 HP',
+      'N2'  => '3085',
+      'O2'  => '2',
+      'P2'  => '1855',
+      'Q2'  => '5335',
+      'R2'  => '1815',
+      'S2'  => '5',
+      'T2'  => '4',
+      'U2'  => '2080',
+      'V2'  => '3010',
+      'W2'  => '930',
+      'X2'  => '2755',
+      'Y2'  => '4',
+      'Z2'  => '5',
+      'AA2' => '4',
+      'AB2' => 44800.00,
+      'AC2' => 850.00,
       'AD2' => 0.00,
+      'AE2' => 0.00,
     ];
 
     foreach ($example as $cell => $value) {
@@ -242,7 +244,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
       'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
     ];
-    $sheet->getStyle('A1:AD1')->applyFromArray($headerStyle);
+    $sheet->getStyle('A1:AE1')->applyFromArray($headerStyle);
     $sheet->getRowDimension(1)->setRowHeight(40);
 
     // ── Estilo de fila de ejemplo ────────────────────────────────────────────
@@ -251,16 +253,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
       'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']]],
     ];
-    $sheet->getStyle('A2:AD2')->applyFromArray($exampleStyle);
+    $sheet->getStyle('A2:AE2')->applyFromArray($exampleStyle);
 
     // ── Anchos de columna ────────────────────────────────────────────────────
     $widths = [
-      'A' => 18, 'B' => 20, 'C' => 22, 'D' => 30, 'E' => 10,
-      'F' => 18, 'G' => 18, 'H' => 20, 'I' => 18, 'J' => 16,
-      'K' => 10, 'L' => 14, 'M' => 20, 'N' => 10, 'O' => 12,
-      'P' => 12, 'Q' => 12, 'R' => 14, 'S' => 14, 'T' => 14,
-      'U' => 14, 'V' => 14, 'W' => 14, 'X' => 14, 'Y' => 16,
-      'Z' => 14, 'AA' => 20, 'AB' => 20, 'AC' => 16, 'AD' => 20,
+      'A' => 6,  'B' => 18, 'C' => 20, 'D' => 22, 'E' => 30,
+      'F' => 10, 'G' => 18, 'H' => 18, 'I' => 20, 'J' => 18,
+      'K' => 16, 'L' => 10, 'M' => 14, 'N' => 20, 'O' => 10,
+      'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 14, 'T' => 14,
+      'U' => 14, 'V' => 14, 'W' => 14, 'X' => 14, 'Y' => 14,
+      'Z' => 16, 'AA' => 14, 'AB' => 20, 'AC' => 20, 'AD' => 16, 'AE' => 20,
     ];
     foreach ($widths as $col => $w) {
       $sheet->getColumnDimension($col)->setWidth($w);
@@ -268,15 +270,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // ── Validación con dropdowns (filas 2-1001) ──────────────────────────────
     $dropdownMap = [
-      'A' => $listRanges['I'], // Tipo Operación
-      'B' => $listRanges['A'], // Familia
-      'C' => $listRanges['B'], // Clase
-      'F' => $listRanges['C'], // Combustible
-      'G' => $listRanges['D'], // Tipo Vehículo
-      'H' => $listRanges['E'], // Carrocería
-      'I' => $listRanges['F'], // Tracción
-      'J' => $listRanges['G'], // Transmisión
-      'K' => $listRanges['H'], // Moneda
+      'B' => $listRanges['I'], // Tipo Operación
+      'C' => $listRanges['A'], // Familia
+      'D' => $listRanges['B'], // Clase
+      'G' => $listRanges['C'], // Combustible
+      'H' => $listRanges['D'], // Tipo Vehículo
+      'I' => $listRanges['E'], // Carrocería
+      'J' => $listRanges['F'], // Tracción
+      'K' => $listRanges['G'], // Transmisión
+      'L' => $listRanges['H'], // Moneda
     ];
 
     foreach ($dropdownMap as $col => $range) {
@@ -381,19 +383,26 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     Excel::import($import, $file);
     $results = $import->getResults();
 
-    $hayErrores = !empty($results['errors']);
+    $hayErrores  = !empty($results['errors']);
+    $totalErrors = count($results['errors']);
     $msg = "Importación completada: {$results['created']} creado(s), {$results['skipped']} omitido(s) por duplicado.";
     if ($hayErrores) {
-      $msg .= ' ' . count($results['errors']) . ' fila(s) con error.';
+      $msg .= " {$totalErrors} fila(s) con error.";
     }
 
     return [
       'success'        => !$hayErrores,
       'message'        => $msg,
-      'created'        => $results['created'],
-      'skipped'        => $results['skipped'],
       'rows_processed' => $results['rows_processed'],
+      // errores primero (mayor nivel de alerta)
+      'errors_count'   => $totalErrors,
       'errors'         => $results['errors'],
+      // omitidos
+      'skipped'        => $results['skipped'],
+      'skipped_rows'   => $results['skipped_rows'],
+      // creados
+      'created'        => $results['created'],
+      'created_rows'   => $results['created_rows'],
     ];
   }
 }

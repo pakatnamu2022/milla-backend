@@ -22,6 +22,8 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
     'skipped'        => 0,
     'errors'         => [],
     'rows_processed' => 0,
+    'created_rows'   => [],
+    'skipped_rows'   => [],
   ];
 
   // Lookups pre-cargados para evitar N+1
@@ -67,9 +69,9 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
 
   private function processRow(array $row, int $rowNumber): void
   {
-    // Omitir filas completamente vacías
-    $valores = array_filter(array_values($row), fn($v) => $v !== null && $v !== '');
-    if (empty($valores)) {
+    // Omitir filas sin número de secuencia (columna N° vacía o ≤0 = fila fantasma/vacía)
+    $nro = $row['n'] ?? null;
+    if (!is_numeric($nro) || (int) $nro <= 0) {
       return;
     }
 
@@ -131,6 +133,7 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
 
     if ($duplicate) {
       $this->results['skipped']++;
+      $this->results['skipped_rows'][] = ['fila' => $rowNumber, 'version' => $version];
       return;
     }
 
@@ -183,6 +186,7 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
     });
 
     $this->results['created']++;
+    $this->results['created_rows'][] = ['fila' => $rowNumber, 'version' => $version];
   }
 
   public function getResults(): array
