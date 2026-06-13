@@ -2,10 +2,10 @@
 
 namespace App\Http\Services\gp\gestionhumana\payroll;
 
-use App\Http\Resources\gp\gestionhumana\payroll\WorkingConditionResource;
+use App\Http\Resources\gp\gestionhumana\payroll\PayrollWorkingConditionResource;
 use App\Http\Services\BaseService;
 use App\Imports\gp\gestionhumana\payroll\WorkingConditionImport;
-use App\Models\gp\gestionhumana\payroll\WorkingCondition;
+use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,7 +15,7 @@ class WorkingConditionService extends BaseService
 {
   public function list(Request $request)
   {
-    $query = WorkingCondition::query()
+    $query = PayrollWorkingCondition::query()
       ->join('gh_payroll_periods', 'gh_working_conditions.period_id', '=', 'gh_payroll_periods.id')
       ->select('gh_working_conditions.*')
       ->orderBy('gh_payroll_periods.year', 'desc')
@@ -24,9 +24,9 @@ class WorkingConditionService extends BaseService
     return $this->getFilteredResults(
       $query,
       $request,
-      WorkingCondition::filters,
-      WorkingCondition::sorts,
-      WorkingConditionResource::class,
+      PayrollWorkingCondition::filters,
+      PayrollWorkingCondition::sorts,
+      PayrollWorkingConditionResource::class,
     );
   }
 

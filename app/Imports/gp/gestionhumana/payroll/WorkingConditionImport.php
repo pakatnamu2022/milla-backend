@@ -2,7 +2,7 @@
 
 namespace App\Imports\gp\gestionhumana\payroll;
 
-use App\Models\gp\gestionhumana\payroll\WorkingCondition;
+use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +84,7 @@ class WorkingConditionImport implements ToCollection
         DB::beginTransaction();
         try {
             // Buscar si ya existe un registro para este trabajador y periodo
-            $existingRecord = WorkingCondition::where('worker_id', $worker->id)
+            $existingRecord = PayrollWorkingCondition::where('worker_id', $worker->id)
                 ->where('period_id', $this->periodId)
                 ->first();
 
@@ -99,7 +99,7 @@ class WorkingConditionImport implements ToCollection
                 $existingRecord->update($data);
                 $this->results['updated']++;
             } else {
-                WorkingCondition::create($data);
+                PayrollWorkingCondition::create($data);
                 $this->results['created']++;
             }
 
