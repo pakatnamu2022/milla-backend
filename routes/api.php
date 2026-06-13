@@ -1210,6 +1210,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
+      Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',
@@ -1862,6 +1863,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);
+    Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
+    Route::post('register/export', [PayrollRegisterController::class, 'export']);
   });
 
   /**

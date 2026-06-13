@@ -211,10 +211,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-      }
-
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
       }

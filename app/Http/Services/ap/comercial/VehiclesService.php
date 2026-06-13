@@ -12,6 +12,7 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Exception;
@@ -30,11 +31,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $exportService->exportFromRequest($request, Vehicles::class);
   }
 
-  /**
-   * Lista vehículos con filtros, búsqueda y paginación
-   * @param Request $request
-   * @return mixed
-   */
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -46,12 +42,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     );
   }
 
-  /**
-   * Busca un vehículo por ID
-   * @param $id
-   * @return Vehicles
-   * @throws Exception
-   */
   public function find($id): Vehicles
   {
     $vehicle = Vehicles::where('id', $id)->first();
@@ -61,12 +51,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $vehicle;
   }
 
-  /**
-   * Crea un nuevo vehículo
-   * @param mixed $data
-   * @return Vehicles
-   * @throws Exception|Throwable
-   */
   public function store(mixed $data): JsonResource
   {
     DB::beginTransaction();
@@ -91,12 +75,30 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     }
   }
 
-  /**
-   * Enriquece los datos del vehículo antes de crear
-   * @param mixed $data
-   * @return mixed
-   * @throws Exception
-   */
+  public function storeReplacement(mixed $data): JsonResource
+  {
+    DB::beginTransaction();
+    try {
+      // Enriquecer datos del vehículo
+      //$data = $this->enrichData($data);
+      $data['year'] = now()->year;
+      $data['ap_models_vn_id'] = ApModelsVn::MODEL_VN_SEVERAL_ID;
+      $data['vehicle_color_id'] = ApMasters::COLOR_OTHERS_ID;
+      $data['engine_type_id'] = ApMasters::ENGINE_TYPE_OTHERS_ID;
+      $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
+      $data['type_operation_id'] = ApMasters::TIPO_OPERACION_POSTVENTA;
+
+      // Crear el vehículo
+      $vehicle = Vehicles::create($data);
+
+      DB::commit();
+      return VehiclesResource::make($vehicle);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
   protected function enrichData(mixed $data)
   {
     // Establecer estado inicial del vehículo
@@ -501,40 +503,40 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     return [
       'shipping_guide_id' => $guide->id,
-      'document_number'   => $guide->document_number,
-      'issue_date'        => $guide->issue_date?->format('Y-m-d'),
-      'received_date'     => $guide->received_date?->format('Y-m-d H:i:s'),
-      'note_received'     => $guide->note_received,
-      'received_by'       => $guide->receivedBy?->name,
-      'checklist_items'   => $guide->receivingChecklists->map(fn($c) => [
-        'id'          => $c->id,
+      'document_number' => $guide->document_number,
+      'issue_date' => $guide->issue_date?->format('Y-m-d'),
+      'received_date' => $guide->received_date?->format('Y-m-d H:i:s'),
+      'note_received' => $guide->note_received,
+      'received_by' => $guide->receivedBy?->name,
+      'checklist_items' => $guide->receivingChecklists->map(fn($c) => [
+        'id' => $c->id,
         'description' => $c->receiving?->description,
-        'quantity'    => $c->quantity,
-        'kilometers'  => $c->kilometers,
+        'quantity' => $c->quantity,
+        'kilometers' => $c->kilometers,
       ])->values(),
       'inspection' => $inspection ? [
-        'id'                   => $inspection->id,
-        'photo_front_url'      => $inspection->photo_front_url,
-        'photo_back_url'       => $inspection->photo_back_url,
-        'photo_left_url'       => $inspection->photo_left_url,
-        'photo_right_url'      => $inspection->photo_right_url,
+        'id' => $inspection->id,
+        'photo_front_url' => $inspection->photo_front_url,
+        'photo_back_url' => $inspection->photo_back_url,
+        'photo_left_url' => $inspection->photo_left_url,
+        'photo_right_url' => $inspection->photo_right_url,
         'general_observations' => $inspection->general_observations,
-        'inspected_by'         => $inspection->inspectedBy?->name,
-        'created_at'           => $inspection->created_at?->format('Y-m-d H:i:s'),
-        'damages'              => $inspection->damages->map(fn($d) => [
-          'id'           => $d->id,
-          'damage_type'  => $d->damage_type,
+        'inspected_by' => $inspection->inspectedBy?->name,
+        'created_at' => $inspection->created_at?->format('Y-m-d H:i:s'),
+        'damages' => $inspection->damages->map(fn($d) => [
+          'id' => $d->id,
+          'damage_type' => $d->damage_type,
           'x_coordinate' => $d->x_coordinate,
           'y_coordinate' => $d->y_coordinate,
-          'description'  => $d->description,
-          'photo_url'    => $d->photo_url,
+          'description' => $d->description,
+          'photo_url' => $d->photo_url,
         ])->values(),
       ] : null,
       'accessories' => $accessoryStatuses->map(fn($a) => [
-        'id'           => $a->id,
-        'description'  => $a->description,
-        'quantity'     => $a->quantity,
-        'received'     => $a->received,
+        'id' => $a->id,
+        'description' => $a->description,
+        'quantity' => $a->quantity,
+        'received' => $a->received,
         'is_installed' => $a->is_installed,
       ])->values(),
     ];
