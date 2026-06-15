@@ -42,4 +42,9 @@ class AttendanceSyncController extends Controller
   {
     return $this->service->personDashboard($person_id, $request);
   }
+
+  public function reportAbsent(Request $request): JsonResponse
+  {
+    return $this->service->reportAbsent($request);
+  }
 }

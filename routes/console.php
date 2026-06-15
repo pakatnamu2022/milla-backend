@@ -175,3 +175,11 @@ foreach (['10:00', '15:00', '17:00', '22:00'] as $time) {
     ->runInBackground();
 }
 
+// Reporte de ausencias — lunes a sábado a las 9:30 a.m.
+Schedule::command('attendance:send-absent-report')
+  ->dailyAt('09:30')
+  ->days([1, 2, 3, 4, 5, 6])
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

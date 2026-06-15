@@ -35,4 +35,6 @@ class Constants
     'hvaldiviezos@automotorespakatnamu.com',
     'kquesquenm@automotorespakatnamu.com'
   ];
+
+  public const string EMAIL_TEST = 'hvaldiviezos@automotorespakatnamu.com';
 }
