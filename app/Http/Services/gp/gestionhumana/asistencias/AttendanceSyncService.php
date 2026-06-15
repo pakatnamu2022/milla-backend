@@ -360,7 +360,7 @@ class AttendanceSyncService extends BaseService
 
     $absentWorkers = DB::table('rrhh_persona as p')
       ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
-        $join->on('a.person_id', '=', 'p.id')
+        $join->on('a.emp_code', '=', 'p.vat')
           ->where('a.date', '=', $dateStr)
           ->where('a.mark_type', '=', 'check_in');
       })
