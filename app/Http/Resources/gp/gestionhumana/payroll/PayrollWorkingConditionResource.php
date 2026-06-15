@@ -5,7 +5,7 @@ namespace App\Http\Resources\gp\gestionhumana\payroll;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class WorkingConditionResource extends JsonResource
+class PayrollWorkingConditionResource extends JsonResource
 {
   public function toArray(Request $request): array
   {

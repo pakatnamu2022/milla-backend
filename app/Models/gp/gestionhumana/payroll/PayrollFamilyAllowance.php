@@ -33,6 +33,7 @@ class PayrollFamilyAllowance extends BaseModel
     'worker_id' => '=',
     'period_id' => 'in_or_equal',
     'applies' => '=',
+    'period.company_id' => '='
   ];
 
   const sorts = [

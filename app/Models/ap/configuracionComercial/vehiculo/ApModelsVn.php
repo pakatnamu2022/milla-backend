@@ -74,6 +74,8 @@ class ApModelsVn extends Model
     'version',
   ];
 
+  const int MODEL_VN_SEVERAL_ID = 3083;
+
   public function family()
   {
     return $this->belongsTo(ApFamilies::class, 'family_id');

@@ -14,6 +14,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
       'order_number_external' => [
         'nullable',
         'string',
+        Rule::unique('ap_supplier_order', 'order_number_external')->whereNull('deleted_at'),
       ],
       'supplier_id' => [
         'required',
@@ -78,6 +79,7 @@ class StoreApSupplierOrderRequest extends StoreRequest
   {
     return [
       'order_number_external.string' => 'El número de orden externo debe ser una cadena de texto.',
+      'order_number_external.unique' => 'El número de Dealer Portal ya existe.',
 
       'supplier_id.required' => 'El proveedor es obligatorio.',
       'supplier_id.integer' => 'El proveedor debe ser un entero.',

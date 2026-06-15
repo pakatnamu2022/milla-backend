@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\ExportVehiclesSalesRequest;
 use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
+use App\Http\Requests\ap\comercial\StoreVehiclesReplacementRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesRequest;
 use App\Http\Requests\ap\comercial\UpdateVehiclesRequest;
 use App\Http\Resources\ap\comercial\VehiclesResource;
@@ -64,6 +65,15 @@ class VehiclesController extends Controller
   {
     try {
       return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeReplacement(StoreVehiclesReplacementRequest $request): JsonResponse
+  {
+    try {
+      return $this->success($this->service->storeReplacement($request->validated()));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
