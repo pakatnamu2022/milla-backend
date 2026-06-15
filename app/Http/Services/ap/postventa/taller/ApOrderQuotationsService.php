@@ -14,6 +14,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -456,8 +457,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
       }
 
-      if ($vehicle && $vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para actualizar una cotización');
+      if ($quotation->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty()) {
+        throw new Exception('No se puede editar una cotización que tiene solicitudes de descuento aprobadas por gerencia');
       }
 
       // Validar cambio de moneda si existen pagos registrados
