@@ -36,6 +36,11 @@ class ApMasters extends Model
     'status',
     'type',
   ];
+  //COLOR OTROS
+  const int COLOR_OTHERS_ID = 1003;
+
+  //TIPO DE MOTOR
+  const int ENGINE_TYPE_OTHERS_ID = 629;
 
   // NUMERO DE DIGITOS
   const int NUM_DIGITS_DNI = 8;

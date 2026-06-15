@@ -588,7 +588,7 @@
         TOTAL.
       </li>
       <li>
-        COTIZACIÓN VÁLIDA PARA 04 DÍAS NATURALES.
+        COTIZACIÓN VÁLIDA PARA 07 DÍAS NATURALES.
       </li>
     </ol>
   </div>

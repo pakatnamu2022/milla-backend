@@ -116,7 +116,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
-use App\Http\Controllers\gp\gestionhumana\payroll\WorkingConditionController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollRegisterController;
@@ -1210,6 +1210,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
+      Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
         'show',
@@ -1840,8 +1841,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('insurances', PayrollInsuranceController::class);
 
     // Working Conditions
-    Route::post('working-conditions/import', [WorkingConditionController::class, 'import']);
-    Route::get('working-conditions', [WorkingConditionController::class, 'index']);
+    Route::post('working-conditions/import', [PayrollWorkingConditionController::class, 'import']);
+    Route::get('working-conditions', [PayrollWorkingConditionController::class, 'index']);
 
     // Loans
     Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
@@ -1862,6 +1863,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);
+    Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
+    Route::post('register/export', [PayrollRegisterController::class, 'export']);
   });
 
   /**

@@ -7,7 +7,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class WorkingCondition extends BaseModel
+class PayrollWorkingCondition extends BaseModel
 {
   use SoftDeletes;
 
