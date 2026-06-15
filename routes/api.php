@@ -97,6 +97,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryControl
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
 use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
+use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelReservationController;
@@ -538,6 +539,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
         Route::apiResource('worker', WorkerController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //      VACACIONES
+        Route::post('vacation/{id}/approve-jefatura', [VacationController::class, 'approveJefatura']);
+        Route::post('vacation/{id}/approve-rrhh', [VacationController::class, 'approveRrhh']);
+        Route::apiResource('vacation', VacationController::class)->only([
           'index',
           'show',
           'store',
@@ -1901,6 +1913,7 @@ Route::group(['prefix' => 'admin/attendance'], function () {
   Route::get('/', [AttendanceSyncController::class, 'index']);
   Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
   Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+  Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
   Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
   Route::get('/{id}', [AttendanceSyncController::class, 'show']);
   Route::post('/sync', [AttendanceSyncController::class, 'sync']);

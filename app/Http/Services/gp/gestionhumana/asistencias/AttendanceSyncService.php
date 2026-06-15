@@ -5,6 +5,9 @@ namespace App\Http\Services\gp\gestionhumana\asistencias;
 use App\Exports\GeneralExport;
 use App\Http\Resources\gp\gestionhumana\asistencias\AttendanceSyncResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
+use App\Http\Utils\Constants;
+use App\Jobs\SendAbsentAttendanceReportJob;
 use App\Jobs\SyncAttendanceJob;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
@@ -234,9 +237,10 @@ class AttendanceSyncService extends BaseService
     $dateFrom = $request->get('date_from', now()->startOfMonth()->toDateString());
     $dateTo   = $request->get('date_to', now()->toDateString());
 
-    $rows     = $this->buildPivotedRows($dateFrom, $dateTo, $personId, null)->keyBy('date');
-    $holidays = $this->loadHolidays($dateFrom, $dateTo);
-    $schedule = $this->getPersonScheduleRow($personId);
+    $rows      = $this->buildPivotedRows($dateFrom, $dateTo, $personId, null)->keyBy('date');
+    $holidays  = $this->loadHolidays($dateFrom, $dateTo);
+    $vacations = $this->loadPersonVacations($personId, $dateFrom, $dateTo);
+    $schedule  = $this->getPersonScheduleRow($personId);
 
     if ($rows->isEmpty() && ! $schedule) {
       return response()->json(['message' => 'No attendance records found for this person in the given range.'], 404);
@@ -262,6 +266,23 @@ class AttendanceSyncService extends BaseService
           'date'           => $dateStr,
           'type'           => 'holiday',
           'holiday_name'   => $holidays[$dateStr],
+          'check_in'       => null,
+          'lunch_out'      => null,
+          'lunch_in'       => null,
+          'check_out'      => null,
+          'is_estimated'   => false,
+          'hours_worked'   => null,
+          'expected_hours' => null,
+          'balance'        => null,
+        ]);
+        continue;
+      }
+
+      if (isset($vacations[$dateStr])) {
+        $daily->push([
+          'date'           => $dateStr,
+          'type'           => 'vacation',
+          'vacation_id'    => $vacations[$dateStr],
           'check_in'       => null,
           'lunch_out'      => null,
           'lunch_in'       => null,
@@ -321,11 +342,97 @@ class AttendanceSyncService extends BaseService
       'date_to'           => $dateTo,
       'days_with_records' => $rows->count(),
       'days_expected'     => $daily->where('type', 'work')->count(),
+      'days_on_vacation'  => $daily->where('type', 'vacation')->count(),
       'expected_hours'    => $this->toHm($totalExpected),
       'hours_worked'      => $this->toHm($totalWorked),
       'balance'           => $this->toHm(round($totalWorked - $totalExpected, 2)),
       'daily'             => $daily->values(),
     ]);
+  }
+
+  public function sendAbsentReport(?string $date = null): array
+  {
+    $targetDate = $date
+      ? Carbon::createFromFormat('Y-m-d', $date)
+      : now('America/Lima');
+
+    $dateStr = $targetDate->toDateString();
+
+    $absentWorkers = DB::table('rrhh_persona as p')
+      ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
+        $join->on('a.person_id', '=', 'p.id')
+          ->where('a.date', '=', $dateStr)
+          ->where('a.mark_type', '=', 'check_in');
+      })
+      ->whereNull('a.id')
+      ->where('p.status_id', '=', Constants::WORKER_ACTIVE)
+      ->orderBy('p.nombre_completo')
+      ->select(
+        DB::raw("COALESCE(p.vat, '') AS dni"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+      )
+      ->get();
+
+    if ($absentWorkers->isEmpty()) {
+      return ['sent' => false, 'count' => 0, 'message' => "Sin ausentes para {$dateStr}."];
+    }
+
+    $rows = $absentWorkers->map(fn($w) => [
+      'dni'       => $w->dni,
+      'full_name' => $w->full_name,
+      'estado'    => 'No marcó',
+    ]);
+
+    $columns = [
+      'dni'       => 'DNI',
+      'full_name' => 'Nombre Completo',
+      'estado'    => 'Estado',
+    ];
+
+    $export   = new GeneralExport($rows, $columns, 'Ausentes');
+    $raw      = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
+    $filename = 'ausentes_' . $dateStr . '.xlsx';
+    $tmpPath  = tempnam(sys_get_temp_dir(), 'absent_') . '.xlsx';
+    file_put_contents($tmpPath, $raw);
+
+    $workersArray = $rows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray();
+
+    $emailService = new EmailService();
+    $emailService->send([
+      'to'          => Constants::EMAIL_TEST,
+      'subject'     => "Ausencias del {$targetDate->format('d/m/Y')} — {$absentWorkers->count()} sin marcación",
+      'template'    => 'emails.attendance-absent-report',
+      'data'        => [
+        'report_date'  => $targetDate->format('d/m/Y'),
+        'absent_count' => $absentWorkers->count(),
+        'workers'      => $workersArray,
+      ],
+      'attachments' => [[
+        'path' => $tmpPath,
+        'name' => $filename,
+        'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ]],
+    ]);
+
+    @unlink($tmpPath);
+
+    return [
+      'sent'    => true,
+      'count'   => $absentWorkers->count(),
+      'date'    => $dateStr,
+      'message' => "Reporte enviado con {$absentWorkers->count()} ausente(s) para {$dateStr}.",
+    ];
+  }
+
+  public function reportAbsent(Request $request): JsonResponse
+  {
+    $request->validate([
+      'date' => ['nullable', 'date_format:Y-m-d'],
+    ]);
+
+    $result = $this->sendAbsentReport($request->date);
+
+    return response()->json($result);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -491,6 +598,34 @@ class AttendanceSyncService extends BaseService
     return Holidays::for('pe')->getInRange($dateFrom, $dateTo);
   }
 
+  /**
+   * Devuelve un mapa de date => vacation_id para los días de vacación del empleado
+   * en el rango dado. Solo considera vacaciones aprobadas por RRHH.
+   */
+  private function loadPersonVacations(int $personId, string $dateFrom, string $dateTo): array
+  {
+    $records = DB::table('rrhh_vacaciones')
+      ->where('empleado_id', $personId)
+      ->where('status_deleted', 1)
+      ->where('aprobacion_rrhh', 1)
+      ->where('fecha_inicio', '<=', $dateTo)
+      ->where('fecha_fin', '>=', $dateFrom)
+      ->select(['id', 'fecha_inicio', 'fecha_fin'])
+      ->get();
+
+    $map = [];
+    foreach ($records as $vacation) {
+      foreach (CarbonPeriod::create($vacation->fecha_inicio, $vacation->fecha_fin) as $day) {
+        $dateStr = $day->toDateString();
+        if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
+          $map[$dateStr] = $vacation->id;
+        }
+      }
+    }
+
+    return $map;
+  }
+
   private function getPersonScheduleRow(int $personId): ?object
   {
     return DB::table('rrhh_persona as p')
@@ -529,8 +664,10 @@ class AttendanceSyncService extends BaseService
 
   private function resolveMarks(object $row, bool $isSaturday): array
   {
-    $checkIn  = $row->check_in  ?? $row->schedule_checkin;
-    $checkOut = $row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout);
+    $checkIn  = $row->check_in ?? null;
+    $checkOut = $checkIn
+      ? ($row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout))
+      : null;
     $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
     $lunchIn  = $isSaturday ? null : ($row->lunch_in  ?? $row->schedule_lunch_in);
 

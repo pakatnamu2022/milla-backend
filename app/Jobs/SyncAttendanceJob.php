@@ -32,13 +32,20 @@ class SyncAttendanceJob implements ShouldQueue
     $inserted = 0;
 
     try {
-      $personMap = $this->buildPersonMap();
-      $rows      = $this->fetchTransactions($date);
-      $grouped   = $rows->groupBy('emp_code');
-
+      $personMap   = $this->buildPersonMap();
+      $rows        = $this->fetchTransactions($date);
+      $grouped     = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
+      $onVacation  = $this->buildVacationSet($date);
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, &$inserted) {
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, $onVacation, &$inserted) {
+        $personId = $personMap[$empCode] ?? null;
+
+        if ($personId && isset($onVacation[$personId])) {
+          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} está de vacaciones, se omite.");
+          return;
+        }
+
         $sorted  = $punches->sortBy('punch_time')->values();
         $records = $this->classifyPunches($sorted, $empCode, $date, $personMap, $scheduleMap);
 
@@ -158,6 +165,18 @@ class SyncAttendanceJob implements ShouldQueue
   {
     [$h, $m] = explode(':', $time);
     return (int) $h * 60 + (int) $m;
+  }
+
+  private function buildVacationSet(string $date): array
+  {
+    return DB::table('rrhh_vacaciones')
+      ->where('status_deleted', 1)
+      ->where('aprobacion_rrhh', 1)
+      ->where('fecha_inicio', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->pluck('empleado_id')
+      ->flip()
+      ->toArray();
   }
 
   private function buildPersonMap(): array
