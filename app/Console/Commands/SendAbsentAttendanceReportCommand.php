@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Utils\Constants;
 use App\Jobs\SendAbsentAttendanceReportJob;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -11,7 +12,7 @@ class SendAbsentAttendanceReportCommand extends Command
   protected $signature = 'attendance:send-absent-report
     {--date= : Date to check (YYYY-MM-DD, default: today)}';
 
-  protected $description = 'Send absent attendance report by email for workers who have not checked in by 9:30 AM';
+  protected $description = 'Send attendance absence and tardiness report to each configured partner user';
 
   public function handle(): int
   {
@@ -19,9 +20,12 @@ class SendAbsentAttendanceReportCommand extends Command
       ? Carbon::createFromFormat('Y-m-d', $this->option('date'))->toDateString()
       : now('America/Lima')->toDateString();
 
-    $this->info("Dispatching SendAbsentAttendanceReportJob for date: {$date}");
-    SendAbsentAttendanceReportJob::dispatch($date);
-    $this->info('Job dispatched successfully.');
+    foreach (Constants::ATTENDANCE_REPORT_USER_IDS as $userId) {
+      $this->info("Dispatching SendAbsentAttendanceReportJob for date={$date} user_id={$userId}");
+      SendAbsentAttendanceReportJob::dispatch($date, $userId);
+    }
+
+    $this->info('All jobs dispatched successfully.');
 
     return Command::SUCCESS;
   }

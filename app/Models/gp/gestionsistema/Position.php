@@ -38,7 +38,8 @@ class Position extends BaseModel
     'created_at',
     'updated_at',
     'status_deleted', // 1 activo, 0 eliminado
-    'per_diem_category_id'
+    'per_diem_category_id',
+    'no_attendance_required',
   ];
 
   const filters = [

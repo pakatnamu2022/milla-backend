@@ -37,4 +37,11 @@ class Constants
   ];
 
   public const string EMAIL_TEST = 'hvaldiviezos@automotorespakatnamu.com';
+
+  // Attendance report partner user IDs
+  // 2094 → Gabriela/Domenica (AP + GP)
+  // 2064 → TP + DP
+  // 2161 → Ximena (all companies, no filter)
+  public const array ATTENDANCE_REPORT_USER_IDS = [2094, 2064, 2161];
+  public const int ATTENDANCE_ALL_ACCESS_USER_ID = 2161;
 }

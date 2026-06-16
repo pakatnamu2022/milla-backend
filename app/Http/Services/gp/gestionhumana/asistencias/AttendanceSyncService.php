@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\asistencias;
 
+use App\Exports\AttendanceReportExport;
 use App\Exports\GeneralExport;
 use App\Http\Resources\gp\gestionhumana\asistencias\AttendanceSyncResource;
 use App\Http\Services\BaseService;
@@ -350,7 +351,7 @@ class AttendanceSyncService extends BaseService
     ]);
   }
 
-  public function sendAbsentReport(?string $date = null): array
+  public function sendAbsentReport(?string $date = null, ?int $partnerUserId = null): array
   {
     $targetDate = $date
       ? Carbon::createFromFormat('Y-m-d', $date)
@@ -358,54 +359,43 @@ class AttendanceSyncService extends BaseService
 
     $dateStr = $targetDate->toDateString();
 
-    $absentWorkers = DB::table('rrhh_persona as p')
-      ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
-        $join->on('a.emp_code', '=', 'p.vat')
-          ->where('a.date', '=', $dateStr)
-          ->where('a.mark_type', '=', 'check_in');
-      })
-      ->whereNull('a.id')
-      ->where('p.status_id', '=', Constants::WORKER_ACTIVE)
-      ->orderBy('p.nombre_completo')
-      ->select(
-        DB::raw("COALESCE(p.vat, '') AS dni"),
-        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-      )
-      ->get();
-
-    if ($absentWorkers->isEmpty()) {
-      return ['sent' => false, 'count' => 0, 'message' => "Sin ausentes para {$dateStr}."];
+    $recipient = $this->resolveReportRecipient($partnerUserId);
+    if (! $recipient) {
+      return ['sent' => false, 'message' => "No se encontró destinatario para user_id={$partnerUserId}."];
     }
 
-    $rows = $absentWorkers->map(fn($w) => [
-      'dni'       => $w->dni,
-      'full_name' => $w->full_name,
-      'estado'    => 'No marcó',
-    ]);
+    // Build the company-scope filter (null = all companies)
+    $sedeIds = ($partnerUserId && $partnerUserId !== Constants::ATTENDANCE_ALL_ACCESS_USER_ID)
+      ? $this->getPartnerCompanySedes($partnerUserId)
+      : null;
 
-    $columns = [
-      'dni'       => 'DNI',
-      'full_name' => 'Nombre Completo',
-      'estado'    => 'Estado',
-    ];
+    $absentRows = $this->buildAbsentRows($dateStr, $sedeIds);
+    $lateRows   = $this->buildLateRows($dateStr, $sedeIds);
 
-    $export   = new GeneralExport($rows, $columns, 'Ausentes');
-    $raw      = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
-    $filename = 'ausentes_' . $dateStr . '.xlsx';
-    $tmpPath  = tempnam(sys_get_temp_dir(), 'absent_') . '.xlsx';
+    if ($absentRows->isEmpty() && $lateRows->isEmpty()) {
+      return [
+        'sent'    => false,
+        'count'   => 0,
+        'message' => "Sin ausentes ni tardanzas para {$dateStr} (user_id={$partnerUserId}).",
+      ];
+    }
+
+    $export  = new AttendanceReportExport($absentRows, $lateRows);
+    $raw     = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
+    $tmpPath = tempnam(sys_get_temp_dir(), 'attendance_') . '.xlsx';
     file_put_contents($tmpPath, $raw);
-
-    $workersArray = $rows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray();
+    $filename = 'asistencias_' . $dateStr . '.xlsx';
 
     $emailService = new EmailService();
     $emailService->send([
-      'to'          => Constants::EMAIL_TEST,
-      'subject'     => "Ausencias del {$targetDate->format('d/m/Y')} — {$absentWorkers->count()} sin marcación",
+      'to'          => $recipient->email,
+      'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
       'template'    => 'emails.attendance-absent-report',
       'data'        => [
-        'report_date'  => $targetDate->format('d/m/Y'),
-        'absent_count' => $absentWorkers->count(),
-        'workers'      => $workersArray,
+        'report_date'   => $targetDate->format('d/m/Y'),
+        'absent_count'  => $absentRows->count(),
+        'late_count'    => $lateRows->count(),
+        'workers'       => $absentRows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray(),
       ],
       'attachments' => [[
         'path' => $tmpPath,
@@ -417,22 +407,120 @@ class AttendanceSyncService extends BaseService
     @unlink($tmpPath);
 
     return [
-      'sent'    => true,
-      'count'   => $absentWorkers->count(),
-      'date'    => $dateStr,
-      'message' => "Reporte enviado con {$absentWorkers->count()} ausente(s) para {$dateStr}.",
+      'sent'         => true,
+      'absent_count' => $absentRows->count(),
+      'late_count'   => $lateRows->count(),
+      'date'         => $dateStr,
+      'recipient'    => $recipient->email,
+      'message'      => "Reporte enviado a {$recipient->email}: {$absentRows->count()} ausente(s) y {$lateRows->count()} tardanza(s) para {$dateStr}.",
     ];
   }
 
   public function reportAbsent(Request $request): JsonResponse
   {
     $request->validate([
-      'date' => ['nullable', 'date_format:Y-m-d'],
+      'date'            => ['nullable', 'date_format:Y-m-d'],
+      'partner_user_id' => ['nullable', 'integer'],
     ]);
 
-    $result = $this->sendAbsentReport($request->date);
+    $result = $this->sendAbsentReport($request->date, $request->partner_user_id ? (int) $request->partner_user_id : null);
 
     return response()->json($result);
+  }
+
+  private function resolveReportRecipient(?int $partnerUserId): ?object
+  {
+    if (! $partnerUserId) {
+      return (object) ['email' => Constants::EMAIL_TEST, 'full_name' => 'TEST'];
+    }
+
+    return DB::table('usr_users as u')
+      ->join('rrhh_persona as p', 'p.id', '=', 'u.partner_id')
+      ->where('u.id', $partnerUserId)
+      ->select(
+        DB::raw("COALESCE(p.email, p.email2) AS email"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, u.name)) AS full_name"),
+      )
+      ->first();
+  }
+
+  private function getPartnerCompanySedes(int $partnerUserId): array
+  {
+    // Get all sedes of the same companies as the user's assigned sedes
+    $empresaIds = DB::table('assigment_user_sede as aus')
+      ->join('config_sede as cs', 'cs.id', '=', 'aus.sede_id')
+      ->where('aus.user_id', $partnerUserId)
+      ->whereNull('aus.deleted_at')
+      ->pluck('cs.empresa_id')
+      ->unique()
+      ->toArray();
+
+    if (empty($empresaIds)) {
+      return [];
+    }
+
+    return DB::table('config_sede')
+      ->whereIn('empresa_id', $empresaIds)
+      ->pluck('id')
+      ->toArray();
+  }
+
+  private function buildAbsentRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
+  {
+    $query = DB::table('rrhh_persona as p')
+      ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
+        $join->on('a.person_id', '=', 'p.id')
+          ->where('a.date', '=', $dateStr)
+          ->where('a.mark_type', '=', 'check_in');
+      })
+      ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
+      ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
+      ->whereNull('a.id')
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      ->select(
+        DB::raw("COALESCE(p.vat, '') AS dni"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+        DB::raw("COALESCE(rc.name, '') AS cargo"),
+        DB::raw("COALESCE(cs.localidad, cs.razon_social, '') AS sede"),
+      )
+      ->orderBy('p.nombre_completo');
+
+    if (! empty($sedeIds)) {
+      $query->whereIn('p.sede_id', $sedeIds);
+    }
+
+    return $query->get()->map(fn($r) => (array) $r);
+  }
+
+  private function buildLateRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
+  {
+    $query = DB::table('attendance_sync as a')
+      ->join('rrhh_persona as p', 'p.id', '=', 'a.person_id')
+      ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
+      ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
+      ->whereDate('a.date', $dateStr)
+      ->where('a.mark_type', 'check_in')
+      ->whereRaw("a.time > ADDTIME(COALESCE(ws.checkin, '08:00:00'), '00:15:00')")
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      ->select(
+        DB::raw("COALESCE(p.vat, '') AS dni"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+        'a.time AS check_in',
+        DB::raw("COALESCE(ws.checkin, '08:00:00') AS schedule"),
+        DB::raw("TIMESTAMPDIFF(MINUTE, COALESCE(ws.checkin, '08:00:00'), a.time) AS minutes_late"),
+        DB::raw("COALESCE(rc.name, '') AS cargo"),
+        DB::raw("COALESCE(cs.localidad, cs.razon_social, '') AS sede"),
+      )
+      ->orderBy('p.nombre_completo');
+
+    if (! empty($sedeIds)) {
+      $query->whereIn('p.sede_id', $sedeIds);
+    }
+
+    return $query->get()->map(fn($r) => (array) $r);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
