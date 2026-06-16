@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\asistencias;
 
+use App\Exports\AttendanceReportExport;
 use App\Exports\GeneralExport;
 use App\Http\Resources\gp\gestionhumana\asistencias\AttendanceSyncResource;
 use App\Http\Services\BaseService;
@@ -57,7 +58,7 @@ class AttendanceSyncService extends BaseService
     }
 
     if ($request->range === 'today') {
-      $date   = $from->toDateString();
+      $date = $from->toDateString();
       $before = AttendanceSync::whereDate('date', $date)->count();
 
       SyncAttendanceJob::dispatchSync($date);
@@ -94,14 +95,14 @@ class AttendanceSyncService extends BaseService
     $now = now()->timezone('America/Lima');
 
     return match ($range) {
-      'today'         => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
-      'yesterday'     => [$now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay()],
-      'this_week'     => [$now->copy()->startOfWeek(), $now->copy()],
-      'this_month'    => [$now->copy()->startOfMonth(), $now->copy()],
-      'last_month'    => [$now->copy()->subMonthNoOverflow()->startOfMonth(), $now->copy()->subMonthNoOverflow()->endOfMonth()],
+      'today' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+      'yesterday' => [$now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay()],
+      'this_week' => [$now->copy()->startOfWeek(), $now->copy()],
+      'this_month' => [$now->copy()->startOfMonth(), $now->copy()],
+      'last_month' => [$now->copy()->subMonthNoOverflow()->startOfMonth(), $now->copy()->subMonthNoOverflow()->endOfMonth()],
       'last_3_months' => [$now->copy()->subMonths(3)->startOfMonth(), $now->copy()],
       'last_6_months' => [$now->copy()->subMonths(6)->startOfMonth(), $now->copy()],
-      'custom'        => [Carbon::createFromFormat('Y-m-d', $dateFrom), Carbon::createFromFormat('Y-m-d', $dateTo)],
+      'custom' => [Carbon::createFromFormat('Y-m-d', $dateFrom), Carbon::createFromFormat('Y-m-d', $dateTo)],
     };
   }
 
@@ -118,16 +119,16 @@ class AttendanceSyncService extends BaseService
     $rows = $this->buildPivotedRows(
       $request->date_from,
       $request->date_to,
-      $request->person_id ? (int) $request->person_id : null,
+      $request->person_id ? (int)$request->person_id : null,
       $request,
     );
 
     $data = $rows->map(function (object $row) {
-      $scheduled  = $this->generateScheduledTimes($row);
-      $checkIn    = $scheduled['check_in'];
-      $checkOut   = $scheduled['check_out'];
-      $lunchOut   = $scheduled['lunch_out'];
-      $lunchIn    = $scheduled['lunch_in'];
+      $scheduled = $this->generateScheduledTimes($row);
+      $checkIn = $scheduled['check_in'];
+      $checkOut = $scheduled['check_out'];
+      $lunchOut = $scheduled['lunch_out'];
+      $lunchIn = $scheduled['lunch_in'];
 
       if ($checkIn && $checkOut) {
         $grossSeconds = Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp();
@@ -159,7 +160,7 @@ class AttendanceSyncService extends BaseService
     }
 
     if ($request->get('export') === 'xlsx') {
-      $columns  = [
+      $columns = [
         'date'         => 'Fecha',
         'emp_code'     => 'Código',
         'vat'          => 'DNI',
@@ -187,10 +188,10 @@ class AttendanceSyncService extends BaseService
       'search'    => ['nullable', 'string', 'max:100'],
     ]);
 
-    $rows    = $this->buildPivotedRows(
+    $rows = $this->buildPivotedRows(
       $request->date_from,
       $request->date_to,
-      $request->person_id ? (int) $request->person_id : null,
+      $request->person_id ? (int)$request->person_id : null,
       $request,
     );
     $summary = $this->buildInternalSummary($rows);
@@ -208,7 +209,7 @@ class AttendanceSyncService extends BaseService
         'expected_hours' => $day['expected_hours'],
         'balance'        => $day['balance'],
       ]));
-      $columns  = [
+      $columns = [
         'emp_code'       => 'Código',
         'full_name'      => 'Nombre Completo',
         'date'           => 'Fecha',
@@ -235,26 +236,26 @@ class AttendanceSyncService extends BaseService
     ]);
 
     $dateFrom = $request->get('date_from', now()->startOfMonth()->toDateString());
-    $dateTo   = $request->get('date_to', now()->toDateString());
+    $dateTo = $request->get('date_to', now()->toDateString());
 
-    $rows      = $this->buildPivotedRows($dateFrom, $dateTo, $personId, null)->keyBy('date');
-    $holidays  = $this->loadHolidays($dateFrom, $dateTo);
+    $rows = $this->buildPivotedRows($dateFrom, $dateTo, $personId, null)->keyBy('date');
+    $holidays = $this->loadHolidays($dateFrom, $dateTo);
     $vacations = $this->loadPersonVacations($personId, $dateFrom, $dateTo);
-    $schedule  = $this->getPersonScheduleRow($personId);
+    $schedule = $this->getPersonScheduleRow($personId);
 
-    if ($rows->isEmpty() && ! $schedule) {
+    if ($rows->isEmpty() && !$schedule) {
       return response()->json(['message' => 'No attendance records found for this person in the given range.'], 404);
     }
 
     $firstRow = $rows->first();
-    $empCode  = $firstRow?->emp_code;
+    $empCode = $firstRow?->emp_code;
     $fullName = $firstRow ? $firstRow->full_name : strtoupper($schedule?->full_name ?? '');
-    $vat      = $firstRow?->vat ?? $schedule?->vat;
+    $vat = $firstRow?->vat ?? $schedule?->vat;
 
     $daily = collect();
 
     foreach (CarbonPeriod::create($dateFrom, $dateTo) as $day) {
-      $dateStr   = $day->toDateString();
+      $dateStr = $day->toDateString();
       $dayOfWeek = $day->dayOfWeek;
 
       if ($dayOfWeek === 0) {
@@ -296,17 +297,17 @@ class AttendanceSyncService extends BaseService
       }
 
       $row = $rows->get($dateStr) ?? ($schedule ? $this->makeSyntheticRow($dateStr, $personId, $schedule) : null);
-      if (! $row) continue;
+      if (!$row) continue;
 
-      $isSaturday    = $dayOfWeek === 6;
+      $isSaturday = $dayOfWeek === 6;
       $expectedHours = $isSaturday ? 5.0 : 8.6;
-      $marks         = $this->resolveMarks($row, $isSaturday);
+      $marks = $this->resolveMarks($row, $isSaturday);
 
       $hoursWorked = null;
       if ($marks['checkIn'] && $marks['checkOut']) {
         $grossMinutes = (Carbon::parse($marks['checkOut'])->getTimestamp() - Carbon::parse($marks['checkIn'])->getTimestamp()) / 60;
         $lunchMinutes = $isSaturday ? 0 : 84;
-        $hoursWorked  = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
+        $hoursWorked = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
       }
 
       $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
@@ -327,8 +328,8 @@ class AttendanceSyncService extends BaseService
       ]);
     }
 
-    $withData      = $daily->where('type', 'work')->whereNotNull('_worked_raw');
-    $totalWorked   = round($withData->sum('_worked_raw'), 2);
+    $withData = $daily->where('type', 'work')->whereNotNull('_worked_raw');
+    $totalWorked = round($withData->sum('_worked_raw'), 2);
     $totalExpected = round($withData->sum('_expected_raw'), 2);
 
     $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
@@ -350,7 +351,7 @@ class AttendanceSyncService extends BaseService
     ]);
   }
 
-  public function sendAbsentReport(?string $date = null): array
+  public function sendAbsentReport(?string $date = null, ?int $partnerUserId = null, ?string $overrideEmail = null): array
   {
     $targetDate = $date
       ? Carbon::createFromFormat('Y-m-d', $date)
@@ -358,54 +359,43 @@ class AttendanceSyncService extends BaseService
 
     $dateStr = $targetDate->toDateString();
 
-    $absentWorkers = DB::table('rrhh_persona as p')
-      ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
-        $join->on('a.emp_code', '=', 'p.vat')
-          ->where('a.date', '=', $dateStr)
-          ->where('a.mark_type', '=', 'check_in');
-      })
-      ->whereNull('a.id')
-      ->where('p.status_id', '=', Constants::WORKER_ACTIVE)
-      ->orderBy('p.nombre_completo')
-      ->select(
-        DB::raw("COALESCE(p.vat, '') AS dni"),
-        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-      )
-      ->get();
-
-    if ($absentWorkers->isEmpty()) {
-      return ['sent' => false, 'count' => 0, 'message' => "Sin ausentes para {$dateStr}."];
+    $recipient = $this->resolveReportRecipient($partnerUserId, $overrideEmail);
+    if (!$recipient) {
+      return ['sent' => false, 'message' => "No se encontró destinatario para user_id={$partnerUserId}."];
     }
 
-    $rows = $absentWorkers->map(fn($w) => [
-      'dni'       => $w->dni,
-      'full_name' => $w->full_name,
-      'estado'    => 'No marcó',
-    ]);
+    // Build the company-scope filter (null = all companies)
+    $sedeIds = ($partnerUserId && $partnerUserId !== Constants::ATTENDANCE_ALL_ACCESS_USER_ID)
+      ? $this->getPartnerCompanySedes($partnerUserId)
+      : null;
 
-    $columns = [
-      'dni'       => 'DNI',
-      'full_name' => 'Nombre Completo',
-      'estado'    => 'Estado',
-    ];
+    $absentRows = $this->buildAbsentRows($dateStr, $sedeIds);
+    $lateRows = $this->buildLateRows($dateStr, $sedeIds);
 
-    $export   = new GeneralExport($rows, $columns, 'Ausentes');
-    $raw      = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
-    $filename = 'ausentes_' . $dateStr . '.xlsx';
-    $tmpPath  = tempnam(sys_get_temp_dir(), 'absent_') . '.xlsx';
+    if ($absentRows->isEmpty() && $lateRows->isEmpty()) {
+      return [
+        'sent'    => false,
+        'count'   => 0,
+        'message' => "Sin ausentes ni tardanzas para {$dateStr} (user_id={$partnerUserId}).",
+      ];
+    }
+
+    $export = new AttendanceReportExport($absentRows, $lateRows);
+    $raw = Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX);
+    $tmpPath = tempnam(sys_get_temp_dir(), 'attendance_') . '.xlsx';
     file_put_contents($tmpPath, $raw);
-
-    $workersArray = $rows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray();
+    $filename = 'asistencias_' . $dateStr . '.xlsx';
 
     $emailService = new EmailService();
     $emailService->send([
-      'to'          => Constants::EMAIL_TEST,
-      'subject'     => "Ausencias del {$targetDate->format('d/m/Y')} — {$absentWorkers->count()} sin marcación",
+      'to'          => $recipient->email,
+      'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
       'template'    => 'emails.attendance-absent-report',
       'data'        => [
         'report_date'  => $targetDate->format('d/m/Y'),
-        'absent_count' => $absentWorkers->count(),
-        'workers'      => $workersArray,
+        'absent_count' => $absentRows->count(),
+        'late_count'   => $lateRows->count(),
+        'workers'      => $absentRows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray(),
       ],
       'attachments' => [[
         'path' => $tmpPath,
@@ -417,10 +407,12 @@ class AttendanceSyncService extends BaseService
     @unlink($tmpPath);
 
     return [
-      'sent'    => true,
-      'count'   => $absentWorkers->count(),
-      'date'    => $dateStr,
-      'message' => "Reporte enviado con {$absentWorkers->count()} ausente(s) para {$dateStr}.",
+      'sent'         => true,
+      'absent_count' => $absentRows->count(),
+      'late_count'   => $lateRows->count(),
+      'date'         => $dateStr,
+      'recipient'    => $recipient->email,
+      'message'      => "Reporte enviado a {$recipient->email}: {$absentRows->count()} ausente(s) y {$lateRows->count()} tardanza(s) para {$dateStr}.",
     ];
   }
 
@@ -430,9 +422,127 @@ class AttendanceSyncService extends BaseService
       'date' => ['nullable', 'date_format:Y-m-d'],
     ]);
 
-    $result = $this->sendAbsentReport($request->date);
+    $results = [];
+    foreach (Constants::ATTENDANCE_REPORT_USER_IDS as $userId) {
+      $results[] = $this->sendAbsentReport($request->date, $userId);
+    }
 
-    return response()->json($result);
+    return response()->json($results);
+  }
+
+  private function resolveReportRecipient(?int $partnerUserId, ?string $overrideEmail = null): ?object
+  {
+    if (!$partnerUserId) {
+      return (object)['email' => $overrideEmail ?? Constants::EMAIL_TEST, 'full_name' => 'TEST'];
+    }
+
+    $row = DB::table('usr_users as u')
+      ->join('rrhh_persona as p', 'p.id', '=', 'u.partner_id')
+      ->where('u.id', $partnerUserId)
+      ->select(
+        DB::raw("p.email2 AS email"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, u.name)) AS full_name"),
+      )
+      ->first();
+
+    if ($row && $overrideEmail) {
+      $row->email = $overrideEmail;
+    }
+
+    return $row;
+  }
+
+  private function getPartnerCompanySedes(int $partnerUserId): array
+  {
+    // Get all sedes of the same companies as the user's assigned sedes
+    $empresaIds = DB::table('assigment_user_sede as aus')
+      ->join('config_sede as cs', 'cs.id', '=', 'aus.sede_id')
+      ->where('aus.user_id', $partnerUserId)
+      ->whereNull('aus.deleted_at')
+      ->pluck('cs.empresa_id')
+      ->unique()
+      ->toArray();
+
+    if (empty($empresaIds)) {
+      return [];
+    }
+
+    return DB::table('config_sede')
+      ->whereIn('empresa_id', $empresaIds)
+      ->pluck('id')
+      ->toArray();
+  }
+
+  private function buildAbsentRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
+  {
+    $query = DB::table('rrhh_persona as p')
+      ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
+        $join->on(function ($j) {
+          $j->on('a.person_id', '=', 'p.id')
+            ->orOn('a.emp_code', '=', 'p.vat');
+        })
+          ->where('a.date', '=', $dateStr)
+          ->where('a.mark_type', '=', 'check_in');
+      })
+      ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
+      ->leftJoin('rrhh_area as ra', 'ra.id', '=', 'p.area_id')
+      ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
+      ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
+      ->whereNull('a.id')
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      ->select(
+        DB::raw("COALESCE(p.vat, '') AS dni"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        DB::raw("COALESCE(rc.name, '') AS cargo"),
+        DB::raw("COALESCE(ra.name, '') AS area"),
+        DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
+      )
+      ->orderBy('p.nombre_completo');
+
+    if (!empty($sedeIds)) {
+      $query->whereIn('p.sede_id', $sedeIds);
+    }
+
+    return $query->get()->map(fn($r) => (array)$r);
+  }
+
+  private function buildLateRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
+  {
+    $query = DB::table('attendance_sync as a')
+      ->join('rrhh_persona as p', function ($join) {
+        $join->on('p.id', '=', 'a.person_id')
+          ->orOn('p.vat', '=', 'a.emp_code');
+      })
+      ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
+      ->leftJoin('rrhh_area as ra', 'ra.id', '=', 'p.area_id')
+      ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
+      ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
+      ->whereDate('a.date', $dateStr)
+      ->where('a.mark_type', 'check_in')
+      ->whereRaw("a.time > ADDTIME(COALESCE(ws.checkin, '08:00:00'), '00:15:00')")
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      ->select(
+        DB::raw("COALESCE(p.vat, '') AS dni"),
+        DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        'a.time AS check_in',
+        DB::raw("COALESCE(ws.checkin, '08:00:00') AS schedule"),
+        DB::raw("TIMESTAMPDIFF(MINUTE, COALESCE(ws.checkin, '08:00:00'), a.time) AS minutes_late"),
+        DB::raw("COALESCE(rc.name, '') AS cargo"),
+        DB::raw("COALESCE(ra.name, '') AS area"),
+        DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
+      )
+      ->orderBy('p.nombre_completo');
+
+    if (!empty($sedeIds)) {
+      $query->whereIn('p.sede_id', $sedeIds);
+    }
+
+    return $query->get()->map(fn($r) => (array)$r);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -494,8 +604,8 @@ class AttendanceSyncService extends BaseService
   {
     return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) {
       $daily = $dayRows->map(function (object $row) {
-        $dayOfWeek     = Carbon::parse($row->date)->dayOfWeek;
-        $isSaturday    = $dayOfWeek === 6;
+        $dayOfWeek = Carbon::parse($row->date)->dayOfWeek;
+        $isSaturday = $dayOfWeek === 6;
         $expectedHours = $isSaturday ? 5.0 : 8.6;
 
         $marks = $this->resolveMarks($row, $isSaturday);
@@ -504,7 +614,7 @@ class AttendanceSyncService extends BaseService
         if ($marks['checkIn'] && $marks['checkOut']) {
           $grossMinutes = (Carbon::parse($marks['checkOut'])->getTimestamp() - Carbon::parse($marks['checkIn'])->getTimestamp()) / 60;
           $lunchMinutes = $isSaturday ? 0 : 84;
-          $hoursWorked  = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
+          $hoursWorked = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
         }
 
         $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
@@ -524,12 +634,12 @@ class AttendanceSyncService extends BaseService
         ];
       })->sortBy('date')->values();
 
-      $first         = $dayRows->first();
-      $withData      = $daily->whereNotNull('_worked_raw');
-      $totalWorked   = round($withData->sum('_worked_raw'), 2);
+      $first = $dayRows->first();
+      $withData = $daily->whereNotNull('_worked_raw');
+      $totalWorked = round($withData->sum('_worked_raw'), 2);
       $totalExpected = round($withData->sum('_expected_raw'), 2);
-      $daily         = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
-      $daysPresent   = $daily->count();
+      $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
+      $daysPresent = $daily->count();
 
       return [
         'person_id'      => $first->person_id,
@@ -547,19 +657,19 @@ class AttendanceSyncService extends BaseService
   private function toHm(?float $hours): ?string
   {
     if ($hours === null) return null;
-    $sign  = $hours < 0 ? '-' : '';
-    $total = (int) round(abs($hours) * 60);
+    $sign = $hours < 0 ? '-' : '';
+    $total = (int)round(abs($hours) * 60);
     return "{$sign}" . intdiv($total, 60) . 'h ' . ($total % 60) . 'min';
   }
 
   private function generateScheduledTimes(object $row): array
   {
-    if (! $row->check_in) {
+    if (!$row->check_in) {
       return ['check_in' => null, 'lunch_out' => null, 'lunch_in' => null, 'check_out' => null];
     }
 
     $isSaturday = Carbon::parse($row->date)->dayOfWeek === 6;
-    $offsets    = [];
+    $offsets = [];
 
     foreach (['check_in', 'lunch_out', 'lunch_in', 'check_out'] as $markType) {
       mt_srand(crc32($row->date . $row->emp_code . $markType));
@@ -567,7 +677,7 @@ class AttendanceSyncService extends BaseService
       mt_srand();
     }
 
-    $checkIn  = $this->addTimeOffset($row->schedule_checkin,  $offsets['check_in']);
+    $checkIn = $this->addTimeOffset($row->schedule_checkin, $offsets['check_in']);
     $checkOut = $this->addTimeOffset($row->schedule_checkout, $offsets['check_out']);
 
     if ($isSaturday) {
@@ -580,7 +690,7 @@ class AttendanceSyncService extends BaseService
     return [
       'check_in'  => $checkIn,
       'lunch_out' => $this->addTimeOffset($row->schedule_lunch_out, $offsets['lunch_out']),
-      'lunch_in'  => $this->addTimeOffset($row->schedule_lunch_in,  $offsets['lunch_in']),
+      'lunch_in'  => $this->addTimeOffset($row->schedule_lunch_in, $offsets['lunch_in']),
       'check_out' => $checkOut,
     ];
   }
@@ -645,7 +755,7 @@ class AttendanceSyncService extends BaseService
 
   private function makeSyntheticRow(string $date, int $personId, object $schedule): object
   {
-    return (object) [
+    return (object)[
       'date'               => $date,
       'person_id'          => $personId,
       'emp_code'           => null,
@@ -664,14 +774,14 @@ class AttendanceSyncService extends BaseService
 
   private function resolveMarks(object $row, bool $isSaturday): array
   {
-    $checkIn  = $row->check_in ?? null;
+    $checkIn = $row->check_in ?? null;
     $checkOut = $checkIn
       ? ($row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout))
       : null;
     $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
-    $lunchIn  = $isSaturday ? null : ($row->lunch_in  ?? $row->schedule_lunch_in);
+    $lunchIn = $isSaturday ? null : ($row->lunch_in ?? $row->schedule_lunch_in);
 
-    $isEstimated = ! $row->check_in || ! $row->check_out;
+    $isEstimated = !$row->check_in || !$row->check_out;
 
     return compact('checkIn', 'checkOut', 'lunchOut', 'lunchIn', 'isEstimated');
   }
