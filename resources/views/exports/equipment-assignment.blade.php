@@ -515,6 +515,10 @@
           indemnizaciones, bonificaciones y demás derechos que me correspondan del valor correspondiente a daños,
           pérdida
           o robo de los equipos en comento.</p>
+        <p><strong>Nota sobre equipos en modalidad RENTING:</strong> Para los equipos adquiridos bajo la modalidad de
+          renting (arrendamiento), el precio total a considerar en caso de pérdida, robo o daño irreparable corresponde
+          al precio base del renting establecido en el contrato vigente con el proveedor, independientemente del tiempo
+          de uso transcurrido desde la fecha de asignación.</p>
       </div>
     </div>
   </div>
