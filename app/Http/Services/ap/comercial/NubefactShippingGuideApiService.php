@@ -498,10 +498,15 @@ class NubefactShippingGuideApiService
         continue;
       }
 
+      // Use code and description from detail (already set from product in InventoryMovementService)
+      // Fallback to product fields for backward compatibility with old records
+      $code = $detail->code ?? $product->code ?? 'PROD';
+      $description = $detail->description ?? $product->name ?? 'PRODUCTO';
+
       $items[] = [
         'unidad_de_medida' => $product->unitMeasurement->code_nubefact ?? 'NIU',
-        'codigo' => $product->code ?? 'PROD',
-        'descripcion' => strtoupper($product->name ?? 'PRODUCTO'),
+        'codigo' => $code,
+        'descripcion' => strtoupper($description),
         'cantidad' => (string)$detail->quantity,
       ];
     }
@@ -517,12 +522,13 @@ class NubefactShippingGuideApiService
     $items = [];
 
     foreach ($details as $detail) {
-      // For services, use notes as description
-      $description = $detail->notes ?? 'SERVICIO';
+      // For services, use description
+      $code = $detail->code ?? '001';
+      $description = $detail->description ?? 'SERVICIO';
 
       $items[] = [
         'unidad_de_medida' => 'NIU',
-        'codigo' => '001',
+        'codigo' => $code,
         'descripcion' => strtoupper($description),
         'cantidad' => (string)$detail->quantity,
       ];
