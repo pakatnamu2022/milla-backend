@@ -32,13 +32,20 @@ class SyncAttendanceJob implements ShouldQueue
     $inserted = 0;
 
     try {
-      $personMap = $this->buildPersonMap();
-      $rows      = $this->fetchTransactions($date);
-      $grouped   = $rows->groupBy('emp_code');
-
+      $personMap   = $this->buildPersonMap();
+      $rows        = $this->fetchTransactions($date);
+      $grouped     = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
+      $onVacation  = $this->buildVacationSet($date);
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, &$inserted) {
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, $onVacation, &$inserted) {
+        $personId = $personMap[$empCode] ?? null;
+
+        if ($personId && isset($onVacation[$personId])) {
+          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} está de vacaciones, se omite.");
+          return;
+        }
+
         $sorted  = $punches->sortBy('punch_time')->values();
         $records = $this->classifyPunches($sorted, $empCode, $date, $personMap, $scheduleMap);
 
@@ -114,39 +121,39 @@ class SyncAttendanceJob implements ShouldQueue
       ? ['check_in' => $checkin, 'check_out' => $lunchOut]
       : ['check_in' => $checkin, 'lunch_out' => $lunchOut, 'lunch_in' => $lunchIn, 'check_out' => $checkout];
 
-    $usedIndexes = [];
-    $results     = [];
+    // Punch-first matching: each punch claims its nearest unassigned slot.
+    // This correctly handles single-punch scenarios (e.g. only a 18:11 punch maps
+    // to check_out, not check_in, because it's only 11 min away vs 611 min).
+    $usedSlots = [];
+    $results   = [];
 
-    foreach ($slots as $markType => $targetTime) {
-      $targetMinutes = $this->timeToMinutes($targetTime);
-      $bestDiff      = PHP_INT_MAX;
-      $bestIdx       = -1;
-      $bestRow       = null;
+    foreach ($punches->sortBy(fn($r) => $r->punch_time)->values() as $row) {
+      $punchMinutes = $this->timeToMinutes(Carbon::parse($row->punch_time)->format('H:i:s'));
+      $bestSlot     = null;
+      $bestDiff     = PHP_INT_MAX;
 
-      foreach ($punches as $i => $row) {
-        if (in_array($i, $usedIndexes)) continue;
+      foreach ($slots as $slotType => $targetTime) {
+        if (in_array($slotType, $usedSlots, true)) continue;
 
-        $diff = abs($this->timeToMinutes(Carbon::parse($row->punch_time)->format('H:i:s')) - $targetMinutes);
-
+        $diff = abs($punchMinutes - $this->timeToMinutes($targetTime));
         if ($diff < $bestDiff) {
           $bestDiff = $diff;
-          $bestIdx  = $i;
-          $bestRow  = $row;
+          $bestSlot = $slotType;
         }
       }
 
-      if ($bestRow !== null) {
-        $usedIndexes[] = $bestIdx;
-        $results[] = [
-          'zkbio_transaction_id' => (int) $bestRow->transaction_id,
+      if ($bestSlot !== null) {
+        $usedSlots[] = $bestSlot;
+        $results[]   = [
+          'zkbio_transaction_id' => (int) $row->transaction_id,
           'person_id'            => $personId,
           'emp_code'             => $empCode,
-          'full_name'            => $bestRow->full_name ?? '',
+          'full_name'            => $row->full_name ?? '',
           'date'                 => $date,
-          'mark_type'            => $markType,
-          'time'                 => Carbon::parse($bestRow->punch_time)->format('H:i:s'),
-          'area'                 => $bestRow->area_alias ?: null,
-          'punch_state_original' => (string) $bestRow->punch_state,
+          'mark_type'            => $bestSlot,
+          'time'                 => Carbon::parse($row->punch_time)->format('H:i:s'),
+          'area'                 => $row->area_alias ?: null,
+          'punch_state_original' => (string) $row->punch_state,
         ];
       }
     }
@@ -158,6 +165,18 @@ class SyncAttendanceJob implements ShouldQueue
   {
     [$h, $m] = explode(':', $time);
     return (int) $h * 60 + (int) $m;
+  }
+
+  private function buildVacationSet(string $date): array
+  {
+    return DB::table('rrhh_vacaciones')
+      ->where('status_deleted', 1)
+      ->where('aprobacion_rrhh', 1)
+      ->where('fecha_inicio', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->pluck('empleado_id')
+      ->flip()
+      ->toArray();
   }
 
   private function buildPersonMap(): array
