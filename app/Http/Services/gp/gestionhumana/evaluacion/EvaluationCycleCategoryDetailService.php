@@ -137,6 +137,11 @@ class EvaluationCycleCategoryDetailService extends BaseService
   private function validateCategoryWeightsOrFail(int $categoryId): void
   {
     $category = HierarchicalCategory::findOrFail($categoryId);
+
+    if (!$category->hasObjectives) {
+      return;
+    }
+
     $workers = $category->workers()->get();
 
     $invalidWorkers = [];
