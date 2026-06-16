@@ -569,7 +569,9 @@ class AttendanceSyncService extends BaseService
       ])
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
-      ->where('p.status_id', 22)
+      ->where(function ($q) {
+        $q->where('p.status_id', 22)->orWhereNull('p.status_id');
+      })
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
