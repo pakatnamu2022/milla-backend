@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Services\DatabaseSyncService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -247,6 +248,9 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       if ($existingDocument->ProcesoEstado == 1 && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         $log->markAsCompletedElectronicDocument();
+
+        // Sincronizar a tabla de caja para postventa (método separado, no afecta proceso principal)
+        $this->syncToPostventaCaja($document);
       }
     }
   }
@@ -614,6 +618,110 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     return $log;
+  }
+
+  /**
+   * Sincroniza el documento a la tabla intermedia de caja para postventa
+   * Este método está aislado en try-catch para no afectar el proceso principal
+   *
+   * @param ElectronicDocument $document
+   * @return void
+   */
+  private function syncToPostventaCaja(ElectronicDocument $document): void
+  {
+    try {
+      // 1. Verificar si el documento es de postventa
+      if (!in_array($document->area_id, ApMasters::AREAS_POSVENTA)) {
+        // No es postventa, no hacer nada
+        return;
+      }
+
+      // 2. Cargar la relación con AssignSalesSeries si no está cargada
+      if (!$document->relationLoaded('seriesModel')) {
+        $document->load('seriesModel');
+      }
+
+      // 3. Validar que tenga seriesModel y sede_id
+      if (!$document->seriesModel || !$document->seriesModel->sede_id) {
+        Log::warning('Documento de postventa sin seriesModel o sede_id, no se sincronizará a CajaDo', [
+          'document_id' => $document->id,
+          'series_id' => $document->series_id,
+        ]);
+        return;
+      }
+
+      // 4. Mapear sede_id a CajaId
+      $sedeId = $document->seriesModel->sede_id;
+      $cajaId = $this->mapSedeToCajaId($sedeId);
+
+      if (!$cajaId) {
+        Log::warning('No se encontró mapeo de sede_id a CajaId para documento de postventa', [
+          'document_id' => $document->id,
+          'sede_id' => $sedeId,
+        ]);
+        return;
+      }
+
+      // 5. Verificar si ya existe el registro en la tabla intermedia
+      $existingRecord = DB::connection('dbtp')
+        ->table('neRMPvtTb_CajaDo')
+        ->where('DocumentoId', $document->full_number)
+        ->first();
+
+      if ($existingRecord) {
+        Log::info('El documento ya existe en neRMPvtTb_CajaDo, se omite inserción', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+        ]);
+        return;
+      }
+
+      // 6. Insertar en la tabla intermedia
+      DB::connection('dbtp')
+        ->table('neRMPvtTb_CajaDo')
+        ->insert([
+          'CajaId' => $cajaId,
+          'ModuloId' => 'SO',
+          'DocumentoTipo' => '0',
+          'DocumentoId' => $document->full_number,
+        ]);
+
+      Log::info('Documento de postventa sincronizado exitosamente a neRMPvtTb_CajaDo', [
+        'document_id' => $document->id,
+        'full_number' => $document->full_number,
+        'caja_id' => $cajaId,
+        'sede_id' => $sedeId,
+      ]);
+
+    } catch (\Exception $e) {
+      // Capturar cualquier error para que no afecte el proceso principal
+      Log::error('Error al sincronizar documento de postventa a neRMPvtTb_CajaDo (proceso no crítico)', [
+        'document_id' => $document->id,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+      ]);
+      // NO lanzar la excepción, solo registrarla
+    }
+  }
+
+  /**
+   * Mapea el sede_id a su correspondiente CajaId
+   *
+   * @param int $sedeId
+   * @return string|null
+   */
+  private function mapSedeToCajaId(int $sedeId): ?string
+  {
+    // Mapeo de sede_id a CajaId según especificación
+    $mapping = [
+      13 => 'CIX_CAJ01_PEN', // CHICLAYO
+      18 => 'PIU_CAJ01_PEN', // PIURA
+      19 => 'CAX_CAJ01_PEN', // CAJAMARCA
+      15 => 'JAE_CAJ01_PEN', // JAEN
+      31 => 'TUM_CAJ01_PEN', // TUMBES
+    ];
+
+    return $mapping[$sedeId] ?? null;
   }
 
   /**
