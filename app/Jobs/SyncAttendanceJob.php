@@ -181,9 +181,11 @@ class SyncAttendanceJob implements ShouldQueue
 
   private function buildPersonMap(): array
   {
+    // NULLs first (ASC), status_id=22 last → last value wins the pluck key overwrite
     return DB::table('rrhh_persona')
       ->whereNotNull('vat')
       ->where('status_deleted', 1)
+      ->orderByRaw('CASE WHEN status_id = 22 THEN 1 ELSE 0 END ASC')
       ->pluck('id', 'vat')
       ->toArray();
   }
