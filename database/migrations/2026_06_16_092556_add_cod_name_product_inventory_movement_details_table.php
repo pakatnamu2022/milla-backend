@@ -11,8 +11,8 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('inventory_movement_details', function (Blueprint $table) {
-      $table->string('code_product', 50)->nullable()->after('product_id');
-      $table->string('name_product', 100)->nullable()->after('code_product');
+      $table->string('code', 50)->nullable()->after('product_id');
+      $table->string('description', 100)->nullable()->after('code');
     });
   }
 
