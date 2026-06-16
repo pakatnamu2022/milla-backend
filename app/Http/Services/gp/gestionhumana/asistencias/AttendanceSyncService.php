@@ -424,7 +424,7 @@ class AttendanceSyncService extends BaseService
 
     $results = [];
     foreach (Constants::ATTENDANCE_REPORT_USER_IDS as $userId) {
-      $results[] = $this->sendAbsentReport($request->date, $userId, Constants::EMAIL_TEST);
+      $results[] = $this->sendAbsentReport($request->date, $userId);
     }
 
     return response()->json($results);
@@ -440,7 +440,7 @@ class AttendanceSyncService extends BaseService
       ->join('rrhh_persona as p', 'p.id', '=', 'u.partner_id')
       ->where('u.id', $partnerUserId)
       ->select(
-        DB::raw("COALESCE(p.email, p.email2) AS email"),
+        DB::raw("p.email2 AS email"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, u.name)) AS full_name"),
       )
       ->first();
