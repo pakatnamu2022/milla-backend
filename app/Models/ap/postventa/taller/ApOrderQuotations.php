@@ -72,6 +72,7 @@ class ApOrderQuotations extends Model
     'confirmation_ip',
     'confirmation_metadata',
     'parent_quotation_id',
+    'shipping_guide_id',
   ];
 
   const filters = [
