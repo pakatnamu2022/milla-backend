@@ -14,20 +14,24 @@ class AttendanceReportExport implements WithMultipleSheets
   public function sheets(): array
   {
     $absentColumns = [
-      'dni'       => 'DNI',
-      'full_name' => 'Nombre Completo',
-      'cargo'     => 'Cargo',
-      'sede'      => 'Sede',
+      'dni'           => 'DNI',
+      'full_name'     => 'Nombre Completo',
+      'jefe_directo'  => 'Jefe Directo',
+      'cargo'         => 'Cargo',
+      'area'          => 'Área',
+      'sede'          => 'Sede',
     ];
 
     $lateColumns = [
-      'dni'          => 'DNI',
-      'full_name'    => 'Nombre Completo',
-      'check_in'     => 'Hora Marcación',
-      'schedule'     => 'Hora Programada',
-      'minutes_late' => 'Minutos de Atraso',
-      'cargo'        => 'Cargo',
-      'sede'         => 'Sede',
+      'dni'           => 'DNI',
+      'full_name'     => 'Nombre Completo',
+      'jefe_directo'  => 'Jefe Directo',
+      'check_in'      => 'Hora Marcación',
+      'schedule'      => 'Hora Programada',
+      'minutes_late'  => 'Minutos de Atraso',
+      'cargo'         => 'Cargo',
+      'area'          => 'Área',
+      'sede'          => 'Sede',
     ];
 
     return [
