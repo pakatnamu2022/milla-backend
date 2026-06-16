@@ -206,6 +206,13 @@ class SyncAccountingStatusJob implements ShouldQueue
         'output_generation_warehouse' => true,
       ]);
 
+      // Si Cotización es virtual marcar delivery_document_number , customer_signature_delivery_url
+      if ($quotation->confirmation_channel === ApOrderQuotations::CONFIRMATION_CHANNEL_VIRTUAL) {
+        $quotation->update([
+          'delivery_document_number' => $quotation->client->num_doc,
+        ]);
+      }
+
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,

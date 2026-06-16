@@ -71,6 +71,7 @@ class ApOrderQuotations extends Model
     'confirmation_channel',
     'confirmation_ip',
     'confirmation_metadata',
+    'parent_quotation_id',
   ];
 
   const filters = [
@@ -116,6 +117,8 @@ class ApOrderQuotations extends Model
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
+  const TRASLADO = 'TRASLADO';
+  const LOCAL = 'LOCAL';
   const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
 
@@ -230,6 +233,16 @@ class ApOrderQuotations extends Model
       ApWorkOrder::class,
       'order_quotation_id'
     );
+  }
+
+  public function parentQuotation(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotations::class, 'parent_quotation_id');
+  }
+
+  public function segmentedQuotations(): HasMany
+  {
+    return $this->hasMany(ApOrderQuotations::class, 'parent_quotation_id');
   }
 
   public function markAsTaken(): void
@@ -726,10 +739,6 @@ class ApOrderQuotations extends Model
 
     $pendingAmount = max(0, $this->total_amount - $paidAmount);
 
-    // Account for rounding tolerance (same as ElectronicDocument::ROUNDING_TOLERANCE)
-    // This allows for small differences caused by cumulative rounding in IGV calculations
-    $isFullyPaid = $pendingAmount <= ElectronicDocument::ROUNDING_TOLERANCE;
-
     return [
       // Amount already paid/invoiced (advances + final invoice if exists)
       'paid_amount' => round((float)$paidAmount, 2),
@@ -744,7 +753,6 @@ class ApOrderQuotations extends Model
         : 0,
 
       // Payment status indicators
-      'is_fully_paid' => $isFullyPaid,
       'has_final_invoice' => $finalInvoice !== null,
       'advances_count' => $activeAdvances->count(),
     ];

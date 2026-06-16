@@ -242,4 +242,13 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function segmentBySupplyType($id)
+  {
+    try {
+      return $this->success($this->service->segmentBySupplyType($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

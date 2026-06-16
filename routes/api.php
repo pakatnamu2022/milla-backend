@@ -1468,6 +1468,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('orderQuotations/for-purchase-request-taller/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestTaller']);
       Route::get('orderQuotations/for-purchase-request-meson/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestMeson']);
       Route::patch('orderQuotations/{id}/invoice-to', [ApOrderQuotationsController::class, 'invoiceTo']);
+      Route::post('orderQuotations/{id}/segment-by-supply-type', [ApOrderQuotationsController::class, 'segmentBySupplyType']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
