@@ -23,6 +23,8 @@ class StoreTransferInventoryRequest extends StoreRequest
       // Detalles de productos o servicios
       'details' => 'required|array|min:1',
       'details.*.product_id' => 'nullable|integer|exists:products,id',
+      'details.*.code' => 'nullable|string',
+      'details.*.description' => 'nullable|string',
       'details.*.quantity' => 'required|numeric|min:0.01',
       'details.*.unit_cost' => 'nullable|numeric|min:0',
       'details.*.batch_number' => 'nullable|string|max:255',

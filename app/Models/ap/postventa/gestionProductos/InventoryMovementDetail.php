@@ -16,6 +16,8 @@ class InventoryMovementDetail extends Model
   protected $fillable = [
     'inventory_movement_id',
     'product_id',
+    'code',
+    'description',
     'quantity',
     'unit_cost',
     'total_cost',

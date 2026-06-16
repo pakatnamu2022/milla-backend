@@ -88,6 +88,10 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     //Obtenemos al Gerente y Jefe
     $apOrderQuotation = ApOrderQuotations::findOrFail($data['ap_order_quotation_id']);
 
+    if ($apOrderQuotation->segmentedQuotations()->count() > 0) {
+      throw new Exception('No se pueden solicitar descuentos para una cotización segmentada.');
+    }
+
     // Obtener el gerente (cargo 142) - mismo para ambas áreas
     $manager = Worker::working()
       ->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
