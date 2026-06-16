@@ -5,6 +5,7 @@ namespace App\Models\ap\postventa\taller;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -244,6 +245,58 @@ class ApOrderQuotations extends Model
   public function segmentedQuotations(): HasMany
   {
     return $this->hasMany(ApOrderQuotations::class, 'parent_quotation_id');
+  }
+
+  public function shippingGuide(): BelongsTo
+  {
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
+  /**
+   * Asocia una guía de remisión a esta cotización
+   *
+   * @param int $shippingGuideId ID de la guía de remisión
+   * @return void
+   * @throws \Exception si la guía no existe, está anulada o ya está asociada
+   */
+  public function associateShippingGuide(int $shippingGuideId): void
+  {
+    $shippingGuide = ShippingGuides::find($shippingGuideId);
+
+    if (!$shippingGuide) {
+      throw new Exception('La guía de remisión no existe');
+    }
+
+    if ($shippingGuide->cancelled_at) {
+      throw new Exception('No se puede asociar una guía de remisión anulada');
+    }
+
+    if (!$shippingGuide->status) {
+      throw new Exception('No se puede asociar una guía de remisión inactiva');
+    }
+
+    // Verificar si ya está asociada a otra cotización
+    $existingAssociation = self::where('shipping_guide_id', $shippingGuideId)
+      ->where('id', '!=', $this->id)
+      ->first();
+
+    if ($existingAssociation) {
+      throw new Exception("La guía de remisión ya está asociada a la cotización {$existingAssociation->quotation_number}");
+    }
+
+    $this->shipping_guide_id = $shippingGuideId;
+    $this->save();
+  }
+
+  /**
+   * Desasocia la guía de remisión de esta cotización
+   *
+   * @return void
+   */
+  public function dissociateShippingGuide(): void
+  {
+    $this->shipping_guide_id = null;
+    $this->save();
   }
 
   public function markAsTaken(): void

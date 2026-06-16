@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
+use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
@@ -18,6 +19,7 @@ class ApOrderQuotationsResource extends JsonResource
     return [
       'id' => $this->id,
       'parent_quotation_id' => $this->parent_quotation_id,
+      'shipping_guide_id' => $this->shipping_guide_id,
       'was_segmented' => $this->segmentedQuotations->count() > 0,
       'vehicle_id' => $this->vehicle_id,
       'client_id' => $this->client_id,
@@ -95,6 +97,7 @@ class ApOrderQuotationsResource extends JsonResource
       ),
       'client' => $this->client,
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty(),
+      'shipping_guide' => $this->when('shippingGuide', fn() => new ShippingGuidesResource($this->shippingGuide)),
     ];
   }
 

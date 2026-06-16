@@ -145,6 +145,7 @@ class ShippingGuides extends BaseModel
     'area_id' => '=',
     'send_dynamics' => '=',
     'is_consignment' => '=',
+    'is_associated' => 'scope',
   ];
 
   const sorts = [
@@ -299,6 +300,31 @@ class ShippingGuides extends BaseModel
   public function transferReceptions(): HasMany
   {
     return $this->hasMany(TransferReception::class, 'shipping_guide_id');
+  }
+
+  public function quotations(): HasMany
+  {
+    return $this->hasMany(\App\Models\ap\postventa\taller\ApOrderQuotations::class, 'shipping_guide_id');
+  }
+
+  /**
+   * Scope para filtrar guías por su asociación con cotizaciones
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param bool|string $value true/1 para asociadas, false/0 para no asociadas
+   * @return \Illuminate\Database\Eloquent\Builder
+   */
+  public function scopeIsAssociated($query, $value)
+  {
+    $isAssociated = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+
+    if ($isAssociated) {
+      // Filtrar solo las guías que SÍ están asociadas a cotizaciones
+      return $query->whereHas('quotations');
+    } else {
+      // Filtrar solo las guías que NO están asociadas a cotizaciones
+      return $query->whereDoesntHave('quotations');
+    }
   }
 
   /**

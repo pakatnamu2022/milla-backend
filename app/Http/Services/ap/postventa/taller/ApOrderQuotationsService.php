@@ -143,6 +143,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function find($id)
   {
     $quotation = ApOrderQuotations::with([
+      'shippingGuide',
       'invoiceTo',
       'vehicle',
       'createdBy',
@@ -1582,6 +1583,66 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'parent_quotation' => new ApOrderQuotationsResource($originalQuotation->load(['segmentedQuotations'])),
         'segmented_quotations' => ApOrderQuotationsResource::collection($quotationsWithRelations),
         'total_segmented' => count($segmentedQuotations)
+      ];
+    });
+  }
+
+  /**
+   * Asocia una guía de remisión a una cotización
+   *
+   * @param int $quotationId ID de la cotización
+   * @param int $shippingGuideId ID de la guía de remisión
+   * @return array
+   * @throws Exception
+   */
+  public function associateShippingGuide(int $quotationId, int $shippingGuideId): array
+  {
+    return DB::transaction(function () use ($quotationId, $shippingGuideId) {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('La cotización no existe');
+      }
+
+      // Usar el método del modelo que ya tiene las validaciones
+      $quotation->associateShippingGuide($shippingGuideId);
+
+      // Cargar la relación y retornar
+      $quotation->load('shippingGuide');
+
+      return [
+        'message' => 'Guía de remisión asociada exitosamente',
+        'quotation' => new ApOrderQuotationsResource($quotation),
+      ];
+    });
+  }
+
+  /**
+   * Desasocia la guía de remisión de una cotización
+   *
+   * @param int $quotationId ID de la cotización
+   * @return array
+   * @throws Exception
+   */
+  public function dissociateShippingGuide(int $quotationId): array
+  {
+    return DB::transaction(function () use ($quotationId) {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('La cotización no existe');
+      }
+
+      if (!$quotation->shipping_guide_id) {
+        throw new Exception('La cotización no tiene una guía de remisión asociada');
+      }
+
+      // Usar el método del modelo
+      $quotation->dissociateShippingGuide();
+
+      return [
+        'message' => 'Guía de remisión desasociada exitosamente',
+        'quotation' => new ApOrderQuotationsResource($quotation),
       ];
     });
   }

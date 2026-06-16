@@ -251,4 +251,39 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Asocia una guía de remisión a una cotización
+   *
+   * @param Request $request
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function associateShippingGuide(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'shipping_guide_id' => 'required|integer|exists:shipping_guides,id',
+      ]);
+
+      return $this->success($this->service->associateShippingGuide($id, $request->shipping_guide_id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Desasocia la guía de remisión de una cotización
+   *
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function dissociateShippingGuide($id)
+  {
+    try {
+      return $this->success($this->service->dissociateShippingGuide($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
