@@ -789,8 +789,8 @@ class AttendanceSyncService extends BaseService
   {
     $checkIn  = $row->check_in  ?? null;
     $checkOut = $row->check_out ?? null;
-    $lunchOut = ($checkIn && !$isSaturday) ? ($row->lunch_out ?? null) : null;
-    $lunchIn  = ($checkIn && !$isSaturday) ? ($row->lunch_in  ?? null) : null;
+    $lunchOut = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_out ?? $row->schedule_lunch_out) : null;
+    $lunchIn  = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_in  ?? $row->schedule_lunch_in)  : null;
 
     $isEstimated = !$row->check_in || !$row->check_out;
 
