@@ -318,8 +318,8 @@ class AttendanceSyncService extends BaseService
         'date'           => $dateStr,
         'type'           => 'work',
         'message'        => match (true) {
-          !$marks['checkIn'] => 'Sin marcación',
-          !$row->check_out   => 'Sin salida registrada',
+          !$marks['checkIn']  => 'Sin marcación',
+          !$marks['checkOut'] => 'Sin salida registrada',
           Carbon::createFromFormat('H:i:s', $marks['checkIn'])->gt(
             Carbon::createFromFormat('H:i:s', $row->schedule_checkin)->addMinutes(15)
           )                  => 'Tardanza',
@@ -790,11 +790,12 @@ class AttendanceSyncService extends BaseService
     $checkIn  = $row->check_in  ?? null;
     $checkOut = $row->check_out ?? null;
 
-    // If worker checked in but hasn't checked out yet, fill checkout with schedule
-    // only once the scheduled checkout time has already passed (today, current time).
-    if ($checkIn && !$checkOut && $row->date === now()->toDateString()) {
-      $scheduledOut = Carbon::createFromFormat('H:i:s', $row->schedule_checkout);
-      if (now()->gt($scheduledOut)) {
+    // Fill checkout with schedule value when the worker checked in but never checked out
+    // and the scheduled checkout time has already passed (past days always qualify).
+    if ($checkIn && !$checkOut) {
+      $isPastDay = $row->date < now()->toDateString();
+      $isToday   = $row->date === now()->toDateString();
+      if ($isPastDay || ($isToday && now()->gt(Carbon::createFromFormat('H:i:s', $row->schedule_checkout)))) {
         $checkOut = $row->schedule_checkout;
       }
     }
