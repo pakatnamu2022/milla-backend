@@ -389,6 +389,7 @@ class AttendanceSyncService extends BaseService
     $emailService = new EmailService();
     $emailService->send([
       'to'          => $recipient->email,
+      'cc'          => ['ymontalvop@grupopakatnamu.com'],
       'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
       'template'    => 'emails.attendance-absent-report',
       'data'        => [

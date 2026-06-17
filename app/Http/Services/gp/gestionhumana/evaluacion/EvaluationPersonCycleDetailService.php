@@ -66,11 +66,12 @@ class EvaluationPersonCycleDetailService extends BaseService
     // Esto asegura que no haya EvaluationPersonResult/CompetenceDetail apuntando a detalles eliminados
     $this->cleanupOrphanedEvaluationRecords($cycleId);
 
-    $lastCycle = EvaluationCycle::where('id', $cycleId)->orderBy('id', 'desc')->first();
+    $cycle = EvaluationCycle::find($cycleId);
+    $lastCycle = EvaluationCycle::where('id', '<', $cycleId)->orderBy('id', 'desc')->first();
     $category = HierarchicalCategory::find($categoryId);
     $positions = $category->children()->pluck('position_id')->toArray();
     $persons = Worker::whereIn('cargo_id', $positions)
-      ->where('fecha_inicio', '<=', $lastCycle->cut_off_date) // activos en la fecha de corte
+      ->where('fecha_inicio', '<=', $cycle->cut_off_date) // activos en la fecha de corte
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->whereDoesntHave('evaluationDetails') // sin ningún detail asociado (para evitar incluir personas que ya están en evaluación)
@@ -156,7 +157,7 @@ class EvaluationPersonCycleDetailService extends BaseService
               'goal'                => $goal,
               'weight'              => $weight,
               'metric'              => $objective->metric->name ?? throw new Exception('El objetivo ' . $objective->name . ' no tiene una métrica asignada.'),
-              'end_date_objectives' => $lastCycle->end_date_objectives,
+              'end_date_objectives' => $cycle->end_date_objectives,
             ];
             EvaluationPersonCycleDetail::create($data);
           }
@@ -571,7 +572,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       if (
         !$hierarchicalCategory ||
         $hierarchicalCategory->objectives()->count() == 0 ||
-        $hierarchicalCategory->competencies()->count() == 0
+        $hierarchicalCategory->competences()->count() == 0
       ) {
         return false;
       }
