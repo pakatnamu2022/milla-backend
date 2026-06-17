@@ -17,6 +17,21 @@ class WorkSchedule extends Model
     'checkout',
   ];
 
+  const filters = [
+    'id'   => '=',
+    'name' => 'like',
+  ];
+
+  const sorts = [
+    'id',
+    'name',
+  ];
+
+  public function details(): HasMany
+  {
+    return $this->hasMany(WorkScheduleDetail::class, 'work_schedule_id')->orderBy('day_of_week');
+  }
+
   public function workers(): HasMany
   {
     return $this->hasMany(Worker::class, 'work_schedule_id');

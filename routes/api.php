@@ -98,6 +98,7 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelReservationController;
@@ -577,6 +578,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //      TYPE ONBOARDING
         Route::apiResource('type-onboarding', TypeOnboardingController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        //      HORARIOS DE TRABAJO
+        Route::post('work-schedule/assign-bulk', [WorkScheduleController::class, 'assignBulk']);
+        Route::apiResource('work-schedule', WorkScheduleController::class)->only([
           'index',
           'show',
           'store',
