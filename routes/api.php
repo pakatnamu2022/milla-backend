@@ -460,6 +460,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
       Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
       Route::post('equipmentAssigment/{id}/upload', [EquipmentAssigmentController::class, 'uploadFile']);
+      Route::get('equipmentAssigment/{id}/file/{type}', [EquipmentAssigmentController::class, 'downloadUploadedFile']);
       Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
         'index',
         'show',
