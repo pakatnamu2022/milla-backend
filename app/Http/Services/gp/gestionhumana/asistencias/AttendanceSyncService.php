@@ -789,6 +789,16 @@ class AttendanceSyncService extends BaseService
   {
     $checkIn  = $row->check_in  ?? null;
     $checkOut = $row->check_out ?? null;
+
+    // If worker checked in but hasn't checked out yet, fill checkout with schedule
+    // only once the scheduled checkout time has already passed (today, current time).
+    if ($checkIn && !$checkOut && $row->date === now()->toDateString()) {
+      $scheduledOut = Carbon::createFromFormat('H:i:s', $row->schedule_checkout);
+      if (now()->gt($scheduledOut)) {
+        $checkOut = $row->schedule_checkout;
+      }
+    }
+
     $lunchOut = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_out ?? $row->schedule_lunch_out) : null;
     $lunchIn  = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_in  ?? $row->schedule_lunch_in)  : null;
 
