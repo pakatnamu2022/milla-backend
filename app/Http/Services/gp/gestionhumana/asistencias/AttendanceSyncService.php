@@ -272,9 +272,9 @@ class AttendanceSyncService extends BaseService
           'lunch_in'       => null,
           'check_out'      => null,
           'is_estimated'   => false,
-          'hours_worked'   => null,
-          'expected_hours' => null,
-          'balance'        => null,
+          'hours_worked'   => $this->toHm(0.0),
+          'expected_hours' => $this->toHm(0.0),
+          'balance'        => $this->toHm(0.0),
         ]);
         continue;
       }
@@ -289,9 +289,9 @@ class AttendanceSyncService extends BaseService
           'lunch_in'       => null,
           'check_out'      => null,
           'is_estimated'   => false,
-          'hours_worked'   => null,
-          'expected_hours' => null,
-          'balance'        => null,
+          'hours_worked'   => $this->toHm(0.0),
+          'expected_hours' => $this->toHm(0.0),
+          'balance'        => $this->toHm(0.0),
         ]);
         continue;
       }
@@ -310,11 +310,21 @@ class AttendanceSyncService extends BaseService
         $hoursWorked = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
       }
 
-      $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
+      $balance = $hoursWorked !== null
+        ? round($hoursWorked - $expectedHours, 2)
+        : round(-$expectedHours, 2);
 
       $daily->push([
         'date'           => $dateStr,
         'type'           => 'work',
+        'message'        => match (true) {
+          !$marks['checkIn'] => 'Sin marcación',
+          !$row->check_out   => 'Sin salida registrada',
+          Carbon::createFromFormat('H:i:s', $marks['checkIn'])->gt(
+            Carbon::createFromFormat('H:i:s', $row->schedule_checkin)->addMinutes(15)
+          )                  => 'Tardanza',
+          default            => 'Asistió',
+        },
         'check_in'       => $marks['checkIn'],
         'lunch_out'      => $marks['lunchOut'],
         'lunch_in'       => $marks['lunchIn'],
@@ -328,9 +338,9 @@ class AttendanceSyncService extends BaseService
       ]);
     }
 
-    $withData = $daily->where('type', 'work')->whereNotNull('_worked_raw');
-    $totalWorked = round($withData->sum('_worked_raw'), 2);
-    $totalExpected = round($withData->sum('_expected_raw'), 2);
+    $workDays = $daily->where('type', 'work');
+    $totalWorked = round($workDays->whereNotNull('_worked_raw')->sum('_worked_raw'), 2);
+    $totalExpected = round($workDays->sum('_expected_raw'), 2);
 
     $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
 
@@ -386,10 +396,12 @@ class AttendanceSyncService extends BaseService
     file_put_contents($tmpPath, $raw);
     $filename = 'asistencias_' . $dateStr . '.xlsx';
 
+    $isLocal = app()->environment('local');
+
     $emailService = new EmailService();
     $emailService->send([
-      'to'          => $recipient->email,
-      'cc'          => ['ymontalvop@grupopakatnamu.com'],
+      'to'          => $isLocal ? Constants::EMAIL_TEST : $recipient->email,
+      'cc'          => $isLocal ? [] : ['ymontalvop@grupopakatnamu.com'],
       'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
       'template'    => 'emails.attendance-absent-report',
       'data'        => [
@@ -775,12 +787,10 @@ class AttendanceSyncService extends BaseService
 
   private function resolveMarks(object $row, bool $isSaturday): array
   {
-    $checkIn = $row->check_in ?? null;
-    $checkOut = $checkIn
-      ? ($row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout))
-      : null;
-    $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
-    $lunchIn = $isSaturday ? null : ($row->lunch_in ?? $row->schedule_lunch_in);
+    $checkIn  = $row->check_in  ?? null;
+    $checkOut = $row->check_out ?? null;
+    $lunchOut = ($checkIn && !$isSaturday) ? ($row->lunch_out ?? null) : null;
+    $lunchIn  = ($checkIn && !$isSaturday) ? ($row->lunch_in  ?? null) : null;
 
     $isEstimated = !$row->check_in || !$row->check_out;
 
