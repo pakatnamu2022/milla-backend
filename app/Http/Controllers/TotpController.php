@@ -41,7 +41,7 @@ class TotpController extends Controller
       $this->totp->enable(Auth::user(), $request->secret, $request->code);
       return response()->json(['message' => 'Autenticación de dos factores activada correctamente.']);
     } catch (Exception $e) {
-      return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 422);
+      return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 422);
     }
   }
 
@@ -55,7 +55,7 @@ class TotpController extends Controller
       $this->totp->disable(Auth::user(), $request->code);
       return response()->json(['message' => 'Autenticación de dos factores desactivada.']);
     } catch (Exception $e) {
-      return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 422);
+      return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 422);
     }
   }
 
