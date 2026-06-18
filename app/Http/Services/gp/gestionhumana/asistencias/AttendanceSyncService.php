@@ -368,6 +368,8 @@ class AttendanceSyncService extends BaseService
 
     $dateStr = $targetDate->toDateString();
 
+    SyncAttendanceJob::dispatchSync($dateStr);
+
     $recipient = $this->resolveReportRecipient($partnerUserId, $overrideEmail);
     if (!$recipient) {
       return ['sent' => false, 'message' => "No se encontró destinatario para user_id={$partnerUserId}."];
