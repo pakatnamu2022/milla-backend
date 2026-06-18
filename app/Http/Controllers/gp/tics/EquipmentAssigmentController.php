@@ -147,6 +147,15 @@ class EquipmentAssigmentController extends Controller
     }
   }
 
+  public function downloadUploadedFile($id, $type)
+  {
+    try {
+      return $this->service->downloadUploadedFile($id, $type);
+    } catch (Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function previewEquipmentAssignment($id)
   {
     try {

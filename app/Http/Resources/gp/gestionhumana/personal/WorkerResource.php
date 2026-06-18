@@ -22,17 +22,17 @@ class WorkerResource extends JsonResource
     $fotoBase64 = null;
 
     $response = [
-      'id' => $this->id,
-      'supervisor_id' => $this->supervisor_id,
-      'name' => $this->nombre_completo,
-      'document' => $this->vat,
-      'sede' => $this->sede?->abreviatura,
-      'position' => $this->position?->name,
-      'hierarchical_category' => $this->position?->hierarchicalCategory?->name,
+      'id'                        => $this->id,
+      'supervisor_id'             => $this->supervisor_id,
+      'name'                      => $this->nombre_completo,
+      'document'                  => $this->vat,
+      'sede'                      => $this->sede?->abreviatura,
+      'position'                  => $this->position?->name,
+      'hierarchical_category'     => $this->position?->hierarchicalCategory?->name,
       'offerLetterConfirmationId' => $this->status_carta_oferta_id,
-      'emailOfferLetterStatusId' => $this->status_envio_mail_carta_oferta,
-      'offerLetterConfirmation' => $this->offerLetterStatus?->estado,
-      'emailOfferLetterStatus' => $this->emailOfferLetterStatus?->estado,
+      'emailOfferLetterStatusId'  => $this->status_envio_mail_carta_oferta,
+      'offerLetterConfirmation'   => $this->offerLetterStatus?->estado,
+      'emailOfferLetterStatus'    => $this->emailOfferLetterStatus?->estado,
     ];
 
     if ($this->showExtra) {
@@ -45,6 +45,8 @@ class WorkerResource extends JsonResource
         }
         $response['photo'] = $fotoBase64;
       }
+
+      $response['workSchedule'] = $this->workSchedule ? WorkScheduleResource::make($this->workSchedule) : null;
     }
 
     // Agregar campos de diagnóstico si están disponibles

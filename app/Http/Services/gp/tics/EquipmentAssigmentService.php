@@ -5,8 +5,8 @@ namespace App\Http\Services\gp\tics;
 use App\Http\Resources\gp\tics\EquipmentAssigmentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Http\Services\common\FileManagerService;
 use App\Http\Utils\Constants;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\gp\tics\EquipmentItemAssigment;
@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EquipmentAssigmentService extends BaseService implements BaseServiceInterface
 {
@@ -233,30 +234,43 @@ class EquipmentAssigmentService extends BaseService implements BaseServiceInterf
   {
     $assignment = $this->find($id);
 
-    $fileManager = new FileManagerService();
-
-    $options = [
-      'allowed_extensions' => ['pdf', 'jpg', 'jpeg', 'png'],
-      'allowed_mimes'      => ['application/pdf', 'image/jpeg', 'image/png'],
-      'max_size'           => 10 * 1024 * 1024,
-      'prefix'             => "asig_{$id}_{$type}",
-    ];
-
     $field = $type === 'unassignment' ? 'pdf_unassign_path' : 'pdf_path';
 
-    $oldPath = $assignment->$field;
-    if ($oldPath) {
-      $fileManager->deleteFilePublic($oldPath);
+    $oldUrl = $assignment->$field;
+    if ($oldUrl) {
+      $oldDigitalFile = DigitalFile::where('url', $oldUrl)->first();
+      if ($oldDigitalFile) {
+        Storage::disk('s3')->delete(ltrim($oldDigitalFile->name, '/'));
+        $oldDigitalFile->delete();
+      }
     }
 
-    $storedPath = $fileManager->storeFilePublic($file, 'tics/assignments', $options);
-    $url = $fileManager->getPublicUrl($storedPath);
+    $digitalFileService = new DigitalFileService();
+    $result = $digitalFileService->store($file, '/gp/tics/assignments/', 'public', 'help_asig_equipos');
+    $url = $result->resource->url;
 
     $assignment->update([$field => $url]);
 
     return new EquipmentAssigmentResource(
       EquipmentAssigment::with(['worker', 'items.equipment.equipmentType'])->find($assignment->id)
     );
+  }
+
+  public function downloadUploadedFile(int $id, string $type)
+  {
+    if (!in_array($type, ['assignment', 'unassignment'])) {
+      throw new Exception('Tipo inválido. Use assignment o unassignment.');
+    }
+
+    $assignment = $this->find($id);
+    $field = $type === 'unassignment' ? 'pdf_unassign_path' : 'pdf_path';
+    $url = $assignment->$field;
+
+    if (!$url) {
+      throw new Exception('No hay archivo subido para este tipo.');
+    }
+
+    return redirect($url);
   }
 
   public function destroy($id)

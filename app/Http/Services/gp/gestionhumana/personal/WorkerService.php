@@ -53,10 +53,11 @@ class WorkerService extends BaseService
     return $worker;
   }
 
-  public function show(string $id)
+  public function show(string $id, $request)
   {
+    $showExtra = $request->showExtra;
     $worker = $this->find($id);
-    return new WorkerResource($worker);
+    return (new WorkerResource($worker))->showExtra($showExtra);
   }
 
   public function listBirthdays(Request $request)
@@ -318,30 +319,30 @@ class WorkerService extends BaseService
         $objectivesForCategory = $category->objectives; // Esto ya filtra solo los activos por la relación en HierarchicalCategory
 
         $workerData = [
-          'id' => $worker->id,
-          'name' => $worker->nombre_completo,
-          'position' => $worker->position->name,
+          'id'                    => $worker->id,
+          'name'                  => $worker->nombre_completo,
+          'position'              => $worker->position->name,
           'hierarchical_category' => $category->name,
-          'objectives_assigned' => []
+          'objectives_assigned'   => []
         ];
 
         foreach ($objectivesForCategory as $objective) {
           // Crear el registro en EvaluationCategoryObjectiveDetail
           $objectiveDetail = EvaluationCategoryObjectiveDetail::create([
             'objective_id' => $objective->id,
-            'category_id' => $category->id,
-            'person_id' => $worker->id,
-            'goal' => $objective->goalReference, // Usar la meta de referencia del objetivo
-            'weight' => $objective->fixedWeight ?? 1, // Usar el peso fijo o 1 por defecto
-            'fixedWeight' => true,
-            'active' => true
+            'category_id'  => $category->id,
+            'person_id'    => $worker->id,
+            'goal'         => $objective->goalReference, // Usar la meta de referencia del objetivo
+            'weight'       => $objective->fixedWeight ?? 1, // Usar el peso fijo o 1 por defecto
+            'fixedWeight'  => true,
+            'active'       => true
           ]);
 
           $workerData['objectives_assigned'][] = [
-            'objective_id' => $objective->id,
+            'objective_id'   => $objective->id,
             'objective_name' => $objective->name,
             'goal_reference' => $objective->goalReference,
-            'weight' => $objective->fixedWeight ?? 1
+            'weight'         => $objective->fixedWeight ?? 1
           ];
 
           $objectivesAssigned++;
@@ -356,10 +357,10 @@ class WorkerService extends BaseService
         'success' => true,
         'message' => "Se asignaron objetivos exitosamente",
         'summary' => [
-          'workers_processed' => count($workersProcessed),
+          'workers_processed'   => count($workersProcessed),
           'objectives_assigned' => $objectivesAssigned
         ],
-        'data' => $workersProcessed
+        'data'    => $workersProcessed
       ]);
 
     } catch (\Exception $e) {
@@ -502,9 +503,9 @@ class WorkerService extends BaseService
     } else {
       // Crear nuevo registro de firma
       WorkerSignature::create([
-        'worker_id' => $person->id,
+        'worker_id'     => $person->id,
         'signature_url' => $digitalFile->url,
-        'company_id' => $person->sede->empresa_id ?? null,
+        'company_id'    => $person->sede->empresa_id ?? null,
       ]);
     }
   }

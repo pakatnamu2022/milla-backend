@@ -272,9 +272,9 @@ class AttendanceSyncService extends BaseService
           'lunch_in'       => null,
           'check_out'      => null,
           'is_estimated'   => false,
-          'hours_worked'   => null,
-          'expected_hours' => null,
-          'balance'        => null,
+          'hours_worked'   => $this->toHm(0.0),
+          'expected_hours' => $this->toHm(0.0),
+          'balance'        => $this->toHm(0.0),
         ]);
         continue;
       }
@@ -289,9 +289,9 @@ class AttendanceSyncService extends BaseService
           'lunch_in'       => null,
           'check_out'      => null,
           'is_estimated'   => false,
-          'hours_worked'   => null,
-          'expected_hours' => null,
-          'balance'        => null,
+          'hours_worked'   => $this->toHm(0.0),
+          'expected_hours' => $this->toHm(0.0),
+          'balance'        => $this->toHm(0.0),
         ]);
         continue;
       }
@@ -300,21 +300,30 @@ class AttendanceSyncService extends BaseService
       if (!$row) continue;
 
       $isSaturday = $dayOfWeek === 6;
-      $expectedHours = $isSaturday ? 5.0 : 8.6;
       $marks = $this->resolveMarks($row, $isSaturday);
+      [$lunchMinutes, $expectedHours] = $this->computeScheduleExpectation($row, $isSaturday);
 
       $hoursWorked = null;
       if ($marks['checkIn'] && $marks['checkOut']) {
         $grossMinutes = (Carbon::parse($marks['checkOut'])->getTimestamp() - Carbon::parse($marks['checkIn'])->getTimestamp()) / 60;
-        $lunchMinutes = $isSaturday ? 0 : 84;
         $hoursWorked = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
       }
 
-      $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
+      $balance = $hoursWorked !== null
+        ? round($hoursWorked - $expectedHours, 2)
+        : round(-$expectedHours, 2);
 
       $daily->push([
         'date'           => $dateStr,
         'type'           => 'work',
+        'message'        => match (true) {
+          !$marks['checkIn']  => 'Sin marcación',
+          !$marks['checkOut'] => 'Sin salida registrada',
+          Carbon::createFromFormat('H:i:s', $marks['checkIn'])->gt(
+            Carbon::createFromFormat('H:i:s', $row->schedule_checkin)->addMinutes(15)
+          )                  => 'Tardanza',
+          default            => 'Asistió',
+        },
         'check_in'       => $marks['checkIn'],
         'lunch_out'      => $marks['lunchOut'],
         'lunch_in'       => $marks['lunchIn'],
@@ -328,9 +337,9 @@ class AttendanceSyncService extends BaseService
       ]);
     }
 
-    $withData = $daily->where('type', 'work')->whereNotNull('_worked_raw');
-    $totalWorked = round($withData->sum('_worked_raw'), 2);
-    $totalExpected = round($withData->sum('_expected_raw'), 2);
+    $workDays = $daily->where('type', 'work');
+    $totalWorked = round($workDays->whereNotNull('_worked_raw')->sum('_worked_raw'), 2);
+    $totalExpected = round($workDays->sum('_expected_raw'), 2);
 
     $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
 
@@ -359,6 +368,8 @@ class AttendanceSyncService extends BaseService
 
     $dateStr = $targetDate->toDateString();
 
+    SyncAttendanceJob::dispatchSync($dateStr);
+
     $recipient = $this->resolveReportRecipient($partnerUserId, $overrideEmail);
     if (!$recipient) {
       return ['sent' => false, 'message' => "No se encontró destinatario para user_id={$partnerUserId}."];
@@ -386,9 +397,12 @@ class AttendanceSyncService extends BaseService
     file_put_contents($tmpPath, $raw);
     $filename = 'asistencias_' . $dateStr . '.xlsx';
 
+    $isLocal = app()->environment('local');
+
     $emailService = new EmailService();
     $emailService->send([
-      'to'          => $recipient->email,
+      'to'          => $isLocal ? Constants::EMAIL_TEST : $recipient->email,
+      'cc'          => $isLocal ? [] : ['ymontalvop@grupopakatnamu.com'],
       'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
       'template'    => 'emails.attendance-absent-report',
       'data'        => [
@@ -552,16 +566,20 @@ class AttendanceSyncService extends BaseService
     $query = DB::table('attendance_sync as a')
       ->leftJoin('rrhh_persona as p', 'p.id', '=', 'a.person_id')
       ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->leftJoin('work_schedule_details as wsd', function ($join) {
+        $join->on('wsd.work_schedule_id', '=', 'p.work_schedule_id')
+             ->whereRaw('wsd.day_of_week = DAYOFWEEK(a.date)');
+      })
       ->select([
         'a.date',
         'a.emp_code',
         DB::raw("UPPER(COALESCE(p.nombre_completo, a.full_name)) AS full_name"),
         'a.person_id',
         'p.vat',
-        DB::raw("COALESCE(ws.checkin,   '08:00:00') AS schedule_checkin"),
-        DB::raw("COALESCE(ws.lunch_out, '13:00:00') AS schedule_lunch_out"),
-        DB::raw("COALESCE(ws.lunch_in,  '14:24:00') AS schedule_lunch_in"),
-        DB::raw("COALESCE(ws.checkout,  '18:00:00') AS schedule_checkout"),
+        DB::raw("CASE WHEN wsd.work_schedule_id IS NOT NULL THEN wsd.checkin  ELSE COALESCE(ws.checkin,   '08:00:00') END AS schedule_checkin"),
+        DB::raw("CASE WHEN wsd.work_schedule_id IS NOT NULL THEN wsd.lunch_out ELSE COALESCE(ws.lunch_out, '13:00:00') END AS schedule_lunch_out"),
+        DB::raw("CASE WHEN wsd.work_schedule_id IS NOT NULL THEN wsd.lunch_in  ELSE COALESCE(ws.lunch_in,  '14:24:00') END AS schedule_lunch_in"),
+        DB::raw("CASE WHEN wsd.work_schedule_id IS NOT NULL THEN wsd.checkout  ELSE COALESCE(ws.checkout,  '18:00:00') END AS schedule_checkout"),
         DB::raw("MIN(CASE WHEN a.mark_type = 'check_in'  THEN a.time END) AS check_in"),
         DB::raw("MIN(CASE WHEN a.mark_type = 'lunch_out' THEN a.time END) AS lunch_out"),
         DB::raw("MIN(CASE WHEN a.mark_type = 'lunch_in'  THEN a.time END) AS lunch_in"),
@@ -573,7 +591,8 @@ class AttendanceSyncService extends BaseService
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
-        'ws.checkin', 'ws.lunch_out', 'ws.lunch_in', 'ws.checkout'
+        'ws.checkin', 'ws.lunch_out', 'ws.lunch_in', 'ws.checkout',
+        'wsd.work_schedule_id', 'wsd.checkin', 'wsd.lunch_out', 'wsd.lunch_in', 'wsd.checkout'
       )
       ->orderBy('a.emp_code')
       ->orderBy('a.date');
@@ -606,14 +625,12 @@ class AttendanceSyncService extends BaseService
       $daily = $dayRows->map(function (object $row) {
         $dayOfWeek = Carbon::parse($row->date)->dayOfWeek;
         $isSaturday = $dayOfWeek === 6;
-        $expectedHours = $isSaturday ? 5.0 : 8.6;
-
         $marks = $this->resolveMarks($row, $isSaturday);
+        [$lunchMinutes, $expectedHours] = $this->computeScheduleExpectation($row, $isSaturday);
 
         $hoursWorked = null;
         if ($marks['checkIn'] && $marks['checkOut']) {
           $grossMinutes = (Carbon::parse($marks['checkOut'])->getTimestamp() - Carbon::parse($marks['checkIn'])->getTimestamp()) / 60;
-          $lunchMinutes = $isSaturday ? 0 : 84;
           $hoursWorked = round(max(0, $grossMinutes - $lunchMinutes) / 60, 2);
         }
 
@@ -738,11 +755,12 @@ class AttendanceSyncService extends BaseService
 
   private function getPersonScheduleRow(int $personId): ?object
   {
-    return DB::table('rrhh_persona as p')
+    $row = DB::table('rrhh_persona as p')
       ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
       ->where('p.id', $personId)
       ->select([
         'p.id as person_id',
+        'p.work_schedule_id',
         'p.nombre_completo as full_name',
         'p.vat',
         DB::raw("COALESCE(ws.checkin,   '08:00:00') AS schedule_checkin"),
@@ -751,10 +769,26 @@ class AttendanceSyncService extends BaseService
         DB::raw("COALESCE(ws.checkout,  '18:00:00') AS schedule_checkout"),
       ])
       ->first();
+
+    if ($row) {
+      // Pre-load per-day overrides keyed by MySQL DAYOFWEEK (1=Sun…7=Sat)
+      $row->day_overrides = $row->work_schedule_id
+        ? DB::table('work_schedule_details')
+            ->where('work_schedule_id', $row->work_schedule_id)
+            ->get()
+            ->keyBy('day_of_week')
+        : collect();
+    }
+
+    return $row;
   }
 
   private function makeSyntheticRow(string $date, int $personId, object $schedule): object
   {
+    // Carbon dayOfWeek (0=Sun, 6=Sat) + 1 = MySQL DAYOFWEEK (1=Sun, 7=Sat)
+    $mysqlDow = Carbon::parse($date)->dayOfWeek + 1;
+    $override = $schedule->day_overrides->get($mysqlDow);
+
     return (object)[
       'date'               => $date,
       'person_id'          => $personId,
@@ -765,21 +799,42 @@ class AttendanceSyncService extends BaseService
       'lunch_out'          => null,
       'lunch_in'           => null,
       'check_out'          => null,
-      'schedule_checkin'   => $schedule->schedule_checkin,
-      'schedule_lunch_out' => $schedule->schedule_lunch_out,
-      'schedule_lunch_in'  => $schedule->schedule_lunch_in,
-      'schedule_checkout'  => $schedule->schedule_checkout,
+      'schedule_checkin'   => $override ? $override->checkin   : $schedule->schedule_checkin,
+      'schedule_lunch_out' => $override ? $override->lunch_out : $schedule->schedule_lunch_out,
+      'schedule_lunch_in'  => $override ? $override->lunch_in  : $schedule->schedule_lunch_in,
+      'schedule_checkout'  => $override ? $override->checkout  : $schedule->schedule_checkout,
     ];
+  }
+
+  private function computeScheduleExpectation(object $row, bool $isSaturday): array
+  {
+    $schedIn  = Carbon::createFromFormat('H:i:s', $row->schedule_checkin);
+    $schedOut = Carbon::createFromFormat('H:i:s', $row->schedule_checkout);
+    $lunchMinutes = (!$isSaturday && ($row->schedule_lunch_out ?? null) && ($row->schedule_lunch_in ?? null))
+      ? (int) Carbon::createFromFormat('H:i:s', $row->schedule_lunch_in)
+              ->diffInMinutes(Carbon::createFromFormat('H:i:s', $row->schedule_lunch_out))
+      : 0;
+    $expectedHours = round(max(0, $schedIn->diffInMinutes($schedOut) - $lunchMinutes) / 60, 2);
+    return [$lunchMinutes, $expectedHours];
   }
 
   private function resolveMarks(object $row, bool $isSaturday): array
   {
-    $checkIn = $row->check_in ?? null;
-    $checkOut = $checkIn
-      ? ($row->check_out ?? ($isSaturday ? $row->schedule_lunch_out : $row->schedule_checkout))
-      : null;
-    $lunchOut = $isSaturday ? null : ($row->lunch_out ?? $row->schedule_lunch_out);
-    $lunchIn = $isSaturday ? null : ($row->lunch_in ?? $row->schedule_lunch_in);
+    $checkIn  = $row->check_in  ?? null;
+    $checkOut = $row->check_out ?? null;
+
+    // Fill checkout with schedule value when the worker checked in but never checked out
+    // and the scheduled checkout time has already passed (past days always qualify).
+    if ($checkIn && !$checkOut) {
+      $isPastDay = $row->date < now()->toDateString();
+      $isToday   = $row->date === now()->toDateString();
+      if ($isPastDay || ($isToday && now()->gt(Carbon::createFromFormat('H:i:s', $row->schedule_checkout)))) {
+        $checkOut = $row->schedule_checkout;
+      }
+    }
+
+    $lunchOut = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_out ?? $row->schedule_lunch_out) : null;
+    $lunchIn  = ($checkIn && $checkOut && !$isSaturday) ? ($row->lunch_in  ?? $row->schedule_lunch_in)  : null;
 
     $isEstimated = !$row->check_in || !$row->check_out;
 
