@@ -58,6 +58,19 @@ class StoreWorkOrderRequest extends StoreRequest
         'required',
         'string',
       ],
+      'num_doc_pickup' => [
+        'nullable',
+        'string',
+        'digits:8',
+      ],
+      'full_pickup_name' => [
+        'nullable',
+        'string',
+      ],
+      'phone_pickup' => [
+        'nullable',
+        'string',
+      ],
       'opening_date' => [
         'required',
         'date',
