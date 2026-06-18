@@ -5,12 +5,14 @@ namespace App\Http\Services\common;
 use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Models\gp\gestionsistema\Role;
+use App\Models\PasswordResetToken;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthService
 {
@@ -32,8 +34,8 @@ class AuthService
 
       return response()->json([
         'access_token' => $token->plainTextToken,
-        'user' => UserResource::make($user),
-        'permissions' => $permissionsData['permissions'],
+        'user'         => UserResource::make($user),
+        'permissions'  => $permissionsData['permissions'],
       ]);
     } else {
       return response()->json(['message' => 'Credenciales Inválidas'], 422);
@@ -54,7 +56,7 @@ class AuthService
       }
 
       return response()->json([
-        'user' => UserResource::make($user),
+        'user'        => UserResource::make($user),
         'permissions' => $permissionsData['permissions'],
       ]);
     } else {
@@ -89,10 +91,10 @@ class AuthService
 
       if (count($menu)) {
         $menuPorEmpresa[] = [
-          'empresa_id' => $empresaId,
+          'empresa_id'          => $empresaId,
           'empresa_abreviatura' => $grupo[0]->abbreviation ?? 'NA',
-          'empresa_nombre' => $grupo[0]->empresa_nombre,
-          'menu' => $menu,
+          'empresa_nombre'      => $grupo[0]->empresa_nombre,
+          'menu'                => $menu,
         ];
       }
     }
@@ -102,7 +104,7 @@ class AuthService
 
     return [
       'permissions' => [
-        'access_tree' => $menuPorEmpresa,
+        'access_tree'         => $menuPorEmpresa,
         'permissions_modules' => $granularPermissions,
       ]
     ];
@@ -120,9 +122,9 @@ class AuthService
 
     foreach ($views as $vista) {
       $vista->permissions = $permissions[$vista->id] ?? [
-        'view' => false,
+        'view'   => false,
         'create' => false,
-        'edit' => false,
+        'edit'   => false,
         'delete' => false,
       ];
     }
@@ -131,7 +133,7 @@ class AuthService
     $modules = $this->transformarAFormatoFront($views);
 
     return response()->json([
-      'role' => RoleResource::make(Role::find($roleId)),
+      'role'    => RoleResource::make(Role::find($roleId)),
       'modules' => $modules,
     ]);
   }
@@ -151,9 +153,9 @@ class AuthService
       ->get()
       ->keyBy('vista_id')
       ->map(fn($item) => [
-        'view' => (bool)$item->view,
+        'view'   => (bool)$item->view,
         'create' => (bool)$item->create,
-        'edit' => (bool)$item->edit,
+        'edit'   => (bool)$item->edit,
         'delete' => (bool)$item->delete,
       ])
       ->toArray();
@@ -352,7 +354,7 @@ class AuthService
     }
 
     $user->update([
-      'password' => Hash::make($request->new_password),
+      'password'    => Hash::make($request->new_password),
       'verified_at' => now()
     ]);
 
@@ -368,7 +370,7 @@ class AuthService
     }
 
     $user->update([
-      'password' => Hash::make($user->username),
+      'password'    => Hash::make($user->username),
       'verified_at' => null
     ]);
 
@@ -376,7 +378,7 @@ class AuthService
     $user->tokens()->delete();
 
     return response()->json([
-      'message' => 'Contraseña restablecida correctamente',
+      'message'  => 'Contraseña restablecida correctamente',
       'username' => $user->username
     ]);
   }
@@ -395,17 +397,96 @@ class AuthService
     $updatedCount = 0;
     foreach ($users as $user) {
       $user->update([
-        'password' => Hash::make($user->username),
+        'password'    => Hash::make($user->username),
         'verified_at' => null
       ]);
       $updatedCount++;
     }
 
     return response()->json([
-      'message' => 'Contraseñas restablecidas correctamente',
+      'message'       => 'Contraseñas restablecidas correctamente',
       'users_updated' => $updatedCount,
-      'company_id' => $request->company_id
+      'company_id'    => $request->company_id
     ]);
+  }
+
+  public function forgotPassword($request)
+  {
+    $user = User::with('person')->where('username', $request->username)->first();
+
+    if (!$user || !$user->person) {
+      return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
+
+    $email2 = $user->person->email2;
+
+    if (!$email2) {
+      return response()->json(['message' => 'Este usuario no tiene correo corporativo registrado. Contacta al administrador.'], 422);
+    }
+
+    PasswordResetToken::where('email', $email2)->delete();
+
+    $plainToken = Str::random(64);
+
+    PasswordResetToken::create([
+      'email'      => $email2,
+      'token'      => Hash::make($plainToken),
+      'created_at' => now(),
+    ]);
+
+    $resetUrl = config('app.frontend_url') . '/reset-password?token=' . $plainToken . '&email=' . urlencode($email2);
+
+    $emailService = app(EmailService::class);
+    $emailService->send([
+      'to'       => [$email2],
+      'subject'  => 'Restablecer contraseña — Sian',
+      'template' => 'emails.password-reset',
+      'data'     => [
+        'name'     => $user->person->nombre_completo ?? $user->name,
+        'resetUrl' => $resetUrl,
+      ],
+    ]);
+
+    return response()->json([
+      'message' => "Se envió un enlace de restablecimiento a tu correo corporativo {$email2}."
+    ]);
+  }
+
+  public function resetPasswordByToken($request)
+  {
+    $record = PasswordResetToken::where('email', $request->email)->first();
+
+    if (!$record) {
+      return response()->json(['message' => 'Token inválido o expirado'], 422);
+    }
+
+    if ($record->isExpired()) {
+      $record->delete();
+      return response()->json(['message' => 'El enlace ha expirado. Solicita uno nuevo.'], 422);
+    }
+
+    if (!Hash::check($request->token, $record->token)) {
+      return response()->json(['message' => 'Token inválido o expirado'], 422);
+    }
+
+    // Buscar usuario por email2 de su persona
+    $user = User::whereHas('person', function ($q) use ($request) {
+      $q->where('email2', $request->email);
+    })->first();
+
+    if (!$user) {
+      return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
+
+    $user->update([
+      'password'    => Hash::make($request->password),
+      'verified_at' => now(),
+    ]);
+
+    $user->tokens()->delete();
+    $record->delete();
+
+    return response()->json(['message' => 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.']);
   }
 
 }
