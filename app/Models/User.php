@@ -26,12 +26,15 @@ class User extends Authenticatable
     'username',
     'password',
     'verified_at',
-    'status_deleted'
+    'status_deleted',
+    'totp_secret',
+    'two_factor_enabled',
   ];
 
   protected $hidden = [
     'password',
     'remember_token',
+    'totp_secret',
   ];
 
   const filters = [
@@ -54,9 +57,10 @@ class User extends Authenticatable
   protected function casts(): array
   {
     return [
-      'email_verified_at' => 'datetime',
-      'verified_at' => 'datetime',
-      'password' => 'hashed',
+      'email_verified_at'  => 'datetime',
+      'verified_at'        => 'datetime',
+      'password'           => 'hashed',
+      'two_factor_enabled' => 'boolean',
     ];
   }
 

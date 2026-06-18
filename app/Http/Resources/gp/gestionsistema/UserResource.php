@@ -41,7 +41,8 @@ class UserResource extends JsonResource
       'role_id' => $this->role?->id,
       'subordinates' => $this->person?->subordinates->count() ?? 0,
       'sedes' => SedeResource::collection($this->sedes),
-      'verified_at' => $this->verified_at,
+      'verified_at'        => $this->verified_at,
+      'two_factor_enabled' => (bool) $this->two_factor_enabled,
       'discount_percentage' => $this->getDiscountPercentageByPosition($this->person?->cargo_id),
     ];
   }

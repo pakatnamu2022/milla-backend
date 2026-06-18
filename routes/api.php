@@ -71,6 +71,7 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TotpController;
 use App\Http\Controllers\Dashboard\AdoptionDashboardController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
 use App\Http\Controllers\DocumentValidationController;
@@ -167,6 +168,9 @@ use App\Http\Controllers\tp\comercial\DriverStatusLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
+Route::post('/reset-password-token', [AuthController::class, 'resetPasswordByToken'])->name('resetPasswordByToken');
+Route::post('/auth/2fa/verify', [TotpController::class, 'verify'])->name('2fa.verify');
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
@@ -174,6 +178,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
   Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
   Route::post('/reset-password-by-company', [AuthController::class, 'resetPasswordByCompany'])->name('resetPasswordByCompany');
+  Route::prefix('auth/2fa')->controller(TotpController::class)->group(function () {
+    Route::post('/setup', 'setup')->name('2fa.setup');
+    Route::post('/enable', 'enable')->name('2fa.enable');
+    Route::post('/disable', 'disable')->name('2fa.disable');
+  });
 
   //    GENERAL
   //    SEDE
