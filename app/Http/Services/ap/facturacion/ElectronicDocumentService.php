@@ -2795,6 +2795,24 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $totalAnticiposExistentes
         ));
       }
+
+      // Validar que si hay repuestos de IMPORTACIÓN, el anticipo debe ser por la totalidad de la deuda
+      $quotationWithDetails = ApOrderQuotations::with('details')->find($data['order_quotation_id']);
+      $hasImportacion = $quotationWithDetails->details->contains(function ($detail) {
+        return $detail->supply_type === 'IMPORTACION';
+      });
+
+      if ($hasImportacion) {
+        $deudaTotal = (float)$quotation->total_amount - $totalAnticiposExistentes;
+
+        if (abs($total - $deudaTotal) > 0.01) {
+          throw new Exception(sprintf(
+            'Cuando la cotización incluye repuestos de IMPORTACIÓN, el anticipo debe ser por la totalidad de la deuda pendiente (S/ %.2f). El monto ingresado es S/ %.2f.',
+            $deudaTotal,
+            $total
+          ));
+        }
+      }
     }
   }
 
