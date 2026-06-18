@@ -50,7 +50,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Validate if quotation is already associated with a work order
       $this->validateQuotationNotAssociatedWithWorkOrder($data['order_quotation_id']);
 
-      $sedeId = ApOrderQuotations::findOrFail($data['order_quotation_id'])->sede_id;
+      $quotation = ApOrderQuotations::findOrFail($data['order_quotation_id']);
+      $sedeId = $quotation->sede_id;
+      $vehicleId = $quotation->vehicle_id;
 
       // Only validate price for products, not for labor
       if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
@@ -59,6 +61,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         if ($product) {
           $product->validateDecimals($data['quantity']);
         }
+
+        // Validar que el producto tenga la misma marca que el vehículo
+        Products::validateProductBrandMatchesVehicle($vehicleId, $data['product_id'], $data['description']);
 
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $data['product_id'],
@@ -82,7 +87,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
       // Recalculate quotation totals using centralized method in model
-      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
       $quotation->calculateTotals();
       $quotation->save();
 
