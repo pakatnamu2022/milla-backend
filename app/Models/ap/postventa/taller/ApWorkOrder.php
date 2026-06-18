@@ -46,6 +46,9 @@ class ApWorkOrder extends Model
     'num_doc_contact',
     'full_contact_name',
     'phone_contact',
+    'num_doc_pickup',
+    'full_pickup_name',
+    'phone_pickup',
     'opening_date',
     'estimated_delivery_date',
     'estimated_delivery_time',
@@ -152,6 +155,13 @@ class ApWorkOrder extends Model
   {
     if ($value) {
       $this->attributes['full_contact_name'] = Str::upper($value);
+    }
+  }
+
+  public function setFullPickupNameAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['full_pickup_name'] = Str::upper($value);
     }
   }
 
@@ -835,9 +845,10 @@ class ApWorkOrder extends Model
   public function validateDiscountAgainstAdvances(
     string $type,
     string $partLabourModel,
-    float $discountPercentage,
-    ?int $partLabourId = null
-  ): void {
+    float  $discountPercentage,
+    ?int   $partLabourId = null
+  ): void
+  {
     // Obtener totales actuales
     $currentTotals = $this->getTotalsArray();
 
@@ -1119,10 +1130,6 @@ class ApWorkOrder extends Model
 
     $pendingAmount = max(0, $this->final_amount - $paidAmount);
 
-    // Account for rounding tolerance (same as ElectronicDocument::ROUNDING_TOLERANCE)
-    // This allows for small differences caused by cumulative rounding in IGV calculations
-    $isFullyPaid = $pendingAmount <= ElectronicDocument::ROUNDING_TOLERANCE;
-
     return [
       // Amount already paid/invoiced (advances + final invoice if exists)
       'paid_amount' => round((float)$paidAmount, 2),
@@ -1137,7 +1144,6 @@ class ApWorkOrder extends Model
         : 0,
 
       // Payment status indicators
-      'is_fully_paid' => $isFullyPaid,
       'has_final_invoice' => $finalInvoice !== null,
       'advances_count' => $activeAdvances->count(),
     ];

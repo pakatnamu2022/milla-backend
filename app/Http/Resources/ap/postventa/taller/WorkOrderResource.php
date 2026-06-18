@@ -55,7 +55,7 @@ class WorkOrderResource extends JsonResource
       'description_recall' => $this->description_recall,
       'type_recall' => $this->type_recall,
       'created_by' => $this->created_by,
-      'creator_name' => $this->creator ? $this->creator->name : null,
+      'created_by_name' => $this->creator ? $this->creator->name : null,
       'is_inspection_completed' => $this->vehicleInspection && !$this->vehicleInspection->is_cancelled,
       'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
@@ -75,10 +75,14 @@ class WorkOrderResource extends JsonResource
       'num_doc_contact' => $this->num_doc_contact,
       'full_contact_name' => $this->full_contact_name,
       'phone_contact' => $this->phone_contact,
+      'num_doc_pickup' => $this->num_doc_pickup,
+      'full_pickup_name' => $this->full_pickup_name,
+      'phone_pickup' => $this->phone_pickup,
       'discard_reason' => $this->discardReason?->description,
       'discarded_note' => $this->discarded_note,
       'discarded_by_name' => $this->discardedBy?->name,
       'discarded_at' => $this->discarded_at,
+      'exchange_rate' => (float)$this->exchange_rate,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),

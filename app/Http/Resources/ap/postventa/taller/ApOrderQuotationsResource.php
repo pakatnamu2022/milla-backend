@@ -3,6 +3,7 @@
 namespace App\Http\Resources\ap\postventa\taller;
 
 use App\Http\Resources\ap\comercial\BusinessPartnersResource;
+use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
@@ -17,6 +18,9 @@ class ApOrderQuotationsResource extends JsonResource
   {
     return [
       'id' => $this->id,
+      'parent_quotation_id' => $this->parent_quotation_id,
+      'shipping_guide_id' => $this->shipping_guide_id,
+      'was_segmented' => $this->segmentedQuotations->count() > 0,
       'vehicle_id' => $this->vehicle_id,
       'client_id' => $this->client_id,
       'sede_id' => $this->sede_id,
@@ -46,7 +50,6 @@ class ApOrderQuotationsResource extends JsonResource
       'has_invoice_generated' => (bool)$this->has_invoice_generated,
       'is_fully_paid' => (bool)$this->is_fully_paid,
       'invoice_to' => $this->invoice_to,
-      'invoice_to_client' => $this->whenLoaded('invoiceTo', fn() => BusinessPartnersResource::make($this->invoiceTo)),
       'has_sufficient_stock' => $this->when(
         isset($this->additional['checkStock']) && $this->additional['checkStock'],
         fn() => $this->checkSufficientStock()
@@ -83,6 +86,7 @@ class ApOrderQuotationsResource extends JsonResource
 
       // Relations
       'details' => ApOrderQuotationDetailsResource::collection($this->details),
+      'invoice_to_client' => $this->whenLoaded('invoiceTo', fn() => BusinessPartnersResource::make($this->invoiceTo)),
       'vouchers' => $this->when(
         $this->relationLoaded('advancesOrderQuotation'),
         fn() => $this->getDocumentsTree()
@@ -93,6 +97,7 @@ class ApOrderQuotationsResource extends JsonResource
       ),
       'client' => $this->client,
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty(),
+      'shipping_guide' => $this->when('shippingGuide', fn() => new ShippingGuidesResource($this->shippingGuide)),
     ];
   }
 

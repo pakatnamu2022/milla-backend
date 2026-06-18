@@ -555,12 +555,31 @@ class InventoryMovementService extends BaseService
         $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
         $notes = $detail['notes'] ?? null;
 
+        // Determine code and description based on item_type
+        $code = null;
+        $description = null;
+
+        if ($itemType === 'PRODUCTO' && $productId) {
+          // For PRODUCTO: get code and description from product
+          $product = Products::find($productId);
+          if ($product) {
+            $code = $product->code;
+            $description = $product->name;
+          }
+        } else {
+          // For SERVICIO: get code and description from request
+          $code = $detail['code'] ?? null;
+          $description = $detail['description'] ?? null;
+        }
+
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movementOut->id,
           'product_id' => $productId,
           'quantity' => $detail['quantity'],
           'unit_cost' => $detail['unit_cost'] ?? 0,
           'total_cost' => $detail['quantity'] * ($detail['unit_cost'] ?? 0),
+          'code' => $code,
+          'description' => $description,
           'notes' => $notes,
         ]);
 

@@ -1546,12 +1546,16 @@
         <div class="signature-box">
           FIRMA DE CONFORMIDAD DE ENTREGA<br>
           @php
-            $deliveryName = $workOrder->full_contact_name ?? 'N/A';
-            $deliveryNumDoc = $workOrder->num_doc_contact ?? '';
+            $deliveryName = $workOrder->full_pickup_name ?? 'N/A';
+            $deliveryNumDoc = $workOrder->num_doc_pickup ?? '';
+            $deliveryPhone = $workOrder->phone_pickup ?? '';
           @endphp
           {{ $deliveryName }}<br>
           @if($deliveryNumDoc)
             <span style="font-size: 8px;">Doc: {{ $deliveryNumDoc }}</span>
+          @endif
+          @if($deliveryPhone)
+            <span style="font-size: 8px;"> - Tel: {{ $deliveryPhone }}</span>
           @endif
         </div>
       </td>

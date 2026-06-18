@@ -81,6 +81,22 @@ class UpdateWorkOrderRequest extends StoreRequest
         'required',
         'string',
       ],
+      'num_doc_pickup' => [
+        'sometimes',
+        'nullable',
+        'string',
+        'digits:8',
+      ],
+      'full_pickup_name' => [
+        'sometimes',
+        'nullable',
+        'string',
+      ],
+      'phone_pickup' => [
+        'sometimes',
+        'nullable',
+        'string',
+      ],
       'opening_date' => [
         'sometimes',
         'required',

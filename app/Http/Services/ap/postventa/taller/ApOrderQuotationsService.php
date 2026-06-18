@@ -143,6 +143,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function find($id)
   {
     $quotation = ApOrderQuotations::with([
+      'shippingGuide',
       'invoiceTo',
       'vehicle',
       'createdBy',
@@ -205,7 +206,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
-      $vehicle = Vehicles::find($data['vehicle_id']);
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
       if (!$exchangeRate) {
@@ -216,18 +216,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      // Validar precios de venta al público y decimales para cada producto en details
+      // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
         $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+        $vehicleId = $data['vehicle_id'] ?? null;
 
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($productId);
         if ($product) {
           $product->validateDecimals($quantity);
         }
+
+        // Validar que el producto tenga la misma marca que el vehículo
+        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
@@ -437,7 +441,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
       $vehicleId = $data['vehicle_id'] ?? null;
-      $vehicle = $vehicleId ? Vehicles::find($vehicleId) : null;
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
       $exchangeRate = ExchangeRate::where('date', $date)->first();
@@ -453,6 +456,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
       }
 
+      if ($quotation->segmentedQuotations()->count() > 0) {
+        throw new Exception('Esta cotización no se puede editar porque ha sido segmentada en otras cotizaciones.');
+      }
+
       if ($quotation->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
       }
@@ -466,7 +473,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
-      // Validar precios de venta al público y decimales para cada producto en details
+      // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
@@ -478,6 +485,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($product) {
           $product->validateDecimals($quantity);
         }
+
+        // Validar que el producto tenga la misma marca que el vehículo
+        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
@@ -576,6 +586,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     if ($quotation->is_take === true) {
       throw new Exception('No se puede eliminar una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+    }
+
+    if ($quotation->segmentedQuotations()->count() > 0) {
+      throw new Exception('Esta cotización no se puede eliminar porque ha sido segmentada en otras cotizaciones.');
     }
 
     if ($quotation->area_id === ApMasters::AREA_TALLER) {
@@ -1437,6 +1451,206 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $apOrderQuotations->update($data);
 
       return new ApOrderQuotationsResource($apOrderQuotations);
+    });
+  }
+
+  /**
+   * Segmenta una cotización por supply_type de sus items.
+   * Crea nuevas cotizaciones agrupando los items según su supply_type.
+   *
+   * @param int $id ID de la cotización a segmentar
+   * @return array Array de cotizaciones segmentadas creadas
+   * @throws Exception
+   */
+  public function segmentBySupplyType(int $id)
+  {
+    return DB::transaction(function () use ($id) {
+      // 1. Obtener la cotización original con sus detalles
+      $originalQuotation = $this->find($id);
+
+      if (!$originalQuotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // 2. Validar que no tenga cotizaciones segmentadas previas
+      if ($originalQuotation->segmentedQuotations()->count() > 0) {
+        throw new Exception('Esta cotización ya ha sido segmentada previamente');
+      }
+
+      // 3. Validar que tenga detalles
+      if ($originalQuotation->details->count() === 0) {
+        throw new Exception('La cotización no tiene items para segmentar');
+      }
+
+      // 4. Agrupar detalles por supply_type
+      $detailsBySupplyType = $originalQuotation->details->groupBy('supply_type');
+
+      // 5. Validar que haya más de un tipo de supply_type
+      if ($detailsBySupplyType->count() <= 1) {
+        throw new Exception('La cotización solo tiene un tipo de abastecimiento, no es necesario segmentar');
+      }
+
+      // 6. Crear una cotización por cada grupo de supply_type
+      $segmentedQuotations = [];
+
+      foreach ($detailsBySupplyType as $supplyType => $details) {
+        // 6.1. Preparar datos para la nueva cotización
+        $newQuotationData = $originalQuotation->toArray();
+
+        // 6.2. Remover campos que no se deben copiar
+        unset($newQuotationData['id']);
+        unset($newQuotationData['quotation_number']);
+        unset($newQuotationData['created_at']);
+        unset($newQuotationData['updated_at']);
+        unset($newQuotationData['deleted_at']);
+        unset($newQuotationData['subtotal']);
+        unset($newQuotationData['discount_amount']);
+        unset($newQuotationData['discount_percentage']);
+        unset($newQuotationData['tax_amount']);
+        unset($newQuotationData['total_amount']);
+
+        // 6.3. Generar nuevo número de cotización
+        $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
+
+        // 6.4. Configurar campos específicos
+        $newQuotationData['parent_quotation_id'] = $originalQuotation->id;
+        $newQuotationData['supply_type'] = $supplyType;
+        $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
+        $newQuotationData['expiration_date'] = $originalQuotation->expiration_date
+          ? Carbon::parse($originalQuotation->expiration_date)->toDateString()
+          : Carbon::now()->addDays(7)->toDateString();
+        $newQuotationData['status'] = ApOrderQuotations::STATUS_APERTURADO;
+        $newQuotationData['created_by'] = auth()->check() ? auth()->user()->id : $originalQuotation->created_by;
+
+        // Resetear campos de aprobación y confirmación
+        $newQuotationData['chief_approval_by'] = null;
+        $newQuotationData['manager_approval_by'] = null;
+        $newQuotationData['has_invoice_generated'] = false;
+        $newQuotationData['is_take'] = false;
+        $newQuotationData['customer_signature_url'] = null;
+        $newQuotationData['customer_signature_delivery_url'] = null;
+        $newQuotationData['delivery_document_number'] = null;
+        $newQuotationData['discard_reason_id'] = null;
+        $newQuotationData['discarded_note'] = null;
+        $newQuotationData['discarded_by'] = null;
+        $newQuotationData['discarded_at'] = null;
+        $newQuotationData['is_fully_paid'] = false;
+        $newQuotationData['emails_sent_count'] = 0;
+        $newQuotationData['confirmation_token'] = null;
+        $newQuotationData['confirmation_token_expires_at'] = null;
+        $newQuotationData['confirmed_at'] = null;
+        $newQuotationData['confirmation_channel'] = null;
+        $newQuotationData['confirmation_ip'] = null;
+        $newQuotationData['confirmation_metadata'] = null;
+
+        // Actualizar observaciones para indicar que es segmentada
+        $newQuotationData['observations'] = $originalQuotation->observations
+          ? $originalQuotation->observations . " - SEGMENTADA POR TIPO: " . $supplyType
+          : "SEGMENTADA DE COT: " . $originalQuotation->quotation_number . " - TIPO: " . $supplyType;
+
+        // 6.5. Crear la nueva cotización
+        $newQuotation = ApOrderQuotations::create($newQuotationData);
+
+        // 6.6. Duplicar los detalles correspondientes a este supply_type
+        foreach ($details as $detail) {
+          $newDetailData = $detail->toArray();
+
+          // Remover campos auto-generados del detalle
+          unset($newDetailData['id']);
+          unset($newDetailData['order_quotation_id']);
+          unset($newDetailData['created_at']);
+          unset($newDetailData['updated_at']);
+          unset($newDetailData['deleted_at']);
+
+          // Crear el nuevo detalle asociado a la nueva cotización
+          $newQuotation->details()->create($newDetailData);
+        }
+
+        // 6.7. Calcular los totales de la nueva cotización
+        $newQuotation->calculateTotals();
+        $newQuotation->save();
+
+        // 6.8. Agregar a la lista de cotizaciones segmentadas
+        $segmentedQuotations[] = $newQuotation;
+      }
+
+      // 7. Cargar relaciones y retornar
+      $quotationsWithRelations = ApOrderQuotations::whereIn('id', collect($segmentedQuotations)->pluck('id'))
+        ->with([
+          'vehicle',
+          'client',
+          'createdBy',
+          'details.product',
+          'parentQuotation'
+        ])
+        ->get();
+
+      return [
+        'message' => 'Cotización segmentada exitosamente',
+        'parent_quotation' => new ApOrderQuotationsResource($originalQuotation->load(['segmentedQuotations'])),
+        'segmented_quotations' => ApOrderQuotationsResource::collection($quotationsWithRelations),
+        'total_segmented' => count($segmentedQuotations)
+      ];
+    });
+  }
+
+  /**
+   * Asocia una guía de remisión a una cotización
+   *
+   * @param int $quotationId ID de la cotización
+   * @param int $shippingGuideId ID de la guía de remisión
+   * @return array
+   * @throws Exception
+   */
+  public function associateShippingGuide(int $quotationId, int $shippingGuideId): array
+  {
+    return DB::transaction(function () use ($quotationId, $shippingGuideId) {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('La cotización no existe');
+      }
+
+      // Usar el método del modelo que ya tiene las validaciones
+      $quotation->associateShippingGuide($shippingGuideId);
+
+      // Cargar la relación y retornar
+      $quotation->load('shippingGuide');
+
+      return [
+        'message' => 'Guía de remisión asociada exitosamente',
+        'quotation' => new ApOrderQuotationsResource($quotation),
+      ];
+    });
+  }
+
+  /**
+   * Desasocia la guía de remisión de una cotización
+   *
+   * @param int $quotationId ID de la cotización
+   * @return array
+   * @throws Exception
+   */
+  public function dissociateShippingGuide(int $quotationId): array
+  {
+    return DB::transaction(function () use ($quotationId) {
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('La cotización no existe');
+      }
+
+      if (!$quotation->shipping_guide_id) {
+        throw new Exception('La cotización no tiene una guía de remisión asociada');
+      }
+
+      // Usar el método del modelo
+      $quotation->dissociateShippingGuide();
+
+      return [
+        'message' => 'Guía de remisión desasociada exitosamente',
+        'quotation' => new ApOrderQuotationsResource($quotation),
+      ];
     });
   }
 }

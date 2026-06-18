@@ -13,6 +13,8 @@ class InventoryMovementDetailResource extends JsonResource
       'id' => $this->id,
       'inventory_movement_id' => $this->inventory_movement_id,
       'product_id' => $this->product_id,
+      'code' => $this->code, // Contains product code for PRODUCTO type, null for SERVICIO type
+      'description' => $this->description, // Contains product description for PRODUCTO type, null for SERVICIO type
       'product' => $this->product, // null for SERVICIO type
       'quantity' => $this->quantity,
       'unit_cost' => $this->unit_cost,

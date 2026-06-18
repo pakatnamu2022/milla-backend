@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\gestionProductos;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
@@ -186,6 +187,65 @@ class Products extends Model
           );
         }
       }
+    }
+  }
+
+  /**
+   * Valida que el producto tenga la misma marca que el vehículo de la cotización
+   * Cadena de validación: Vehicles -> model -> family -> brand_id === Products.brand_id
+   *
+   * @param int|null $vehicleId ID del vehículo (puede ser null para cotizaciones sin vehículo)
+   * @param int $productId ID del producto
+   * @param string $productDescription Descripción del producto para mensajes de error
+   * @return void
+   * @throws \Exception
+   */
+  public static function validateProductBrandMatchesVehicle($vehicleId, int $productId, string $productDescription): void
+  {
+    // Si no hay vehículo, no validar marca (caso de cotizaciones sin vehículo asociado)
+    if ($vehicleId === null) {
+      return;
+    }
+
+    // Obtener el producto con su marca
+    $product = self::with('brand')->find($productId);
+
+    if (!$product) {
+      throw new \Exception("Producto ({$productDescription}): No se encontró el producto.");
+    }
+
+    if (!$product->brand_id) {
+      throw new \Exception("Producto ({$productDescription}): El producto no tiene una marca asignada.");
+    }
+
+    // Obtener el vehículo con su cadena de relaciones hasta la marca
+    $vehicle = Vehicles::with('model.family.brand')->find($vehicleId);
+
+    if (!$vehicle) {
+      throw new \Exception("No se encontró el vehículo asociado a la cotización.");
+    }
+
+    if (!$vehicle->model) {
+      throw new \Exception("El vehículo no tiene un modelo asignado.");
+    }
+
+    if (!$vehicle->model->family) {
+      throw new \Exception("El modelo del vehículo no tiene una familia asignada.");
+    }
+
+    if (!$vehicle->model->family->brand_id) {
+      throw new \Exception("La familia del modelo del vehículo no tiene una marca asignada.");
+    }
+
+    // Validar que las marcas coincidan
+    if ($product->brand_id !== $vehicle->model->family->brand_id) {
+      $productBrandName = $product->brand ? $product->brand->name : 'Desconocida';
+      $vehicleBrandName = $vehicle->model->family->brand ? $vehicle->model->family->brand->name : 'Desconocida';
+
+      throw new \Exception(
+        "Producto ({$productDescription}): La marca del producto ({$productBrandName}) no coincide con la marca del vehículo ({$vehicleBrandName}). " .
+        "Solo se pueden agregar productos de la misma marca que el vehículo."
+      );
     }
   }
 
