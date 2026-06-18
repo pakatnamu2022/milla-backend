@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\personal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexConsultantRequest;
 use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
+use App\Http\Requests\gp\gestionhumana\personal\ShowWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,10 +37,10 @@ class WorkerController extends Controller
     }
   }
 
-  public function show(string $id)
+  public function show(ShowWorkerRequest $request, string $id)
   {
     try {
-      return $this->success($this->service->show($id));
+      return $this->success($this->service->show($id, $request));
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }
@@ -126,7 +127,7 @@ class WorkerController extends Controller
     } catch (\Exception $e) {
       return response()->json([
         'message' => 'Error al actualizar persona',
-        'error' => $e->getMessage()
+        'error'   => $e->getMessage()
       ], 500);
     }
   }
