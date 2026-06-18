@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AuthService
@@ -22,15 +23,27 @@ class AuthService
 
     if (Auth::attempt($credentials)) {
       $user = Auth::user();
-      $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
       $user = User::with('person')->find($user->id);
       $person = $user->person;
+
       if (!$person) {
         $user->tokens()->delete();
         throw new Exception('Credenciales Inválidas', 401);
       }
 
-      $permissionsData = $this->permissions();
+      if ($user->two_factor_enabled) {
+        Auth::logout();
+        $pendingToken = Str::random(40);
+        Cache::put("2fa_pending:{$pendingToken}", $user->id, now()->addMinutes(5));
+
+        return response()->json([
+          'requires_2fa'  => true,
+          'pending_token' => $pendingToken,
+        ]);
+      }
+
+      $token = $user->createToken('AuthToken', expiresAt: now()->addDays(7));
+      $permissionsData = $this->permissions($user->id);
 
       return response()->json([
         'access_token' => $token->plainTextToken,
@@ -75,9 +88,9 @@ class AuthService
     }
   }
 
-  public function permissions()
+  public function permissions(?int $userId = null)
   {
-    $userId = Auth::id();
+    $userId = $userId ?? Auth::id();
 
     // Árbol de Access (permisos básicos CRUD por vista)
     $vistas = $this->getAllVistasConEmpresa();
