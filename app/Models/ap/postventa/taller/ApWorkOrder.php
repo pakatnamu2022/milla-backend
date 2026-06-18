@@ -46,6 +46,9 @@ class ApWorkOrder extends Model
     'num_doc_contact',
     'full_contact_name',
     'phone_contact',
+    'num_doc_pickup',
+    'full_pickup_name',
+    'phone_pickup',
     'opening_date',
     'estimated_delivery_date',
     'estimated_delivery_time',
@@ -152,6 +155,13 @@ class ApWorkOrder extends Model
   {
     if ($value) {
       $this->attributes['full_contact_name'] = Str::upper($value);
+    }
+  }
+
+  public function setFullPickupNameAttribute($value)
+  {
+    if ($value) {
+      $this->attributes['full_pickup_name'] = Str::upper($value);
     }
   }
 

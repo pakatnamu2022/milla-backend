@@ -128,6 +128,23 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function updatePickupPerson(Request $request, $id)
+  {
+    try {
+      $data = $request->validate(
+        [
+          'num_doc_pickup' => 'required|string|digits:8',
+          'full_pickup_name' => 'required|string',
+          'phone_pickup' => 'required|string',
+        ]
+      );
+      $data['id'] = $id;
+      return $this->success($this->service->updatePickupPerson($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function generateDelivery(Request $request, $id)
   {
     try {

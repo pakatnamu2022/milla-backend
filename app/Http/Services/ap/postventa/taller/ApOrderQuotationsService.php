@@ -216,18 +216,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
-      // Validar precios de venta al público y decimales para cada producto en details
+      // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
         $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+        $vehicleId = $data['vehicle_id'] ?? null;
 
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($productId);
         if ($product) {
           $product->validateDecimals($quantity);
         }
+
+        // Validar que el producto tenga la misma marca que el vehículo
+        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
@@ -469,7 +473,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
-      // Validar precios de venta al público y decimales para cada producto en details
+      // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
         $unitPrice = $detail['unit_price'];
@@ -481,6 +485,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($product) {
           $product->validateDecimals($quantity);
         }
+
+        // Validar que el producto tenga la misma marca que el vehículo
+        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(

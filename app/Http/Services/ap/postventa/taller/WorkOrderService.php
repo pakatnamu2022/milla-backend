@@ -656,6 +656,29 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     });
   }
 
+  public function updatePickupPerson(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que la orden pueda ser modificada
+      $workOrder->ensureCanBeModified();
+
+      // Actualizar solo los campos de la persona que recoge
+      $workOrder->update([
+        'num_doc_pickup' => $data['num_doc_pickup'],
+        'full_pickup_name' => $data['full_pickup_name'],
+        'phone_pickup' => $data['phone_pickup'],
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
   public function generateDelivery(mixed $data)
   {
     return DB::transaction(function () use ($data) {
