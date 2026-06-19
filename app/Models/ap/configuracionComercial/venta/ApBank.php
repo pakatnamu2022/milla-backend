@@ -32,7 +32,7 @@ class ApBank extends BaseModel
     'currency_id'        => '=',
     'status'             => '=',
     'sede_id'            => '=',
-    'has_account_number' => 'accessor:boolean',
+    'has_account_number' => 'accessor_bool',
   ];
 
   const sorts = [
