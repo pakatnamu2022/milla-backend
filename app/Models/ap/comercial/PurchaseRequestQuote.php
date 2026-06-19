@@ -54,31 +54,32 @@ class PurchaseRequestQuote extends Model
   ];
 
   const filters = [
-    'search' => ['correlative', 'apModelsVn.code', 'holder.full_name', 'holder.num_doc', 'opportunity.worker.nombre_completo', 'opportunity.client.full_name'],
-    'type_document' => '=',
-    'type_vehicle' => '=',
-    'quote_deadline' => '=',
-    'exchange_rate_id' => '=',
-    'base_selling_price' => '=',
-    'sale_price' => '=',
-    'opportunity_id' => '=',
-    'holder_id' => '=',
-    'vehicle_color_id' => '=',
-    'ap_models_vn_id' => '=',
+    'search'                     => ['correlative', 'apModelsVn.code', 'holder.full_name', 'holder.num_doc', 'opportunity.worker.nombre_completo', 'opportunity.client.full_name'],
+    'type_document'              => '=',
+    'type_vehicle'               => '=',
+    'quote_deadline'             => '=',
+    'exchange_rate_id'           => '=',
+    'base_selling_price'         => '=',
+    'sale_price'                 => '=',
+    'opportunity_id'             => '=',
+    'holder_id'                  => '=',
+    'vehicle_color_id'           => '=',
+    'ap_models_vn_id'            => '=',
     'apModelsVn.family.brand_id' => '=',
-    'ap_vehicle_id' => '=',
-    'doc_type_currency_id' => '=',
-    'is_invoiced' => '=',
-    'is_approved' => '=',
-    'sede_id' => '=',
-    'has_vehicle' => 'accessor',
-    'status' => '=',
-    'is_paid' => 'accessor',
-    'created_at' => 'date_between',
+    'ap_vehicle_id'              => '=',
+    'doc_type_currency_id'       => '=',
+    'is_invoiced'                => '=',
+    'is_approved'                => '=',
+    'sede_id'                    => '=',
+    'has_vehicle'                => 'accessor',
+    'status'                     => '=',
+    'is_paid'                    => 'accessor_bool',
+    'created_at'                 => 'date_between',
   ];
 
   const sorts = [
     'id',
+    'is_approved',
     'created_at',
     'updated_at',
   ];
@@ -205,200 +206,200 @@ class PurchaseRequestQuote extends Model
   }
 
   protected $reportColumns = [
-    'created_at' => [
-      'label' => 'Fecha Registro',
+    'created_at'                         => [
+      'label'     => 'Fecha Registro',
       'formatter' => 'date:d/m/Y H:i',
-      'width' => 22,
+      'width'     => 22,
     ],
-    'correlative' => [
-      'label' => 'Correlativo',
+    'correlative'                        => [
+      'label'     => 'Correlativo',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'sede.abreviatura' => [
-      'label' => 'Sede',
+    'sede.abreviatura'                   => [
+      'label'     => 'Sede',
       'formatter' => null,
-      'width' => 15,
+      'width'     => 15,
     ],
-    'type_document' => [
-      'label' => 'Tipo Documento',
+    'type_document'                      => [
+      'label'     => 'Tipo Documento',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'type_vehicle' => [
-      'label' => 'Tipo Vehículo',
+    'type_vehicle'                       => [
+      'label'     => 'Tipo Vehículo',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
     'opportunity.worker.nombre_completo' => [
-      'label' => 'Asesor',
+      'label'     => 'Asesor',
       'formatter' => null,
-      'width' => 30,
+      'width'     => 30,
     ],
-    'holder.num_doc' => [
-      'label' => 'N° Doc. Titular',
+    'holder.num_doc'                     => [
+      'label'     => 'N° Doc. Titular',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'holder.full_name' => [
-      'label' => 'Titular',
+    'holder.full_name'                   => [
+      'label'     => 'Titular',
       'formatter' => null,
-      'width' => 30,
+      'width'     => 30,
     ],
-    'opportunity.client.full_name' => [
-      'label' => 'Cliente',
+    'opportunity.client.full_name'       => [
+      'label'     => 'Cliente',
       'formatter' => null,
-      'width' => 30,
+      'width'     => 30,
     ],
-    'apModelsVn.family.brand.name' => [
-      'label' => 'Marca',
+    'apModelsVn.family.brand.name'       => [
+      'label'     => 'Marca',
       'formatter' => null,
-      'width' => 20,
+      'width'     => 20,
     ],
-    'apModelsVn.code' => [
-      'label' => 'Modelo',
+    'apModelsVn.code'                    => [
+      'label'     => 'Modelo',
       'formatter' => null,
-      'width' => 20,
+      'width'     => 20,
     ],
-    'apModelsVn.version' => [
-      'label' => 'Versión',
+    'apModelsVn.version'                 => [
+      'label'     => 'Versión',
       'formatter' => null,
-      'width' => 25,
+      'width'     => 25,
     ],
-    'apModelsVn.family.description' => [
-      'label' => 'Familia',
+    'apModelsVn.family.description'      => [
+      'label'     => 'Familia',
       'formatter' => null,
-      'width' => 22,
+      'width'     => 22,
     ],
-    'apModelsVn.model_year' => [
-      'label' => 'Año Modelo',
+    'apModelsVn.model_year'              => [
+      'label'     => 'Año Modelo',
       'formatter' => null,
-      'width' => 13,
+      'width'     => 13,
     ],
-    'apModelsVn.displacement' => [
-      'label' => 'Cilindrada',
+    'apModelsVn.displacement'            => [
+      'label'     => 'Cilindrada',
       'formatter' => null,
-      'width' => 15,
+      'width'     => 15,
     ],
-    'apModelsVn.seats_number' => [
-      'label' => 'N° Asientos',
+    'apModelsVn.seats_number'            => [
+      'label'     => 'N° Asientos',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'apModelsVn.doors_number' => [
-      'label' => 'N° Puertas',
+    'apModelsVn.doors_number'            => [
+      'label'     => 'N° Puertas',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'vehicleColor.description' => [
-      'label' => 'Color',
+    'vehicleColor.description'           => [
+      'label'     => 'Color',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'vehicle.vin' => [
-      'label' => 'VIN',
+    'vehicle.vin'                        => [
+      'label'     => 'VIN',
       'formatter' => null,
-      'width' => 22,
+      'width'     => 22,
     ],
-    'vehicle.plate' => [
-      'label' => 'Placa',
+    'vehicle.plate'                      => [
+      'label'     => 'Placa',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'vehicle.year' => [
-      'label' => 'Año Vehículo',
+    'vehicle.year'                       => [
+      'label'     => 'Año Vehículo',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'vehicle.engine_number' => [
-      'label' => 'N° Motor',
+    'vehicle.engine_number'              => [
+      'label'     => 'N° Motor',
       'formatter' => null,
-      'width' => 22,
+      'width'     => 22,
     ],
-    'typeCurrency.code' => [
-      'label' => 'Moneda Base',
+    'typeCurrency.code'                  => [
+      'label'     => 'Moneda Base',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'base_selling_price' => [
-      'label' => 'Precio Base',
+    'base_selling_price'                 => [
+      'label'     => 'Precio Base',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'sale_price' => [
-      'label' => 'Precio Venta',
+    'sale_price'                         => [
+      'label'     => 'Precio Venta',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'down_payment' => [
-      'label' => 'Cuota Inicial',
+    'down_payment'                       => [
+      'label'     => 'Cuota Inicial',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'margin_amount' => [
-      'label' => 'Margen (S/)',
+    'margin_amount'                      => [
+      'label'     => 'Margen (S/)',
       'formatter' => null,
-      'width' => 16,
+      'width'     => 16,
     ],
-    'margin_pct' => [
-      'label' => 'Margen (%)',
+    'margin_pct'                         => [
+      'label'     => 'Margen (%)',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'docTypeCurrency.code' => [
-      'label' => 'Moneda Doc.',
+    'docTypeCurrency.code'               => [
+      'label'     => 'Moneda Doc.',
       'formatter' => null,
-      'width' => 14,
+      'width'     => 14,
     ],
-    'doc_sale_price' => [
-      'label' => 'Precio Doc.',
+    'doc_sale_price'                     => [
+      'label'     => 'Precio Doc.',
       'formatter' => null,
-      'width' => 18,
+      'width'     => 18,
     ],
-    'warranty_years' => [
-      'label' => 'Garantía (Años)',
+    'warranty_years'                     => [
+      'label'     => 'Garantía (Años)',
       'formatter' => null,
-      'width' => 16,
+      'width'     => 16,
     ],
-    'warranty_km' => [
-      'label' => 'Garantía (KM)',
+    'warranty_km'                        => [
+      'label'     => 'Garantía (KM)',
       'formatter' => null,
-      'width' => 16,
+      'width'     => 16,
     ],
-    'quote_deadline' => [
-      'label' => 'Vigencia',
+    'quote_deadline'                     => [
+      'label'     => 'Vigencia',
       'formatter' => 'date:d/m/Y',
-      'width' => 15,
+      'width'     => 15,
     ],
-    'is_approved' => [
-      'label' => 'Aprobado',
+    'is_approved'                        => [
+      'label'     => 'Aprobado',
       'formatter' => 'boolean',
-      'width' => 12,
+      'width'     => 12,
     ],
-    'is_invoiced' => [
-      'label' => 'Facturado',
+    'is_invoiced'                        => [
+      'label'     => 'Facturado',
       'formatter' => 'boolean',
-      'width' => 12,
+      'width'     => 12,
     ],
-    'is_paid' => [
-      'label' => 'Pagado',
+    'is_paid'                            => [
+      'label'     => 'Pagado',
       'formatter' => 'boolean',
-      'width' => 12,
+      'width'     => 12,
     ],
-    'has_vehicle' => [
-      'label' => 'Tiene Vehículo',
+    'has_vehicle'                        => [
+      'label'     => 'Tiene Vehículo',
       'formatter' => 'boolean',
-      'width' => 16,
+      'width'     => 16,
     ],
-    'status' => [
-      'label' => 'Estado',
+    'status'                             => [
+      'label'     => 'Estado',
       'formatter' => 'boolean',
-      'width' => 12,
+      'width'     => 12,
     ],
-    'comment' => [
-      'label' => 'Observaciones',
+    'comment'                            => [
+      'label'     => 'Observaciones',
       'formatter' => null,
-      'width' => 35,
+      'width'     => 35,
     ],
   ];
 
@@ -415,11 +416,11 @@ class PurchaseRequestQuote extends Model
   ];
 
   protected $reportStyles = [
-    'headerBold' => true,
-    'headerFontSize' => 11,
-    'headerFontColor' => 'FFFFFF',
+    'headerBold'            => true,
+    'headerFontSize'        => 11,
+    'headerFontColor'       => 'FFFFFF',
     'headerBackgroundColor' => '0D47A1',
-    'bodyFontSize' => 10,
+    'bodyFontSize'          => 10,
   ];
 
   protected $reportColorRules = [
@@ -427,7 +428,7 @@ class PurchaseRequestQuote extends Model
       1 => '4CAF50',
       0 => 'FFC107',
     ],
-    'status' => [
+    'status'      => [
       1 => '4CAF50',
       0 => 'BDBDBD',
     ],

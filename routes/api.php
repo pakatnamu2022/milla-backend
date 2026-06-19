@@ -2,6 +2,12 @@
 
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\gp\GpMastersController;
+use App\Http\Controllers\gp\tics\pm\ScrumProjectController;
+use App\Http\Controllers\gp\tics\pm\ScrumSprintController;
+use App\Http\Controllers\gp\tics\pm\ScrumItemController;
+use App\Http\Controllers\gp\tics\pm\ScrumCommentController;
+use App\Http\Controllers\gp\tics\pm\ScrumTagController;
+use App\Http\Controllers\gp\tics\pm\ScrumItemHistoryController;
 use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
@@ -491,6 +497,33 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+    });
+
+    //    PROJECT MANAGEMENT (SCRUM)
+    Route::group(['prefix' => 'tics/pm'], function () {
+      // Projects
+      Route::apiResource('scrumProject', ScrumProjectController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+      // Sprints
+      Route::post('scrumSprint/{id}/activate', [ScrumSprintController::class, 'activate']);
+      Route::post('scrumSprint/{id}/close', [ScrumSprintController::class, 'close']);
+      Route::apiResource('scrumSprint', ScrumSprintController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+      // Items
+      Route::get('scrumItem/kanban/{sprintId?}', [ScrumItemController::class, 'kanban']);
+      Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
+      Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
+      Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);
+      Route::apiResource('scrumItem', ScrumItemController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+      // Comments
+      Route::apiResource('scrumComment', ScrumCommentController::class)->only(['index', 'store', 'update', 'destroy']);
+
+      // Tags
+      Route::apiResource('scrumTag', ScrumTagController::class)->only(['index', 'store', 'update', 'destroy']);
+
+      // History (solo lectura)
+      Route::get('scrumItemHistory', [ScrumItemHistoryController::class, 'index']);
     });
 
     Route::group(['prefix' => 'mg'], function () {
@@ -1231,6 +1264,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles
       Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
+      Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
