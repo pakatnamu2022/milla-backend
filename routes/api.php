@@ -1494,7 +1494,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
-      Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
+      Route::put('orderQuotations/{id}/approve-taller', [ApOrderQuotationsController::class, 'approveTaller']);
+      Route::put('orderQuotations/{id}/approve-repuesto', [ApOrderQuotationsController::class, 'approveRepuesto']);
       Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
       Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
       Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);

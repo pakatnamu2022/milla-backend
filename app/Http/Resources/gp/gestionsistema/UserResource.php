@@ -64,7 +64,7 @@ class UserResource extends JsonResource
     // Determinar qué general master usar según el cargo
     if (in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
       $generalMasterId = GeneralMaster::MANAGER_DISCOUNT_PERCENTAGE_PV_ID;
-    } elseif (in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
+    } elseif (in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS)) {
       $generalMasterId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVT_ID;
     } elseif (in_array($positionId, Position::ASESOR_SERVICIO_PV_IDS)) {
       $generalMasterId = GeneralMaster::ADVISOR_DISCOUNT_PERCENTAGE_PV_ID;

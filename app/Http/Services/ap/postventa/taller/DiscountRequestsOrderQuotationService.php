@@ -99,7 +99,7 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
     // Obtener el jefe según el área
     $bossPositionIds = $apOrderQuotation->area_id === ApMasters::AREA_TALLER
-      ? Position::POSITION_JEFE_PVT_IDS  // Taller: cargo 143
+      ? Position::POSITION_JEFE_TALLER_PVT_IDS  // Taller: cargo 143
       : Position::POSITION_JEFE_PVR_IDS; // Repuestos: cargo 344
 
     $boss = Worker::working()

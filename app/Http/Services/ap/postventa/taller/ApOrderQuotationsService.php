@@ -973,10 +973,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
   /**
    * Aprueba una cotización según el cargo del usuario autenticado:
-   * - Jefe de Taller (143) → chief_approval_by
-   * - Gerente de Taller (142) → manager_approval_by
+   * - Jefe de Taller (69, 99, 143, 246) → chief_approval_by
+   * - Gerente (142) → manager_approval_by
    */
-  public function approve($data)
+  public function approveTaller($data)
   {
     return DB::transaction(function () use ($data) {
       $id = $data['id'];
@@ -992,21 +992,73 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Validar aprobación de gerente
       if (isset($data['manager_approval_by'])) {
         if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
-          throw new Exception('Solo los Gerentes de Taller pueden aprobar.');
+          throw new Exception('Solo el Gerente puede aprobar.');
         }
         if ($quotation->manager_approval_by) {
-          throw new Exception('Esta cotización ya fue aprobada por el Gerente de Taller.');
+          throw new Exception('Esta cotización ya fue aprobada por el Gerente.');
         }
         $quotation->update(['manager_approval_by' => $user->id]);
       }
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_PVT_IDS)) {
-          throw new Exception('Solo los Jefes de Taller pueden aprobar.');
+        if (!in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS)) {
+          throw new Exception('Solo el Jefe de Taller puede aprobar.');
         }
         if ($quotation->chief_approval_by) {
           throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+        }
+        $quotation->update(['chief_approval_by' => $user->id]);
+      }
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'chiefApprovalBy',
+        'managerApprovalBy',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Aprueba una cotización según el cargo del usuario autenticado:
+   * - Jefe de Repuestos (344) → chief_approval_by
+   * - Gerente (142) → manager_approval_by
+   */
+  public function approveRepuesto($data)
+  {
+    return DB::transaction(function () use ($data) {
+      $id = $data['id'];
+      $quotation = $this->find($id);
+      $user = auth()->user();
+
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede aprobar una cotización que ha sido descartada.');
+      }
+
+      $positionId = $user->person?->position?->id;
+
+      // Validar aprobación de gerente
+      if (isset($data['manager_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+          throw new Exception('Solo el Gerente puede aprobar.');
+        }
+        if ($quotation->manager_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Gerente.');
+        }
+        $quotation->update(['manager_approval_by' => $user->id]);
+      }
+
+      // Validar aprobación de jefe
+      if (isset($data['chief_approval_by'])) {
+        if (!in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS)) {
+          throw new Exception('Solo el Jefe de Repuesto puede aprobar.');
+        }
+        if ($quotation->chief_approval_by) {
+          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Repuesto.');
         }
         $quotation->update(['chief_approval_by' => $user->id]);
       }
@@ -1080,7 +1132,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
       $chiefUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
+        $query->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();
@@ -1382,7 +1434,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Enviar correo al cliente
       $this->emailService->queue([
-        'to' => 'wsuclupef@automotorespakatnamu.com',//$quotation->client->email,
+        'to' => 'wsuclupef@automotorespakatnamu.com', //$quotation->client->email,
         'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
         'template' => 'emails.quotation-virtual-confirmation',
         'data' => $emailData,

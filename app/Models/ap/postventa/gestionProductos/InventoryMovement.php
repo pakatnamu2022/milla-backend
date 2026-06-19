@@ -69,14 +69,14 @@ class InventoryMovement extends Model
   ];
 
   // Movement types
-  const TYPE_PURCHASE_RECEPTION = 'PURCHASE_RECEPTION';
-  const TYPE_SALE = 'SALE';
-  const TYPE_ADJUSTMENT_IN = 'ADJUSTMENT_IN';
-  const TYPE_ADJUSTMENT_OUT = 'ADJUSTMENT_OUT';
-  const TYPE_TRANSFER_OUT = 'TRANSFER_OUT';
-  const TYPE_TRANSFER_IN = 'TRANSFER_IN';
-  const TYPE_RETURN_IN = 'RETURN_IN';
-  const TYPE_RETURN_OUT = 'RETURN_OUT';
+  const string TYPE_PURCHASE_RECEPTION = 'PURCHASE_RECEPTION';
+  const string TYPE_SALE = 'SALE';
+  const string TYPE_ADJUSTMENT_IN = 'ADJUSTMENT_IN';
+  const string TYPE_ADJUSTMENT_OUT = 'ADJUSTMENT_OUT';
+  const string TYPE_TRANSFER_OUT = 'TRANSFER_OUT';
+  const string TYPE_TRANSFER_IN = 'TRANSFER_IN';
+  const string TYPE_RETURN_IN = 'RETURN_IN';
+  const string TYPE_RETURN_OUT = 'RETURN_OUT';
 
   public static function getMovementTypeLabel($type): string
   {
@@ -95,10 +95,10 @@ class InventoryMovement extends Model
   }
 
   // Status
-  const STATUS_DRAFT = 'DRAFT';
-  const STATUS_APPROVED = 'APPROVED';
-  const STATUS_IN_TRANSIT = 'IN_TRANSIT';
-  const STATUS_CANCELLED = 'CANCELLED';
+  const string STATUS_DRAFT = 'DRAFT';
+  const string STATUS_APPROVED = 'APPROVED';
+  const string STATUS_IN_TRANSIT = 'IN_TRANSIT';
+  const string STATUS_CANCELLED = 'CANCELLED';
 
   public static function getStatusLabel($status): string
   {
