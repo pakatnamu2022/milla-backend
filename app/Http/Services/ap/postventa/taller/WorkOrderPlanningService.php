@@ -731,12 +731,19 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     }
 
     // Validar que solo pueda realizarse después del horario laboral (después de las 6PM)
-    $currentTime = Carbon::now()->format('H:i');
-    if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
-      throw new Exception(
-        'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
-        ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
-      );
+    // SOLO si es el mismo día del trabajo planificado
+    $currentDate = Carbon::now()->format('Y-m-d');
+    $plannedDate = Carbon::parse($planning->planned_end_datetime)->format('Y-m-d');
+
+    // Solo validar horario si es el mismo día
+    if ($currentDate === $plannedDate) {
+      $currentTime = Carbon::now()->format('H:i');
+      if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
+        throw new Exception(
+          'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
+          ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
+        );
+      }
     }
 
     $endDatetime = Carbon::parse($data['end_datetime']);
