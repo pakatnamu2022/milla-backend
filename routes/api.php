@@ -510,7 +510,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::apiResource('scrumSprint', ScrumSprintController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
       // Items
-      Route::get('scrumItem/kanban/{sprintId}', [ScrumItemController::class, 'kanban']);
+      Route::get('scrumItem/kanban/{sprintId?}', [ScrumItemController::class, 'kanban']);
       Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
       Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
       Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);

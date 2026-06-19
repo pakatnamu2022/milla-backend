@@ -8,6 +8,7 @@ use App\Http\Requests\gp\tics\pm\StoreScrumCommentRequest;
 use App\Http\Requests\gp\tics\pm\UpdateScrumCommentRequest;
 use App\Http\Services\gp\tics\pm\ScrumCommentService;
 use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class ScrumCommentController extends Controller
 {
@@ -15,24 +16,40 @@ class ScrumCommentController extends Controller
 
   public function index(IndexScrumCommentRequest $request): JsonResponse
   {
-    return response()->json($this->service->list($request));
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function store(StoreScrumCommentRequest $request): JsonResponse
   {
-    return response()->json($this->service->store($request->validated()), 201);
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function update(UpdateScrumCommentRequest $request, int $id): JsonResponse
   {
-    $data = $request->validated();
-    $data['id'] = $id;
-    return response()->json($this->service->update($data));
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function destroy(int $id): JsonResponse
   {
-    $this->service->destroy($id);
-    return response()->json(['message' => 'Comentario eliminado correctamente.']);
+    try {
+      $this->service->destroy($id);
+      return $this->success(['message' => 'Comentario eliminado correctamente.']);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

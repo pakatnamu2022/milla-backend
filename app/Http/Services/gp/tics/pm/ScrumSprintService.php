@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumSprintResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumSprint;
@@ -14,15 +15,17 @@ class ScrumSprintService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    $projectId = $request->get('project_id');
-    $key = "scrum:sprints:project:{$projectId}:" . md5(serialize($request->except('project_id')));
+    $query = ScrumSprint::query()
+      ->withCount(['items', 'items as done_count' => fn($q) => $q->where('status', 'hecho')])
+      ->orderBy('start_date');
 
-    return Cache::store('redis')->remember($key, self::CACHE_TTL, function () use ($request) {
-      return ScrumSprint::filter($request)
-        ->withCount(['items', 'items as done_count' => fn($q) => $q->where('status', 'hecho')])
-        ->orderBy('start_date')
-        ->get();
-    });
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumSprint::filters,
+      ScrumSprint::sorts,
+      ScrumSprintResource::class,
+    );
   }
 
   public function show(int $id): ScrumSprint

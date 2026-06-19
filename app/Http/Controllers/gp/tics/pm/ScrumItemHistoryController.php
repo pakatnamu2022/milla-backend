@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\pm\IndexScrumItemHistoryRequest;
 use App\Http\Services\gp\tics\pm\ScrumItemHistoryService;
 use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class ScrumItemHistoryController extends Controller
 {
@@ -13,6 +14,10 @@ class ScrumItemHistoryController extends Controller
 
   public function index(IndexScrumItemHistoryRequest $request): JsonResponse
   {
-    return response()->json($this->service->list($request));
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

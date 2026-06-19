@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumItemResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumItem;
@@ -17,24 +18,33 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    return ScrumItem::filter($request)
+    $query = ScrumItem::query()
       ->with(['assignee:id,name', 'tags', 'creator:id,name'])
-      ->withCount('children')
-      ->orderBy('order')
-      ->paginate($request->get('per_page', 30));
+      ->withCount('children');
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumItem::filters,
+      ScrumItem::sorts,
+      ScrumItemResource::class,
+    );
   }
 
-  public function kanban(int $sprintId): array
+  public function kanban(?int $sprintId = null): array
   {
-    $key = "scrum:kanban:{$sprintId}";
+    $key = $sprintId ? "scrum:kanban:{$sprintId}" : "scrum:kanban:all";
     return Cache::store('redis')->remember($key, self::KANBAN_TTL, function () use ($sprintId) {
-      $items = ScrumItem::where('sprint_id', $sprintId)
+      $query = ScrumItem::query()
         ->whereNull('parent_id')
         ->with(['assignee:id,name', 'tags', 'children:id,parent_id,title,status,order'])
-        ->orderBy('order')
-        ->get();
+        ->orderBy('order');
 
-      return $items->groupBy('status')->toArray();
+      if ($sprintId !== null) {
+        $query->where('sprint_id', $sprintId);
+      }
+
+      return $query->get()->groupBy('status')->toArray();
     });
   }
 

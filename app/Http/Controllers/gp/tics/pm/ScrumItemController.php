@@ -9,6 +9,7 @@ use App\Http\Requests\gp\tics\pm\UpdateScrumItemRequest;
 use App\Http\Services\gp\tics\pm\ScrumItemService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class ScrumItemController extends Controller
 {
@@ -16,57 +17,92 @@ class ScrumItemController extends Controller
 
   public function index(IndexScrumItemRequest $request): JsonResponse
   {
-    return response()->json($this->service->list($request));
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function kanban(Request $request, int $sprintId): JsonResponse
+  public function kanban(?int $sprintId = null): JsonResponse
   {
-    return response()->json($this->service->kanban($sprintId));
+    try {
+      return $this->success($this->service->kanban($sprintId));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function backlog(Request $request, int $projectId): JsonResponse
+  public function backlog(int $projectId): JsonResponse
   {
-    return response()->json($this->service->backlog($projectId));
+    try {
+      return $this->success($this->service->backlog($projectId));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function show(int $id): JsonResponse
   {
-    return response()->json($this->service->show($id));
+    try {
+      return $this->success($this->service->show($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function store(StoreScrumItemRequest $request): JsonResponse
   {
-    return response()->json($this->service->store($request->validated()), 201);
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function update(UpdateScrumItemRequest $request, int $id): JsonResponse
   {
-    $data = $request->validated();
-    $data['id'] = $id;
-    return response()->json($this->service->update($data));
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function reorder(Request $request): JsonResponse
   {
-    $request->validate([
-      'items'      => 'required|array',
-      'items.*'    => 'integer|exists:scrum_items,id',
-      'sprint_id'  => 'nullable|integer|exists:scrum_sprints,id',
-      'project_id' => 'required|integer|exists:scrum_projects,id',
-    ]);
-    $this->service->reorder($request->items, $request->sprint_id, $request->project_id);
-    return response()->json(['message' => 'Orden actualizado correctamente.']);
+    try {
+      $request->validate([
+        'items'      => 'required|array',
+        'items.*'    => 'integer|exists:scrum_items,id',
+        'sprint_id'  => 'nullable|integer|exists:scrum_sprints,id',
+        'project_id' => 'required|integer|exists:scrum_projects,id',
+      ]);
+      $this->service->reorder($request->items, $request->sprint_id, $request->project_id);
+      return $this->success(['message' => 'Orden actualizado correctamente.']);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function destroy(int $id): JsonResponse
   {
-    $this->service->destroy($id);
-    return response()->json(['message' => 'Item eliminado correctamente.']);
+    try {
+      $this->service->destroy($id);
+      return $this->success(['message' => 'Item eliminado correctamente.']);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function toggleWatcher(int $id): JsonResponse
   {
-    $watching = $this->service->toggleWatcher($id);
-    return response()->json(['watching' => $watching]);
+    try {
+      return $this->success(['watching' => $this->service->toggleWatcher($id)]);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

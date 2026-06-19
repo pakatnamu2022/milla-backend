@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumTagResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumTag;
@@ -14,12 +15,15 @@ class ScrumTagService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    $projectId = $request->get('project_id', 'global');
-    $key = "scrum:tags:project:{$projectId}";
+    $query = ScrumTag::query()->orderBy('name');
 
-    return Cache::store('redis')->remember($key, self::CACHE_TTL, function () use ($request) {
-      return ScrumTag::filter($request)->orderBy('name')->get();
-    });
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumTag::filters,
+      ScrumTag::sorts,
+      ScrumTagResource::class,
+    );
   }
 
   public function find(int $id) { return null; }

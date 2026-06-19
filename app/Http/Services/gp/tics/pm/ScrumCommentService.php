@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumCommentResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumComment;
@@ -12,10 +13,15 @@ class ScrumCommentService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
-    return ScrumComment::filter($request)
-      ->with('user:id,name')
-      ->orderBy('created_at')
-      ->get();
+    $query = ScrumComment::query()->with('user:id,name')->orderBy('created_at');
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumComment::filters,
+      ScrumComment::sorts,
+      ScrumCommentResource::class,
+    );
   }
 
   public function find(int $id) { return null; }

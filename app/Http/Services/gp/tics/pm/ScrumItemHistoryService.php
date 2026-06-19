@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumItemHistoryResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumItemHistory;
@@ -11,10 +12,15 @@ class ScrumItemHistoryService extends BaseService implements BaseServiceInterfac
 {
   public function list(Request $request)
   {
-    return ScrumItemHistory::filter($request)
-      ->with('user:id,name')
-      ->orderByDesc('created_at')
-      ->get();
+    $query = ScrumItemHistory::query()->with('user:id,name')->orderByDesc('created_at');
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumItemHistory::filters,
+      ScrumItemHistory::sorts,
+      ScrumItemHistoryResource::class,
+    );
   }
 
   public function find(int $id) { return null; }

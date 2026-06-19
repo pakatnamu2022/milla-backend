@@ -8,6 +8,7 @@ use App\Http\Requests\gp\tics\pm\StoreScrumProjectRequest;
 use App\Http\Requests\gp\tics\pm\UpdateScrumProjectRequest;
 use App\Http\Services\gp\tics\pm\ScrumProjectService;
 use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class ScrumProjectController extends Controller
 {
@@ -15,31 +16,49 @@ class ScrumProjectController extends Controller
 
   public function index(IndexScrumProjectRequest $request): JsonResponse
   {
-    return response()->json($this->service->list($request));
+    try {
+      return $this->service->list($request);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function show(int $id): JsonResponse
   {
-    return response()->json($this->service->show($id));
+    try {
+      return $this->success($this->service->show($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function store(StoreScrumProjectRequest $request): JsonResponse
   {
-    $data = $request->validated();
-    $data['created_by'] = auth()->id();
-    return response()->json($this->service->store($data), 201);
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function update(UpdateScrumProjectRequest $request, int $id): JsonResponse
   {
-    $data = $request->validated();
-    $data['id'] = $id;
-    return response()->json($this->service->update($data));
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function destroy(int $id): JsonResponse
   {
-    $this->service->destroy($id);
-    return response()->json(['message' => 'Proyecto eliminado correctamente.']);
+    try {
+      $this->service->destroy($id);
+      return $this->success(['message' => 'Proyecto eliminado correctamente.']);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

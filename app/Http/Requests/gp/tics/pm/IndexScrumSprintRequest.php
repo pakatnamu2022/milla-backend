@@ -22,7 +22,7 @@ class IndexScrumSprintRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'project_id' => 'required|integer|exists:scrum_projects,id',
+            'project_id' => 'nullable|integer|exists:scrum_projects,id',
             'status'     => 'nullable|in:planeado,activo,cerrado',
         ];
     }

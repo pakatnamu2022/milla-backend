@@ -2,10 +2,12 @@
 
 namespace App\Http\Services\gp\tics\pm;
 
+use App\Http\Resources\gp\tics\pm\ScrumProjectResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\gp\tics\pm\ScrumProject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 class ScrumProjectService extends BaseService implements BaseServiceInterface
@@ -14,13 +16,17 @@ class ScrumProjectService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    $key = 'scrum:projects:' . md5(serialize($request->all()));
-    return Cache::store('redis')->remember($key, self::CACHE_TTL, function () use ($request) {
-      return ScrumProject::filter($request)
-        ->with(['creator:id,name', 'activeSprint'])
-        ->withCount(['sprints', 'items'])
-        ->paginate($request->get('per_page', 15));
-    });
+    $query = ScrumProject::query()
+      ->with(['creator:id,name', 'activeSprint'])
+      ->withCount(['sprints', 'items']);
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ScrumProject::filters,
+      ScrumProject::sorts,
+      ScrumProjectResource::class,
+    );
   }
 
   public function find(int $id)
@@ -40,6 +46,7 @@ class ScrumProjectService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data): ScrumProject
   {
+    $data['created_by'] = Auth::id();
     $project = ScrumProject::create($data);
     $this->flushProjectsCache();
     return $project->load('creator:id,name');
