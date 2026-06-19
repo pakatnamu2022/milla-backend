@@ -12,6 +12,7 @@ class StoreVehiclesReplacementRequest extends StoreRequest
       'plate' => 'sometimes|nullable|string|max:10|unique:ap_vehicles,plate',
       'vin' => 'required|string|max:20|min:17|unique:ap_vehicles,vin',
       'engine_number' => 'required|string|max:50|unique:ap_vehicles,engine_number',
+      'sede_id' => 'required|integer|exists:config_sede,id',
     ];
   }
 

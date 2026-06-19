@@ -12,14 +12,12 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
-use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
-use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\User;
@@ -29,7 +27,6 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ApOrderQuotationsService extends BaseService implements BaseServiceInterface
 {
@@ -229,9 +226,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($product) {
           $product->validateDecimals($quantity);
         }
-
-        // Validar que el producto tenga la misma marca que el vehículo
-        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
@@ -485,9 +479,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         if ($product) {
           $product->validateDecimals($quantity);
         }
-
-        // Validar que el producto tenga la misma marca que el vehículo
-        Products::validateProductBrandMatchesVehicle($vehicleId, $productId, $detail['description']);
 
         // Validar precio de venta al público
         $validation = ProductWarehouseStock::validatePublicSalePrice(
