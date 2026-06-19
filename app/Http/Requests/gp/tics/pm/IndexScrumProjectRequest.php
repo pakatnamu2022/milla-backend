@@ -24,7 +24,7 @@ class IndexScrumProjectRequest extends FormRequest
     return [
       'status'   => 'nullable|in:activo,archivado',
       'search'   => 'nullable|string|max:100',
-      'per_page' => 'nullable|integer|min:1|max:100',
+      'per_page' => 'nullable|integer|min:1|max:200',
       'sort'     => 'nullable|string',
       'order'    => 'nullable|in:asc,desc',
     ];
