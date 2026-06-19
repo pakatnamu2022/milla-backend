@@ -208,6 +208,10 @@ class ExportService
                 'operator' => 'custom',
                 'value' => $value
               ];
+            } elseif ($filterOperator === 'accessor' || $filterOperator === 'accessor_bool') {
+              // Filtros de tipo accessor son atributos computados en PHP,
+              // no columnas SQL — se omiten al construir la query de reporte
+              continue;
             } else {
               // Para operadores como '=', '>', '<', '>=', '<=', '!='
               $filters[] = [

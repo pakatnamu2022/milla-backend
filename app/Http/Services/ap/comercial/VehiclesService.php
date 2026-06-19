@@ -32,6 +32,31 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $exportService->exportFromRequest($request, Vehicles::class);
   }
 
+  public function exportDelivery(Request $request)
+  {
+    $request->merge([
+      'columns' => [
+        'electronicDocumentParent.identityDocumentType.description',
+        'electronicDocumentParent.cliente_denominacion',
+        'electronicDocumentParent.cliente_numero_de_documento',
+        'model.family.brand.name',
+        'model.family.description',
+        'vin',
+        'plate',
+        'electronicDocumentParent.seriesModel.sede.shop.description',
+        'electronicDocumentParent.sale_date',
+        'vehicleDelivery.real_delivery_date',
+        'electronicDocumentParent.cliente_email',
+        'electronicDocumentParent.client_phone',
+        'vehicleDelivery.advisor.nombre_completo',
+      ],
+      'title' => $request->get('title', 'Consolidado Entregas Vehículos Nuevos'),
+    ]);
+
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, Vehicles::class);
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(

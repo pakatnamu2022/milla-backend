@@ -46,36 +46,36 @@ class Vehicles extends BaseModel
   ];
 
   protected $casts = [
-    'year' => 'integer',
+    'year'          => 'integer',
     'year_delivery' => 'integer',
-    'has_pdi' => 'boolean',
-    'is_heavy' => 'boolean',
+    'has_pdi'       => 'boolean',
+    'is_heavy'      => 'boolean',
     'generated_pdi' => 'boolean',
   ];
 
   const array filters = [
-    'search' => ['vin', 'plate', 'engine_number', 'year', 'ap_vehicle_status_id'],
-    'ap_models_vn_id' => '=',
-    'model.class_id' => '=',
-    'warehouse_id' => '=',
-    'ap_vehicle_status_id' => '=',
-    'vehicle_color_id' => '=',
-    'engine_type_id' => '=',
-    'warehouse_physical_id' => '=',
-    'year' => '=',
-    'has_purchase_request_quote' => 'accessor',
-    'warehousePhysical.sede_id' => '=',
-    'warehousePhysical.is_received' => '=',
+    'search'                             => ['vin', 'plate', 'engine_number', 'year', 'ap_vehicle_status_id'],
+    'ap_models_vn_id'                    => '=',
+    'model.class_id'                     => '=',
+    'warehouse_id'                       => '=',
+    'ap_vehicle_status_id'               => '=',
+    'vehicle_color_id'                   => '=',
+    'engine_type_id'                     => '=',
+    'warehouse_physical_id'              => '=',
+    'year'                               => '=',
+    'has_purchase_request_quote'         => 'accessor',
+    'warehousePhysical.sede_id'          => '=',
+    'warehousePhysical.is_received'      => '=',
     'warehousePhysical.article_class_id' => '=',
-    'warehouse.sede_id' => '=',
-    'warehouse.is_received' => '=',
-    'warehouse.article_class_id' => '=',
-    'is_paid' => 'accessor_bool',
-    'customer_id' => '=',
-    'type_operation_id' => '=',
-    'is_received' => 'accessor_bool',
-    'has_delivery_guide' => 'accessor_bool',
-    'has_vehicle_delivery' => 'accessor_bool',
+    'warehouse.sede_id'                  => '=',
+    'warehouse.is_received'              => '=',
+    'warehouse.article_class_id'         => '=',
+    'is_paid'                            => 'accessor_bool',
+    'customer_id'                        => '=',
+    'type_operation_id'                  => '=',
+    'is_received'                        => 'accessor_bool',
+    'has_delivery_guide'                 => 'accessor_bool',
+    'has_vehicle_delivery'               => 'accessor_bool',
   ];
 
   const array sorts = [
@@ -303,9 +303,9 @@ class Vehicles extends BaseModel
     }
 
     return (object)[
-      'vehicle' => $vehicle,
+      'vehicle'            => $vehicle,
       'electronicDocument' => $electronicDocument,
-      'client' => $electronicDocument->client
+      'client'             => $electronicDocument->client
     ];
   }
 
@@ -437,85 +437,96 @@ class Vehicles extends BaseModel
   }
 
   protected $reportColumns = [
-    'electronicDocumentParent.seriesModel.sede.suc_abrev' => [
-      'label' => 'PISO',
+    'electronicDocumentParent.seriesModel.sede.suc_abrev'                              => [
+      'label'     => 'PISO',
       'formatter' => null,
     ],
-    'electronicDocumentParent.seriesModel.sede.shop.description' => [
-      'label' => 'SEDE',
+    'electronicDocumentParent.seriesModel.sede.shop.description'                       => [
+      'label'     => 'SEDE',
       'formatter' => null,
     ],
-    'model.family.brand.group.description' => [
-      'label' => 'GRUPOS',
+    'model.family.brand.group.description'                                             => [
+      'label'     => 'GRUPOS',
       'formatter' => null,
     ],
-    'model.family.brand.name' => [
-      'label' => 'MARCA',
+    'model.family.brand.name'                                                          => [
+      'label'     => 'MARCA',
       'formatter' => null,
     ],
-    'model.family.description' => [
-      'label' => 'MODELO',
+    'model.family.description'                                                         => [
+      'label'     => 'MODELO',
       'formatter' => null,
     ],
-    'model.version' => [
-      'label' => 'VERSION',
+    'model.version'                                                                    => [
+      'label'     => 'VERSION',
       'formatter' => null,
     ],
-    'color.description' => [
-      'label' => 'COLOR',
+    'color.description'                                                                => [
+      'label'     => 'COLOR',
       'formatter' => null,
     ],
-    'vin' => [
-      'label' => 'VIN',
+    'vin'                                                                              => [
+      'label'     => 'VIN',
       'formatter' => null,
     ],
-    'engine_number' => [
-      'label' => 'NRO. MOTOR',
+    'plate'                                                                            => [
+      'label'     => 'PLACA',
       'formatter' => null,
     ],
-    'electronicDocumentParent.full_number' => [
-      'label' => 'NRO. FACTURA',
+    'engine_number'                                                                    => [
+      'label'     => 'NRO. MOTOR',
       'formatter' => null,
     ],
-    'electronicDocumentParent.cliente_numero_de_documento' => [
-      'label' => 'NRO DOCUMENTO',
+    'electronicDocumentParent.full_number'                                             => [
+      'label'     => 'NRO. FACTURA',
       'formatter' => null,
     ],
-    'electronicDocumentParent.cliente_denominacion' => [
-      'label' => 'CLIENTE',
+    'electronicDocumentParent.identityDocumentType.description'                        => [
+      'label'     => 'TIPO DE DOCUMENTO',
       'formatter' => null,
     ],
-    'electronicDocumentParent.client_phone' => [
-      'label' => 'CELULAR',
+    'electronicDocumentParent.cliente_numero_de_documento'                             => [
+      'label'     => 'NRO DOCUMENTO',
       'formatter' => null,
     ],
-    'electronicDocumentParent.cliente_email' => [
-      'label' => 'EMAIL',
+    'electronicDocumentParent.cliente_denominacion'                                    => [
+      'label'     => 'CLIENTE',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.client_phone'                                            => [
+      'label'     => 'CELULAR',
+      'formatter' => null,
+    ],
+    'electronicDocumentParent.cliente_email'                                           => [
+      'label'     => 'EMAIL',
       'formatter' => null,
     ],
     'electronicDocumentParent.purchaseRequestQuote.opportunity.worker.nombre_completo' => [
-      'label' => 'ASESOR',
+      'label'     => 'ASESOR',
       'formatter' => null,
     ],
-    'purchaseOrder.supplierOrderType.description' => [
-      'label' => 'TIPO ORDEN COMPRA',
+    'vehicleDelivery.advisor.nombre_completo'                                          => [
+      'label'     => 'ASESOR ENTREGA',
       'formatter' => null,
     ],
-//    DATES
-    'purchaseOrder.emission_date' => [
-      'label' => 'FECHA COMPRA',
+    'purchaseOrder.supplierOrderType.description'                                      => [
+      'label'     => 'TIPO ORDEN COMPRA',
+      'formatter' => null,
+    ],
+    'purchaseOrder.emission_date'                                                      => [
+      'label'     => 'FECHA COMPRA',
       'formatter' => 'date',
     ],
-    'shippingGuideReceiving.received_date' => [
-      'label' => 'FECHA RECEPCIÓN',
+    'shippingGuideReceiving.received_date'                                             => [
+      'label'     => 'FECHA RECEPCIÓN',
       'formatter' => 'date',
     ],
-    'electronicDocumentParent.sale_date' => [
-      'label' => 'FECHA VENTA',
+    'electronicDocumentParent.sale_date'                                               => [
+      'label'     => 'FECHA VENTA',
       'formatter' => 'date',
     ],
-    'vehicleDelivery.real_delivery_date' => [
-      'label' => 'FECHA ENTREGA',
+    'vehicleDelivery.real_delivery_date'                                               => [
+      'label'     => 'FECHA ENTREGA',
       'formatter' => 'date',
     ],
   ];
@@ -523,10 +534,11 @@ class Vehicles extends BaseModel
   protected $reportRelations = [
     'electronicDocumentParent.seriesModel.sede.shop',
     'electronicDocumentParent.purchaseRequestQuote.opportunity.worker',
+    'electronicDocumentParent.identityDocumentType',
     'model.family.brand.group',
     'color',
     'shippingGuideReceiving',
     'purchaseOrder.supplierOrderType',
-    'vehicleDelivery',
+    'vehicleDelivery.advisor',
   ];
 }
