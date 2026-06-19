@@ -663,7 +663,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // 5. Verificar si ya existe el registro en la tabla intermedia
-      $existingRecord = DB::connection('dbtp')
+      $existingRecord = DB::connection('dbtest')
         ->table('neRMPvtTb_CajaDo')
         ->where('DocumentoId', $document->full_number)
         ->first();
@@ -677,11 +677,11 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // 6. Insertar en la tabla intermedia
-      DB::connection('dbtp')
+      DB::connection('dbtest')
         ->table('neRMPvtTb_CajaDo')
         ->insert([
           'CajaId' => $cajaId,
-          'ModuloId' => 'SO',
+          'ModuloId' => 'SOP',
           'DocumentoTipo' => '0',
           'DocumentoId' => $document->full_number,
         ]);
