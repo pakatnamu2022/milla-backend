@@ -14,20 +14,19 @@ use Illuminate\Support\Facades\DB;
 class ScrumSeeder extends Seeder
 {
   private const PROJECTS = [
-    ['name' => 'Portal Académico',    'color' => '#3B82F6', 'description' => 'Rediseño del portal de gestión académica para docentes y estudiantes.'],
-    ['name' => 'App de Viáticos',     'color' => '#10B981', 'description' => 'Módulo de solicitud, aprobación y rendición de viáticos del personal.'],
-    ['name' => 'Sistema de Compras',  'color' => '#F59E0B', 'description' => 'Automatización del proceso de adquisiciones y órdenes de compra.'],
+    ['name' => 'Portal Académico', 'color' => '#3B82F6', 'description' => 'Rediseño del portal de gestión académica para docentes y estudiantes.'],
+    ['name' => 'App de Viáticos', 'color' => '#10B981', 'description' => 'Módulo de solicitud, aprobación y rendición de viáticos del personal.'],
+    ['name' => 'Sistema de Compras', 'color' => '#F59E0B', 'description' => 'Automatización del proceso de adquisiciones y órdenes de compra.'],
   ];
 
   private const TAGS = [
-    ['name' => 'backend',        'color' => '#3B82F6'],
-    ['name' => 'frontend',       'color' => '#8B5CF6'],
-    ['name' => 'urgente',        'color' => '#EF4444'],
-    ['name' => 'bloqueado',      'color' => '#F59E0B'],
-    ['name' => 'qa',             'color' => '#10B981'],
-    ['name' => 'diseño',         'color' => '#EC4899'],
-    ['name' => 'refactor',       'color' => '#6B7280'],
-    ['name' => 'api',            'color' => '#0EA5E9'],
+    ['name' => 'Backend', 'color' => 'orange'],
+    ['name' => 'Frontend', 'color' => 'blue'],
+    ['name' => 'Urgente', 'color' => 'red'],
+    ['name' => 'Bloqueado', 'color' => 'gray'],
+    ['name' => 'QA', 'color' => 'emerald'],
+    ['name' => 'Diseño', 'color' => 'amber'],
+    ['name' => 'Refactor', 'color' => 'indigo'],
   ];
 
   private const SPRINT_GOALS = [
@@ -82,7 +81,7 @@ class ScrumSeeder extends Seeder
   {
     $ticsUserIds = DB::table('config_asig_role_user')
       ->where('role_id', Constants::TICS_ROL_ID)
-      ->where('status_deleted', 0)
+      ->where('status_deleted', 1)
       ->pluck('user_id');
 
     DB::statement('SET FOREIGN_KEY_CHECKS=0');
@@ -112,7 +111,7 @@ class ScrumSeeder extends Seeder
         'goal'       => self::SPRINT_GOALS[0],
         'start_date' => now()->subDays(42)->format('Y-m-d'),
         'end_date'   => now()->subDays(28)->format('Y-m-d'),
-        'created_by' => $ticsUserIds->random(),
+//        'created_by' => $ticsUserIds->random(),
       ]);
 
       $sprintActivo = ScrumSprint::factory()->activo()->create([
@@ -121,7 +120,7 @@ class ScrumSeeder extends Seeder
         'goal'       => self::SPRINT_GOALS[1],
         'start_date' => now()->subDays(14)->format('Y-m-d'),
         'end_date'   => now()->addDays(0)->format('Y-m-d'),
-        'created_by' => $ticsUserIds->random(),
+//        'created_by' => $ticsUserIds->random(),
       ]);
 
       $sprintPlan = ScrumSprint::factory()->create([
@@ -131,7 +130,7 @@ class ScrumSeeder extends Seeder
         'status'     => 'planeado',
         'start_date' => now()->addDays(1)->format('Y-m-d'),
         'end_date'   => now()->addDays(14)->format('Y-m-d'),
-        'created_by' => $ticsUserIds->random(),
+//        'created_by' => $ticsUserIds->random(),
       ]);
 
       $this->crearItems($project->id, $sprintCerrado->id, $tags, 'hecho', 6, $ticsUserIds);
@@ -155,7 +154,7 @@ class ScrumSeeder extends Seeder
             'type'         => 'tarea',
             'title'        => $titulo,
             'status'       => collect(['por_hacer', 'en_progreso', 'hecho'])->random(),
-            'priority'     => collect(['alta', 'media', 'baja'])->random(),
+            'priority'     => collect(['Alta', 'Media', 'Baja'])->random(),
             'story_points' => collect([1, 2, 3])->random(),
             'order'        => $order,
             'created_by'   => $ticsUserIds->random(),
@@ -187,32 +186,35 @@ class ScrumSeeder extends Seeder
         'closed_at'   => $status === 'hecho' ? now()->subDays(rand(1, 10)) : null,
       ]);
 
-      $item->tags()->attach($tags->random(rand(0, 2))->pluck('id'));
+      $tagCount = min(rand(0, 2), $tags->count());
+      if ($tagCount > 0) {
+        $item->tags()->attach($tags->random($tagCount)->pluck('id'));
+      }
     }
   }
 
   private function poolTitulos(string $modo): array
   {
     $historias = collect(self::HISTORIAS)->map(fn($t) => ['historia', $t])->all();
-    $tareas    = collect(self::TAREAS)->map(fn($t) => ['tarea', $t])->all();
-    $errores   = collect(self::ERRORES)->map(fn($t) => ['error', $t])->all();
+    $tareas = collect(self::TAREAS)->map(fn($t) => ['tarea', $t])->all();
+    $errores = collect(self::ERRORES)->map(fn($t) => ['error', $t])->all();
     $funciones = collect(self::FUNCIONES)->map(fn($t) => ['funcion', $t])->all();
 
     return match ($modo) {
-      'hecho'    => [...$historias, ...$tareas],
+      'hecho' => [...$historias, ...$tareas],
       'por_hacer' => [...$historias, ...$funciones],
-      'backlog'  => [...$historias, ...$funciones, ...$errores],
-      default    => [...$historias, ...$tareas, ...$errores, ...$funciones],
+      'backlog' => [...$historias, ...$funciones, ...$errores],
+      default => [...$historias, ...$tareas, ...$errores, ...$funciones],
     };
   }
 
   private function resolveStatus(string $modo): string
   {
     return match ($modo) {
-      'hecho'    => 'hecho',
+      'hecho' => 'hecho',
       'por_hacer' => 'por_hacer',
-      'backlog'  => 'backlog',
-      default    => collect(['por_hacer', 'en_progreso', 'en_revision', 'hecho'])->random(),
+      'backlog' => 'backlog',
+      default => collect(['por_hacer', 'en_progreso', 'en_revision', 'hecho'])->random(),
     };
   }
 }

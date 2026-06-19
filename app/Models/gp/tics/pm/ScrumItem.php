@@ -29,7 +29,7 @@ class ScrumItem extends BaseModel
   ];
 
   protected $casts = [
-    'due_date'  => 'date',
+    'due_date'  => 'date:Y-m-d',
     'closed_at' => 'datetime',
   ];
 
