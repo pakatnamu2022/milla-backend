@@ -27,11 +27,12 @@ class ApBank extends BaseModel
   ];
 
   const filters = [
-    'search' => ['code', 'account_number', 'cci', 'bank.description'],
-    'bank_id' => '=',
-    'currency_id' => '=',
-    'status' => '=',
-    'sede_id' => '=',
+    'search'             => ['code', 'account_number', 'cci', 'bank.description'],
+    'bank_id'            => '=',
+    'currency_id'        => '=',
+    'status'             => '=',
+    'sede_id'            => '=',
+    'has_account_number' => 'accessor:boolean',
   ];
 
   const sorts = [
@@ -43,6 +44,11 @@ class ApBank extends BaseModel
     'status',
     'sede_id',
   ];
+
+  public function getHasAccountNumberAttribute(): bool
+  {
+    return !!$this->account_number;
+  }
 
   public function bank(): BelongsTo
   {

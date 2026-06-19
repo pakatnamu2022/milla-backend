@@ -984,14 +984,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      Route::apiResource('bankAp', ApBankController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
       Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
         'index',
         'show',
