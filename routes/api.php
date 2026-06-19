@@ -514,6 +514,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
       Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
       Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);
+      Route::post('scrumTicket', [ScrumItemController::class, 'storeTicket']);
       Route::apiResource('scrumItem', ScrumItemController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
       // Comments
