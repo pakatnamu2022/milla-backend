@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\tics\pm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\tics\pm\IndexScrumItemRequest;
 use App\Http\Requests\gp\tics\pm\StoreScrumItemRequest;
+use App\Http\Requests\gp\tics\pm\StoreScrumTicketRequest;
 use App\Http\Requests\gp\tics\pm\UpdateScrumItemRequest;
 use App\Http\Services\gp\tics\pm\ScrumItemService;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +67,15 @@ class ScrumItemController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeTicket(StoreScrumTicketRequest $request): JsonResponse
+  {
+    try {
+      return $this->success($this->service->submitTicket($request->validated()));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

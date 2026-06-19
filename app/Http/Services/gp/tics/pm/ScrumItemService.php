@@ -135,6 +135,19 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
     return $item->fresh()->load(['assignee:id,name', 'tags']);
   }
 
+  public function submitTicket(mixed $data): ScrumItem
+  {
+    $data['type']       = 'solicitud';
+    $data['status']     = 'backlog';
+    $data['sprint_id']  = null;
+    $data['created_by'] = Auth::id();
+    $data['order']      = $this->nextOrder(null, $data['project_id']);
+
+    $item = ScrumItem::create($data);
+    Cache::store('redis')->forget("scrum:backlog:{$data['project_id']}");
+    return $item->load(['creator:id,name']);
+  }
+
   public function reorder(array $items, ?int $sprintId, int $projectId): void
   {
     foreach ($items as $order => $id) {
