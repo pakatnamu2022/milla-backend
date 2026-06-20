@@ -379,6 +379,11 @@ trait Filterable
         $query->orderByRaw("({$qualifiedField} = ?) DESC", [$filterValue]);
       }
 
+      // Para code_dynamics, siempre enviar NULL o vacíos al final
+      if ($sortField === 'code_dynamics') {
+        $query->orderByRaw("CASE WHEN {$qualifiedField} IS NULL OR {$qualifiedField} = '' THEN 1 ELSE 0 END");
+      }
+
       $query->orderBy($qualifiedField, $sortOrder);
     } else {
       // Calificar 'id' con el alias de tabla
