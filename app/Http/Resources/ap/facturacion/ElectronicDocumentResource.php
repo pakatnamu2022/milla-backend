@@ -18,7 +18,7 @@ class ElectronicDocumentResource extends JsonResource
   public function toArray(Request $request): array
   {
     $creditNote = ($this->creditNote && !$this->creditNote->anulado) ? $this->creditNote : null;
-    $debitNote  = ($this->debitNote  && !$this->debitNote->anulado)  ? $this->debitNote  : null;
+    $debitNote = ($this->debitNote && !$this->debitNote->anulado) ? $this->debitNote : null;
 
     return [
       'id' => $this->id,
@@ -96,6 +96,7 @@ class ElectronicDocumentResource extends JsonResource
       'medio_de_pago' => $this->medio_de_pago,
       'placa_vehiculo' => $this->placa_vehiculo,
       'orden_compra_servicio' => $this->orden_compra_servicio,
+      'orden_compra_servicio_url' => $this->orden_compra_servicio_url,
       'codigo_unico' => $this->codigo_unico,
       'enviar_automaticamente_a_la_sunat' => $this->enviar_automaticamente_a_la_sunat,
       'enviar_automaticamente_al_cliente' => $this->enviar_automaticamente_al_cliente,
