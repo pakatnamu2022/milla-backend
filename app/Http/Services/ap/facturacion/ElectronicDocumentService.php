@@ -667,6 +667,29 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $data['exchange_rate_id'] = $exchangeRate->id;
       }
 
+      // ================================================================
+      // PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
       // Actualizar el documento
       $document->update(array_merge($data, [
         'updated_by' => auth()->id(),

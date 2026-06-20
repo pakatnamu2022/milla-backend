@@ -31,6 +31,14 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'enable_commercial' => [
+        'nullable',
+        'boolean',
+      ],
+      'enable_after_sales' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
@@ -47,6 +55,9 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
       'description.unique' => 'La descripción ingresada ya existe en los registros.',
 
       'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
+
+      'enable_commercial.boolean' => 'El campo habilitar comercial debe ser verdadero o falso.',
+      'enable_after_sales.boolean' => 'El campo habilitar post venta debe ser verdadero o falso.',
     ];
   }
 }

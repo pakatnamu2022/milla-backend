@@ -19,6 +19,8 @@ class ApAccountingAccountPlan extends Model
     'is_detraction',
     'type',
     'status',
+    'enable_commercial',
+    'enable_after_sales',
   ];
 
   const filters = [
@@ -27,6 +29,8 @@ class ApAccountingAccountPlan extends Model
     'is_detraction' => '=',
     'status' => '=',
     'type' => '=',
+    'enable_commercial' => '=',
+    'enable_after_sales' => '=',
   ];
 
   const sorts = [
@@ -35,6 +39,12 @@ class ApAccountingAccountPlan extends Model
     'description',
     'is_detraction',
     'status',
+  ];
+
+  protected $casts = [
+    'is_detraction' => 'boolean',
+    'enable_commercial' => 'boolean',
+    'enable_after_sales' => 'boolean',
   ];
 
   const int TYPE_SALE = 0;
