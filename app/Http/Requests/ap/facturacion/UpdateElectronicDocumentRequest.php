@@ -145,7 +145,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
             $items[$index]['producto_id'] = (int)$item['producto_id'];
           }
         }
-        
+
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {

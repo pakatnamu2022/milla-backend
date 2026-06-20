@@ -36,6 +36,14 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'enable_commercial' => [
+        'nullable',
+        'boolean',
+      ],
+      'enable_after_sales' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
@@ -48,6 +56,9 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
       'description.max' => 'La descripción no debe ser mayor a 255 caracteres.',
 
       'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
+
+      'enable_commercial.boolean' => 'El campo habilitar comercial debe ser verdadero o falso.',
+      'enable_after_sales.boolean' => 'El campo habilitar post venta debe ser verdadero o falso.',
     ];
   }
 }
