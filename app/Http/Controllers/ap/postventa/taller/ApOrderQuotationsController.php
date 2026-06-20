@@ -164,12 +164,23 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  public function approve(ApproveApOrderQuotationsRequest $request, $id)
+  public function approveTaller(ApproveApOrderQuotationsRequest $request, $id)
   {
     try {
       $data = $request->validated();
       $data['id'] = $id;
-      return $this->success($this->service->approve($data));
+      return $this->success($this->service->approveTaller($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function approveRepuesto(ApproveApOrderQuotationsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->approveRepuesto($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

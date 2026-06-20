@@ -80,7 +80,8 @@ class Position extends BaseModel
   }
 
   const array ASESOR_SERVICIO_PV_IDS = [144, 145, 146];
-  const array POSITION_JEFE_PVT_IDS = [143];
+  const array POSITION_JEFE_TALLER_PVT_IDS = [69, 99, 143, 246];
+  const array POSITION_JEFE_REPUESTO_PVT_IDS = [344];
   const array POSITION_JEFE_PVR_IDS = [344];
   const array POSITION_GERENTE_PV_IDS = [142];
   const array AFTER_SALES_COORDINATOR = [141];
@@ -134,14 +135,14 @@ class Position extends BaseModel
     return $this->belongsTo(TypeOnboarding::class, 'tipo_onboarding_id');
   }
 
-//    public function perfil()
-//    {
-//        return $this->belongsTo(PerfilxCargo::class, 'perfil_id');
-//    }
+  //    public function perfil()
+  //    {
+  //        return $this->belongsTo(PerfilxCargo::class, 'perfil_id');
+  //    }
 
-//    public function getActivitylogOptions(): LogOptions
-//    {
-//        return LogOptions::defaults()
-//            ->logAll();
-//    }
+  //    public function getActivitylogOptions(): LogOptions
+  //    {
+  //        return LogOptions::defaults()
+  //            ->logAll();
+  //    }
 }
