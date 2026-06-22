@@ -109,7 +109,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       return;
     }
 
-    if ($purchaseOrder->created_at->lt(now()->subHour())) {
+    if ($purchaseOrder->migrated_at?->lt(now()->subHour())) {
       $purchaseOrder->updateQuietly([
         'invoice_sync_attempted_at' => now(),
         'invoice_sync_attempts'     => $purchaseOrder->invoice_sync_attempts + 1,
