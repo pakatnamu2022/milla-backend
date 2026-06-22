@@ -517,9 +517,11 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       $positionId = $user->person?->position?->id;
 
-      // Validar aprobación de gerente o coordinador de post venta
-      if (!in_array($positionId, array_merge(Position::POSITION_GERENTE_PV_IDS, Position::AFTER_SALES_COORDINATOR))) {
-        throw new Exception('Solo puede ser aprobado por gerente o coordinador de post venta.');
+      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
+      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+
+      if (!($isAfterSalesCoordinator || $isGerente)) {
+        throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar este pedido.');
       }
 
       $apSupplierOrder->update(['approved_by' => $user->id]);

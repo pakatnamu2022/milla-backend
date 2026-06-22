@@ -7,6 +7,7 @@ use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use function PHPUnit\Framework\isNull;
 
 class PurchaseReceptionDetailController extends Controller
 {
@@ -24,6 +25,10 @@ class PurchaseReceptionDetailController extends Controller
 
       if (!$detail) {
         return $this->error('Detalle de recepción no encontrado.');
+      }
+
+      if ($detail->reception->purchase_order_id !== null) {
+        return $this->error('No se puede actualizar porque la recepción ya tiene asociado a una factura.');
       }
 
       DB::transaction(function () use ($detail, $request) {

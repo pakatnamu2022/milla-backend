@@ -264,7 +264,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     if (!empty($supplierOrderNumbers)) {
       throw new Exception(
         "No se puede eliminar la solicitud de compra porque está asociada a los siguientes pedidos de proveedor: " .
-          implode(', ', $supplierOrderNumbers)
+        implode(', ', $supplierOrderNumbers)
       );
     }
 
@@ -671,11 +671,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $positionId = (int)($user->person?->position?->id ?? 0);
 
-      $isJefe = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS, true);
+      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
       $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
 
-      if (!($isJefe || $isGerente)) {
-        throw new Exception('Solo Jefe o Gerente de Postventa pueden aprobar esta solicitud de compra.');
+      if (!($isAfterSalesCoordinator || $isGerente)) {
+        throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar esta solicitud de compra.');
       }
 
       $quotation->update([
