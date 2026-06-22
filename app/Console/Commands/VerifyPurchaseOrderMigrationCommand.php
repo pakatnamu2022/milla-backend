@@ -60,7 +60,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
       } else {
         $this->info("Despachando job de verificación para la orden: {$purchaseOrder->number}");
         VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
-        $this->info("Job despachado a la cola.");
+        $this->info("Job despachado a la cola (" . ($purchaseOrder->id + 1) . ")");
       }
 
       return 0;
@@ -110,7 +110,9 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Jobs despachados a la cola.");
+        foreach ($pendingOrders as $order) {
+          $this->info("Job despachado para la orden id={$order->id}; number={$order->number}");
+        }
       }
 
       return 0;

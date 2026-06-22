@@ -73,33 +73,33 @@ class PurchaseOrder extends BaseModel
   ];
 
   protected $casts = [
-    'migrated_at' => 'datetime',
-    'emission_date' => 'date',
-    'due_date' => 'date',
+    'migrated_at'      => 'datetime',
+    'emission_date'    => 'date',
+    'due_date'         => 'date',
     'invoice_date_dyn' => 'date',
-    'status' => 'boolean',
-    'resent' => 'boolean',
-    'discount' => 'decimal:2',
-    'subtotal' => 'decimal:2',
-    'isc' => 'decimal:2',
-    'igv' => 'decimal:2',
-    'total' => 'decimal:2',
+    'status'           => 'boolean',
+    'resent'           => 'boolean',
+    'discount'         => 'decimal:2',
+    'subtotal'         => 'decimal:2',
+    'isc'              => 'decimal:2',
+    'igv'              => 'decimal:2',
+    'total'            => 'decimal:2',
   ];
 
   const filters = [
-    'search' => ['number', 'invoice_series', 'invoice_number', 'number_guide'],
-    'supplier_id' => '=',
-    'warehouse_id' => '=',
-    'migration_status' => '=',
-    'status' => '=',
-    'currency_id' => '=',
-    'sede_id' => '=',
-    'vehicle.ap_models_vn_id' => '=',
+    'search'                       => ['number', 'invoice_series', 'invoice_number', 'number_guide'],
+    'supplier_id'                  => '=',
+    'warehouse_id'                 => '=',
+    'migration_status'             => '=',
+    'status'                       => '=',
+    'currency_id'                  => '=',
+    'sede_id'                      => '=',
+    'vehicle.ap_models_vn_id'      => '=',
     'vehicle.ap_vehicle_status_id' => '=',
-    'type_operation_id' => '=',
-    'quotation_id' => '=',
-    'emission_date' => 'between',
-    'due_date' => 'between',
+    'type_operation_id'            => '=',
+    'quotation_id'                 => '=',
+    'emission_date'                => 'between',
+    'due_date'                     => 'between',
   ];
 
   const sorts = [
@@ -121,7 +121,7 @@ class PurchaseOrder extends BaseModel
 
   public function migrationLogs(): HasMany
   {
-    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'electronic_document_id');
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'vehicle_purchase_order_id');
   }
 
   public function creator(): BelongsTo
