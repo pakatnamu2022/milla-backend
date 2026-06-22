@@ -34,7 +34,7 @@ Schedule::command('app:sync-exchange-rate')
 
 // Verificar y migrar órdenes de compra de vehículos pendientes
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:verify-migration --all --limit=10')
+Schedule::command('po:verify-migration --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -43,7 +43,7 @@ Schedule::command('po:verify-migration --all --limit=10')
 
 // Verificar y migrar guías de remisión de COMERCIAL (vehículos) pendientes
 // Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
-Schedule::command('shipping-guide:verify-migration --all --limit=10')
+Schedule::command('shipping-guide:verify-migration --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -52,7 +52,7 @@ Schedule::command('shipping-guide:verify-migration --all --limit=10')
 
 // Verificar y migrar guías de remisión de POSVENTA (productos) pendientes
 // Ejecuta cada 10 segundos con límite de 10 jobs pendientes máximo en cola
-Schedule::command('shipping-guides-postventa:verify-migration --all --limit=10')
+Schedule::command('shipping-guides-postventa:verify-migration --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -61,7 +61,7 @@ Schedule::command('shipping-guides-postventa:verify-migration --all --limit=10')
 
 // Sincronizar invoice_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:sync-invoice-dynamics --all --limit=10')
+Schedule::command('po:sync-invoice-dynamics --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -79,7 +79,7 @@ Schedule::command('shipping-guide:sync-dynamics --all')
 
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
+Schedule::command('po:sync-credit-note-dynamics --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
@@ -88,7 +88,7 @@ Schedule::command('po:sync-credit-note-dynamics --all --limit=10')
 
 // Verificar y sincronizar documentos electrónicos de venta a Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('electronic-document:verify-sync --all --limit=10')
+Schedule::command('electronic-document:verify-sync --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')

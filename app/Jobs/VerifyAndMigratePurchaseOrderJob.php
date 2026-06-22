@@ -25,7 +25,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
+  public int $tries = 5;
   public int $timeout = 300;
   public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
@@ -634,7 +634,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     if ($allCompleted && $logs->count() === 8) { // 8 pasos en total
       $purchaseOrder->update([
         'migration_status' => 'completed',
-        'migrated_at' => now(),
+        'migrated_at'      => now(),
       ]);
     } elseif ($hasFailed) {
       $purchaseOrder->update(['migration_status' => 'failed']);
@@ -815,7 +815,7 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     if ($allCompleted) {
       $purchaseOrder->update([
         'migration_status' => 'completed',
-        'migrated_at' => now(),
+        'migrated_at'      => now(),
       ]);
     } elseif ($hasFailed) {
       $purchaseOrder->update(['migration_status' => 'failed']);
@@ -837,11 +837,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       return VehiclePurchaseOrderMigrationLog::firstOrCreate(
         [
           'vehicle_purchase_order_id' => $purchaseOrderId,
-          'step' => $step,
-          'external_id' => $externalId, // Incluir en búsqueda para productos
+          'step'                      => $step,
+          'external_id'               => $externalId, // Incluir en búsqueda para productos
         ],
         [
-          'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          'status'     => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
           'table_name' => $tableName,
         ]
       );
@@ -851,11 +851,11 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
     return VehiclePurchaseOrderMigrationLog::firstOrCreate(
       [
         'vehicle_purchase_order_id' => $purchaseOrderId,
-        'step' => $step,
+        'step'                      => $step,
       ],
       [
-        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        'table_name' => $tableName,
+        'status'      => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'table_name'  => $tableName,
         'external_id' => $externalId,
       ]
     );
