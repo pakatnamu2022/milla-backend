@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiController;
+use App\Http\Controllers\ManualController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\gp\GpMastersController;
 use App\Http\Controllers\gp\tics\pm\ScrumProjectController;
@@ -1962,6 +1963,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
   // AI
   Route::post('/ai/generate-text', [AiController::class, 'generateText']);
+
+  // MANUALES
+  Route::apiResource('manuals', ManualController::class)->only([
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy',
+  ]);
 });
 
 // ATTENDANCE — ZKBioTime sync
