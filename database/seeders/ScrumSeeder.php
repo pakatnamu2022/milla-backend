@@ -95,6 +95,8 @@ class ScrumSeeder extends Seeder
     DB::table('scrum_projects')->truncate();
     DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
+//    return;
+
     foreach (self::PROJECTS as $projectData) {
       $project = ScrumProject::factory()->activo()->create([
         ...$projectData,
