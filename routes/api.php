@@ -1965,6 +1965,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::post('/ai/generate-text', [AiController::class, 'generateText']);
 
   // MANUALES
+  Route::get('/manuals/{id}/content', [ManualController::class, 'content']);
   Route::apiResource('manuals', ManualController::class)->only([
     'index',
     'show',

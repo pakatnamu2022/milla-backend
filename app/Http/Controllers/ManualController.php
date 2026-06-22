@@ -7,6 +7,7 @@ use App\Http\Requests\StoreManualRequest;
 use App\Http\Requests\UpdateManualRequest;
 use App\Http\Services\ManualService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Throwable;
 
 class ManualController extends Controller
@@ -56,6 +57,16 @@ class ManualController extends Controller
         try {
             $this->service->destroy($id);
             return $this->success(['message' => 'Manual eliminado correctamente.']);
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function content(int $id): Response|JsonResponse
+    {
+        try {
+            return response($this->service->content($id), 200)
+                ->header('Content-Type', 'text/plain; charset=utf-8');
         } catch (Throwable $th) {
             return $this->error($th->getMessage());
         }

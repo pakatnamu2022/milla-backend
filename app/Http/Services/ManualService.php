@@ -7,6 +7,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionsistema\View;
 use App\Models\Manual;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ManualService extends BaseService implements BaseServiceInterface
 {
@@ -93,5 +94,19 @@ class ManualService extends BaseService implements BaseServiceInterface
         $manual = $this->find($id);
         $this->digitalFileService->destroy($manual->digital_file_id);
         $manual->delete();
+    }
+
+    public function content(int $id): string
+    {
+        $manual      = $this->find($id)->load('digitalFile');
+        $digitalFile = $manual->digitalFile;
+
+        abort_unless($digitalFile, 404, 'Archivo no encontrado.');
+
+        $key = ltrim($digitalFile->name, '/');
+
+        abort_unless(Storage::disk('s3')->exists($key), 404, 'Archivo no encontrado en S3.');
+
+        return Storage::disk('s3')->get($key);
     }
 }
