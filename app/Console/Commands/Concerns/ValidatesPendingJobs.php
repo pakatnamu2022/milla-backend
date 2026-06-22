@@ -9,15 +9,15 @@ trait ValidatesPendingJobs
   /**
    * Número máximo de jobs pendientes permitidos del mismo tipo
    */
-  protected int $maxPendingJobs = 10;
+  protected int $maxPendingJobs = 50;
 
   /**
    * Mapeo de clases de jobs a sus colas correspondientes
    */
   protected array $jobQueueMapping = [
-    'App\Jobs\SyncInvoiceDynamicsJob' => 'invoice_sync',
-    'App\Jobs\SyncCreditNoteDynamicsJob' => 'credit_note_sync',
-    'App\Jobs\SyncSalesDocumentJob' => 'electronic_documents',
+    'App\Jobs\SyncInvoiceDynamicsJob'           => 'invoice_sync',
+    'App\Jobs\SyncCreditNoteDynamicsJob'        => 'credit_note_sync',
+    'App\Jobs\SyncSalesDocumentJob'             => 'electronic_documents',
     'App\Jobs\VerifyAndMigratePurchaseOrderJob' => 'purchase_orders',
     'App\Jobs\VerifyAndMigrateShippingGuideJob' => 'shipping_guides',
   ];
