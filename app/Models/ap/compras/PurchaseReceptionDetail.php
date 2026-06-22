@@ -20,6 +20,7 @@ class PurchaseReceptionDetail extends Model
     'product_id',
     'quantity_received',
     'observed_quantity',
+    'is_credit_note',
     'reception_type',
     'reason_observation',
     'observation_notes',
@@ -33,6 +34,7 @@ class PurchaseReceptionDetail extends Model
     'quantity_received' => 'decimal:2',
     'observed_quantity' => 'decimal:2',
     'expiration_date' => 'date',
+    'is_credit_note' => 'boolean',
   ];
 
   // Reception_type

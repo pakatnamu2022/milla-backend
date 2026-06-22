@@ -468,14 +468,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       ];
     });
 
-    // 2. Consolidar recepciones por product_id sumando solo quantity_received
+    // 2. Consolidar recepciones por product_id sumando quantity_received
+    // Si is_credit_note = true, también sumar observed_quantity porque ya no está pendiente
+    // (se manejará con nota de crédito en la factura)
     $receivedProducts = DB::table('purchase_reception_details as prd')
       ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
       ->where('pr.ap_supplier_order_id', $id)
       ->whereNull('pr.deleted_at')
       ->where('pr.status', '!=', 'ANNULLED')
       ->whereNull('prd.deleted_at')
-      ->select('prd.product_id', DB::raw('SUM(prd.quantity_received) as total_received'))
+      ->select(
+        'prd.product_id',
+        DB::raw('SUM(prd.quantity_received + CASE WHEN prd.is_credit_note = 1 THEN prd.observed_quantity ELSE 0 END) as total_received')
+      )
       ->groupBy('prd.product_id')
       ->get()
       ->pluck('total_received', 'product_id');

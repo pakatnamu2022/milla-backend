@@ -29,6 +29,7 @@ use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
+use App\Http\Controllers\ap\compras\PurchaseReceptionDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -1369,6 +1370,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      // Purchase Reception Details - Detalles de Recepción de Compra
+      Route::patch('purchaseReceptionDetails/{id}/credit-note', [PurchaseReceptionDetailController::class, 'updateCreditNote']);
 
       // Inventory Movements - Movimientos de Inventario
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);

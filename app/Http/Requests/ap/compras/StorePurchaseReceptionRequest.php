@@ -22,6 +22,7 @@ class StorePurchaseReceptionRequest extends StoreRequest
       'details.*.product_id' => 'required|exists:products,id',
       'details.*.quantity_received' => 'required|numeric|min:0',
       'details.*.observed_quantity' => 'nullable|numeric|min:0',
+      'details.*.is_credit_note' => 'nullable|boolean',
       'details.*.reception_type' => 'required|in:ORDERED,BONUS,GIFT,SAMPLE',
       'details.*.reason_observation' => 'nullable|in:DAMAGED,DEFECTIVE,EXPIRED,WRONG_PRODUCT,WRONG_QUANTITY,POOR_QUALITY,OTHER',
       'details.*.observation_notes' => 'nullable|string',
