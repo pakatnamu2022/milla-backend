@@ -89,9 +89,10 @@ class SyncInvoiceDynamicsCommand extends Command
     // Obtener OCs que:
     // 1. No tienen invoice_dynamics (flujo normal)
     // 2. Están completed y tienen credit_note_dynamics (para detectar cambio de factura)
-    $maxAttempts = 48;
-    $cooldown30  = now()->subMinutes(30);
-    $oneHourAgo  = now()->subHour();
+    $maxAttempts    = 48;
+    $cooldown30     = now()->subMinutes(30);
+    $oneHourAgo     = now()->subHour();
+    $maxMigratedAge = now()->subDays(30);
 
     $purchaseOrders = PurchaseOrder::where(function ($query) {
       $query->where(function ($q) {
@@ -106,12 +107,14 @@ class SyncInvoiceDynamicsCommand extends Command
       });
     })
       ->whereNotNull('number')
+      ->whereNotNull('migrated_at')
+      ->where('migrated_at', '>=', $maxMigratedAge)
       ->where(function ($q) use ($oneHourAgo, $cooldown30, $maxAttempts) {
-        // OC reciente (<1h) → siempre incluir, sin cooldown
-        $q->where('created_at', '>', $oneHourAgo)
-          // OC antigua (≥1h) → cooldown 30 min + límite de intentos
+        // OC reciente (<1h desde migración) → siempre incluir, sin cooldown
+        $q->where('migrated_at', '>', $oneHourAgo)
+          // OC antigua (≥1h desde migración) → cooldown 30 min + límite de intentos
           ->orWhere(function ($inner) use ($oneHourAgo, $cooldown30, $maxAttempts) {
-            $inner->where('created_at', '<=', $oneHourAgo)
+            $inner->where('migrated_at', '<=', $oneHourAgo)
               ->where('invoice_sync_attempts', '<', $maxAttempts)
               ->where(function ($innermost) use ($cooldown30) {
                 $innermost->whereNull('invoice_sync_attempted_at')
@@ -141,7 +144,7 @@ class SyncInvoiceDynamicsCommand extends Command
     $bar->finish();
     $this->newLine();
     foreach ($purchaseOrders as $order) {
-      $this->info('Sincronizando invoice_dynamics para OC: ' . $order->number);
+      $this->info('Sincronizando invoice_dynamics para OC: ' . $order->number . ' (migrada: ' . $order->migrated_at . ')');
     }
     $this->info("Jobs despachados exitosamente");
     return Command::SUCCESS;
