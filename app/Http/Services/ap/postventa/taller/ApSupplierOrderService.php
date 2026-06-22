@@ -479,7 +479,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       ->whereNull('prd.deleted_at')
       ->select(
         'prd.product_id',
-        DB::raw('SUM(prd.quantity_received + CASE WHEN prd.is_credit_note = 1 THEN prd.observed_quantity ELSE 0 END) as total_received')
+        DB::raw('SUM(prd.quantity_received + IF(prd.is_credit_note = 1 OR prd.is_credit_note = true, prd.observed_quantity, 0)) as total_received')
       )
       ->groupBy('prd.product_id')
       ->get()
