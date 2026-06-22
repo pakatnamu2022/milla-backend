@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\gp\GpMastersController;
 use App\Http\Controllers\gp\tics\pm\ScrumProjectController;
@@ -1958,6 +1959,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
     Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
   });
+
+  // AI
+  Route::post('/ai/generate-text', [AiController::class, 'generateText']);
 });
 
 // ATTENDANCE — ZKBioTime sync

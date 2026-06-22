@@ -41,6 +41,11 @@ return [
     'timeout' => env('FACTILIZA_TIMEOUT', 30),
   ],
 
+  'gemini' => [
+    'api_key' => env('GEMINI_API_KEY'),
+    'model'   => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+  ],
+
   'document_validation' => [
     'cache_ttl' => env('DOCUMENT_VALIDATION_CACHE_TTL', 604800), // 1 week in seconds
     'default_provider' => env('DOCUMENT_VALIDATION_PROVIDER', 'factiliza'),
