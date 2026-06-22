@@ -70,10 +70,13 @@ class PurchaseOrder extends BaseModel
     'payment_terms',
     'notes',
     'created_by',
+    'invoice_sync_attempted_at',
+    'invoice_sync_attempts',
   ];
 
   protected $casts = [
-    'migrated_at'      => 'datetime',
+    'migrated_at'               => 'datetime',
+    'invoice_sync_attempted_at' => 'datetime',
     'emission_date'    => 'date',
     'due_date'         => 'date',
     'invoice_date_dyn' => 'date',

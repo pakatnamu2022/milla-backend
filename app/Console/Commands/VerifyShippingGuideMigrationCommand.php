@@ -7,6 +7,7 @@ use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Console\Command;
 
 class VerifyShippingGuideMigrationCommand extends Command
@@ -17,7 +18,7 @@ class VerifyShippingGuideMigrationCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'shipping-guide:verify-migration {--id= : ID de la guía de remisión específica} {--all : Verificar todas las guías pendientes} {--limit=100 : Número máximo de guías a procesar (default: 100)} {--sync : Ejecutar inmediatamente sin usar cola}';
+  protected $signature = 'shipping-guide:verify-migration {--id= : ID de la guía de remisión específica} {--all : Verificar todas las guías pendientes} {--sync : Ejecutar inmediatamente sin usar cola}';
 
   /**
    * The console command description.
@@ -69,8 +70,6 @@ class VerifyShippingGuideMigrationCommand extends Command
     }
 
     if ($all) {
-      // Verificar todas las guías pendientes (limitado por --limit)
-      $limit = (int)$this->option('limit');
       $pendingGuides = ShippingGuides::whereIn('migration_status', [
         VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
@@ -80,15 +79,14 @@ class VerifyShippingGuideMigrationCommand extends Command
         ->where(function ($q) {
           // Guías de compra (transfer_reason_id = 15) solo migran después de ser recepcionadas
           $q->where(function ($inner) {
-            $inner->where('transfer_reason_id', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+            $inner->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_COMPRA)
               ->where('is_received', true);
-          })->orWhere('transfer_reason_id', '!=', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_COMPRA)
+          })->orWhere('transfer_reason_id', '!=', SunatConcepts::TRANSFER_REASON_COMPRA)
             ->orWhereNull('transfer_reason_id');
         })
         ->where('area_id', ApMasters::AREA_COMERCIAL)
         ->orderBy('id', 'desc')
         ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
-        ->limit($limit)
         ->get();
 
       if ($pendingGuides->isEmpty()) {
@@ -139,7 +137,7 @@ class VerifyShippingGuideMigrationCommand extends Command
     $this->error("Debe especificar --id o --all para procesar guías.");
     $this->line("Ejemplos:");
     $this->line("  php artisan shipping-guide:verify-migration --id=123");
-    $this->line("  php artisan shipping-guide:verify-migration --all --limit=100");
+    $this->line("  php artisan shipping-guide:verify-migration --all");
     return 1;
   }
 }

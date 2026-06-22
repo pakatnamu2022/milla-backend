@@ -109,6 +109,13 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       return;
     }
 
+    if ($purchaseOrder->created_at->lt(now()->subHour())) {
+      $purchaseOrder->updateQuietly([
+        'invoice_sync_attempted_at' => now(),
+        'invoice_sync_attempts'     => $purchaseOrder->invoice_sync_attempts + 1,
+      ]);
+    }
+
     // Consultar el PA para obtener la factura actual de Dynamics
     try {
       $result = $this->consultStoredProcedure($purchaseOrder->number);
@@ -134,11 +141,12 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
         // Actualizar la factura y cambiar el estado a 'updated_with_nc'
         $purchaseOrder->update([
-          'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt,
-          'invoice_date_dyn' => $invoiceDate,
-          'migration_status' => 'updated_with_nc',
-          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)) // Si son iguales, marcar como false (anulada)
+          'invoice_dynamics'      => $newInvoice,
+          'receipt_dynamics'      => $newReceipt,
+          'invoice_date_dyn'      => $invoiceDate,
+          'migration_status'      => 'updated_with_nc',
+          'status'                => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)),
+          'invoice_sync_attempts' => 0,
         ]);
 
         // Actualizar la recepción asociada si existe y es de área POSTVENTA
@@ -172,9 +180,10 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
        */
       if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
-          'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt,
-          'invoice_date_dyn' => $invoiceDate
+          'invoice_dynamics'      => $newInvoice,
+          'receipt_dynamics'      => $newReceipt,
+          'invoice_date_dyn'      => $invoiceDate,
+          'invoice_sync_attempts' => 0,
         ]);
 
         if ($purchaseOrder->reception) {
