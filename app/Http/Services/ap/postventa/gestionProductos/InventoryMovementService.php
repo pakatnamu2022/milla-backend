@@ -148,27 +148,36 @@ class InventoryMovementService extends BaseService
       $totalQuantity = 0;
 
       foreach ($reception->details as $detail) {
-        // quantity_received already represents the actual physical quantity received
-        // (frontend sends only good items, observed_quantity is separate)
         $quantityReceived = $detail->quantity_received;
+        $observedQuantity = $detail->observed_quantity ?? 0;
 
-        if ($quantityReceived > 0) {
+        // Si is_credit_note = true: la cantidad física que entra incluye las observadas
+        // porque esas unidades SÍ están físicamente en el almacén (solo esperan NC futura)
+        // Si is_credit_note = false: solo entra la cantidad recibida
+        // (las observadas esperan otra factura/recepción futura)
+        $physicalQuantity = $detail->is_credit_note
+          ? $quantityReceived + $observedQuantity
+          : $quantityReceived;
+
+        if ($physicalQuantity > 0) {
           // Get order item data (source of truth for invoiced amounts)
           $orderItem = $detail->purchaseOrderItem;
-          $quantityOrdered = $orderItem->quantity ?? $quantityReceived;
+          $quantityOrdered = $orderItem->quantity ?? $physicalQuantity;
           $unitPriceOrdered = $orderItem->unit_price ?? 0;
 
           // Calculate adjusted unit cost based on total invoiced cost
-          // Example: If ordered 10 units at $100 each but received only 8:
+          // Example: If ordered 10 units at $100 each but received 8 (5 good + 3 observed with NC):
           // - Total invoiced: 10 × $100 = $1,000
+          // - Physical quantity entering warehouse: 8 (all physically present)
           // - Adjusted unit cost: $1,000 / 8 = $125 per unit
+          // When the credit note arrives, the cost will be reversed for the 3 observed units
           $totalInvoicedCost = $quantityOrdered * $unitPriceOrdered;
-          $adjustedUnitCost = $quantityReceived > 0 ? $totalInvoicedCost / $quantityReceived : $unitPriceOrdered;
+          $adjustedUnitCost = $physicalQuantity > 0 ? $totalInvoicedCost / $physicalQuantity : $unitPriceOrdered;
 
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $detail->product_id,
-            'quantity' => $quantityReceived,
+            'quantity' => $physicalQuantity,
             'unit_cost' => $adjustedUnitCost,  // Adjusted cost reflecting actual invoiced amount
             'total_cost' => $totalInvoicedCost,  // Total invoiced cost (what you actually pay)
             'notes' => $detail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED
@@ -177,7 +186,7 @@ class InventoryMovementService extends BaseService
           ]);
 
           $totalItems++;
-          $totalQuantity += $quantityReceived;
+          $totalQuantity += $physicalQuantity;
         }
       }
 
@@ -2251,30 +2260,63 @@ class InventoryMovementService extends BaseService
         throw new Exception('La nota de crédito no contiene productos para generar salida de inventario');
       }
 
-      // Obtener el almacén de la recepción original
+      // Obtener el almacén de la recepción original y cargar sus detalles
       $reception = $creditNote->purchaseReception;
       if (!$reception || !$reception->warehouse_id) {
         throw new Exception('No se encontró la recepción o el almacén asociado a la nota de crédito');
       }
 
+      $reception->load('details'); // Cargar detalles de la recepción original
       $warehouseId = $reception->warehouse_id;
 
-      // Validar que hay cantidad pendiente de nota de crédito para todos los productos
+      // VALIDACIONES ESPECÍFICAS para NC REAL del proveedor:
+      // 1. Cada producto en la NC debe tener is_credit_note = true en la recepción
+      // 2. La cantidad en la NC debe coincidir con observed_quantity de la recepción
+      // 3. Debe haber suficiente quantity_pending_credit_note
       foreach ($creditNote->details as $detail) {
+        // Buscar el detalle de recepción original para este producto
+        $receptionDetail = $reception->details->firstWhere('product_id', $detail->product_id);
+        $productName = $detail->product->name ?? "ID {$detail->product_id}";
+
+        if (!$receptionDetail) {
+          throw new Exception(
+            "El producto '{$productName}' no se encuentra en la recepción original. " .
+            "La NC solo puede aplicar a productos recepcionados."
+          );
+        }
+
+        // VALIDACIÓN 1: El producto debe tener is_credit_note = true
+        if (!$receptionDetail->is_credit_note) {
+          throw new Exception(
+            "El producto '{$productName}' no estaba marcado para nota de crédito en la recepción. " .
+            "Solo se pueden procesar NCs para productos con 'is_credit_note = true'."
+          );
+        }
+
+        // VALIDACIÓN 2: La cantidad de la NC debe coincidir con observed_quantity
+        $observedQuantity = $receptionDetail->observed_quantity ?? 0;
+        if ($detail->quantity != $observedQuantity) {
+          throw new Exception(
+            "Cantidad incorrecta en NC para producto '{$productName}'. " .
+            "NC Dynamics: {$detail->quantity}, Cantidad observada en recepción: {$observedQuantity}. " .
+            "La NC debe ser exactamente por la cantidad observada."
+          );
+        }
+
+        // VALIDACIÓN 3: Verificar que hay suficiente quantity_pending_credit_note
         $stock = $this->stockService->getStock($detail->product_id, $warehouseId);
 
         if (!$stock) {
-          $productName = $detail->product->name ?? "ID {$detail->product_id}";
           throw new Exception(
             "No se encontró registro de stock para el producto '{$productName}' en el almacén"
           );
         }
 
-        if ($stock->quantity_pending_credit_note < $detail->quantity) {
-          $productName = $detail->product->name ?? "ID {$detail->product_id}";
+        if ($stock->quantity_pending_credit_note < $observedQuantity) {
           throw new Exception(
             "Cantidad pendiente de nota de crédito insuficiente para producto '{$productName}'. " .
-            "Pendiente: {$stock->quantity_pending_credit_note}, Cantidad a devolver: {$detail->quantity}"
+            "Pendiente: {$stock->quantity_pending_credit_note}, Cantidad a devolver: {$observedQuantity}. " .
+            "INCONSISTENCIA: Verificar sincronización."
           );
         }
       }
@@ -2369,12 +2411,13 @@ class InventoryMovementService extends BaseService
         throw new Exception('La nota de crédito no contiene productos para generar salida de inventario');
       }
 
-      // Obtener el almacén de la recepción original
+      // Obtener el almacén de la recepción original y cargar sus detalles
       $reception = $creditNote->purchaseReception;
       if (!$reception || !$reception->warehouse_id) {
         throw new Exception('No se encontró la recepción o el almacén asociado a la nota de crédito');
       }
 
+      $reception->load('details'); // Cargar detalles de la recepción para verificar is_credit_note
       $warehouseId = $reception->warehouse_id;
 
       // Validar que hay stock disponible para todos los productos
@@ -2446,6 +2489,19 @@ class InventoryMovementService extends BaseService
       // 5. Subtract directly from quantity (not from quantity_pending_credit_note)
       // 6. Update available_quantity
       foreach ($creditNote->details as $detail) {
+        // NUEVO: Si el producto tenía is_credit_note = true en la recepción original,
+        // también debemos descontar de quantity_pending_credit_note
+        $receptionDetail = $reception->details->firstWhere('product_id', $detail->product_id);
+
+        if ($receptionDetail && $receptionDetail->is_credit_note && $receptionDetail->observed_quantity > 0) {
+          // Descontar de quantity_pending_credit_note la cantidad observada
+          $this->stockService->removePendingCreditNote(
+            $detail->product_id,
+            $warehouseId,
+            $receptionDetail->observed_quantity
+          );
+        }
+
         $this->stockService->removeStockFromCreditNote(
           $detail->product_id,
           $warehouseId,

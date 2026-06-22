@@ -440,8 +440,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
-        // 6. Actualizar quantity_pending_credit_note si hay observaciones
-        if ($observedQuantity > 0) {
+        // 6. Actualizar quantity_pending_credit_note si hay observaciones Y is_credit_note = true
+        // Solo se usa como campo de monitoreo cuando se espera una NC futura
+        if ($observedQuantity > 0 && $receptionDetail->is_credit_note) {
           $stockService->addPendingCreditNote(
             $receptionDetail->product_id,
             $reception->warehouse_id,
