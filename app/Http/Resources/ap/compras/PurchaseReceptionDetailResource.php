@@ -17,6 +17,7 @@ class PurchaseReceptionDetailResource extends JsonResource
       'product_id' => $this->product_id,
       'quantity_received' => $this->quantity_received,
       'observed_quantity' => $this->observed_quantity,
+      'is_credit_note' => $this->is_credit_note,
       'reception_type' => $this->reception_type,
       'reason_observation' => $this->reason_observation,
       'observation_notes' => $this->observation_notes,

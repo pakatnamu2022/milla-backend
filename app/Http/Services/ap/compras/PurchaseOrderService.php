@@ -14,7 +14,6 @@ use App\Jobs\SyncCreditNoteDynamicsJob;
 use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
-use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
@@ -24,7 +23,9 @@ use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApSupplierOrder;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -155,9 +156,20 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       $data['status'] = true;
     }
 
-    // Obtener tipo de cambio actual si no viene en el request
-    $exchangeRateService = new ExchangeRateService();
-    $data['exchange_rate_id'] = $exchangeRateService->getCurrentUSDRate()->id;
+    // Obtener tipo de cambio según emission_date (o fecha actual si no viene)
+    $emissionDate = $data['emission_date'] ?? now()->format('Y-m-d');
+    $exchangeRate = ExchangeRate::where('date', $emissionDate)
+      ->where('from_currency_id', TypeCurrency::PEN_ID)
+      ->where('to_currency_id', TypeCurrency::USD_ID)
+      ->where('type', ExchangeRate::TYPE_VENTA)
+      ->orderBy('created_at', 'desc')
+      ->first();
+
+    if (!$exchangeRate) {
+      throw new Exception("No se ha registrado la tasa de cambio USD para la fecha {$emissionDate}.");
+    }
+
+    $data['exchange_rate_id'] = $exchangeRate->id;
 
     // Validar que los valores requeridos de la factura estén presentes
     $requiredFields = ['subtotal', 'igv', 'total'];

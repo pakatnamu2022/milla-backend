@@ -271,7 +271,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Fechas
       'fecha_de_emision' => 'nullable|date',
-      'fecha_de_vencimiento' => 'nullable|date|after:fecha_de_emision',
+      'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
 
       // Moneda
       'sunat_concept_currency_id' => 'nullable|integer|exists:sunat_concepts,id',
@@ -329,6 +329,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'financing_type' => ['nullable', Rule::in(['CONVENIO', 'VEHICULAR', 'CONTADO'])],
       'placa_vehiculo' => 'nullable|string|max:8',
       'orden_compra_servicio' => 'nullable|string|max:20',
+      'orden_compra_servicio_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       'codigo_unico' => 'nullable|string|max:20',
       'card_last4' => 'nullable|string|max:4|min:4',
       'internal_note' => 'nullable|string|max:255',

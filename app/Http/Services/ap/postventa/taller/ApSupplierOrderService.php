@@ -468,14 +468,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       ];
     });
 
-    // 2. Consolidar recepciones por product_id sumando solo quantity_received
+    // 2. Consolidar recepciones por product_id sumando quantity_received
+    // Si is_credit_note = true, también sumar observed_quantity porque ya no está pendiente
+    // (se manejará con nota de crédito en la factura)
     $receivedProducts = DB::table('purchase_reception_details as prd')
       ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
       ->where('pr.ap_supplier_order_id', $id)
       ->whereNull('pr.deleted_at')
       ->where('pr.status', '!=', 'ANNULLED')
       ->whereNull('prd.deleted_at')
-      ->select('prd.product_id', DB::raw('SUM(prd.quantity_received) as total_received'))
+      ->select(
+        'prd.product_id',
+        DB::raw('SUM(prd.quantity_received + IF(prd.is_credit_note = 1 OR prd.is_credit_note = true, prd.observed_quantity, 0)) as total_received')
+      )
       ->groupBy('prd.product_id')
       ->get()
       ->pluck('total_received', 'product_id');
@@ -512,9 +517,11 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       $positionId = $user->person?->position?->id;
 
-      // Validar aprobación de gerente o coordinador de post venta
-      if (!in_array($positionId, array_merge(Position::POSITION_GERENTE_PV_IDS, Position::AFTER_SALES_COORDINATOR))) {
-        throw new Exception('Solo puede ser aprobado por gerente o coordinador de post venta.');
+      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
+      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+
+      if (!($isAfterSalesCoordinator || $isGerente)) {
+        throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar este pedido.');
       }
 
       $apSupplierOrder->update(['approved_by' => $user->id]);

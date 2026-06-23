@@ -55,6 +55,7 @@ class ElectronicDocumentResource extends JsonResource
       'cliente_email_2' => $this->cliente_email_2,
       'fecha_de_emision' => $this->fecha_de_emision,
       'fecha_de_vencimiento' => $this->fecha_de_vencimiento,
+      'credit_days' => $this->credit_days,
       'sunat_concept_currency_id' => $this->sunat_concept_currency_id,
       'tipo_de_cambio' => (float)$this->tipo_de_cambio,
       'exchange_rate_id' => $this->exchange_rate_id,
