@@ -113,7 +113,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
             $items[$index]['producto_id'] = (int)$item['producto_id'];
           }
         }
-        
+
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
@@ -256,7 +256,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
       // Fechas
       'fecha_de_emision' => 'required|date',
-      'fecha_de_vencimiento' => 'nullable|date|after:fecha_de_emision',
+      'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
 
       // Moneda
       'sunat_concept_currency_id' => 'required|integer|exists:sunat_concepts,id',

@@ -570,6 +570,15 @@ class ElectronicDocument extends BaseModel
     return !is_null($this->consolidation_type);
   }
 
+  public function getCreditDaysAttribute(): ?int
+  {
+    if (!$this->fecha_de_emision || !$this->fecha_de_vencimiento) {
+      return null;
+    }
+
+    return $this->fecha_de_emision->diffInDays($this->fecha_de_vencimiento);
+  }
+
   /**
    * Métodos de negocio
    */

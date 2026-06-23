@@ -271,7 +271,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Fechas
       'fecha_de_emision' => 'nullable|date',
-      'fecha_de_vencimiento' => 'nullable|date|after:fecha_de_emision',
+      'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
 
       // Moneda
       'sunat_concept_currency_id' => 'nullable|integer|exists:sunat_concepts,id',
