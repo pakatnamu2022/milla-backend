@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
+use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
@@ -15,6 +16,8 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\compras\SupplierCreditNote;
+use App\Models\ap\compras\SupplierCreditNoteDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -1867,7 +1870,7 @@ class InventoryMovementService extends BaseService
       ->where('product_id', $productId)
       ->whereHas('reception', function ($q) use ($warehouseId, $request) {
         $q->where('warehouse_id', $warehouseId)
-          ->where('status', 'APPROVED');
+          ->whereIn('status', ['APPROVED', 'PARTIAL']);
 
         // Apply date filters on reception_date
         if ($request->has('date_from')) {
@@ -1906,6 +1909,7 @@ class InventoryMovementService extends BaseService
       ->join('purchase_receptions', 'purchase_reception_details.purchase_reception_id', '=', 'purchase_receptions.id')
       ->join('ap_purchase_order', 'purchase_receptions.purchase_order_id', '=', 'ap_purchase_order.id')
       ->whereNotNull('ap_purchase_order.invoice_dynamics')
+      ->where('ap_purchase_order.status', 1)
       ->orderBy('purchase_receptions.reception_date', 'desc')
       ->select('purchase_reception_details.*');
 
@@ -1913,7 +1917,7 @@ class InventoryMovementService extends BaseService
     $receptionDetails = $query->get();
 
     // Transform results to show purchase history
-    $purchaseHistory = $receptionDetails->map(function ($detail) {
+    $purchaseHistory = $receptionDetails->map(function ($detail) use ($productId) {
       $reception = $detail->reception;
       $purchaseOrder = $reception?->purchaseOrder;
       $orderItem = $detail->purchaseOrderItem;
@@ -1932,6 +1936,40 @@ class InventoryMovementService extends BaseService
       $totalLine = $orderItem?->total ?? ($detail->quantity_received * $unitPrice);
       $unitPricePen = $unitPrice * $exchangeRate;
       $totalLinePen = $totalLine * $exchangeRate;
+
+      // Obtener notas de crédito asociadas a esta recepción y producto
+      $creditNotes = [];
+      if ($reception?->id) {
+        $creditNotes = SupplierCreditNote::where('purchase_reception_id', $reception->id)
+          ->whereIn('status', [
+            SupplierCreditNote::STATUS_APPROVED,
+            SupplierCreditNote::STATUS_APPLIED
+          ])
+          ->with(['details' => function ($q) use ($productId) {
+            $q->where('product_id', $productId);
+          }])
+          ->get()
+          ->filter(function ($cn) {
+            // Solo incluir NC que tienen detalles del producto
+            return $cn->details->isNotEmpty();
+          })
+          ->map(function ($cn) {
+            return [
+              'credit_note_number' => $cn->credit_note_number,
+              'credit_note_date' => $cn->credit_note_date?->format('Y-m-d'),
+              'reason' => $cn->reason,
+              'notes' => $cn->notes,
+              'details' => $cn->details->map(function ($detail) {
+                return [
+                  'quantity' => $detail->quantity,
+                  'unit_price' => $detail->unit_price,
+                  'subtotal' => $detail->subtotal,
+                ];
+              })->values(),
+            ];
+          })
+          ->values();
+      }
 
       return [
         'id' => $detail->id,
@@ -1965,6 +2003,7 @@ class InventoryMovementService extends BaseService
         'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
         'received_by' => $reception?->receivedByUser?->name,
         'notes' => $detail->notes,
+        'credit_notes' => $creditNotes,
       ];
     });
 
@@ -2170,20 +2209,35 @@ class InventoryMovementService extends BaseService
       ->where('product_id', $productId)
       ->whereHas('reception', function ($q) use ($warehouseId, $request) {
         $q->where('warehouse_id', $warehouseId)
-          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+          ->whereIn('status', ['APPROVED', 'PARTIAL']);
 
+        // Apply date filters on reception_date
         if ($request->has('date_from')) {
           $q->where('reception_date', '>=', $request->date_from);
         }
         if ($request->has('date_to')) {
           $q->where('reception_date', '<=', $request->date_to);
         }
+        if ($request->has('search')) {
+          $search = $request->search;
+          $q->where(function ($subQ) use ($search) {
+            $subQ->where('reception_number', 'LIKE', "%{$search}%")
+              ->orWhereHas('purchaseOrder', function ($poQ) use ($search) {
+                $poQ->where('number', 'LIKE', "%{$search}%")
+                  ->orWhere('invoice_number', 'LIKE', "%{$search}%");
+              });
+          });
+        }
       })
       ->with([
         'reception' => function ($q) {
           $q->with([
             'purchaseOrder' => function ($q) {
-              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+              $q->with([
+                'supplier:id,full_name,num_doc',
+                'currency:id,name,symbol',
+                'exchangeRate:id,rate'
+              ]);
             },
             'receivedByUser:id,name'
           ]);
@@ -2191,7 +2245,12 @@ class InventoryMovementService extends BaseService
         'purchaseOrderItem:id,unit_price,quantity,total',
         'product:id,name,code,dyn_code'
       ])
-      ->orderBy('created_at', 'desc');
+      ->join('purchase_receptions', 'purchase_reception_details.purchase_reception_id', '=', 'purchase_receptions.id')
+      ->join('ap_purchase_order', 'purchase_receptions.purchase_order_id', '=', 'ap_purchase_order.id')
+      ->whereNotNull('ap_purchase_order.invoice_dynamics')
+      ->where('ap_purchase_order.status', 1)
+      ->orderBy('purchase_receptions.reception_date', 'desc')
+      ->select('purchase_reception_details.*');
 
     $receptionDetails = $query->get();
 
@@ -2509,6 +2568,15 @@ class InventoryMovementService extends BaseService
           $detail->unit_price,  // ItemCostoUnitario from Dynamics stored in unit_price
           false  // fromPendingCreditNote = false (remove directly from quantity, invoice voided)
         );
+      }
+
+      // Anular la recepción porque la factura fue anulada (error del usuario)
+      $reception->update(['status' => 'ANNULLED']);
+
+      // Actualizar el reception_type del pedido a proveedor según productos pendientes
+      if ($reception->supplierOrder) {
+        $supplierOrderService = app(ApSupplierOrderService::class);
+        $supplierOrderService->updateReceptionType($reception->supplierOrder);
       }
 
       DB::commit();
