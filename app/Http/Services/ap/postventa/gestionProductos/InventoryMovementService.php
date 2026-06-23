@@ -2209,20 +2209,35 @@ class InventoryMovementService extends BaseService
       ->where('product_id', $productId)
       ->whereHas('reception', function ($q) use ($warehouseId, $request) {
         $q->where('warehouse_id', $warehouseId)
-          ->whereIn('status', ['APPROVED', 'PENDING_REVIEW']);
+          ->whereIn('status', ['APPROVED', 'PARTIAL']);
 
+        // Apply date filters on reception_date
         if ($request->has('date_from')) {
           $q->where('reception_date', '>=', $request->date_from);
         }
         if ($request->has('date_to')) {
           $q->where('reception_date', '<=', $request->date_to);
         }
+        if ($request->has('search')) {
+          $search = $request->search;
+          $q->where(function ($subQ) use ($search) {
+            $subQ->where('reception_number', 'LIKE', "%{$search}%")
+              ->orWhereHas('purchaseOrder', function ($poQ) use ($search) {
+                $poQ->where('number', 'LIKE', "%{$search}%")
+                  ->orWhere('invoice_number', 'LIKE', "%{$search}%");
+              });
+          });
+        }
       })
       ->with([
         'reception' => function ($q) {
           $q->with([
             'purchaseOrder' => function ($q) {
-              $q->with(['supplier:id,full_name,num_doc', 'currency:id,name,symbol']);
+              $q->with([
+                'supplier:id,full_name,num_doc',
+                'currency:id,name,symbol',
+                'exchangeRate:id,rate'
+              ]);
             },
             'receivedByUser:id,name'
           ]);
@@ -2230,7 +2245,12 @@ class InventoryMovementService extends BaseService
         'purchaseOrderItem:id,unit_price,quantity,total',
         'product:id,name,code,dyn_code'
       ])
-      ->orderBy('created_at', 'desc');
+      ->join('purchase_receptions', 'purchase_reception_details.purchase_reception_id', '=', 'purchase_receptions.id')
+      ->join('ap_purchase_order', 'purchase_receptions.purchase_order_id', '=', 'ap_purchase_order.id')
+      ->whereNotNull('ap_purchase_order.invoice_dynamics')
+      ->where('ap_purchase_order.status', 1)
+      ->orderBy('purchase_receptions.reception_date', 'desc')
+      ->select('purchase_reception_details.*');
 
     $receptionDetails = $query->get();
 
