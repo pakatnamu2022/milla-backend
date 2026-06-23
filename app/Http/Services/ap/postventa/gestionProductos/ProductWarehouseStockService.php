@@ -5,7 +5,10 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -17,6 +20,20 @@ use Illuminate\Support\Facades\DB;
 
 class ProductWarehouseStockService extends BaseService
 {
+  /**
+   * Configuración: Incluir movimientos RETURN_OUT en el historial de existencias.
+   * 0 = No incluyas los movimientos RETURN_OUT.
+   * 1 = Incluir los movimientos RETURN_OUT como reducción de existencias
+   */
+  const INCLUDE_RETURN_OUT_IN_HISTORY = 0;
+
+  /**
+   * Configuración: Cantidad a utilizar para el cálculo del costo promedio en PURCHASE_RECEPTION
+   * true = Utilice quantity_received (cantidad física recibida en buen estado)
+   * false = Utilice la cantidad facturada (quantity_received + observed_quantity)
+   */
+  const USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST = true;
+
   private ?float $freightCommission = null;
   private ?float $profitMargin = null;
   private ?float $minimunDiscount = null;
@@ -1202,11 +1219,13 @@ class ProductWarehouseStockService extends BaseService
    * Get stock movement history for a product in a warehouse
    * Reconstructs the entire history showing how stock and average cost evolved
    *
-   * ONLY shows movements relevant for average cost analysis:
-   * - ADJUSTMENT_IN: Adjustments that add stock (with cost > 0 affects average, with cost = 0 only adds stock)
-   * - ADJUSTMENT_OUT: Adjustments that reduce stock (doesn't affect average cost)
+   * Shows movements relevant for average cost analysis:
    * - PURCHASE_RECEPTION: Purchases that affect average cost
-   * - SALE: Sales that reduce stock but don't affect average cost
+   * - RETURN_OUT: Returns to supplier (if enabled via INCLUDE_RETURN_OUT_IN_HISTORY)
+   *
+   * Configuration constants:
+   * - INCLUDE_RETURN_OUT_IN_HISTORY: Include supplier returns in history
+   * - USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST: Use physical received qty vs invoiced qty
    *
    * @param int $productId
    * @param int $warehouseId
@@ -1222,21 +1241,56 @@ class ProductWarehouseStockService extends BaseService
         ->with(['product', 'warehouse'])
         ->firstOrFail();
 
-      // Get ONLY PURCHASE_RECEPTION movements with APPROVED status
-      // AND where the referenced PurchaseReception also has APPROVED status
-      // Ordered by CHRONOLOGICAL DATE (movement_date)
-      $movements = InventoryMovement::whereHas('details', function ($q) use ($productId) {
+      // Build query for PURCHASE_RECEPTION movements
+      $query = InventoryMovement::whereHas('details', function ($q) use ($productId) {
         $q->where('product_id', $productId);
       })
         ->where('warehouse_id', $warehouseId)
-        ->where('status', InventoryMovement::STATUS_APPROVED)
-        ->where('movement_type', InventoryMovement::TYPE_PURCHASE_RECEPTION)
-        ->whereHasMorph('reference', [PurchaseReception::class], function ($q) {
-          $q->where('status', 'APPROVED');
-        })
-        ->with(['details' => function ($q) use ($productId) {
-          $q->where('product_id', $productId);
-        }, 'currency'])
+        ->where('status', InventoryMovement::STATUS_APPROVED);
+
+      // Build movement type filter
+      $movementTypes = [InventoryMovement::TYPE_PURCHASE_RECEPTION];
+
+      // Include RETURN_OUT if configuration is enabled
+      if (self::INCLUDE_RETURN_OUT_IN_HISTORY === 1) {
+        $movementTypes[] = InventoryMovement::TYPE_RETURN_OUT;
+      }
+
+      $query->whereIn('movement_type', $movementTypes);
+
+      // Apply specific filters per movement type
+      $query->where(function ($q) use ($productId) {
+        // PURCHASE_RECEPTION: must have APPROVED PurchaseReception
+        $q->where(function ($subQuery) {
+          $subQuery->where('movement_type', InventoryMovement::TYPE_PURCHASE_RECEPTION)
+            ->whereHasMorph('reference', [PurchaseReception::class], function ($morphQuery) {
+              $morphQuery->where('status', 'APPROVED');
+            });
+        });
+
+        // RETURN_OUT: must have APPROVED SupplierCreditNote with active PurchaseOrder
+        if (self::INCLUDE_RETURN_OUT_IN_HISTORY === 1) {
+          $q->orWhere(function ($subQuery) {
+            $subQuery->where('movement_type', InventoryMovement::TYPE_RETURN_OUT)
+              ->whereHasMorph('reference', [SupplierCreditNote::class], function ($morphQuery) {
+                $morphQuery->where('status', SupplierCreditNote::STATUS_APPROVED)
+                  ->whereNotNull('purchase_order_id')
+                  ->whereHas('purchaseOrder', function ($poQuery) {
+                    $poQuery->where('status', true); // status = 1 (active)
+                  });
+              });
+          });
+        }
+      });
+
+      $movements = $query
+        ->with([
+          'details' => function ($q) use ($productId) {
+            $q->where('product_id', $productId);
+          },
+          'currency',
+          'reference' // Load the reference (PurchaseReception or SupplierCreditNote)
+        ])
         ->orderBy('movement_date', 'asc')
         ->orderBy('id', 'asc')
         ->get();
@@ -1251,9 +1305,28 @@ class ProductWarehouseStockService extends BaseService
         if ($movement->details->isEmpty()) continue;
 
         $detail = $movement->details->first();
-        $quantity = abs((float)$detail->quantity);
         $unitCostOriginal = (float)($detail->unit_cost ?? 0);
         $isInbound = $movement->is_inbound;
+
+        // Determine quantity to use based on movement type and configuration
+        $quantity = abs((float)$detail->quantity);
+        $quantityForAverageCost = $quantity; // Default: use same quantity
+
+        // For PURCHASE_RECEPTION: check if we should use quantity_received instead
+        if ($movement->movement_type === InventoryMovement::TYPE_PURCHASE_RECEPTION &&
+          self::USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST === true &&
+          $movement->reference instanceof PurchaseReception) {
+
+          // Get the PurchaseReceptionDetail for this product
+          $receptionDetail = PurchaseReceptionDetail::where('purchase_reception_id', $movement->reference->id)
+            ->where('product_id', $productId)
+            ->first();
+
+          if ($receptionDetail) {
+            // Use quantity_received (physical received in good condition) for average cost calculation
+            $quantityForAverageCost = (float)$receptionDetail->quantity_received;
+          }
+        }
 
         // Convert unit cost to PEN (base currency) just like addStock() does
         $unitCostInPEN = $this->convertToBaseCurrency(
@@ -1266,16 +1339,19 @@ class ProductWarehouseStockService extends BaseService
         if ($isInbound) {
           // INBOUND: Add to stock
           $stockBeforeMovement = $runningStock;
-          $runningStock += $quantity;
+
+          // For PURCHASE_RECEPTION with USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST = true:
+          // - Use quantity_received (8) for both stock and average cost calculation
+          // For all other cases:
+          // - Use invoiced quantity (10) for both stock and average cost calculation
+          $runningStock += $quantityForAverageCost;
 
           // Calculate average cost ONLY if unit cost is provided (> 0)
-          // ADJUSTMENT_IN with cost = 0 will add stock but NOT affect average cost (like transfers)
-          // ADJUSTMENT_IN with cost > 0 will add stock AND recalculate average cost
-          // PURCHASE_RECEPTION always has cost > 0 and affects average cost
+          // Use quantityForAverageCost (could be quantity_received or full quantity)
           if ($unitCostInPEN > 0) {
             // Apply weighted average formula using cost in PEN
-            if ($stockBeforeMovement + $quantity > 0) {
-              $runningAverageCost = (($stockBeforeMovement * $runningAverageCost) + ($quantity * $unitCostInPEN)) / ($stockBeforeMovement + $quantity);
+            if ($stockBeforeMovement + $quantityForAverageCost > 0) {
+              $runningAverageCost = (($stockBeforeMovement * $runningAverageCost) + ($quantityForAverageCost * $unitCostInPEN)) / ($stockBeforeMovement + $quantityForAverageCost);
               $runningAverageCost = round($runningAverageCost, 2);
             } else {
               $runningAverageCost = $unitCostInPEN;
@@ -1293,6 +1369,7 @@ class ProductWarehouseStockService extends BaseService
         // Determine movement type label
         $movementTypeLabel = match ($movement->movement_type) {
           InventoryMovement::TYPE_PURCHASE_RECEPTION => 'Recepción de Compra',
+          InventoryMovement::TYPE_RETURN_OUT => 'Devolución a Proveedor',
           InventoryMovement::TYPE_ADJUSTMENT_IN => 'Ajuste de Entrada',
           InventoryMovement::TYPE_ADJUSTMENT_OUT => 'Ajuste de Salida',
           InventoryMovement::TYPE_TRANSFER_IN => 'Transferencia Entrada',
@@ -1308,10 +1385,10 @@ class ProductWarehouseStockService extends BaseService
           'movement_type' => $movement->movement_type,
           'movement_type_label' => $movementTypeLabel,
           'is_inbound' => $isInbound,
-          'quantity' => $quantity,
+          'quantity' => $quantityForAverageCost, // Muestra la cantidad usada para cálculo (8 o 10 según configuración)
           'unit_cost' => $unitCostOriginal, // Costo en moneda original
           'unit_cost_in_pen' => $unitCostInPEN, // Costo convertido a PEN
-          'total_cost' => $isInbound ? round($quantity * $unitCostInPEN, 2) : 0,
+          'total_cost' => $isInbound ? round($quantityForAverageCost * $unitCostInPEN, 2) : 0,
           'stock_after_movement' => $runningStock,
           'average_cost_after_movement' => $runningAverageCost,
           'currency' => $movement->currency?->code ?? 'PEN',
