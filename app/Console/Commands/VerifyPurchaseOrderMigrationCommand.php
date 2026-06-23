@@ -15,7 +15,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
    * The name and signature of the console command.
    * @var string
    */
-  protected $signature = 'po:verify-migration {--id= : ID de la orden de compra específica} {--all : Verificar todas las órdenes pendientes} {--limit=100 : Número máximo de órdenes a procesar (default: 100)} {--sync : Ejecutar inmediatamente sin usar cola}';
+  protected $signature = 'po:verify-migration {--id= : ID de la orden de compra específica} {--all : Verificar todas las órdenes pendientes} {--sync : Ejecutar inmediatamente sin usar cola}';
 
   /**
    * The console command description.
@@ -60,15 +60,13 @@ class VerifyPurchaseOrderMigrationCommand extends Command
       } else {
         $this->info("Despachando job de verificación para la orden: {$purchaseOrder->number}");
         VerifyAndMigratePurchaseOrderJob::dispatch($purchaseOrder->id);
-        $this->info("Job despachado a la cola.");
+        $this->info("Job despachado a la cola (" . ($purchaseOrder->id + 1) . ")");
       }
 
       return 0;
     }
 
     if ($all) {
-      // Verificar todas las órdenes pendientes (limitado por --limit)
-      $limit = (int)$this->option('limit');
       $pendingOrders = PurchaseOrder::whereIn('migration_status', [
         VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
         VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
@@ -76,7 +74,6 @@ class VerifyPurchaseOrderMigrationCommand extends Command
       ])
         ->orderBy('id', 'desc')
         ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
-        ->limit($limit)
         ->get();
 
       if ($pendingOrders->isEmpty()) {
@@ -86,10 +83,10 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
       $this->info("Encontradas {$pendingOrders->count()} órdenes pendientes de migración.");
 
-      if ($useSync) {
-        $bar = $this->output->createProgressBar($pendingOrders->count());
-        $bar->start();
+      $bar = $this->output->createProgressBar($pendingOrders->count());
+      $bar->start();
 
+      if ($useSync) {
         $syncService = app(DatabaseSyncService::class);
         foreach ($pendingOrders as $order) {
           try {
@@ -106,9 +103,6 @@ class VerifyPurchaseOrderMigrationCommand extends Command
         $this->newLine();
         $this->info("✓ Verificación completada.");
       } else {
-        $bar = $this->output->createProgressBar($pendingOrders->count());
-        $bar->start();
-
         foreach ($pendingOrders as $order) {
           VerifyAndMigratePurchaseOrderJob::dispatch($order->id);
           $bar->advance();
@@ -116,7 +110,9 @@ class VerifyPurchaseOrderMigrationCommand extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Jobs despachados a la cola.");
+        foreach ($pendingOrders as $order) {
+          $this->info("Job despachado para la orden id={$order->id}; number={$order->number}");
+        }
       }
 
       return 0;
@@ -126,7 +122,7 @@ class VerifyPurchaseOrderMigrationCommand extends Command
     $this->error("Debe especificar --id o --all para procesar órdenes.");
     $this->line("Ejemplos:");
     $this->line("  php artisan po:verify-migration --id=123");
-    $this->line("  php artisan po:verify-migration --all --limit=100");
+    $this->line("  php artisan po:verify-migration --all");
     return 1;
   }
 }

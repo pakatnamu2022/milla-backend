@@ -92,14 +92,14 @@ class AccountReceivable extends BaseModel
 
   const filters = [
     'search'            => ['document_number', 'client_name', 'client_id', 'seller', 'branch'],
-    'sede_id'           => '=',
+    'sede_id'           => 'in_or_equal',
     'company'           => '=',
     'currency'          => '=',
-    'overdue_status'    => '=',
+    'overdue_status'    => 'in_or_equal',
     'seller'            => 'like',
     'document_date'     => 'date_between',
     'document_due_date' => 'date_between',
-    'due_year'          => '=',
+    'due_year'          => 'in_or_equal',
   ];
 
   const sorts = [

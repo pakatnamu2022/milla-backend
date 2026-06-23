@@ -16,7 +16,7 @@ class SyncInvoiceDynamicsCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'po:sync-invoice-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC sin invoice_dynamics} {--limit=50 : Número máximo de órdenes a procesar (default: 50)}';
+  protected $signature = 'po:sync-invoice-dynamics {--id= : ID de la orden de compra específica} {--all : Sincronizar todas las OC sin invoice_dynamics}';
 
   /**
    * The console command description.
@@ -86,11 +86,14 @@ class SyncInvoiceDynamicsCommand extends Command
       return Command::SUCCESS;
     }
 
-    $limit = (int)$this->option('limit');
-
     // Obtener OCs que:
     // 1. No tienen invoice_dynamics (flujo normal)
     // 2. Están completed y tienen credit_note_dynamics (para detectar cambio de factura)
+    $maxAttempts    = 48;
+    $cooldown30     = now()->subMinutes(30);
+    $oneHourAgo     = now()->subHour();
+    $maxMigratedAge = now()->subDays(30);
+
     $purchaseOrders = PurchaseOrder::where(function ($query) {
       $query->where(function ($q) {
         // Caso 1: Sin invoice
@@ -104,8 +107,23 @@ class SyncInvoiceDynamicsCommand extends Command
       });
     })
       ->whereNotNull('number')
-      ->orderBy('id', 'desc')
-      ->limit($limit)
+      ->whereNotNull('migrated_at')
+      ->where('migrated_at', '>=', $maxMigratedAge)
+      ->where(function ($q) use ($oneHourAgo, $cooldown30, $maxAttempts) {
+        // OC reciente (<1h desde migración) → siempre incluir, sin cooldown
+        $q->where('migrated_at', '>', $oneHourAgo)
+          // OC antigua (≥1h desde migración) → cooldown 30 min + límite de intentos
+          ->orWhere(function ($inner) use ($oneHourAgo, $cooldown30, $maxAttempts) {
+            $inner->where('migrated_at', '<=', $oneHourAgo)
+              ->where('invoice_sync_attempts', '<', $maxAttempts)
+              ->where(function ($innermost) use ($cooldown30) {
+                $innermost->whereNull('invoice_sync_attempted_at')
+                  ->orWhere('invoice_sync_attempted_at', '<', $cooldown30);
+              });
+          });
+      })
+      ->orderBy('invoice_sync_attempted_at', 'asc')
+      ->orderBy('id', 'asc')
       ->get();
 
     if ($purchaseOrders->isEmpty()) {
@@ -125,6 +143,9 @@ class SyncInvoiceDynamicsCommand extends Command
 
     $bar->finish();
     $this->newLine();
+    foreach ($purchaseOrders as $order) {
+      $this->info('Sincronizando invoice_dynamics para OC: ' . $order->number . ' (migrada: ' . $order->migrated_at . ')');
+    }
     $this->info("Jobs despachados exitosamente");
     return Command::SUCCESS;
   }
