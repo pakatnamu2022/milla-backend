@@ -194,13 +194,18 @@ class AttendanceSyncService extends BaseService
       $request->person_id ? (int)$request->person_id : null,
       $request,
     );
-    $summary = $this->buildInternalSummary($rows);
+
+    $personIds = $rows->pluck('person_id')->filter()->unique()->values()->toArray();
+    $vacationsByPerson = $this->loadAllPersonVacations($personIds, $request->date_from, $request->date_to);
+
+    $summary = $this->buildInternalSummary($rows, $request->date_from, $request->date_to, $vacationsByPerson);
 
     if ($request->get('export') === 'xlsx') {
       $flat = $summary->flatMap(fn($person) => collect($person['daily'])->map(fn($day) => [
         'emp_code'       => $person['emp_code'],
         'full_name'      => $person['full_name'],
         'date'           => $day['date'],
+        'observacion'    => ($day['type'] ?? null) === 'vacation' ? 'VACACIONES' : null,
         'check_in'       => $day['check_in'],
         'lunch_out'      => $day['lunch_out'],
         'lunch_in'       => $day['lunch_in'],
@@ -213,6 +218,7 @@ class AttendanceSyncService extends BaseService
         'emp_code'       => 'Código',
         'full_name'      => 'Nombre Completo',
         'date'           => 'Fecha',
+        'observacion'    => 'Observación',
         'check_in'       => 'Entrada',
         'lunch_out'      => 'Salida Almuerzo',
         'lunch_in'       => 'Retorno Almuerzo',
@@ -505,6 +511,15 @@ class AttendanceSyncService extends BaseService
       ->whereNull('a.id')
       ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      ->whereNotExists(function ($q) use ($dateStr) {
+        $q->select(DB::raw(1))
+          ->from('rrhh_vacaciones as v')
+          ->whereColumn('v.empleado_id', 'p.id')
+          ->where('v.status_deleted', 1)
+          ->where('v.aprobacion_rrhh', 1)
+          ->where('v.fecha_inicio', '<=', $dateStr)
+          ->where('v.fecha_fin', '>=', $dateStr);
+      })
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
@@ -619,11 +634,46 @@ class AttendanceSyncService extends BaseService
     return $query->get();
   }
 
-  private function buildInternalSummary(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+  private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = []): \Illuminate\Support\Collection
   {
-    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) {
-      $daily = $dayRows->map(function (object $row) {
-        $dayOfWeek = Carbon::parse($row->date)->dayOfWeek;
+    $holidays = $this->loadHolidays($dateFrom, $dateTo);
+
+    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) use ($dateFrom, $dateTo, $vacationsByPerson, $holidays) {
+      $first = $dayRows->first();
+      $personId = $first->person_id;
+      $personVacations = $vacationsByPerson[$personId] ?? [];
+      $attendanceByDate = $dayRows->keyBy('date');
+
+      $daily = collect();
+
+      foreach (CarbonPeriod::create($dateFrom, $dateTo) as $day) {
+        $dateStr = $day->toDateString();
+        $dayOfWeek = $day->dayOfWeek;
+
+        if ($dayOfWeek === 0) continue;
+        if (isset($holidays[$dateStr])) continue;
+
+        if (isset($personVacations[$dateStr])) {
+          $daily->push([
+            'date'           => $dateStr,
+            'type'           => 'vacation',
+            'check_in'       => null,
+            'lunch_out'      => null,
+            'lunch_in'       => null,
+            'check_out'      => null,
+            'is_estimated'   => false,
+            '_worked_raw'    => null,
+            '_expected_raw'  => 0.0,
+            'hours_worked'   => $this->toHm(0.0),
+            'expected_hours' => $this->toHm(0.0),
+            'balance'        => $this->toHm(0.0),
+          ]);
+          continue;
+        }
+
+        if (!$attendanceByDate->has($dateStr)) continue;
+
+        $row = $attendanceByDate->get($dateStr);
         $isSaturday = $dayOfWeek === 6;
         $marks = $this->resolveMarks($row, $isSaturday);
         [$lunchMinutes, $expectedHours] = $this->computeScheduleExpectation($row, $isSaturday);
@@ -636,8 +686,9 @@ class AttendanceSyncService extends BaseService
 
         $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
 
-        return [
-          'date'           => $row->date,
+        $daily->push([
+          'date'           => $dateStr,
+          'type'           => 'work',
           'check_in'       => $marks['checkIn'],
           'lunch_out'      => $marks['lunchOut'],
           'lunch_in'       => $marks['lunchIn'],
@@ -648,25 +699,24 @@ class AttendanceSyncService extends BaseService
           'hours_worked'   => $this->toHm($hoursWorked),
           'expected_hours' => $this->toHm($expectedHours),
           'balance'        => $this->toHm($balance),
-        ];
-      })->sortBy('date')->values();
+        ]);
+      }
 
-      $first = $dayRows->first();
-      $withData = $daily->whereNotNull('_worked_raw');
-      $totalWorked = round($withData->sum('_worked_raw'), 2);
-      $totalExpected = round($withData->sum('_expected_raw'), 2);
-      $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
-      $daysPresent = $daily->count();
+      $workDays = $daily->where('type', 'work');
+      $totalWorked = round($workDays->whereNotNull('_worked_raw')->sum('_worked_raw'), 2);
+      $totalExpected = round($workDays->sum('_expected_raw'), 2);
+      $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])))->values();
 
       return [
-        'person_id'      => $first->person_id,
-        'emp_code'       => $empCode,
-        'full_name'      => $first->full_name,
-        'days_present'   => $daysPresent,
-        'expected_hours' => $this->toHm($totalExpected),
-        'hours_worked'   => $this->toHm($totalWorked),
-        'balance'        => $this->toHm(round($totalWorked - $totalExpected, 2)),
-        'daily'          => $daily,
+        'person_id'        => $first->person_id,
+        'emp_code'         => $empCode,
+        'full_name'        => $first->full_name,
+        'days_present'     => $workDays->count(),
+        'days_on_vacation' => $daily->where('type', 'vacation')->count(),
+        'expected_hours'   => $this->toHm($totalExpected),
+        'hours_worked'     => $this->toHm($totalWorked),
+        'balance'          => $this->toHm(round($totalWorked - $totalExpected, 2)),
+        'daily'            => $daily,
       ];
     })->sortBy('full_name')->values();
   }
@@ -746,6 +796,32 @@ class AttendanceSyncService extends BaseService
         $dateStr = $day->toDateString();
         if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
           $map[$dateStr] = $vacation->id;
+        }
+      }
+    }
+
+    return $map;
+  }
+
+  private function loadAllPersonVacations(array $personIds, string $dateFrom, string $dateTo): array
+  {
+    if (empty($personIds)) return [];
+
+    $records = DB::table('rrhh_vacaciones')
+      ->whereIn('empleado_id', $personIds)
+      ->where('status_deleted', 1)
+      ->where('aprobacion_rrhh', 1)
+      ->where('fecha_inicio', '<=', $dateTo)
+      ->where('fecha_fin', '>=', $dateFrom)
+      ->select(['id', 'empleado_id', 'fecha_inicio', 'fecha_fin'])
+      ->get();
+
+    $map = [];
+    foreach ($records as $vacation) {
+      foreach (CarbonPeriod::create($vacation->fecha_inicio, $vacation->fecha_fin) as $day) {
+        $dateStr = $day->toDateString();
+        if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
+          $map[$vacation->empleado_id][$dateStr] = $vacation->id;
         }
       }
     }
