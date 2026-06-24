@@ -240,6 +240,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           ->exists()
         : false;
 
+      $isNotVoided = $newInvoice !== $newReceipt;
+
       /**
        * CASO 3: OC con factura pero sin movimiento (recuperación)
        */
@@ -248,6 +250,24 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           $vehicleMovementService = new VehicleMovementService();
           $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
         } catch (Throwable $e) {
+        }
+      }
+
+      /**
+       * CASO 3 (recuperación): Asignar vehículo a la cotización si aún no está asignado
+       */
+      if ($isNotVoided && $purchaseOrder->quotation_id && $vehicle) {
+        $quotation = $purchaseOrder->quotation;
+        if ($quotation && empty($quotation->ap_vehicle_id)) {
+          try {
+            $quoteService = new PurchaseRequestQuoteService();
+            $quoteService->assignVehicle([
+              'id'            => $purchaseOrder->quotation_id,
+              'ap_vehicle_id' => $vehicle->id,
+            ]);
+          } catch (Throwable $e) {
+            Log::error("Error al asignar vehículo a cotización (recuperación) para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
         }
       }
 
