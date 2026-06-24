@@ -1313,11 +1313,14 @@ class ProductWarehouseStockService extends BaseService
         $unitCostOriginal = (float)($detail->unit_cost ?? 0);
         $isInbound = $movement->is_inbound;
 
-        // Determine quantity to use based on movement type and configuration
+        // CRITICAL: Separate quantity for stock vs average cost calculation
+        // - $quantityForStock: Physical quantity that enters/exits warehouse (from InventoryMovement - source of truth)
+        // - $quantityForAverageCost: Quantity used ONLY for weighted average cost calculation
         $quantity = abs((float)$detail->quantity);
+        $quantityForStock = $quantity; // Always use movement quantity for stock tracking
         $quantityForAverageCost = $quantity; // Default: use same quantity
 
-        // For PURCHASE_RECEPTION: check if we should use quantity_received instead
+        // For PURCHASE_RECEPTION: check if we should use quantity_received for average cost
         if ($movement->movement_type === InventoryMovement::TYPE_PURCHASE_RECEPTION &&
           self::USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST === true &&
           $movement->reference instanceof PurchaseReception) {
@@ -1328,7 +1331,10 @@ class ProductWarehouseStockService extends BaseService
             ->first();
 
           if ($receptionDetail) {
-            // Use quantity_received (physical received in good condition) for average cost calculation
+            // Use quantity_received (physical received in good condition) ONLY for average cost calculation
+            // Example: Ordered 10, received 8 good + 2 observed with NC
+            // - quantityForStock = 10 (all physically present in warehouse)
+            // - quantityForAverageCost = 8 (only good units for cost calculation)
             $quantityForAverageCost = (float)$receptionDetail->quantity_received;
           }
         }
@@ -1345,14 +1351,13 @@ class ProductWarehouseStockService extends BaseService
           // INBOUND: Add to stock
           $stockBeforeMovement = $runningStock;
 
-          // For PURCHASE_RECEPTION with USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST = true:
-          // - Use quantity_received (8) for both stock and average cost calculation
-          // For all other cases:
-          // - Use invoiced quantity (10) for both stock and average cost calculation
-          $runningStock += $quantityForAverageCost;
+          // CRITICAL FIX: Always use quantityForStock (from movement) to update physical stock
+          // This ensures that when is_credit_note = true, all units (good + observed) are counted
+          // Example: 8 good + 2 observed = 10 total in warehouse
+          $runningStock += $quantityForStock;
 
           // Calculate average cost ONLY if unit cost is provided (> 0)
-          // Use quantityForAverageCost (could be quantity_received or full quantity)
+          // Use quantityForAverageCost (could be quantity_received for better cost accuracy)
           if ($unitCostInPEN > 0) {
             // Apply weighted average formula using cost in PEN
             if ($stockBeforeMovement + $quantityForAverageCost > 0) {
