@@ -61,7 +61,12 @@ class AccountsReceivableController extends Controller
   {
     try {
       $company = $request->input('company', 'deposito');
-      return $this->success($this->service->dashboard($company));
+      $filters = [
+        'sede_ids' => $request->input('sede_id'),
+        'statuses' => $request->input('overdue_status'),
+        'years'    => $request->input('due_year'),
+      ];
+      return $this->success($this->service->dashboard($company, $filters));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
