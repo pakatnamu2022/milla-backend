@@ -3,12 +3,14 @@
 ## Índice
 1. [Descripción General](#descripción-general)
 2. [Tablas Involucradas](#tablas-involucradas)
-3. [Configuraciones del Sistema](#configuraciones-del-sistema)
-4. [Flujo de Negocio Completo](#flujo-de-negocio-completo)
-5. [Lógica del Costo Promedio Ponderado](#lógica-del-costo-promedio-ponderado)
-6. [Ejemplos Numéricos](#ejemplos-numéricos)
-7. [Casos de Uso y Escenarios](#casos-de-uso-y-escenarios)
-8. [Consideraciones Técnicas](#consideraciones-técnicas)
+3. [Tabla Materializada de Historial de Costos](#tabla-materializada-de-historial-de-costos)
+4. [Configuraciones del Sistema](#configuraciones-del-sistema)
+5. [Flujo de Negocio Completo](#flujo-de-negocio-completo)
+6. [Lógica del Costo Promedio Ponderado](#lógica-del-costo-promedio-ponderado)
+7. [Método Centralizado de Reconstrucción](#método-centralizado-de-reconstrucción)
+8. [Ejemplos Numéricos](#ejemplos-numéricos)
+9. [Casos de Uso y Escenarios](#casos-de-uso-y-escenarios)
+10. [Consideraciones Técnicas](#consideraciones-técnicas)
 
 ---
 
@@ -126,6 +128,138 @@ Catálogo de almacenes.
 
 ### 9. **type_currencies** (Monedas)
 Catálogo de monedas (USD, PEN, etc.).
+
+---
+
+### 10. **ap_order_quotations** (Cotizaciones/Órdenes)
+Registra las órdenes de venta que generan movimientos de salida.
+
+**Campos clave:**
+- `id`: Identificador único
+- `order_number`: Número de la orden
+- `status`: Estado de la orden
+
+**Relación con inventario:**
+- Cuando se aprueba una orden, se genera un movimiento SALE
+
+---
+
+### 11. **ap_work_order** (Órdenes de Trabajo)
+Registra las órdenes de trabajo que también pueden generar movimientos de salida.
+
+**Campos clave:**
+- `id`: Identificador único
+- `work_order_number`: Número de la orden de trabajo
+
+**Relación con inventario:**
+- Similar a las órdenes de venta, puede generar movimientos SALE
+
+---
+
+## Tabla Materializada de Historial de Costos
+
+### 10. **weighted_average_cost_history** (Historial Materializado de Costo Promedio)
+
+**Propósito:**
+Esta tabla actúa como un "snapshot" (fotografía) del estado del stock y costo promedio ponderado después de cada movimiento de inventario. Permite consultas rápidas sin necesidad de recalcular todo el historial.
+
+**Ubicación de la migración:** `database/migrations/2026_06_24_100000_create_weighted_average_cost_history_table.php`
+
+**Ubicación del modelo:** `app/Models/ap/postventa/gestionProductos/WeightedAverageCostHistory.php`
+
+#### Campos Clave:
+
+**Llaves primarias y foráneas:**
+- `id`: Identificador único
+- `product_id`: FK a products (producto)
+- `warehouse_id`: FK a warehouse (almacén)
+- `movement_id`: FK a inventory_movements (puede ser NULL para snapshots iniciales)
+
+**Información del movimiento (desnormalizada para queries rápidas):**
+- `movement_date`: Fecha del movimiento (fecha de negocio, no de creación)
+- `movement_type`: Tipo de movimiento (PURCHASE_RECEPTION, SALE, RETURN_OUT, etc.)
+- `movement_number`: Número del movimiento (MOV-2026-0001)
+
+**Cantidades del movimiento:**
+- `quantity_in`: Cantidad agregada al stock (movimientos INBOUND) - Default: 0
+- `quantity_out`: Cantidad removida del stock (movimientos OUTBOUND) - Default: 0
+- `unit_cost_pen`: Costo unitario del movimiento en PEN (solo relevante para INBOUND)
+
+**Snapshots (estado DESPUÉS del movimiento):**
+- `stock_after_movement`: Cantidad de stock DESPUÉS de aplicar este movimiento
+- `average_cost_after_movement`: Costo promedio ponderado DESPUÉS de aplicar este movimiento
+
+**Metadatos:**
+- `recalculated_at`: Timestamp de último recálculo (para ajustes retroactivos)
+- `created_at`: Fecha de creación del registro
+- `updated_at`: Fecha de última actualización
+
+#### Índices:
+
+```sql
+-- Buscar historial de un producto en un almacén por fecha
+idx_product_warehouse_date (product_id, warehouse_id, movement_date)
+
+-- Buscar por tipo de movimiento
+idx_product_warehouse_type (product_id, warehouse_id, movement_type)
+
+-- Buscar por movimiento específico
+idx_movement_id (movement_id)
+
+-- Constraint único: un movimiento solo genera un snapshot por producto-almacén
+unique_product_warehouse_movement (product_id, warehouse_id, movement_id)
+```
+
+#### Ventajas de la Tabla Materializada:
+
+1. **Performance:** Evita recálculos complejos "on the fly" en `getPriceCalculationDetails`
+2. **Consultas rápidas:** Obtener el historial de costos es una simple query SELECT
+3. **Auditoría:** Facilita la trazabilidad de cambios de costo a lo largo del tiempo
+4. **Recálculos retroactivos:** Soporta regeneración del historial cuando hay ajustes (ej: NC antigua)
+5. **Análisis:** Permite analizar evolución de costos y variaciones
+
+#### Scopes del Modelo:
+
+El modelo `WeightedAverageCostHistory` incluye múltiples scopes útiles:
+
+```php
+// Filtrar por producto y almacén
+forProductWarehouse($productId, $warehouseId)
+
+// Ordenamiento cronológico
+chronological()                  // Más antiguo primero
+reverseChronological()          // Más reciente primero
+
+// Filtrar por dirección del movimiento
+inbound()                       // Solo entradas
+outbound()                      // Solo salidas
+
+// Filtrar por tipo
+byType($movementType)
+
+// Filtrar por fechas
+fromDate($date)                 // Desde una fecha
+toDate($date)                   // Hasta una fecha
+
+// Snapshots recalculados
+recalculated()                  // Solo registros recalculados
+```
+
+#### Métodos Estáticos de Utilidad:
+
+```php
+// Obtener el último snapshot de un producto en un almacén
+WeightedAverageCostHistory::getLatestSnapshot($productId, $warehouseId)
+
+// Obtener snapshot anterior a una fecha
+WeightedAverageCostHistory::getSnapshotBeforeDate($productId, $warehouseId, $beforeDate)
+
+// Eliminar snapshots desde una fecha (útil antes de recálculo)
+WeightedAverageCostHistory::deleteFromDate($productId, $warehouseId, $fromDate)
+
+// Obtener historial completo
+WeightedAverageCostHistory::getFullHistory($productId, $warehouseId)
+```
 
 ---
 
@@ -299,12 +433,40 @@ Nuevo Costo Promedio = (Stock Anterior × Costo Promedio Anterior + Cantidad Ent
 
    **a. Determinar si es INBOUND (entrada) o OUTBOUND (salida)**
    ```php
+   // Movimientos INBOUND (entradas que afectan costo promedio)
    $isInbound = in_array($movement->movement_type, [
-     InventoryMovement::TYPE_PURCHASE_RECEPTION,
-     InventoryMovement::TYPE_ADJUSTMENT_IN,
-     InventoryMovement::TYPE_TRANSFER_IN,
+     InventoryMovement::TYPE_PURCHASE_RECEPTION,  // Recepción de Compra
+     InventoryMovement::TYPE_ADJUSTMENT_IN,       // Ajuste de Entrada
+     InventoryMovement::TYPE_TRANSFER_IN,         // Transferencia de Entrada
+   ]);
+
+   // Movimientos OUTBOUND (salidas que NO afectan costo promedio)
+   $isOutbound = in_array($movement->movement_type, [
+     InventoryMovement::TYPE_SALE,                // Venta
+     InventoryMovement::TYPE_RETURN_OUT,          // Devolución a Proveedor
+     InventoryMovement::TYPE_ADJUSTMENT_OUT,      // Ajuste de Salida
+     InventoryMovement::TYPE_TRANSFER_OUT,        // Transferencia de Salida
    ]);
    ```
+
+   **Tipos de movimientos soportados:**
+
+   **INBOUND (Entradas):**
+   - `PURCHASE_RECEPTION`: Recepción de compra de proveedor
+     - `reference_type`: `PurchaseReception`
+     - Afecta costo promedio: SÍ
+     - Incrementa stock: SÍ
+
+   **OUTBOUND (Salidas):**
+   - `SALE`: Venta a cliente
+     - `reference_type`: `ApOrderQuotations` o `ApWorkOrder`
+     - Afecta costo promedio: NO
+     - Reduce stock: SÍ
+
+   - `RETURN_OUT`: Devolución a proveedor (Nota de Crédito)
+     - `reference_type`: `SupplierCreditNote`
+     - Afecta costo promedio: NO
+     - Reduce stock: SÍ (solo si `INCLUDE_RETURN_OUT_IN_HISTORY = 1`)
 
    **b. Obtener cantidad del movimiento**
    ```php
@@ -370,6 +532,210 @@ Nuevo Costo Promedio = (Stock Anterior × Costo Promedio Anterior + Cantidad Ent
      'exchange_rate' => 3.386,
    ];
    ```
+
+---
+
+## Método Centralizado de Reconstrucción
+
+### `rebuildWeightedAverageCostHistory()`
+
+**Ubicación:** `ProductWarehouseStockService.php` (líneas 1784-1899)
+
+**Propósito:**
+Este método centraliza la lógica de reconstrucción/actualización de la tabla materializada `weighted_average_cost_history`. Se invoca automáticamente en tres momentos clave:
+
+1. **Compras** (PurchaseReception): Al aprobar una recepción de compra
+2. **Ventas** (Sale): Al confirmar una venta
+3. **Notas de Crédito** (SupplierCreditNote): Al aprobar una NC de proveedor
+
+**Firma del método:**
+```php
+public function rebuildWeightedAverageCostHistory(
+  int $productId,
+  int $warehouseId,
+  \DateTime|string|null $fromDate = null
+): array
+```
+
+**Parámetros:**
+- `$productId`: ID del producto a recalcular
+- `$warehouseId`: ID del almacén donde recalcular
+- `$fromDate`: (Opcional) Fecha desde la cual recalcular. Si es `null`, recalcula TODO el historial
+
+**Retorno:**
+```php
+[
+  'snapshots_deleted' => 15,     // Cantidad de snapshots eliminados
+  'snapshots_inserted' => 18,    // Cantidad de snapshots creados
+  'stock_matches' => true,       // Si el stock final coincide
+  'current_stock' => 50.00,      // Stock actual en product_warehouse_stock
+  'calculated_stock' => 50.00,   // Stock calculado del historial
+  'average_cost' => 199.01,      // Costo promedio final
+]
+```
+
+### Lógica Interna
+
+1. **Determinar punto de partida:**
+   ```php
+   if ($fromDate === null) {
+     // Reconstrucción completa: eliminar TODOS los snapshots
+     WeightedAverageCostHistory::forProductWarehouse($productId, $warehouseId)->delete();
+     $baseStock = 0;
+     $baseCost = 0;
+   } else {
+     // Reconstrucción parcial: obtener estado base anterior a $fromDate
+     $lastSnapshotBefore = WeightedAverageCostHistory::getSnapshotBeforeDate(
+       $productId,
+       $warehouseId,
+       $fromDate
+     );
+     $baseStock = $lastSnapshotBefore->stock_after_movement ?? 0;
+     $baseCost = $lastSnapshotBefore->average_cost_after_movement ?? 0;
+
+     // Eliminar snapshots desde $fromDate en adelante
+     WeightedAverageCostHistory::deleteFromDate($productId, $warehouseId, $fromDate);
+   }
+   ```
+
+2. **Obtener movimientos desde el punto de partida:**
+   ```php
+   $history = $this->getStockMovementHistory($productId, $warehouseId);
+   ```
+
+3. **Crear snapshots para cada movimiento:**
+   ```php
+   foreach ($history as $movement) {
+     WeightedAverageCostHistory::create([
+       'product_id' => $productId,
+       'warehouse_id' => $warehouseId,
+       'movement_id' => $movement['movement_id'],
+       'movement_date' => $movement['movement_date'],
+       'movement_type' => $movement['movement_type'],
+       'movement_number' => $movement['movement_number'],
+       'quantity_in' => $movement['is_inbound'] ? $movement['quantity'] : 0,
+       'quantity_out' => !$movement['is_inbound'] ? $movement['quantity'] : 0,
+       'unit_cost_pen' => $movement['unit_cost_in_pen'] ?? 0,
+       'stock_after_movement' => $movement['stock_after_movement'],
+       'average_cost_after_movement' => $movement['average_cost_after_movement'],
+       'recalculated_at' => $fromDate !== null ? now() : null,
+     ]);
+   }
+   ```
+
+4. **Validar consistencia:**
+   ```php
+   $currentStock = ProductWarehouseStock::where('product_id', $productId)
+     ->where('warehouse_id', $warehouseId)
+     ->first()
+     ->stock ?? 0;
+
+   $calculatedStock = $history[count($history) - 1]['stock_after_movement'] ?? 0;
+   $stockMatches = abs($currentStock - $calculatedStock) < 0.01;
+   ```
+
+### Casos de Uso
+
+#### Caso 1: Reconstrucción Completa (Initial Sync)
+```php
+// Reconstruir TODO el historial de un producto
+$result = $service->rebuildWeightedAverageCostHistory(
+  productId: 123,
+  warehouseId: 1,
+  fromDate: null  // null = reconstrucción completa
+);
+```
+
+**Cuándo usar:**
+- Primera vez que se habilita la tabla materializada
+- Detectar inconsistencias en el historial completo
+- Migración de datos
+
+#### Caso 2: Recálculo Retroactivo (Nota de Crédito Antigua)
+```php
+// Se aprobó una NC con fecha de hace 2 semanas
+$creditNoteDate = '2026-06-10';
+
+// Recalcular desde esa fecha en adelante
+$result = $service->rebuildWeightedAverageCostHistory(
+  productId: 123,
+  warehouseId: 1,
+  fromDate: $creditNoteDate
+);
+```
+
+**Cuándo usar:**
+- Se aprueba una NC con fecha retroactiva
+- Se corrige un movimiento antiguo
+- Se elimina un movimiento que afecta el historial
+
+#### Caso 3: Actualización Incremental (Nueva Compra)
+```php
+// Nueva compra aprobada hoy
+$result = $service->rebuildWeightedAverageCostHistory(
+  productId: 123,
+  warehouseId: 1,
+  fromDate: null  // Al ser nueva, reconstruir todo es más seguro
+);
+```
+
+**Cuándo usar:**
+- Nueva recepción de compra aprobada
+- Nueva venta confirmada
+- Cualquier nuevo movimiento APPROVED
+
+### API Endpoint
+
+**Ruta:** `POST /api/productWarehouseStock/rebuild-cost-history`
+
+**Request Body:**
+```json
+{
+  "product_id": 123,
+  "warehouse_id": 1,
+  "from_date": "2026-06-10"  // Opcional
+}
+```
+
+**Response:**
+```json
+{
+  "snapshots_deleted": 15,
+  "snapshots_inserted": 18,
+  "stock_matches": true,
+  "current_stock": 50.00,
+  "calculated_stock": 50.00,
+  "average_cost": 199.01
+}
+```
+
+### Consideraciones de Performance
+
+- **Reconstrucción completa**: Puede ser costosa para productos con muchos movimientos (> 1000)
+- **Reconstrucción parcial**: Más eficiente, solo recalcula desde una fecha específica
+- **Recomendación**: Para recálculos frecuentes, usar `$fromDate` para limitar el alcance
+
+### Integración con Otros Métodos
+
+**`getPriceCalculationDetails()` ahora usa la tabla materializada:**
+
+```php
+// ANTES (complejidad O(n)):
+$history = $this->getStockMovementHistory($productId, $warehouseId);
+// ... reconstruir lógica compleja para obtener últimas compras
+
+// AHORA (complejidad O(1)):
+$purchaseHistory = WeightedAverageCostHistory::forProductWarehouse($productId, $warehouseId)
+  ->byType(InventoryMovement::TYPE_PURCHASE_RECEPTION)
+  ->reverseChronological()
+  ->limit(2)
+  ->get();
+
+$lastPurchase = $purchaseHistory->first();
+$previousPurchase = $purchaseHistory->skip(1)->first();
+```
+
+**Beneficio:** Consultas hasta 100x más rápidas para productos con historial extenso.
 
 ---
 
@@ -496,6 +862,94 @@ Costo promedio: S/ 199.65
 ```
 
 **NOTA:** La devolución NO cambia el costo promedio, solo reduce el stock.
+
+---
+
+### Ejemplo 5: Historial Completo con Compras y Ventas
+
+**Escenario realista:** Un producto que se compra y vende varias veces
+
+**Stock inicial:** 0 unidades, Costo Promedio: S/ 0.00
+
+**Movimiento 1:** Recepción de Compra (2026-06-01)
+```
+Cantidad: 10 unidades
+Costo: USD 50.00
+TC: 3.400
+Costo en PEN: S/ 170.00
+```
+
+**Cálculo:**
+```
+Stock después: 10 unidades
+Costo promedio: S/ 170.00
+```
+
+**Movimiento 2:** Venta a Cliente (2026-06-05)
+```
+Tipo: SALE
+Cantidad: 3 unidades
+reference_type: ApOrderQuotations
+```
+
+**Cálculo:**
+```
+Stock después: 7 unidades (10 - 3)
+Costo promedio: S/ 170.00 (NO cambia en ventas)
+```
+
+**Movimiento 3:** Nueva Recepción de Compra (2026-06-10)
+```
+Cantidad: 15 unidades
+Costo: USD 55.00
+TC: 3.420
+Costo en PEN: S/ 188.10
+```
+
+**Cálculo:**
+```
+Stock anterior: 7
+Costo promedio anterior: 170.00
+Cantidad entrada: 15
+Costo entrada: 188.10
+
+Nuevo costo promedio = (7 × 170.00 + 15 × 188.10) / (7 + 15)
+                     = (1190.00 + 2821.50) / 22
+                     = 4011.50 / 22
+                     = S/ 182.34
+
+Stock después: 22 unidades
+Costo promedio: S/ 182.34
+```
+
+**Movimiento 4:** Venta a Cliente (2026-06-15)
+```
+Tipo: SALE
+Cantidad: 8 unidades
+reference_type: ApWorkOrder
+```
+
+**Cálculo:**
+```
+Stock después: 14 unidades (22 - 8)
+Costo promedio: S/ 182.34 (NO cambia en ventas)
+```
+
+**Historial Completo:**
+```
+Fecha       Movimiento       Tipo                 Cantidad  Costo Unit.  Stock  Costo Promedio
+------------------------------------------------------------------------------------------------------
+2026-06-01  MOV-2026-0100    Recepción de Compra  +10       S/ 170.00    10     S/ 170.00
+2026-06-05  MOV-2026-0101    Venta                -3        —            7      S/ 170.00
+2026-06-10  MOV-2026-0102    Recepción de Compra  +15       S/ 188.10    22     S/ 182.34
+2026-06-15  MOV-2026-0103    Venta                -8        —            14     S/ 182.34
+```
+
+**Observaciones:**
+- Las **ventas (SALE)** reducen el stock pero **NO afectan el costo promedio**
+- Las **compras (PURCHASE_RECEPTION)** incrementan stock y **SÍ recalculan el costo promedio**
+- El costo promedio se mantiene constante hasta la siguiente compra
+- Las ventas pueden referenciar `ApOrderQuotations` (cotizaciones) o `ApWorkOrder` (órdenes de trabajo)
 
 ---
 
@@ -789,5 +1243,5 @@ Este sistema está diseñado para:
 
 ---
 
-**Última actualización:** 2026-06-23
+**Última actualización:** 2026-06-24
 **Autor:** Sistema de Gestión de Inventario Milla Backend

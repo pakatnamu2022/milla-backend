@@ -153,4 +153,33 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Manually rebuild weighted average cost history for a product in a warehouse
+   * This endpoint allows manual execution of the history rebuild process for testing/debugging
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function rebuildCostHistory(Request $request): JsonResponse
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'product_id' => 'required|integer|exists:products,id',
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'from_date' => 'nullable|date',
+      ]);
+
+      $productId = $request->input('product_id');
+      $warehouseId = $request->input('warehouse_id');
+      $fromDate = $request->input('from_date');
+
+      $result = $this->service->rebuildWeightedAverageCostHistory($productId, $warehouseId, $fromDate);
+
+      return response()->json($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

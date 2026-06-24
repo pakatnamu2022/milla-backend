@@ -1404,6 +1404,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/compare-dynamics', [ProductWarehouseStockController::class, 'compareStockWithDynamics']);
       Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
+      Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',

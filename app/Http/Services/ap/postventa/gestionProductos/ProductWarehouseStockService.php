@@ -12,6 +12,7 @@ use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -1219,9 +1220,18 @@ class ProductWarehouseStockService extends BaseService
    * Get stock movement history for a product in a warehouse
    * Reconstructs the entire history showing how stock and average cost evolved
    *
-   * Shows movements relevant for average cost analysis:
-   * - PURCHASE_RECEPTION: Purchases that affect average cost
-   * - RETURN_OUT: Returns to supplier (if enabled via INCLUDE_RETURN_OUT_IN_HISTORY)
+   * Shows all movements that affect stock:
+   *
+   * INBOUND (Entradas) - Afectan costo promedio si unit_cost > 0:
+   * - PURCHASE_RECEPTION: Recepciones de compra
+   * - ADJUSTMENT_IN: Ajustes de entrada (con o sin costo)
+   * - TRANSFER_IN: Transferencias de entrada (con o sin costo)
+   *
+   * OUTBOUND (Salidas) - NO afectan costo promedio, solo reducen stock:
+   * - SALE: Ventas
+   * - ADJUSTMENT_OUT: Ajustes de salida
+   * - TRANSFER_OUT: Transferencias de salida
+   * - RETURN_OUT: Devoluciones a proveedor (solo si INCLUDE_RETURN_OUT_IN_HISTORY = 1)
    *
    * Configuration constants:
    * - INCLUDE_RETURN_OUT_IN_HISTORY: Include supplier returns in history
@@ -1249,7 +1259,17 @@ class ProductWarehouseStockService extends BaseService
         ->where('status', InventoryMovement::STATUS_APPROVED);
 
       // Build movement type filter
-      $movementTypes = [InventoryMovement::TYPE_PURCHASE_RECEPTION];
+      $movementTypes = [
+        // INBOUND (Entradas) - Pueden afectar costo promedio si unit_cost > 0
+        InventoryMovement::TYPE_PURCHASE_RECEPTION,
+        InventoryMovement::TYPE_ADJUSTMENT_IN,
+        InventoryMovement::TYPE_TRANSFER_IN,
+
+        // OUTBOUND (Salidas) - NO afectan costo promedio, solo reducen stock
+        InventoryMovement::TYPE_SALE,
+        InventoryMovement::TYPE_ADJUSTMENT_OUT,
+        InventoryMovement::TYPE_TRANSFER_OUT,
+      ];
 
       // Include RETURN_OUT if configuration is enabled
       if (self::INCLUDE_RETURN_OUT_IN_HISTORY === 1) {
@@ -1267,6 +1287,22 @@ class ProductWarehouseStockService extends BaseService
               $morphQuery->where('status', 'APPROVED');
             });
         });
+
+        // SALE: No additional filter needed, already filtered by status APPROVED above
+        // Reference can be ApOrderQuotations or ApWorkOrder
+        $q->orWhere('movement_type', InventoryMovement::TYPE_SALE);
+
+        // ADJUSTMENT_IN: No additional filter needed, already filtered by status APPROVED above
+        $q->orWhere('movement_type', InventoryMovement::TYPE_ADJUSTMENT_IN);
+
+        // ADJUSTMENT_OUT: No additional filter needed, already filtered by status APPROVED above
+        $q->orWhere('movement_type', InventoryMovement::TYPE_ADJUSTMENT_OUT);
+
+        // TRANSFER_IN: No additional filter needed, already filtered by status APPROVED above
+        $q->orWhere('movement_type', InventoryMovement::TYPE_TRANSFER_IN);
+
+        // TRANSFER_OUT: No additional filter needed, already filtered by status APPROVED above
+        $q->orWhere('movement_type', InventoryMovement::TYPE_TRANSFER_OUT);
 
         // RETURN_OUT: must have APPROVED SupplierCreditNote with active PurchaseOrder
         if (self::INCLUDE_RETURN_OUT_IN_HISTORY === 1) {
@@ -1427,6 +1463,8 @@ class ProductWarehouseStockService extends BaseService
    * Get detailed price calculation explanation for a product in a warehouse
    * Shows step-by-step how the PVP (public sale price) is calculated
    *
+   * SIMPLIFICADO: Usa la tabla materializada weighted_average_cost_history en lugar de reconstruir todo
+   *
    * @param int $productId
    * @param int $warehouseId
    * @return array
@@ -1435,7 +1473,7 @@ class ProductWarehouseStockService extends BaseService
   public function getPriceCalculationDetails(int $productId, int $warehouseId): array
   {
     try {
-      // Get the stock record
+      // Get stock record
       $stock = ProductWarehouseStock::where('product_id', $productId)
         ->where('warehouse_id', $warehouseId)
         ->with(['product', 'warehouse', 'currency'])
@@ -1447,163 +1485,65 @@ class ProductWarehouseStockService extends BaseService
       $minimumDiscount = $this->getMinimunDiscount();
       $calculationMethod = ProductWarehouseStock::PRICE_CALCULATION_METHOD;
 
-      // Get last purchase movement for this product and warehouse
-      // IMPORTANT: Order by created_at (not movement_date) to match the cost_price stored
-      // cost_price is updated with each addStock() call in registration order, not chronological order
-      $lastPurchaseMovement = InventoryMovement::whereHas('details', function ($q) use ($productId) {
-        $q->where('product_id', $productId);
-      })
-        ->where('warehouse_id', $warehouseId)
-        ->where('movement_type', InventoryMovement::TYPE_PURCHASE_RECEPTION)
-        ->where('status', InventoryMovement::STATUS_APPROVED)
-        ->with(['details' => function ($q) use ($productId) {
-          $q->where('product_id', $productId);
-        }, 'currency'])
-        ->orderBy('created_at', 'desc')
-        ->orderBy('id', 'desc')
-        ->first();
-
-      // Calculate prices
+      // Get current prices from stock
+      $currentStock = (float)$stock->quantity;
       $averageCost = (float)$stock->average_cost;
       $lastPurchasePrice = (float)$stock->cost_price;
       $publicSalePrice = (float)$stock->sale_price;
       $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
 
-      // Build detailed calculation steps
+      // Get last TWO purchase movements from weighted_average_cost_history
+      $purchaseHistory = WeightedAverageCostHistory::forProductWarehouse($productId, $warehouseId)
+        ->byType(InventoryMovement::TYPE_PURCHASE_RECEPTION)
+        ->reverseChronological()
+        ->limit(2)
+        ->get();
+
+      $lastPurchase = $purchaseHistory->first();
+      $previousPurchase = $purchaseHistory->count() > 1 ? $purchaseHistory->get(1) : null;
+
+      // Build calculation steps
       $calculationSteps = [];
 
-      // Step 1: Last Purchase Information
-      if ($lastPurchaseMovement && $lastPurchaseMovement->details->isNotEmpty()) {
-        $purchaseDetail = $lastPurchaseMovement->details->first();
-        $purchaseUnitCost = (float)$purchaseDetail->unit_cost;
-        $purchaseQuantity = (float)$purchaseDetail->quantity;
-        $purchaseCurrency = $lastPurchaseMovement->currency?->code ?? 'PEN';
-        $exchangeRate = (float)$lastPurchaseMovement->exchange_rate;
-
-        // Calculate conversion if needed
-        $unitCostInPenCalculated = $exchangeRate > 0 && $purchaseCurrency !== 'PEN'
-          ? round($purchaseUnitCost * $exchangeRate, 2)
-          : $purchaseUnitCost;
-
+      // ===========================
+      // STEP 1: Last Purchase Info
+      // ===========================
+      if ($lastPurchase) {
         $calculationSteps[] = [
           'step' => 1,
           'title' => 'Información de la Última Compra',
-          'description' => 'Datos de la última recepción de compra registrada para este producto en este almacén.',
+          'description' => 'Datos de la última recepción de compra registrada.',
           'data' => [
-            'movement_number' => $lastPurchaseMovement->movement_number,
-            'movement_date' => $lastPurchaseMovement->movement_date->format('Y-m-d H:i:s'),
-            'quantity_purchased' => $purchaseQuantity,
-            'unit_cost_original' => $purchaseUnitCost,
-            'original_currency' => $purchaseCurrency,
-            'exchange_rate' => $exchangeRate > 0 ? $exchangeRate : null,
-            'unit_cost_in_pen' => $lastPurchasePrice,
+            'movement_number' => $lastPurchase->movement_number,
+            'movement_date' => $lastPurchase->movement_date->format('Y-m-d'),
+            'quantity_purchased' => (float)$lastPurchase->quantity_in,
+            'unit_cost_in_pen' => (float)$lastPurchase->unit_cost_pen,
           ],
           'development' => [
-            'unit_cost_original' => $purchaseUnitCost,
-            'exchange_rate' => $exchangeRate,
-            'currency' => $purchaseCurrency,
-            'conversion_needed' => $exchangeRate > 0 && $purchaseCurrency !== 'PEN',
-            'calculation' => $exchangeRate > 0 && $purchaseCurrency !== 'PEN'
-              ? "$purchaseUnitCost × $exchangeRate = $unitCostInPenCalculated"
-              : "No se requiere conversión, ya está en PEN",
-            'unit_cost_in_pen_calculated' => $unitCostInPenCalculated,
-            'unit_cost_in_pen_stored' => $lastPurchasePrice,
-            'matches' => abs($unitCostInPenCalculated - $lastPurchasePrice) < 0.01,
+            'unit_cost_in_pen' => (float)$lastPurchase->unit_cost_pen,
+            'quantity_purchased' => (float)$lastPurchase->quantity_in,
+            'movement_date' => $lastPurchase->movement_date->format('Y-m-d'),
           ],
-          'message' => $exchangeRate > 0 && $purchaseCurrency !== 'PEN'
-            ? "Se compró una cantidad de $purchaseQuantity unidades a un costo unitario de $purchaseCurrency $purchaseUnitCost, que convertido a PEN con tipo de cambio $exchangeRate resulta en PEN $lastPurchasePrice."
-            : "Se compró una cantidad de $purchaseQuantity unidades a un costo unitario de PEN $lastPurchasePrice."
+          'message' => "Se compró una cantidad de {$lastPurchase->quantity_in} unidades a un costo unitario de PEN {$lastPurchase->unit_cost_pen}."
         ];
       } else {
         $calculationSteps[] = [
           'step' => 1,
           'title' => 'Información de la Última Compra',
-          'description' => 'No se encontró historial de compras para este producto en este almacén.',
+          'description' => 'No se encontró historial de compras.',
           'data' => [
             'last_purchase_price' => $lastPurchasePrice > 0 ? $lastPurchasePrice : null,
           ],
           'development' => [
-            'last_purchase_price' => $lastPurchasePrice,
             'has_purchase_history' => false,
           ],
-          'message' => $lastPurchasePrice > 0
-            ? "El último precio de compra registrado es PEN $lastPurchasePrice, pero no se encontró el movimiento de inventario asociado."
-            : "No hay historial de compras registradas para este producto en este almacén."
+          'message' => 'No hay historial de compras registradas para este producto en este almacén.'
         ];
       }
 
-      // Step 2: Weighted Average Cost Calculation
-      $currentStock = (float)$stock->quantity;
-
-      // Calculate stock before last purchase (if exists)
-      $stockBeforeLastPurchase = null;
-      $lastPurchaseQuantity = null;
-      $previousAverageCost = null;
-
-      if ($lastPurchaseMovement && $lastPurchaseMovement->details->isNotEmpty()) {
-        $purchaseDetail = $lastPurchaseMovement->details->first();
-        $lastPurchaseQuantity = (float)$purchaseDetail->quantity;
-
-        // Calculate the stock at the time IMMEDIATELY AFTER the last purchase
-        // by reversing all movements that occurred AFTER the last purchase (by registration order)
-        $stockAfterLastPurchase = $currentStock;
-
-        // Get all approved movements for this product/warehouse that were REGISTERED AFTER the last purchase
-        // IMPORTANT: Use created_at to match registration order (same as addStock() logic)
-        $movementsAfterPurchase = InventoryMovement::whereHas('details', function ($q) use ($productId) {
-          $q->where('product_id', $productId);
-        })
-          ->where('warehouse_id', $warehouseId)
-          ->where('status', InventoryMovement::STATUS_APPROVED)
-          ->where(function ($q) use ($lastPurchaseMovement) {
-            $q->where('created_at', '>', $lastPurchaseMovement->created_at)
-              ->orWhere(function ($q2) use ($lastPurchaseMovement) {
-                $q2->where('created_at', '=', $lastPurchaseMovement->created_at)
-                  ->where('id', '>', $lastPurchaseMovement->id);
-              });
-          })
-          ->with(['details' => function ($q) use ($productId) {
-            $q->where('product_id', $productId);
-          }])
-          ->orderBy('created_at', 'desc')
-          ->orderBy('id', 'desc')
-          ->get();
-
-        // Reverse each movement to get stock at time of purchase
-        foreach ($movementsAfterPurchase as $movement) {
-          if ($movement->details->isEmpty()) continue;
-
-          $detail = $movement->details->first();
-          $quantity = abs((float)$detail->quantity);
-
-          // Reverse the movement:
-          // - If it was inbound (added stock), subtract it
-          // - If it was outbound (removed stock), add it back
-          if ($movement->is_inbound) {
-            $stockAfterLastPurchase -= $quantity;
-          } else {
-            $stockAfterLastPurchase += $quantity;
-          }
-        }
-
-        // Now calculate stock BEFORE the last purchase
-        $stockBeforeLastPurchase = $stockAfterLastPurchase - $lastPurchaseQuantity;
-
-        // Calculate what the previous average cost was (before last purchase)
-        // From formula: newAverage = (oldStock × oldAvg + newQty × newCost) / (oldStock + newQty)
-        // Solve for oldAvg: oldAvg = (newAverage × (oldStock + newQty) - newQty × newCost) / oldStock
-        // We have: averageCost (new), stockBeforeLastPurchase (old), lastPurchaseQuantity (new), lastPurchasePrice (new cost)
-        if ($stockBeforeLastPurchase > 0) {
-          $previousAverageCost = round(
-            ($averageCost * $stockAfterLastPurchase - $lastPurchaseQuantity * $lastPurchasePrice) / $stockBeforeLastPurchase,
-            2
-          );
-        } else {
-          // If stock before was 0, this was the first purchase, so no previous average cost
-          $previousAverageCost = 0;
-        }
-      }
-
+      // =============================================
+      // STEP 2: Weighted Average Cost Calculation
+      // =============================================
       $step2Data = [
         'current_stock' => $currentStock,
         'average_cost' => $averageCost,
@@ -1613,74 +1553,78 @@ class ProductWarehouseStockService extends BaseService
       $step2Development = [
         'current_stock' => $currentStock,
         'current_average_cost' => $averageCost,
-        'last_purchase_price' => $lastPurchasePrice,
-        'explanation' => 'El costo promedio se actualiza con cada compra utilizando el método de promedio ponderado',
-        'note' => 'Este valor ya está almacenado en la base de datos. Se calcula automáticamente al registrar una compra en el método addStock()',
+        'explanation' => 'El costo promedio se actualiza con cada compra usando promedio ponderado',
       ];
 
       $step2Message = $averageCost > 0
-        ? "El costo promedio ponderado actual es PEN $averageCost. Este valor se actualiza cada vez que se recibe una nueva compra y se utiliza como base para calcular el precio de venta."
-        : "No hay costo promedio calculado. Esto ocurre cuando no se han registrado compras con costo unitario para este producto.";
+        ? "El costo promedio ponderado actual es PEN $averageCost."
+        : "No hay costo promedio calculado.";
 
-      // Add detailed calculation if last purchase exists
       $step2CalculationDetails = '';
-      if ($stockBeforeLastPurchase !== null && $lastPurchaseQuantity !== null && $previousAverageCost !== null) {
+
+      // If we have at least 2 purchases, we can show detailed calculation
+      if ($lastPurchase && $previousPurchase) {
+        // Stock ANTES de la última compra = stock del snapshot anterior
+        $stockBeforeLastPurchase = (float)$previousPurchase->stock_after_movement;
+        $previousAverageCost = (float)$previousPurchase->average_cost_after_movement;
+        $lastPurchaseQuantity = (float)$lastPurchase->quantity_in;
+        $lastPurchaseUnitCost = (float)$lastPurchase->unit_cost_pen;
+        $stockAfterLastPurchase = (float)$lastPurchase->stock_after_movement;
+
         $step2Data['stock_before_last_purchase'] = $stockBeforeLastPurchase;
-        $step2Data['last_purchase_quantity'] = $lastPurchaseQuantity;
         $step2Data['previous_average_cost'] = $previousAverageCost;
+        $step2Data['last_purchase_quantity'] = $lastPurchaseQuantity;
 
         $step2Development['stock_before_last_purchase'] = $stockBeforeLastPurchase;
         $step2Development['previous_average_cost'] = $previousAverageCost;
         $step2Development['last_purchase_quantity'] = $lastPurchaseQuantity;
-        $step2Development['last_purchase_unit_cost'] = $lastPurchasePrice;
+        $step2Development['last_purchase_unit_cost'] = $lastPurchaseUnitCost;
         $step2Development['stock_after_purchase'] = $stockAfterLastPurchase;
-        $step2Development['average_cost_after_purchase'] = $averageCost;
-        $step2Development['calculation_explanation'] = "En el método addStock(), se usa el stock ANTES de la compra ($stockBeforeLastPurchase unidades) y el costo promedio ANTERIOR ($previousAverageCost) para calcular el nuevo promedio ponderado.";
-        $step2Development['formula_applied'] = "($stockBeforeLastPurchase × $previousAverageCost + $lastPurchaseQuantity × $lastPurchasePrice) / ($stockBeforeLastPurchase + $lastPurchaseQuantity) = $averageCost";
 
-        // Build detailed step-by-step calculation
+        // Calculate
         $numeratorPart1 = $stockBeforeLastPurchase * $previousAverageCost;
-        $numeratorPart2 = $lastPurchaseQuantity * $lastPurchasePrice;
+        $numeratorPart2 = $lastPurchaseQuantity * $lastPurchaseUnitCost;
         $numeratorTotal = $numeratorPart1 + $numeratorPart2;
         $denominatorTotal = $stockBeforeLastPurchase + $lastPurchaseQuantity;
 
-        $step2CalculationDetails = "Costo_Promedio = ($stockBeforeLastPurchase × $previousAverageCost + $lastPurchaseQuantity × $lastPurchasePrice) / ($stockBeforeLastPurchase + $lastPurchaseQuantity)\n" .
+        $calculatedAverage = $denominatorTotal > 0 ? round($numeratorTotal / $denominatorTotal, 2) : 0;
+
+        $step2CalculationDetails = "Costo_Promedio = ($stockBeforeLastPurchase × $previousAverageCost + $lastPurchaseQuantity × $lastPurchaseUnitCost) / ($stockBeforeLastPurchase + $lastPurchaseQuantity)\n" .
           "Costo_Promedio = ($numeratorPart1 + $numeratorPart2) / $denominatorTotal\n" .
           "Costo_Promedio = $numeratorTotal / $denominatorTotal\n" .
-          "Costo_Promedio = $averageCost";
+          "Costo_Promedio = $calculatedAverage";
 
-        // Verify calculation
-        if ($stockBeforeLastPurchase > 0 || $lastPurchaseQuantity > 0) {
-          $calculatedAverage = round(
-            ($stockBeforeLastPurchase * $previousAverageCost + $lastPurchaseQuantity * $lastPurchasePrice) / ($stockBeforeLastPurchase + $lastPurchaseQuantity),
-            2
-          );
-          $step2Development['calculated_average_verification'] = $calculatedAverage;
-          $step2Development['matches_stored_average'] = abs($calculatedAverage - $averageCost) < 0.01;
-        }
+        $step2Development['calculated_average'] = $calculatedAverage;
+        $step2Development['matches_stored'] = abs($calculatedAverage - $averageCost) < 0.01;
 
-        $step2Message = "Antes de la última compra había $stockBeforeLastPurchase unidades con costo promedio de PEN $previousAverageCost. Se compraron $lastPurchaseQuantity unidades a PEN $lastPurchasePrice, llegando al stock después de la compra de $stockAfterLastPurchase unidades. El nuevo costo promedio ponderado es PEN $averageCost.";
+        $step2Message = "Antes de la última compra había $stockBeforeLastPurchase unidades con costo promedio PEN $previousAverageCost. Se compraron $lastPurchaseQuantity unidades a PEN $lastPurchaseUnitCost. El nuevo costo promedio ponderado es PEN $averageCost.";
+      } elseif ($lastPurchase) {
+        // Solo hay UNA compra (es la primera)
+        $step2Message = "Esta es la primera compra. El costo promedio es igual al costo de compra: PEN $averageCost.";
+        $step2Development['is_first_purchase'] = true;
       }
 
       $calculationSteps[] = [
         'step' => 2,
         'title' => 'Cálculo del Costo Promedio Ponderado',
-        'description' => 'El costo promedio se calcula con la fórmula: (Stock_Antes_Compra × Costo_Promedio_Anterior + Cantidad_Comprada × Costo_Unitario_Compra) / (Stock_Antes_Compra + Cantidad_Comprada)',
+        'description' => 'Fórmula: (Stock_Antes × Costo_Promedio_Anterior + Cantidad_Comprada × Costo_Unitario) / (Stock_Antes + Cantidad_Comprada)',
         'data' => $step2Data,
         'development' => $step2Development,
-        'formula' => 'Costo_Promedio = (Stock_Antes_Compra × Costo_Promedio_Anterior + Cantidad_Comprada × Costo_Unitario_Compra) / (Stock_Antes_Compra + Cantidad_Comprada)',
+        'formula' => 'Costo_Promedio = (Stock_Antes × Costo_Promedio_Anterior + Cantidad_Comprada × Costo_Unitario) / (Stock_Antes + Cantidad_Comprada)',
         'calculation_details' => $step2CalculationDetails,
         'message' => $step2Message
       ];
 
-      // Step 3: Configuration Values
+      // ===========================
+      // STEP 3: Configuration Values
+      // ===========================
       $profitMarginPercent = $profitMargin * 100;
       $freightCommissionPercent = $freightCommission * 100;
 
       $calculationSteps[] = [
         'step' => 3,
         'title' => 'Valores de Configuración',
-        'description' => 'Porcentajes configurados en el sistema para el cálculo del precio de venta.',
+        'description' => 'Porcentajes configurados para el cálculo del precio de venta.',
         'data' => [
           'profit_margin' => $profitMargin,
           'profit_margin_percent' => "$profitMarginPercent%",
@@ -1693,20 +1637,20 @@ class ProductWarehouseStockService extends BaseService
           'freight_commission' => $freightCommission,
           'calculation_method' => $calculationMethod,
         ],
-        'message' => "Margen de ganancia configurado: $profitMarginPercent%. Comisión de flete configurado: $freightCommissionPercent%. Método de cálculo: $calculationMethod."
+        'message' => "Margen de ganancia: $profitMarginPercent%. Comisión de flete: $freightCommissionPercent%. Método: $calculationMethod."
       ];
 
-      // Step 4: PVP Calculation
+      // =======================
+      // STEP 4: PVP Calculation
+      // =======================
       $calculatedPVP = 0;
       $formulaExplanation = '';
       $calculationDetails = '';
-      $basePrice = 0;
-      $divisor = 0;
       $step4Development = [];
 
       if ($averageCost > 0) {
         if ($calculationMethod === 1) {
-          // Method 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+          // Method 1: PVP = Costo / (1 - margen) * (1 + flete)
           $basePrice = $averageCost / (1 - $profitMargin);
           $calculatedPVP = round($basePrice * (1 + $freightCommission), 2);
           $formulaExplanation = 'PVP = Costo_Promedio / (1 - Margen_Ganancia) × (1 + Comisión_Flete)';
@@ -1719,15 +1663,12 @@ class ProductWarehouseStockService extends BaseService
             'average_cost' => $averageCost,
             'profit_margin' => $profitMargin,
             'freight_commission' => $freightCommission,
-            'one_minus_profit_margin' => 1 - $profitMargin,
             'base_price' => round($basePrice, 2),
-            'one_plus_freight_commission' => 1 + $freightCommission,
             'calculated_pvp' => $calculatedPVP,
-            'stored_sale_price' => $publicSalePrice,
             'method' => 1,
           ];
         } else {
-          // Method 2: PVP = Costo / (1 - (margen + impuesto))
+          // Method 2: PVP = Costo / (1 - (margen + flete))
           $divisor = 1 - ($profitMargin + $freightCommission);
           $calculatedPVP = round($averageCost / $divisor, 2);
           $formulaExplanation = 'PVP = Costo_Promedio / (1 - (Margen_Ganancia + Comisión_Flete))';
@@ -1740,25 +1681,22 @@ class ProductWarehouseStockService extends BaseService
             'average_cost' => $averageCost,
             'profit_margin' => $profitMargin,
             'freight_commission' => $freightCommission,
-            'sum_profit_and_freight' => $profitMargin + $freightCommission,
-            'one_minus_sum' => $divisor,
+            'divisor' => $divisor,
             'calculated_pvp' => $calculatedPVP,
-            'stored_sale_price' => $publicSalePrice,
             'method' => 2,
           ];
         }
       } else {
         $step4Development = [
-          'average_cost' => $averageCost,
+          'average_cost' => 0,
           'can_calculate' => false,
-          'reason' => 'Costo promedio es 0',
         ];
       }
 
       $calculationSteps[] = [
         'step' => 4,
         'title' => 'Cálculo del Precio de Venta al Público (PVP)',
-        'description' => "Aplicación de la fórmula del método $calculationMethod para calcular el precio de venta.",
+        'description' => "Aplicación del método $calculationMethod.",
         'data' => [
           'average_cost' => $averageCost,
           'calculated_pvp' => $calculatedPVP,
@@ -1769,18 +1707,20 @@ class ProductWarehouseStockService extends BaseService
         'formula' => $formulaExplanation,
         'calculation_details' => $calculationDetails,
         'message' => $averageCost > 0
-          ? "Aplicando la fórmula del método $calculationMethod, el PVP calculado es PEN $calculatedPVP. El PVP almacenado actualmente en la base de datos es PEN $publicSalePrice."
-          : "No se puede calcular el PVP porque el costo promedio es 0. Esto ocurre cuando no se han registrado compras con costo unitario."
+          ? "PVP calculado: PEN $calculatedPVP. PVP almacenado: PEN $publicSalePrice."
+          : "No se puede calcular PVP porque el costo promedio es 0."
       ];
 
-      // Step 5: Minimum Sale Price
+      // =============================
+      // STEP 5: Minimum Sale Price
+      // =============================
       $minimumDiscountPercent = $minimumDiscount * 100;
       $oneMinusDiscount = 1 - $minimumDiscount;
 
       $calculationSteps[] = [
         'step' => 5,
         'title' => 'Precio de Venta Mínimo',
-        'description' => 'El precio mínimo se calcula aplicando el descuento mínimo permitido al PVP.',
+        'description' => 'Precio mínimo aplicando el descuento máximo permitido.',
         'data' => [
           'public_sale_price' => $publicSalePrice,
           'minimum_discount' => $minimumDiscount,
@@ -1790,7 +1730,6 @@ class ProductWarehouseStockService extends BaseService
         'development' => [
           'public_sale_price' => $publicSalePrice,
           'minimum_discount' => $minimumDiscount,
-          'one_minus_discount' => $oneMinusDiscount,
           'minimum_sale_price' => $minimumSalePrice,
         ],
         'formula' => 'Precio_Mínimo = PVP × (1 - Descuento_Mínimo)',
@@ -1798,8 +1737,8 @@ class ProductWarehouseStockService extends BaseService
           "Precio_Mínimo = $publicSalePrice × $oneMinusDiscount\n" .
           "Precio_Mínimo = $minimumSalePrice",
         'message' => $publicSalePrice > 0
-          ? "El precio de venta mínimo permitido es PEN $minimumSalePrice, que corresponde al PVP con un descuento máximo del $minimumDiscountPercent%."
-          : "No se puede calcular el precio mínimo porque no hay un precio de venta público establecido."
+          ? "Precio mínimo: PEN $minimumSalePrice (descuento máximo $minimumDiscountPercent%)."
+          : "No se puede calcular precio mínimo."
       ];
 
       // Build summary
@@ -1810,7 +1749,7 @@ class ProductWarehouseStockService extends BaseService
         'warehouse_id' => $warehouseId,
         'warehouse_name' => $stock->warehouse?->description,
         'currency' => $stock->currency?->code ?? 'PEN',
-        'current_stock' => (float)$stock->quantity,
+        'current_stock' => $currentStock,
         'prices' => [
           'last_purchase_price' => $lastPurchasePrice,
           'average_cost' => $averageCost,
@@ -1837,6 +1776,226 @@ class ProductWarehouseStockService extends BaseService
         'generated_at' => now()->format('Y-m-d H:i:s'),
       ];
     } catch (Exception $e) {
+      throw $e;
+    }
+  }
+
+  /**
+   * MÉTODO CENTRALIZADO: Reconstruye el historial de costo promedio ponderado
+   *
+   * Este método materializa (guarda en tabla) el historial completo de movimientos
+   * con sus respectivos snapshots de stock y costo promedio después de cada movimiento.
+   *
+   * CUÁNDO USARLO:
+   * 1. Después de una COMPRA (addStock) → recalcular desde el día de la compra
+   * 2. Después de una NOTA DE CRÉDITO retroactiva → recalcular TODA la historia
+   * 3. Después de una VENTA (removeStock) → recalcular desde el día de la venta
+   *
+   * PROPÓSITO:
+   * - Evitar cálculos complejos "on the fly" en getPriceCalculationDetails
+   * - Permitir consultas rápidas del historial de costos
+   * - Soportar correcciones retroactivas (ej: NC de hace 3 meses)
+   * - Facilitar auditoría y trazabilidad
+   *
+   * FUNCIONAMIENTO:
+   * 1. Si $fromDate es NULL → borra TODO el historial y lo reconstruye desde cero
+   * 2. Si $fromDate tiene valor → borra solo desde esa fecha y reconstruye desde ahí
+   * 3. Usa getStockMovementHistory() como fuente de verdad
+   * 4. Guarda cada movimiento como un snapshot en weighted_average_cost_history
+   *
+   * @param int $productId ID del producto
+   * @param int $warehouseId ID del almacén
+   * @param \DateTime|string|null $fromDate Fecha desde la cual recalcular (NULL = todo)
+   * @return array Resumen del proceso con estadísticas
+   * @throws Exception
+   */
+  public function rebuildWeightedAverageCostHistory(
+    int                   $productId,
+    int                   $warehouseId,
+    \DateTime|string|null $fromDate = null
+  ): array
+  {
+    DB::beginTransaction();
+    try {
+      // Convertir $fromDate a Carbon si viene como string
+      if ($fromDate && is_string($fromDate)) {
+        $fromDate = \Carbon\Carbon::parse($fromDate);
+      }
+
+      // PASO 1: Determinar el alcance del recálculo
+      $fullRebuild = ($fromDate === null);
+      $fromDateStr = $fromDate ? $fromDate->format('Y-m-d') : null;
+
+      // PASO 2: Obtener estado base ANTES de $fromDate (si aplica)
+      $baseStock = 0;
+      $baseAverageCost = 0;
+
+      if (!$fullRebuild) {
+        // Buscar el último snapshot ANTES de $fromDate
+        $lastSnapshotBeforeDate = WeightedAverageCostHistory::getSnapshotBeforeDate(
+          $productId,
+          $warehouseId,
+          $fromDateStr
+        );
+
+        if ($lastSnapshotBeforeDate) {
+          $baseStock = (float)$lastSnapshotBeforeDate->stock_after_movement;
+          $baseAverageCost = (float)$lastSnapshotBeforeDate->average_cost_after_movement;
+        }
+      }
+
+      // PASO 3: Eliminar snapshots antiguos (desde $fromDate o todos)
+      if ($fullRebuild) {
+        // Borrar TODO el historial
+        $deletedCount = WeightedAverageCostHistory::where('product_id', $productId)
+          ->where('warehouse_id', $warehouseId)
+          ->delete();
+      } else {
+        // Borrar solo desde $fromDate
+        $deletedCount = WeightedAverageCostHistory::deleteFromDate(
+          $productId,
+          $warehouseId,
+          $fromDateStr
+        );
+      }
+
+      // PASO 4: Obtener el historial completo desde getStockMovementHistory()
+      // Este método ya tiene toda la lógica correcta de cálculo de costo promedio
+      $historyData = $this->getStockMovementHistory($productId, $warehouseId);
+
+      if (!$historyData['success']) {
+        throw new Exception("Error al obtener historial de movimientos para producto $productId en almacén $warehouseId");
+      }
+
+      // PASO 5: Insertar snapshots en la tabla materializada
+      $insertedCount = 0;
+      $skippedCount = 0;
+
+      foreach ($historyData['history'] as $item) {
+        // Si es recálculo parcial, solo insertar movimientos >= $fromDate
+        if (!$fullRebuild && $fromDateStr) {
+          $itemDate = \Carbon\Carbon::parse($item['movement_date']);
+          if ($itemDate->lt($fromDate)) {
+            $skippedCount++;
+            continue; // Saltar movimientos anteriores a $fromDate
+          }
+        }
+
+        // Crear snapshot
+        WeightedAverageCostHistory::create([
+          'product_id' => $productId,
+          'warehouse_id' => $warehouseId,
+          'movement_id' => $item['movement_id'],
+          'movement_date' => $item['movement_date'],
+          'movement_type' => $item['movement_type'],
+          'movement_number' => $item['movement_number'] ?? null,
+          'quantity_in' => $item['is_inbound'] ? $item['quantity'] : 0,
+          'quantity_out' => !$item['is_inbound'] ? $item['quantity'] : 0,
+          'unit_cost_pen' => $item['unit_cost_in_pen'] ?? 0,
+          'stock_after_movement' => $item['stock_after_movement'],
+          'average_cost_after_movement' => $item['average_cost_after_movement'],
+          'recalculated_at' => now(),
+        ]);
+
+        $insertedCount++;
+      }
+
+      // PASO 6: Actualizar ProductWarehouseStock con los valores finales calculados
+      $finalStock = $historyData['calculated_final_stock'] ?? 0;
+      $finalAverageCost = $historyData['calculated_final_average_cost'] ?? 0;
+
+      // Obtener el último costo unitario de entrada (cost_price)
+      // Buscar el último movimiento de entrada con unit_cost > 0
+      $lastCostPrice = 0;
+      $lastMovementDate = null;
+
+      // Recorrer el historial en orden inverso para obtener el último costo y fecha
+      for ($i = count($historyData['history']) - 1; $i >= 0; $i--) {
+        $item = $historyData['history'][$i];
+
+        // Guardar la fecha del último movimiento
+        if ($lastMovementDate === null) {
+          $lastMovementDate = $item['movement_date'];
+        }
+
+        // Buscar el último movimiento de entrada con costo > 0
+        if ($lastCostPrice === 0 && $item['is_inbound'] && isset($item['unit_cost_in_pen']) && $item['unit_cost_in_pen'] > 0) {
+          $lastCostPrice = $item['unit_cost_in_pen'];
+        }
+
+        // Si ya tenemos ambos valores, podemos salir del loop
+        if ($lastCostPrice > 0 && $lastMovementDate !== null) {
+          break;
+        }
+      }
+
+      // Calcular el sale_price basado en el nuevo average_cost
+      $profitMargin = $this->getProfitMargin();
+      $freightCommission = $this->getFreightCommission();
+      $minimumDiscount = $this->getMinimunDiscount();
+
+      if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
+        // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)
+        $salePrice = round(
+          ($finalAverageCost / (1 - $profitMargin)) * (1 + $freightCommission),
+          2
+        );
+      } else {
+        // Método 2 (por defecto): PVP = Costo / (1 - (margen + impuesto))
+        $salePrice = round(
+          $finalAverageCost / (1 - ($profitMargin + $freightCommission)),
+          2
+        );
+      }
+
+      // Calcular el sale_price_min basado en el PVP
+      // Fórmula: Precio_Mínimo = PVP × (1 - Descuento_Mínimo)
+      $salePriceMin = $salePrice > 0 ? round($salePrice * (1 - $minimumDiscount), 2) : 0;
+
+      // Actualizar el registro de ProductWarehouseStock
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->first();
+
+      if ($stock) {
+        $stock->quantity = $finalStock;
+        $stock->average_cost = $finalAverageCost;
+        $stock->cost_price = $lastCostPrice;
+        $stock->sale_price = $salePrice;
+        $stock->sale_price_min = $salePriceMin;
+
+        if ($lastMovementDate) {
+          $stock->last_movement_date = $lastMovementDate;
+        }
+
+        // Update available quantity based on new stock
+        $stock->updateAvailableQuantity();
+
+        $stock->save();
+      }
+
+      DB::commit();
+
+      // Retornar resumen del proceso
+      return [
+        'success' => true,
+        'product_id' => $productId,
+        'warehouse_id' => $warehouseId,
+        'rebuild_type' => $fullRebuild ? 'FULL' : 'PARTIAL',
+        'from_date' => $fromDateStr,
+        'base_stock_before_rebuild' => $baseStock,
+        'base_average_cost_before_rebuild' => $baseAverageCost,
+        'snapshots_deleted' => $deletedCount,
+        'snapshots_inserted' => $insertedCount,
+        'snapshots_skipped' => $skippedCount,
+        'final_stock' => $historyData['calculated_final_stock'] ?? 0,
+        'final_average_cost' => $historyData['calculated_final_average_cost'] ?? 0,
+        'stock_matches_database' => $historyData['stock_matches'] ?? false,
+        'average_cost_matches_database' => $historyData['average_cost_matches'] ?? false,
+        'rebuilt_at' => now()->format('Y-m-d H:i:s'),
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
       throw $e;
     }
   }
