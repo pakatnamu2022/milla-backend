@@ -56,6 +56,15 @@ class WorkScheduleController extends Controller
     }
   }
 
+  public function assignOne(Request $request, int $workerId): JsonResponse
+  {
+    try {
+      return $this->success($this->service->assignOne($request->all(), $workerId));
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function assignBulk(Request $request): JsonResponse
   {
     try {

@@ -633,6 +633,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         ]);
 
         //      HORARIOS DE TRABAJO
+        Route::post('work-schedule/assign/{worker}', [WorkScheduleController::class, 'assignOne']);
         Route::post('work-schedule/assign-bulk', [WorkScheduleController::class, 'assignBulk']);
         Route::apiResource('work-schedule', WorkScheduleController::class)->only([
           'index',
