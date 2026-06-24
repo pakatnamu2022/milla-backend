@@ -1228,6 +1228,346 @@ El sistema lo maneja así:
 
 ---
 
+## Cálculo Centralizado de Precios de Venta
+
+### Descripción
+
+El sistema calcula automáticamente dos precios de venta para cada producto en cada almacén:
+
+1. **`sale_price` (Precio de Venta al Público - PVP)**: Precio sugerido de venta
+2. **`sale_price_min` (Precio Mínimo de Venta)**: Precio mínimo aceptable con descuento
+
+Estos precios se calculan **centralizadamente** en el método `rebuildWeightedAverageCostHistory()` cada vez que cambia el costo promedio ponderado.
+
+### Ubicación del Cálculo
+
+**Archivo:** `app/Http/Services/ap/postventa/gestionProductos/ProductWarehouseStockService.php`
+
+**Método:** `rebuildWeightedAverageCostHistory()` (líneas 1935-1965)
+
+### Fórmulas de Cálculo
+
+El sistema soporta dos métodos de cálculo configurables mediante la constante `ProductWarehouseStock::PRICE_CALCULATION_METHOD`:
+
+#### Método 1 (PRICE_CALCULATION_METHOD = 1):
+```php
+PVP = (Costo / (1 - margen)) × (1 + impuesto)
+```
+
+#### Método 2 (PRICE_CALCULATION_METHOD = 2) - Por defecto:
+```php
+PVP = Costo / (1 - (margen + impuesto))
+```
+
+#### Precio Mínimo (ambos métodos):
+```php
+Precio_Mínimo = PVP × (1 - Descuento_Mínimo)
+```
+
+### Parámetros de Configuración
+
+El sistema obtiene los siguientes parámetros mediante métodos del servicio:
+
+```php
+$profitMargin = $this->getProfitMargin();           // Margen de ganancia
+$freightCommission = $this->getFreightCommission(); // Comisión de flete/impuesto
+$minimumDiscount = $this->getMinimunDiscount();     // Descuento mínimo permitido
+```
+
+### Ejemplo Numérico
+
+**Datos:**
+- Costo promedio: S/ 200.00
+- Margen de ganancia: 0.25 (25%)
+- Comisión de flete: 0.18 (18% IGV)
+- Descuento mínimo: 0.10 (10%)
+
+**Cálculo con Método 2:**
+```
+PVP = 200 / (1 - (0.25 + 0.18))
+    = 200 / (1 - 0.43)
+    = 200 / 0.57
+    = S/ 350.88
+
+Precio_Mínimo = 350.88 × (1 - 0.10)
+              = 350.88 × 0.90
+              = S/ 315.79
+```
+
+**Resultado:**
+- `sale_price`: S/ 350.88
+- `sale_price_min`: S/ 315.79
+
+### Estrategia de Actualización: Sincrónica vs. Asincrónica
+
+#### Operaciones Sincrónicas (Movimientos Recientes)
+
+Para movimientos del día o recientes, se llama directamente al método:
+
+```php
+// Ejemplo: Nueva compra aprobada hoy
+$service->rebuildWeightedAverageCostHistory(
+  $productId,
+  $warehouseId,
+  now() // Solo procesa movimientos de hoy
+);
+```
+
+**Ventajas:**
+- Respuesta inmediata
+- Usuario ve precios actualizados al instante
+- Procesa pocos registros (rápido)
+
+**Cuándo usar:**
+- Compras del día actual
+- Ventas del día actual
+- Ajustes de inventario recientes
+
+#### Operaciones Asincrónicas (Movimientos Retroactivos)
+
+Para movimientos antiguos que requieren recalcular mucho historial, se usa el Job en background:
+
+```php
+use App\Jobs\RecalculateProductCostJob;
+
+// Ejemplo: NC aprobada con fecha de hace 3 meses
+RecalculateProductCostJob::dispatch(
+  $productId,
+  $warehouseId,
+  '2026-03-24' // Fecha del ajuste retroactivo
+);
+```
+
+**Ventajas:**
+- No bloquea la interfaz de usuario
+- Procesa historiales grandes sin timeout
+- Permite continuar trabajando mientras se recalcula
+
+**Cuándo usar:**
+- Sincronización de ajustes de inventario de Dynamics (últimos 6 meses)
+- Sincronización de NC de Dynamics (últimos 6 meses)
+- Cualquier ajuste retroactivo que afecte > 100 movimientos
+
+### RecalculateProductCostJob
+
+**Ubicación:** `app\Jobs\RecalculateProductCostJob.php`
+
+**Cola:** `product_cost_recalculation`
+
+**Configuración:**
+- `tries`: 2 reintentos
+- `timeout`: 600 segundos (10 minutos)
+- `backoff`: 120 segundos entre reintentos
+
+**Uso:**
+
+```php
+use App\Jobs\RecalculateProductCostJob;
+
+// Recalcular TODO el historial
+RecalculateProductCostJob::dispatch($productId, $warehouseId, null);
+
+// Recalcular desde una fecha específica
+RecalculateProductCostJob::dispatch($productId, $warehouseId, '2026-03-01');
+
+// Despachar múltiples productos (ej: compra de 20 productos)
+foreach ($products as $product) {
+  RecalculateProductCostJob::dispatch($product->id, $warehouseId, '2026-03-01');
+}
+```
+
+**Logging:**
+
+El Job registra en los logs:
+- Inicio de recalculación
+- Finalización exitosa
+- Errores detallados con stack trace
+
+```php
+// Ver logs
+tail -f storage/logs/laravel.log | grep "RecalculateProductCostJob"
+```
+
+### Integración con Jobs de Sincronización de Dynamics
+
+#### SyncInventoryAdjustmentsDynamicsJob
+
+Este Job trae ajustes de inventario de los últimos 6 meses desde Dynamics.
+
+**Modificación recomendada:**
+
+```php
+// Al finalizar la sincronización de un ajuste:
+use App\Jobs\RecalculateProductCostJob;
+
+// Si el ajuste es de hace más de 1 semana
+if ($adjustmentDate < now()->subWeek()) {
+  // Usar Job asincrónico
+  RecalculateProductCostJob::dispatch(
+    $productId,
+    $warehouseId,
+    $adjustmentDate
+  );
+} else {
+  // Usar método sincrónico (reciente)
+  $stockService->rebuildWeightedAverageCostHistory(
+    $productId,
+    $warehouseId,
+    $adjustmentDate
+  );
+}
+```
+
+#### SyncCreditNoteDynamicsJob
+
+Similar para notas de crédito de Dynamics.
+
+```php
+// Si la NC es antigua (> 1 semana)
+if ($creditNoteDate < now()->subWeek()) {
+  RecalculateProductCostJob::dispatch($productId, $warehouseId, $creditNoteDate);
+} else {
+  $stockService->rebuildWeightedAverageCostHistory($productId, $warehouseId, $creditNoteDate);
+}
+```
+
+### Centralización de Lógica
+
+**IMPORTANTE:** Todos los cálculos de precios están ahora **centralizados** en `rebuildWeightedAverageCostHistory()`.
+
+Los siguientes métodos **YA NO calculan precios** (solo stock y costo):
+- `addStock()`: Solo calcula average_cost y cost_price
+- `removeStockFromCreditNote()`: Solo ajusta stock
+
+**Antes (INCORRECTO - código duplicado):**
+```php
+// En addStock():
+$stock->sale_price = ...;        // ❌ Ya no se hace aquí
+$stock->sale_price_min = ...;    // ❌ Ya no se hace aquí
+
+// En removeStockFromCreditNote():
+$stock->sale_price = ...;        // ❌ Ya no se hace aquí
+$stock->sale_price_min = ...;    // ❌ Ya no se hace aquí
+```
+
+**Ahora (CORRECTO - centralizado):**
+```php
+// Los precios SOLO se calculan en rebuildWeightedAverageCostHistory()
+// Los demás métodos solo llaman a rebuild cuando sea necesario
+```
+
+### Ventajas de la Centralización
+
+1. **Single Source of Truth**: Una sola lógica para calcular precios
+2. **Mantenibilidad**: Cambios en fórmulas solo se hacen en un lugar
+3. **Consistencia**: Mismos precios sin importar el origen del movimiento
+4. **Auditoría**: Fácil rastrear cuándo y cómo se calcularon los precios
+5. **Performance**: Se puede optimizar el recálculo usando `$fromDate`
+
+### Campos en ProductWarehouseStock
+
+```php
+protected $fillable = [
+  ...
+  'average_cost',      // Costo promedio ponderado
+  'cost_price',        // Último costo de compra
+  'sale_price',        // Precio de venta al público (PVP)
+  'sale_price_min',    // Precio mínimo de venta
+  ...
+];
+
+protected $casts = [
+  'average_cost' => 'decimal:2',
+  'cost_price' => 'decimal:2',
+  'sale_price' => 'decimal:2',
+  'sale_price_min' => 'decimal:2',
+];
+```
+
+### Migración de Base de Datos
+
+**Archivo:** `database/migrations/2026_06_24_120329_add_sale_price_min_product_warehouse_stock_table.php`
+
+```php
+Schema::table('product_warehouse_stock', function (Blueprint $table) {
+  $table->decimal('sale_price_min', 10)->default(0)->after('sale_price');
+});
+```
+
+**Ejecutar migración:**
+```bash
+php artisan migrate
+```
+
+### Casos de Uso Reales
+
+#### Caso 1: Compra de 20 productos a la vez
+
+**Escenario:**
+- Usuario aprueba recepción de compra con 20 productos diferentes
+- Cada producto tiene ~500 movimientos históricos
+- Total: 10,000 movimientos a procesar
+
+**Solución:**
+```php
+foreach ($purchaseReceptionDetails as $detail) {
+  // Despachar Jobs en paralelo
+  RecalculateProductCostJob::dispatch(
+    $detail->product_id,
+    $warehouseId,
+    now() // Solo recalcula desde hoy
+  );
+}
+```
+
+**Resultado:**
+- Jobs se procesan en background
+- Usuario puede continuar trabajando
+- Precios se actualizan en ~2-5 minutos
+
+#### Caso 2: Ajuste retroactivo de Dynamics (3 meses atrás)
+
+**Escenario:**
+- Se sincroniza ajuste de inventario del 24/03/2026 (hace 3 meses)
+- Producto tiene 50 movimientos desde esa fecha
+
+**Solución:**
+```php
+RecalculateProductCostJob::dispatch(
+  $productId,
+  $warehouseId,
+  '2026-03-24' // Recalcula desde el ajuste en adelante
+);
+```
+
+**Resultado:**
+- Procesa solo 50 movimientos (no todos los años)
+- No bloquea la sincronización de Dynamics
+- Se completa en ~5-10 segundos
+
+#### Caso 3: Nueva venta en tiempo real
+
+**Escenario:**
+- Usuario confirma una venta del día actual
+- Producto tiene 200 movimientos históricos
+
+**Solución:**
+```php
+// Sincrónico: la venta es reciente
+$stockService->rebuildWeightedAverageCostHistory(
+  $productId,
+  $warehouseId,
+  now() // Solo recalcula movimientos de hoy
+);
+```
+
+**Resultado:**
+- Respuesta inmediata (< 1 segundo)
+- Precios actualizados al instante
+- Usuario ve cambios de inmediato
+
+---
+
 ## Conclusión
 
 Este sistema está diseñado para:
@@ -1236,10 +1576,16 @@ Este sistema está diseñado para:
 ✓ Precisión: Cálculo correcto de costo promedio ponderado
 ✓ Integridad: Cuadre entre documentos fiscales e inventario físico
 ✓ Auditoría: Todos los movimientos quedan registrados con su referencia original
+✓ **Centralización**: Una sola fuente de verdad para cálculos de precios
+✓ **Performance**: Estrategia inteligente sincrónica/asincrónica según el caso
 
 **Ubicación del código:** `app/Http/Services/ap/postventa/gestionProductos/ProductWarehouseStockService.php`
 
 **Método principal:** `getStockMovementHistory($productId, $warehouseId)`
+
+**Método de recálculo:** `rebuildWeightedAverageCostHistory($productId, $warehouseId, $fromDate)`
+
+**Job de recálculo asincrónico:** `app/Jobs/RecalculateProductCostJob.php`
 
 ---
 

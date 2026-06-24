@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
+use App\Jobs\RecalculateProductCostJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
@@ -14,10 +15,12 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\GeneralMaster;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProductWarehouseStockService extends BaseService
 {
@@ -169,23 +172,8 @@ class ProductWarehouseStockService extends BaseService
         // Actualizar cost_price al último costo unitario de compra (en PEN)
         $stock->cost_price = $unitCostInPEN;
 
-        // Update sale_price based on average cost with freight commission and profit margin
-        $profitMargin = $this->getProfitMargin();
-        $freightCommission = $this->getFreightCommission();
-
-        if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
-          // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)
-          $stock->sale_price = round(
-            ($stock->average_cost / (1 - $profitMargin)) * (1 + $freightCommission),
-            2
-          );
-        } else {
-          // Método 2 (por defecto): PVP = Costo / (1 - (margen + impuesto))
-          $stock->sale_price = round(
-            $stock->average_cost / (1 - ($profitMargin + $freightCommission)),
-            2
-          );
-        }
+        // NOTA: Los precios de venta (sale_price y sale_price_min) se calculan
+        // centralizadamente en rebuildWeightedAverageCostHistory()
       }
 
       // Add quantity (physical stock that actually arrived in good condition)
@@ -464,6 +452,7 @@ class ProductWarehouseStockService extends BaseService
     DB::beginTransaction();
     try {
       $updatedStocks = [];
+      $productsToRecalculate = []; // Track products that need price recalculation
 
       foreach ($movement->details as $detail) {
         $productId = $detail->product_id;
@@ -493,6 +482,12 @@ class ProductWarehouseStockService extends BaseService
             $movement->exchange_rate
           );
           $updatedStocks[] = $stock;
+
+          // Mark this product-warehouse for price recalculation
+          $productsToRecalculate[] = [
+            'product_id' => $productId,
+            'warehouse_id' => $movement->warehouse_id,
+          ];
         } else {
           // OUTBOUND: Remove stock from warehouse
           $stock = $this->removeStock($productId, $movement->warehouse_id, abs($quantity));
@@ -504,14 +499,70 @@ class ProductWarehouseStockService extends BaseService
           // For transfers, also update destination warehouse
           $destinationStock = $this->addStock($productId, $movement->warehouse_destination_id, abs($quantity));
           $updatedStocks[] = $destinationStock;
+
+          // Mark destination warehouse for price recalculation too
+          $productsToRecalculate[] = [
+            'product_id' => $productId,
+            'warehouse_id' => $movement->warehouse_destination_id,
+          ];
         }
       }
 
       DB::commit();
+
+      // AFTER successful stock update, recalculate prices for all affected products
+      // This is done OUTSIDE the transaction to avoid blocking
+      $this->recalculatePricesAfterMovement($productsToRecalculate, $movement);
+
       return $updatedStocks;
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  /**
+   * Recalcula los precios de venta después de un movimiento de inventario
+   * Usa estrategia sync/async según la fecha del movimiento
+   *
+   * @param array $productsToRecalculate Array de ['product_id' => X, 'warehouse_id' => Y]
+   * @param InventoryMovement $movement Movimiento que originó el cambio
+   * @return void
+   */
+  protected function recalculatePricesAfterMovement(array $productsToRecalculate, InventoryMovement $movement): void
+  {
+    // Remove duplicates (same product-warehouse combination)
+    $uniqueProducts = collect($productsToRecalculate)->unique(function ($item) {
+      return $item['product_id'] . '-' . $item['warehouse_id'];
+    });
+
+    foreach ($uniqueProducts as $item) {
+      $productId = $item['product_id'];
+      $warehouseId = $item['warehouse_id'];
+
+      // Estrategia: Si el movimiento es reciente (últimos 7 días), usar sync
+      // Si es antiguo (> 7 días), usar Job asíncrono
+      $movementDate = Carbon::parse($movement->movement_date);
+      $daysDifference = now()->diffInDays($movementDate, true); // absolute = true para valor positivo
+      $isRecent = $daysDifference <= 7;
+
+      if ($isRecent) {
+        // SYNC: Movimiento reciente, recalcular de inmediato
+        try {
+          $this->rebuildWeightedAverageCostHistory($productId, $warehouseId, $movementDate);
+        } catch (\Exception $e) {
+          // Log error but don't fail the main operation
+          Log::error('Error al recalcular precios sincronicamente', [
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'movement_id' => $movement->id,
+            'error' => $e->getMessage(),
+          ]);
+        }
+      } else {
+        // ASYNC: Movimiento antiguo (retroactivo), usar Job
+        RecalculateProductCostJob::dispatch($productId, $warehouseId, $movementDate);
+      }
     }
   }
 
@@ -583,68 +634,6 @@ class ProductWarehouseStockService extends BaseService
     return ProductWarehouseStock::where('product_id', $productId)
       ->where('warehouse_id', $warehouseId)
       ->first();
-  }
-
-  /**
-   * Get all stock for a product across all warehouses
-   *
-   * @param int $productId
-   * @return \Illuminate\Database\Eloquent\Collection
-   */
-  public function getStockByProduct(int $productId)
-  {
-    return ProductWarehouseStock::where('product_id', $productId)
-      ->with('warehouse')
-      ->get();
-  }
-
-  /**
-   * Get all stock in a warehouse
-   *
-   * @param int $warehouseId
-   * @return \Illuminate\Database\Eloquent\Collection
-   */
-  public function getStockByWarehouse(int $warehouseId)
-  {
-    return ProductWarehouseStock::where('warehouse_id', $warehouseId)
-      ->with('product')
-      ->get();
-  }
-
-  /**
-   * Get products with low stock
-   *
-   * @param int|null $warehouseId
-   * @return \Illuminate\Database\Eloquent\Collection
-   */
-  public function getLowStockProducts(?int $warehouseId = null)
-  {
-    $query = ProductWarehouseStock::lowStock()
-      ->with(['product', 'warehouse']);
-
-    if ($warehouseId) {
-      $query->where('warehouse_id', $warehouseId);
-    }
-
-    return $query->get();
-  }
-
-  /**
-   * Get products out of stock
-   *
-   * @param int|null $warehouseId
-   * @return \Illuminate\Database\Eloquent\Collection
-   */
-  public function getOutOfStockProducts(?int $warehouseId = null)
-  {
-    $query = ProductWarehouseStock::outOfStock()
-      ->with(['product', 'warehouse']);
-
-    if ($warehouseId) {
-      $query->where('warehouse_id', $warehouseId);
-    }
-
-    return $query->get();
   }
 
   /**
@@ -1160,28 +1149,8 @@ class ProductWarehouseStockService extends BaseService
         $stock->cost_price = 0;
       }
 
-      // Step 6: Recalculate sale_price (PVP) based on new average cost
-      if ($stock->average_cost > 0) {
-        $profitMargin = $this->getProfitMargin();
-        $freightCommission = $this->getFreightCommission();
-
-        if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
-          // Method 1: PVP = Cost / (1 - margin) * (1 + tax)
-          $stock->sale_price = round(
-            ($stock->average_cost / (1 - $profitMargin)) * (1 + $freightCommission),
-            2
-          );
-        } else {
-          // Method 2 (default): PVP = Cost / (1 - (margin + tax))
-          $stock->sale_price = round(
-            $stock->average_cost / (1 - ($profitMargin + $freightCommission)),
-            2
-          );
-        }
-      } else {
-        // If average cost is 0, set sale price to 0
-        $stock->sale_price = 0;
-      }
+      // NOTA: Los precios de venta (sale_price y sale_price_min) se recalculan
+      // después mediante rebuildWeightedAverageCostHistory() en el Job correspondiente
 
       // Step 7: Remove quantity from appropriate field
       if ($fromPendingCreditNote) {
