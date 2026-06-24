@@ -25,6 +25,7 @@ class ProductWarehouseStock extends Model
     'cost_price',
     'average_cost',
     'sale_price',
+    'sale_price_min',
     'currency_id',
     'tax_rate',
     'is_taxable',
@@ -43,6 +44,7 @@ class ProductWarehouseStock extends Model
     'cost_price' => 'decimal:2',
     'average_cost' => 'decimal:2',
     'sale_price' => 'decimal:2',
+    'sale_price_min' => 'decimal:2',
     'last_movement_date' => 'datetime',
   ];
 
@@ -52,6 +54,7 @@ class ProductWarehouseStock extends Model
     'warehouse_id' => '=',
     'quantity' => '>',
     'available_quantity' => '>',
+    'sale_price_min' => '>',
   ];
 
   const sorts = [
