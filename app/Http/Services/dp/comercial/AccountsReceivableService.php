@@ -249,9 +249,15 @@ class AccountsReceivableService extends BaseService
     return "accounts_receivable:dashboard:{$company}";
   }
 
-  public function dashboard(string $company = 'deposito'): array
+  public function dashboard(string $company = 'deposito', array $filters = []): array
   {
-    return Cache::rememberForever(self::dashboardCacheKey($company), fn() => $this->buildDashboard($company));
+    $isFiltered = !empty(array_filter($filters));
+
+    if ($isFiltered) {
+      return $this->buildDashboard($company, $filters);
+    }
+
+    return Cache::rememberForever(self::dashboardCacheKey($company), fn() => $this->buildDashboard($company, []));
   }
 
   public function storeComment(int $id, array $data): AccountReceivableCommentResource
@@ -655,10 +661,17 @@ class AccountsReceivableService extends BaseService
     ])->values()->toArray();
   }
 
-  private function buildDashboard(string $company): array
+  private function buildDashboard(string $company, array $filters = []): array
   {
+    $sedeIds  = !empty($filters['sede_ids'])  ? array_map('intval', (array)$filters['sede_ids'])  : null;
+    $statuses = !empty($filters['statuses'])  ? (array)$filters['statuses']                       : null;
+    $years    = !empty($filters['years'])     ? array_map('intval', (array)$filters['years'])     : null;
+
     $base = fn() => AccountReceivable::where('company', $company)
-      ->whereNot('overdue_status', 'PAGADO');
+      ->whereNot('overdue_status', 'PAGADO')
+      ->when($sedeIds  !== null, fn($q) => $q->whereIn('sede_id',       $sedeIds))
+      ->when($statuses !== null, fn($q) => $q->whereIn('overdue_status', $statuses))
+      ->when($years    !== null, fn($q) => $q->whereIn('due_year',       $years));
 
     // KPIs
     $summary = $base()->selectRaw('

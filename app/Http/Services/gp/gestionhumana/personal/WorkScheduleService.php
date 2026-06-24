@@ -86,6 +86,18 @@ class WorkScheduleService extends BaseService
     return ['message' => 'Horario eliminado correctamente.'];
   }
 
+  public function assignOne(array $data, int $workerId): WorkScheduleResource
+  {
+    $scheduleId = $data['work_schedule_id'];
+    WorkSchedule::findOrFail($scheduleId);
+
+    $worker = Worker::working()->findOrFail($workerId);
+    $worker->update(['work_schedule_id' => $scheduleId]);
+
+    $worker->load('workSchedule.details');
+    return new WorkScheduleResource($worker->workSchedule);
+  }
+
   /**
    * Bulk-assign a work schedule to workers filtered by cargo_id, area_id and/or sede_id.
    * At least one filter is required.

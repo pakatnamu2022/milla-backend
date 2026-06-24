@@ -10,7 +10,7 @@ class StoreAccountantDistrictAssignmentRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'worker_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
+      'worker_id'   => ['required', 'integer', 'exists:rrhh_persona,id'],
       'district_id' => ['required', 'integer', 'exists:district,id'],
     ];
   }
@@ -32,7 +32,7 @@ class StoreAccountantDistrictAssignmentRequest extends StoreRequest
   public function attributes(): array
   {
     return [
-      'worker_id' => 'Trabajador',
+      'worker_id'   => 'Trabajador',
       'district_id' => 'Distrito',
     ];
   }

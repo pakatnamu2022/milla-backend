@@ -43,16 +43,16 @@ class Worker extends BaseModel
   ];
 
   const filters = [
-    'id' => '=',
-    'search' => ['nombre_completo', 'vat', 'position.name'],
-    'vat' => 'like',
-    'sede.empresa_id' => '=',
-    'nombre_completo' => 'like',
-    'cargo_id' => 'in',
-    'status_id' => '=',
-    'sede_id' => '=',
+    'id'                => '=',
+    'search'            => ['nombre_completo', 'vat', 'position.name'],
+    'vat'               => 'like',
+    'sede.empresa_id'   => '=',
+    'nombre_completo'   => 'like',
+    'cargo_id'          => 'in_or_equal',
+    'status_id'         => '=',
+    'sede_id'           => '=',
     'sede.departamento' => '=',
-    'asignacion' => '='
+    'asignacion'        => '='
   ];
 
   const sorts = [

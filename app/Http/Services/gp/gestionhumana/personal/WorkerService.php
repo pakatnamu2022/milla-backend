@@ -57,6 +57,9 @@ class WorkerService extends BaseService
   {
     $showExtra = $request->showExtra;
     $worker = $this->find($id);
+    if ($showExtra) {
+      $worker->load('workSchedule.details');
+    }
     return (new WorkerResource($worker))->showExtra($showExtra);
   }
 
