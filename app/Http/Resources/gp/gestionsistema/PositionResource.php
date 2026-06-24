@@ -29,6 +29,7 @@ class PositionResource extends JsonResource
       'position_head_name' => $this->lidership?->name ?? "",
       'hierarchical_category_id' => $this->hierarchicalCategory?->id,
       'hierarchical_category_name' => $this->hierarchicalCategory?->name ?? "-",
+      'no_attendance_required' => $this->no_attendance_required,
     ];
   }
 }

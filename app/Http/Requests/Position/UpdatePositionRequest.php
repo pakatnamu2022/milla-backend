@@ -48,6 +48,7 @@ class UpdatePositionRequest extends StoreRequest
       'tipo_onboarding_id' => 'nullable|integer|exists:rrhh_tipo_contingencia,id',
       'plazo_proceso_seleccion' => 'nullable|integer|min:0',
       'presupuesto' => 'nullable|numeric|min:0',
+      'no_attendance_required' => 'nullable|boolean',
       'mof_adjunto' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
       'files' => 'nullable|array|max:6',
       'files.*' => 'file|mimes:pdf,doc,docx|max:5120',
@@ -92,6 +93,8 @@ class UpdatePositionRequest extends StoreRequest
 
       'presupuesto.numeric' => 'El presupuesto debe ser un número.',
       'presupuesto.min' => 'El presupuesto no puede ser negativo.',
+
+      'no_attendance_required.boolean' => 'El campo de asistencia requerida debe ser verdadero o falso.',
 
       'mof_adjunto.file' => 'El mof adjunto debe ser un archivo válido.',
       'mof_adjunto.mimes' => 'El mof adjunto debe ser un archivo de tipo: pdf, doc, docx.',
