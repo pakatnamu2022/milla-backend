@@ -63,7 +63,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         }
 
         // Validar que el producto tenga la misma marca que el vehículo
-        Products::validateProductBrandMatchesVehicle($vehicleId, $data['product_id'], $data['description']);
+        //Products::validateProductBrandMatchesVehicle($vehicleId, $data['product_id'], $data['description']);
 
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $data['product_id'],
