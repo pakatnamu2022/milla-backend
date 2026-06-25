@@ -545,13 +545,17 @@ class AttendanceSyncService extends BaseService
           ->orOn('p.vat', '=', 'a.emp_code');
       })
       ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->leftJoin('work_schedule_details as wsd', function ($join) {
+        $join->on('wsd.work_schedule_id', '=', 'p.work_schedule_id')
+             ->whereRaw('wsd.day_of_week = DAYOFWEEK(a.date)');
+      })
       ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
       ->leftJoin('rrhh_area as ra', 'ra.id', '=', 'p.area_id')
       ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
       ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
       ->whereDate('a.date', $dateStr)
       ->where('a.mark_type', 'check_in')
-      ->whereRaw("a.time > ADDTIME(COALESCE(ws.checkin, '08:00:00'), '00:15:00')")
+      ->whereRaw("a.time > ADDTIME(COALESCE(wsd.checkin, ws.checkin, '08:00:00'), '00:15:00')")
       ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
       ->select(
@@ -559,8 +563,8 @@ class AttendanceSyncService extends BaseService
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
         DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
         'a.time AS check_in',
-        DB::raw("COALESCE(ws.checkin, '08:00:00') AS schedule"),
-        DB::raw("TIMESTAMPDIFF(MINUTE, COALESCE(ws.checkin, '08:00:00'), a.time) AS minutes_late"),
+        DB::raw("COALESCE(wsd.checkin, ws.checkin, '08:00:00') AS schedule"),
+        DB::raw("TIMESTAMPDIFF(MINUTE, COALESCE(wsd.checkin, ws.checkin, '08:00:00'), a.time) AS minutes_late"),
         DB::raw("COALESCE(rc.name, '') AS cargo"),
         DB::raw("COALESCE(ra.name, '') AS area"),
         DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
