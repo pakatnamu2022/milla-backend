@@ -275,9 +275,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->whereNull('deleted_at')
       ->first();
 
-    // Sin whereNull('deleted_at'): los soft-deleted también cuentan
-    // para evitar reusar números ya emitidos ante SUNAT
-    $maxCorrelative = ElectronicDocument::where('sunat_concept_document_type_id', $documentType)
+    // IMPORTANTE: Incluir soft-deleted con withTrashed() para evitar reusar números
+    // ya emitidos ante SUNAT y evitar duplicados en la constraint unique_document
+    $maxCorrelative = ElectronicDocument::withTrashed()
+      ->where('sunat_concept_document_type_id', $documentType)
       ->where('serie', $seriesCode)
       ->max('numero');
 
