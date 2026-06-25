@@ -813,7 +813,7 @@ class ProductWarehouseStockService extends BaseService
         $lastPurchasePrice = (float)($stock->cost_price ?? 0);      // Last unit cost from purchase/adjustment
         $averageCost = (float)($stock->average_cost ?? 0);          // Weighted average cost
         $publicSalePrice = (float)($stock->sale_price ?? 0);        // Public sale price (already calculated)
-        $minimumSalePrice = $this->calculateMinimumSalePrice($publicSalePrice);
+        $minimumSalePrice = (float)($stock->sale_price_min ?? 0);
 
         // Calculate days without movement
         $daysWithoutMovement = null;
