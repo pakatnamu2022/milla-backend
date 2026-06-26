@@ -537,7 +537,7 @@ class AttendanceSyncService extends BaseService
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         DB::raw("COALESCE(rc.name, '') AS cargo"),
         DB::raw("COALESCE(ra.name, '') AS area"),
         DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
@@ -596,7 +596,7 @@ class AttendanceSyncService extends BaseService
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         'a.time AS check_in',
         DB::raw("{$effectiveCheckin} AS schedule"),
         DB::raw("TIMESTAMPDIFF(MINUTE, {$effectiveCheckin}, a.time) AS minutes_late"),
