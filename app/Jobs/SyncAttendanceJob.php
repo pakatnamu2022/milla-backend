@@ -81,10 +81,10 @@ class SyncAttendanceJob implements ShouldQueue
 
     DB::connection('zkbiotime')
       ->table('db_owner.iclock_transaction as t')
-      ->join('db_owner.personnel_employee as e', 'e.id', '=', 't.emp_id')
+      ->leftJoin('db_owner.personnel_employee as e', 'e.id', '=', 't.emp_id')
       ->select([
         't.id as transaction_id',
-        'e.emp_code',
+        DB::raw("COALESCE(e.emp_code, t.emp_code) AS emp_code"),
         DB::raw("LTRIM(RTRIM(ISNULL(e.first_name,'')+' '+ISNULL(e.last_name,''))) AS full_name"),
         't.punch_time',
         't.punch_state',
