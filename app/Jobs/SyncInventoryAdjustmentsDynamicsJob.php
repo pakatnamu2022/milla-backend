@@ -149,7 +149,11 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
    */
   protected function createInventoryMovement(string $numero, array $lines): void
   {
-    DB::transaction(function () use ($numero, $lines) {
+    $productsToRecalculate = [];
+    $movement = null;
+    $stockService = app(ProductWarehouseStockService::class);
+
+    DB::transaction(function () use ($numero, $lines, &$productsToRecalculate, &$movement, $stockService) {
       // Tomar la primera línea para obtener datos generales
       $firstLine = $lines[0];
 
@@ -199,7 +203,6 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
 
       // Crear los detalles
       $totalQuantity = 0;
-      $stockService = app(ProductWarehouseStockService::class);
 
       foreach ($lines as $line) {
         // Buscar el producto
@@ -241,16 +244,29 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
           $stockService->removeStock($product->id, $warehouse->id, $quantity);
         }
 
+        // Marcar producto para recalcular precios (tanto ingresos como salidas)
+        $productsToRecalculate[] = [
+          'product_id' => $product->id,
+          'warehouse_id' => $warehouse->id,
+        ];
+
         InventoryMovementDetail::create([
           'inventory_movement_id' => $movement->id,
           'product_id' => $product->id,
           'quantity' => $quantity,
+          'unit_cost' => $line->CostoUnitario ?? null,
+          'total_cost' => $line->CostoTotal ?? null,
         ]);
       }
 
       // Actualizar total_quantity
       $movement->update(['total_quantity' => $totalQuantity]);
     });
+
+    // AFTER successful stock update, recalculate prices for all affected products
+    // This is done OUTSIDE the transaction to avoid blocking
+    // Usa el método centralizado del servicio (una sola fuente de verdad)
+    $stockService->recalculatePricesAfterMovement($productsToRecalculate, $movement);
   }
 
   /**
