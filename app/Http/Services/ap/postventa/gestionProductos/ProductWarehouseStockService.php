@@ -6,7 +6,6 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResour
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\RecalculateProductCostJob;
-use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;

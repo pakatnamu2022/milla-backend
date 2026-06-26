@@ -245,6 +245,8 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
           'inventory_movement_id' => $movement->id,
           'product_id' => $product->id,
           'quantity' => $quantity,
+          'unit_cost' => $line->CostoUnitario ?? null,
+          'total_cost' => $line->CostoTotal ?? null,
         ]);
       }
 
