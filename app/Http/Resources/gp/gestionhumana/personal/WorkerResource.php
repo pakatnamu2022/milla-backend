@@ -46,7 +46,8 @@ class WorkerResource extends JsonResource
         $response['photo'] = $fotoBase64;
       }
 
-      $response['workSchedule'] = $this->workSchedule ? WorkScheduleResource::make($this->workSchedule) : null;
+      $response['workSchedule']          = $this->workSchedule ? WorkScheduleResource::make($this->workSchedule) : null;
+      $response['no_attendance_required'] = (bool) $this->no_attendance_required;
     }
 
     // Agregar campos de diagnóstico si están disponibles

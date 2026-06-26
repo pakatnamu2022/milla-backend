@@ -118,6 +118,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
+use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
@@ -1974,6 +1975,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     'update',
     'destroy',
   ]);
+});
+
+// AUSENTISMO LABORAL
+Route::group(['prefix' => 'admin/ausentismo'], function () {
+  Route::get('/', [AusentismoLaboralController::class, 'index']);
+  Route::post('/', [AusentismoLaboralController::class, 'store']);
+  Route::get('/{id}', [AusentismoLaboralController::class, 'show']);
+  Route::put('/{id}', [AusentismoLaboralController::class, 'update']);
+  Route::delete('/{id}', [AusentismoLaboralController::class, 'destroy']);
 });
 
 // ATTENDANCE — ZKBioTime sync
