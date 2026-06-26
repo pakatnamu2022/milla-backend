@@ -180,6 +180,11 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
 Route::post('/reset-password-token', [AuthController::class, 'resetPasswordByToken'])->name('resetPasswordByToken');
 Route::post('/auth/2fa/verify', [TotpController::class, 'verify'])->name('2fa.verify');
+Route::group(['prefix' => 'tp/comercial/public/monitoreo'], function () {
+  Route::post('location', [DriverLocationController::class, 'store']);
+  Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
+  Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
+});
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
@@ -282,11 +287,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
 
-    Route::group(['prefix' => 'public/monitoreo'], function () {
-      Route::post('location', [DriverLocationController::class, 'store']);
-      Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
-      Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
-    });
+
 
 
     Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
