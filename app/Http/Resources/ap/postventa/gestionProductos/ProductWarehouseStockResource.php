@@ -31,6 +31,7 @@ class ProductWarehouseStockResource extends JsonResource
       'cost_price' => $this->cost_price ?? 0,
       'average_cost' => $this->average_cost ?? 0,
       'sale_price' => $this->sale_price ?? 0,
+      'sale_price_min' => $this->sale_price_min ?? 0,
       'last_movement_date' => $this->last_movement_date?->format('Y-m-d H:i:s'),
 
       // Computed attributes

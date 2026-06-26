@@ -6,7 +6,6 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResour
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\RecalculateProductCostJob;
-use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
@@ -15,7 +14,6 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\GeneralMaster;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
@@ -37,6 +35,14 @@ class ProductWarehouseStockService extends BaseService
    * false = Utilice la cantidad facturada (quantity_received + observed_quantity)
    */
   const USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST = true;
+
+  /**
+   * Umbral de movimientos para decidir entre recalcular precios SYNC vs ASYNC
+   * Basado en estándares de la industria (Amazon, Shopify, SAP, Odoo)
+   * ≤ 100 movimientos = SYNC (rápido, ~1-3 segundos)
+   * > 100 movimientos = ASYNC Job (evitar timeout en productos de alta rotación)
+   */
+  const MOVEMENT_THRESHOLD = 100;
 
   private ?float $freightCommission = null;
   private ?float $profitMargin = null;
@@ -113,22 +119,20 @@ class ProductWarehouseStockService extends BaseService
   /**
    * Add stock to warehouse with automatic currency conversion to PEN (base currency)
    *
+   * NOTA IMPORTANTE: Este método solo actualiza la cantidad física (quantity).
+   * Los cálculos de average_cost, cost_price, sale_price y sale_price_min se realizan
+   * centralizadamente en rebuildWeightedAverageCostHistory() después de cada movimiento.
+   *
    * @param int $productId Product ID
    * @param int $warehouseId Warehouse ID
    * @param float $quantity Quantity to add
-   * @param float $unitCost Unit cost in original currency
-   * @param int|null $currencyId Currency ID of the unit cost (default: PEN = 3)
-   * @param float|null $exchangeRate Exchange rate to convert to PEN (only for non-PEN currencies)
    * @return ProductWarehouseStock Updated stock record
    * @throws Exception
    */
   public function addStock(
-    int    $productId,
-    int    $warehouseId,
-    float  $quantity,
-    float  $unitCost = 0,
-    ?int   $currencyId = null,
-    ?float $exchangeRate = null
+    int   $productId,
+    int   $warehouseId,
+    float $quantity
   ): ProductWarehouseStock
   {
     DB::beginTransaction();
@@ -152,29 +156,15 @@ class ProductWarehouseStockService extends BaseService
         ]
       );
 
-      // Calcule el costo promedio ponderado si se proporciona el costo unitario.
-      if ($unitCost > 0) {
-        // Convertir el costo unitario a PEN (moneda base) si es necesario.
-        $unitCostInPEN = $this->convertToBaseCurrency($unitCost, $currencyId, $exchangeRate);
-
-        $currentStock = $stock->quantity;
-        $currentAverageCost = $stock->average_cost ?? 0;
-
-        // Fórmula del costo promedio ponderado (todo en PEN):
-        // nuevo_costo_promedio = (current_stock × current_average_cost + new_quantity × unit_cost_in_PEN) / (current_stock + new_quantity)
-        if ($currentStock + $quantity > 0) {
-          $newAverageCost = (($currentStock * $currentAverageCost) + ($quantity * $unitCostInPEN)) / ($currentStock + $quantity);
-          $stock->average_cost = round($newAverageCost, 2);
-        } else {
-          $stock->average_cost = $unitCostInPEN;
-        }
-
-        // Actualizar cost_price al último costo unitario de compra (en PEN)
-        $stock->cost_price = $unitCostInPEN;
-
-        // NOTA: Los precios de venta (sale_price y sale_price_min) se calculan
-        // centralizadamente en rebuildWeightedAverageCostHistory()
-      }
+      // IMPORTANTE: NO calculamos average_cost, cost_price, sale_price ni sale_price_min aquí.
+      // Todos estos valores se calculan centralizadamente en rebuildWeightedAverageCostHistory()
+      // después de que el movimiento sea aprobado y confirmado.
+      //
+      // Razones para este enfoque:
+      // 1. rebuildWeightedAverageCostHistory() usa getStockMovementHistory() como fuente de verdad
+      // 2. Garantiza consistencia en todos los cálculos de precios
+      // 3. Soporta recálculos retroactivos (ej: notas de crédito antiguas)
+      // 4. Evita duplicación de lógica y posibles inconsistencias
 
       // Add quantity (physical stock that actually arrived in good condition)
       $stock->quantity += $quantity;
@@ -460,26 +450,11 @@ class ProductWarehouseStockService extends BaseService
 
         // Determine if this is an inbound or outbound movement
         if ($movement->is_inbound) {
-          // INBOUND: Add stock to warehouse
-          // Pass unit_cost for PURCHASE_RECEPTION and ADJUSTMENT_IN movements to calculate weighted average cost
-          // - PURCHASE_RECEPTION: unit_cost comes from adjusted purchase price (total invoiced / qty received)
-          // - ADJUSTMENT_IN: unit_cost comes from user input for initial stock or manual adjustments
-          $unitCost = 0;
-          if (in_array($movement->movement_type, [
-            InventoryMovement::TYPE_PURCHASE_RECEPTION,
-            InventoryMovement::TYPE_ADJUSTMENT_IN
-          ])) {
-            $unitCost = $detail->unit_cost ?? 0;
-          }
-
           // Pass currency and exchange rate from movement for proper conversion to PEN
           $stock = $this->addStock(
             $productId,
             $movement->warehouse_id,
-            abs($quantity),
-            $unitCost,
-            $movement->currency_id,
-            $movement->exchange_rate
+            abs($quantity)
           );
           $updatedStocks[] = $stock;
 
@@ -523,13 +498,13 @@ class ProductWarehouseStockService extends BaseService
 
   /**
    * Recalcula los precios de venta después de un movimiento de inventario
-   * Usa estrategia sync/async según la fecha del movimiento
+   * Usa estrategia sync/async según la cantidad de movimientos del producto
    *
    * @param array $productsToRecalculate Array de ['product_id' => X, 'warehouse_id' => Y]
    * @param InventoryMovement $movement Movimiento que originó el cambio
    * @return void
    */
-  protected function recalculatePricesAfterMovement(array $productsToRecalculate, InventoryMovement $movement): void
+  public function recalculatePricesAfterMovement(array $productsToRecalculate, InventoryMovement $movement): void
   {
     // Remove duplicates (same product-warehouse combination)
     $uniqueProducts = collect($productsToRecalculate)->unique(function ($item) {
@@ -540,28 +515,40 @@ class ProductWarehouseStockService extends BaseService
       $productId = $item['product_id'];
       $warehouseId = $item['warehouse_id'];
 
-      // Estrategia: Si el movimiento es reciente (últimos 7 días), usar sync
-      // Si es antiguo (> 7 días), usar Job asíncrono
-      $movementDate = Carbon::parse($movement->movement_date);
-      $daysDifference = now()->diffInDays($movementDate, true); // absolute = true para valor positivo
-      $isRecent = $daysDifference <= 7;
+      // Estrategia: Contar cantidad de movimientos del producto-almacén
+      // Si ≤ 100 movimientos → SYNC (rápido, ~1-3 segundos)
+      // Si > 100 movimientos → ASYNC Job (evitar timeout)
+      $movementCount = InventoryMovement::whereHas('details', function ($q) use ($productId) {
+        $q->where('product_id', $productId);
+      })
+        ->where('warehouse_id', $warehouseId)
+        ->where('status', InventoryMovement::STATUS_APPROVED)
+        ->count();
 
-      if ($isRecent) {
-        // SYNC: Movimiento reciente, recalcular de inmediato
+      if ($movementCount <= self::MOVEMENT_THRESHOLD) {
+        // SYNC: Producto con pocos movimientos, recalcular de inmediato
         try {
-          $this->rebuildWeightedAverageCostHistory($productId, $warehouseId, $movementDate);
+          $this->rebuildWeightedAverageCostHistory($productId, $warehouseId, $movement->movement_date);
         } catch (\Exception $e) {
           // Log error but don't fail the main operation
           Log::error('Error al recalcular precios sincronicamente', [
             'product_id' => $productId,
             'warehouse_id' => $warehouseId,
             'movement_id' => $movement->id,
+            'movement_count' => $movementCount,
             'error' => $e->getMessage(),
           ]);
         }
       } else {
-        // ASYNC: Movimiento antiguo (retroactivo), usar Job
-        RecalculateProductCostJob::dispatch($productId, $warehouseId, $movementDate);
+        // ASYNC: Producto con muchos movimientos (alta rotación), usar Job
+        RecalculateProductCostJob::dispatch($productId, $warehouseId, $movement->movement_date);
+
+        Log::info('Recálculo de precios despachado a Job asíncrono', [
+          'product_id' => $productId,
+          'warehouse_id' => $warehouseId,
+          'movement_id' => $movement->id,
+          'movement_count' => $movementCount,
+        ]);
       }
     }
   }
@@ -1220,11 +1207,33 @@ class ProductWarehouseStockService extends BaseService
         ->with(['product', 'warehouse'])
         ->firstOrFail();
 
-      // Build query for PURCHASE_RECEPTION movements
+      // Build query for movements with correct warehouse logic
       $query = InventoryMovement::whereHas('details', function ($q) use ($productId) {
         $q->where('product_id', $productId);
       })
-        ->where('warehouse_id', $warehouseId)
+        ->where(function ($q) use ($warehouseId) {
+          // TRANSFER_OUT: solo mostrar en el almacén de origen (warehouse_id)
+          $q->where(function ($subQ) use ($warehouseId) {
+            $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+              ->where('warehouse_id', $warehouseId);
+          })
+            // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
+            ->orWhere(function ($subQ) use ($warehouseId) {
+              $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+                ->where('warehouse_destination_id', $warehouseId);
+            })
+            // Todos los demás tipos de movimientos (no transferencias)
+            ->orWhere(function ($subQ) use ($warehouseId) {
+              $subQ->whereNotIn('movement_type', [
+                InventoryMovement::TYPE_TRANSFER_OUT,
+                InventoryMovement::TYPE_TRANSFER_IN
+              ])
+                ->where(function ($q2) use ($warehouseId) {
+                  $q2->where('warehouse_id', $warehouseId)
+                    ->orWhere('warehouse_destination_id', $warehouseId);
+                });
+            });
+        })
         ->where('status', InventoryMovement::STATUS_APPROVED);
 
       // Build movement type filter
