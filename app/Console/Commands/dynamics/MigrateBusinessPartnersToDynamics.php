@@ -18,6 +18,7 @@ class MigrateBusinessPartnersToDynamics extends Command
    */
   protected $signature = 'business-partners:migrate-to-dynamics
                           {--type= : Filtrar por tipo (CLIENTE, PROVEEDOR, AMBOS)}
+                          {--document= : Filtrar por número de documento específico}
                           {--limit= : Limitar el número de registros a migrar}
                           {--dry-run : Ejecutar en modo de prueba sin crear registros}';
 
@@ -49,6 +50,7 @@ class MigrateBusinessPartnersToDynamics extends Command
     $isDryRun = $this->option('dry-run');
     $limit = $this->option('limit');
     $typeFilter = $this->option('type');
+    $documentFilter = $this->option('document');
 
     if ($isDryRun) {
       $this->warn('⚠️  MODO DRY-RUN ACTIVADO - No se crearán registros');
@@ -67,6 +69,12 @@ class MigrateBusinessPartnersToDynamics extends Command
       }
       $query->where('type', $typeFilter);
       $this->info("🔍 Filtrando por tipo: {$typeFilter}");
+    }
+
+    // Filtrar por documento si se especifica
+    if ($documentFilter) {
+      $query->where('num_doc', $documentFilter);
+      $this->info("📄 Filtrando por documento: {$documentFilter}");
     }
 
     if ($limit) {
