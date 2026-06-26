@@ -495,6 +495,8 @@ class AttendanceSyncService extends BaseService
 
   private function buildAbsentRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
   {
+    $workingCodes = ['D', 'N', 'DDT', 'DNT', 'FDT', 'FNT'];
+
     $query = DB::table('rrhh_persona as p')
       ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
         $join->on(function ($j) {
@@ -510,6 +512,7 @@ class AttendanceSyncService extends BaseService
       ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
       ->whereNull('a.id')
       ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
@@ -520,10 +523,22 @@ class AttendanceSyncService extends BaseService
           ->where('v.fecha_inicio', '<=', $dateStr)
           ->where('v.fecha_fin', '>=', $dateStr);
       })
+      // Agentes de seguridad: solo incluir si tienen turno activo programado para ese día
+      ->where(function ($q) use ($dateStr, $workingCodes) {
+        $q->where('rc.name', 'not like', '%AGENTE DE SEGURIDAD%')
+          ->orWhereExists(function ($sub) use ($dateStr, $workingCodes) {
+            $sub->select(DB::raw(1))
+              ->from('gh_payroll_schedules as ps')
+              ->whereColumn('ps.worker_id', 'p.id')
+              ->where('ps.work_date', '=', $dateStr)
+              ->whereIn('ps.code', $workingCodes)
+              ->whereNull('ps.deleted_at');
+          });
+      })
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 AND jefe_p.status_deleted = 1 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         DB::raw("COALESCE(rc.name, '') AS cargo"),
         DB::raw("COALESCE(ra.name, '') AS area"),
         DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
@@ -539,28 +554,54 @@ class AttendanceSyncService extends BaseService
 
   private function buildLateRows(string $dateStr, ?array $sedeIds): \Illuminate\Support\Collection
   {
+    $dayCodes   = ['D', 'DDT', 'FDT'];
+    $nightCodes = ['N', 'DNT', 'FNT'];
+    $workingCodes = array_merge($dayCodes, $nightCodes);
+
+    // CASE expression for the effective check-in time of security agents
+    $effectiveCheckin = "CASE
+      WHEN rc.name LIKE '%AGENTE DE SEGURIDAD%' AND ps.code IN ('D','DDT','FDT')  THEN '07:00:00'
+      WHEN rc.name LIKE '%AGENTE DE SEGURIDAD%' AND ps.code IN ('N','DNT','FNT')  THEN '19:00:00'
+      ELSE COALESCE(wsd.checkin, ws.checkin, '08:00:00')
+    END";
+
     $query = DB::table('attendance_sync as a')
       ->join('rrhh_persona as p', function ($join) {
         $join->on('p.id', '=', 'a.person_id')
           ->orOn('p.vat', '=', 'a.emp_code');
       })
       ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->leftJoin('work_schedule_details as wsd', function ($join) {
+        $join->on('wsd.work_schedule_id', '=', 'p.work_schedule_id')
+             ->whereRaw('wsd.day_of_week = DAYOFWEEK(a.date)');
+      })
+      ->leftJoin('gh_payroll_schedules as ps', function ($join) use ($dateStr) {
+        $join->on('ps.worker_id', '=', 'p.id')
+             ->where('ps.work_date', '=', $dateStr)
+             ->whereNull('ps.deleted_at');
+      })
       ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
       ->leftJoin('rrhh_area as ra', 'ra.id', '=', 'p.area_id')
       ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
       ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
       ->whereDate('a.date', $dateStr)
       ->where('a.mark_type', 'check_in')
-      ->whereRaw("a.time > ADDTIME(COALESCE(ws.checkin, '08:00:00'), '00:15:00')")
       ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
+      // Agentes de seguridad sin turno programado (o con descanso/licencia) se omiten
+      ->where(function ($q) use ($workingCodes) {
+        $q->where('rc.name', 'not like', '%AGENTE DE SEGURIDAD%')
+          ->orWhereIn('ps.code', $workingCodes);
+      })
+      ->whereRaw("a.time > ADDTIME({$effectiveCheckin}, '00:15:00')")
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(COALESCE(jefe_p.nombre_completo, '')) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 AND jefe_p.status_deleted = 1 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         'a.time AS check_in',
-        DB::raw("COALESCE(ws.checkin, '08:00:00') AS schedule"),
-        DB::raw("TIMESTAMPDIFF(MINUTE, COALESCE(ws.checkin, '08:00:00'), a.time) AS minutes_late"),
+        DB::raw("{$effectiveCheckin} AS schedule"),
+        DB::raw("TIMESTAMPDIFF(MINUTE, {$effectiveCheckin}, a.time) AS minutes_late"),
         DB::raw("COALESCE(rc.name, '') AS cargo"),
         DB::raw("COALESCE(ra.name, '') AS area"),
         DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
@@ -603,6 +644,7 @@ class AttendanceSyncService extends BaseService
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
       ->where('p.status_id', 22)
+      ->where('p.status_deleted', 1)
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
