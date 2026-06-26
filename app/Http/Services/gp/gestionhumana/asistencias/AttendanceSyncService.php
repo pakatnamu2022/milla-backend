@@ -512,6 +512,7 @@ class AttendanceSyncService extends BaseService
       ->leftJoin('rrhh_persona as jefe_p', 'jefe_p.id', '=', 'p.jefe_id')
       ->whereNull('a.id')
       ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
@@ -537,7 +538,7 @@ class AttendanceSyncService extends BaseService
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 AND jefe_p.status_deleted = 1 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         DB::raw("COALESCE(rc.name, '') AS cargo"),
         DB::raw("COALESCE(ra.name, '') AS area"),
         DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
@@ -586,6 +587,7 @@ class AttendanceSyncService extends BaseService
       ->whereDate('a.date', $dateStr)
       ->where('a.mark_type', 'check_in')
       ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
       // Agentes de seguridad sin turno programado (o con descanso/licencia) se omiten
       ->where(function ($q) use ($workingCodes) {
@@ -596,7 +598,7 @@ class AttendanceSyncService extends BaseService
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
-        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
+        DB::raw("UPPER(CASE WHEN jefe_p.status_id = 22 AND jefe_p.status_deleted = 1 THEN COALESCE(jefe_p.nombre_completo, '') ELSE '' END) AS jefe_directo"),
         'a.time AS check_in',
         DB::raw("{$effectiveCheckin} AS schedule"),
         DB::raw("TIMESTAMPDIFF(MINUTE, {$effectiveCheckin}, a.time) AS minutes_late"),
@@ -642,6 +644,7 @@ class AttendanceSyncService extends BaseService
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
       ->where('p.status_id', 22)
+      ->where('p.status_deleted', 1)
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
         'p.vat', 'p.nombre_completo', 'a.full_name',
