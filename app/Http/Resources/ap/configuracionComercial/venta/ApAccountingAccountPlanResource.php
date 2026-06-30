@@ -16,6 +16,8 @@ class ApAccountingAccountPlanResource extends JsonResource
       'description' => $this->description,
       'is_detraction' => $this->is_detraction,
       'status' => $this->status,
+      'enable_commercial' => $this->enable_commercial,
+      'enable_after_sales' => $this->enable_after_sales,
     ];
   }
 }

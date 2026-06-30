@@ -25,6 +25,7 @@ class ProductWarehouseStock extends Model
     'cost_price',
     'average_cost',
     'sale_price',
+    'sale_price_min',
     'currency_id',
     'tax_rate',
     'is_taxable',
@@ -43,6 +44,7 @@ class ProductWarehouseStock extends Model
     'cost_price' => 'decimal:2',
     'average_cost' => 'decimal:2',
     'sale_price' => 'decimal:2',
+    'sale_price_min' => 'decimal:2',
     'last_movement_date' => 'datetime',
   ];
 
@@ -52,6 +54,7 @@ class ProductWarehouseStock extends Model
     'warehouse_id' => '=',
     'quantity' => '>',
     'available_quantity' => '>',
+    'sale_price_min' => '>',
   ];
 
   const sorts = [
@@ -270,13 +273,13 @@ class ProductWarehouseStock extends Model
 
     // Si existe en el almacén de la sede, validar con ese precio
     if ($stockInSedeWarehouse) {
-      $salePrice = $stockInSedeWarehouse->sale_price;
+      $salePriceMin = $stockInSedeWarehouse->sale_price_min;
 
-      // Si sale_price es 0 o null, buscar en otros almacenes
-      if (!$salePrice || $salePrice == 0) {
+      // Si sale_price_min es 0 o null, buscar en otros almacenes
+      if (!$salePriceMin || $salePriceMin == 0) {
         // Buscar en otros almacenes con precio válido
         $stocksInOtherWarehouses = self::where('product_id', $productId)
-          ->where('sale_price', '>', 0)
+          ->where('sale_price_min', '>', 0)
           ->get();
 
         // Si no existe en ningún otro almacén con precio, no validar
@@ -285,13 +288,13 @@ class ProductWarehouseStock extends Model
         }
 
         // Obtener el precio menor de todos los almacenes
-        $minSalePrice = $stocksInOtherWarehouses->min('sale_price');
+        $minSalePrice = $stocksInOtherWarehouses->min('sale_price_min');
 
         // Validar que unit_price no sea menor al precio menor
         if ($unitPrice < $minSalePrice) {
           return [
             'valid' => false,
-            'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado ({$minSalePrice})",
+            'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado en otros almacenes ({$minSalePrice})",
             'sale_price' => $minSalePrice
           ];
         }
@@ -300,20 +303,20 @@ class ProductWarehouseStock extends Model
       }
 
       // Validar que unit_price no sea menor a sale_price
-      if ($unitPrice < $salePrice) {
+      if ($unitPrice < $salePriceMin) {
         return [
           'valid' => false,
-          'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta registrado ({$salePrice})",
-          'sale_price' => $salePrice
+          'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado en este almacén ({$salePriceMin})",
+          'sale_price' => $salePriceMin
         ];
       }
 
-      return ['valid' => true, 'message' => null, 'sale_price' => $salePrice];
+      return ['valid' => true, 'message' => null, 'sale_price' => $salePriceMin];
     }
 
     // Si no existe en el almacén de la sede, buscar en otros almacenes
     $stocksInOtherWarehouses = self::where('product_id', $productId)
-      ->where('sale_price', '>', 0) // Solo almacenes con precio registrado
+      ->where('sale_price_min', '>', 0) // Solo almacenes con precio registrado
       ->get();
 
     // Si no existe en ningún almacén, no validar (como si fuera 0)
@@ -322,7 +325,7 @@ class ProductWarehouseStock extends Model
     }
 
     // Obtener el precio menor de todos los almacenes
-    $minSalePrice = $stocksInOtherWarehouses->min('sale_price');
+    $minSalePrice = $stocksInOtherWarehouses->min('sale_price_min');
 
     // Validar que unit_price no sea menor al precio menor
     if ($unitPrice < $minSalePrice) {

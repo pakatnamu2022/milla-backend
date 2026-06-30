@@ -663,36 +663,24 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // 5. Verificar si ya existe el registro en la tabla intermedia
-      $existingRecord = DB::connection('dbtp')
+      $existingRecord = DB::connection('dbtest')
         ->table('neRMPvtTb_CajaDo')
         ->where('DocumentoId', $document->full_number)
         ->first();
 
       if ($existingRecord) {
-        Log::info('El documento ya existe en neRMPvtTb_CajaDo, se omite inserción', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-        ]);
         return;
       }
 
       // 6. Insertar en la tabla intermedia
-      DB::connection('dbtp')
+      DB::connection('dbtest')
         ->table('neRMPvtTb_CajaDo')
         ->insert([
           'CajaId' => $cajaId,
-          'ModuloId' => 'SO',
+          'ModuloId' => 'SOP',
           'DocumentoTipo' => '0',
           'DocumentoId' => $document->full_number,
         ]);
-
-      Log::info('Documento de postventa sincronizado exitosamente a neRMPvtTb_CajaDo', [
-        'document_id' => $document->id,
-        'full_number' => $document->full_number,
-        'caja_id' => $cajaId,
-        'sede_id' => $sedeId,
-      ]);
-
     } catch (\Exception $e) {
       // Capturar cualquier error para que no afecte el proceso principal
       Log::error('Error al sincronizar documento de postventa a neRMPvtTb_CajaDo (proceso no crítico)', [

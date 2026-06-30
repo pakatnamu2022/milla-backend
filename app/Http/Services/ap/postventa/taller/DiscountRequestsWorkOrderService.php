@@ -41,7 +41,7 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
   public function list(Request $request)
   {
     $query = DiscountRequestsWorkOrder::whereIn('status', ['approved', 'pending']);
-    
+
     return $this->getFilteredResults(
       $query,
       $request,
@@ -150,7 +150,7 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         ->first();
 
       $boss = Worker::working()
-        ->whereIn('cargo_id', Position::POSITION_JEFE_PVT_IDS)
+        ->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
         ->first();
 
       $data['manager_id'] = $manager?->user->id;

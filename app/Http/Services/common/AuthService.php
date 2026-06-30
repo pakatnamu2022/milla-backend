@@ -4,6 +4,7 @@ namespace App\Http\Services\common;
 
 use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\PasswordResetToken;
 use App\Models\User;
@@ -49,6 +50,7 @@ class AuthService
         'access_token' => $token->plainTextToken,
         'user'         => UserResource::make($user),
         'permissions'  => $permissionsData['permissions'],
+        'general'      => $this->getGeneralSettings(),
       ]);
     } else {
       return response()->json(['message' => 'Credenciales Inválidas'], 422);
@@ -71,6 +73,7 @@ class AuthService
       return response()->json([
         'user'        => UserResource::make($user),
         'permissions' => $permissionsData['permissions'],
+        'general'     => $this->getGeneralSettings(),
       ]);
     } else {
       return response()->json(['message' => 'No autenticado'], 401);
@@ -500,6 +503,20 @@ class AuthService
     $record->delete();
 
     return response()->json(['message' => 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.']);
+  }
+
+  /**
+   * Obtener configuraciones generales del sistema
+   *
+   * @return array
+   */
+  private function getGeneralSettings(): array
+  {
+    $freightCommission = GeneralMaster::find(GeneralMaster::FREIGHT_COMMISSION_ID);
+
+    return [
+      'freight_commission' => (float)($freightCommission->value ?? 0.05),
+    ];
   }
 
 }

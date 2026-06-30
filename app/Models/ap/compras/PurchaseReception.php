@@ -75,6 +75,13 @@ class PurchaseReception extends BaseModel
     });
   }
 
+  // Status
+  const string APPROVED = 'APPROVED';
+  const string ANNULLED = 'ANNULLED';
+  // Type Receptions
+  const string TYPE_COMPLETE = 'COMPLETE';
+  const string TYPE_RECEIVED = 'PARTIAL';
+  
   // Mutators
   public function setReceptionNumberAttribute($value)
   {
@@ -138,16 +145,6 @@ class PurchaseReception extends BaseModel
     return $this->status === 'APPROVED';
   }
 
-  public function getIsPartialAttribute(): bool
-  {
-    return $this->status === 'PARTIAL';
-  }
-
-  public function getIncompleteAttribute(): bool
-  {
-    return $this->status === 'INCOMPLETE';
-  }
-
   public function getAnnulledAttribute(): bool
   {
     return $this->status === 'ANNULLED';
@@ -164,24 +161,14 @@ class PurchaseReception extends BaseModel
   }
 
   // Scopes
-  public function scopePendingReview($query)
-  {
-    return $query->where('status', 'PENDING_REVIEW');
-  }
-
   public function scopeApproved($query)
   {
     return $query->where('status', 'APPROVED');
   }
 
-  public function scopeRejected($query)
+  public function scopeAnnulled($query)
   {
-    return $query->where('status', 'REJECTED');
-  }
-
-  public function scopePartial($query)
-  {
-    return $query->where('status', 'PARTIAL');
+    return $query->where('status', 'ANNULLED');
   }
 
   public function scopeByWarehouse($query, $warehouseId)

@@ -114,7 +114,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // 2. Calcular STATUS (estado general después de esta recepción):
       // - APPROVED: Si ya se recepcionó todo lo pedido (considerando todas las recepciones)
       // - PARTIAL: Si aún falta mercancía por recepcionar
-      $status = $allItemsFullyReceived ? 'APPROVED' : 'PARTIAL';
+      // $status = $allItemsFullyReceived ? 'APPROVED' : 'PARTIAL'; (solo se quedara APPROVED o ANNULLED)
 
       // 3. Calcular RECEPTION_TYPE (tipo de esta recepción específica):
       // - COMPLETE: Si en esta recepción se está recibiendo todo lo que faltaba
@@ -125,7 +125,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       $reception->update([
         'total_items' => $totalItems,
         'total_quantity' => $totalQuantity,
-        'status' => $status,
+        'status' => 'APPROVED',
         'reception_type' => $receptionType,
       ]);
 
@@ -440,8 +440,9 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
-        // 6. Actualizar quantity_pending_credit_note si hay observaciones
-        if ($observedQuantity > 0) {
+        // 6. Actualizar quantity_pending_credit_note si hay observaciones Y is_credit_note = true
+        // Solo se usa como campo de monitoreo cuando se espera una NC futura
+        if ($observedQuantity > 0 && $receptionDetail->is_credit_note) {
           $stockService->addPendingCreditNote(
             $receptionDetail->product_id,
             $reception->warehouse_id,

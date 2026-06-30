@@ -24,6 +24,7 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -836,6 +837,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
             $inventoryMovement = $guide->inventoryMovement;
             if ($inventoryMovement && $inventoryMovement->item_type === 'PRODUCTO') {
               MigrateProductReceptionToDynamicsJob::dispatch($guide->id);
+            } else {
+              $guide->update(['is_received' => true]);
+              $inventoryMovement->update(['status' => InventoryMovement::STATUS_APPROVED]);
             }
           }
 

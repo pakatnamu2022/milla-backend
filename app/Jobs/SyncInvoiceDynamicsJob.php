@@ -112,7 +112,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     if ($purchaseOrder->migrated_at?->lt(now()->subHour())) {
       $purchaseOrder->updateQuietly([
         'invoice_sync_attempted_at' => now(),
-        'invoice_sync_attempts'     => $purchaseOrder->invoice_sync_attempts + 1,
+        'invoice_sync_attempts' => $purchaseOrder->invoice_sync_attempts + 1,
       ]);
     }
 
@@ -141,28 +141,13 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
         // Actualizar la factura y cambiar el estado a 'updated_with_nc'
         $purchaseOrder->update([
-          'invoice_dynamics'      => $newInvoice,
-          'receipt_dynamics'      => $newReceipt,
-          'invoice_date_dyn'      => $invoiceDate,
-          'migration_status'      => 'updated_with_nc',
-          'status'                => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)),
+          'invoice_dynamics' => $newInvoice,
+          'receipt_dynamics' => $newReceipt,
+          'invoice_date_dyn' => $invoiceDate,
+          'migration_status' => 'updated_with_nc',
+          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)),
           'invoice_sync_attempts' => 0,
         ]);
-
-        // Actualizar la recepción asociada si existe y es de área POSTVENTA
-        if ($purchaseOrder->reception && $purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
-          //Actualizamos el estado de la recepción ANULADO
-          $purchaseOrder->reception->update([
-            'status' => 'ANNULLED'
-          ]);
-
-          //Actualizamos tipo de recepción del pedido a proveedor según productos pendientes
-          if ($purchaseOrder->reception->supplierOrder) {
-            $supplierOrder = $purchaseOrder->reception->supplierOrder;
-            $supplierOrderService = new ApSupplierOrderService(new EmailService());
-            $supplierOrderService->updateReceptionType($supplierOrder);
-          }
-        }
 
         return;
       }
@@ -180,9 +165,9 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
        */
       if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
-          'invoice_dynamics'      => $newInvoice,
-          'receipt_dynamics'      => $newReceipt,
-          'invoice_date_dyn'      => $invoiceDate,
+          'invoice_dynamics' => $newInvoice,
+          'receipt_dynamics' => $newReceipt,
+          'invoice_date_dyn' => $invoiceDate,
           'invoice_sync_attempts' => 0,
         ]);
 

@@ -15,6 +15,7 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -105,13 +106,24 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     DB::beginTransaction();
     try {
       // Enriquecer datos del vehículo
-      //$data = $this->enrichData($data);
       $data['year'] = now()->year;
+      $data['year_delivery'] = now()->year;
       $data['ap_models_vn_id'] = ApModelsVn::MODEL_VN_SEVERAL_ID;
       $data['vehicle_color_id'] = ApMasters::COLOR_OTHERS_ID;
       $data['engine_type_id'] = ApMasters::ENGINE_TYPE_OTHERS_ID;
       $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
       $data['type_operation_id'] = ApMasters::TIPO_OPERACION_POSTVENTA;
+
+      // Obtener el almacén físico de postventa usando la sede
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id']);
+
+      if (!$warehouse) {
+        throw new Exception("No se encontró un almacén físico de postventa para la sede especificada");
+      }
+
+      // Setear warehouse_id y warehouse_physical_id con el mismo valor
+      $data['warehouse_id'] = $warehouse->id;
+      $data['warehouse_physical_id'] = $warehouse->id;
 
       // Crear el vehículo
       $vehicle = Vehicles::create($data);

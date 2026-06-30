@@ -31,6 +31,7 @@ use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
+use App\Http\Controllers\ap\compras\PurchaseReceptionDetailController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApClassArticleController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklistController;
 use App\Http\Controllers\ap\configuracionComercial\vehiculo\ApFamiliesController;
@@ -180,6 +181,11 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
 Route::post('/reset-password-token', [AuthController::class, 'resetPasswordByToken'])->name('resetPasswordByToken');
 Route::post('/auth/2fa/verify', [TotpController::class, 'verify'])->name('2fa.verify');
+Route::group(['prefix' => 'tp/comercial/public/monitoreo'], function () {
+  Route::post('location', [DriverLocationController::class, 'store']);
+  Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
+  Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
+});
 Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
@@ -282,11 +288,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
 
-    Route::group(['prefix' => 'public/monitoreo'], function () {
-      Route::post('location', [DriverLocationController::class, 'store']);
-      Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
-      Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
-    });
+
 
 
     Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
@@ -1374,6 +1376,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Purchase Reception Details - Detalles de Recepción de Compra
+      Route::patch('purchaseReceptionDetails/{id}/credit-note', [PurchaseReceptionDetailController::class, 'updateCreditNote']);
+
       // Inventory Movements - Movimientos de Inventario
       Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
       Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
@@ -1402,6 +1407,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/compare-dynamics', [ProductWarehouseStockController::class, 'compareStockWithDynamics']);
       Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
+      Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -1525,7 +1531,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
       Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
       Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
-      Route::put('orderQuotations/{id}/approve', [ApOrderQuotationsController::class, 'approve']);
+      Route::put('orderQuotations/{id}/approve-taller', [ApOrderQuotationsController::class, 'approveTaller']);
+      Route::put('orderQuotations/{id}/approve-repuesto', [ApOrderQuotationsController::class, 'approveRepuesto']);
       Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
       Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
       Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
@@ -1674,6 +1681,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Consolidated invoice from work orders
       Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
+      Route::delete('electronic-documents/{id}/consolidated-invoice', [ElectronicDocumentController::class, 'cancelConsolidatedInvoice']);
       Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
 
       // CRUD de Documentos Electrónicos

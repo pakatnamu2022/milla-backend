@@ -64,6 +64,8 @@ class ApOrderQuotationsResource extends JsonResource
       'delivery_document_number' => $this->delivery_document_number,
       'chief_approval_by' => $this->chief_approval_by,
       'manager_approval_by' => $this->manager_approval_by,
+      'chief_approval_by_name' => $this->chiefApprovalBy ? $this->chiefApprovalBy->name : null,
+      'manager_approval_by_name' => $this->managerApprovalBy ? $this->managerApprovalBy->name : null,
       'status' => $this->status,
       'cost_man_hours' => $this->when(
         isset($this->additional['includeCostManHours']) && $this->additional['includeCostManHours'],

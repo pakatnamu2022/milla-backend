@@ -8,6 +8,7 @@ use App\Models\gp\maestroGeneral\Sede;
 use App\Models\tp\comercial\DriverLocation;
 use App\Models\tp\comercial\DriverStatusLog;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 class Driver extends BaseModel
 {
@@ -71,7 +72,11 @@ class Driver extends BaseModel
 
     public function getCurrentStatusAttribute()
     {
-        if(!$this->latestLocation){
+        $latestLocation = DriverLocation::where('driver_id', $this->id)
+            ->orderBy('reported_at', 'desc')
+            ->first();
+
+        if (!$latestLocation) {
             return 'nodata';
         }
          $reportedAt = $this->latestLocation->reported_at;
@@ -91,6 +96,12 @@ class Driver extends BaseModel
         }else{
             return 'disconnected';
         }
+    }
+    private function getLatestLocation()
+    {
+        return DriverLocation::where('driver_id', $this->id)
+            ->orderBy('reported_at', 'desc')
+            ->first();
     }
 
     public function getStatusColorAttribute(){
@@ -115,7 +126,8 @@ class Driver extends BaseModel
 
     public function getLastLocationAttribute()
     {
-        if(!$this->latestLocation){
+        $latestLocation = $this->getLatestLocation();
+        if(!$latestLocation ){
             return null;
         }
 
@@ -181,9 +193,12 @@ class Driver extends BaseModel
     public function updateStatus()
     {
 
-        $latestLocation = $this->latestLocation;
 
-        if(!$latestLocation){
+        $latestLocation = DriverLocation::where('driver_id', $this->id)
+            ->orderBy('reported_at', 'desc')
+            ->first();
+
+        if (!$latestLocation) {
             $newStatus = 'disconnected';
         }else{
             // $nowTimestamp = now()->timestamp;
@@ -221,6 +236,10 @@ class Driver extends BaseModel
                 'changed_at' => $latestLocation ? $latestLocation->reported_at : now()
             ]);
         }
+
+        Log::info("estatus", [
+            "estatus" => $newStatus
+        ]);
         return $newStatus;
     }
 
