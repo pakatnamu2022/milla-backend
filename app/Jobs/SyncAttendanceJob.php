@@ -36,13 +36,15 @@ class SyncAttendanceJob implements ShouldQueue
       $rows        = $this->fetchTransactions($date);
       $grouped     = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
-      $onVacation  = $this->buildVacationSet($date);
+      $excluded    = $this->buildExclusionSet($date);
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, $onVacation, &$inserted) {
+      AttendanceSync::whereDate('date', $date)->delete();
+
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, $excluded, &$inserted) {
         $personId = $personMap[$empCode] ?? null;
 
-        if ($personId && isset($onVacation[$personId])) {
-          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} está de vacaciones, se omite.");
+        if ($personId && isset($excluded[$personId])) {
+          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} excluido ({$excluded[$personId]}), se omite.");
           return;
         }
 
@@ -59,11 +61,7 @@ class SyncAttendanceJob implements ShouldQueue
           return;
         }
 
-        AttendanceSync::upsert(
-          $data,
-          ['zkbio_transaction_id'],
-          ['person_id', 'full_name', 'mark_type', 'time', 'area', 'punch_state_original', 'synced_at', 'updated_at']
-        );
+        AttendanceSync::insert($data);
 
         $inserted += count($data);
       });
@@ -167,15 +165,40 @@ class SyncAttendanceJob implements ShouldQueue
     return (int) $h * 60 + (int) $m;
   }
 
-  private function buildVacationSet(string $date): array
+  private function buildExclusionSet(string $date): array
   {
-    return DB::table('rrhh_vacaciones')
+    $vacations = DB::table('rrhh_vacaciones')
       ->where('status_deleted', 1)
       ->where('aprobacion_rrhh', 1)
       ->where('fecha_inicio', '<=', $date)
       ->where('fecha_fin', '>=', $date)
-      ->pluck('empleado_id')
-      ->flip()
+      ->pluck('empleado_id');
+
+    $absentees = DB::table('rrhh_ausentismo_laboral')
+      ->where('status_deleted', 1)
+      ->where('fecha_inicial', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->pluck('empleado_id');
+
+    $byPosition = DB::table('rrhh_persona as p')
+      ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
+      ->where('p.status_deleted', 1)
+      ->where('c.no_attendance_required', 1)
+      ->pluck('p.id');
+
+    $byPerson = DB::table('rrhh_persona')
+      ->where('status_deleted', 1)
+      ->where('no_attendance_required', 1)
+      ->pluck('id');
+
+    return $vacations->merge($absentees)->merge($byPosition)->merge($byPerson)
+      ->unique()
+      ->mapWithKeys(function ($id) use ($vacations, $absentees, $byPosition) {
+        if ($vacations->contains($id))   return [$id => 'vacaciones'];
+        if ($absentees->contains($id))   return [$id => 'ausentismo'];
+        if ($byPosition->contains($id))  return [$id => 'cargo'];
+        return [$id => 'persona'];
+      })
       ->toArray();
   }
 

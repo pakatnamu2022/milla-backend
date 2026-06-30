@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\personal\IndexWorkerRequest;
 use App\Http\Requests\gp\gestionhumana\personal\ShowWorkerRequest;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use Illuminate\Http\JsonResponse;
+use App\Http\Requests\gp\gestionhumana\personal\UpdateWorkerRequest;
 use Illuminate\Http\Request;
 
 class WorkerController extends Controller
@@ -117,10 +118,10 @@ class WorkerController extends Controller
     }
   }
 
-  public function update(Request $request, $id)
+  public function update(UpdateWorkerRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
 
       return $this->service->update($data);
