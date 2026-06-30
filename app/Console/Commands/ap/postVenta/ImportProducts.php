@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\ap\postVenta;
 
 use App\Models\ap\ApMasters;
 use Illuminate\Console\Command;
@@ -41,12 +41,12 @@ class ImportProducts extends Command
    */
   public function handle()
   {
-    $filePath = $this->argument('file') ?? storage_path('app/imports/products.xlsx');
+    $filePath = $this->argument('file') ?? storage_path('app/imports/products_v2.xlsx');
 
     if (!file_exists($filePath)) {
       $this->error("El archivo {$filePath} no existe.");
       $this->info("Uso: php artisan import:products [ruta/al/archivo.xlsx]");
-      $this->info("Por defecto busca en: storage/app/imports/products.xlsx");
+      $this->info("Por defecto busca en: storage/app/imports/products_v2.xlsx");
       return 1;
     }
 
