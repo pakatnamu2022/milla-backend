@@ -891,7 +891,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede marcar como recepcionada una guía anulada');
       }
 
-      if ($guide->document_type === ShippingGuides::DOCUMENT_TYPE_GR) {
+      if (
+        $guide->document_type === ShippingGuides::DOCUMENT_TYPE_GR &&
+        $guide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_COMPRA
+      ) {
         VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
       }
 
