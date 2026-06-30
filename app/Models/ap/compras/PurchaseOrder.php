@@ -12,8 +12,6 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\VehicleAccessory;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
-use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -77,16 +75,16 @@ class PurchaseOrder extends BaseModel
   protected $casts = [
     'migrated_at'               => 'datetime',
     'invoice_sync_attempted_at' => 'datetime',
-    'emission_date'    => 'date',
-    'due_date'         => 'date',
-    'invoice_date_dyn' => 'date',
-    'status'           => 'boolean',
-    'resent'           => 'boolean',
-    'discount'         => 'decimal:2',
-    'subtotal'         => 'decimal:2',
-    'isc'              => 'decimal:2',
-    'igv'              => 'decimal:2',
-    'total'            => 'decimal:2',
+    'emission_date'             => 'date',
+    'due_date'                  => 'date',
+    'invoice_date_dyn'          => 'date',
+    'status'                    => 'boolean',
+    'resent'                    => 'boolean',
+    'discount'                  => 'decimal:2',
+    'subtotal'                  => 'decimal:2',
+    'isc'                       => 'decimal:2',
+    'igv'                       => 'decimal:2',
+    'total'                     => 'decimal:2',
   ];
 
   const filters = [
