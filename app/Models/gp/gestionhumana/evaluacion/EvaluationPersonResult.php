@@ -103,14 +103,14 @@ class EvaluationPersonResult extends BaseModel
 
   public function details()
   {
-    return $this->hasMany(EvaluationPerson::class, 'evaluation_id', 'evaluation_id')
-      ->where('person_id', $this->person_id)->whereNull('deleted_at');
+    return $this->hasMany(EvaluationPerson::class, 'person_id', 'person_id')
+      ->where('evaluation_id', $this->evaluation_id)->whereNull('deleted_at');
   }
 
   public function competenceDetails()
   {
-    return $this->hasMany(EvaluationPersonCompetenceDetail::class, 'evaluation_id', 'evaluation_id')
-      ->where('person_id', $this->person_id);
+    return $this->hasMany(EvaluationPersonCompetenceDetail::class, 'person_id', 'person_id')
+      ->where('evaluation_id', $this->evaluation_id);
   }
 
   public function dashboard()
