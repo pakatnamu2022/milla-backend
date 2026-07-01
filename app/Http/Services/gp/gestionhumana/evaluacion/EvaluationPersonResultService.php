@@ -763,8 +763,8 @@ class EvaluationPersonResultService extends BaseService
               continue; // Saltar personas sin ID o en la lista de excluidos
             }
             if ($person->fecha_inicio <= $cycle->cut_off_date) {
-              $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
-              $competencesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->competencesPercentage : 100;
+              ['objectivesPercentage' => $objectivesPercentage, 'competencesPercentage' => $competencesPercentage]
+                = $evaluation->resolvePersonWeights($hierarchicalCategory);
 
               /**
                * TODO: Revisar la lógica de asignación de evaluador
@@ -923,8 +923,8 @@ class EvaluationPersonResultService extends BaseService
 
       // Obtener la categoría jerárquica
       $hierarchicalCategory = $person->position?->hierarchicalCategory;
-      $objectivesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->objectivesPercentage : 0;
-      $competencesPercentage = $hierarchicalCategory?->hasObjectives ? $evaluation->competencesPercentage : 100;
+      ['objectivesPercentage' => $objectivesPercentage, 'competencesPercentage' => $competencesPercentage]
+        = $evaluation->resolvePersonWeights($hierarchicalCategory);
 
       // Usar updateOrCreate para crear si no existe o actualizar si existe
       EvaluationPersonResult::updateOrCreate(

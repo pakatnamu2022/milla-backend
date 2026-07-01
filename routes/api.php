@@ -809,6 +809,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/evaluation/active', [EvaluationController::class, 'active']);
         Route::get('/evaluation/{evaluation}/preview-regenerate', [EvaluationController::class, 'previewRegenerateEvaluation']);
         Route::post('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
+        Route::get('/evaluation/{evaluation}/eligible-workers', [EvaluationController::class, 'eligibleWorkers']);
+        Route::post('/evaluation/{evaluation}/workers', [EvaluationController::class, 'addWorkers']);
         Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
         Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
         Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);

@@ -82,6 +82,28 @@ class EvaluationController extends Controller
     }
   }
 
+  public function eligibleWorkers(int $id)
+  {
+    try {
+      return $this->success($this->service->previewEligibleWorkersForEvaluation($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function addWorkers(Request $request, int $id)
+  {
+    try {
+      $request->validate([
+        'worker_ids'   => 'required|array|min:1',
+        'worker_ids.*' => 'integer|exists:rrhh_persona,id',
+      ]);
+      return $this->success($this->service->addWorkersToEvaluation($id, $request->input('worker_ids')));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function participants(int $id)
   {
     try {
