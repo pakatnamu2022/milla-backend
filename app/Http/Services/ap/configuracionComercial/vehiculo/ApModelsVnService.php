@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnDynamicsResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnSyncLogResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\SyncModelVnJob;
@@ -571,15 +572,17 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     return ['dispatched' => $dispatched, 'message' => "Se despacharon {$dispatched} jobs de sincronización."];
   }
 
-  public function syncLogs(Request $request): \Illuminate\Pagination\LengthAwarePaginator
+  public function syncLogs(Request $request)
   {
-    $query = ApModelsVnSyncLog::with(['model:id,version,model_year,fuel_id'])
-      ->when($request->model_id, fn($q, $v) => $q->where('model_vn_id', $v))
-      ->when($request->status,   fn($q, $v) => $q->where('status', $v))
-      ->when($request->code,     fn($q, $v) => $q->where('code', 'like', "%{$v}%"))
-      ->orderBy('id', 'desc');
+    $query = ApModelsVnSyncLog::with(['model:id,version,model_year,fuel_id']);
 
-    return $query->paginate($request->per_page ?? 20);
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApModelsVnSyncLog::filters,
+      ApModelsVnSyncLog::sorts,
+      ApModelsVnSyncLogResource::class,
+    );
   }
 
   public function importFromExcel(UploadedFile $file): array

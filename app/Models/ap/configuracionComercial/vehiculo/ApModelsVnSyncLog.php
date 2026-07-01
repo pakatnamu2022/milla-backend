@@ -34,6 +34,22 @@ class ApModelsVnSyncLog extends Model
   const STATUS_COMPLETED   = 'completed';
   const STATUS_FAILED      = 'failed';
 
+  const filters = [
+    'model_vn_id' => '=',
+    'status'      => '=',
+    'code'        => 'like',
+  ];
+
+  const sorts = [
+    'id',
+    'code',
+    'status',
+    'attempts',
+    'last_attempt_at',
+    'completed_at',
+    'created_at',
+  ];
+
   public function model(): BelongsTo
   {
     return $this->belongsTo(ApModelsVn::class, 'model_vn_id');
