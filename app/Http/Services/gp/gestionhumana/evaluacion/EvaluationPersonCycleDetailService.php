@@ -1418,6 +1418,21 @@ class EvaluationPersonCycleDetailService extends BaseService
                 : 'Todos los objetivos ya están en el ciclo')))),
     ];
 
+    // Objetivos de categoría (requeridos solo en ciclos de objetivos)
+    $objetivosCategCount = (!$validCategory || !$isObjectivesCycle) ? 0 : $category->objectives()->count();
+    $objetivosCategPass  = !$isObjectivesCycle || ($validCategory && $objetivosCategCount > 0);
+    $checks['objetivos_categoria'] = [
+      'pass'    => $objetivosCategPass,
+      'total'   => $objetivosCategCount,
+      'message' => !$isObjectivesCycle
+        ? 'No aplica (ciclo 180/360)'
+        : (!$validCategory
+          ? 'No aplica (categoría inválida)'
+          : ($objetivosCategCount > 0
+            ? "{$objetivosCategCount} objetivo(s) configurados en la categoría"
+            : "La categoría '{$category->name}' no tiene objetivos configurados")),
+    ];
+
     // Competencias (requeridas solo en ciclos 180/360)
     $competenciasCount = (!$validCategory || $isObjectivesCycle) ? 0 : $category->competences()->count();
     $competenciasPass  = $isObjectivesCycle || ($validCategory && $competenciasCount > 0);
