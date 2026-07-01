@@ -8,6 +8,7 @@ use App\Http\Resources\gp\gestionsistema\PositionResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\UpdateEvaluationDashboards;
+use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetailService as PersonCycleDetailService;
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCycle;
@@ -16,6 +17,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationParEvaluator;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPerson;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCycleCategoryDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
@@ -1278,6 +1280,153 @@ class EvaluationService extends BaseService
     return $query->distinct()
       ->pluck('p.id')
       ->toArray();
+  }
+
+  public function previewEligibleWorkersForEvaluation(int $evaluationId): array
+  {
+    $evaluation = $this->find($evaluationId);
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+    $isObjectivesCycle = $cycle->typeEvaluation == 0;
+
+    $currentPersonIds = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+      ->pluck('person_id')->toArray();
+
+    $excludedPersonIds = EvaluationPersonDetail::whereNull('deleted_at')
+      ->pluck('person_id')->toArray();
+
+    $validCategoryIds = EvaluationCycleCategoryDetail::whereNull('deleted_at')
+      ->where('cycle_id', $cycle->id)
+      ->pluck('hierarchical_category_id')
+      ->toArray();
+
+    $workers = Worker::query()
+      ->whereNotIn('id', array_merge($currentPersonIds, $excludedPersonIds))
+      ->where('status_deleted', 1)
+      ->where('b_empleado', 1)
+      ->where('status_id', 22)
+      ->where('fecha_inicio', '<=', $cycle->cut_off_date)
+      ->whereNotNull('supervisor_id')
+      ->whereHas('position.hierarchicalCategory', fn($q) => $q
+        ->whereIn('id', $validCategoryIds)
+        ->where('excluded_from_evaluation', false)
+        ->when($isObjectivesCycle, fn($q2) => $q2->where('hasObjectives', true))
+      )
+      ->with(['position.hierarchicalCategory', 'position.area', 'sede', 'evaluator.position'])
+      ->get();
+
+    if ($isObjectivesCycle) {
+      $workers = $workers->filter(function (Worker $worker) {
+        $category = $worker->position?->hierarchicalCategory;
+        if (!$category) return false;
+        return EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+          ->where('person_id', $worker->id)
+          ->where('active', 1)
+          ->where('weight', '>', 0)
+          ->whereNull('deleted_at')
+          ->whereHas('objective', fn($q) => $q->where('active', 1))
+          ->exists();
+      })->values();
+    }
+
+    return $workers->map(function (Worker $worker) use ($isObjectivesCycle) {
+      $category = $worker->position?->hierarchicalCategory;
+
+      $willHave = [];
+      if ($category) {
+        if ($isObjectivesCycle) {
+          $count = EvaluationCategoryObjectiveDetail::where('category_id', $category->id)
+            ->where('person_id', $worker->id)
+            ->where('active', 1)
+            ->where('weight', '>', 0)
+            ->whereNull('deleted_at')
+            ->whereHas('objective', fn($q) => $q->where('active', 1))
+            ->count();
+          if ($count > 0) $willHave['objectives'] = $count;
+        } else {
+          $count = DB::table('gh_evaluation_category_competence')
+            ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
+            ->where('gh_evaluation_category_competence.person_id', $worker->id)
+            ->where('gh_evaluation_category_competence.active', 1)
+            ->where('gh_hierarchical_category_detail.position_id', $worker->cargo_id)
+            ->whereNull('gh_evaluation_category_competence.deleted_at')
+            ->whereNull('gh_hierarchical_category_detail.deleted_at')
+            ->count();
+          if ($count > 0) $willHave['competences'] = $count;
+        }
+      }
+
+      return [
+        'person_id'                => $worker->id,
+        'name'                     => $worker->nombre_completo,
+        'dni'                      => $worker->vat,
+        'fecha_inicio'             => $worker->fecha_inicio,
+        'position'                 => $worker->position?->name,
+        'area'                     => $worker->position?->area?->name,
+        'sede'                     => $worker->sede?->abreviatura,
+        'hierarchical_category'    => $category?->name,
+        'hierarchical_category_id' => $category?->id,
+        'evaluator'                => $worker->evaluator?->nombre_completo,
+        'evaluator_position'       => $worker->evaluator?->position?->name,
+        'will_have'                => $willHave,
+      ];
+    })->values()->toArray();
+  }
+
+  public function addWorkersToEvaluation(int $evaluationId, array $workerIds): array
+  {
+    $evaluation = $this->find($evaluationId);
+    $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
+    $isObjectivesCycle = $cycle->typeEvaluation == 0;
+
+    $personCycleDetailService = $isObjectivesCycle ? new PersonCycleDetailService() : null;
+
+    $added = [];
+    $skipped = [];
+    $errors = [];
+
+    foreach ($workerIds as $workerId) {
+      try {
+        $alreadyIn = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+          ->where('person_id', $workerId)
+          ->exists();
+
+        if ($alreadyIn) {
+          $skipped[] = $workerId;
+          continue;
+        }
+
+        DB::transaction(function () use ($evaluation, $cycle, $workerId, $isObjectivesCycle, $personCycleDetailService, &$added) {
+          if ($isObjectivesCycle) {
+            $personCycleDetailService->storeByWorkerAndCycle($cycle->id, $workerId);
+          }
+
+          $personAdded = $this->createPersonResultsForSpecific($evaluation, [$workerId]);
+
+          if (!$isObjectivesCycle && !empty($personAdded)) {
+            $this->createCompetencesForSpecificPersons($evaluation, [$workerId]);
+          }
+
+          if (!empty($personAdded)) {
+            $added[] = $personAdded[0];
+          }
+        });
+      } catch (\Exception $e) {
+        $errors[] = ['worker_id' => $workerId, 'error' => $e->getMessage()];
+      }
+    }
+
+    if (!empty($added)) {
+      EvaluationDashboard::where('evaluation_id', $evaluationId)->get()->each->resetStats();
+      EvaluationPersonDashboard::where('evaluation_id', $evaluationId)->delete();
+      UpdateEvaluationDashboards::dispatch($evaluationId, true)->onQueue('evaluation-dashboards');
+    }
+
+    return [
+      'persons_added'   => count($added),
+      'persons_skipped' => count($skipped),
+      'errors'          => $errors,
+      'added_details'   => $added,
+    ];
   }
 
   public function destroy($id)
