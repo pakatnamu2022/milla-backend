@@ -7,6 +7,7 @@ use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Services\DatabaseSyncService;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -36,11 +37,15 @@ class SyncModelVnJob implements ShouldQueue
       return;
     }
 
+    // Guard: skip if another worker already picked this log up
+    if ($log->status !== ApModelsVnSyncLog::STATUS_PENDING) return;
+
     $log->markAsInProgress();
 
     try {
       $alreadyExists = DB::connection('dbtp')
         ->table('neInTbArticulo')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
         ->where('Articulo', $model->code)
         ->exists();
 
