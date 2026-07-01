@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\gp\gestionhumana\asistencias;
 
+use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,12 +12,7 @@ class AttendanceExclusionResource extends JsonResource
   {
     return [
       'id'         => $this->id,
-      'person_id'  => $this->person_id,
-      'person'     => $this->whenLoaded('person', fn() => [
-        'id'             => $this->person->id,
-        'nombre_completo'=> $this->person->nombre_completo,
-        'vat'            => $this->person->vat,
-      ]),
+      'person'     => WorkerResource::make($this->whenLoaded('person')),
       'reason'     => $this->reason,
       'active'     => $this->active,
       'created_by' => $this->created_by,
