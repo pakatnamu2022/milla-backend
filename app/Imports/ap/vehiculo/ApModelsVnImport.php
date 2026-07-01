@@ -128,6 +128,7 @@ class ApModelsVnImport implements ToCollection, WithHeadingRow
       ->where('version', strtoupper(Str::ascii($version)))
       ->where('type_operation_id', $typeOperationId)
       ->where('model_year', $modelYear)
+      ->where('fuel_id', $fuelId)
       ->whereNull('deleted_at')
       ->exists();
 
