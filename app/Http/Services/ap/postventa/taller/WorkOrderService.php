@@ -247,9 +247,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Si existe $data['order_quotation_id']
       if (isset($data['order_quotation_id'])) {
         $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+        $vehicle = Vehicles::find($workOrder->vehicle_id);
 
         if (!$quotation) {
           throw new Exception('Cotización no encontrada');
+        }
+
+        if ($vehicle->customer_id === null) {
+          throw new Exception('La cotización no tiene un "TITULAR" asociado al vehiculo');
         }
 
         if ($quotation->is_take) {
