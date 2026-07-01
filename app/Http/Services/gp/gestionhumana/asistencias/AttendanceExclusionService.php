@@ -5,12 +5,11 @@ namespace App\Http\Services\gp\gestionhumana\asistencias;
 use App\Http\Resources\gp\gestionhumana\asistencias\AttendanceExclusionResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\asistencias\AttendanceExclusion;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceExclusionService extends BaseService
 {
-  public function list(Request $request): JsonResponse
+  public function list(Request $request)
   {
     return $this->getFilteredResults(
       AttendanceExclusion::query()->with('person'),
@@ -21,14 +20,14 @@ class AttendanceExclusionService extends BaseService
     );
   }
 
-  public function show(int $id): JsonResponse
+  public function show(int $id): AttendanceExclusionResource
   {
     $record = AttendanceExclusion::with('person')->findOrFail($id);
 
-    return response()->json(new AttendanceExclusionResource($record));
+    return new AttendanceExclusionResource($record);
   }
 
-  public function store(Request $request): JsonResponse
+  public function store(Request $request): AttendanceExclusionResource
   {
     $request->validate([
       'person_id' => ['required', 'integer', 'exists:rrhh_persona,id'],
@@ -43,10 +42,10 @@ class AttendanceExclusionService extends BaseService
       'created_by' => auth()->id(),
     ]);
 
-    return response()->json(new AttendanceExclusionResource($record->load('person')), 201);
+    return new AttendanceExclusionResource($record->load('person'));
   }
 
-  public function update(Request $request, int $id): JsonResponse
+  public function update(Request $request, int $id): AttendanceExclusionResource
   {
     $record = AttendanceExclusion::findOrFail($id);
 
@@ -57,13 +56,13 @@ class AttendanceExclusionService extends BaseService
 
     $record->update($request->only(['reason', 'active']));
 
-    return response()->json(new AttendanceExclusionResource($record->load('person')));
+    return new AttendanceExclusionResource($record->load('person'));
   }
 
-  public function destroy(int $id): JsonResponse
+  public function destroy(int $id): array
   {
     AttendanceExclusion::findOrFail($id)->delete();
 
-    return response()->json(['message' => 'Exclusión eliminada.']);
+    return ['message' => 'Exclusión eliminada.'];
   }
 }

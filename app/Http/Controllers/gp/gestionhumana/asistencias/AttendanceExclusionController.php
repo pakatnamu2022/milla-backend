@@ -4,35 +4,54 @@ namespace App\Http\Controllers\gp\gestionhumana\asistencias;
 
 use App\Http\Controllers\Controller;
 use App\Http\Services\gp\gestionhumana\asistencias\AttendanceExclusionService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceExclusionController extends Controller
 {
   public function __construct(protected AttendanceExclusionService $service) {}
 
-  public function index(Request $request): JsonResponse
+  public function index(Request $request)
   {
-    return $this->service->list($request);
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function show(int $id): JsonResponse
+  public function show(int $id)
   {
-    return $this->service->show($id);
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function store(Request $request): JsonResponse
+  public function store(Request $request)
   {
-    return $this->service->store($request);
+    try {
+      return $this->success($this->service->store($request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function update(Request $request, int $id): JsonResponse
+  public function update(Request $request, int $id)
   {
-    return $this->service->update($request, $id);
+    try {
+      return $this->success($this->service->update($request, $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
-  public function destroy(int $id): JsonResponse
+  public function destroy(int $id)
   {
-    return $this->service->destroy($id);
+    try {
+      return $this->success($this->service->destroy($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 }

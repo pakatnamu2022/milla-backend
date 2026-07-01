@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\common;
 
+use App\Http\Resources\gp\gestionsistema\ActiveSessionResource;
 use App\Http\Resources\gp\gestionsistema\RoleResource;
 use App\Http\Resources\gp\gestionsistema\UserResource;
 use App\Models\GeneralMaster;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class AuthService
@@ -503,6 +505,55 @@ class AuthService
     $record->delete();
 
     return response()->json(['message' => 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.']);
+  }
+
+  public function activeSessions()
+  {
+    $todayStart = now()->startOfDay();
+
+    $tokenData = DB::table('personal_access_tokens')
+      ->where('tokenable_type', 'App\\Models\\User')
+      ->where(function ($q) use ($todayStart) {
+        $q->where('created_at', '>=', $todayStart)
+          ->orWhere('last_used_at', '>=', $todayStart);
+      })
+      ->where(function ($q) {
+        $q->whereNull('expires_at')
+          ->orWhere('expires_at', '>', now());
+      })
+      ->select(
+        'tokenable_id as user_id',
+        DB::raw('MIN(created_at) as login_at'),
+        DB::raw('MAX(last_used_at) as last_seen_at'),
+        DB::raw('COUNT(id) as session_count'),
+      )
+      ->groupBy('tokenable_id')
+      ->get()
+      ->keyBy('user_id');
+
+    $users = User::with(['person.position', 'person.sede.company'])
+      ->whereIn('id', $tokenData->keys())
+      ->get()
+      ->map(function ($user) use ($tokenData) {
+        $tokens = $tokenData->get($user->id);
+        $user->login_at      = $tokens->login_at;
+        $user->last_seen_at  = $tokens->last_seen_at;
+        $user->session_count = $tokens->session_count;
+        return $user;
+      })
+      ->sortByDesc('last_seen_at')
+      ->values();
+
+    $onlineThreshold = now()->subMinutes(15);
+    $onlineCount = $users->filter(
+      fn($u) => $u->last_seen_at && Carbon::parse($u->last_seen_at)->gte($onlineThreshold)
+    )->count();
+
+    return response()->json([
+      'total'  => $users->count(),
+      'online' => $onlineCount,
+      'users'  => ActiveSessionResource::collection($users),
+    ]);
   }
 
   /**
