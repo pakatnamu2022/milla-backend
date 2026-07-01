@@ -187,15 +187,9 @@ class SyncAttendanceJob implements ShouldQueue
     $absenteeMap = $absenteeRows->mapWithKeys(fn($r) => [(int)$r->empleado_id => 'ausentismo: ' . $r->tipo_label]);
     $absentees = $absenteeRows->pluck('empleado_id');
 
-    // Person-level manual exclusions (prevalece sobre cargo)
     $byExclusionTable = DB::table('attendance_exclusions')
       ->where('active', 1)
       ->pluck('person_id');
-
-    $byPerson = DB::table('rrhh_persona')
-      ->where('status_deleted', 1)
-      ->where('no_attendance_required', 1)
-      ->pluck('id');
 
     $byPosition = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
@@ -203,18 +197,14 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 
-    // Person-level sources take priority over position when labeling
-    $personLevel = $byExclusionTable->merge($byPerson)->unique();
-
-    return $vacations->merge($absentees)->merge($personLevel)->merge($byPosition)
+    return $vacations->merge($absentees)->merge($byExclusionTable)->merge($byPosition)
       ->unique()
-      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPerson, $byPosition) {
+      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPosition) {
         $id = (int)$id;
-        if ($vacations->contains($id)) return [$id => 'vacaciones'];
-        if ($absentees->contains($id)) return [$id => ($absenteeMap[$id] ?? 'ausentismo')];
+        if ($vacations->contains($id))        return [$id => 'vacaciones'];
+        if ($absentees->contains($id))        return [$id => ($absenteeMap[$id] ?? 'ausentismo')];
         if ($byExclusionTable->contains($id)) return [$id => 'exclusion_manual'];
-        if ($byPerson->contains($id)) return [$id => 'persona'];
-        if ($byPosition->contains($id)) return [$id => 'cargo'];
+        if ($byPosition->contains($id))       return [$id => 'cargo'];
         return [$id => 'desconocido'];
       })
       ->toArray();

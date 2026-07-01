@@ -539,7 +539,6 @@ class AttendanceSyncService extends BaseService
       ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
-      ->where(fn($q) => $q->whereNull('p.no_attendance_required')->orWhere('p.no_attendance_required', 0))
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('attendance_exclusions as ae')
@@ -629,7 +628,6 @@ class AttendanceSyncService extends BaseService
       ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where('p.status_deleted', 1)
       ->where(fn($q) => $q->whereNull('rc.no_attendance_required')->orWhere('rc.no_attendance_required', 0))
-      ->where(fn($q) => $q->whereNull('p.no_attendance_required')->orWhere('p.no_attendance_required', 0))
       ->whereNotExists(function ($q) {
         $q->select(DB::raw(1))
           ->from('attendance_exclusions as ae')
