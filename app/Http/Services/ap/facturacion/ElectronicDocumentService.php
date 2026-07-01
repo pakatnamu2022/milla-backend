@@ -966,13 +966,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $document = $this->find($id);
 
-    $documentDynamics30200 = DB::connection('dbtest')
+    $documentDynamics30200 = DB::connection(Company::CONNECTION_DYNAMICS_3)
       ->table('SOP30200')
       ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
       ->first();
 
     if (!$documentDynamics30200) {
-      $documentDynamics10100 = DB::connection('dbtest')
+      $documentDynamics10100 = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('SOP10100')
         ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
         ->first();
@@ -988,7 +988,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
     if (!$isAnnulled) {
-      $rmRecord = DB::connection('dbtest')
+      $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('RM20101')
         ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
         ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
@@ -3046,7 +3046,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     foreach ($documents as $document) {
       try {
-        $sopRecord = DB::connection('dbtest')
+        $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
           ->table('SOP30200')
           ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
           ->first();
@@ -3059,7 +3059,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
           if (!$isAnnulled) {
-            $rmRecord = DB::connection('dbtest')
+            $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
               ->table('RM20101')
               ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
               ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)

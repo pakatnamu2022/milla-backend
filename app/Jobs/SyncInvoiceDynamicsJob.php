@@ -11,6 +11,7 @@ use App\Http\Services\common\EmailService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -247,7 +248,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           try {
             $quoteService = new PurchaseRequestQuoteService();
             $quoteService->assignVehicle([
-              'id'            => $purchaseOrder->quotation_id,
+              'id' => $purchaseOrder->quotation_id,
               'ap_vehicle_id' => $vehicle->id,
             ]);
           } catch (Throwable $e) {
@@ -268,7 +269,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
   {
     try {
       // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = 'OC1400000001'
-      $results = DB::connection('dbtest')
+      $results = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->select("EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = '{$orderNumber}'");
 
       // El PA debería retornar un resultado con el campo NroDocProvDocumento
