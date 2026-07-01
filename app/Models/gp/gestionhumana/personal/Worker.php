@@ -40,7 +40,6 @@ class Worker extends BaseModel
     'work_schedule_id',
     'asignacion',
     'status_id',
-    'no_attendance_required',
   ];
 
   const filters = [

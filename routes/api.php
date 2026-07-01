@@ -118,6 +118,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceExclusionController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
@@ -190,6 +191,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
   Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
   Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+  Route::get('/active-sessions', [AuthController::class, 'activeSessions'])->name('activeSessions');
   Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
   Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
   Route::post('/reset-password-by-company', [AuthController::class, 'resetPasswordByCompany'])->name('resetPasswordByCompany');
@@ -2009,6 +2011,15 @@ Route::group(['prefix' => 'admin/attendance'], function () {
   Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
   Route::get('/{id}', [AttendanceSyncController::class, 'show']);
   Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+});
+
+// ATTENDANCE — exclusiones permanentes por persona
+Route::group(['prefix' => 'admin/attendance-exclusions'], function () {
+  Route::get('/', [AttendanceExclusionController::class, 'index']);
+  Route::get('/{id}', [AttendanceExclusionController::class, 'show']);
+  Route::post('/', [AttendanceExclusionController::class, 'store']);
+  Route::put('/{id}', [AttendanceExclusionController::class, 'update']);
+  Route::delete('/{id}', [AttendanceExclusionController::class, 'destroy']);
 });
 
 // PUBLIC ROUTES - No authentication required
