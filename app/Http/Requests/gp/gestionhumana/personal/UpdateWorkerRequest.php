@@ -25,7 +25,6 @@ class UpdateWorkerRequest extends StoreRequest
       'work_schedule_id'       => ['sometimes', 'nullable', 'integer', 'exists:work_schedules,id'],
       'asignacion'             => ['sometimes', 'nullable', 'string', 'max:50'],
       'status_id'              => ['sometimes', 'integer', 'exists:config_status,id'],
-      'no_attendance_required' => ['sometimes', 'boolean'],
       'worker_signature'       => ['sometimes', 'nullable', 'string'],
     ];
   }
@@ -49,7 +48,6 @@ class UpdateWorkerRequest extends StoreRequest
       'work_schedule_id'       => 'horario',
       'asignacion'             => 'asignacion',
       'status'                 => 'estado',
-      'no_attendance_required' => 'no requiere asistencia',
       'worker_signature'       => 'firma trabajador',
     ];
   }

@@ -13,7 +13,7 @@ class SyncAttendanceJob implements ShouldQueue
 {
   use Queueable;
 
-  public int $tries   = 3;
+  public int $tries = 3;
   public int $timeout = 300;
 
   public function __construct(public readonly string $date)
@@ -23,20 +23,20 @@ class SyncAttendanceJob implements ShouldQueue
 
   public function handle(): int
   {
-    if (!env('SYNC_DBZKBIO_ENABLED', false)) {
+    if (!config('attendance.sync_enable')) {
       Log::info('SyncAttendanceJob: disabled via SYNC_DBZKBIO_ENABLED.');
       return 0;
     }
 
-    $date    = Carbon::parse($this->date)->toDateString();
+    $date = Carbon::parse($this->date)->toDateString();
     $inserted = 0;
 
     try {
-      $personMap   = $this->buildPersonMap();
-      $rows        = $this->fetchTransactions($date);
-      $grouped     = $rows->groupBy('emp_code');
+      $personMap = $this->buildPersonMap();
+      $rows = $this->fetchTransactions($date);
+      $grouped = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
-      $excluded    = $this->buildExclusionSet($date);
+      $excluded = $this->buildExclusionSet($date);
 
       AttendanceSync::whereDate('date', $date)->delete();
 
@@ -48,7 +48,7 @@ class SyncAttendanceJob implements ShouldQueue
           return;
         }
 
-        $sorted  = $punches->sortBy('punch_time')->values();
+        $sorted = $punches->sortBy('punch_time')->values();
         $records = $this->classifyPunches($sorted, $empCode, $date, $personMap, $scheduleMap);
 
         $data = $records->map(fn($r) => array_merge($r, [
@@ -100,19 +100,20 @@ class SyncAttendanceJob implements ShouldQueue
 
   private function classifyPunches(
     \Illuminate\Support\Collection $punches,
-    string $empCode,
-    string $date,
-    array $personMap,
-    array $scheduleMap
-  ): \Illuminate\Support\Collection {
-    $personId   = $personMap[$empCode] ?? null;
-    $schedule   = $personId ? ($scheduleMap[$personId] ?? null) : null;
+    string                         $empCode,
+    string                         $date,
+    array                          $personMap,
+    array                          $scheduleMap
+  ): \Illuminate\Support\Collection
+  {
+    $personId = $personMap[$empCode] ?? null;
+    $schedule = $personId ? ($scheduleMap[$personId] ?? null) : null;
     $isSaturday = Carbon::parse($date)->dayOfWeek === 6;
 
-    $checkin  = $schedule->checkin   ?? '08:00:00';
+    $checkin = $schedule->checkin ?? '08:00:00';
     $lunchOut = $schedule->lunch_out ?? '13:00:00';
-    $lunchIn  = $schedule->lunch_in  ?? '14:24:00';
-    $checkout = $schedule->checkout  ?? '18:00:00';
+    $lunchIn = $schedule->lunch_in ?? '14:24:00';
+    $checkout = $schedule->checkout ?? '18:00:00';
 
     // Saturday: only 2 slots (check_in + check_out at lunch_out time = half day)
     $slots = $isSaturday
@@ -123,12 +124,12 @@ class SyncAttendanceJob implements ShouldQueue
     // This correctly handles single-punch scenarios (e.g. only a 18:11 punch maps
     // to check_out, not check_in, because it's only 11 min away vs 611 min).
     $usedSlots = [];
-    $results   = [];
+    $results = [];
 
     foreach ($punches->sortBy(fn($r) => $r->punch_time)->values() as $row) {
       $punchMinutes = $this->timeToMinutes(Carbon::parse($row->punch_time)->format('H:i:s'));
-      $bestSlot     = null;
-      $bestDiff     = PHP_INT_MAX;
+      $bestSlot = null;
+      $bestDiff = PHP_INT_MAX;
 
       foreach ($slots as $slotType => $targetTime) {
         if (in_array($slotType, $usedSlots, true)) continue;
@@ -142,8 +143,8 @@ class SyncAttendanceJob implements ShouldQueue
 
       if ($bestSlot !== null) {
         $usedSlots[] = $bestSlot;
-        $results[]   = [
-          'zkbio_transaction_id' => (int) $row->transaction_id,
+        $results[] = [
+          'zkbio_transaction_id' => (int)$row->transaction_id,
           'person_id'            => $personId,
           'emp_code'             => $empCode,
           'full_name'            => $row->full_name ?? '',
@@ -151,7 +152,7 @@ class SyncAttendanceJob implements ShouldQueue
           'mark_type'            => $bestSlot,
           'time'                 => Carbon::parse($row->punch_time)->format('H:i:s'),
           'area'                 => $row->area_alias ?: null,
-          'punch_state_original' => (string) $row->punch_state,
+          'punch_state_original' => (string)$row->punch_state,
         ];
       }
     }
@@ -162,7 +163,7 @@ class SyncAttendanceJob implements ShouldQueue
   private function timeToMinutes(string $time): int
   {
     [$h, $m] = explode(':', $time);
-    return (int) $h * 60 + (int) $m;
+    return (int)$h * 60 + (int)$m;
   }
 
   private function buildExclusionSet(string $date): array
@@ -183,18 +184,12 @@ class SyncAttendanceJob implements ShouldQueue
       ->select('al.empleado_id', DB::raw("COALESCE(td.descripcion, 'Ausentismo') AS tipo_label"))
       ->get();
 
-    $absenteeMap = $absenteeRows->mapWithKeys(fn($r) => [(int) $r->empleado_id => 'ausentismo: ' . $r->tipo_label]);
-    $absentees   = $absenteeRows->pluck('empleado_id');
+    $absenteeMap = $absenteeRows->mapWithKeys(fn($r) => [(int)$r->empleado_id => 'ausentismo: ' . $r->tipo_label]);
+    $absentees = $absenteeRows->pluck('empleado_id');
 
-    // Person-level manual exclusions (prevalece sobre cargo)
     $byExclusionTable = DB::table('attendance_exclusions')
       ->where('active', 1)
       ->pluck('person_id');
-
-    $byPerson = DB::table('rrhh_persona')
-      ->where('status_deleted', 1)
-      ->where('no_attendance_required', 1)
-      ->pluck('id');
 
     $byPosition = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
@@ -202,17 +197,13 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 
-    // Person-level sources take priority over position when labeling
-    $personLevel = $byExclusionTable->merge($byPerson)->unique();
-
-    return $vacations->merge($absentees)->merge($personLevel)->merge($byPosition)
+    return $vacations->merge($absentees)->merge($byExclusionTable)->merge($byPosition)
       ->unique()
-      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPerson, $byPosition) {
-        $id = (int) $id;
+      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPosition) {
+        $id = (int)$id;
         if ($vacations->contains($id))        return [$id => 'vacaciones'];
         if ($absentees->contains($id))        return [$id => ($absenteeMap[$id] ?? 'ausentismo')];
         if ($byExclusionTable->contains($id)) return [$id => 'exclusion_manual'];
-        if ($byPerson->contains($id))         return [$id => 'persona'];
         if ($byPosition->contains($id))       return [$id => 'cargo'];
         return [$id => 'desconocido'];
       })
