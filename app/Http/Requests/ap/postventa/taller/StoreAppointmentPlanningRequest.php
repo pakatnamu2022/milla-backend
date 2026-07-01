@@ -156,9 +156,10 @@ class StoreAppointmentPlanningRequest extends StoreRequest
           );
         }
 
-        // Validar que no exista otra cita en esa fecha y hora
+        // Validar que no exista otra cita en esa fecha y hora para el mismo usuario
         $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
           ->where('time_appointment', $timeAppointment)
+          ->where('created_by', auth()->id())
           ->when($this->route('id'), function ($query, $id) {
             return $query->where('id', '!=', $id);
           })
@@ -175,9 +176,10 @@ class StoreAppointmentPlanningRequest extends StoreRequest
           );
         }
 
-        // Validar que no exista otra entrega en esa fecha y hora
+        // Validar que no exista otra entrega en esa fecha y hora para el mismo usuario
         $existingDelivery = AppointmentPlanning::where('delivery_date', $deliveryDate)
           ->where('delivery_time', $deliveryTime)
+          ->where('created_by', auth()->id())
           ->when($this->route('id'), function ($query, $id) {
             return $query->where('id', '!=', $id);
           })
