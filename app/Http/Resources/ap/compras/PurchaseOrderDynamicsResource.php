@@ -28,18 +28,18 @@ class PurchaseOrderDynamicsResource extends JsonResource
     if (!$exchangeRate) throw new Exception("Exchange Rate not found for PO {$this->id}");
 
     return [
-      'EmpresaId' => Company::AP_DYNAMICS,
-      'OrdenCompraId' => $this->number,
-      'ProveedorId' => $supplierNumber,
-      'FechaEmision' => $this->emission_date?->format('Y-m-d'),
-      'MonedaId' => $typeCurrency,
-      'TipoTasaId' => $exchangeRate->type,
-      'TasaCambio' => '0',
+      'EmpresaId'      => Company::AP_DYNAMICS,
+      'OrdenCompraId'  => $this->number,
+      'ProveedorId'    => $supplierNumber,
+      'FechaEmision'   => $this->emission_date?->format('Y-m-d'),
+      'MonedaId'       => $typeCurrency,
+      'TipoTasaId'     => $exchangeRate->type,
+      'TasaCambio'     => '0',
       'PlanImpuestoId' => $supplierTaxClassType,
-      'UsuarioId' => 'USUGP',
-      'Procesar' => 1,
-      'ProcesoEstado' => 0,
-      'ProcesoError' => '',
+      'UsuarioId'      => 'USUGP',
+      'Procesar'       => 1,
+      'ProcesoEstado'  => 0,
+      'ProcesoError'   => '',
     ];
   }
 }
