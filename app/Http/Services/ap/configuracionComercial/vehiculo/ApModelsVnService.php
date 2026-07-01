@@ -540,6 +540,37 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     ];
   }
 
+  public function syncAll(): array
+  {
+    $syncedIds = ApModelsVnSyncLog::whereIn('status', [
+      ApModelsVnSyncLog::STATUS_COMPLETED,
+      ApModelsVnSyncLog::STATUS_IN_PROGRESS,
+      ApModelsVnSyncLog::STATUS_PENDING,
+    ])->pluck('model_vn_id');
+
+    $models = ApModelsVn::whereNotNull('code')
+      ->whereNotIn('id', $syncedIds)
+      ->get();
+
+    if ($models->isEmpty()) {
+      return ['dispatched' => 0, 'message' => 'No hay modelos VN pendientes de sincronizar.'];
+    }
+
+    $dispatched = 0;
+    foreach ($models as $model) {
+      $log = ApModelsVnSyncLog::create([
+        'model_vn_id' => $model->id,
+        'code'        => $model->code,
+        'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+        'attempts'    => 0,
+      ]);
+      SyncModelVnJob::dispatch($model->id, $log->id);
+      $dispatched++;
+    }
+
+    return ['dispatched' => $dispatched, 'message' => "Se despacharon {$dispatched} jobs de sincronización."];
+  }
+
   public function syncLogs(Request $request): \Illuminate\Pagination\LengthAwarePaginator
   {
     $query = ApModelsVnSyncLog::with(['model:id,version,model_year,fuel_id'])

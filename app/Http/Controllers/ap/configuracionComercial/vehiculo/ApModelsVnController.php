@@ -97,6 +97,15 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function syncAll()
+  {
+    try {
+      return $this->success($this->service->syncAll());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function syncLogs(Request $request)
   {
     try {
