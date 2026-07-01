@@ -88,6 +88,24 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function sync($id)
+  {
+    try {
+      return $this->success($this->service->syncModel((int) $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function syncLogs(Request $request)
+  {
+    try {
+      return $this->success($this->service->syncLogs($request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function dynamicsPreview($id)
   {
     try {
