@@ -681,6 +681,22 @@ class SyncSalesDocumentJob implements ShouldQueue
           'DocumentoTipo' => '0',
           'DocumentoId' => $document->full_number,
         ]);
+
+      // 7. Insertar en la tabla RM20101_DOCFV
+      // Verificar si ya existe el registro
+      $existingDocFV = DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->table('RM20101_DOCFV')
+        ->where('DocumentoId', $document->full_number)
+        ->first();
+
+      if (!$existingDocFV) {
+        DB::connection(Company::CONNECTION_DYNAMICS_3)
+          ->table('RM20101_DOCFV')
+          ->insert([
+            'DocumentoId' => $document->full_number,
+            'FechaVencimiento' => $document->fecha_de_vencimiento,
+          ]);
+      }
     } catch (\Exception $e) {
       // Capturar cualquier error para que no afecte el proceso principal
       Log::error('Error al sincronizar documento de postventa a neRMPvtTb_CajaDo (proceso no crítico)', [
