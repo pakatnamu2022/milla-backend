@@ -113,6 +113,7 @@ return [
       // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
     ],
 
+
     'dbtest' => [
       'driver' => env('DB_CTEST_CONNECTION', 'sqlsrv'),
       'host' => env('DB_CTEST_HOST'),

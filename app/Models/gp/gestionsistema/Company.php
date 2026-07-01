@@ -29,7 +29,7 @@ class Company extends BaseModel
   ];
 
   const filters = [
-    'serach'       => [
+    'serach' => [
       'name',
       'businessName',
       'email',
@@ -38,23 +38,23 @@ class Company extends BaseModel
       'address',
       'city'
     ],
-    'name'         => 'like',
+    'name' => 'like',
     'businessName' => 'like',
-    'email'        => 'like',
-    'website'      => 'like',
-    'phone'        => 'like',
-    'address'      => 'like',
-    'city'         => 'like',
+    'email' => 'like',
+    'website' => 'like',
+    'phone' => 'like',
+    'address' => 'like',
+    'city' => 'like',
   ];
 
   const sorts = [
-    'name'         => 'asc',
+    'name' => 'asc',
     'businessName' => 'asc',
-    'email'        => 'asc',
-    'website'      => 'asc',
-    'phone'        => 'asc',
-    'address'      => 'asc',
-    'city'         => 'asc',
+    'email' => 'asc',
+    'website' => 'asc',
+    'phone' => 'asc',
+    'address' => 'asc',
+    'city' => 'asc',
   ];
 
   // IDs DE EMPRESAS
@@ -63,11 +63,16 @@ class Company extends BaseModel
   const COMPANY_AP_ID = 3;
   const COMPANY_GP_ID = 4;
 
-  // EMPRESAS DYNAMICS
-  const string AP_PROD_DYNAMICS = 'GPAUP';
+  // CONNECTIONS DYNAMICS
+  const string CONNECTION_DYNAMICS_1 = 'dbtp';
+  const string CONNECTION_DYNAMICS_2 = 'dbtp2';
+  const string CONNECTION_DYNAMICS_3 = 'dbtp3';
+
+  // COMPANY ID
+  const string COMPANY_GPAUP_ID = 'GPAUP';
   const string AP_TEST_DYNAMICS = 'CTEST';
 
-  const string AP_DYNAMICS = self::AP_PROD_DYNAMICS;
+  const string AP_DYNAMICS = self::COMPANY_GPAUP_ID;
 
   // OTROS
   const string TEST_DYNAMICS = 'CTEST';
