@@ -100,9 +100,9 @@ class ImportVehiclePlates extends Command
 
       // Solo marcar como corrección si:
       // - La API falló, o
-      // - No tiene VIN, o
-      // - No tiene ni VIN ni número de motor
-      $isCorrection = !$apiSuccess || !$hasVin || (!$hasVin && !$hasEngineNumber);
+      // - No tiene VIN
+      // Si tiene VIN pero no número de motor, se usará el VIN como número de motor
+      $isCorrection = !$apiSuccess || !$hasVin;
 
       if ($isCorrection) {
         $vehicleData = [
