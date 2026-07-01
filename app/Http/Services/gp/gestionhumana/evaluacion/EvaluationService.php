@@ -1125,8 +1125,8 @@ class EvaluationService extends BaseService
       if ($person->fecha_inicio > $cycle->cut_off_date) continue;
 
       $hierarchicalCategory = $person->position->hierarchicalCategory;
-      $objectivesPercentage = $hierarchicalCategory->hasObjectives ? $evaluation->objectivesPercentage : 0;
-      $competencesPercentage = $evaluation->typeEvaluation == 0 ? 0 : $evaluation->competencesPercentage;
+      ['objectivesPercentage' => $objectivesPercentage, 'competencesPercentage' => $competencesPercentage]
+        = $evaluation->resolvePersonWeights($hierarchicalCategory);
 
       $evaluator = $person->evaluator ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
@@ -1307,9 +1307,9 @@ class EvaluationService extends BaseService
       ->where('fecha_inicio', '<=', $cycle->cut_off_date)
       ->whereNotNull('supervisor_id')
       ->whereHas('position.hierarchicalCategory', fn($q) => $q
-        ->whereIn('id', $validCategoryIds)
-        ->where('excluded_from_evaluation', false)
-        ->when($isObjectivesCycle, fn($q2) => $q2->where('hasObjectives', true))
+        ->whereIn('gh_hierarchical_category.id', $validCategoryIds)
+        ->where('gh_hierarchical_category.excluded_from_evaluation', false)
+        ->when($isObjectivesCycle, fn($q2) => $q2->where('gh_hierarchical_category.hasObjectives', true))
       )
       ->with(['position.hierarchicalCategory', 'position.area', 'sede', 'evaluator.position'])
       ->get();

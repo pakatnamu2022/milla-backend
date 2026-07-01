@@ -201,6 +201,24 @@ class Evaluation extends Model
     return $this->hasOne(\App\Models\gp\gestionhumana\evaluacion\EvaluationDashboard::class, 'evaluation_id');
   }
 
+  /**
+   * Calcula los pesos de objetivos y competencias para una persona según su categoría.
+   * - Ciclo de objetivos (typeEvaluation=0): competencias siempre 0
+   * - 180°/360° sin objetivos: competencias 100, objetivos 0
+   * - 180°/360° con objetivos: usa los porcentajes de la evaluación
+   */
+  public function resolvePersonWeights($hierarchicalCategory): array
+  {
+    $hasObjectives = $hierarchicalCategory?->hasObjectives ?? false;
+    $isObjectivesCycle = $this->typeEvaluation == self::EVALUATION_TYPE_OBJECTIVES;
+    return [
+      'objectivesPercentage' => $hasObjectives ? $this->objectivesPercentage : 0,
+      'competencesPercentage' => $isObjectivesCycle
+        ? 0
+        : ($hasObjectives ? $this->competencesPercentage : 100),
+    ];
+  }
+
   // Métodos para reportes
   public function processReportData($data)
   {
