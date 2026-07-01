@@ -18,6 +18,7 @@ class MigrateProductsToDynamics extends Command
    * @var string
    */
   protected $signature = 'products:migrate-to-dynamics
+                          {--dyn-code= : Filtrar por código de producto específico (dyn_code)}
                           {--limit= : Limitar el número de productos a migrar}
                           {--dry-run : Ejecutar en modo de prueba sin crear registros}';
 
@@ -46,6 +47,7 @@ class MigrateProductsToDynamics extends Command
 
     $isDryRun = $this->option('dry-run');
     $limit = $this->option('limit');
+    $dynCodeFilter = $this->option('dyn-code');
 
     if ($isDryRun) {
       $this->warn('⚠️  MODO DRY-RUN ACTIVADO - No se crearán registros');
@@ -56,6 +58,12 @@ class MigrateProductsToDynamics extends Command
     $query = Products::with(['brand', 'category', 'articleClass', 'unitMeasurement'])
       ->whereNotNull('dyn_code')
       ->where('dyn_code', '!=', '');
+
+    // Filtrar por dyn_code si se especifica
+    if ($dynCodeFilter) {
+      $query->where('dyn_code', $dynCodeFilter);
+      $this->info("📄 Filtrando por dyn_code: {$dynCodeFilter}");
+    }
 
     if ($limit) {
       $query->limit((int)$limit);

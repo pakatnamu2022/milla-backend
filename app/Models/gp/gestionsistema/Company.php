@@ -63,13 +63,17 @@ class Company extends BaseModel
   const COMPANY_AP_ID = 3;
   const COMPANY_GP_ID = 4;
 
-  const TEST_DYNAMICS = 'CTEST';
+  // EMPRESAS DYNAMICS
+  const string AP_PROD_DYNAMICS = 'GPAUP';
+  const string AP_TEST_DYNAMICS = 'CTEST';
 
-  const AP_DYNAMICS = 'CTEST';
-  const TP_DYNAMICS = 'GPTRP';
+  const string AP_DYNAMICS = self::AP_PROD_DYNAMICS;
 
-  const DP_DYNAMICS = 'GPDPT';
-  const GP_DYNAMICS = 'GPGP';
+  // OTROS
+  const string TEST_DYNAMICS = 'CTEST';
+  const string TP_DYNAMICS = 'GPTRP';
+  const string DP_DYNAMICS = 'GPDPT';
+  const string GP_DYNAMICS = 'GPGP';
 
   public function sedes()
   {
