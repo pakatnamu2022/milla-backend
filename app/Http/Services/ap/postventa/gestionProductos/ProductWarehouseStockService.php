@@ -14,6 +14,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\GeneralMaster;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
@@ -925,7 +926,7 @@ class ProductWarehouseStockService extends BaseService
       }
 
       // 2. Get stock from Dynamics using stored procedure
-      $dynamicsStocks = DB::connection('dbtest')->select("EXEC PaStockArticuloAlmacen '{$warehouse->dyn_code}'");
+      $dynamicsStocks = DB::connection(Company::CONNECTION_DYNAMICS_3)->select("EXEC PaStockArticuloAlmacen '{$warehouse->dyn_code}'");
 
       // 3. Get local stocks with product relation
       $localStocks = ProductWarehouseStock::where('warehouse_id', $warehouseId)

@@ -12,6 +12,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,7 +47,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
     foreach ($documents as $document) {
       try {
-        $sopRecord = DB::connection('dbtest')
+        $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
           ->table('SOP30200')
           ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
           ->first();
@@ -55,7 +56,7 @@ class SyncAccountingStatusJob implements ShouldQueue
           $isAnnulled = $sopRecord->VOIDSTTS == "1";
 
           if (!$isAnnulled) {
-            $rmRecord = DB::connection('dbtest')
+            $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
               ->table('RM20101')
               ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
               ->whereNot('RMDTYPAL', '9')

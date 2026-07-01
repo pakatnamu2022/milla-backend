@@ -10,6 +10,7 @@ use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\gp\gestionsistema\Company;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
@@ -328,9 +329,9 @@ class InventoryMovementService extends BaseService
   public function validateStockInExternalSystem(string $productCode, string $warehouseCode): array
   {
     try {
-      // Ejecutar el stored procedure PaStockArticulo en SQL Server (conexión dbtest)
+      // Ejecutar el stored procedure PaStockArticulo en SQL Server
       // EXEC es la sintaxis correcta para SQL Server
-      $result = DB::connection('dbtest')
+      $result = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->select("EXEC PaStockArticulo '{$productCode}', '{$warehouseCode}'");
 
       // Validar que se obtuvo un resultado
