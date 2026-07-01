@@ -11,6 +11,7 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationRequest;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationPersonService;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationService;
 use App\Jobs\UpdateEvaluationDashboards;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use Illuminate\Http\Request;
 
 class EvaluationController extends Controller
@@ -160,10 +161,13 @@ class EvaluationController extends Controller
         // 1. Recalcular resultados de todas las personas
         $this->evaluationPersonService->recalculateAllResults($id);
 
-        // 2. Dashboard general: sync (el front lo necesita antes de responder)
+        // 2. Resetear dashboards individuales: fuerza cálculo en vivo hasta que la cola los actualice
+        EvaluationPersonDashboard::where('evaluation_id', $id)->update(['last_calculated_at' => null]);
+
+        // 3. Dashboard general: sync (el front lo necesita antes de responder)
         UpdateEvaluationDashboards::dispatchSync($id, false);
 
-        // 3. Dashboards individuales: async en queue (el front los espera por separado)
+        // 4. Dashboards individuales: async en queue (actualiza y persiste los valores correctos)
         UpdateEvaluationDashboards::dispatch($id, true)->onQueue('evaluation-dashboards');
       }
 
