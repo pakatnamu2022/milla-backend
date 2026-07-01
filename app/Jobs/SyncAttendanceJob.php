@@ -174,11 +174,27 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('fecha_fin', '>=', $date)
       ->pluck('empleado_id');
 
-    $absentees = DB::table('rrhh_ausentismo_laboral')
+    // Ausentismo with tipo_descanso label for reporting
+    $absenteeRows = DB::table('rrhh_ausentismo_laboral as al')
+      ->leftJoin('rrhh_tipo_descanso as td', 'td.id', '=', 'al.id_tipo_descanso')
+      ->where('al.status_deleted', 1)
+      ->where('al.fecha_inicial', '<=', $date)
+      ->where('al.fecha_fin', '>=', $date)
+      ->select('al.empleado_id', DB::raw("COALESCE(td.descripcion, 'Ausentismo') AS tipo_label"))
+      ->get();
+
+    $absenteeMap = $absenteeRows->mapWithKeys(fn($r) => [(int) $r->empleado_id => 'ausentismo: ' . $r->tipo_label]);
+    $absentees   = $absenteeRows->pluck('empleado_id');
+
+    // Person-level manual exclusions (prevalece sobre cargo)
+    $byExclusionTable = DB::table('attendance_exclusions')
+      ->where('active', 1)
+      ->pluck('person_id');
+
+    $byPerson = DB::table('rrhh_persona')
       ->where('status_deleted', 1)
-      ->where('fecha_inicial', '<=', $date)
-      ->where('fecha_fin', '>=', $date)
-      ->pluck('empleado_id');
+      ->where('no_attendance_required', 1)
+      ->pluck('id');
 
     $byPosition = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
@@ -186,18 +202,19 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 
-    $byPerson = DB::table('rrhh_persona')
-      ->where('status_deleted', 1)
-      ->where('no_attendance_required', 1)
-      ->pluck('id');
+    // Person-level sources take priority over position when labeling
+    $personLevel = $byExclusionTable->merge($byPerson)->unique();
 
-    return $vacations->merge($absentees)->merge($byPosition)->merge($byPerson)
+    return $vacations->merge($absentees)->merge($personLevel)->merge($byPosition)
       ->unique()
-      ->mapWithKeys(function ($id) use ($vacations, $absentees, $byPosition) {
-        if ($vacations->contains($id))   return [$id => 'vacaciones'];
-        if ($absentees->contains($id))   return [$id => 'ausentismo'];
-        if ($byPosition->contains($id))  return [$id => 'cargo'];
-        return [$id => 'persona'];
+      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPerson, $byPosition) {
+        $id = (int) $id;
+        if ($vacations->contains($id))        return [$id => 'vacaciones'];
+        if ($absentees->contains($id))        return [$id => ($absenteeMap[$id] ?? 'ausentismo')];
+        if ($byExclusionTable->contains($id)) return [$id => 'exclusion_manual'];
+        if ($byPerson->contains($id))         return [$id => 'persona'];
+        if ($byPosition->contains($id))       return [$id => 'cargo'];
+        return [$id => 'desconocido'];
       })
       ->toArray();
   }

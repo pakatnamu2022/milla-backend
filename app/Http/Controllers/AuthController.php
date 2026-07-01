@@ -74,4 +74,9 @@ class AuthController extends Controller
     return $this->service->resetPasswordByToken($request);
   }
 
+  public function activeSessions()
+  {
+    return $this->service->activeSessions();
+  }
+
 }
