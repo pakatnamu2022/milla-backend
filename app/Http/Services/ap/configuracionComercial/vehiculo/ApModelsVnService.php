@@ -6,11 +6,13 @@ use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnDynamicsReso
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApFuelType;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Exception;
 use Illuminate\Http\Request;
@@ -497,6 +499,87 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       'existing'       => $existing,
       'not_found'      => $results['not_found'],
     ];
+  }
+
+  public function syncModel(int $id): array
+  {
+    $model = $this->find($id);
+
+    if (!$model->code) {
+      throw new Exception("El modelo ID {$id} no tiene código asignado y no puede sincronizarse con Dynamics.");
+    }
+
+    $existing = ApModelsVnSyncLog::where('model_vn_id', $model->id)
+      ->whereIn('status', [
+        ApModelsVnSyncLog::STATUS_COMPLETED,
+        ApModelsVnSyncLog::STATUS_IN_PROGRESS,
+        ApModelsVnSyncLog::STATUS_PENDING,
+      ])
+      ->latest()
+      ->first();
+
+    if ($existing) {
+      throw new Exception("El modelo ya tiene una sincronización con estado '{$existing->status}' (Log #{$existing->id}).");
+    }
+
+    $log = ApModelsVnSyncLog::create([
+      'model_vn_id' => $model->id,
+      'code'        => $model->code,
+      'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+      'attempts'    => 0,
+    ]);
+
+    SyncModelVnJob::dispatch($model->id, $log->id);
+
+    return [
+      'log_id'     => $log->id,
+      'model_id'   => $model->id,
+      'code'       => $model->code,
+      'status'     => $log->status,
+      'message'    => 'Job de sincronización despachado correctamente.',
+    ];
+  }
+
+  public function syncAll(): array
+  {
+    $syncedIds = ApModelsVnSyncLog::whereIn('status', [
+      ApModelsVnSyncLog::STATUS_COMPLETED,
+      ApModelsVnSyncLog::STATUS_IN_PROGRESS,
+      ApModelsVnSyncLog::STATUS_PENDING,
+    ])->pluck('model_vn_id');
+
+    $models = ApModelsVn::whereNotNull('code')
+      ->whereNotIn('id', $syncedIds)
+      ->get();
+
+    if ($models->isEmpty()) {
+      return ['dispatched' => 0, 'message' => 'No hay modelos VN pendientes de sincronizar.'];
+    }
+
+    $dispatched = 0;
+    foreach ($models as $model) {
+      $log = ApModelsVnSyncLog::create([
+        'model_vn_id' => $model->id,
+        'code'        => $model->code,
+        'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+        'attempts'    => 0,
+      ]);
+      SyncModelVnJob::dispatch($model->id, $log->id);
+      $dispatched++;
+    }
+
+    return ['dispatched' => $dispatched, 'message' => "Se despacharon {$dispatched} jobs de sincronización."];
+  }
+
+  public function syncLogs(Request $request): \Illuminate\Pagination\LengthAwarePaginator
+  {
+    $query = ApModelsVnSyncLog::with(['model:id,version,model_year,fuel_id'])
+      ->when($request->model_id, fn($q, $v) => $q->where('model_vn_id', $v))
+      ->when($request->status,   fn($q, $v) => $q->where('status', $v))
+      ->when($request->code,     fn($q, $v) => $q->where('code', 'like', "%{$v}%"))
+      ->orderBy('id', 'desc');
+
+    return $query->paginate($request->per_page ?? 20);
   }
 
   public function importFromExcel(UploadedFile $file): array

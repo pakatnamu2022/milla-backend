@@ -983,6 +983,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('modelsVn/import', [ApModelsVnController::class, 'import']);
       Route::get('modelsVn/verify/template', [ApModelsVnController::class, 'downloadVerifyTemplate']);
       Route::post('modelsVn/verify', [ApModelsVnController::class, 'verify']);
+      Route::get('modelsVn/sync-logs', [ApModelsVnController::class, 'syncLogs']);
+      Route::post('modelsVn/sync-all', [ApModelsVnController::class, 'syncAll']);
+      Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
       Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
       Route::apiResource('modelsVn', ApModelsVnController::class)->only([
         'index',

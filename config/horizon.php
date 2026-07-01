@@ -463,6 +463,22 @@ return [
             'timeout' => 600,
             'nice' => 0,
         ],
+        'supervisor-models-vn-sync' => [
+            'connection' => 'redis',
+            'queue' => ['models_vn_sync'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -483,6 +499,7 @@ return [
             'supervisor-receivable-accounts'  => ['minProcesses' => 2, 'maxProcesses' => 4],
             'supervisor-attendance'                    => ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-accounts-receivable-reports'  => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-models-vn-sync'               => ['minProcesses' => 1, 'maxProcesses' => 2],
         ],
 
         'local' => [
@@ -502,6 +519,7 @@ return [
             'supervisor-receivable-accounts'  => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-attendance'                    => ['minProcesses' => 1, 'maxProcesses' => 1],
             'supervisor-accounts-receivable-reports'  => ['minProcesses' => 1, 'maxProcesses' => 1],
+            'supervisor-models-vn-sync'               => ['minProcesses' => 1, 'maxProcesses' => 1],
         ],
     ],
 

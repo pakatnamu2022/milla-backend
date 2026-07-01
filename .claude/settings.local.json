@@ -31,7 +31,8 @@
       "Bash(cd C:/laragon/www/milla-backend && del tinker_debug.php)",
       "Bash(cd:*)",
       "Bash(\"C:/laragon/bin/php/php-8.3.30-nts-Win32-vs16-x64/php.exe\" artisan:*)",
-      "Bash(\"C:/laragon/bin/php/php-8.3.30-nts-Win32-vs16-x64/php.exe\" -r \":*)"
+      "Bash(\"C:/laragon/bin/php/php-8.3.30-nts-Win32-vs16-x64/php.exe\" -r \":*)",
+      "PowerShell(Get-ChildItem \"C:\\\\laragon\\\\www\\\\milla-backend\\\\database\\\\migrations\" -Force | ForEach-Object { $_.Name } | Select-Object -Last 10)"
     ],
     "deny": [],
     "ask": []
