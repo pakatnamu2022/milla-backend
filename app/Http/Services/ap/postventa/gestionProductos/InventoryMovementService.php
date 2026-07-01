@@ -482,6 +482,7 @@ class InventoryMovementService extends BaseService
 
       // Get info for shipping guide
       $receiver_destination = BusinessPartners::find($transferData['receiver_destination_id']);
+      $receiver_establishment = BusinessPartnersEstablishment::find($transferData['receiver_id']);
       $transport_company = BusinessPartners::find($transferData['transport_company_id']);
       $assignedSeries = AssignSalesSeries::find($transferData['document_series_id']);
 
@@ -530,8 +531,8 @@ class InventoryMovementService extends BaseService
         'total_weight' => $transferData['total_weight'] ?? null,
         'origin_ubigeo' => $transmitter ? $transmitter->sede->district->ubigeo : null,
         'origin_address' => $transmitter ? $transmitter->sede->direccion : null,
-        'destination_ubigeo' => $receiver->sede?->district?->ubigeo ?? $receiver_destination->district->ubigeo ?? null,
-        'destination_address' => $receiver->sede?->direccion ?? $receiver_destination->direction ?? null,
+        'destination_ubigeo' => $receiver->sede?->district?->ubigeo ?? $receiver_establishment->ubigeo ?? null,
+        'destination_address' => $receiver->sede?->direccion ?? $receiver_establishment->full_address ?? null,
         'ruc_transport' => $transport_company->num_doc ?? null,
         'company_name_transport' => $transport_company->full_name ?? null,
         'notes' => $transferData['notes'] ?? null,
