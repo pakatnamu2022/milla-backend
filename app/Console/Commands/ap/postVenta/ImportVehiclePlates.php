@@ -93,7 +93,16 @@ class ImportVehiclePlates extends Command
       $result = $this->documentValidationService->validateDocument('plate', $plate, [], true);
       $info = $result['data'] ?? null;
 
-      $isCorrection = empty($result['success']) || empty($info['vin']) || empty($info['engine_number']);
+      // Verificar si la API respondió correctamente
+      $apiSuccess = !empty($result['success']);
+      $hasVin = !empty($info['vin']);
+      $hasEngineNumber = !empty($info['engine_number']);
+
+      // Solo marcar como corrección si:
+      // - La API falló, o
+      // - No tiene VIN
+      // Si tiene VIN pero no número de motor, se usará el VIN como número de motor
+      $isCorrection = !$apiSuccess || !$hasVin;
 
       if ($isCorrection) {
         $vehicleData = [
@@ -103,10 +112,15 @@ class ImportVehiclePlates extends Command
           'sede_id' => $sedeId,
         ];
       } else {
+        // Si tiene VIN pero no tiene número de motor, usar el VIN como número de motor
+        $engineNumber = $hasEngineNumber
+          ? strtoupper(trim($info['engine_number']))
+          : strtoupper(trim($info['vin']));
+
         $vehicleData = [
           'plate' => $plate,
           'vin' => strtoupper(trim($info['vin'])),
-          'engine_number' => strtoupper(trim($info['engine_number'])),
+          'engine_number' => $engineNumber,
           'sede_id' => $sedeId,
         ];
       }
