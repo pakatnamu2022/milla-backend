@@ -2,20 +2,25 @@
 
 namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnDynamicsResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnSyncLogResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApFuelType;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use App\Imports\ap\vehiculo\ApModelsVnImport;
+use App\Imports\ap\vehiculo\ApModelsVnVerifyImport;
 use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -375,6 +380,209 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }, 'plantilla_modelos_vn.xlsx', [
       'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ]);
+  }
+
+  public function downloadVerifyTemplate(): StreamedResponse
+  {
+    $combustibles = ApFuelType::where('status', true)->pluck('description')->toArray();
+
+    $spreadsheet = new Spreadsheet();
+
+    $listsSheet = $spreadsheet->createSheet(1);
+    $listsSheet->setTitle('_Listas');
+    $listsSheet->getTabColor()->setRGB('CCCCCC');
+    $listsSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+
+    foreach ($combustibles as $i => $val) {
+      $listsSheet->setCellValue('A' . ($i + 2), $val);
+    }
+    $listsSheet->setCellValue('A1', 'Combustible');
+    $combRange = count($combustibles) > 0
+      ? '_Listas!$A$2:$A$' . (count($combustibles) + 1)
+      : null;
+
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Verificación Modelos VN');
+
+    $headers = [
+      'A' => 'N°',
+      'B' => 'Versión / Descripción del Modelo *',
+      'C' => 'Año del Modelo *',
+      'D' => 'Combustible *',
+    ];
+    foreach ($headers as $col => $label) {
+      $sheet->setCellValue("{$col}1", $label);
+    }
+
+    $sheet->setCellValue('A2', 0);
+    $sheet->setCellValue('B2', 'HILUX 4X4 SRV AT');
+    $sheet->setCellValue('C2', 2025);
+    $sheet->setCellValue('D2', !empty($combustibles) ? $combustibles[0] : 'DIESEL');
+
+    $headerStyle = [
+      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '1F4E79']],
+      'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
+      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+    ];
+    $sheet->getStyle('A1:D1')->applyFromArray($headerStyle);
+    $sheet->getRowDimension(1)->setRowHeight(40);
+
+    $exampleStyle = [
+      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EBF3FB']],
+      'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
+      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']]],
+    ];
+    $sheet->getStyle('A2:D2')->applyFromArray($exampleStyle);
+
+    foreach (['A' => 6, 'B' => 35, 'C' => 14, 'D' => 20] as $col => $w) {
+      $sheet->getColumnDimension($col)->setWidth($w);
+    }
+
+    if ($combRange) {
+      for ($row = 2; $row <= 1001; $row++) {
+        $validation = $sheet->getCell("D{$row}")->getDataValidation();
+        $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
+        $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_INFORMATION);
+        $validation->setAllowBlank(true);
+        $validation->setShowDropDown(true);
+        $validation->setFormula1($combRange);
+      }
+    }
+
+    $sheet->freezePane('A2');
+    $spreadsheet->setActiveSheetIndex(0);
+
+    $writer = new Xlsx($spreadsheet);
+
+    return response()->streamDownload(function () use ($writer) {
+      $writer->save('php://output');
+    }, 'plantilla_verificacion_modelos_vn.xlsx', [
+      'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+  }
+
+  public function dynamicsPreview(int $id): array
+  {
+    $model = $this->find($id);
+    $model->load(['classArticle', 'family.brand']);
+    $resource = new ApModelsVnDynamicsResource($model);
+    return $resource->toArray(request());
+  }
+
+  public function verifyFromExcel(UploadedFile $file): array
+  {
+    $import = new ApModelsVnVerifyImport();
+    Excel::import($import, $file);
+    $results = $import->getResults();
+
+    $existing = array_map(function (array $row) {
+      $model = ApModelsVn::with(['classArticle', 'family.brand'])->find($row['id']);
+      $dynamicsPayload = null;
+      $dynamicsError   = null;
+      if ($model) {
+        try {
+          $dynamicsPayload = (new ApModelsVnDynamicsResource($model))->toArray(request());
+        } catch (\Throwable $th) {
+          $dynamicsError = $th->getMessage();
+        }
+      }
+      return array_merge($row, [
+        'dynamics_payload' => $dynamicsPayload,
+        'dynamics_error'   => $dynamicsError,
+      ]);
+    }, $results['existing']);
+
+    return [
+      'rows_processed' => $results['rows_processed'],
+      'existing_count' => count($existing),
+      'not_found_count'=> count($results['not_found']),
+      'existing'       => $existing,
+      'not_found'      => $results['not_found'],
+    ];
+  }
+
+  public function syncModel(int $id): array
+  {
+    $model = $this->find($id);
+
+    if (!$model->code) {
+      throw new Exception("El modelo ID {$id} no tiene código asignado y no puede sincronizarse con Dynamics.");
+    }
+
+    $existing = ApModelsVnSyncLog::where('model_vn_id', $model->id)
+      ->whereIn('status', [
+        ApModelsVnSyncLog::STATUS_COMPLETED,
+        ApModelsVnSyncLog::STATUS_IN_PROGRESS,
+        ApModelsVnSyncLog::STATUS_PENDING,
+      ])
+      ->latest()
+      ->first();
+
+    if ($existing) {
+      throw new Exception("El modelo ya tiene una sincronización con estado '{$existing->status}' (Log #{$existing->id}).");
+    }
+
+    $log = ApModelsVnSyncLog::create([
+      'model_vn_id' => $model->id,
+      'code'        => $model->code,
+      'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+      'attempts'    => 0,
+    ]);
+
+    SyncModelVnJob::dispatch($model->id, $log->id);
+
+    return [
+      'log_id'     => $log->id,
+      'model_id'   => $model->id,
+      'code'       => $model->code,
+      'status'     => $log->status,
+      'message'    => 'Job de sincronización despachado correctamente.',
+    ];
+  }
+
+  public function syncAll(): array
+  {
+    $syncedIds = ApModelsVnSyncLog::whereIn('status', [
+      ApModelsVnSyncLog::STATUS_COMPLETED,
+      ApModelsVnSyncLog::STATUS_IN_PROGRESS,
+      ApModelsVnSyncLog::STATUS_PENDING,
+    ])->pluck('model_vn_id');
+
+    $models = ApModelsVn::whereNotNull('code')
+      ->whereNotIn('id', $syncedIds)
+      ->get();
+
+    if ($models->isEmpty()) {
+      return ['dispatched' => 0, 'message' => 'No hay modelos VN pendientes de sincronizar.'];
+    }
+
+    $dispatched = 0;
+    foreach ($models as $model) {
+      $log = ApModelsVnSyncLog::create([
+        'model_vn_id' => $model->id,
+        'code'        => $model->code,
+        'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+        'attempts'    => 0,
+      ]);
+      SyncModelVnJob::dispatch($model->id, $log->id);
+      $dispatched++;
+    }
+
+    return ['dispatched' => $dispatched, 'message' => "Se despacharon {$dispatched} jobs de sincronización."];
+  }
+
+  public function syncLogs(Request $request)
+  {
+    $query = ApModelsVnSyncLog::with(['model:id,version,model_year,fuel_id']);
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ApModelsVnSyncLog::filters,
+      ApModelsVnSyncLog::sorts,
+      ApModelsVnSyncLogResource::class,
+    );
   }
 
   public function importFromExcel(UploadedFile $file): array

@@ -87,4 +87,62 @@ class ApModelsVnController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function sync($id)
+  {
+    try {
+      return $this->success($this->service->syncModel((int) $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function syncAll()
+  {
+    try {
+      return $this->success($this->service->syncAll());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function syncLogs(Request $request)
+  {
+    try {
+      return $this->service->syncLogs($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function dynamicsPreview($id)
+  {
+    try {
+      return $this->success($this->service->dynamicsPreview($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function downloadVerifyTemplate()
+  {
+    try {
+      return $this->service->downloadVerifyTemplate();
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function verify(Request $request)
+  {
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls|max:10240',
+    ]);
+
+    try {
+      return $this->success($this->service->verifyFromExcel($request->file('file')));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
