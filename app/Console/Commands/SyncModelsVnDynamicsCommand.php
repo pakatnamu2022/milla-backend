@@ -6,6 +6,7 @@ use App\Jobs\SyncModelVnJob;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class SyncModelsVnDynamicsCommand extends Command
 {
@@ -41,7 +42,12 @@ class SyncModelsVnDynamicsCommand extends Command
       return Command::FAILURE;
     }
 
-    $log = $this->createLog($model);
+    $log = ApModelsVnSyncLog::create([
+      'model_vn_id' => $model->id,
+      'code'        => $model->code,
+      'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+      'attempts'    => 0,
+    ]);
     SyncModelVnJob::dispatch($model->id, $log->id);
 
     $this->info("Job despachado para modelo #{$modelId} ({$model->code}) — Log #{$log->id}");
@@ -50,55 +56,76 @@ class SyncModelsVnDynamicsCommand extends Command
 
   protected function syncAll(bool $retryFailed): int
   {
-    $query = ApModelsVn::whereNotNull('code');
-
     if ($retryFailed) {
-      // Re-encolar solo los que fallaron
-      $syncedIds = ApModelsVnSyncLog::where('status', ApModelsVnSyncLog::STATUS_FAILED)
-        ->pluck('model_vn_id');
-      $query->whereIn('id', $syncedIds);
-    } else {
-      // Solo los que nunca se sincronizaron o están pendientes
-      $syncedIds = ApModelsVnSyncLog::whereIn('status', [
-        ApModelsVnSyncLog::STATUS_COMPLETED,
-        ApModelsVnSyncLog::STATUS_IN_PROGRESS,
-        ApModelsVnSyncLog::STATUS_PENDING,
-      ])->pluck('model_vn_id');
-      $query->whereNotIn('id', $syncedIds);
+      // Crear nuevos logs para los que fallaron y despachar jobs
+      $failedLogs = ApModelsVnSyncLog::where('status', ApModelsVnSyncLog::STATUS_FAILED)
+        ->with('model')
+        ->get();
+
+      if ($failedLogs->isEmpty()) {
+        $this->info('No hay modelos VN fallidos para reintentar.');
+        return Command::SUCCESS;
+      }
+
+      $this->info("Re-encolando {$failedLogs->count()} modelos fallidos...");
+      foreach ($failedLogs as $log) {
+        if (!$log->model) continue;
+        $newLog = ApModelsVnSyncLog::create([
+          'model_vn_id' => $log->model_vn_id,
+          'code'        => $log->code,
+          'status'      => ApModelsVnSyncLog::STATUS_PENDING,
+          'attempts'    => 0,
+        ]);
+        SyncModelVnJob::dispatch($log->model_vn_id, $newLog->id);
+      }
+
+      $this->info("Jobs re-encolados exitosamente.");
+      return Command::SUCCESS;
     }
 
-    $models = $query->with(['classArticle', 'family.brand'])->orderBy('id')->get();
+    // Modo scheduler: solo actúa sobre logs ya creados (vía endpoint individual o syncAll).
+    // No crea nuevos logs. Completed se ignora (ya terminó).
+    $dispatched = 0;
 
-    if ($models->isEmpty()) {
+    // 1. pending > 30s sin que el worker lo tome → re-despachar
+    $pendingLogs = ApModelsVnSyncLog::where('status', ApModelsVnSyncLog::STATUS_PENDING)
+      ->where('created_at', '<=', now()->subSeconds(30))
+      ->get();
+
+    foreach ($pendingLogs as $log) {
+      SyncModelVnJob::dispatch($log->model_vn_id, $log->id);
+      $dispatched++;
+    }
+
+    // 2. in_progress > 5 min (worker caído) → resetear a pending y re-despachar
+    $stuckLogs = ApModelsVnSyncLog::where('status', ApModelsVnSyncLog::STATUS_IN_PROGRESS)
+      ->where('last_attempt_at', '<=', now()->subMinutes(5))
+      ->get();
+
+    foreach ($stuckLogs as $log) {
+      $log->update(['status' => ApModelsVnSyncLog::STATUS_PENDING]);
+      SyncModelVnJob::dispatch($log->model_vn_id, $log->id);
+      $dispatched++;
+    }
+
+    // 3. failed con menos de 5 intentos → reintentar automáticamente
+    $failedLogs = ApModelsVnSyncLog::where('status', ApModelsVnSyncLog::STATUS_FAILED)
+      ->where('attempts', '<', 5)
+      ->get();
+
+    foreach ($failedLogs as $log) {
+      $log->update(['status' => ApModelsVnSyncLog::STATUS_PENDING]);
+      SyncModelVnJob::dispatch($log->model_vn_id, $log->id);
+      $dispatched++;
+    }
+
+    if ($dispatched === 0) {
       $this->info('No hay modelos VN pendientes de sincronizar.');
       return Command::SUCCESS;
     }
 
-    $label = $retryFailed ? 'fallidos' : 'pendientes';
-    $this->info("Despachando jobs para {$models->count()} modelos {$label}...");
-
-    $bar = $this->output->createProgressBar($models->count());
-    $bar->start();
-
-    foreach ($models as $model) {
-      $log = $this->createLog($model);
-      SyncModelVnJob::dispatch($model->id, $log->id);
-      $bar->advance();
-    }
-
-    $bar->finish();
-    $this->newLine();
-    $this->info("Jobs despachados exitosamente.");
+    Log::channel('daily')->info('[ap:sync-models-vn] Jobs despachados', ['count' => $dispatched]);
+    $this->info("Jobs despachados: {$dispatched}.");
     return Command::SUCCESS;
-  }
-
-  protected function createLog(ApModelsVn $model): ApModelsVnSyncLog
-  {
-    return ApModelsVnSyncLog::create([
-      'model_vn_id' => $model->id,
-      'code'        => $model->code,
-      'status'      => ApModelsVnSyncLog::STATUS_PENDING,
-      'attempts'    => 0,
-    ]);
   }
 }
