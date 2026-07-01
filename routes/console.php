@@ -184,10 +184,10 @@ Schedule::command('attendance:send-absent-report')
   ->runInBackground();
 
 // Sincronizar modelos VN pendientes hacia Dynamics (neInTbArticulo)
-Schedule::command('ap:sync-models-vn')
-  ->everyTenSeconds()
-//  ->between('6:00', '23:59')
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('ap:sync-models-vn')
+//  ->everyTenSeconds()
+////  ->between('6:00', '23:59')
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
