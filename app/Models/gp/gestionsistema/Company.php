@@ -67,7 +67,7 @@ class Company extends BaseModel
   const string AP_PROD_DYNAMICS = 'GPAUP';
   const string AP_TEST_DYNAMICS = 'CTEST';
 
-  const string AP_DYNAMICS = self::AP_TEST_DYNAMICS;
+  const string AP_DYNAMICS = self::AP_PROD_DYNAMICS;
 
   // OTROS
   const string TEST_DYNAMICS = 'CTEST';
