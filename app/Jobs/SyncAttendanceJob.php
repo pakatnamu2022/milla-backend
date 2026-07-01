@@ -33,6 +33,7 @@ class SyncAttendanceJob implements ShouldQueue
 
     try {
       $personMap = $this->buildPersonMap();
+      $codeMap = $this->buildCodeMappings();
       $rows = $this->fetchTransactions($date);
       $grouped = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
@@ -40,8 +41,9 @@ class SyncAttendanceJob implements ShouldQueue
 
       AttendanceSync::whereDate('date', $date)->delete();
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $scheduleMap, $excluded, &$inserted) {
-        $personId = $personMap[$empCode] ?? null;
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $codeMap, $scheduleMap, $excluded, &$inserted) {
+        $effectiveVat = $codeMap[$empCode] ?? $empCode;
+        $personId = $personMap[$effectiveVat] ?? null;
 
         if ($personId && isset($excluded[$personId])) {
           Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} excluido ({$excluded[$personId]}), se omite.");
@@ -49,7 +51,7 @@ class SyncAttendanceJob implements ShouldQueue
         }
 
         $sorted = $punches->sortBy('punch_time')->values();
-        $records = $this->classifyPunches($sorted, $empCode, $date, $personMap, $scheduleMap);
+        $records = $this->classifyPunches($sorted, $empCode, $date, $personId, $scheduleMap);
 
         $data = $records->map(fn($r) => array_merge($r, [
           'synced_at'  => now()->toDateTimeString(),
@@ -102,11 +104,10 @@ class SyncAttendanceJob implements ShouldQueue
     \Illuminate\Support\Collection $punches,
     string                         $empCode,
     string                         $date,
-    array                          $personMap,
+    ?int                           $personId,
     array                          $scheduleMap
   ): \Illuminate\Support\Collection
   {
-    $personId = $personMap[$empCode] ?? null;
     $schedule = $personId ? ($scheduleMap[$personId] ?? null) : null;
     $isSaturday = Carbon::parse($date)->dayOfWeek === 6;
 
@@ -218,6 +219,13 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('status_deleted', 1)
       ->orderByRaw('CASE WHEN status_id = 22 THEN 1 ELSE 0 END ASC')
       ->pluck('id', 'vat')
+      ->toArray();
+  }
+
+  private function buildCodeMappings(): array
+  {
+    return DB::table('attendance_code_mappings')
+      ->pluck('vat', 'emp_code')
       ->toArray();
   }
 

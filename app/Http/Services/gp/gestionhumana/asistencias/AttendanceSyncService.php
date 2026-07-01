@@ -34,7 +34,7 @@ class AttendanceSyncService extends BaseService
     );
   }
 
-  public function show(int $id): JsonResponse
+  public function show(string $id): JsonResponse
   {
     $record = AttendanceSync::with('person')->findOrFail($id);
 

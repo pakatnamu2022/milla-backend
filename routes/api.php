@@ -118,6 +118,7 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceCodeMappingController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceExclusionController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
@@ -288,9 +289,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
 
     });
-
-
-
 
 
     Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
@@ -646,6 +644,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'update',
           'destroy'
         ]);
+
+        //      AUSENTISMO LABORAL
+        Route::get('ausentismo', [AusentismoLaboralController::class, 'index']);
+        Route::post('ausentismo', [AusentismoLaboralController::class, 'store']);
+        Route::get('ausentismo/{id}', [AusentismoLaboralController::class, 'show']);
+        Route::put('ausentismo/{id}', [AusentismoLaboralController::class, 'update']);
+        Route::delete('ausentismo/{id}', [AusentismoLaboralController::class, 'destroy']);
       });
 
       // Accountant District Assignments
@@ -905,6 +910,36 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         // Ruta para crear competencias en lote
         Route::post('/evaluation/{evaluation}/storeMany', [EvaluationPersonResultController::class, 'storeMany']);
+      });
+
+      //    ATTENDANCE — ZKBioTime
+      Route::group(['prefix' => 'attendance'], function () {
+        Route::get('/', [AttendanceSyncController::class, 'index']);
+        Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
+        Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+        Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
+        Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
+        Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+
+        // Exclusiones permanentes por persona
+        Route::resource('exclusions', AttendanceExclusionController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        
+        // Mapeo de códigos incorrectos del dispositivo a DNI real
+        Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::get('/{id}', [AttendanceSyncController::class, 'show']);
       });
     });
   });
@@ -1991,35 +2026,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     'update',
     'destroy',
   ]);
-});
-
-// AUSENTISMO LABORAL
-Route::group(['prefix' => 'admin/ausentismo'], function () {
-  Route::get('/', [AusentismoLaboralController::class, 'index']);
-  Route::post('/', [AusentismoLaboralController::class, 'store']);
-  Route::get('/{id}', [AusentismoLaboralController::class, 'show']);
-  Route::put('/{id}', [AusentismoLaboralController::class, 'update']);
-  Route::delete('/{id}', [AusentismoLaboralController::class, 'destroy']);
-});
-
-// ATTENDANCE — ZKBioTime sync
-Route::group(['prefix' => 'admin/attendance'], function () {
-  Route::get('/', [AttendanceSyncController::class, 'index']);
-  Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
-  Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
-  Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
-  Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
-  Route::get('/{id}', [AttendanceSyncController::class, 'show']);
-  Route::post('/sync', [AttendanceSyncController::class, 'sync']);
-});
-
-// ATTENDANCE — exclusiones permanentes por persona
-Route::group(['prefix' => 'admin/attendance-exclusions'], function () {
-  Route::get('/', [AttendanceExclusionController::class, 'index']);
-  Route::get('/{id}', [AttendanceExclusionController::class, 'show']);
-  Route::post('/', [AttendanceExclusionController::class, 'store']);
-  Route::put('/{id}', [AttendanceExclusionController::class, 'update']);
-  Route::delete('/{id}', [AttendanceExclusionController::class, 'destroy']);
 });
 
 // PUBLIC ROUTES - No authentication required
