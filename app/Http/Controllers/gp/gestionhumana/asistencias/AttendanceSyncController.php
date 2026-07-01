@@ -11,14 +11,16 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceSyncController extends Controller
 {
-  public function __construct(protected AttendanceSyncService $service) {}
+  public function __construct(protected AttendanceSyncService $service)
+  {
+  }
 
   public function index(Request $request): JsonResponse
   {
     return $this->service->list($request);
   }
 
-  public function show(int $id): JsonResponse
+  public function show(string $id): JsonResponse
   {
     return $this->service->show($id);
   }

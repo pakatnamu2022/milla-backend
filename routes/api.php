@@ -291,9 +291,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
 
-
-
-
     Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
 
       // Ubicaciones
@@ -922,26 +919,27 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
         Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
         Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
-        Route::get('/{id}', [AttendanceSyncController::class, 'show']);
         Route::post('/sync', [AttendanceSyncController::class, 'sync']);
 
         // Exclusiones permanentes por persona
-        Route::group(['prefix' => 'exclusions'], function () {
-          Route::get('/', [AttendanceExclusionController::class, 'index']);
-          Route::get('/{id}', [AttendanceExclusionController::class, 'show']);
-          Route::post('/', [AttendanceExclusionController::class, 'store']);
-          Route::put('/{id}', [AttendanceExclusionController::class, 'update']);
-          Route::delete('/{id}', [AttendanceExclusionController::class, 'destroy']);
-        });
-
+        Route::resource('exclusions', AttendanceExclusionController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+        
         // Mapeo de códigos incorrectos del dispositivo a DNI real
-        Route::group(['prefix' => 'code-mappings'], function () {
-          Route::get('/', [AttendanceCodeMappingController::class, 'index']);
-          Route::get('/{id}', [AttendanceCodeMappingController::class, 'show']);
-          Route::post('/', [AttendanceCodeMappingController::class, 'store']);
-          Route::put('/{id}', [AttendanceCodeMappingController::class, 'update']);
-          Route::delete('/{id}', [AttendanceCodeMappingController::class, 'destroy']);
-        });
+        Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
+          'index',
+          'show',
+          'store',
+          'update',
+          'destroy'
+        ]);
+
+        Route::get('/{id}', [AttendanceSyncController::class, 'show']);
       });
     });
   });
