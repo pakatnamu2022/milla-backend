@@ -181,7 +181,7 @@ class EvaluationService extends BaseService
           //         Log del error pero no fallar la creación de la evaluación
           Log::warning('Error al crear competencias automáticamente', [
             'evaluation_id' => $evaluation->id,
-            'error' => $competencesResult['message']
+            'error'         => $competencesResult['message']
           ]);
         }
       }
@@ -234,9 +234,9 @@ class EvaluationService extends BaseService
       }
 
       return [
-        'success' => true,
-        'message' => 'Competencias creadas exitosamente',
-        'personas_procesadas' => $totalPersonasProcesadas,
+        'success'              => true,
+        'message'              => 'Competencias creadas exitosamente',
+        'personas_procesadas'  => $totalPersonasProcesadas,
         'competencias_creadas' => $totalCompetenciasCreadas
       ];
     } catch (\Exception $e) {
@@ -372,17 +372,17 @@ class EvaluationService extends BaseService
     }
 
     EvaluationPersonCompetenceDetail::create([
-      'evaluation_id' => $evaluacionId,
-      'evaluator_id' => $evaluador->id,
-      'person_id' => $persona->id,
-      'competence_id' => $competenciaData['competence_id'],
+      'evaluation_id'     => $evaluacionId,
+      'evaluator_id'      => $evaluador->id,
+      'person_id'         => $persona->id,
+      'competence_id'     => $competenciaData['competence_id'],
       'sub_competence_id' => $competenciaData['sub_competence_id'],
-      'person' => $persona->nombre_completo,
-      'evaluator' => $evaluador->nombre_completo,
-      'competence' => $competenciaData['competence_name'],
-      'sub_competence' => $competenciaData['sub_competence_name'],
-      'evaluatorType' => $tipoEvaluador,
-      'result' => 0
+      'person'            => $persona->nombre_completo,
+      'evaluator'         => $evaluador->nombre_completo,
+      'competence'        => $competenciaData['competence_name'],
+      'sub_competence'    => $competenciaData['sub_competence_name'],
+      'evaluatorType'     => $tipoEvaluador,
+      'result'            => 0
     ]);
   }
 
@@ -520,37 +520,37 @@ class EvaluationService extends BaseService
 
     // Contar registros actuales
     $currentStats = [
-      'person_results' => EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count(),
+      'person_results'     => EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count(),
       'competence_details' => EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)->count(),
       'evaluation_persons' => EvaluationPerson::where('evaluation_id', $evaluation->id)->count(),
-      'dashboards' => EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->count(),
+      'dashboards'         => EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->count(),
     ];
 
     $result = [
-      'evaluation' => [
-        'id' => $evaluation->id,
-        'name' => $evaluation->name,
+      'evaluation'     => [
+        'id'       => $evaluation->id,
+        'name'     => $evaluation->name,
         'cycle_id' => $evaluation->cycle_id,
-        'type' => $evaluation->typeEvaluation,
+        'type'     => $evaluation->typeEvaluation,
       ],
-      'parameters' => [
-        'mode' => $mode,
+      'parameters'     => [
+        'mode'           => $mode,
         'reset_progress' => $resetProgress,
-        'force' => $force,
+        'force'          => $force,
       ],
-      'current_state' => [
+      'current_state'  => [
         'total_persons' => count($currentPersons),
-        'statistics' => $currentStats,
+        'statistics'    => $currentStats,
       ],
       'cycle_analysis' => [
         'expected_persons_in_cycle' => count($expectedPersons),
-        'changes_detected' => !empty($personsToAdd) || !empty($personsToRemove),
-        'persons_to_add_count' => count($personsToAdd),
-        'persons_to_remove_count' => count($personsToRemove),
+        'changes_detected'          => !empty($personsToAdd) || !empty($personsToRemove),
+        'persons_to_add_count'      => count($personsToAdd),
+        'persons_to_remove_count'   => count($personsToRemove),
       ],
-      'validations' => [],
-      'warnings' => [],
-      'errors' => [],
+      'validations'    => [],
+      'warnings'       => [],
+      'errors'         => [],
     ];
 
     // Validar según el modo
@@ -660,8 +660,8 @@ class EvaluationService extends BaseService
         if ($personResult) {
           $hasProgress = $personResult->result > 0 || $personResult->is_completed;
           $progressLost = [
-            'result' => round($personResult->result, 2),
-            'is_completed' => $personResult->is_completed,
+            'result'                => round($personResult->result, 2),
+            'is_completed'          => $personResult->is_completed,
             'completion_percentage' => round($personResult->completion_percentage * 100, 2),
           ];
         }
@@ -711,14 +711,14 @@ class EvaluationService extends BaseService
       }
 
       $result = [
-        'person_id' => $person->id,
-        'name' => $person->nombre_completo,
-        'dni' => $person->vat,
-        'position' => $person->position?->name,
-        'area' => $person->position?->area?->name,
-        'sede' => $person->sede?->abreviatura,
+        'person_id'             => $person->id,
+        'name'                  => $person->nombre_completo,
+        'dni'                   => $person->vat,
+        'position'              => $person->position?->name,
+        'area'                  => $person->position?->area?->name,
+        'sede'                  => $person->sede?->abreviatura,
         'hierarchical_category' => $hierarchicalCategory?->name,
-        'reason' => $reason,
+        'reason'                => $reason,
       ];
 
       // Solo agregar conteos si hay
@@ -752,17 +752,17 @@ class EvaluationService extends BaseService
     $personsWithProgress = array_filter($currentPersonsDetails, fn($p) => isset($p['progress_lost']));
 
     return [
-      'mode' => 'full_reset',
-      'description' => 'Reinicio completo - Elimina todo y crea desde cero',
-      'impact' => 'ALTO - Se perderá todo el progreso existente',
-      'summary' => [
-        'total_will_delete' => count($currentPersonsDetails),
-        'total_will_create' => count($personsToCreate),
+      'mode'              => 'full_reset',
+      'description'       => 'Reinicio completo - Elimina todo y crea desde cero',
+      'impact'            => 'ALTO - Se perderá todo el progreso existente',
+      'summary'           => [
+        'total_will_delete'          => count($currentPersonsDetails),
+        'total_will_create'          => count($personsToCreate),
         'persons_with_progress_lost' => count($personsWithProgress),
       ],
       'persons_to_delete' => $currentPersonsDetails,
-      'persons_to_add' => $personsToCreate,
-      'warnings' => [
+      'persons_to_add'    => $personsToCreate,
+      'warnings'          => [
         count($personsWithProgress) > 0
           ? 'Se perderá el progreso de ' . count($personsWithProgress) . ' persona(s)'
           : 'No hay progreso que se perderá',
@@ -800,21 +800,21 @@ class EvaluationService extends BaseService
     }
 
     return [
-      'mode' => 'sync_with_cycle',
-      'description' => 'Sincronizar con ciclo - Agregar nuevos y eliminar inactivos',
-      'impact' => $resetProgress ? 'ALTO - Se resetearán resultados' : 'MEDIO - Solo afecta cambios',
-      'summary' => [
-        'total_will_remove' => count($personsToRemoveDetails),
-        'total_will_add' => count($personsToAddDetails),
-        'total_will_keep' => count($personsToKeep),
-        'will_reset_progress' => $resetProgress,
+      'mode'              => 'sync_with_cycle',
+      'description'       => 'Sincronizar con ciclo - Agregar nuevos y eliminar inactivos',
+      'impact'            => $resetProgress ? 'ALTO - Se resetearán resultados' : 'MEDIO - Solo afecta cambios',
+      'summary'           => [
+        'total_will_remove'             => count($personsToRemoveDetails),
+        'total_will_add'                => count($personsToAddDetails),
+        'total_will_keep'               => count($personsToKeep),
+        'will_reset_progress'           => $resetProgress,
         'persons_removed_with_progress' => count($personsRemovedWithProgress),
-        'persons_kept_with_progress' => count($personsToKeepWithProgress),
+        'persons_kept_with_progress'    => count($personsToKeepWithProgress),
         'total_persons_losing_progress' => $totalProgressLost,
       ],
       'persons_to_remove' => $personsToRemoveDetails,
-      'persons_to_add' => $personsToAddDetails,
-      'warnings' => array_filter([
+      'persons_to_add'    => $personsToAddDetails,
+      'warnings'          => array_filter([
         count($personsRemovedWithProgress) > 0
           ? 'Se perderá el progreso de ' . count($personsRemovedWithProgress) . ' persona(s) que se eliminan'
           : null,
@@ -834,16 +834,16 @@ class EvaluationService extends BaseService
   private function previewAddMissingOnlyDetailed($evaluation, $cycle, $personsToAddDetails)
   {
     return [
-      'mode' => 'add_missing_only',
-      'description' => 'Agregar solo faltantes - No elimina nada',
-      'impact' => 'BAJO - Solo agrega',
-      'summary' => [
-        'total_will_add' => count($personsToAddDetails),
-        'no_deletions' => true,
+      'mode'           => 'add_missing_only',
+      'description'    => 'Agregar solo faltantes - No elimina nada',
+      'impact'         => 'BAJO - Solo agrega',
+      'summary'        => [
+        'total_will_add'   => count($personsToAddDetails),
+        'no_deletions'     => true,
         'no_modifications' => true,
       ],
       'persons_to_add' => $personsToAddDetails,
-      'warnings' => count($personsToAddDetails) === 0
+      'warnings'       => count($personsToAddDetails) === 0
         ? ['No hay personas nuevas que agregar']
         : [],
     ];
@@ -864,10 +864,10 @@ class EvaluationService extends BaseService
 
     if (!$needsRegeneration && $mode !== 'full_reset') {
       return [
-        'success' => true,
-        'message' => 'No se detectaron cambios en las personas del ciclo; no se realizaron modificaciones',
+        'success'          => true,
+        'message'          => 'No se detectaron cambios en las personas del ciclo; no se realizaron modificaciones',
         'changes_detected' => false,
-        'mode_used' => $mode
+        'mode_used'        => $mode
       ];
     }
 
@@ -879,9 +879,9 @@ class EvaluationService extends BaseService
     };
 
     return array_merge($result, [
-      'success' => true,
+      'success'          => true,
       'changes_detected' => true,
-      'mode_used' => $mode
+      'mode_used'        => $mode
     ]);
   }
 
@@ -912,10 +912,10 @@ class EvaluationService extends BaseService
     }
 
     return [
-      'message' => 'Evaluación completamente regenerada desde cero',
+      'message'                => 'Evaluación completamente regenerada desde cero',
       'participants_recreated' => EvaluationPersonResult::where('evaluation_id', $evaluation->id)->count(),
-      'competences_created' => $competencesCreated,
-      'progress_reset' => true
+      'competences_created'    => $competencesCreated,
+      'progress_reset'         => true
     ];
   }
 
@@ -940,18 +940,18 @@ class EvaluationService extends BaseService
 
     // Diagnóstico detallado para debugging
     $diagnostico = [
-      'current_persons_count' => count($currentPersons),
-      'expected_persons_count' => count($expectedPersons),
-      'persons_to_add_ids' => array_values($personsToAdd),
-      'persons_to_remove_ids' => array_values($personsToRemove),
-      'current_persons_sample' => array_slice($currentPersons, 0, 5),
+      'current_persons_count'   => count($currentPersons),
+      'expected_persons_count'  => count($expectedPersons),
+      'persons_to_add_ids'      => array_values($personsToAdd),
+      'persons_to_remove_ids'   => array_values($personsToRemove),
+      'current_persons_sample'  => array_slice($currentPersons, 0, 5),
       'expected_persons_sample' => array_slice($expectedPersons, 0, 5)
     ];
 
     $stats = [
-      'persons_added' => 0,
-      'persons_removed' => 0,
-      'competences_created' => 0,
+      'persons_added'        => 0,
+      'persons_removed'      => 0,
+      'competences_created'  => 0,
       'progress_reset_count' => 0
     ];
 
@@ -989,10 +989,10 @@ class EvaluationService extends BaseService
     if ($resetProgress) {
       EvaluationPersonResult::where('evaluation_id', $evaluation->id)
         ->update([
-          'result' => 0,
-          'objectivesResult' => 0,
+          'result'            => 0,
+          'objectivesResult'  => 0,
           'competencesResult' => 0,
-          'status' => 0
+          'status'            => 0
         ]);
 
       EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
@@ -1006,14 +1006,14 @@ class EvaluationService extends BaseService
     EvaluationPersonDashboard::where('evaluation_id', $evaluation->id)->delete();
 
     return [
-      'message' => 'Evaluación sincronizada con el ciclo',
-      'persons_added' => $stats['persons_added'],
-      'persons_removed' => $stats['persons_removed'],
-      'competences_created' => $stats['competences_created'],
-      'progress_reset' => $resetProgress,
-      'progress_reset_count' => $stats['progress_reset_count'],
+      'message'               => 'Evaluación sincronizada con el ciclo',
+      'persons_added'         => $stats['persons_added'],
+      'persons_removed'       => $stats['persons_removed'],
+      'competences_created'   => $stats['competences_created'],
+      'progress_reset'        => $resetProgress,
+      'progress_reset_count'  => $stats['progress_reset_count'],
       'persons_added_details' => $personsAddedDetails,
-      'diagnostic' => $diagnostico
+      'diagnostic'            => $diagnostico
     ];
   }
 
@@ -1037,15 +1037,15 @@ class EvaluationService extends BaseService
 
     // Diagnóstico detallado para debugging
     $diagnostico = [
-      'current_persons_count' => count($currentPersons),
-      'expected_persons_count' => count($expectedPersons),
-      'persons_to_add_ids' => array_values($personsToAdd),
-      'current_persons_sample' => array_slice($currentPersons, 0, 5),
+      'current_persons_count'   => count($currentPersons),
+      'expected_persons_count'  => count($expectedPersons),
+      'persons_to_add_ids'      => array_values($personsToAdd),
+      'current_persons_sample'  => array_slice($currentPersons, 0, 5),
       'expected_persons_sample' => array_slice($expectedPersons, 0, 5)
     ];
 
     $stats = [
-      'persons_added' => 0,
+      'persons_added'       => 0,
       'competences_created' => 0
     ];
 
@@ -1070,12 +1070,12 @@ class EvaluationService extends BaseService
       ->onQueue('evaluation-dashboards');
 
     return [
-      'message' => empty($personsAddedDetails) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
-      'persons_added' => $stats['persons_added'],
-      'competences_created' => $stats['competences_created'],
-      'existing_preserved' => true,
+      'message'               => empty($personsAddedDetails) ? 'No hay participantes faltantes que agregar' : 'Participantes faltantes agregados exitosamente',
+      'persons_added'         => $stats['persons_added'],
+      'competences_created'   => $stats['competences_created'],
+      'existing_preserved'    => true,
       'persons_added_details' => $personsAddedDetails,
-      'diagnostic' => $diagnostico
+      'diagnostic'            => $diagnostico
     ];
   }
 
@@ -1129,40 +1129,40 @@ class EvaluationService extends BaseService
       $evaluator = $person->evaluator ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
       EvaluationPersonResult::create([
-        'person_id' => $person->id,
-        'evaluation_id' => $evaluation->id,
-        'competencesPercentage' => $competencesPercentage,
-        'objectivesPercentage' => $objectivesPercentage,
-        'objectivesResult' => 0,
-        'competencesResult' => 0,
-        'status' => 0,
-        'result' => 0,
-        'name' => $person->nombre_completo,
-        'dni' => $person->vat,
-        'hierarchical_category' => $hierarchicalCategory->name,
-        'position' => $person->position->name,
-        'area' => $person->position->area->name ?? '',
-        'sede' => $person->sede->abreviatura ?? '',
-        'boss' => $evaluator->nombre_completo ?? '',
-        'boss_dni' => $evaluator->vat ?? '',
+        'person_id'                  => $person->id,
+        'evaluation_id'              => $evaluation->id,
+        'competencesPercentage'      => $competencesPercentage,
+        'objectivesPercentage'       => $objectivesPercentage,
+        'objectivesResult'           => 0,
+        'competencesResult'          => 0,
+        'status'                     => 0,
+        'result'                     => 0,
+        'name'                       => $person->nombre_completo,
+        'dni'                        => $person->vat,
+        'hierarchical_category'      => $hierarchicalCategory->name,
+        'position'                   => $person->position->name,
+        'area'                       => $person->position->area->name ?? '',
+        'sede'                       => $person->sede->abreviatura ?? '',
+        'boss'                       => $evaluator->nombre_completo ?? '',
+        'boss_dni'                   => $evaluator->vat ?? '',
         'boss_hierarchical_category' => $evaluator->position->hierarchicalCategory->name ?? '',
-        'boss_position' => $evaluator->position->name ?? '',
-        'boss_area' => $evaluator->position->area->name ?? '',
-        'boss_sede' => $evaluator->sede->abreviatura ?? '',
-        'hasObjectives' => $hierarchicalCategory->hasObjectives,
-        'hierarchical_category_id' => $hierarchicalCategory->id,
+        'boss_position'              => $evaluator->position->name ?? '',
+        'boss_area'                  => $evaluator->position->area->name ?? '',
+        'boss_sede'                  => $evaluator->sede->abreviatura ?? '',
+        'hasObjectives'              => $hierarchicalCategory->hasObjectives,
+        'hierarchical_category_id'   => $hierarchicalCategory->id,
       ]);
 
       // Agregar detalles de la persona agregada para el log
       $personsAdded[] = [
-        'id' => $person->id,
-        'name' => $person->nombre_completo,
-        'dni' => $person->vat,
-        'position' => $person->position->name,
-        'area' => $person->position->area->name ?? '',
+        'id'                    => $person->id,
+        'name'                  => $person->nombre_completo,
+        'dni'                   => $person->vat,
+        'position'              => $person->position->name,
+        'area'                  => $person->position->area->name ?? '',
         'hierarchical_category' => $hierarchicalCategory->name,
-        'fecha_inicio' => $person->fecha_inicio,
-        'reason' => 'Agregado por diferencia en ciclo'
+        'fecha_inicio'          => $person->fecha_inicio,
+        'reason'                => 'Agregado por diferencia en ciclo'
       ];
     }
 
@@ -1189,15 +1189,15 @@ class EvaluationService extends BaseService
 
       if (!$exists) {
         EvaluationPerson::create([
-          'person_id' => $detail->person_id,
-          'chief_id' => $detail->chief_id,
-          'chief' => $detail->chief,
+          'person_id'              => $detail->person_id,
+          'chief_id'               => $detail->chief_id,
+          'chief'                  => $detail->chief,
           'person_cycle_detail_id' => $detail->id,
-          'evaluation_id' => $evaluation->id,
-          'result' => 0,
-          'compliance' => 0,
-          'qualification' => 0,
-          'wasEvaluated' => 0,
+          'evaluation_id'          => $evaluation->id,
+          'result'                 => 0,
+          'compliance'             => 0,
+          'qualification'          => 0,
+          'wasEvaluated'           => 0,
         ]);
       }
     }

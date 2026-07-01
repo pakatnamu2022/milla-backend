@@ -1235,33 +1235,8 @@ class EvaluationPersonCycleDetailService extends BaseService
       })->values();
     }
 
-    // Ciclo 180/360: elegible si la categoría tiene competencias, está en el ciclo y el worker aún no está inscrito
-    $workersInCycle = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
-      ->whereNull('deleted_at')
-      ->pluck('person_id')
-      ->unique();
-
-    return $workers->filter(function (Worker $worker) use ($cycleId, $workersInCycle) {
-      if ($workersInCycle->contains($worker->id)) {
-        return false;
-      }
-
-      $category = $worker->position?->hierarchicalCategory;
-      if (!$category) {
-        return false;
-      }
-
-      $categoryInCycle = EvaluationCycleCategoryDetail::whereNull('deleted_at')
-        ->where('cycle_id', $cycleId)
-        ->where('hierarchical_category_id', $category->id)
-        ->exists();
-
-      if (!$categoryInCycle) {
-        return false;
-      }
-
-      return $category->competences()->exists();
-    })->values();
+    // Ciclo 180/360: los participantes se sincronizan desde la evaluación (regenerateEvaluation)
+    return collect();
   }
 
   /**
