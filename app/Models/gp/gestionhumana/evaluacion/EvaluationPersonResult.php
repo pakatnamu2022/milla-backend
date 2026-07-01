@@ -352,13 +352,16 @@ class EvaluationPersonResult extends BaseModel
    */
   public function getTotalProgressAttribute()
   {
-    // Intentar obtener datos del dashboard primero
     $dashboard = $this->dashboard;
     if ($dashboard && $dashboard->last_calculated_at && $dashboard->total_progress_detail) {
-      return $dashboard->total_progress_detail;
+      $detail = $dashboard->total_progress_detail;
+      $compDetail = $detail['competences_progress'] ?? [];
+      if (($compDetail['groups'] ?? 0) === 0 && $this->evaluation->typeEvaluation != 0) {
+        return $this->fallbackCalculateTotalProgress();
+      }
+      return $detail;
     }
 
-    // Fallback al cálculo original si no hay dashboard
     return $this->fallbackCalculateTotalProgress();
   }
 
@@ -400,9 +403,7 @@ class EvaluationPersonResult extends BaseModel
       $detail = $dashboard->competences_progress_detail;
       // Si el dashboard muestra 0 grupos pero la evaluación es de competencias (180°/360°)
       // y no hay grouped_competences guardados, el dashboard está desactualizado — recalcular live
-      if (($detail['groups'] ?? 0) === 0
-        && $this->evaluation->typeEvaluation != 0
-        && !$dashboard->grouped_competences) {
+      if (($detail['groups'] ?? 0) === 0 && $this->evaluation->typeEvaluation != 0) {
         return $this->fallbackCalculateCompetencesProgress();
       }
       return $detail;
