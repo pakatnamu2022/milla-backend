@@ -124,7 +124,8 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       ->mapWithKeys(function ($item) {
         // Formatear time_appointment a HH:MM para comparación
         $time = substr($item->time_appointment, 0, 5); // Toma solo HH:MM de HH:MM:SS
-        $key = $item->date_appointment . '_' . $time;
+        $date = $item->date_appointment->format('Y-m-d'); // Formatear fecha sin hora
+        $key = $date . '_' . $time;
         return [$key => $item];
       });
 
@@ -136,7 +137,8 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       ->mapWithKeys(function ($item) {
         // Formatear delivery_time a HH:MM para comparación
         $time = substr($item->delivery_time, 0, 5); // Toma solo HH:MM de HH:MM:SS
-        $key = $item->delivery_date . '_' . $time;
+        $date = $item->delivery_date->format('Y-m-d'); // Formatear fecha sin hora
+        $key = $date . '_' . $time;
         return [$key => $item];
       });
 
@@ -165,7 +167,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
             'available' => !$appointment,
             'appointment_id' => $appointment ? $appointment->id : null,
             'type' => $appointment ? (
-            $appointment->date_appointment == $dateStr && substr($appointment->time_appointment, 0, 5) == $timeStr
+            $appointment->date_appointment->format('Y-m-d') == $dateStr && substr($appointment->time_appointment, 0, 5) == $timeStr
               ? 'Reservación'
               : 'Entrega'
             ) : null,
