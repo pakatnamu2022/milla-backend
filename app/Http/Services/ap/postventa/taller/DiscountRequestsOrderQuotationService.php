@@ -201,12 +201,51 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     return new DiscountRequestsOrderQuotationResource($fresh);
   }
 
+  public function revert($id, $reason = null): DiscountRequestsOrderQuotationResource
+  {
+    $record = $this->findApproved($id);
+
+    // Validar que no haya sido revertido previamente
+    if ($record->reverted_at !== null) {
+      throw new Exception('Este descuento ya ha sido revertido previamente.');
+    }
+
+    DB::transaction(function () use ($record, $reason) {
+      // Revertir el descuento aplicado en la cotización
+      $this->revertDiscountFromQuotation($record);
+
+      // Actualizar el registro con la información de reversión
+      $record->update([
+        'reverted_by_id' => auth()->id(),
+        'reverted_at' => now(),
+        'reverted_reason' => $reason,
+      ]);
+    });
+
+    $fresh = $record->fresh();
+
+    $this->sendRevertNotification($fresh);
+
+    return new DiscountRequestsOrderQuotationResource($fresh);
+  }
+
   private function findNotApproved($id): DiscountRequestsOrderQuotation
   {
     $record = $this->find($id);
 
     if ($record->status !== DiscountRequestsOrderQuotation::STATUS_PENDING) {
       throw new Exception('No se puede modificar una solicitud de descuento que ya ha sido procesada.');
+    }
+
+    return $record;
+  }
+
+  private function findApproved($id): DiscountRequestsOrderQuotation
+  {
+    $record = $this->find($id);
+
+    if ($record->status !== DiscountRequestsOrderQuotation::STATUS_APPROVED) {
+      throw new Exception('Solo se pueden revertir descuentos que hayan sido aprobados.');
     }
 
     return $record;
@@ -284,6 +323,91 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
 
       // Actualizar el detalle con el nuevo descuento y los campos calculados
+      $detail->update([
+        'discount_percentage' => $discountPercentage,
+        'total_cost' => $totalCost,
+        'net_amount' => $netAmount,
+        'tax_amount' => $taxAmount,
+      ]);
+    }
+  }
+
+  private function revertDiscountFromQuotation(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $discountRequest->loadMissing(['apOrderQuotation', 'apOrderQuotationDetail']);
+
+    $quotation = $discountRequest->apOrderQuotation;
+    if (!$quotation) {
+      throw new Exception('Cotización no encontrada.');
+    }
+
+    if ($discountRequest->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL) {
+      // Revertir descuento por ítem específico
+      $this->revertPartialDiscount($discountRequest);
+    } else {
+      // Revertir descuento global de todos los detalles del tipo de item
+      $this->revertGlobalDiscount($discountRequest);
+    }
+
+    // Recalcular totales de la cotización
+    $this->recalculateQuotationTotals($quotation);
+  }
+
+  private function revertPartialDiscount(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $detail = $discountRequest->apOrderQuotationDetail;
+    if (!$detail) {
+      throw new Exception('Detalle de cotización no encontrado.');
+    }
+
+    $unitPrice = (float)$detail->unit_price;
+    $quantity = (float)$detail->quantity;
+
+    // Resetear el descuento a 0
+    $discountPercentage = 0;
+
+    // Calcular total_cost, net_amount y tax_amount sin descuento
+    $totalCost = $unitPrice * $quantity;
+    $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
+    // Actualizar el detalle removiendo el descuento
+    $detail->update([
+      'discount_percentage' => $discountPercentage,
+      'total_cost' => $totalCost,
+      'net_amount' => $netAmount,
+      'tax_amount' => $taxAmount,
+    ]);
+  }
+
+  private function revertGlobalDiscount(DiscountRequestsOrderQuotation $discountRequest): void
+  {
+    $quotation = $discountRequest->apOrderQuotation;
+    $itemType = $discountRequest->item_type;
+
+    // Obtener todos los detalles del tipo de item especificado
+    $details = $quotation->details()
+      ->where('item_type', $itemType)
+      ->get();
+
+    if ($details->isEmpty()) {
+      throw new Exception('No se encontraron detalles del tipo ' . $itemType . ' en la cotización.');
+    }
+
+    // Resetear el descuento a 0
+    $discountPercentage = 0;
+
+    // Revertir el descuento de cada detalle
+    foreach ($details as $detail) {
+      $unitPrice = (float)$detail->unit_price;
+      $quantity = (float)$detail->quantity;
+
+      // Calcular total_cost, net_amount y tax_amount sin descuento
+      $totalCost = $unitPrice * $quantity;
+      $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
+      $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+
+      // Actualizar el detalle removiendo el descuento
       $detail->update([
         'discount_percentage' => $discountPercentage,
         'total_cost' => $totalCost,
@@ -546,6 +670,89 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de solicitud de descuento: ' . $e->getMessage());
+    }
+  }
+
+  private function sendRevertNotification(DiscountRequestsOrderQuotation $record): void
+  {
+    try {
+      $record->loadMissing(['advisor', 'manager', 'boss', 'apOrderQuotation.vehicle', 'apOrderQuotationDetail', 'revertedBy']);
+
+      $quotation = $record->apOrderQuotation;
+      $detail = $record->apOrderQuotationDetail;
+      $advisor = $record->advisor;
+      $manager = $record->manager;
+      $boss = $record->boss;
+      $reverter = $record->revertedBy;
+
+      if ($record->type === DiscountRequestsOrderQuotation::TYPE_PARTIAL && $detail) {
+        $originalPrice = (float)$detail->unit_price * (float)$detail->quantity;
+      } else {
+        $originalPrice = (float)($quotation->total_amount ?? 0);
+      }
+
+      $discountAmount = (float)$record->requested_discount_amount;
+      $finalPrice = $originalPrice - $discountAmount;
+
+      $sharedData = [
+        'quotation_number' => $quotation->quotation_number ?? $record->ap_order_quotation_id,
+        'plate' => $quotation?->vehicle?->plate,
+        'type' => $record->type,
+        'item_type' => $record->item_type,
+        'requester_name' => $advisor?->name ?? 'Asesor',
+        'reverter_name' => $reverter?->name ?? 'Administrador',
+        'reverted_date' => $record->reverted_at?->format('d/m/Y H:i'),
+        'reverted_reason' => $record->reverted_reason ?? 'No se especificó razón',
+        'item_description' => $detail?->description,
+        'item_quantity' => $detail?->quantity,
+        'item_unit' => $detail?->unit_measure,
+        'item_unit_price' => (float)($detail?->unit_price ?? 0),
+        'original_price' => $originalPrice,
+        'discount_percentage' => (float)$record->requested_discount_percentage,
+        'discount_amount' => $discountAmount,
+        'final_price' => $finalPrice,
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/repuestos/cotizacion-meson/solicitar-descuento/' . $quotation->id,
+      ];
+
+      $subject = 'Descuento revertido — Cotización #' . ($quotation->quotation_number ?? $record->ap_order_quotation_id);
+
+      // Notificar al asesor (quien solicitó el descuento originalmente)
+      if ($advisor?->email2) {
+        $this->emailService->queue([
+          'to' => $advisor->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-reverted',
+          'data' => array_merge($sharedData, ['recipient_name' => $advisor->name ?? 'Asesor']),
+        ]);
+      }
+
+      $requestedDiscountPercentage = (float)$record->requested_discount_percentage;
+      $bossSetting = GeneralMaster::find(GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID);
+      $maxDiscountPercentage = $bossSetting ? ($bossSetting->value * 100) : 20;
+
+      $shouldNotifyManager = $requestedDiscountPercentage > $maxDiscountPercentage;
+
+      // Notificar al gerente
+      if ($shouldNotifyManager && $manager?->email2) {
+        $this->emailService->queue([
+          'to' => $manager->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-reverted',
+          'data' => array_merge($sharedData, ['recipient_name' => $manager->name ?? 'Gerente']),
+        ]);
+      }
+
+      // Notificar al jefe
+      if ($boss?->email2) {
+        $this->emailService->queue([
+          'to' => $boss->email2,
+          'subject' => $subject,
+          'template' => 'emails.discount-request-reverted',
+          'data' => array_merge($sharedData, ['recipient_name' => $boss->name ?? 'Jefe']),
+        ]);
+      }
+    } catch (Exception $e) {
+      \Log::error('Error al enviar notificación de reversión de descuento: ' . $e->getMessage());
     }
   }
 }

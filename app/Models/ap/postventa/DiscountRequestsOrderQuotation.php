@@ -22,10 +22,13 @@ class DiscountRequestsOrderQuotation extends Model
     'boss_id',
     'advisor_id',
     'reviewed_by_id',
+    'reverted_by_id',
     'request_date',
     'requested_discount_percentage',
     'requested_discount_amount',
     'review_date',
+    'reverted_at',
+    'reverted_reason',
     'type',
     'item_type',
     'status',
@@ -34,6 +37,7 @@ class DiscountRequestsOrderQuotation extends Model
   protected $casts = [
     'request_date' => 'datetime',
     'review_date' => 'datetime',
+    'reverted_at' => 'datetime',
     'requested_discount_percentage' => 'float',
     'requested_discount_amount' => 'float',
   ];
@@ -110,6 +114,11 @@ class DiscountRequestsOrderQuotation extends Model
   public function reviewer()
   {
     return $this->belongsTo(User::class, 'reviewed_by_id');
+  }
+
+  public function revertedBy()
+  {
+    return $this->belongsTo(User::class, 'reverted_by_id');
   }
 
   // Mantener compatibilidad temporal con código existente

@@ -1609,6 +1609,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Discount Requests Order Quotation - Solicitudes de Descuento de Cotizaciones
       Route::put('discountRequestsOrderQuotation/{id}/approve', [DiscountRequestsOrderQuotationController::class, 'approve']);
       Route::put('discountRequestsOrderQuotation/{id}/reject', [DiscountRequestsOrderQuotationController::class, 'reject']);
+      Route::put('discountRequestsOrderQuotation/{id}/revert', [DiscountRequestsOrderQuotationController::class, 'revert']);
       Route::apiResource('discountRequestsOrderQuotation', DiscountRequestsOrderQuotationController::class)->only([
         'index',
         'show',
