@@ -163,6 +163,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   {
     $record = $this->findNotApproved($id);
 
+    // Validar quién puede aprobar según el área y el porcentaje de descuento
+    $this->validateApproval($record);
+
     DB::transaction(function () use ($record) {
       // Actualizar el estado de la solicitud
       $record->update([
@@ -209,6 +212,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     if ($record->reverted_at !== null) {
       throw new Exception('Este descuento ya ha sido revertido previamente.');
     }
+
+    // Validar que el usuario tenga permisos para revertir
+    $this->validateRevert($record);
 
     DB::transaction(function () use ($record, $reason) {
       // Revertir el descuento aplicado en la cotización
@@ -753,6 +759,110 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       }
     } catch (Exception $e) {
       \Log::error('Error al enviar notificación de reversión de descuento: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Valida que el usuario tenga permisos para aprobar el descuento según el área y el porcentaje solicitado
+   */
+  private function validateApproval(DiscountRequestsOrderQuotation $record): void
+  {
+    // 1. Obtener la cotización y determinar el área
+    $quotation = ApOrderQuotations::findOrFail($record->ap_order_quotation_id);
+    $areaId = $quotation->area_id;
+
+    // 2. Obtener el usuario autenticado y su cargo
+    $user = auth()->user();
+    $positionId = $user->person?->position?->id;
+
+    if (!$positionId) {
+      throw new Exception('No se pudo determinar el cargo del usuario autenticado.');
+    }
+
+    // 3. Determinar si es gerente
+    $isManager = in_array($positionId, Position::POSITION_GERENTE_PV_IDS);
+
+    // 4. Determinar si es jefe del área correspondiente
+    $isBoss = false;
+    $bossDiscountSettingId = null;
+
+    if ($areaId === ApMasters::AREA_TALLER) {
+      $isBoss = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS);
+      $bossDiscountSettingId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVT_ID;
+    } elseif ($areaId === ApMasters::AREA_MESON) {
+      $isBoss = in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS);
+      $bossDiscountSettingId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID;
+    } else {
+      throw new Exception('El área de la cotización no es válida para solicitudes de descuento.');
+    }
+
+    // 5. Validar que el usuario sea gerente o jefe
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para aprobar esta solicitud de descuento. Solo el jefe del área o el gerente pueden aprobar.');
+    }
+
+    // 6. Obtener el porcentaje de descuento solicitado (convertir de 30 a 0.30 para comparar)
+    $requestedDiscountPercentage = (float)$record->requested_discount_percentage / 100;
+
+    // 7. Obtener límites de descuento
+    $managerDiscountSetting = GeneralMaster::find(GeneralMaster::MANAGER_DISCOUNT_PERCENTAGE_PV_ID);
+    $maxManagerDiscount = $managerDiscountSetting ? (float)$managerDiscountSetting->value : 0.30; // Default 30%
+
+    $bossDiscountSetting = GeneralMaster::find($bossDiscountSettingId);
+    $maxBossDiscount = $bossDiscountSetting ? (float)$bossDiscountSetting->value : 0.20; // Default 20%
+
+    // 8. Validar según el rol y el porcentaje
+    if ($isBoss && !$isManager) {
+      // Si es solo jefe (no gerente), validar que el descuento no exceda su límite
+      if ($requestedDiscountPercentage > $maxBossDiscount) {
+        throw new Exception(
+          'El descuento solicitado (' . ($requestedDiscountPercentage * 100) . '%) excede el límite permitido para el jefe (' . ($maxBossDiscount * 100) . '%). Solo el gerente puede aprobar este descuento.'
+        );
+      }
+    } elseif ($isManager) {
+      // Si es gerente, validar que el descuento no exceda su límite
+      if ($requestedDiscountPercentage > $maxManagerDiscount) {
+        throw new Exception(
+          'El descuento solicitado (' . ($requestedDiscountPercentage * 100) . '%) excede el límite máximo permitido (' . ($maxManagerDiscount * 100) . '%).'
+        );
+      }
+    }
+  }
+
+  /**
+   * Valida que el usuario tenga permisos para revertir el descuento según el área
+   */
+  private function validateRevert(DiscountRequestsOrderQuotation $record): void
+  {
+    // 1. Obtener la cotización y determinar el área
+    $quotation = ApOrderQuotations::findOrFail($record->ap_order_quotation_id);
+    $areaId = $quotation->area_id;
+
+    // 2. Obtener el usuario autenticado y su cargo
+    $user = auth()->user();
+    $positionId = $user->person?->position?->id;
+
+    if (!$positionId) {
+      throw new Exception('No se pudo determinar el cargo del usuario autenticado.');
+    }
+
+    // 3. Determinar si es gerente
+    $isManager = in_array($positionId, Position::POSITION_GERENTE_PV_IDS);
+
+    // 4. Determinar si es jefe del área correspondiente
+    $isBoss = false;
+
+    if ($areaId === ApMasters::AREA_TALLER) {
+      $isBoss = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS);
+    } elseif ($areaId === ApMasters::AREA_MESON) {
+      $isBoss = in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS);
+    } else {
+      throw new Exception('El área de la cotización no es válida para solicitudes de descuento.');
+    }
+
+    // 5. Validar que el usuario sea gerente o jefe
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para revertir esta solicitud de descuento. Solo el jefe del área o el gerente pueden revertir.');
     }
   }
 }
