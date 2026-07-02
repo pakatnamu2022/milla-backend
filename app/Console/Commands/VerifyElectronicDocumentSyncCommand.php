@@ -6,6 +6,7 @@ use App\Http\Services\DatabaseSyncService;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use Illuminate\Console\Command;
 
 class VerifyElectronicDocumentSyncCommand extends Command
@@ -52,9 +53,25 @@ class VerifyElectronicDocumentSyncCommand extends Command
   {
     $document = ElectronicDocument::whereIn('id', [$documentId])
       ->whereNull('deleted_at')
-      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
-      ->where('anulado', false)
-      ->where('aceptada_por_sunat', true)
+      ->where(function ($query) {
+        // Para boletas: solo validar que no esté anulado y aceptada por sunat
+        $query->whereHas('seriesModel', function ($q) {
+          $q->where('type_receipt_id', AssignSalesSeries::BOLETA);
+        })
+          ->where('anulado', false)
+          ->where('aceptada_por_sunat', true);
+      })
+      ->orWhere(function ($query) use ($documentId) {
+        // Para facturas: validar status ACCEPTED además de lo anterior
+        $query->whereIn('id', [$documentId])
+          ->whereNull('deleted_at')
+          ->whereHas('seriesModel', function ($q) {
+            $q->where('type_receipt_id', '!=', AssignSalesSeries::BOLETA);
+          })
+          ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+          ->where('anulado', false)
+          ->where('aceptada_por_sunat', true);
+      })
       ->first();
 
     if (!$document) {
@@ -121,9 +138,25 @@ class VerifyElectronicDocumentSyncCommand extends Command
           VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
         ]);
     })
-      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
-      ->where('anulado', false)
-      ->where('aceptada_por_sunat', true)
+      ->where(function ($query) {
+        // Para boletas: solo validar que no esté anulado y aceptada por sunat
+        $query->where(function ($q) {
+          $q->whereHas('seriesModel', function ($sq) {
+            $sq->where('type_receipt_id', AssignSalesSeries::BOLETA);
+          })
+            ->where('anulado', false)
+            ->where('aceptada_por_sunat', true);
+        })
+          // Para facturas: validar status ACCEPTED además de lo anterior
+          ->orWhere(function ($q) {
+            $q->whereHas('seriesModel', function ($sq) {
+              $sq->where('type_receipt_id', '!=', AssignSalesSeries::BOLETA);
+            })
+              ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+              ->where('anulado', false)
+              ->where('aceptada_por_sunat', true);
+          });
+      })
       ->whereNull('deleted_at')
       ->whereDoesntHave('migrationLogs', fn($q) => $q->where('attempts', '>=', 5))
       ->orderBy('id', 'desc')

@@ -336,7 +336,8 @@
 <!-- Número de propuesta y fecha -->
 <div class="quotation-info">
   <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
-  <strong>Fecha:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
+  <strong>Fecha Emisión:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
+  <strong>Fecha Caducidad:</strong> {{ \Carbon\Carbon::parse($quotation['expiration_date'])->format('d/m/Y') }}
 </div>
 
 <!-- Sección 1: Datos de la Propuesta y Asesor -->
@@ -538,7 +539,7 @@
         TOTAL.
       </li>
       <li>
-        COTIZACIÓN VÁLIDA PARA 04 DÍAS NATURALES.
+        COTIZACIÓN VÁLIDA PARA 07 DÍAS NATURALES.
       </li>
     </ol>
   </div>
