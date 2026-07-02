@@ -38,7 +38,7 @@ class ShippingGuidesResource extends JsonResource
       'receiver_establishment' => $this->receiver ? [
         'id' => $this->receiver->id,
         'code' => $this->receiver->code,
-        'description' => $this->receiver->description,
+        'description' => $this->receiver->description ?? "-",
         'full_address' => $this->receiver->full_address,
       ] : null,
       'transmitter_origin_id' => $this->transmitter?->business_partner_id ?? null,
