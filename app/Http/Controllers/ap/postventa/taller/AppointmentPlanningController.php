@@ -81,4 +81,13 @@ class AppointmentPlanningController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function exportAppointments(IndexAppointmentPlanningRequest $request)
+  {
+    try {
+      return $this->service->exportAppointments($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

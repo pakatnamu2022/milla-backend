@@ -271,4 +271,13 @@ class WorkOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function exportWorkOrders(IndexWorkOrderRequest $request)
+  {
+    try {
+      return $this->service->exportWorkOrders($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

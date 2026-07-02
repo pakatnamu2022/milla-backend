@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\AppointmentPlanningResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\DB;
 
 class AppointmentPlanningService extends BaseService implements BaseServiceInterface
 {
+  protected ExportService $exportService;
+
+  public function __construct(ExportService $exportService)
+  {
+    $this->exportService = $exportService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -274,5 +282,88 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
     $fileName = 'Agenda_Reserva_' . str_pad($appointmentPlanning->id, 6, '0', STR_PAD_LEFT) . '.pdf';
 
     return $pdf->download($fileName);
+  }
+
+  /**
+   * Export appointments to Excel
+   */
+  public function exportAppointments(Request $request)
+  {
+    $filters = [];
+
+    // Apply filters from request
+    if ($request->filled('advisor_id')) {
+      $filters[] = [
+        'column' => 'advisor_id',
+        'operator' => '=',
+        'value' => $request->advisor_id
+      ];
+    }
+
+    if ($request->filled('sede_id')) {
+      $filters[] = [
+        'column' => 'sede_id',
+        'operator' => '=',
+        'value' => $request->sede_id
+      ];
+    }
+
+    if ($request->filled('created_at')) {
+      $filters[] = [
+        'column' => 'created_at',
+        'operator' => 'date_between',
+        'value' => $request->created_at
+      ];
+    }
+
+    if ($request->filled('date_appointment')) {
+      $filters[] = [
+        'column' => 'date_appointment',
+        'operator' => 'between',
+        'value' => $request->date_appointment
+      ];
+    }
+
+    if ($request->filled('delivery_date')) {
+      $filters[] = [
+        'column' => 'delivery_date',
+        'operator' => 'between',
+        'value' => $request->delivery_date
+      ];
+    }
+
+    if ($request->filled('is_taken')) {
+      $filters[] = [
+        'column' => 'is_taken',
+        'operator' => '=',
+        'value' => $request->is_taken
+      ];
+    }
+
+    if ($request->filled('type_planning_id')) {
+      $filters[] = [
+        'column' => 'type_planning_id',
+        'operator' => '=',
+        'value' => $request->type_planning_id
+      ];
+    }
+
+    if ($request->filled('type_operation_appointment_id')) {
+      $filters[] = [
+        'column' => 'type_operation_appointment_id',
+        'operator' => '=',
+        'value' => $request->type_operation_appointment_id
+      ];
+    }
+
+    $title = $request->get('title', 'Reporte de Planificación de Citas');
+
+    $options = [
+      'title' => $title,
+      'filters' => $filters,
+      'format' => $request->get('format', 'excel'),
+    ];
+
+    return $this->exportService->exportToExcel(AppointmentPlanning::class, $options);
   }
 }
