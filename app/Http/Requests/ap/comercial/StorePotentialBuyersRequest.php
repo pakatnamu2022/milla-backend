@@ -49,7 +49,8 @@ class StorePotentialBuyersRequest extends StoreRequest
         'max:100',
       ],
       'worker_id' => [
-        'required',
+        'required_unless:type,EXTERNO',
+        'nullable',
         'integer',
         'exists:rrhh_persona,id',
       ],
@@ -107,7 +108,7 @@ class StorePotentialBuyersRequest extends StoreRequest
       'campaign.string' => 'La campaña debe ser una cadena de texto.',
       'campaign.max' => 'La campaña no debe exceder los 100 caracteres.',
 
-      'worker_id.required' => 'El asesor es obligatorio.',
+      'worker_id.required_unless' => 'El asesor es obligatorio.',
       'worker_id.integer' => 'El asesor debe ser un número entero.',
       'worker_id.exists' => 'El asesor seleccionado no existe.',
 

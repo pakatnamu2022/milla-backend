@@ -35,9 +35,10 @@ class PotentialBuyersController extends Controller
       $user = auth()->user();
       $requestWorkerId = $request->worker_id;
       $canViewAdvisors = $user->can('viewAdvisors', PotentialBuyers::class);
+      $canViewExternal = $user->can('viewExternal', PotentialBuyers::class);
       $workerId = $user->partner_id;
       if (!$workerId) return $this->error('El trabajador es inválido');
-      return $this->service->myPotentialBuyers($request, $workerId, $requestWorkerId, $canViewAdvisors);
+      return $this->service->myPotentialBuyers($request, $workerId, $requestWorkerId, $canViewAdvisors, $canViewExternal);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

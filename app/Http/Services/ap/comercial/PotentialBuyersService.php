@@ -44,15 +44,20 @@ class PotentialBuyersService extends BaseService
     );
   }
 
-  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAdvisors)
+  public function myPotentialBuyers(Request $request, $workerId, $requestWorkerId, $canViewAdvisors, $canViewExternal = false)
   {
     $workerIdToUse = $workerId;
     if ($canViewAdvisors && $requestWorkerId) {
       $workerIdToUse = $requestWorkerId;
     }
 
-    $query = PotentialBuyers::where('worker_id', $workerIdToUse)
-      ->where('use', PotentialBuyers::CREATED);
+    $query = PotentialBuyers::where('use', PotentialBuyers::CREATED)
+      ->where(function ($q) use ($workerIdToUse, $canViewExternal) {
+        $q->where('worker_id', $workerIdToUse);
+        if ($canViewExternal) {
+          $q->orWhere('type', PotentialBuyers::EXTERNO);
+        }
+      });
 
     return $this->getFilteredResults(
       $query,
@@ -80,6 +85,13 @@ class PotentialBuyersService extends BaseService
         $data['registration_date'] = now();
       }
       $data['user_id'] = auth()->id();
+
+      if (($data['type'] ?? null) === PotentialBuyers::EXTERNO) {
+        $data['worker_id'] = auth()->user()->partner_id;
+        if (!$data['worker_id']) {
+          throw new Exception('El usuario autenticado no tiene un trabajador asociado');
+        }
+      }
 
       $TypeDocument = ApMasters::findOrFail($data['document_type_id']);
       $NumCharDoc = strlen($data['num_doc']);
