@@ -315,4 +315,103 @@ class Products extends Model
       $q->where('warehouse_id', $warehouseId);
     });
   }
+
+  // Export Methods
+  public function getReportData($filters = [])
+  {
+    $query = self::with([
+      'category',
+      'brand',
+      'unitMeasurement',
+      'articleClass',
+      'warehouseStocks.warehouse'
+    ])->withTotalStock();
+
+    // Apply filters
+    foreach ($filters as $filter) {
+      $column = $filter['column'];
+      $operator = $filter['operator'];
+      $value = $filter['value'];
+
+      if ($column === 'category_id' && $operator === '=') {
+        $query->where('product_category_id', $value);
+      } elseif ($column === 'brand_id' && $operator === '=') {
+        $query->where('brand_id', $value);
+      } elseif ($column === 'status' && $operator === '=') {
+        $query->where('status', $value);
+      } elseif ($column === 'product_type' && $operator === '=') {
+        $query->where('product_type', $value);
+      } elseif ($column === 'low_stock' && $operator === '=' && $value) {
+        $query->whereHas('warehouseStocks', function ($q) {
+          $q->whereRaw('quantity <= minimum_stock');
+        });
+      } elseif ($column === 'out_of_stock' && $operator === '=' && $value) {
+        $query->whereHas('warehouseStocks', function ($q) {
+          $q->where('quantity', '<=', 0);
+        });
+      }
+    }
+
+    $products = $query->get();
+
+    return $products->map(function ($product) {
+      return [
+        'codigo' => $product->code,
+        'codigo_dynamics' => $product->dyn_code,
+        'nombre' => $product->name,
+        'descripcion' => $product->description,
+        'categoria' => $product->category ? $product->category->description : '',
+        'marca' => $product->brand ? $product->brand->name : '',
+        'unidad_medida' => $product->unitMeasurement ? $product->unitMeasurement->dyn_code : '',
+        'clase_articulo' => $product->articleClass ? $product->articleClass->dyn_code : '',
+        'garantia_meses' => $product->warranty_months,
+        'stock_total' => $product->total_stock ?? 0,
+        'stock_disponible' => $product->total_available_stock ?? 0,
+        'estado' => $product->status,
+        'fecha_creacion' => $product->created_at ? $product->created_at->format('d/m/Y H:i') : '',
+      ];
+    });
+  }
+
+  public function getReportableColumns()
+  {
+    return [
+      'codigo' => 'Código',
+      'codigo_dynamics' => 'Código Dynamics',
+      'nombre' => 'Nombre',
+      'descripcion' => 'Descripción',
+      'categoria' => 'Categoría',
+      'marca' => 'Marca',
+      'unidad_medida' => 'Unidad de Medida',
+      'clase_articulo' => 'Clase de Artículo',
+      'garantia_meses' => 'Garantía (Meses)',
+      'stock_total' => 'Stock Total',
+      'stock_disponible' => 'Stock Disponible',
+      'estado' => 'Estado',
+      'fecha_creacion' => 'Fecha de Creación',
+    ];
+  }
+
+  public function getReportStyles()
+  {
+    return [
+      'headerBackgroundColor' => '4472C4',
+      'headerFontColor' => 'FFFFFF',
+      'headerFontSize' => 11,
+      'headerBold' => true,
+      'bodyFontSize' => 10,
+      'freezePane' => 'A2',
+      'autoFilter' => true,
+    ];
+  }
+
+  public function getReportColorRules()
+  {
+    return [
+      'estado' => [
+        'ACTIVE' => '90EE90',   // Verde claro
+        'INACTIVE' => 'FFB6C1', // Rosa claro
+      ],
+    ];
+  }
 }
