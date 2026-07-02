@@ -65,8 +65,8 @@ class ShippingGuidesResource extends JsonResource
       // Relaciones
       'sede_transmitter' => $this->sedeTransmitter->abreviatura ?? "-",
       'sede_receiver' => $this->sedeReceiver->abreviatura ?? "-",
-      'transmitter_description' => $this->transmitter->description . ' - ' . $this->transmitter->address,
-      'receiver_description' => $this->receiver->description . ' - ' . $this->receiver->address,
+      'transmitter_description' => $this->transmitter->description ? $this->transmitter->description . ' - ' . $this->transmitter->address : "",
+      'receiver_description' => $this->receiver->description ? $this->receiver->description . ' - ' . $this->receiver->address : "",
       'transfer_modality_description' => $this->transferModality?->description,
       'transfer_reason_description' => $this->transferReason?->description,
       'sent_at' => $this->sent_at,
