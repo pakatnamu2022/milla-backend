@@ -1403,6 +1403,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
       Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
       Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
+      Route::get('products/export/excel', [ProductsController::class, 'exportProducts']);
       Route::apiResource('products', ProductsController::class)->only([
         'index',
         'show',
