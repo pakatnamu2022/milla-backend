@@ -253,6 +253,12 @@ return [
       'description'   => 'Permite agrupar registros o elementos relacionados',
       'icon'          => 'Box',
       'policy_method' => 'group',
+    ],
+    'viewExternal'                 => [
+      'label'         => 'Ver Externo',
+      'description'   => 'Permite visualizar información desde una perspectiva externa o de terceros',
+      'icon'          => 'Eye',
+      'policy_method' => 'viewExternal',
     ]
   ],
 

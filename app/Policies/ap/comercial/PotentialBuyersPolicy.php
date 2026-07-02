@@ -21,4 +21,9 @@ class PotentialBuyersPolicy extends BasePolicy
   {
     return $this->hasPermission($user, 'assign');
   }
+
+  public function viewExternal(User $user): bool
+  {
+    return $this->hasPermission($user, 'viewExternal');
+  }
 }

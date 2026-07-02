@@ -66,6 +66,7 @@ class PotentialBuyers extends BaseModel
   //Constants Type
   const string LEADS = 'LEADS';
   const string VISITA = 'VISITA';
+  const string EXTERNO = 'EXTERNO';
 
   const int CREATED = 0;
   const int USED = 1;
