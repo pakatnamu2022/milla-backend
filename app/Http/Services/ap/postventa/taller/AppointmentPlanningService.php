@@ -116,34 +116,28 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     $availableSlots = [];
 
-    // Obtener todas las citas con date_appointment en el rango de fechas
-    $appointmentSlots = AppointmentPlanning::whereBetween('date_appointment', [$startDate, $endDate])
+    // Obtener todas las CITAS (date_appointment) en el rango de fechas
+    $appointments = AppointmentPlanning::whereBetween('date_appointment', [$startDate, $endDate])
       ->where('advisor_id', $advisor_id)
       ->whereNull('deleted_at')
       ->get()
       ->mapWithKeys(function ($item) {
-        // Formatear time_appointment a HH:MM para comparación
-        $time = substr($item->time_appointment, 0, 5); // Toma solo HH:MM de HH:MM:SS
-        $date = $item->date_appointment->format('Y-m-d'); // Formatear fecha sin hora
+        $time = substr($item->time_appointment, 0, 5);
+        $date = $item->date_appointment->format('Y-m-d');
         $key = $date . '_' . $time;
         return [$key => $item];
       });
 
-    // Obtener todas las citas con delivery_date en el rango de fechas
-    $deliverySlots = AppointmentPlanning::whereBetween('delivery_date', [$startDate, $endDate])
+    // Obtener todas las ENTREGAS (delivery_date) en el rango de fechas
+    $deliveries = AppointmentPlanning::whereBetween('delivery_date', [$startDate, $endDate])
       ->where('advisor_id', $advisor_id)
       ->whereNull('deleted_at')
       ->get()
-      ->mapWithKeys(function ($item) {
-        // Formatear delivery_time a HH:MM para comparación
-        $time = substr($item->delivery_time, 0, 5); // Toma solo HH:MM de HH:MM:SS
-        $date = $item->delivery_date->format('Y-m-d'); // Formatear fecha sin hora
-        $key = $date . '_' . $time;
-        return [$key => $item];
+      ->groupBy(function ($item) {
+        $time = substr($item->delivery_time, 0, 5);
+        $date = $item->delivery_date->format('Y-m-d');
+        return $date . '_' . $time;
       });
-
-    // Combinar ambos tipos de slots ocupados
-    $occupiedSlots = $appointmentSlots->union($deliverySlots);
 
     // Iterar sobre cada día en el rango
     $start = new \DateTime($startDate);
@@ -159,18 +153,29 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
           $timeStr = sprintf('%02d:%02d', $hour, $minute);
           $key = $dateStr . '_' . $timeStr;
 
-          $appointment = $occupiedSlots->get($key);
+          // Obtener cita (solo puede haber 1)
+          $appointment = $appointments->get($key);
+
+          // Obtener entregas (puede haber múltiples)
+          $slotDeliveries = $deliveries->get($key, collect());
+          $deliveriesCount = $slotDeliveries->count();
+
+          // Determinar el tipo
+          $type = null;
+          if ($appointment && $deliveriesCount > 0) {
+            $type = 'Ambos';
+          } elseif ($appointment) {
+            $type = 'Reservación';
+          } elseif ($deliveriesCount > 0) {
+            $type = 'Entrega';
+          }
 
           $daySlots[] = [
             'date' => $dateStr,
             'time' => $timeStr,
-            'available' => !$appointment,
-            'appointment_id' => $appointment ? $appointment->id : null,
-            'type' => $appointment ? (
-            $appointment->date_appointment->format('Y-m-d') == $dateStr && substr($appointment->time_appointment, 0, 5) == $timeStr
-              ? 'Reservación'
-              : 'Entrega'
-            ) : null,
+            'available' => !$appointment, // disponible para nueva CITA
+            'deliveries_count' => $deliveriesCount,
+            'type' => $type,
             'advisor_id' => $appointment ? $appointment->advisor_id : null,
             'advisor_name' => $appointment ? $appointment->advisor?->nombre_completo : null,
           ];
