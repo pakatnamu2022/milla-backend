@@ -154,4 +154,27 @@ class ProductsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Export products to Excel
+   */
+  public function exportProducts(Request $request)
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'category_id' => 'nullable|integer|exists:products_category,id',
+        'brand_id' => 'nullable|integer|exists:brands,id',
+        'status' => 'nullable|string|in:ACTIVE,INACTIVE',
+        'product_type' => 'nullable|string|in:GOOD,SERVICE',
+        'low_stock' => 'nullable|boolean',
+        'out_of_stock' => 'nullable|boolean',
+        'title' => 'nullable|string',
+      ]);
+
+      return $this->service->exportProducts($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

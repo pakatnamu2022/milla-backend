@@ -327,15 +327,19 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
   /**
    * Generate unique request number
-   * Format: PR-YYYYMMDD-XXXX
+   * Format: SC-YYMMDD-XXXX (annual sequence)
    */
   private function generateRequestNumber(): string
   {
-    $date = now()->format('Ymd');
-    $prefix = "PR-{$date}-";
+    $year = now()->format('y');   // Año con 2 dígitos: 26
+    $month = now()->format('m');  // Mes: 07
+    $day = now()->format('d');    // Día: 02
+    $prefix = "SC-{$year}{$month}{$day}-";
 
-    // Get last request number for today
-    $lastRequest = ApOrderPurchaseRequests::where('request_number', 'LIKE', "{$prefix}%")
+    // Get last request number for this year (including soft deleted records)
+    $currentYear = now()->format('y');
+    $lastRequest = ApOrderPurchaseRequests::withTrashed()
+      ->where('request_number', 'LIKE', "SC-{$currentYear}%")
       ->orderBy('request_number', 'desc')
       ->first();
 

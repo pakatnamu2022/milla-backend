@@ -6,6 +6,7 @@ use App\Http\Resources\ap\maestroGeneral\WarehouseResource;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -16,6 +17,12 @@ use Illuminate\Support\Facades\DB;
 
 class ProductsService extends BaseService implements BaseServiceInterface
 {
+  protected ExportService $exportService;
+
+  public function __construct(ExportService $exportService)
+  {
+    $this->exportService = $exportService;
+  }
   public function list(Request $request)
   {
     $query = Products::query();
@@ -355,5 +362,74 @@ class ProductsService extends BaseService implements BaseServiceInterface
     });
 
     return WarehouseResource::collection($warehousesWithAvailability);
+  }
+
+  /**
+   * Export products to Excel
+   */
+  public function exportProducts(Request $request)
+  {
+    $filters = [];
+
+    // Apply filters from request
+    if ($request->filled('category_id')) {
+      $filters[] = [
+        'column' => 'category_id',
+        'operator' => '=',
+        'value' => $request->category_id
+      ];
+    }
+
+    if ($request->filled('brand_id')) {
+      $filters[] = [
+        'column' => 'brand_id',
+        'operator' => '=',
+        'value' => $request->brand_id
+      ];
+    }
+
+    if ($request->filled('status')) {
+      $filters[] = [
+        'column' => 'status',
+        'operator' => '=',
+        'value' => $request->status
+      ];
+    }
+
+    if ($request->filled('product_type')) {
+      $filters[] = [
+        'column' => 'product_type',
+        'operator' => '=',
+        'value' => $request->product_type
+      ];
+    }
+
+    // Low stock filter
+    if ($request->has('low_stock') && $request->low_stock) {
+      $filters[] = [
+        'column' => 'low_stock',
+        'operator' => '=',
+        'value' => true
+      ];
+    }
+
+    // Out of stock filter
+    if ($request->has('out_of_stock') && $request->out_of_stock) {
+      $filters[] = [
+        'column' => 'out_of_stock',
+        'operator' => '=',
+        'value' => true
+      ];
+    }
+
+    $title = $request->get('title', 'Reporte de Productos');
+
+    $options = [
+      'title' => $title,
+      'filters' => $filters,
+      'format' => $request->get('format', 'excel'),
+    ];
+
+    return $this->exportService->exportToExcel(Products::class, $options);
   }
 }

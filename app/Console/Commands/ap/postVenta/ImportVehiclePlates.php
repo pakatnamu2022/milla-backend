@@ -52,7 +52,7 @@ class ImportVehiclePlates extends Command
       return 1;
     }
 
-    $sedeId = (int) $this->option('sede_id');
+    $sedeId = (int)$this->option('sede_id');
 
     $this->info("Leyendo datos desde: {$filePath}");
 
@@ -93,20 +93,34 @@ class ImportVehiclePlates extends Command
       $result = $this->documentValidationService->validateDocument('plate', $plate, [], true);
       $info = $result['data'] ?? null;
 
-      $isCorrection = empty($result['success']) || empty($info['vin']) || empty($info['engine_number']);
+      // Verificar si la API respondió correctamente
+      $apiSuccess = !empty($result['success']);
+      $hasVin = !empty($info['vin']);
+      $hasEngineNumber = !empty($info['engine_number']);
+
+      // Solo marcar como corrección si:
+      // - La API falló, o
+      // - No tiene VIN
+      // Si tiene VIN pero no número de motor, se usará el VIN como número de motor
+      $isCorrection = !$apiSuccess || !$hasVin;
 
       if ($isCorrection) {
         $vehicleData = [
-          'plate' => $this->generateCorrectionPlate($row['item']),
+          'plate' => $plate,
           'vin' => $this->generateCorrectionVin($row['item']),
           'engine_number' => $this->generateCorrectionEngineNumber($row['item']),
           'sede_id' => $sedeId,
         ];
       } else {
+        // Si tiene VIN pero no tiene número de motor, usar el VIN como número de motor
+        $engineNumber = $hasEngineNumber
+          ? strtoupper(trim($info['engine_number']))
+          : strtoupper(trim($info['vin']));
+
         $vehicleData = [
           'plate' => $plate,
           'vin' => strtoupper(trim($info['vin'])),
-          'engine_number' => strtoupper(trim($info['engine_number'])),
+          'engine_number' => $engineNumber,
           'sede_id' => $sedeId,
         ];
       }
@@ -205,7 +219,7 @@ class ImportVehiclePlates extends Command
 
       $item = $row[0] ?? ($i + 1);
       $plateRaw = $row[1] ?? null;
-      $plate = is_string($plateRaw) || is_numeric($plateRaw) ? strtoupper(trim((string) $plateRaw)) : null;
+      $plate = is_string($plateRaw) || is_numeric($plateRaw) ? strtoupper(trim((string)$plateRaw)) : null;
 
       if (empty($plate)) {
         continue;
@@ -226,7 +240,7 @@ class ImportVehiclePlates extends Command
    */
   private function generateCorrectionPlate(mixed $item): string
   {
-    return 'COR' . str_pad((string) $item, 6, '0', STR_PAD_LEFT);
+    return 'COR' . str_pad((string)$item, 6, '0', STR_PAD_LEFT);
   }
 
   /**
@@ -234,7 +248,7 @@ class ImportVehiclePlates extends Command
    */
   private function generateCorrectionVin(mixed $item): string
   {
-    $base = 'COR' . str_pad((string) $item, 6, '0', STR_PAD_LEFT);
+    $base = 'COR' . str_pad((string)$item, 6, '0', STR_PAD_LEFT);
     return $base . strtoupper(Str::random(17 - strlen($base)));
   }
 
@@ -243,6 +257,6 @@ class ImportVehiclePlates extends Command
    */
   private function generateCorrectionEngineNumber(mixed $item): string
   {
-    return 'MOT' . str_pad((string) $item, 6, '0', STR_PAD_LEFT) . strtoupper(Str::random(6));
+    return 'MOT' . str_pad((string)$item, 6, '0', STR_PAD_LEFT) . strtoupper(Str::random(6));
   }
 }

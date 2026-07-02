@@ -143,14 +143,13 @@ class MigrateBusinessPartnersToDynamics extends Command
    */
   protected function processBusinessPartner(BusinessPartners $partner, DatabaseSyncService $syncService, bool $isDryRun): void
   {
-    // Omitir clientes simples - solo migrar PROVEEDOR y AMBOS
-    if ($partner->type === BusinessPartners::CLIENT) {
-      $this->skippedAsClient++;
-      return;
-    }
-
     // Procesar según el tipo
     switch ($partner->type) {
+      case BusinessPartners::CLIENT:
+        // Solo cliente
+        $this->syncAsClient($partner, $syncService, $isDryRun);
+        break;
+
       case BusinessPartners::SUPPLIER:
         // Solo proveedor
         $this->syncAsSupplier($partner, $syncService, $isDryRun);

@@ -37,14 +37,19 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'integer',
         'exists:products,id',
       ],
-      'description' => [
+      'description' => array_filter([
         'required',
         'string',
         'max:255',
-        Rule::unique('ap_order_quotation_details', 'description')
-          ->where('order_quotation_id', $this->input('order_quotation_id'))
-          ->whereNull('deleted_at'),
-      ],
+        // Solo validar unicidad cuando item_type es LABOR
+        // Los productos (PRODUCT) pueden tener la misma descripción pero con diferente product_id
+        $this->input('item_type') === 'LABOR'
+          ? Rule::unique('ap_order_quotation_details', 'description')
+              ->where('order_quotation_id', $this->input('order_quotation_id'))
+              ->where('item_type', 'LABOR')
+              ->whereNull('deleted_at')
+          : null,
+      ]),
       'quantity' => [
         'required',
         'numeric',

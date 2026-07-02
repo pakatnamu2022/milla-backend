@@ -126,9 +126,9 @@ class SyncSalesDocumentJob implements ShouldQueue
 
     try {
       // Verificar si el cliente ya existe en la BD intermedia
-      $existingClient = DB::connection('dbtp')
+      $existingClient = DB::connection(Company::CONNECTION_DYNAMICS_1)
         ->table('neInTbCliente')
-        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('EmpresaId', Company::COMPANY_GPAUP_ID)
         ->where('Cliente', $document->cliente_numero_de_documento)
         ->first();
 
@@ -213,9 +213,9 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     // Verificar en la BD intermedia si ya existe
-    $existingDocument = DB::connection('dbtp')
+    $existingDocument = DB::connection(Company::CONNECTION_DYNAMICS_1)
       ->table('neInTbVenta')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('EmpresaId', Company::COMPANY_GPAUP_ID)
       ->where('DocumentoId', $documentoId)
       ->first();
 
@@ -274,9 +274,9 @@ class SyncSalesDocumentJob implements ShouldQueue
     }
 
     // Verificar en la BD intermedia si ya existe el detalle
-    $existingDetail = DB::connection('dbtp')
+    $existingDetail = DB::connection(Company::CONNECTION_DYNAMICS_1)
       ->table('neInTbVentaDt')
-      ->where('EmpresaId', Company::AP_DYNAMICS)
+      ->where('EmpresaId', Company::COMPANY_GPAUP_ID)
       ->where('DocumentoId', $documentoId)
       ->first();
 
@@ -494,7 +494,7 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       // Construir el item en formato Dynamics
       $itemData = [
-        'EmpresaId' => Company::AP_DYNAMICS,
+        'EmpresaId' => Company::COMPANY_GPAUP_ID,
         'DocumentoId' => $document->full_number,
         'Linea' => $lineNumber,
         'ArticuloId' => $part->product->dyn_code,
@@ -557,7 +557,7 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       // Construir el item en formato Dynamics
       $itemData = [
-        'EmpresaId' => Company::AP_DYNAMICS,
+        'EmpresaId' => Company::COMPANY_GPAUP_ID,
         'DocumentoId' => $document->full_number,
         'Linea' => $lineNumber,
         'ArticuloId' => $articuloId,
@@ -663,7 +663,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // 5. Verificar si ya existe el registro en la tabla intermedia
-      $existingRecord = DB::connection('dbtest')
+      $existingRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('neRMPvtTb_CajaDo')
         ->where('DocumentoId', $document->full_number)
         ->first();
@@ -673,7 +673,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // 6. Insertar en la tabla intermedia
-      DB::connection('dbtest')
+      DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('neRMPvtTb_CajaDo')
         ->insert([
           'CajaId' => $cajaId,
@@ -681,6 +681,22 @@ class SyncSalesDocumentJob implements ShouldQueue
           'DocumentoTipo' => '0',
           'DocumentoId' => $document->full_number,
         ]);
+
+      // 7. Insertar en la tabla RM20101_DOCFV
+      // Verificar si ya existe el registro
+      $existingDocFV = DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->table('RM20101_DOCFV')
+        ->where('DocumentoId', $document->full_number)
+        ->first();
+
+      if (!$existingDocFV) {
+        DB::connection(Company::CONNECTION_DYNAMICS_3)
+          ->table('RM20101_DOCFV')
+          ->insert([
+            'DocumentoId' => $document->full_number,
+            'FechaVencimiento' => $document->fecha_de_vencimiento,
+          ]);
+      }
     } catch (\Exception $e) {
       // Capturar cualquier error para que no afecte el proceso principal
       Log::error('Error al sincronizar documento de postventa a neRMPvtTb_CajaDo (proceso no crítico)', [

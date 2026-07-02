@@ -156,7 +156,7 @@ class StoreAppointmentPlanningRequest extends StoreRequest
           );
         }
 
-        // Validar que no exista otra cita en esa fecha y hora
+        // Validar que no exista otra cita en esa fecha y hora (solo se puede recibir un vehículo a la vez)
         $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
           ->where('time_appointment', $timeAppointment)
           ->when($this->route('id'), function ($query, $id) {
@@ -172,25 +172,6 @@ class StoreAppointmentPlanningRequest extends StoreRequest
           $validator->errors()->add(
             'time_appointment',
             'Ya existe una cita programada para esta fecha y hora.'
-          );
-        }
-
-        // Validar que no exista otra entrega en esa fecha y hora
-        $existingDelivery = AppointmentPlanning::where('delivery_date', $deliveryDate)
-          ->where('delivery_time', $deliveryTime)
-          ->when($this->route('id'), function ($query, $id) {
-            return $query->where('id', '!=', $id);
-          })
-          ->exists();
-
-        if ($existingDelivery) {
-          $validator->errors()->add(
-            'delivery_date',
-            'Ya existe una entrega programada para esta fecha y hora.'
-          );
-          $validator->errors()->add(
-            'delivery_time',
-            'Ya existe una entrega programada para esta fecha y hora.'
           );
         }
       }

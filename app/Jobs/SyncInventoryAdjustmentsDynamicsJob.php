@@ -10,6 +10,7 @@ use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -103,7 +104,7 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
   protected function consultAjustesInventario(): array
   {
     try {
-      return DB::connection('dbtest')
+      return DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->select("EXEC neIvConsultarAjustesInventario");
     } catch (\Exception $e) {
       Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [

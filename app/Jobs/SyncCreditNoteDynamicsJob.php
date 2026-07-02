@@ -10,6 +10,7 @@ use App\Models\ap\compras\CreditNoteSyncLog;
 use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\compras\SupplierCreditNoteDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\gp\gestionsistema\Company;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -360,7 +361,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
   {
     try {
       // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_NotaCreditoDevolucion @pOrdenCompraId = 'OC1400000001'
-      $results = DB::connection('dbtest')
+      $results = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->select("EXEC nePoReporteSeguimientoOrdenCompra_NotaCreditoDevolucion @pOrdenCompraId = '{$orderNumber}'");
 
       // El PA debería retornar un resultado con el campo DocumentoNumero
@@ -385,7 +386,7 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
   {
     try {
       // Ejecutar el PA: EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = 'OC1400000001'
-      $results = DB::connection('dbtest')
+      $results = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->select("EXEC nePoReporteSeguimientoOrdenCompra_Factura @pOrdenCompraId = '{$orderNumber}'");
 
       // El PA debería retornar un resultado con los campos NroDocProvDocumento y NumeroDocumento

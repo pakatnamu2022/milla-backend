@@ -106,24 +106,33 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
     $query = ApOrderQuotations::query()
       ->where(function ($query) {
-        $query->where(function ($q) {
-          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área mesón
-          $q->where('area_id', ApMasters::AREA_MESON)
-            ->where('is_take', false)
-            ->where('status', ApOrderQuotations::STATUS_POR_FACTURAR)
-            ->where('has_invoice_generated', true)
-            ->where(function ($q2) {
-              $q2->whereNotNull('chief_approval_by')
-                ->orWhereNotNull('manager_approval_by');
+        // Condiciones base: área mesón, no tomada y estado por facturar
+        $query->where('area_id', ApMasters::AREA_MESON)
+          ->where('is_take', false)
+          ->where('status', ApOrderQuotations::STATUS_POR_FACTURAR)
+          ->where(function ($q) {
+            // Al menos una de estas condiciones debe cumplirse:
+
+            // Opción 1: Tiene factura generada Y tiene anticipo contabilizado
+            $q->where(function ($q1) {
+              $q1->where('has_invoice_generated', true)
+                ->whereHas('advancesOrderQuotation', function ($q2) {
+                  $q2->where('is_advance_payment', 1)
+                    ->where('is_accounted', true);
+                });
+            })
+            // Opción 2: Aprobada por jefe
+            ->orWhereNotNull('chief_approval_by')
+            // Opción 3: Aprobada por gerente
+            ->orWhereNotNull('manager_approval_by')
+            // Opción 4: Tiene avance de pago contabilizado (sin factura generada aún)
+            ->orWhereHas('advancesOrderQuotation', function ($q2) {
+              $q2->where('is_advance_payment', 1)
+                ->where('is_accounted', true);
             });
-        })
-          ->orWhereHas('advancesOrderQuotation', function ($q) {
-            // Condición 2: Cotizaciones con anticipo de pago registrado y contabilizado
-            $q->where('is_advance_payment', 1)
-              ->where('is_accounted', true);
           });
       })
-      // Condición 3: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
+      // Condición: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
       ->whereHas('details', function ($q) {
         $q->whereIn('supply_type', ['LOCAL', 'CENTRAL', 'IMPORTACION']);
       });
@@ -165,9 +174,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
-      if ($vehicle->customer_id === null) {
-        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-      }
+//      if ($vehicle->customer_id === null) {
+//        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
+//      }
 
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
