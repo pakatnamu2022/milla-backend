@@ -498,6 +498,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       'receivingChecklists.receiving',
       'vehicleMovement.vehicle.model',
       'inventoryMovement.details.product.unitMeasurement',
+      'transmitter',
+      'receiver',
     ])->findOrFail($id);
     return new ShippingGuidesResource($document);
   }
