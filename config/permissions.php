@@ -259,6 +259,12 @@ return [
       'description' => 'Permite revertir descuentos aplicados en cotizaciones / ordenes de trabajo',
       'icon' => 'Box',
       'policy_method' => 'reverseDiscount',
+    ],
+    'removeLabor' => [
+      'label' => 'Quitar Mano de Obra',
+      'description' => 'Permite quitar mano de obra de una orden de trabajo',
+      'icon' => 'Box',
+      'policy_method' => 'removeLabor',
     ]
   ],
 

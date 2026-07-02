@@ -147,7 +147,7 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
         // Validar que no exista otra cita en esa fecha y hora (solo se puede recibir un vehículo a la vez)
         $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
           ->where('time_appointment', $timeAppointment)
-          ->when($this->route('id'), function ($query, $id) {
+          ->when($this->route('appointmentPlanning'), function ($query, $id) {
             return $query->where('id', '!=', $id);
           })
           ->exists();
