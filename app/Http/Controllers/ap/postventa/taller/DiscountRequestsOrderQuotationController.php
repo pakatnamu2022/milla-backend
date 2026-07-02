@@ -73,6 +73,16 @@ class DiscountRequestsOrderQuotationController extends Controller
     }
   }
 
+  public function revert($id)
+  {
+    try {
+      $reason = request()->input('reason');
+      return $this->success($this->service->revert($id, $reason));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy($id)
   {
     try {
