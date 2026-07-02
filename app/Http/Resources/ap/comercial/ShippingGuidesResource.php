@@ -30,7 +30,7 @@ class ShippingGuidesResource extends JsonResource
       'transmitter_establishment' => $this->transmitter ? [
         'id' => $this->transmitter->id,
         'code' => $this->transmitter->code,
-        'description' => $this->transmitter->description,
+        'description' => $this->transmitter->description ?? "-",
         'full_address' => $this->transmitter->full_address,
       ] : null,
       'receiver_id' => $this->receiver_id,
@@ -38,7 +38,7 @@ class ShippingGuidesResource extends JsonResource
       'receiver_establishment' => $this->receiver ? [
         'id' => $this->receiver->id,
         'code' => $this->receiver->code,
-        'description' => $this->receiver->description,
+        'description' => $this->receiver->description ?? "-",
         'full_address' => $this->receiver->full_address,
       ] : null,
       'transmitter_origin_id' => $this->transmitter?->business_partner_id ?? null,
@@ -65,8 +65,8 @@ class ShippingGuidesResource extends JsonResource
       // Relaciones
       'sede_transmitter' => $this->sedeTransmitter->abreviatura ?? "-",
       'sede_receiver' => $this->sedeReceiver->abreviatura ?? "-",
-      'transmitter_description' => $this->transmitter->description . ' - ' . $this->transmitter->address,
-      'receiver_description' => $this->receiver->description . ' - ' . $this->receiver->address,
+      'transmitter_description' => $this->transmitter->description ? $this->transmitter->description . ' - ' . $this->transmitter->address : "",
+      'receiver_description' => $this->receiver->description ? $this->receiver->description . ' - ' . $this->receiver->address : "",
       'transfer_modality_description' => $this->transferModality?->description,
       'transfer_reason_description' => $this->transferReason?->description,
       'sent_at' => $this->sent_at,
