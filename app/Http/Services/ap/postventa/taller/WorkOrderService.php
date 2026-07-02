@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
@@ -35,14 +36,16 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   protected WorkOrderLabourService $labourService;
   protected DigitalFileService $digitalFileService;
+  protected ExportService $exportService;
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
 
-  public function __construct(WorkOrderLabourService $labourService, DigitalFileService $digitalFileService)
+  public function __construct(WorkOrderLabourService $labourService, DigitalFileService $digitalFileService, ExportService $exportService)
   {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
+    $this->exportService = $exportService;
   }
 
   public function list(Request $request)
@@ -1583,6 +1586,97 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  /**
+   * Export work orders to Excel
+   */
+  public function exportWorkOrders(Request $request)
+  {
+    $filters = [];
+
+    // Apply filters from request
+    if ($request->filled('advisor_id')) {
+      $filters[] = [
+        'column' => 'advisor_id',
+        'operator' => '=',
+        'value' => $request->advisor_id
+      ];
+    }
+
+    if ($request->filled('sede_id')) {
+      $filters[] = [
+        'column' => 'sede_id',
+        'operator' => '=',
+        'value' => $request->sede_id
+      ];
+    }
+
+    if ($request->filled('status_id')) {
+      $filters[] = [
+        'column' => 'status_id',
+        'operator' => 'in_or_equal',
+        'value' => $request->status_id
+      ];
+    }
+
+    if ($request->filled('opening_date')) {
+      $filters[] = [
+        'column' => 'opening_date',
+        'operator' => 'date_between',
+        'value' => $request->opening_date
+      ];
+    }
+
+    if ($request->filled('estimated_delivery_date')) {
+      $filters[] = [
+        'column' => 'estimated_delivery_date',
+        'operator' => 'date_between',
+        'value' => $request->estimated_delivery_date
+      ];
+    }
+
+    if ($request->filled('actual_delivery_date')) {
+      $filters[] = [
+        'column' => 'actual_delivery_date',
+        'operator' => 'between',
+        'value' => $request->actual_delivery_date
+      ];
+    }
+
+    if ($request->filled('is_invoiced')) {
+      $filters[] = [
+        'column' => 'is_invoiced',
+        'operator' => '=',
+        'value' => $request->is_invoiced
+      ];
+    }
+
+    if ($request->filled('currency_id')) {
+      $filters[] = [
+        'column' => 'currency_id',
+        'operator' => '=',
+        'value' => $request->currency_id
+      ];
+    }
+
+    if ($request->filled('vehicle_plate')) {
+      $filters[] = [
+        'column' => 'vehicle_plate',
+        'operator' => 'like',
+        'value' => $request->vehicle_plate
+      ];
+    }
+
+    $title = $request->get('title', 'Reporte de Órdenes de Trabajo');
+
+    $options = [
+      'title' => $title,
+      'filters' => $filters,
+      'format' => $request->get('format', 'excel'),
+    ];
+
+    return $this->exportService->exportToExcel(ApWorkOrder::class, $options);
   }
 
   /**

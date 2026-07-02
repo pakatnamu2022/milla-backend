@@ -114,4 +114,113 @@ class AppointmentPlanning extends Model
   {
     return $this->belongsTo(User::class, 'created_by');
   }
+
+  // Export Methods
+  public static function getReportData($filters = [])
+  {
+    $query = self::with([
+      'vehicle',
+      'advisor',
+      'sede',
+      'typePlanning',
+      'typeOperationAppointment',
+      'owner',
+      'creator'
+    ]);
+
+    // Apply filters
+    foreach ($filters as $filter) {
+      $column = $filter['column'];
+      $operator = $filter['operator'];
+      $value = $filter['value'];
+
+      if ($column === 'advisor_id' && $operator === '=') {
+        $query->where('advisor_id', $value);
+      } elseif ($column === 'sede_id' && $operator === '=') {
+        $query->where('sede_id', $value);
+      } elseif ($column === 'created_at' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('created_at', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'date_appointment' && $operator === 'between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('date_appointment', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'delivery_date' && $operator === 'between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('delivery_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'is_taken' && $operator === '=') {
+        $query->where('is_taken', $value);
+      } elseif ($column === 'type_planning_id' && $operator === '=') {
+        $query->where('type_planning_id', $value);
+      } elseif ($column === 'type_operation_appointment_id' && $operator === '=') {
+        $query->where('type_operation_appointment_id', $value);
+      }
+    }
+
+    $appointments = $query->get();
+
+    return $appointments->map(function ($appointment) {
+      return [
+        'id' => $appointment->id,
+        'placa_vehiculo' => $appointment->vehicle ? $appointment->vehicle->plate : '',
+        'vin_vehiculo' => $appointment->vehicle ? $appointment->vehicle->vin : '',
+        'cliente' => $appointment->full_name_client,
+        'num_documento' => $appointment->num_doc_client,
+        'email' => $appointment->email_client,
+        'telefono' => $appointment->phone_client,
+        'asesor' => $appointment->advisor ? $appointment->advisor->nombre_completo : '',
+        'sede' => $appointment->sede ? $appointment->sede->abreviatura : '',
+        'tipo_planificacion' => $appointment->typePlanning ? $appointment->typePlanning->description : '',
+        'tipo_operacion' => $appointment->typeOperationAppointment ? $appointment->typeOperationAppointment->description : '',
+        'fecha_cita' => $appointment->date_appointment ? $appointment->date_appointment->format('Y-m-d') : '',
+        'hora_cita' => $appointment->time_appointment,
+        'fecha_entrega' => $appointment->delivery_date ? $appointment->delivery_date->format('Y-m-d') : '',
+        'hora_entrega' => $appointment->delivery_time,
+        'descripcion' => $appointment->description,
+        'tomada' => $appointment->is_taken ? 'Sí' : 'No',
+        'creado_por' => $appointment->creator ? $appointment->creator->name : '',
+        'fecha_creacion' => $appointment->created_at ? $appointment->created_at->format('Y-m-d H:i:s') : '',
+      ];
+    });
+  }
+
+  public static function getReportableColumns()
+  {
+    return [
+      'id' => 'ID',
+      'placa_vehiculo' => 'Placa Vehículo',
+      'vin_vehiculo' => 'VIN Vehículo',
+      'cliente' => 'Cliente',
+      'num_documento' => 'Número Documento',
+      'email' => 'Email',
+      'telefono' => 'Teléfono',
+      'asesor' => 'Asesor',
+      'sede' => 'Sede',
+      'tipo_planificacion' => 'Tipo Planificación',
+      'tipo_operacion' => 'Tipo Operación',
+      'fecha_cita' => 'Fecha Cita',
+      'hora_cita' => 'Hora Cita',
+      'fecha_entrega' => 'Fecha Entrega',
+      'hora_entrega' => 'Hora Entrega',
+      'descripcion' => 'Descripción',
+      'tomada' => 'Tomada',
+      'creado_por' => 'Creado Por',
+      'fecha_creacion' => 'Fecha Creación',
+    ];
+  }
+
+  public static function getReportStyles()
+  {
+    return [
+      'headerBackgroundColor' => '4472C4',
+      'headerFontColor' => 'FFFFFF',
+      'headerFontSize' => 11,
+      'headerBold' => true,
+      'bodyFontSize' => 10,
+      'freezePane' => 'A2',
+      'autoFilter' => true,
+    ];
+  }
 }

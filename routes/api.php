@@ -1471,6 +1471,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
       Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
         'index',
@@ -1492,6 +1493,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Orders - Órdenes de Trabajo
       Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
       Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
+      Route::get('workOrders/export', [WorkOrderController::class, 'exportWorkOrders']);
       Route::post('workOrders/by-ids', [WorkOrderController::class, 'getByIds']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);

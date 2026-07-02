@@ -1148,4 +1148,130 @@ class ApWorkOrder extends Model
       'advances_count' => $activeAdvances->count(),
     ];
   }
+
+  // Export Methods
+  public static function getReportData($filters = [])
+  {
+    $query = self::with([
+      'vehicle',
+      'advisor',
+      'sede',
+      'status',
+      'items.typePlanning',
+      'creator',
+      'typeCurrency',
+      'invoiceTo'
+    ]);
+
+    // Apply filters
+    foreach ($filters as $filter) {
+      $column = $filter['column'];
+      $operator = $filter['operator'];
+      $value = $filter['value'];
+
+      if ($column === 'advisor_id' && $operator === '=') {
+        $query->where('advisor_id', $value);
+      } elseif ($column === 'sede_id' && $operator === '=') {
+        $query->where('sede_id', $value);
+      } elseif ($column === 'status_id' && $operator === 'in_or_equal') {
+        if (is_array($value)) {
+          $query->whereIn('status_id', $value);
+        } else {
+          $query->where('status_id', $value);
+        }
+      } elseif ($column === 'opening_date' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('opening_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'estimated_delivery_date' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('estimated_delivery_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'actual_delivery_date' && $operator === 'between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'is_invoiced' && $operator === '=') {
+        $query->where('is_invoiced', $value);
+      } elseif ($column === 'currency_id' && $operator === '=') {
+        $query->where('currency_id', $value);
+      } elseif ($column === 'vehicle_plate' && $operator === 'like') {
+        $query->where('vehicle_plate', 'like', '%' . $value . '%');
+      }
+    }
+
+    $workOrders = $query->get();
+
+    return $workOrders->map(function ($workOrder) {
+      return [
+        'id' => $workOrder->id,
+        'correlativo' => $workOrder->correlative,
+        'placa_vehiculo' => $workOrder->vehicle_plate,
+        'vin_vehiculo' => $workOrder->vehicle_vin,
+        'estado' => $workOrder->status ? $workOrder->status->description : '',
+        'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
+        'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
+        'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
+        'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
+        'fecha_entrega_real' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d H:i:s') : '',
+        'fecha_diagnostico' => $workOrder->diagnosis_date ? $workOrder->diagnosis_date->format('Y-m-d H:i:s') : '',
+        'moneda' => $workOrder->typeCurrency ? $workOrder->typeCurrency->symbol : '',
+        'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->dyn_name : '',
+        'subtotal' => number_format($workOrder->subtotal_amount ?? 0, 2),
+        'descuento' => number_format($workOrder->discount_amount ?? 0, 2),
+        'impuestos' => number_format($workOrder->tax_amount ?? 0, 2),
+        'total' => number_format($workOrder->final_amount ?? 0, 2),
+        'es_garantia' => $workOrder->is_guarantee ? 'Sí' : 'No',
+        'es_recall' => $workOrder->is_recall ? 'Sí' : 'No',
+        'esta_entregado' => $workOrder->is_delivery ? 'Sí' : 'No',
+        'esta_facturado' => $workOrder->is_invoiced ? 'Sí' : 'No',
+        'observaciones' => $workOrder->observations,
+        'creado_por' => $workOrder->creator ? $workOrder->creator->name : '',
+        'fecha_creacion' => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d H:i:s') : '',
+      ];
+    });
+  }
+
+  public static function getReportableColumns()
+  {
+    return [
+      'id' => 'ID',
+      'correlativo' => 'Correlativo',
+      'placa_vehiculo' => 'Placa Vehículo',
+      'vin_vehiculo' => 'VIN Vehículo',
+      'estado' => 'Estado',
+      'asesor' => 'Asesor',
+      'sede' => 'Sede',
+      'fecha_apertura' => 'Fecha Apertura',
+      'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
+      'fecha_entrega_real' => 'Fecha Entrega Real',
+      'fecha_diagnostico' => 'Fecha Diagnóstico',
+      'moneda' => 'Moneda',
+      'cliente_facturar' => 'Cliente Facturar',
+      'subtotal' => 'Subtotal',
+      'descuento' => 'Descuento',
+      'impuestos' => 'Impuestos',
+      'total' => 'Total',
+      'es_garantia' => 'Es Garantía',
+      'es_recall' => 'Es Recall',
+      'esta_entregado' => 'Está Entregado',
+      'esta_facturado' => 'Está Facturado',
+      'observaciones' => 'Observaciones',
+      'creado_por' => 'Creado Por',
+      'fecha_creacion' => 'Fecha Creación',
+    ];
+  }
+
+  public static function getReportStyles()
+  {
+    return [
+      'headerBackgroundColor' => '4472C4',
+      'headerFontColor' => 'FFFFFF',
+      'headerFontSize' => 11,
+      'headerBold' => true,
+      'bodyFontSize' => 10,
+      'freezePane' => 'A2',
+      'autoFilter' => true,
+    ];
+  }
 }

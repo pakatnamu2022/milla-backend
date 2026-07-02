@@ -87,12 +87,12 @@
     .quotation-info {
       margin-bottom: 10px;
       text-align: left;
-      font-size: 14px;
+      font-size: 12px;
     }
 
     .quotation-info strong {
       font-weight: bold;
-      font-size: 14px;
+      font-size: 12px;
     }
 
     table.data-section {
@@ -349,8 +349,8 @@
 <!-- Número de propuesta y fecha -->
 <div class="quotation-info">
   <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
-  <strong>Fecha Emisión:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
-  <strong>Fecha Caducidad:</strong> {{ \Carbon\Carbon::parse($quotation['expiration_date'])->format('d/m/Y') }}
+  <strong>Fecha Emisión : </strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
+  <strong>Fecha Caducidad : </strong> {{ \Carbon\Carbon::parse($quotation['expiration_date'])->format('d/m/Y') }}
 </div>
 
 <!-- Sección 1: Datos de la Propuesta y Asesor -->
@@ -360,7 +360,8 @@
   </tr>
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> - DNI: {{ $quotation['customer_document'] }} - {{ $quotation['customer_address'] }}</td>
+    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> - DNI: {{ $quotation['customer_document'] }}
+      - {{ $quotation['customer_address'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Observaciones:</td>
