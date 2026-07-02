@@ -17,13 +17,14 @@ class SendAbsentAttendanceReportJob implements ShouldQueue
   public function __construct(
     public readonly ?string $date = null,
     public readonly ?int $partnerUserId = null,
+    public readonly bool $skipSync = false,
   ) {
     $this->onQueue('attendance');
   }
 
   public function handle(AttendanceSyncService $service): void
   {
-    $result = $service->sendAbsentReport($this->date, $this->partnerUserId);
+    $result = $service->sendAbsentReport($this->date, $this->partnerUserId, skipSync: $this->skipSync);
     Log::info('SendAbsentAttendanceReportJob', $result);
   }
 
