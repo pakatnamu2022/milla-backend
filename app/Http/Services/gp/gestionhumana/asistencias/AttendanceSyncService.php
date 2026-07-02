@@ -391,7 +391,7 @@ class AttendanceSyncService extends BaseService
     ]);
   }
 
-  public function sendAbsentReport(?string $date = null, ?int $partnerUserId = null, ?string $overrideEmail = null): array
+  public function sendAbsentReport(?string $date = null, ?int $partnerUserId = null, ?string $overrideEmail = null, bool $skipSync = false): array
   {
     $targetDate = $date
       ? Carbon::createFromFormat('Y-m-d', $date)
@@ -399,7 +399,9 @@ class AttendanceSyncService extends BaseService
 
     $dateStr = $targetDate->toDateString();
 
-    SyncAttendanceJob::dispatchSync($dateStr);
+    if (!$skipSync) {
+      SyncAttendanceJob::dispatchSync($dateStr);
+    }
 
     $recipient = $this->resolveReportRecipient($partnerUserId, $overrideEmail);
     if (!$recipient) {
@@ -467,9 +469,12 @@ class AttendanceSyncService extends BaseService
       'date' => ['nullable', 'date_format:Y-m-d'],
     ]);
 
+    $dateStr = $request->date ?? now('America/Lima')->toDateString();
+    SyncAttendanceJob::dispatchSync($dateStr);
+
     $results = [];
     foreach (Constants::ATTENDANCE_REPORT_USER_IDS as $userId) {
-      $results[] = $this->sendAbsentReport($request->date, $userId);
+      $results[] = $this->sendAbsentReport($dateStr, $userId, skipSync: true);
     }
 
     return response()->json($results);
