@@ -664,6 +664,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $data['company_name_transport'] = null;
       }
 
+      $issuerType = $data['issuer_type'] ?? $document->issuer_type;
+      if ($issuerType === ShippingGuides::ISSUER_TYPE_SUPPLIER) {
+        if (!$document->sent_at) $data['sent_at'] = now();
+        if (!$document->accepted_at) $data['accepted_at'] = now();
+        if (!$document->aceptada_por_sunat) $data['aceptada_por_sunat'] = true;
+      }
+
       $document->update($data);
 
       // 4. Si hay nuevo archivo, eliminar el anterior y subir el nuevo
