@@ -207,6 +207,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'destination_address' => $destination->address ?? '-',
         'send_dynamics' => $data['send_dynamics'] ?? true,
         'is_consignment' => $data['is_consignment'] ?? false,
+        'aceptada_por_sunat' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER,
+        'sent_at' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
+        'accepted_at' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
       ];
 
       $document = ShippingGuides::create($documentData);
