@@ -121,15 +121,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
                     ->where('is_accounted', true);
                 });
             })
-            // Opción 2: Aprobada por jefe
-            ->orWhereNotNull('chief_approval_by')
-            // Opción 3: Aprobada por gerente
-            ->orWhereNotNull('manager_approval_by')
-            // Opción 4: Tiene avance de pago contabilizado (sin factura generada aún)
-            ->orWhereHas('advancesOrderQuotation', function ($q2) {
-              $q2->where('is_advance_payment', 1)
-                ->where('is_accounted', true);
-            });
+              // Opción 2: Aprobada por jefe
+              ->orWhereNotNull('chief_approval_by')
+              // Opción 3: Aprobada por gerente
+              ->orWhereNotNull('manager_approval_by')
+              // Opción 4: Tiene avance de pago contabilizado (sin factura generada aún)
+              ->orWhereHas('advancesOrderQuotation', function ($q2) {
+                $q2->where('is_advance_payment', 1)
+                  ->where('is_accounted', true);
+              });
           });
       })
       // Condición: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
@@ -701,7 +701,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
       $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
