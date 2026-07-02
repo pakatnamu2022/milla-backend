@@ -265,6 +265,12 @@ return [
       'description' => 'Permite quitar mano de obra de una orden de trabajo',
       'icon' => 'Box',
       'policy_method' => 'removeLabor',
+    ],
+    'viewExternal'                 => [
+      'label'         => 'Ver Externo',
+      'description'   => 'Permite visualizar información desde una perspectiva externa o de terceros',
+      'icon'          => 'Eye',
+      'policy_method' => 'viewExternal',
     ]
   ],
 
