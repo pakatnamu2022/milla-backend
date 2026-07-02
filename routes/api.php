@@ -268,7 +268,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'goal'], function () {
-      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+    Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+    Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+    Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+    Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+    Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+    Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+
+    Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
         'store',
