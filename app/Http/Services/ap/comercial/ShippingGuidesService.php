@@ -207,6 +207,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'destination_address' => $destination->address ?? '-',
         'send_dynamics' => $data['send_dynamics'] ?? true,
         'is_consignment' => $data['is_consignment'] ?? false,
+        'aceptada_por_sunat' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER,
+        'sent_at' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
+        'accepted_at' => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
       ];
 
       $document = ShippingGuides::create($documentData);
@@ -659,6 +662,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       } else {
         $data['ruc_transport'] = null;
         $data['company_name_transport'] = null;
+      }
+
+      $issuerType = $data['issuer_type'] ?? $document->issuer_type;
+      if ($issuerType === ShippingGuides::ISSUER_TYPE_SUPPLIER) {
+        if (!$document->sent_at) $data['sent_at'] = now();
+        if (!$document->accepted_at) $data['accepted_at'] = now();
+        if (!$document->aceptada_por_sunat) $data['aceptada_por_sunat'] = true;
       }
 
       $document->update($data);
