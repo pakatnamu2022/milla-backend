@@ -107,17 +107,8 @@ class OpGoalTravelController extends Controller
             $year = $request->input('year', date('Y'));
             $month = $request->input('month', date('m'));
 
-            Log::info("valor de month", [
-                'month' => $month
-            ]);
-
             $data = $this->service->getComparativaMensual((int)$year, (int)$month);
-
-            Log::info("datos", [
-                'data' => $data
-            ]);
             return response()->json($data);
-
 
         }catch(Throwable $th){
             return $this->error($th->getMessage());
