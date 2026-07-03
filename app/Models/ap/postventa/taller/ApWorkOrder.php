@@ -949,6 +949,35 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Valida que la orden de trabajo esté en uno de los estados permitidos
+   *
+   * @param array $allowedStatuses Estados permitidos
+   * @param string|null $action Acción que se está intentando (opcional, para personalizar mensaje)
+   * @throws \Exception
+   */
+  public function ensureInStates(array $allowedStatuses, ?string $action = null): void
+  {
+    if (!in_array($this->status_id, $allowedStatuses, true)) {
+      $statusNames = [
+        ApMasters::CANCELED_WORK_ORDER_ID => 'anulada',
+        ApMasters::FINISHED_WORK_ORDER_ID => 'finalizada',
+        ApMasters::CLOSED_WORK_ORDER_ID => 'cerrada',
+        ApMasters::OPENING_WORK_ORDER_ID => 'abierta',
+        ApMasters::RECEIVED_WORK_ORDER_ID => 'recepcionada',
+        ApMasters::AT_WORK_WORK_ORDER_ID => 'en trabajo',
+        ApMasters::END_WORK_WORK_ORDER_ID => 'trabajo finalizado',
+      ];
+
+      $currentStatusName = $statusNames[$this->status_id] ?? 'este estado';
+      $message = $action
+        ? "No se puede {$action} en una orden de trabajo {$currentStatusName}"
+        : "Esta acción no está permitida en una orden de trabajo {$currentStatusName}";
+
+      throw new \Exception($message);
+    }
+  }
+
+  /**
    * Valida que la orden de trabajo pueda ser modificada
    * (no esté anulada, finalizada o cerrada)
    *
