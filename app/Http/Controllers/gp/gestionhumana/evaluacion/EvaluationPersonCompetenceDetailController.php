@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteManyEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCompetenceDetailRequest;
@@ -83,6 +84,15 @@ class EvaluationPersonCompetenceDetailController extends Controller
   {
     try {
       return $this->success($this->service->updateMany($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function destroyMany(DeleteManyEvaluationPersonCompetenceDetailRequest $request)
+  {
+    try {
+      return $this->success($this->service->destroyMany($request->validated()['ids']));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

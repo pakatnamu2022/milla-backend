@@ -109,6 +109,34 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     }
   }
 
+  public function destroyMany(array $ids)
+  {
+    DB::beginTransaction();
+    try {
+      $records = EvaluationPersonCompetenceDetail::whereIn('id', $ids)->get();
+
+      // Agrupar pares únicos evaluation_id + person_id para recalcular después
+      $pairs = $records->map(fn($r) => $r->evaluation_id . '_' . $r->person_id)->unique();
+      $pairMap = $records->unique(fn($r) => $r->evaluation_id . '_' . $r->person_id)
+        ->mapWithKeys(fn($r) => [$r->evaluation_id . '_' . $r->person_id => [
+          'evaluation_id' => $r->evaluation_id,
+          'person_id'     => $r->person_id,
+        ]]);
+
+      EvaluationPersonCompetenceDetail::whereIn('id', $ids)->delete();
+
+      foreach ($pairMap as $pair) {
+        $this->recalculatePersonResults($pair['evaluation_id'], $pair['person_id']);
+      }
+
+      DB::commit();
+      return ['message' => 'Detalles de competencia eliminados correctamente', 'deleted' => count($ids)];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
   /**
    * Obtener competencias por evaluación y persona
    */
