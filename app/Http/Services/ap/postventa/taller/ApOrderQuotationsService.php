@@ -700,8 +700,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -847,7 +847,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
       $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
