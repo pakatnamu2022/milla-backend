@@ -160,53 +160,6 @@
       text-align: center;
     }
 
-    table.delivery-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 5px;
-      margin-bottom: 10px;
-      font-size: 9px;
-    }
-
-    table.delivery-table th {
-      background-color: #8b8b8b;
-      color: black;
-      padding: 4px 3px;
-      text-align: center;
-      font-weight: bold;
-      border: 1px solid #666;
-    }
-
-    table.delivery-table td {
-      padding: 3px 5px;
-      border: 1px solid #ccc;
-      text-align: left;
-      font-size: 9px;
-    }
-
-    table.delivery-table td.number {
-      text-align: right;
-    }
-
-    table.delivery-table td.center {
-      text-align: center;
-    }
-
-    .delivery-subsection {
-      margin-left: 20px;
-      margin-top: 8px;
-      margin-bottom: 10px;
-      padding: 8px;
-      background-color: #fafafa;
-      border: 1px solid #ddd;
-    }
-
-    .delivery-subsection-title {
-      font-weight: bold;
-      font-size: 10px;
-      margin-bottom: 5px;
-    }
-
     .footer {
       margin-top: 30px;
       text-align: center;
@@ -251,22 +204,23 @@
 
 <!-- Información de la empresa -->
 @if($workOrder['sede'])
-<div class="company-info">
-  <table>
-    <tr>
-      <td class="company-left" style="text-align: left">
-        <div>{{ $workOrder['sede']->direccion ?? 'N/A' }}</div>
-        <div>{{ $workOrder['sede']->province->name ?? '' }} - {{ $workOrder['sede']->district->name ?? '' }} {{ $workOrder['sede']->district->ubigeo ?? '' }}</div>
-        <div>RUC: {{ $workOrder['sede']->company->num_doc ?? 'N/A' }}</div>
-      </td>
-      <td class="company-right" style="text-align: right;">
-        <div>Tel.:</div>
-        <div>Email: info@automotorespakatnamu.com</div>
-        <div>Web: www.automotorespakatnamu.com</div>
-      </td>
-    </tr>
-  </table>
-</div>
+  <div class="company-info">
+    <table>
+      <tr>
+        <td class="company-left" style="text-align: left">
+          <div>{{ $workOrder['sede']->direccion ?? 'N/A' }}</div>
+          <div>{{ $workOrder['sede']->province->name ?? '' }}
+            - {{ $workOrder['sede']->district->name ?? '' }} {{ $workOrder['sede']->district->ubigeo ?? '' }}</div>
+          <div>RUC: {{ $workOrder['sede']->company->num_doc ?? 'N/A' }}</div>
+        </td>
+        <td class="company-right" style="text-align: right;">
+          <div>Tel.:</div>
+          <div>Email: info@automotorespakatnamu.com</div>
+          <div>Web: www.automotorespakatnamu.com</div>
+        </td>
+      </tr>
+    </table>
+  </div>
 @endif
 
 <!-- Número de OT y fecha -->
@@ -305,11 +259,11 @@
   <tr>
     <th style="width: 5%;">Ítem</th>
     <th style="width: 12%;">Código</th>
-    <th style="width: 35%;">Descripción</th>
-    <th style="width: 15%;">Almacén</th>
-    <th style="width: 11%;">Cant. Usada</th>
-    <th style="width: 11%;">Cant. Asignada</th>
-    <th style="width: 11%;">Cant. Pendiente</th>
+    <th style="width: 25%;">Descripción</th>
+    <th style="width: 12%;">Almacén</th>
+    <th style="width: 8%;">Cant. Total</th>
+    <th style="width: 8%;">Cant. Pendiente</th>
+    <th style="width: 30%;">Técnicos / Asignaciones</th>
   </tr>
   </thead>
   <tbody>
@@ -320,53 +274,31 @@
       <td class="text-left">{{ $part['description'] }}</td>
       <td class="text-left">{{ $part['warehouse'] }}</td>
       <td class="number">{{ number_format($part['quantity_used'], 2) }}</td>
-      <td class="number">{{ number_format($part['assigned_quantity'], 2) }}</td>
       <td class="number">{{ number_format($part['pending_quantity'], 2) }}</td>
+      <td class="text-left" style="padding: 5px;">
+        @if($part['has_deliveries'])
+          @foreach($part['deliveries'] as $delivery)
+            <div style="margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+              <div style="font-weight: bold;">{{ $delivery['technician_name'] }}</div>
+              <div style="margin-top: 2px;">Cant: {{ number_format($delivery['delivered_quantity'], 2) }}</div>
+              <div style="font-size: 8px; color: #666; margin-top: 2px;">Asignado
+                por: {{ $delivery['delivered_by'] }}</div>
+            </div>
+          @endforeach
+        @else
+          <div style="text-align: center; color: #999;">Sin asignaciones</div>
+        @endif
+      </td>
     </tr>
   @endforeach
   </tbody>
 </table>
 
-<!-- Detalle de Asignaciones a Técnicos por Repuesto -->
-@foreach($workOrder['parts'] as $index => $part)
-  @if($part['has_deliveries'])
-    <div class="delivery-subsection">
-      <div class="delivery-subsection-title">
-        ASIGNACIONES DEL REPUESTO: {{ $part['code'] }} - {{ $part['description'] }}
-      </div>
-      <table class="delivery-table">
-        <thead>
-        <tr>
-          <th style="width: 30%">Técnico</th>
-          <th style="width: 12%">Cantidad</th>
-          <th style="width: 18%">Fecha Entrega</th>
-          <th style="width: 15%">Entregado Por</th>
-          <th style="width: 10%">Recibido</th>
-          <th style="width: 15%">Fecha Recepción</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach($part['deliveries'] as $delivery)
-          <tr>
-            <td>{{ $delivery['technician_name'] }}</td>
-            <td class="number">{{ number_format($delivery['delivered_quantity'], 2) }}</td>
-            <td class="center">{{ $delivery['delivered_date'] }}</td>
-            <td>{{ $delivery['delivered_by'] }}</td>
-            <td class="center">{{ $delivery['is_received'] }}</td>
-            <td class="center">{{ $delivery['received_date'] }}</td>
-          </tr>
-        @endforeach
-        </tbody>
-      </table>
-    </div>
-  @endif
-@endforeach
-
 <!-- FOOTER -->
 <div class="footer">
   <p>Reporte generado el {{ date('d/m/Y H:i:s') }}</p>
   @if($workOrder['sede'])
-    <p>{{ $workOrder['sede']->name ?? 'N/A' }}</p>
+    <p>{{ $workOrder['sede']->abreviatura ?? 'N/A' }}</p>
   @endif
 </div>
 
