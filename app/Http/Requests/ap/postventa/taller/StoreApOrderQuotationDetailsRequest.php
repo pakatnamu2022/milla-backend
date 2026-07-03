@@ -229,15 +229,10 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         }
       }
 
-      // Validación para LOCAL, CENTRAL, IMPORTACION: solo si la cantidad excede el stock de la sede actual
-      if (in_array($supplyType, ['LOCAL', 'CENTRAL', 'IMPORTACION'])) {
-        if ($stockInCurrentSede >= $quantity) {
-          $validator->errors()->add(
-            'supply_type',
-            "No puede usar tipo {$supplyType}. El producto tiene {$stockInCurrentSede} unidades en esta sede, suficientes para las {$quantity} solicitadas. Debe usar tipo STOCK."
-          );
-        }
-      }
+      // Validación para LOCAL, CENTRAL, IMPORTACION: permitir siempre
+      // Se permite usar estos tipos independientemente del stock disponible
+      // porque puede ser que se quiera cotizar para pedido a central, importación o local
+      // aunque exista stock en la sede actual
     });
   }
 }
