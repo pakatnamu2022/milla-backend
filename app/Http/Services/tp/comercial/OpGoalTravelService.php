@@ -364,7 +364,6 @@ class OpGoalTravelService extends BaseService
 
     public function getDashboardData($year, $month)
     {
-        Log::info("LLEGA AL METODO GETDASHBOARDDATA CON AÑO: $year Y MES: $month");
         $goal = OpGoalTravel::whereYear('fecha', $year)
             ->whereMonth('fecha', $month)
             ->where('status_deleted', 1)
