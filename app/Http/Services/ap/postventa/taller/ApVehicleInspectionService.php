@@ -328,22 +328,27 @@ class ApVehicleInspectionService extends BaseService
    */
   public function generateReceptionReport($id)
   {
-    // Obtener la recepción con todas las relaciones necesarias
-    $inspection = ApVehicleInspection::with([
-      'damages',
-      'createdByWorkOrder.vehicle.model.family.brand',
-      'createdByWorkOrder.vehicle.color',
-      'createdByWorkOrder.vehicle.customer',
-      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'createdByWorkOrder.sede',
-      'createdByWorkOrder.status',
-      'createdByWorkOrder.items.typePlanning',
-      'createdByWorkOrder.items.typeOperation',
-      'createdByWorkOrder.appointmentPlanning',
-      'inspectionBy.person' // User sí tiene relación person
+    // Obtener la orden de trabajo con su inspección vehicular
+    $workOrder = ApWorkOrder::with([
+      'vehicleInspection.damages',
+      'vehicleInspection.inspectionBy.person',
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'vehicle.customer',
+      'advisor',
+      'sede',
+      'status',
+      'items.typePlanning',
+      'items.typeOperation',
+      'appointmentPlanning'
     ])->findOrFail($id);
 
-    $workOrder = $inspection->createdByWorkOrder;
+    // Verificar que la orden de trabajo tenga una inspección
+    if (!$workOrder->vehicleInspection) {
+      throw new Exception('La orden de trabajo no tiene una inspección vehicular asociada');
+    }
+
+    $inspection = $workOrder->vehicleInspection;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente
@@ -428,26 +433,31 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Genera el reporte de recepción en PDF
+   * Genera el comprobante de orden en PDF
    */
   public function generateOrderReceipt($id)
   {
-    // Obtener la recepción con todas las relaciones necesarias
-    $inspection = ApVehicleInspection::with([
-      'damages',
-      'createdByWorkOrder.vehicle.model.family.brand',
-      'createdByWorkOrder.vehicle.color',
-      'createdByWorkOrder.vehicle.customer',
-      'createdByWorkOrder.advisor', // Worker extiende de Person, no tiene relación person
-      'createdByWorkOrder.sede',
-      'createdByWorkOrder.status',
-      'createdByWorkOrder.items.typePlanning',
-      'createdByWorkOrder.items.typeOperation',
-      'createdByWorkOrder.appointmentPlanning',
-      'inspectionBy.person' // User sí tiene relación person
+    // Obtener la orden de trabajo con su inspección vehicular
+    $workOrder = ApWorkOrder::with([
+      'vehicleInspection.damages',
+      'vehicleInspection.inspectionBy.person',
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'vehicle.customer',
+      'advisor',
+      'sede',
+      'status',
+      'items.typePlanning',
+      'items.typeOperation',
+      'appointmentPlanning'
     ])->findOrFail($id);
 
-    $workOrder = $inspection->createdByWorkOrder;
+    // Verificar que la orden de trabajo tenga una inspección
+    if (!$workOrder->vehicleInspection) {
+      throw new Exception('La orden de trabajo no tiene una inspección vehicular asociada');
+    }
+
+    $inspection = $workOrder->vehicleInspection;
     $vehicle = $workOrder->vehicle;
     $customer = $vehicle->customer;
     $advisor = $workOrder->advisor; // Worker extiende de Person directamente

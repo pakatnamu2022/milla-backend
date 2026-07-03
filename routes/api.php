@@ -1509,6 +1509,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+      Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
+      Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
 
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
@@ -1652,8 +1654,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Vehicle Inspections - Inspecciones Vehiculares
-      Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
-      Route::get('vehicleInspections/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
       Route::post('vehicleInspections/{id}/request-cancellation', [ApVehicleInspectionController::class, 'requestCancellation']);
       Route::post('vehicleInspections/{id}/confirm-cancellation', [ApVehicleInspectionController::class, 'confirmCancellation']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
