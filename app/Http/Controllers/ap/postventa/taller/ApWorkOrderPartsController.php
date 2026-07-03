@@ -134,4 +134,29 @@ class ApWorkOrderPartsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function assignToTechnicianBulk(Request $request)
+  {
+    try {
+      $data = $request->validate([
+        'delivered_to' => 'required|integer|exists:rrhh_persona,id',
+        'assignments' => 'required|array|min:1',
+        'assignments.*.work_order_part_id' => 'required|integer|exists:ap_work_order_parts,id',
+        'assignments.*.delivered_quantity' => 'required|numeric|min:0.0001',
+      ]);
+
+      return $this->success($this->service->assignToTechnicianBulk($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function generatePartsReportPDF($workOrderId)
+  {
+    try {
+      return $this->service->generateWorkOrderPartsReportPDF($workOrderId);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

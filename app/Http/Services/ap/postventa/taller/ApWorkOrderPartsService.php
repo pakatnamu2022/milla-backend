@@ -8,6 +8,7 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Http\Utils\Helpers;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -18,6 +19,7 @@ use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\gp\gestionhumana\personal\Worker;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -864,5 +866,216 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         'work_order_part' => new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']))
       ];
     });
+  }
+
+  public function assignToTechnicianBulk(array $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $deliveredTo = Worker::find($data['delivered_to']);
+
+      if (!$deliveredTo) {
+        throw new Exception('Técnico no encontrado');
+      }
+
+      $technicianUserId = $deliveredTo->user->id;
+      $assignments = $data['assignments'];
+
+      if (empty($assignments)) {
+        throw new Exception('Debe proporcionar al menos un repuesto para asignar');
+      }
+
+      $createdDeliveries = [];
+      $updatedParts = [];
+      $errors = [];
+
+      foreach ($assignments as $assignment) {
+        try {
+          $workOrderPartId = $assignment['work_order_part_id'];
+          $deliveredQuantity = $assignment['delivered_quantity'];
+
+          // Buscar el repuesto
+          $workOrderPart = $this->find($workOrderPartId);
+
+          // Validar decimales según la unidad de medida del producto
+          $workOrderPart->product->validateDecimals($deliveredQuantity);
+
+          // Calcular cantidad ya asignada
+          $totalAssigned = $workOrderPart->assigned_quantity ?? 0;
+
+          // Validar que no exceda la cantidad total
+          $newTotalAssigned = $totalAssigned + $deliveredQuantity;
+          if ($newTotalAssigned > $workOrderPart->quantity_used) {
+            $errors[] = "Repuesto {$workOrderPart->product->code}: La cantidad a asignar excede la cantidad disponible. Disponible: " .
+              ($workOrderPart->quantity_used - $totalAssigned) . ", Solicitado: {$deliveredQuantity}";
+            continue;
+          }
+
+          // Crear registro de entrega
+          $delivery = ApWorkOrderPartDelivery::create([
+            'work_order_part_id' => $workOrderPartId,
+            'delivered_to' => $technicianUserId,
+            'delivered_quantity' => $deliveredQuantity,
+            'delivered_date' => now(),
+            'delivered_by' => auth()->check() ? auth()->user()->id : null,
+            'is_received' => false,
+          ]);
+
+          // Actualizar cantidad asignada en el repuesto
+          $workOrderPart->assigned_quantity = $newTotalAssigned;
+          $workOrderPart->save();
+
+          $createdDeliveries[] = $delivery->load(['deliveredToUser', 'deliveredByUser']);
+          $updatedParts[] = new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']));
+
+        } catch (\Throwable $th) {
+          $errors[] = "Error al asignar repuesto ID {$workOrderPartId}: " . $th->getMessage();
+        }
+      }
+
+      if (empty($createdDeliveries)) {
+        throw new Exception('No se pudo asignar ningún repuesto. Errores: ' . implode('; ', $errors));
+      }
+
+      $response = [
+        'message' => 'Asignación masiva completada',
+        'total_assigned' => count($createdDeliveries),
+        'total_requested' => count($assignments),
+        'deliveries' => $createdDeliveries,
+        'work_order_parts' => $updatedParts,
+      ];
+
+      if (!empty($errors)) {
+        $response['errors'] = $errors;
+      }
+
+      return $response;
+    });
+  }
+
+  public function generateWorkOrderPartsReportPDF(int $workOrderId)
+  {
+    $workOrder = ApWorkOrder::with([
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'invoiceTo.district',
+      'parts.product',
+      'parts.warehouse',
+      'parts.deliveries.deliveredToUser.person',
+      'parts.deliveries.deliveredByUser',
+      'orderQuotation',
+      'sede.company',
+      'sede.district',
+      'sede.province'
+    ])->find($workOrderId);
+
+    if (!$workOrder) {
+      throw new Exception('Orden de trabajo no encontrada');
+    }
+
+    // Preparar datos básicos
+    $data = [
+      'work_order_number' => $workOrder->id,
+      'work_order_date' => $workOrder->created_at->format('d/m/Y'),
+      'status' => $workOrder->status ? $workOrder->status->description : 'N/A',
+      'sede' => $workOrder->sede,
+    ];
+
+    // Datos del cliente
+    if ($workOrder->invoiceTo) {
+      $customer = $workOrder->invoiceTo;
+      $data['customer_name'] = $customer->full_name ?? 'N/A';
+      $data['customer_document'] = $customer->num_doc ?? 'N/A';
+      $data['customer_address'] = $customer->direction ?? 'N/A';
+      $data['customer_district'] = $customer->district ? $customer->district->name : 'N/A';
+      $data['customer_email'] = $customer->email ?? 'N/A';
+      $data['customer_phone'] = $customer->phone ?? 'N/A';
+    } else {
+      $data['customer_name'] = 'N/A';
+      $data['customer_document'] = 'N/A';
+      $data['customer_address'] = 'N/A';
+      $data['customer_district'] = 'N/A';
+      $data['customer_email'] = 'N/A';
+      $data['customer_phone'] = 'N/A';
+    }
+
+    // Datos del vehículo
+    if ($workOrder->vehicle) {
+      $vehicle = $workOrder->vehicle;
+      $data['vehicle_plate'] = $vehicle->plate ?? 'N/A';
+      $data['vehicle_vin'] = $vehicle->vin ?? 'N/A';
+      $data['vehicle_engine'] = $vehicle->engine_number ?? 'N/A';
+      $data['vehicle_model'] = $vehicle->model ? $vehicle->model->version : 'N/A';
+      $data['vehicle_brand'] = $vehicle->model && $vehicle->model->family && $vehicle->model->family->brand
+        ? $vehicle->model->family->brand->name
+        : 'N/A';
+      $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
+      $data['vehicle_km'] = $workOrder->mileage ?? 'N/A';
+    } else {
+      $data['vehicle_plate'] = 'N/A';
+      $data['vehicle_vin'] = 'N/A';
+      $data['vehicle_engine'] = 'N/A';
+      $data['vehicle_model'] = 'N/A';
+      $data['vehicle_brand'] = 'N/A';
+      $data['vehicle_color'] = 'N/A';
+      $data['vehicle_km'] = 'N/A';
+    }
+
+    // Detalles de repuestos con asignaciones a técnicos
+    $data['parts'] = $workOrder->parts->map(function ($part) {
+      $deliveries = $part->deliveries->map(function ($delivery) {
+        return [
+          'technician_name' => $delivery->deliveredToUser && $delivery->deliveredToUser->person
+            ? $delivery->deliveredToUser->person->nombre_completo
+            : 'N/A',
+          'delivered_quantity' => $delivery->delivered_quantity,
+          'delivered_date' => $delivery->delivered_date ? $delivery->delivered_date->format('d/m/Y H:i') : 'N/A',
+          'delivered_by' => $delivery->deliveredByUser ? $delivery->deliveredByUser->name : 'N/A',
+          'is_received' => $delivery->is_received ? 'Sí' : 'No',
+          'received_date' => $delivery->received_date ? $delivery->received_date->format('d/m/Y H:i') : '-',
+        ];
+      });
+
+      return [
+        'code' => $part->product ? $part->product->code : 'N/A',
+        'description' => $part->product ? $part->product->description : 'N/A',
+        'warehouse' => $part->warehouse ? $part->warehouse->name : 'N/A',
+        'quantity_used' => $part->quantity_used,
+        'unit_price' => $part->unit_price,
+        'discount_percentage' => $part->discount_percentage ?? 0,
+        'total_cost' => $part->total_cost,
+        'net_amount' => $part->net_amount,
+        'tax_amount' => $part->tax_amount,
+        'assigned_quantity' => $part->assigned_quantity ?? 0,
+        'pending_quantity' => $part->quantity_used - ($part->assigned_quantity ?? 0),
+        'deliveries' => $deliveries,
+        'has_deliveries' => $deliveries->count() > 0,
+      ];
+    });
+
+    // Calcular totales
+    $totalParts = $workOrder->parts->sum('total_cost');
+    $totalDiscounts = $workOrder->parts->sum(function ($part) {
+      return $part->total_cost - $part->net_amount;
+    });
+    $baseImponible = $workOrder->parts->sum('net_amount');
+    $igvAmount = $workOrder->parts->sum('tax_amount');
+    $totalAmount = $baseImponible + $igvAmount;
+
+    $data['total_parts'] = $totalParts;
+    $data['total_discounts'] = $totalDiscounts;
+    $data['base_imponible'] = $baseImponible;
+    $data['tax_amount'] = $igvAmount;
+    $data['total_amount'] = $totalAmount;
+
+    // Generar PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.work-order-parts-report', [
+      'workOrder' => $data
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'Reporte_Repuestos_OT_' . $workOrder->id . '.pdf';
+
+    return $pdf->download($fileName);
   }
 }
