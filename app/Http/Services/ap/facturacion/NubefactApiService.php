@@ -475,13 +475,17 @@ class NubefactApiService
         || ($isAnticipo && !$hasAnticipoRegularizacion);
       $codigo = $usarCodeDynamics ? $item->accountPlan->code_dynamics : $item->codigo;
 
+      $precioUnitario = ($item->descuento && (float) $item->descuento > 0)
+        ? round((float) $item->valor_unitario * (1 + (float) $document->porcentaje_de_igv / 100), 2)
+        : $item->precio_unitario;
+
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
         'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
         'valor_unitario' => $item->valor_unitario,
-        'precio_unitario' => $item->precio_unitario,
+        'precio_unitario' => $precioUnitario,
         'descuento' => $item->descuento ?? 0,
         'subtotal' => $item->subtotal,
         'tipo_de_igv' => $tipoIgv,
