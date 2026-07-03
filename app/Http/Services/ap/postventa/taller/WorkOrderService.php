@@ -700,7 +700,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo ya tiene una entrega generada');
       }
 
-      $workOrder->ensureNotInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
+      $workOrder->ensureInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
 
       // Extraer firma en base64 del array
       $deliverySignature = $data['signature_delivery'] ?? null;
