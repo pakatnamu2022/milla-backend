@@ -11,6 +11,8 @@ class DriverLocationHistory extends BaseModel
 {
     protected $table = 'driver_location_history';
 
+    public const UPDATED_AT = null;
+
     protected $fillable = [
         'driver_id',
         'latitude',
