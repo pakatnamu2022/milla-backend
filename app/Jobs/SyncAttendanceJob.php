@@ -188,6 +188,12 @@ class SyncAttendanceJob implements ShouldQueue
     $absenteeMap = $absenteeRows->mapWithKeys(fn($r) => [(int)$r->empleado_id => 'ausentismo: ' . $r->tipo_label]);
     $absentees = $absenteeRows->pluck('empleado_id');
 
+    $permisosIds = DB::table('rrhh_trabajador_permiso')
+      ->where('status_deleted', 1)
+      ->where('fecha_inicio', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->pluck('partner_id');
+
     $byExclusionTable = DB::table('attendance_exclusions')
       ->where('active', 1)
       ->pluck('person_id');
@@ -198,12 +204,13 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 
-    return $vacations->merge($absentees)->merge($byExclusionTable)->merge($byPosition)
+    return $vacations->merge($absentees)->merge($permisosIds)->merge($byExclusionTable)->merge($byPosition)
       ->unique()
-      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $byExclusionTable, $byPosition) {
+      ->mapWithKeys(function ($id) use ($vacations, $absenteeMap, $absentees, $permisosIds, $byExclusionTable, $byPosition) {
         $id = (int)$id;
         if ($vacations->contains($id))        return [$id => 'vacaciones'];
         if ($absentees->contains($id))        return [$id => ($absenteeMap[$id] ?? 'ausentismo')];
+        if ($permisosIds->contains($id))      return [$id => 'permiso'];
         if ($byExclusionTable->contains($id)) return [$id => 'exclusion_manual'];
         if ($byPosition->contains($id))       return [$id => 'cargo'];
         return [$id => 'desconocido'];

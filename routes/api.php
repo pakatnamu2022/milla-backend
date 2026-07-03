@@ -122,6 +122,7 @@ use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceCodeMappingContr
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceExclusionController;
 use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
 use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
+use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
@@ -651,6 +652,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('ausentismo/{id}', [AusentismoLaboralController::class, 'show']);
         Route::put('ausentismo/{id}', [AusentismoLaboralController::class, 'update']);
         Route::delete('ausentismo/{id}', [AusentismoLaboralController::class, 'destroy']);
+
+        //      PERMISOS TRABAJADOR
+        Route::get('permiso', [TrabajadorPermisoController::class, 'index']);
+        Route::post('permiso', [TrabajadorPermisoController::class, 'store']);
+        Route::get('permiso/{id}', [TrabajadorPermisoController::class, 'show']);
+        Route::put('permiso/{id}', [TrabajadorPermisoController::class, 'update']);
+        Route::delete('permiso/{id}', [TrabajadorPermisoController::class, 'destroy']);
       });
 
       // Accountant District Assignments
@@ -870,6 +878,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         // Agregar estas rutas dentro del grupo performanceEvaluation en routes/api.php
 
+        Route::delete('personCompetenceDetail/destroyMany', [EvaluationPersonCompetenceDetailController::class, 'destroyMany']);
         Route::apiResource('personCompetenceDetail', EvaluationPersonCompetenceDetailController::class)->only([
           'index',
           'show',
