@@ -260,7 +260,6 @@
     <th style="width: 5%;">Ítem</th>
     <th style="width: 12%;">Código</th>
     <th style="width: 25%;">Descripción</th>
-    <th style="width: 12%;">Almacén</th>
     <th style="width: 8%;">Cant. Total</th>
     <th style="width: 8%;">Cant. Pendiente</th>
     <th style="width: 30%;">Técnicos / Asignaciones</th>
@@ -272,7 +271,6 @@
       <td class="center">{{ $index + 1 }}</td>
       <td class="center">{{ $part['code'] }}</td>
       <td class="text-left">{{ $part['description'] }}</td>
-      <td class="text-left">{{ $part['warehouse'] }}</td>
       <td class="number">{{ number_format($part['quantity_used'], 2) }}</td>
       <td class="number">{{ number_format($part['pending_quantity'], 2) }}</td>
       <td class="text-left" style="padding: 5px;">
