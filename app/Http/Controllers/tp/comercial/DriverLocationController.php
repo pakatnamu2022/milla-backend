@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\tp\comercial\StoreDriverLocationRequest;
 use App\Http\Requests\tp\comercial\IndexDriverLocationRequest;
 use App\Http\Services\tp\comercial\DriverLocationService;
+use Illuminate\Http\Request;
 use Throwable;
 
 class DriverLocationController extends Controller
@@ -41,6 +42,22 @@ class DriverLocationController extends Controller
                 'success'=> false,
                 'message'=> $th->getMessage()
             ], 400);
+        }
+    }
+
+    public function history($driverId, Request $request){
+        try{
+            return $this->service->history($driverId, $request);
+        }catch(Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+     public function cleanHistory(Request $request)
+    {
+        try {
+            return $this->service->cleanHistory($request);
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
         }
     }
 

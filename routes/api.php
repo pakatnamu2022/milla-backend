@@ -306,6 +306,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/', 'index');
         Route::get('latest', 'latest');
         Route::get('{id}', 'show');
+
+
+        Route::get('history/{driverId}', 'history');
+        Route::delete('history/clean', 'cleanHistory');
       });
 
       // Conductores
