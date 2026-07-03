@@ -33,8 +33,8 @@ class TrabajadorPermiso extends Model
   const sorts = ['id', 'fecha_inicio', 'fecha_fin', 'partner_id'];
 
   protected $casts = [
-    'fecha_inicio' => 'date',
-    'fecha_fin'    => 'date',
+    'fecha_inicio' => 'datetime',
+    'fecha_fin'    => 'datetime',
   ];
 
   public function scopeFechaFrom(Builder $query, string $value): Builder

@@ -15,8 +15,8 @@ class UpdateTrabajadorPermisoRequest extends FormRequest
   {
     return [
       'partner_id'   => ['sometimes', 'integer', 'exists:rrhh_persona,id'],
-      'fecha_inicio' => ['sometimes', 'date_format:Y-m-d'],
-      'fecha_fin'    => ['sometimes', 'date_format:Y-m-d', 'gte:fecha_inicio'],
+      'fecha_inicio' => ['sometimes', 'date'],
+      'fecha_fin'    => ['sometimes', 'date', 'after_or_equal:fecha_inicio'],
       'c_motivo'     => ['nullable', 'string', 'max:255'],
       'sin_goce'     => ['nullable', 'integer', 'in:0,1'],
       'sucursal_id'  => ['nullable', 'integer'],
