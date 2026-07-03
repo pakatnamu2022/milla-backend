@@ -849,6 +849,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'destroy'
         ]);
 
+        Route::get('/evaluation/{evaluation}/competences', [EvaluationPersonCompetenceDetailController::class, 'getByEvaluation'])
+          ->name('evaluation.competences.index');
         Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
           ->name('evaluation.competences.create');
 
