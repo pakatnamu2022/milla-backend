@@ -475,7 +475,13 @@ class NubefactApiService
         || ($isAnticipo && !$hasAnticipoRegularizacion);
       $codigo = $usarCodeDynamics ? $item->accountPlan->code_dynamics : $item->codigo;
 
-      $precioUnitario = ($item->descuento && (float) $item->descuento > 0)
+      // When descuento > 0 the discount is already embedded in valor_unitario (net price).
+      // Nubefact/SUNAT validates: LineExtensionAmount = precio_unitario/igv_factor*qty - descuento.
+      // Sending the original descuento causes a double-deduction, so we zero it out and
+      // derive precio_unitario from the net valor_unitario instead of the list price.
+      $hasDescuento = $item->descuento && (float) $item->descuento > 0;
+
+      $precioUnitario = $hasDescuento
         ? round((float) $item->valor_unitario * (1 + (float) $document->porcentaje_de_igv / 100), 2)
         : $item->precio_unitario;
 
@@ -486,7 +492,7 @@ class NubefactApiService
         'cantidad' => $item->cantidad,
         'valor_unitario' => $item->valor_unitario,
         'precio_unitario' => $precioUnitario,
-        'descuento' => $item->descuento ?? 0,
+        'descuento' => $hasDescuento ? 0 : ($item->descuento ?? 0),
         'subtotal' => $item->subtotal,
         'tipo_de_igv' => $tipoIgv,
         'igv' => $igvItem,
