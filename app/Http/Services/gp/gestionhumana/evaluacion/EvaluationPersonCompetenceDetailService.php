@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetailResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationParameter;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
@@ -37,6 +38,104 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       EvaluationPersonCompetenceDetail::sorts ?? [],
       EvaluationPersonCompetenceDetailResource::class,
     );
+  }
+
+  public function listByEvaluation(int $evaluationId, Request $request)
+  {
+    if (filter_var($request->query('grouped', false), FILTER_VALIDATE_BOOLEAN)) {
+      return $this->listByEvaluationGrouped($evaluationId, $request);
+    }
+
+    $query = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId);
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      EvaluationPersonCompetenceDetail::filters ?? [],
+      EvaluationPersonCompetenceDetail::sorts ?? [],
+      EvaluationPersonCompetenceDetailResource::class,
+    );
+  }
+
+  private function listByEvaluationGrouped(int $evaluationId, Request $request): \Illuminate\Http\JsonResponse
+  {
+    $perPage  = min((int) $request->query('per_page', 15), 100);
+    $page     = max((int) $request->query('page', 1), 1);
+    $sortDir  = strtolower($request->query('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+    $baseQuery = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId);
+    $baseQuery = $this->applyFilters($baseQuery, $request, EvaluationPersonCompetenceDetail::filters ?? []);
+
+    // Distinct (person_id, competence_id) pairs — these are the pagination units
+    $pairs = (clone $baseQuery)
+      ->selectRaw('person_id, competence_id, MIN(person) as person, MIN(competence) as competence')
+      ->groupBy('person_id', 'competence_id')
+      ->orderBy('person', $sortDir)
+      ->orderBy('competence', $sortDir)
+      ->get();
+
+    $total    = $pairs->count();
+    $lastPage = max(1, (int) ceil($total / $perPage));
+    $page     = min($page, $lastPage);
+    $from     = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
+    $to       = $total > 0 ? min($from + $perPage - 1, $total) : null;
+
+    $pagePairs = $pairs->slice(($page - 1) * $perPage, $perPage)->values();
+
+    // Load subcompetences only for this page's pairs
+    $grouped = collect();
+    if ($pagePairs->isNotEmpty()) {
+      $grouped = (clone $baseQuery)
+        ->where(function ($q) use ($pagePairs) {
+          foreach ($pagePairs as $pair) {
+            $q->orWhere(fn($sq) => $sq
+              ->where('person_id', $pair->person_id)
+              ->where('competence_id', $pair->competence_id));
+          }
+        })
+        ->get()
+        ->groupBy(fn($r) => $r->person_id . '_' . $r->competence_id);
+    }
+
+    $data = $pagePairs->map(function ($pair) use ($grouped) {
+      $key = $pair->person_id . '_' . $pair->competence_id;
+      return [
+        'person_id'      => $pair->person_id,
+        'person'         => $pair->person,
+        'competence_id'  => $pair->competence_id,
+        'competence'     => $pair->competence,
+        'subcompetences' => $grouped->get($key, collect())->map(fn($r) => [
+          'id'               => $r->id,
+          'sub_competence_id' => $r->sub_competence_id,
+          'sub_competence'   => $r->sub_competence,
+          'evaluator_id'     => $r->evaluator_id,
+          'evaluator'        => $r->evaluator,
+          'evaluatorType'    => $r->evaluatorType,
+          'result'           => $r->result,
+        ])->values(),
+      ];
+    });
+
+    $baseUrl     = $request->url();
+    $queryParams = $request->query();
+    $first       = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1]));
+    $last        = $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $lastPage]));
+    $prev        = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
+    $next        = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
+
+    return response()->json([
+      'data'  => $data,
+      'links' => compact('first', 'last', 'prev', 'next'),
+      'meta'  => [
+        'current_page' => $page,
+        'from'         => $from,
+        'last_page'    => $lastPage,
+        'links'        => $this->generatePaginationLinks($page, $lastPage, $baseUrl, $queryParams),
+        'path'         => $baseUrl,
+        'per_page'     => $perPage,
+        'to'           => $to,
+        'total'        => $total,
+      ],
+    ]);
   }
 
   public function find($id)
@@ -109,19 +208,23 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     }
   }
 
-  public function destroyMany(array $ids)
+  public function destroyMany(array $ids, bool $cascade = false)
   {
     DB::beginTransaction();
     try {
       $records = EvaluationPersonCompetenceDetail::whereIn('id', $ids)->get();
 
-      // Agrupar pares únicos evaluation_id + person_id para recalcular después
-      $pairs = $records->map(fn($r) => $r->evaluation_id . '_' . $r->person_id)->unique();
       $pairMap = $records->unique(fn($r) => $r->evaluation_id . '_' . $r->person_id)
         ->mapWithKeys(fn($r) => [$r->evaluation_id . '_' . $r->person_id => [
           'evaluation_id' => $r->evaluation_id,
           'person_id'     => $r->person_id,
         ]]);
+
+      // Capturar pares (person_id, competence_id) antes de eliminar, si hay cascade
+      $cascadePairs = $cascade
+        ? $records->unique(fn($r) => $r->person_id . '_' . $r->competence_id)
+            ->map(fn($r) => ['person_id' => $r->person_id, 'competence_id' => $r->competence_id])
+        : collect();
 
       EvaluationPersonCompetenceDetail::whereIn('id', $ids)->delete();
 
@@ -129,8 +232,20 @@ class EvaluationPersonCompetenceDetailService extends BaseService
         $this->recalculatePersonResults($pair['evaluation_id'], $pair['person_id']);
       }
 
+      $deletedCategory = 0;
+      foreach ($cascadePairs as $pair) {
+        $deletedCategory += EvaluationCategoryCompetenceDetail::where('person_id', $pair['person_id'])
+          ->where('competence_id', $pair['competence_id'])
+          ->delete();
+      }
+
       DB::commit();
-      return ['message' => 'Detalles de competencia eliminados correctamente', 'deleted' => count($ids)];
+
+      $result = ['message' => 'Detalles de competencia eliminados correctamente', 'deleted' => count($ids)];
+      if ($cascade) {
+        $result['deleted_category_assignments'] = $deletedCategory;
+      }
+      return $result;
     } catch (\Exception $e) {
       DB::rollBack();
       throw $e;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\gp\gestionhumana\evaluacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteManyEvaluationPersonCompetenceDetailRequest;
+use App\Http\Requests\gp\gestionhumana\evaluacion\GetByEvaluationEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationPersonCompetenceDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationPersonCompetenceDetailRequest;
@@ -66,6 +67,21 @@ class EvaluationPersonCompetenceDetailController extends Controller
   }
 
   /**
+   * Get competences by evaluation
+   * @param GetByEvaluationEvaluationPersonCompetenceDetailRequest $request
+   * @param int $evaluationId
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function getByEvaluation(GetByEvaluationEvaluationPersonCompetenceDetailRequest $request, int $evaluationId)
+  {
+    try {
+      return $this->service->listByEvaluation($evaluationId, $request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Obtener competencias por evaluación y persona
    */
   public function getByEvaluationAndPerson(int $evaluationId, int $personId)
@@ -92,7 +108,8 @@ class EvaluationPersonCompetenceDetailController extends Controller
   public function destroyMany(DeleteManyEvaluationPersonCompetenceDetailRequest $request)
   {
     try {
-      return $this->success($this->service->destroyMany($request->validated()['ids']));
+      $data = $request->validated();
+      return $this->success($this->service->destroyMany($data['ids'], $data['cascade'] ?? false));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
