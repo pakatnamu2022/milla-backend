@@ -59,17 +59,26 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Agrupar por Numero (movement_number_dyn)
-      $groupedByNumber = collect($filteredResults)->groupBy('Numero');
+      // Agrupar por Numero + Almacen: un mismo Numero puede traer líneas
+      // de distintos almacenes, y un InventoryMovement solo admite un almacén.
+      $groupedByNumberAndWarehouse = collect($filteredResults)->groupBy(function ($row) {
+        return $row->Numero . '||' . $row->Almacen;
+      });
 
       $processedCount = 0;
       $skippedCount = 0;
       $errorCount = 0;
 
-      foreach ($groupedByNumber as $numero => $lines) {
+      foreach ($groupedByNumberAndWarehouse as $key => $lines) {
+        [$numero, $almacen] = explode('||', $key, 2);
+
         try {
-          // Verificar si ya existe el movimiento con ese movement_number_dyn
-          $existingMovement = InventoryMovement::where('movement_number_dyn', $numero)->first();
+          // Verificar si ya existe el movimiento con ese movement_number_dyn + almacén
+          $existingMovement = InventoryMovement::where('movement_number_dyn', $numero)
+            ->whereHas('warehouse', function ($q) use ($almacen) {
+              $q->where('dyn_code', $almacen);
+            })
+            ->first();
 
           if ($existingMovement) {
             $skippedCount++;
@@ -83,6 +92,7 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
           $errorCount++;
           Log::error('Error procesando ajuste de inventario', [
             'numero' => $numero,
+            'almacen' => $almacen,
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
           ]);
