@@ -41,12 +41,12 @@ class ImportProducts extends Command
    */
   public function handle()
   {
-    $filePath = $this->argument('file') ?? storage_path('app/imports/products_v3.xlsx');
+    $filePath = $this->argument('file') ?? storage_path('app/imports/products_v4.xlsx');
 
     if (!file_exists($filePath)) {
       $this->error("El archivo {$filePath} no existe.");
       $this->info("Uso: php artisan import:products [ruta/al/archivo.xlsx]");
-      $this->info("Por defecto busca en: storage/app/imports/products_v3.xlsx");
+      $this->info("Por defecto busca en: storage/app/imports/products_v4.xlsx");
       return 1;
     }
 
