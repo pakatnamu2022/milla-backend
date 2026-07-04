@@ -1527,6 +1527,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
       Route::patch('workOrders/{id}/revertir', [WorkOrderController::class, 'revertir']);
       Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
+      Route::post('workOrders/{id}/recalculate-totals', [WorkOrderController::class, 'recalculateTotals']);
       Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
