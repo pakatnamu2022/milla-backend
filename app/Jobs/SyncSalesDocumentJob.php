@@ -103,7 +103,24 @@ class SyncSalesDocumentJob implements ShouldQueue
 
     $hasFailed = $logs->contains(fn($log) => $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED);
 
-    if ($hasFailed) {
+    $requiredSteps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_CLIENT,
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL,
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT,
+    ];
+
+    $allCompleted = $logs->every(fn($log) =>
+      $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
+      $log->proceso_estado === 1
+    );
+
+    $hasAllRequiredSteps = collect($requiredSteps)->every(
+      fn($step) => $logs->where('step', $step)->isNotEmpty()
+    );
+
+    if ($allCompleted && $hasAllRequiredSteps) {
+      $document->markAsCompleted();
+    } elseif ($hasFailed) {
       $document->markAsFailed();
     }
   }
