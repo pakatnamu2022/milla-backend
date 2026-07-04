@@ -1742,4 +1742,34 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       return new WorkOrderResource($workOrder);
     });
   }
+
+  public function recalculateTotals($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $workOrder = $this->find($id);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Cargar relaciones necesarias para el cálculo
+      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+      // Recalcular totales
+      $workOrder->calculateTotals();
+
+      // Recargar la orden de trabajo con todas las relaciones para mostrar
+      $workOrder->load([
+        'items',
+        'orderQuotation.details.product.unitMeasurement',
+        'labours',
+        'parts.product.unitMeasurement',
+        'advancesWorkOrder'
+      ]);
+
+      $additionalData['includeCostManHours'] = true;
+
+      return (new WorkOrderResource($workOrder))->additional($additionalData);
+    });
+  }
 }
