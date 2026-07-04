@@ -2957,7 +2957,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
       $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
+      // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
+      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
         $data['detraccion'] = true;
         $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
           ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
@@ -3194,8 +3195,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($company && isset($invoiceData['total'])) {
         $detractionAmount = (float)($company->detraction_amount ?? 0);
 
-        // Verificar si el total de la factura consolidada supera o iguala el monto de detracción
-        if ($total >= $detractionAmount && $detractionAmount > 0) {
+        // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
+        if ($total >= $detractionAmount && $detractionAmount > 0 && (int)$invoiceData['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
           $invoiceData['detraccion'] = true;
           $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
           $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;

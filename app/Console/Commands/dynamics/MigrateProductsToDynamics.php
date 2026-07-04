@@ -54,10 +54,11 @@ class MigrateProductsToDynamics extends Command
       $this->newLine();
     }
 
-    // Obtener todos los productos con dyn_code
+    // Obtener todos los productos con dyn_code a partir del ID 3000
     $query = Products::with(['brand', 'category', 'articleClass', 'unitMeasurement'])
       ->whereNotNull('dyn_code')
-      ->where('dyn_code', '!=', '');
+      ->where('dyn_code', '!=', '')
+      ->where('id', '>=', 3000);
 
     // Filtrar por dyn_code si se especifica
     if ($dynCodeFilter) {
