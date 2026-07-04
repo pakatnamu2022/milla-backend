@@ -608,6 +608,26 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Check if a document is accepted by SUNAT based on its type.
+   * Boletas can be in 'sent' status (provider sometimes takes time to respond).
+   * Facturas must be in 'accepted' status.
+   *
+   * @param ElectronicDocument $document
+   * @return bool
+   */
+  private function isDocumentAcceptedBySunat($document): bool
+  {
+    // For boletas, accept if sent or accepted
+    if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_BOLETA) {
+      return $document->status === ElectronicDocument::STATUS_SENT
+        || $document->status === ElectronicDocument::STATUS_ACCEPTED;
+    }
+
+    // For facturas and other documents, must be accepted
+    return $document->aceptada_por_sunat;
+  }
+
+  /**
    * Get active advances for this work order.
    *
    * An advance is truly cancelled (and therefore excluded) only when:
@@ -631,7 +651,7 @@ class ApWorkOrder extends Model
     return $this->advancesWorkOrder->filter(function ($advance) use ($annullingTypes) {
       $passed = true;
 
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         $passed = false;
@@ -670,7 +690,7 @@ class ApWorkOrder extends Model
     ];
 
     return $this->advancesWorkOrder->filter(function ($advance) use ($annullingTypes) {
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         return false;
@@ -711,7 +731,7 @@ class ApWorkOrder extends Model
       }
 
       // Must be accepted by SUNAT
-      if (!$document->aceptada_por_sunat) {
+      if (!$this->isDocumentAcceptedBySunat($document)) {
         return false;
       }
 
@@ -1011,7 +1031,7 @@ class ApWorkOrder extends Model
     // Process all documents
     foreach ($this->advancesWorkOrder as $document) {
       // Skip if not accepted by SUNAT or not the right type
-      if (!$document->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($document)
         || !in_array($document->sunat_concept_document_type_id, [
           ElectronicDocument::TYPE_FACTURA,
           ElectronicDocument::TYPE_BOLETA

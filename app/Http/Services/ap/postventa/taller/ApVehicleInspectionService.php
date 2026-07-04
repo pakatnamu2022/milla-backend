@@ -410,7 +410,7 @@ class ApVehicleInspectionService extends BaseService
       'vehicle' => $vehicle,
       'customer' => $customer,
       'advisor' => $advisor, // Worker ya es Person directamente
-      'advisorPhone' => $advisor ? $advisor->cel_personal : '',
+      'advisorPhone' => $advisor ? $advisor->tel_referencia_3 : '',
       'sede' => $workOrder->sede,
       'status' => $workOrder->status,
       'items' => $workOrder->items,
