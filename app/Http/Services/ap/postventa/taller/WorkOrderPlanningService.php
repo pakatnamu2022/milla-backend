@@ -271,9 +271,14 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Filtrar solo los trabajos del mismo tipo
     $samePlannings = $existingPlannings->where('type', $type);
 
+    // Normalizar los timestamps del nuevo trabajo (eliminar segundos y microsegundos)
+    $plannedStart = $plannedStart->copy()->startOfMinute();
+    $plannedEnd = $plannedEnd->copy()->startOfMinute();
+
     foreach ($samePlannings as $existing) {
-      $existingStart = Carbon::parse($existing->planned_start_datetime);
-      $existingEnd = Carbon::parse($existing->planned_end_datetime);
+      // Normalizar los timestamps del trabajo existente (eliminar segundos y microsegundos)
+      $existingStart = Carbon::parse($existing->planned_start_datetime)->startOfMinute();
+      $existingEnd = Carbon::parse($existing->planned_end_datetime)->startOfMinute();
 
       // Verificar si hay solapamiento
       if (
