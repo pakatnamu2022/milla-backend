@@ -215,8 +215,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   {
     $workerId = $data['worker_id'];
     $type = $data['type'];
-    $plannedStart = Carbon::parse($data['planned_start_datetime']);
-    $plannedEnd = Carbon::parse($data['planned_end_datetime']);
+    $plannedStart = Carbon::parse($data['planned_start_datetime'])->startOfMinute();
+    $plannedEnd = Carbon::parse($data['planned_end_datetime'])->startOfMinute();
 
     // Obtener fecha del día para las validaciones
     $currentDate = $plannedStart->format('Y-m-d');
@@ -241,7 +241,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya ordenado desc por planned_end_datetime
 
       if ($lastInternalWork) {
-        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime)->startOfMinute();
 
         // El nuevo trabajo debe comenzar desde la hora fin del último trabajo en adelante
         if ($plannedStart->lt($lastEndTime)) {
