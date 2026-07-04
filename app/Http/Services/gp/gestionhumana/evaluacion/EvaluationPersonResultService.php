@@ -16,6 +16,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCycleDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationModel;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use App\Models\gp\gestionhumana\evaluacion\HierarchicalCategory;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -996,8 +997,18 @@ class EvaluationPersonResultService extends BaseService
     $TIPO_EVALUADOR_COMPANEROS = 2;
     $TIPO_EVALUADOR_REPORTES = 3;
 
-    // Verificar si tiene jefe
-    $tieneJefe = $persona->jefe_id !== null;
+    // Verificar supervisor (evaluador de competencias)
+    $supervisorId = $persona->supervisor_id;
+    if (!$supervisorId) {
+      throw new \Exception('La persona ' . $persona->nombre_completo . ' no tiene supervisor asignado (supervisor_id). No se pueden regenerar las competencias.');
+    }
+    $tieneJefe = true;
+
+    // Cargar el modelo de evaluación para obtener los pesos
+    $categoriaJerarquica = $persona->position?->hierarchicalCategory;
+    $evaluationModel = $categoriaJerarquica
+      ? EvaluationModel::getModelByCategory($categoriaJerarquica->id)
+      : null;
 
     // Verificar si tiene subordinados
     $tieneSubordinados = \App\Models\gp\gestionhumana\personal\Worker::where('jefe_id', $persona->id)
@@ -1010,7 +1021,7 @@ class EvaluationPersonResultService extends BaseService
 
     foreach ($competenciasData as $competenciaData) {
       // 1. Autoevaluación (solo si el peso es mayor a 0)
-      if ($evaluacion->selfEvaluation && $evaluacion->self_weight > 0) {
+      if ($evaluacion->selfEvaluation && $evaluationModel && $evaluationModel->self_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
@@ -1020,19 +1031,19 @@ class EvaluationPersonResultService extends BaseService
         );
       }
 
-      // 2. Evaluación del jefe directo (solo si el peso es mayor a 0)
-      if ($tieneJefe && $evaluacion->leadership_weight > 0) {
+      // 2. Evaluación del supervisor (solo si el peso es mayor a 0)
+      if ($tieneJefe && $evaluationModel && $evaluationModel->leadership_weight > 0) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
           $competenciaData,
-          $persona->jefe_id,
+          $supervisorId,
           $TIPO_EVALUADOR_JEFE
         );
       }
 
       // 3. Evaluación de compañeros (solo si está habilitada y el peso es mayor a 0)
-      if ($evaluacion->partnersEvaluation && $evaluacion->par_weight > 0) {
+      if ($evaluacion->partnersEvaluation && $evaluationModel && $evaluationModel->par_weight > 0) {
         $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($persona);
         foreach ($partners as $partner) {
           $this->crearDetalleCompetencia(
@@ -1046,7 +1057,7 @@ class EvaluationPersonResultService extends BaseService
       }
 
       // 4. Evaluación de reportes directos (solo si el peso es mayor a 0 y tiene subordinados)
-      if ($tieneSubordinados && $evaluacion->report_weight > 0) {
+      if ($tieneSubordinados && $evaluationModel && $evaluationModel->report_weight > 0) {
         $subordinados = \App\Models\gp\gestionhumana\personal\Worker::where('jefe_id', $persona->id)
           ->where('status_deleted', 1)
           ->where('status_id', 22)
@@ -1179,18 +1190,18 @@ class EvaluationPersonResultService extends BaseService
       $result['validations'][] = '✓ Tiene categoría jerárquica: ' . $hierarchicalCategory->name;
     }
 
-    // VALIDACIÓN 2: Verificar que tiene evaluador
-    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    // VALIDACIÓN 2: Verificar que tiene supervisor (evaluador de competencias)
+    $evaluatorId = $person->supervisor_id;
     if (!$evaluatorId) {
-      $result['errors'][] = 'La persona no tiene un evaluador asignado (supervisor_id o jefe_id)';
+      $result['errors'][] = 'La persona no tiene supervisor asignado (supervisor_id)';
       $result['can_regenerate'] = false;
     } else {
       $evaluator = Worker::find($evaluatorId);
       if (!$evaluator) {
-        $result['errors'][] = "El evaluador con ID {$evaluatorId} no existe";
+        $result['errors'][] = "El supervisor con ID {$evaluatorId} no existe";
         $result['can_regenerate'] = false;
       } else {
-        $result['validations'][] = '✓ Tiene evaluador: ' . $evaluator->nombre_completo;
+        $result['validations'][] = '✓ Tiene supervisor: ' . $evaluator->nombre_completo;
       }
     }
 
@@ -1298,7 +1309,15 @@ class EvaluationPersonResultService extends BaseService
 
       // Calcular cuántas evaluaciones de competencia se crearán
       $competenceEvaluationsToCreate = 0;
-      $tieneJefe = $person->jefe_id !== null;
+      $supervisorId = $person->supervisor_id;
+      if (!$supervisorId) {
+        $result['errors'][] = 'La persona no tiene supervisor asignado (supervisor_id). No se pueden regenerar las competencias.';
+        $result['can_regenerate'] = false;
+      }
+      $tieneJefe = $supervisorId !== null;
+      $evaluationModel = $hierarchicalCategory
+        ? EvaluationModel::getModelByCategory($hierarchicalCategory->id)
+        : null;
       $tieneSubordinados = Worker::where('jefe_id', $person->id)
         ->where('status_deleted', 1)
         ->where('status_id', 22)
@@ -1306,16 +1325,16 @@ class EvaluationPersonResultService extends BaseService
       $partners = $this->obtenerCompanerosPorEvaluationParEvaluator($person);
 
       foreach ($competencesData as $competenciaData) {
-        if ($evaluation->selfEvaluation && $evaluation->self_weight > 0) {
+        if ($evaluation->selfEvaluation && $evaluationModel && $evaluationModel->self_weight > 0) {
           $competenceEvaluationsToCreate++; // Autoevaluación
         }
-        if ($tieneJefe && $evaluation->leadership_weight > 0) {
-          $competenceEvaluationsToCreate++; // Evaluación del jefe
+        if ($tieneJefe && $evaluationModel && $evaluationModel->leadership_weight > 0) {
+          $competenceEvaluationsToCreate++; // Evaluación del supervisor
         }
-        if ($evaluation->partnersEvaluation && $evaluation->par_weight > 0 && $partners->count() > 0) {
+        if ($evaluation->partnersEvaluation && $evaluationModel && $evaluationModel->par_weight > 0 && $partners->count() > 0) {
           $competenceEvaluationsToCreate += $partners->count(); // Evaluación de compañeros
         }
-        if ($tieneSubordinados && $evaluation->report_weight > 0) {
+        if ($tieneSubordinados && $evaluationModel && $evaluationModel->report_weight > 0) {
           $subordinadosCount = Worker::where('jefe_id', $person->id)
             ->where('status_deleted', 1)
             ->where('status_id', 22)

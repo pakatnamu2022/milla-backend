@@ -15,6 +15,9 @@ class WorkOrderResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
+    $includeInvoicePreview = $this->relationLoaded('labours') && $this->relationLoaded('parts');
+    $invoicePreviewData = $includeInvoicePreview ? $this->getInvoicePreview() : null;
+
     return [
       'id' => $this->id,
       'correlative' => $this->correlative,
@@ -87,6 +90,8 @@ class WorkOrderResource extends JsonResource
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
       'parts' => ApWorkOrderPartsResource::collection($this->whenLoaded('parts')),
+      'items_invoice' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['items_invoice']),
+      'invoice_preview' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['invoice_preview']),
       'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),

@@ -779,6 +779,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
+  public function previewNubefactPayload($id): array
+  {
+    $document = $this->find($id);
+    return $this->nubefactService->buildDocumentPayload($document);
+  }
+
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();

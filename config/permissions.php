@@ -260,17 +260,23 @@ return [
       'icon' => 'Box',
       'policy_method' => 'reverseDiscount',
     ],
-    'removeLabor' => [
+    'removeSparePartLabor' => [
       'label' => 'Quitar Mano de Obra',
       'description' => 'Permite quitar mano de obra de una orden de trabajo',
       'icon' => 'Box',
-      'policy_method' => 'removeLabor',
+      'policy_method' => 'removeSparePartLabor',
     ],
-    'viewExternal'                 => [
-      'label'         => 'Ver Externo',
-      'description'   => 'Permite visualizar información desde una perspectiva externa o de terceros',
-      'icon'          => 'Eye',
+    'viewExternal' => [
+      'label' => 'Ver Externo',
+      'description' => 'Permite visualizar información desde una perspectiva externa o de terceros',
+      'icon' => 'Eye',
       'policy_method' => 'viewExternal',
+    ],
+    'removeSparePartQuote' => [
+      'label' => 'Quitar Repuesto de Cotización',
+      'description' => 'Permite quitar un repuesto de una cotización',
+      'icon' => 'XCircle',
+      'policy_method' => 'removeSparePartQuote',
     ]
   ],
 

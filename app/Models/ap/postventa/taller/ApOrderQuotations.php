@@ -424,6 +424,26 @@ class ApOrderQuotations extends Model
   }
 
   /**
+   * Check if a document is accepted by SUNAT based on its type.
+   * Boletas can be in 'sent' status (provider sometimes takes time to respond).
+   * Facturas must be in 'accepted' status.
+   *
+   * @param ElectronicDocument $document
+   * @return bool
+   */
+  private function isDocumentAcceptedBySunat($document): bool
+  {
+    // For boletas, accept if sent or accepted
+    if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_BOLETA) {
+      return $document->status === ElectronicDocument::STATUS_SENT
+        || $document->status === ElectronicDocument::STATUS_ACCEPTED;
+    }
+
+    // For facturas and other documents, must be accepted
+    return $document->aceptada_por_sunat;
+  }
+
+  /**
    * Get active advances for this quotation.
    *
    * An advance is truly cancelled (and therefore excluded) only when:
@@ -445,7 +465,7 @@ class ApOrderQuotations extends Model
     ];
 
     return $this->advancesOrderQuotation->filter(function ($advance) use ($annullingTypes) {
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         return false;
@@ -484,7 +504,7 @@ class ApOrderQuotations extends Model
     ];
 
     return $this->advancesOrderQuotation->filter(function ($advance) use ($annullingTypes) {
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         return false;
@@ -525,7 +545,7 @@ class ApOrderQuotations extends Model
       }
 
       // Must be accepted by SUNAT
-      if (!$document->aceptada_por_sunat) {
+      if (!$this->isDocumentAcceptedBySunat($document)) {
         return false;
       }
 
@@ -645,7 +665,7 @@ class ApOrderQuotations extends Model
     // Process all documents
     foreach ($this->advancesOrderQuotation as $document) {
       // Skip if not accepted by SUNAT or not the right type
-      if (!$document->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($document)
         || !in_array($document->sunat_concept_document_type_id, [
           ElectronicDocument::TYPE_FACTURA,
           ElectronicDocument::TYPE_BOLETA

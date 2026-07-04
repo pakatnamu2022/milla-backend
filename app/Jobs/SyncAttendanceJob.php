@@ -38,10 +38,11 @@ class SyncAttendanceJob implements ShouldQueue
       $grouped = $rows->groupBy('emp_code');
       $scheduleMap = $this->buildScheduleMap();
       $excluded = $this->buildExclusionSet($date);
+      $permisosMap = $this->buildPermisosMap($date);
 
       AttendanceSync::whereDate('date', $date)->delete();
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $codeMap, $scheduleMap, $excluded, &$inserted) {
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $codeMap, $scheduleMap, $excluded, $permisosMap, &$inserted) {
         $effectiveVat = $codeMap[$empCode] ?? $empCode;
         $personId = $personMap[$effectiveVat] ?? null;
 
@@ -50,8 +51,9 @@ class SyncAttendanceJob implements ShouldQueue
           return;
         }
 
+        $permisos = $personId ? ($permisosMap[$personId] ?? []) : [];
         $sorted = $punches->sortBy('punch_time')->values();
-        $records = $this->classifyPunches($sorted, $empCode, $date, $personId, $scheduleMap);
+        $records = $this->classifyPunches($sorted, $empCode, $date, $personId, $scheduleMap, $permisos);
 
         $data = $records->map(fn($r) => array_merge($r, [
           'synced_at'  => now()->toDateTimeString(),
@@ -105,7 +107,8 @@ class SyncAttendanceJob implements ShouldQueue
     string                         $empCode,
     string                         $date,
     ?int                           $personId,
-    array                          $scheduleMap
+    array                          $scheduleMap,
+    array                          $permisos = []
   ): \Illuminate\Support\Collection
   {
     $schedule = $personId ? ($scheduleMap[$personId] ?? null) : null;
@@ -120,6 +123,31 @@ class SyncAttendanceJob implements ShouldQueue
     $slots = $isSaturday
       ? ['check_in' => $checkin, 'check_out' => $lunchOut]
       : ['check_in' => $checkin, 'lunch_out' => $lunchOut, 'lunch_in' => $lunchIn, 'check_out' => $checkout];
+
+    if (!empty($permisos)) {
+      $permisosMin = array_map(fn($p) => [
+        'desde' => $this->timeToMinutes($p['hora_inicio']),
+        'hasta' => $this->timeToMinutes($p['hora_fin']),
+      ], $permisos);
+
+      $inPermiso = function(int $min) use ($permisosMin): bool {
+        foreach ($permisosMin as $p) {
+          if ($min >= $p['desde'] && $min <= $p['hasta']) return true;
+        }
+        return false;
+      };
+
+      $slots = array_filter($slots, fn($t) => !$inPermiso($this->timeToMinutes($t)));
+
+      if (empty($slots)) {
+        Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} permiso jornada completa, se omite.");
+        return collect();
+      }
+
+      $punches = $punches->filter(
+        fn($row) => !$inPermiso($this->timeToMinutes(Carbon::parse($row->punch_time)->format('H:i:s')))
+      )->values();
+    }
 
     // Punch-first matching: each punch claims its nearest unassigned slot.
     // This correctly handles single-punch scenarios (e.g. only a 18:11 punch maps
@@ -207,6 +235,46 @@ class SyncAttendanceJob implements ShouldQueue
         if ($byExclusionTable->contains($id)) return [$id => 'exclusion_manual'];
         if ($byPosition->contains($id))       return [$id => 'cargo'];
         return [$id => 'desconocido'];
+      })
+      ->toArray();
+  }
+
+  private function buildPermisosMap(string $date): array
+  {
+    return DB::table('rrhh_trabajador_permiso')
+      ->where('status_deleted', 1)
+      ->whereDate('fecha_inicio', '<=', $date)
+      ->whereDate('fecha_fin', '>=', $date)
+      ->select('partner_id', 'fecha_inicio', 'fecha_fin')
+      ->get()
+      ->groupBy('partner_id')
+      ->map(function ($rows) use ($date) {
+        return $rows->map(function ($r) use ($date) {
+          $inicioDate = Carbon::parse($r->fecha_inicio)->toDateString();
+          $finDate    = Carbon::parse($r->fecha_fin)->toDateString();
+          $horaInicio = Carbon::parse($r->fecha_inicio)->format('H:i:s');
+          $horaFin    = Carbon::parse($r->fecha_fin)->format('H:i:s');
+
+          if ($inicioDate === $date && $finDate === $date) {
+            // Mismo día: usar horas exactas; 00:00-00:00 es legacy full-day
+            if ($horaInicio === '00:00:00' && $horaFin === '00:00:00') {
+              $horaFin = '23:59:59';
+            }
+          } elseif ($inicioDate === $date) {
+            // Primer día de rango multi-día
+            $horaFin = '23:59:59';
+          } elseif ($finDate === $date) {
+            // Último día de rango multi-día
+            $horaInicio = '00:00:00';
+            if ($horaFin === '00:00:00') $horaFin = '23:59:59';
+          } else {
+            // Día intermedio: jornada completa
+            $horaInicio = '00:00:00';
+            $horaFin    = '23:59:59';
+          }
+
+          return ['hora_inicio' => $horaInicio, 'hora_fin' => $horaFin];
+        })->toArray();
       })
       ->toArray();
   }

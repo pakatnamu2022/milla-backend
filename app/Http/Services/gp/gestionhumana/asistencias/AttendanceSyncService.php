@@ -198,8 +198,9 @@ class AttendanceSyncService extends BaseService
     $personIds = $rows->pluck('person_id')->filter()->unique()->values()->toArray();
     $vacationsByPerson = $this->loadAllPersonVacations($personIds, $request->date_from, $request->date_to);
     $ausentismoByPerson = $this->loadAllPersonAusentismo($personIds, $request->date_from, $request->date_to);
+    $permisosByPerson = $this->loadAllPersonPermisos($personIds, $request->date_from, $request->date_to);
 
-    $summary = $this->buildInternalSummary($rows, $request->date_from, $request->date_to, $vacationsByPerson, $ausentismoByPerson);
+    $summary = $this->buildInternalSummary($rows, $request->date_from, $request->date_to, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson);
 
     if ($request->get('export') === 'xlsx') {
       $flat = $summary->flatMap(fn($person) => collect($person['daily'])->map(fn($day) => [
@@ -209,6 +210,7 @@ class AttendanceSyncService extends BaseService
         'observacion'    => match ($day['type'] ?? null) {
           'vacation' => 'VACACIONES',
           'ausentismo' => 'AUSENTISMO: ' . strtoupper($day['ausentismo_tipo'] ?? ''),
+          'permiso' => 'PERMISO',
           default => null,
         },
         'check_in'       => $day['check_in'],
@@ -253,6 +255,7 @@ class AttendanceSyncService extends BaseService
     $holidays = $this->loadHolidays($dateFrom, $dateTo);
     $vacations = $this->loadPersonVacations($personId, $dateFrom, $dateTo);
     $ausentismo = $this->loadPersonAusentismo($personId, $dateFrom, $dateTo);
+    $permisos = $this->loadPersonPermisos($personId, $dateFrom, $dateTo);
     $schedule = $this->getPersonScheduleRow($personId);
 
     if ($rows->isEmpty() && !$schedule) {
@@ -326,6 +329,33 @@ class AttendanceSyncService extends BaseService
         continue;
       }
 
+      if (!$rows->has($dateStr) && isset($permisos[$dateStr])) {
+        $permisoData = $permisos[$dateStr];
+        // Get day-specific check-in to determine if permiso covers the entry slot
+        $mysqlDow   = $day->dayOfWeek + 1; // Carbon 0=Sun→MySQL 1=Sun
+        $override   = $schedule?->day_overrides?->get($mysqlDow);
+        $dayCheckin = $override ? $override->checkin : ($schedule?->schedule_checkin ?? '08:00:00');
+
+        if ($permisoData['hora_inicio'] <= $dayCheckin) {
+          $daily->push([
+            'date'           => $dateStr,
+            'type'           => 'permiso',
+            'message'        => 'Permiso del día',
+            'permiso_id'     => $permisoData['id'],
+            'check_in'       => null,
+            'lunch_out'      => null,
+            'lunch_in'       => null,
+            'check_out'      => null,
+            'is_estimated'   => false,
+            'hours_worked'   => $this->toHm(0.0),
+            'expected_hours' => $this->toHm(0.0),
+            'balance'        => $this->toHm(0.0),
+          ]);
+          continue;
+        }
+        // Partial permiso that doesn't cover check_in: fall through to "Sin marcación"
+      }
+
       $row = $rows->get($dateStr) ?? ($schedule ? $this->makeSyntheticRow($dateStr, $personId, $schedule) : null);
       if (!$row) continue;
 
@@ -384,6 +414,7 @@ class AttendanceSyncService extends BaseService
       'days_expected'      => $daily->where('type', 'work')->count(),
       'days_on_vacation'   => $daily->where('type', 'vacation')->count(),
       'days_on_ausentismo' => $daily->where('type', 'ausentismo')->count(),
+      'days_on_permiso'    => $daily->where('type', 'permiso')->count(),
       'expected_hours'     => $this->toHm($totalExpected),
       'hours_worked'       => $this->toHm($totalWorked),
       'balance'            => $this->toHm(round($totalWorked - $totalExpected, 2)),
@@ -567,6 +598,21 @@ class AttendanceSyncService extends BaseService
           ->where('al.fecha_inicial', '<=', $dateStr)
           ->where('al.fecha_fin', '>=', $dateStr);
       })
+      ->whereNotExists(function ($q) use ($dateStr) {
+        $q->select(DB::raw(1))
+          ->from('rrhh_trabajador_permiso as tp')
+          ->join('rrhh_persona as tp_p', 'tp_p.id', '=', 'tp.partner_id')
+          ->leftJoin('work_schedules as tp_ws', 'tp_ws.id', '=', 'tp_p.work_schedule_id')
+          ->whereColumn('tp.partner_id', 'p.id')
+          ->where('tp.status_deleted', 1)
+          ->whereDate('tp.fecha_inicio', '<=', $dateStr)
+          ->whereDate('tp.fecha_fin', '>=', $dateStr)
+          // Only exclude if the permiso covers the check-in slot (starts at or before it)
+          ->whereRaw(
+            "CASE WHEN DATE(tp.fecha_inicio) = ? THEN TIME(tp.fecha_inicio) ELSE '00:00:00' END <= COALESCE(tp_ws.checkin, '08:00:00')",
+            [$dateStr]
+          );
+      })
       // Agentes de seguridad: solo incluir si tienen turno activo programado para ese día
       ->where(function ($q) use ($dateStr, $workingCodes) {
         $q->where('rc.name', 'not like', '%AGENTE DE SEGURIDAD%')
@@ -734,15 +780,16 @@ class AttendanceSyncService extends BaseService
     return $query->get();
   }
 
-  private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = [], array $ausentismoByPerson = []): \Illuminate\Support\Collection
+  private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = [], array $ausentismoByPerson = [], array $permisosByPerson = []): \Illuminate\Support\Collection
   {
     $holidays = $this->loadHolidays($dateFrom, $dateTo);
 
-    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) use ($dateFrom, $dateTo, $vacationsByPerson, $ausentismoByPerson, $holidays) {
+    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) use ($dateFrom, $dateTo, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson, $holidays) {
       $first = $dayRows->first();
       $personId = $first->person_id;
       $personVacations = $vacationsByPerson[$personId] ?? [];
       $personAusentismo = $ausentismoByPerson[$personId] ?? [];
+      $personPermisos = $permisosByPerson[$personId] ?? [];
       $attendanceByDate = $dayRows->keyBy('date');
 
       $daily = collect();
@@ -792,7 +839,31 @@ class AttendanceSyncService extends BaseService
           continue;
         }
 
-        if (!$attendanceByDate->has($dateStr)) continue;
+        if (!$attendanceByDate->has($dateStr)) {
+          if (isset($personPermisos[$dateStr])) {
+            $permisoData    = $personPermisos[$dateStr];
+            $scheduleCheckin = $first->schedule_checkin ?? '08:00:00';
+            if ($permisoData['hora_inicio'] <= $scheduleCheckin) {
+              $daily->push([
+                'date'           => $dateStr,
+                'type'           => 'permiso',
+                'message'        => 'Permiso del día',
+                'permiso_id'     => $permisoData['id'],
+                'check_in'       => null,
+                'lunch_out'      => null,
+                'lunch_in'       => null,
+                'check_out'      => null,
+                'is_estimated'   => false,
+                '_worked_raw'    => null,
+                '_expected_raw'  => 0.0,
+                'hours_worked'   => $this->toHm(0.0),
+                'expected_hours' => $this->toHm(0.0),
+                'balance'        => $this->toHm(0.0),
+              ]);
+            }
+          }
+          continue;
+        }
 
         $row = $attendanceByDate->get($dateStr);
         $isSaturday = $dayOfWeek === 6;
@@ -835,6 +906,7 @@ class AttendanceSyncService extends BaseService
         'days_present'       => $workDays->count(),
         'days_on_vacation'   => $daily->where('type', 'vacation')->count(),
         'days_on_ausentismo' => $daily->where('type', 'ausentismo')->count(),
+        'days_on_permiso'    => $daily->where('type', 'permiso')->count(),
         'expected_hours'     => $this->toHm($totalExpected),
         'hours_worked'       => $this->toHm($totalWorked),
         'balance'            => $this->toHm(round($totalWorked - $totalExpected, 2)),
@@ -998,6 +1070,63 @@ class AttendanceSyncService extends BaseService
         $dateStr = $day->toDateString();
         if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
           $map[$vacation->empleado_id][$dateStr] = $vacation->id;
+        }
+      }
+    }
+
+    return $map;
+  }
+
+  private function loadPersonPermisos(int $personId, string $dateFrom, string $dateTo): array
+  {
+    $records = DB::table('rrhh_trabajador_permiso')
+      ->where('partner_id', $personId)
+      ->where('status_deleted', 1)
+      ->whereDate('fecha_inicio', '<=', $dateTo)
+      ->whereDate('fecha_fin', '>=', $dateFrom)
+      ->select(['id', 'fecha_inicio', 'fecha_fin'])
+      ->get();
+
+    $map = [];
+    foreach ($records as $permiso) {
+      $inicioDate = Carbon::parse($permiso->fecha_inicio)->toDateString();
+      $finDate    = Carbon::parse($permiso->fecha_fin)->toDateString();
+      $horaInicio = Carbon::parse($permiso->fecha_inicio)->format('H:i:s');
+      foreach (CarbonPeriod::create($inicioDate, $finDate) as $day) {
+        $dateStr = $day->toDateString();
+        if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
+          // On the first day use actual start time; on subsequent days it's full day (00:00)
+          $effectiveStart = ($dateStr === $inicioDate) ? $horaInicio : '00:00:00';
+          $map[$dateStr] = ['id' => $permiso->id, 'hora_inicio' => $effectiveStart];
+        }
+      }
+    }
+
+    return $map;
+  }
+
+  private function loadAllPersonPermisos(array $personIds, string $dateFrom, string $dateTo): array
+  {
+    if (empty($personIds)) return [];
+
+    $records = DB::table('rrhh_trabajador_permiso')
+      ->whereIn('partner_id', $personIds)
+      ->where('status_deleted', 1)
+      ->whereDate('fecha_inicio', '<=', $dateTo)
+      ->whereDate('fecha_fin', '>=', $dateFrom)
+      ->select(['id', 'partner_id', 'fecha_inicio', 'fecha_fin'])
+      ->get();
+
+    $map = [];
+    foreach ($records as $permiso) {
+      $inicioDate = Carbon::parse($permiso->fecha_inicio)->toDateString();
+      $finDate    = Carbon::parse($permiso->fecha_fin)->toDateString();
+      $horaInicio = Carbon::parse($permiso->fecha_inicio)->format('H:i:s');
+      foreach (CarbonPeriod::create($inicioDate, $finDate) as $day) {
+        $dateStr = $day->toDateString();
+        if ($dateStr >= $dateFrom && $dateStr <= $dateTo) {
+          $effectiveStart = ($dateStr === $inicioDate) ? $horaInicio : '00:00:00';
+          $map[$permiso->partner_id][$dateStr] = ['id' => $permiso->id, 'hora_inicio' => $effectiveStart];
         }
       }
     }

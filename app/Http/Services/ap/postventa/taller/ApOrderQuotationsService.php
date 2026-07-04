@@ -65,19 +65,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function listForPurchaseRequestTaller(Request $request): JsonResponse
   {
     // Query base con las condiciones requeridas para solicitudes de compra
-    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
+    // Filtrar siempre por área taller
     $query = ApOrderQuotations::query()
+      ->where('area_id', ApMasters::AREA_TALLER)
       ->where(function ($query) {
         $query->where(function ($q) {
-          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
-          $q->where('area_id', ApMasters::AREA_TALLER)
-            ->where(function ($q2) {
-              $q2->whereNotNull('chief_approval_by')
-                ->orWhereNotNull('manager_approval_by');
-            });
+          // Condición 1: Cotización aprobada por jefe O gerente
+          $q->whereNotNull('chief_approval_by')
+            ->orWhereNotNull('manager_approval_by');
         })
           ->orWhereHas('workOrders', function ($q) {
-            // Condición 2: Cotizaciones asociadas a OT con factura generada y con al menos un anticipo contabilizado
+            // Condición 2: Cotización asociada a OT con factura generada Y anticipo contabilizado
             $q->where('has_invoice_generated', true)
               ->whereHas('advancesWorkOrder', function ($q2) {
                 $q2->where('is_advance_payment', 1)
@@ -700,8 +698,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
-      $data['advisor_email'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
+      $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
       $data['advisor_phone'] = 'N/A';
@@ -847,7 +845,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
       $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
