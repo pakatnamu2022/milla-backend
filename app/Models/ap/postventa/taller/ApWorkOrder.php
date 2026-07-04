@@ -6,10 +6,12 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -522,22 +524,21 @@ class ApWorkOrder extends Model
 
     foreach ($pendingDetails as $detail) {
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
-        // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
-        $quantity = 1; // Para labores, la cantidad es 1
-        $unitPrice = $detail->unit_price ?? 0;
-        $discountPercentage = $detail->discount_percentage ?? 0;
-        $subtotal = $quantity * $unitPrice;
-        $discountAmount = ($subtotal * $discountPercentage) / 100;
-        $total = $subtotal - $discountAmount;
-
+        // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour.
+        // total_cost/net_amount/tax_amount se toman TAL CUAL del detalle (misma fuente
+        // que usa calculateTotalsWithQuotation()), nunca se recalculan aquí: recalcular
+        // asumiendo cantidad=1 producía un net_amount incorrecto cuando el detalle real
+        // tenía otra cantidad (ej. 2.5 horas), y con eso este PDF llegó a mostrar un monto
+        // muy por debajo del real.
         $mappedLabour = new \stdClass();
         $mappedLabour->id = null; // No tiene ID porque es de cotización
         $mappedLabour->description = $detail->description;
         $mappedLabour->time_spent = null;
-        $mappedLabour->hourly_rate = $unitPrice;
-        $mappedLabour->discount_percentage = $discountPercentage;
-        $mappedLabour->total_cost = $subtotal; // Total sin descuento
-        $mappedLabour->net_amount = $total; // Total con descuento aplicado
+        $mappedLabour->hourly_rate = (float)$detail->unit_price;
+        $mappedLabour->discount_percentage = (float)$detail->discount_percentage;
+        $mappedLabour->total_cost = (float)$detail->total_cost;
+        $mappedLabour->tax_amount = (float)$detail->tax_amount;
+        $mappedLabour->net_amount = (float)$detail->net_amount;
         $mappedLabour->worker_id = null;
         $mappedLabour->worker = null;
         $mappedLabour->group_number = null;
@@ -546,24 +547,19 @@ class ApWorkOrder extends Model
 
         $quotationLabours->push($mappedLabour);
       } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
-        // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
-        $quantity = $detail->quantity ?? 0;
-        $unitPrice = $detail->unit_price ?? 0;
-        $discountPercentage = $detail->discount_percentage ?? 0;
-        $subtotal = $quantity * $unitPrice;
-        $discountAmount = ($subtotal * $discountPercentage) / 100;
-        $total = $subtotal - $discountAmount;
-
+        // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts.
+        // Mismo criterio: total_cost/net_amount/tax_amount tal cual el detalle, sin
+        // recalcular (antes tax_amount quedaba hardcodeado en 0 para estos ítems).
         $mappedPart = new \stdClass();
         $mappedPart->id = null; // No tiene ID porque es de cotización
         $mappedPart->product_id = $detail->product_id;
-        $mappedPart->quantity_used = $quantity;
-        $mappedPart->unit_cost = $detail->purchase_price ?? 0;
-        $mappedPart->unit_price = $unitPrice;
-        $mappedPart->discount_percentage = $discountPercentage;
-        $mappedPart->total_cost = $subtotal; // Total sin descuento
-        $mappedPart->tax_amount = 0;
-        $mappedPart->net_amount = $total; // Total con descuento aplicado
+        $mappedPart->quantity_used = (float)$detail->quantity;
+        $mappedPart->unit_cost = (float)($detail->purchase_price ?? 0);
+        $mappedPart->unit_price = (float)$detail->unit_price;
+        $mappedPart->discount_percentage = (float)$detail->discount_percentage;
+        $mappedPart->total_cost = (float)$detail->total_cost;
+        $mappedPart->tax_amount = (float)$detail->tax_amount;
+        $mappedPart->net_amount = (float)$detail->net_amount;
         $mappedPart->product = $detail->product;
         $mappedPart->group_number = null;
         $mappedPart->work_order_id = $this->id;
@@ -792,44 +788,53 @@ class ApWorkOrder extends Model
    */
   public function getNetAmountFromAdvances(): float
   {
-    $activeAdvances = $this->getActiveAdvances();
-
     $totalNet = 0;
 
-    foreach ($activeAdvances as $advance) {
-      $netAmount = $advance->total;
-
-      // Restar notas de crédito sobre este anticipo (que NO sean de anulación/devolución total)
-      // porque esas ya están excluidas por getActiveAdvances()
-      $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
-        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', 0)
-        ->whereNotIn('sunat_concept_credit_note_type_id', [
-          SunatConcepts::ID_CREDIT_NOTE_ANULACION,
-          SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
-        ])
-        ->get();
-
-      foreach ($creditNotesOnAdvance as $creditNote) {
-        $netAmount -= $creditNote->total;
-      }
-
-      // Sumar notas de débito sobre este anticipo
-      $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
-        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', 0)
-        ->get();
-
-      foreach ($debitNotesOnAdvance as $debitNote) {
-        $netAmount += $debitNote->total;
-      }
-
-      $totalNet += $netAmount;
+    foreach ($this->getActiveAdvances() as $advance) {
+      $totalNet += $this->getNetAmountForAdvance($advance);
     }
 
     return (float)$totalNet;
+  }
+
+  /**
+   * Neto de un anticipo puntual (su total menos NC parciales, más ND) aplicando
+   * la misma regla que getNetAmountFromAdvances(). Se usa también para armar la
+   * línea "anticipo_regularizacion" en getInvoicePreview(), de modo que ambos
+   * cuadren siempre entre sí.
+   */
+  private function getNetAmountForAdvance(ElectronicDocument $advance): float
+  {
+    $netAmount = $advance->total;
+
+    // Restar notas de crédito sobre este anticipo (que NO sean de anulación/devolución total)
+    // porque esas ya están excluidas por getActiveAdvances()
+    $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->whereNotIn('sunat_concept_credit_note_type_id', [
+        SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+        SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+      ])
+      ->get();
+
+    foreach ($creditNotesOnAdvance as $creditNote) {
+      $netAmount -= $creditNote->total;
+    }
+
+    // Sumar notas de débito sobre este anticipo
+    $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->get();
+
+    foreach ($debitNotesOnAdvance as $debitNote) {
+      $netAmount += $debitNote->total;
+    }
+
+    return (float)$netAmount;
   }
 
   /**
@@ -1195,6 +1200,273 @@ class ApWorkOrder extends Model
       // Payment status indicators
       'has_final_invoice' => $finalInvoice !== null,
       'advances_count' => $activeAdvances->count(),
+    ];
+  }
+
+  /**
+   * Construye el detalle de facturación (items_invoice) y sus totales (invoice_preview)
+   * para que el frontend deje de recalcular esto por su cuenta.
+   *
+   * Reutiliza los montos ya persistidos por item (net_amount/tax_amount/total_cost) y
+   * el mismo neto de anticipos usado en getPaymentSummary(), así todo cuadra entre sí.
+   *
+   * @return array{items_invoice: array, invoice_preview: array}
+   */
+  public function getInvoicePreview(): array
+  {
+    $items = $this->buildInvoiceItems();
+
+    // La línea anticipo_regularizacion va en negativo (ver buildAdvanceInvoiceItem),
+    // igual que buildRegularizationItems() para vehículos, así que SÍ se suma aquí junto
+    // con el resto: el neto es justamente lo que falta facturar ahora (0 si el/los
+    // anticipo(s) ya cubrieron todo). total_gravada/total_igv/total quedan siempre
+    // = suma exacta de items_invoice, sin ninguna fórmula aparte.
+    $totalGravada = 0;
+    $totalIgv = 0;
+
+    foreach ($items as $item) {
+      $totalGravada += $item['subtotal'];
+      $totalIgv += $item['igv'];
+    }
+
+    // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
+    // positivo aunque su línea en items_invoice esté en negativo.
+    $totalAnticipo = $this->getNetAmountFromAdvances();
+
+    // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
+    // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
+    return [
+      'items_invoice' => $items,
+      'invoice_preview' => [
+        'total_gravada' => round($totalGravada, 2) + 0,
+        'total_inafecta' => 0,
+        'total_exonerada' => 0,
+        'total_igv' => round($totalIgv, 2) + 0,
+        'total_gratuita' => 0,
+        'total_anticipo' => round($totalAnticipo, 2) + 0,
+        'total' => round($totalGravada + $totalIgv, 2) + 0,
+      ],
+    ];
+  }
+
+  private function buildInvoiceItems(): array
+  {
+    $items = [];
+
+    foreach ($this->labours as $labour) {
+      $items[] = $this->buildLabourInvoiceItem($labour);
+    }
+
+    foreach ($this->parts as $part) {
+      $items[] = $this->buildPartInvoiceItem($part);
+    }
+
+    // Misma condición que calculateTotalsWithQuotation(): si la OT está ligada a una
+    // cotización, sus ítems PENDIENTES (aún no materializados en labours/parts) también
+    // forman parte de lo que hay que facturar y ya cuentan en final_amount.
+    if ($this->order_quotation_id && $this->orderQuotation) {
+      $pendingDetails = $this->orderQuotation->details
+        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+      foreach ($pendingDetails as $detail) {
+        $items[] = $this->buildQuotationDetailInvoiceItem($detail);
+      }
+    }
+
+    foreach ($this->getActiveAdvances() as $advance) {
+      $items[] = $this->buildAdvanceInvoiceItem($advance);
+    }
+
+    return $items;
+  }
+
+  private function buildLabourInvoiceItem(WorkOrderLabour $labour): array
+  {
+    $isMaterial = trim(strtolower($labour->description ?? '')) === 'materiales';
+
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$labour->hourly_rate,
+      (float)$labour->time_spent_decimal,
+      (float)$labour->discount_percentage,
+      (float)$labour->net_amount,
+      (float)$labour->tax_amount
+    );
+
+    return array_merge([
+      'type' => 'labour',
+      'source_id' => $labour->id,
+      'account_plan_id' => $isMaterial
+        ? ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID
+        : ApAccountingAccountPlan::LABOUR_ACCOUNT_ID,
+      'unidad_de_medida' => $this->getServiceUnitCode(),
+      'codigo' => (string)$labour->id,
+      'product_id' => null,
+      'descripcion' => $labour->description,
+      'cantidad' => (float)$labour->time_spent_decimal,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => false,
+    ], $billing);
+  }
+
+  private function buildPartInvoiceItem(ApWorkOrderParts $part): array
+  {
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$part->unit_price,
+      (float)$part->quantity_used,
+      (float)$part->discount_percentage,
+      (float)$part->net_amount,
+      (float)$part->tax_amount
+    );
+
+    return array_merge([
+      'type' => 'part',
+      'source_id' => $part->id,
+      'account_plan_id' => ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID,
+      'unidad_de_medida' => $part->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+      'codigo' => $part->product?->code ?? (string)$part->product_id,
+      'product_id' => $part->product_id,
+      'descripcion' => $part->product?->name,
+      'cantidad' => (float)$part->quantity_used,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => false,
+    ], $billing);
+  }
+
+  private function buildQuotationDetailInvoiceItem(ApOrderQuotationDetails $detail): array
+  {
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$detail->unit_price,
+      (float)$detail->quantity,
+      (float)$detail->discount_percentage,
+      (float)$detail->net_amount,
+      (float)$detail->tax_amount
+    );
+
+    if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+      $isMaterial = trim(strtolower($detail->description ?? '')) === 'materiales';
+
+      return array_merge([
+        'type' => 'labour',
+        'source_id' => $detail->id,
+        'account_plan_id' => $isMaterial
+          ? ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID
+          : ApAccountingAccountPlan::LABOUR_ACCOUNT_ID,
+        'unidad_de_medida' => $this->getServiceUnitCode(),
+        'codigo' => (string)$detail->id,
+        'product_id' => null,
+        'descripcion' => $detail->description,
+        'cantidad' => (float)$detail->quantity,
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+        'anticipo_regularizacion' => false,
+        'anticipo_documento_serie' => null,
+        'anticipo_documento_numero' => null,
+        'reference_document_id' => null,
+        'from_quotation' => true,
+      ], $billing);
+    }
+
+    return array_merge([
+      'type' => 'part',
+      'source_id' => $detail->id,
+      'account_plan_id' => ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID,
+      'unidad_de_medida' => $detail->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+      'codigo' => $detail->product?->code ?? (string)$detail->product_id,
+      'product_id' => $detail->product_id,
+      'descripcion' => $detail->product?->name ?? $detail->description,
+      'cantidad' => (float)$detail->quantity,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => true,
+    ], $billing);
+  }
+
+  private function buildAdvanceInvoiceItem(ElectronicDocument $advance): array
+  {
+    $netTotal = $this->getNetAmountForAdvance($advance);
+    $valorUnitario = round($netTotal / (1 + Constants::VAT_TAX / 100), 2);
+    $igv = round($netTotal - $valorUnitario, 2);
+
+    return [
+      'type' => 'anticipo_regularizacion',
+      'source_id' => $advance->id,
+      'account_plan_id' => ApAccountingAccountPlan::ADVANCE_PAYMENTS_ACCOUNT_ID,
+      'unidad_de_medida' => $this->getServiceUnitCode(),
+      'codigo' => (string)$advance->id,
+      'product_id' => null,
+      'descripcion' => 'ANTICIPO: ' . $advance->serie . '-' . $advance->numero
+        . ' DEL ' . $advance->fecha_de_emision?->format('d/m/Y'),
+      'cantidad' => 1,
+      // Negativo, igual que buildRegularizationItems() para vehículos: esta línea resta
+      // del total a facturar lo que ya se cobró como anticipo (no es solo informativa).
+      'valor_unitario' => -$valorUnitario,
+      'precio_unitario' => -round($netTotal, 2),
+      'descuento' => null,
+      'subtotal' => -$valorUnitario,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO,
+      'igv' => -$igv,
+      'total' => -round($netTotal, 2),
+      'anticipo_regularizacion' => true,
+      'anticipo_documento_serie' => $advance->serie,
+      'anticipo_documento_numero' => $advance->numero,
+      'reference_document_id' => $advance->id,
+      'from_quotation' => false,
+    ];
+  }
+
+  /**
+   * Código SUNAT (catálogo 03) de "servicio", única fuente de verdad para las líneas
+   * de mano de obra y de anticipo en items_invoice. Cambiar el nubefac_code del
+   * UnitMeasurement::SERVICE_ID en la BD basta para que ambas líneas se actualicen.
+   */
+  private function getServiceUnitCode(): string
+  {
+    return UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->nubefac_code ?? 'ZZ';
+  }
+
+  /**
+   * valor_unitario/precio_unitario/descuento/subtotal/igv/total de una línea gravada.
+   *
+   * subtotal/igv se toman DIRECTO de net_amount/tax_amount ya persistidos (misma fuente
+   * de verdad que WorkOrderLabourService/ApWorkOrderPartsService), en vez de recalcularlos
+   * a partir de basePrice/quantity: recalcular redondeando el precio unitario antes de
+   * multiplicarlo por una cantidad fraccionaria (ej. 7.5 litros) diverge unos centavos del
+   * monto ya guardado. valor_unitario/descuento se derivan de esos montos solo para mostrar,
+   * nunca alimentan el total.
+   */
+  private function calculateInvoiceItemAmounts(
+    float $basePrice,
+    float $quantity,
+    float $discountPercentage,
+    float $netAmount,
+    float $taxAmount
+  ): array {
+    $vatRate = Constants::VAT_TAX / 100;
+
+    $subtotal = round($netAmount, 2);
+    $igv = round($taxAmount, 2);
+    $total = round($subtotal + $igv, 2);
+    $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
+    $precioUnitario = round($basePrice * (1 + $vatRate), 2);
+    $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
+
+    return [
+      'valor_unitario' => $valorUnitario,
+      'precio_unitario' => $precioUnitario,
+      'descuento' => $descuento,
+      'subtotal' => $subtotal,
+      'igv' => $igv,
+      'total' => $total,
     ];
   }
 

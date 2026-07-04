@@ -203,7 +203,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $workOrder = $this->find($id);
-    $workOrder->load('items', 'orderQuotation', 'labours', 'parts', 'advancesWorkOrder');
+    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder');
     $additionalData['includeCostManHours'] = true;
     return (new WorkOrderResource($workOrder))->additional($additionalData);
   }
