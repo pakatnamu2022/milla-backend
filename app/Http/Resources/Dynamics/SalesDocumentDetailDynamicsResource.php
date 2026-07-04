@@ -75,16 +75,28 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Cantidad
     $cantidad = $this->cantidad > 0 ? $this->cantidad : throw new Exception('El ítem no tiene cantidad definida.');
 
-    // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
+    // Precio unitario neto (con descuento aplicado, sin IGV)
     $valorUnitario = $this->overrideValorUnitario ?? $this->valor_unitario;
-    $precioUnitario = $valorUnitario > 0 ? $valorUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
-    // Descuento: el descuento ya está embebido en valor_unitario (precio neto),
-    // enviarlo aquí causaría que Dynamics lo aplique dos veces.
-    $descuentoUnitario = 0;
+    // descuento es el monto total de descuento de la línea; dividir por cantidad da el descuento por unidad
+    $descuentoLinea = (float)($this->descuento ?? 0);
+    $descuentoUnitario = $descuentoLinea > 0 ? round($descuentoLinea / $cantidad, 2) : 0;
 
-    // Precio total: Dynamics valida que UNITPRCE × QTY == XTNDPRCE, sin descontar.
-    $precioTotal = ($cantidad * $precioUnitario) > 0 ? round($cantidad * $precioUnitario, 2) : throw new Exception('El ítem no tiene precio total definido.');
+    // Si hay descuento y no es un precio override (vehículos con accesorios),
+    // Dynamics necesita el precio bruto sin IGV para poder aplicar el descuento:
+    //   PrecioUnitario - DescuentoUnitario = valor_unitario (precio neto)
+    if ($descuentoUnitario > 0 && !$this->overrideValorUnitario) {
+      $igvDivisor = 1 + ($this->document->porcentaje_de_igv / 100);
+      $precioUnitario = round((float)$this->precio_unitario / $igvDivisor, 2);
+    } else {
+      $precioUnitario = $valorUnitario;
+      $descuentoUnitario = 0;
+    }
+
+    $precioUnitario = $precioUnitario > 0 ? $precioUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
+
+    // Precio total neto (cantidad × valor_unitario ya tiene el descuento aplicado)
+    $precioTotal = ($cantidad * $valorUnitario) > 0 ? round($cantidad * $valorUnitario, 2) : throw new Exception('El ítem no tiene precio total definido.');
 
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
