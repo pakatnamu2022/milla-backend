@@ -108,7 +108,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       // Enriquecer datos del vehículo
       $data['year'] = now()->year;
       $data['year_delivery'] = now()->year;
-      $data['ap_models_vn_id'] = ApModelsVn::MODEL_VN_SEVERAL_ID;
       $data['vehicle_color_id'] = ApMasters::COLOR_OTHERS_ID;
       $data['engine_type_id'] = ApMasters::ENGINE_TYPE_OTHERS_ID;
       $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
