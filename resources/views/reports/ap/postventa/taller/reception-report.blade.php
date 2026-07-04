@@ -872,7 +872,7 @@
         @endif
         <div class="signature-box">
           FIRMA DEL CLIENTE<br>
-          {{ $customer ? $customer->full_name : 'N/A' }}
+          {{ $workOrder->full_contact_name ?? 'N/A' }}
         </div>
       </td>
     </tr>

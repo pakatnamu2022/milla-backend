@@ -203,7 +203,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $workOrder = $this->find($id);
-    $workOrder->load('items', 'orderQuotation', 'labours', 'parts', 'advancesWorkOrder');
+    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder');
     $additionalData['includeCostManHours'] = true;
     return (new WorkOrderResource($workOrder))->additional($additionalData);
   }
@@ -1698,5 +1698,48 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Actualizar la orden de trabajo con la URL de la firma
     $workOrder->signature_delivery_url = $digitalFile->url;
     $workOrder->save();
+  }
+
+  public function updateItems(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['work_order_id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      $workOrder->ensureCanBeModified();
+
+      // Buscar el item del grupo 1
+      $item = ApWorkOrderItem::where('id', $data['id'])
+        ->where('work_order_id', $workOrder->id)
+        ->where('group_number', 1)
+        ->first();
+
+      if (!$item) {
+        throw new Exception('Item con ID ' . $data['id'] . ' no encontrado en esta orden de trabajo o no pertenece al grupo 1');
+      }
+
+      // Actualizar el item
+      $item->update([
+        'type_planning_id' => $data['type_planning_id'],
+        'type_operation_id' => $data['type_operation_id'],
+        'description' => $data['description'],
+      ]);
+
+      // Reload relations
+      $workOrder->load([
+        'appointmentPlanning',
+        'vehicle',
+        'status',
+        'advisor',
+        'sede',
+        'creator',
+        'items.typePlanning'
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
   }
 }

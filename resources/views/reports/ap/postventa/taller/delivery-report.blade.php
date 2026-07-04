@@ -170,6 +170,12 @@
       border-right: none;
     }
 
+    .guarantee-option.checked::after {
+      content: " X";
+      color: #000;
+      font-size: 12px;
+    }
+
     .section-title {
       background-color: #172e66;
       color: white;
@@ -736,8 +742,8 @@
           <div class="guarantee-check-box">
             <div class="guarantee-check-title">VEHÍCULO EN GARANTÍA</div>
             <div class="guarantee-check-options">
-              <div class="guarantee-option">SI</div>
-              <div class="guarantee-option">NO</div>
+              <div class="guarantee-option {{ $isGuarantee ? 'checked' : '' }}">SI</div>
+              <div class="guarantee-option {{ !$isGuarantee ? 'checked' : '' }}">NO</div>
             </div>
           </div>
           <br>

@@ -7,6 +7,7 @@ use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use Exception;
 use Illuminate\Http\Request;
@@ -62,6 +63,17 @@ class WorkOrderController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updateItems(UpdateWorkOrderItemsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['work_order_id'] = $id;
+      return $this->success($this->service->updateItems($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
