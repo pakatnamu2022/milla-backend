@@ -1722,6 +1722,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
+      Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
 
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
