@@ -31,19 +31,22 @@ class SyncAccountingStatusJob implements ShouldQueue
   public int $tries = 3;
   public int $timeout = 300;
 
-  public function __construct()
+  public function __construct(public readonly ?int $documentId = null)
   {
     $this->onQueue('electronic_documents');
   }
 
   public function handle(): void
   {
-    $documents = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
-      ->where(function ($query) {
-        $query->where('is_accounted', false)
-          ->orWhereNull('is_accounted');
-      })
-      ->get();
+    $query = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
+
+    if ($this->documentId) {
+      $documents = $query->where('id', $this->documentId)->get();
+    } else {
+      $documents = $query->where(function ($q) {
+        $q->where('is_accounted', false)->orWhereNull('is_accounted');
+      })->get();
+    }
 
     foreach ($documents as $document) {
       try {
