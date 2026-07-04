@@ -481,16 +481,19 @@ class NubefactApiService
       // derive precio_unitario from the net valor_unitario instead of the list price.
       $hasDescuento = $item->descuento && (float) $item->descuento > 0;
 
-      $precioUnitario = $hasDescuento
-        ? round((float) $item->valor_unitario * (1 + (float) $document->porcentaje_de_igv / 100), 2)
-        : $item->precio_unitario;
+      // Redondear valor_unitario primero para asegurar precisión
+      $valorUnitarioRedondeado = round((float) $item->valor_unitario, 2);
+
+      // SIEMPRE recalcular precio_unitario a partir del valor_unitario redondeado
+      // para garantizar consistencia matemática: precio = valor × (1 + IGV%)
+      $precioUnitario = round($valorUnitarioRedondeado * (1 + (float) $document->porcentaje_de_igv / 100), 2);
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
         'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
-        'valor_unitario' => round((float) $item->valor_unitario, 2),
+        'valor_unitario' => $valorUnitarioRedondeado,
         'precio_unitario' => $precioUnitario,
         'descuento' => $hasDescuento ? 0 : round((float) ($item->descuento ?? 0), 2),
         'subtotal' => round((float) $item->subtotal, 2),
