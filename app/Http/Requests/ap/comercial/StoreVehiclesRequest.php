@@ -22,7 +22,7 @@ class StoreVehiclesRequest extends StoreRequest
       'sede_id' => 'required|integer|exists:config_sede,id',
       'warehouse_physical_id' => 'sometimes|nullable|integer|exists:warehouse,id',
       'type_operation_id' => 'sometimes|nullable|integer|exists:ap_masters,id',
-      'customer_id' => 'sometimes|nullable|integer|exists:business_partners,id',
+      'customer_id' => 'sometimes|required|integer|exists:business_partners,id',
       'is_heavy' => 'sometimes|boolean',
     ];
   }
