@@ -1363,7 +1363,7 @@ class InventoryMovementService extends BaseService
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_SALE,
-        'movement_date' => now(),
+        'movement_date' => $finalInvoice?->fecha_de_emision ?? now(),
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApOrderQuotations::class,
         'reference_id' => $quotation->id,
@@ -1471,7 +1471,7 @@ class InventoryMovementService extends BaseService
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_SALE,
-        'movement_date' => now(),
+        'movement_date' => $finalInvoice?->fecha_de_emision ?? now(),
         'warehouse_id' => $warehouse->id,
         'reference_type' => ApWorkOrder::class,
         'reference_id' => $workOrder->id,
