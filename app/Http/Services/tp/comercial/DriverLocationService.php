@@ -6,7 +6,9 @@ use App\Http\Services\BaseService;
 use App\Models\gp\tics\Equipment;
 use App\Models\gp\tics\EquipmentAssigment;
 use App\Models\tp\comercial\DriverLocation;
+use App\Models\tp\comercial\DriverLocationHistory;
 use App\Models\tp\Driver;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -25,13 +27,10 @@ class DriverLocationService extends BaseService
            
             $equipment = Equipment::where('serie', $data['device_id'])
                 ->where('status_deleted', 1)
-                ->where('tipo_equipo_id', 3) // Solo celulares
+                ->where('tipo_equipo_id', 3)
                 ->first();
 
             if (!$equipment) {
-                Log::warning('Intento de envío desde equipo no registrado', [
-                    'serial' => $data['device_id']
-                ]);
                 throw new \Exception('El dispositivo no está registrado en el sistema TICS');
             }
 
@@ -43,11 +42,6 @@ class DriverLocationService extends BaseService
                 ->first();
 
             if (!$assignment) {
-                Log::warning('Intento de envío desde equipo no asignado', [
-                    'serial' => $data['device_id'],
-                    'equipment_id' => $equipment->id,
-                    'equipment_name' => $equipment->equipo
-                ]);
                 throw new \Exception('El dispositivo no está asignado actualmente a ningún conductor');
             }
             $driver = Driver::find($assignment->persona_id);
@@ -60,14 +54,7 @@ class DriverLocationService extends BaseService
                 throw new \Exception('El conductor asociado al dispositivo no existe');
             }
 
-            Log::info('Ubicación recibida correctamente', [
-                'driver_id' => $driver->id,
-                'driver_name' => $driver->nombre_completo,
-                'serial' => $data['device_id'],
-                'assignment_id' => $assignment->id
-            ]);
-
-            // 4. Procesar la ubicación (sin usar device_id de rrhh_persona)
+            // 4. Procesar la ubicación 
             $reportedAt = isset($data['timestamp']) 
                 ? \Carbon\Carbon::parse($data['timestamp'])->setTimeZone('America/Lima') 
                 : now();
@@ -83,6 +70,20 @@ class DriverLocationService extends BaseService
                     'reported_at' => $reportedAt
                 ]
             );
+            if(config('monitoreo.history_enabled', true)){
+                DriverLocationHistory::create([
+                    'driver_id' => $driver->id,
+                    'latitude' => $data['latitude'],
+                    'longitude' => $data['longitude'],
+                    'accuracy' => $data['accuracy'] ?? null,
+                    'speed' => $data['speed'] ?? null,
+                    'battery_level' => $data['battery_level'] ?? null,
+                    'reported_at' => $reportedAt
+                ]);
+
+                $this->cleanHistory();
+            }
+
 
             // 5. Actualizar el estado del conductor
             $driver->updateStatus();
@@ -136,6 +137,42 @@ class DriverLocationService extends BaseService
 
     }
 
+    private function cleanHistory(): void
+    {
+        if(!config('monitoreo.auto_cleanup_enabled', true)){
+            return;
+        }
+
+        $key = 'location_history_cleanup_counter';
+        $lastRunKey = 'location_history_last_cleanup';
+
+        $count = cache()->increment($key, 1);
+        $lastRun = cache()->get($lastRunKey, 0);
+        $currentTime = time();
+
+        $shouldClean = ($count >= 100) || ($currentTime - $lastRun >= 3600);
+
+        if($shouldClean){
+            try{
+                $days = config('monitoreo.history_retention_days', 7);
+
+                // eliminar registros con mas de 7 dias de antiguedad
+                $deleted = DriverLocationHistory::where('reported_at', '<', now()->subDays($days))
+                           ->delete();
+                
+                cache()->put($key, 0, now()->addDays(1));
+                cache()->put($lastRunKey, $currentTime, now()->addDays(1));
+
+            }catch(Exception $e){
+                 Log::error('Error en limpieza de historial', [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+
+    }
+
     public function latest()
     {
         $locations = $this->getLatestForAllDrivers();
@@ -177,4 +214,27 @@ class DriverLocationService extends BaseService
             'data'=> $location
         ]);
     }
+
+    public function history($driverId, Request $request){
+        $hours = $request->input('hours', 2);
+        $limit = $request->input('limit', 1000);
+
+        $locations = DriverLocationHistory::forDriver($driverId)
+            ->lastHours($hours)
+            ->orderBy('reported_at', 'desc')
+            ->limit($limit)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $locations,
+            'meta' => [
+                'driver_id' => $driverId,
+                'hours' => $hours,
+                'total' => $locations->count()
+            ]
+        ]);
+    }
+
+
 }

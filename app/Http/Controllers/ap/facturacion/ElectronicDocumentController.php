@@ -123,6 +123,18 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Preview the payload that would be sent to Nubefact without sending it
+   */
+  public function previewNubefactPayload($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->previewNubefactPayload($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Send document to Nubefact/SUNAT
    */
   public function sendToNubefact($id): JsonResponse
