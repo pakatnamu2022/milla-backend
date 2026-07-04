@@ -725,6 +725,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   /**
    * Permite al supervisor finalizar manualmente un trabajo cuando el trabajador olvida hacerlo
    * Recibe la hora fin y valida que no sea mayor a la hora programada
+   * Si se finaliza después de las 6pm pero el mismo día, ajusta la hora a las 6pm
+   * Si ya es otro día, no permite y debe hacerlo el encargado
    */
   public function supervisorComplete($id, array $data)
   {
@@ -735,20 +737,25 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       throw new Exception('Solo se pueden completar trabajos que estén en progreso.');
     }
 
-    // Validar que solo pueda realizarse después del horario laboral (después de las 6PM)
-    // SOLO si es el mismo día del trabajo planificado
     $currentDate = Carbon::now()->format('Y-m-d');
     $plannedDate = Carbon::parse($planning->planned_end_datetime)->format('Y-m-d');
 
-    // Solo validar horario si es el mismo día
-    if ($currentDate === $plannedDate) {
-      $currentTime = Carbon::now()->format('H:i');
-      if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
-        throw new Exception(
-          'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
-          ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
-        );
-      }
+    // Si ya es otro día diferente al planificado, no permitir
+    if ($currentDate !== $plannedDate) {
+      throw new Exception(
+        'No se puede completar este trabajo porque ya pasó el día programado (' .
+        Carbon::parse($planning->planned_end_datetime)->format('d/m/Y') . '). ' .
+        'Esta acción debe ser realizada por el encargado.'
+      );
+    }
+
+    // Si es el mismo día, validar que sea después de las 6pm
+    $currentTime = Carbon::now()->format('H:i');
+    if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
+      throw new Exception(
+        'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
+        ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
+      );
     }
 
     $endDatetime = Carbon::parse($data['end_datetime']);
@@ -776,13 +783,10 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       );
     }
 
-    // Validar que la hora de finalización no sea mayor a las 6pm (hora de salida)
+    // Si la hora de finalización es después de las 6pm, ajustarla a las 6pm
     $workEndTime = Carbon::parse($endDatetime->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
     if ($endDatetime->greaterThan($workEndTime)) {
-      throw new Exception(
-        'La hora de finalización (' . $endDatetime->format('H:i') . ') ' .
-        'no puede ser mayor a la hora de salida (' . ApWorkOrderPlanning::WORK_END_TIME . ').'
-      );
+      $endDatetime = $workEndTime;
     }
 
     // 1. Finalizar sesión activa si existe
