@@ -66,6 +66,15 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function downloadTemplate()
   {
     try {
