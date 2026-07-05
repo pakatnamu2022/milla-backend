@@ -1703,4 +1703,39 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       ];
     });
   }
+
+  /**
+   * Recalcula y persiste los totales de la cotización a partir de sus detalles,
+   * igual que WorkOrderService::recalculateTotals() para ApWorkOrder. Útil para
+   * normalizar cotizaciones antiguas al nuevo redondeo en cadena a 1 decimal.
+   *
+   * @param int $id
+   * @return ApOrderQuotationsResource
+   * @throws Exception
+   */
+  public function recalculateTotals($id)
+  {
+    return DB::transaction(function () use ($id) {
+      // find() ya carga 'details', necesarios para calculateTotals()
+      $quotation = $this->find($id);
+
+      // Recalcular totales
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recargar relaciones para mostrar, igual que show()
+      $quotation->load('advancesOrderQuotation');
+
+      $additionalData = [
+        'checkStock' => true,
+        'includeConfirmationData' => true,
+      ];
+
+      if ($quotation->area_id === ApMasters::AREA_TALLER) {
+        $additionalData['includeCostManHours'] = true;
+      }
+
+      return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
+    });
+  }
 }

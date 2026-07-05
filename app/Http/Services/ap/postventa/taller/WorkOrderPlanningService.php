@@ -9,6 +9,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
+use App\Models\ap\postventa\taller\ApWorkOrderPlanningSession;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -818,6 +819,66 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $planning->checkAndUpdateWorkOrderStatus();
 
     return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+  }
+
+  /**
+   * Permite al supervisor crear y finalizar automáticamente un trabajo que el técnico
+   * nunca llegó a iniciar (olvidó dar inicio), respetando el horario planificado
+   * (planned_start_datetime y planned_end_datetime) como si se hubiera trabajado en ese horario.
+   */
+  public function autoComplete($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $planning = $this->find($id);
+
+      if ($planning->status !== 'planned') {
+        throw new Exception(
+          "Solo se pueden autocompletar trabajos que aún no han sido iniciados. " .
+          "Este trabajo se encuentra en estado \"{$planning->status}\"."
+        );
+      }
+
+      if ($planning->sessions->isNotEmpty()) {
+        throw new Exception(
+          'Este trabajo ya tiene sesiones registradas. ' .
+          'Use "completar" o "supervisor-complete" según corresponda.'
+        );
+      }
+
+      $plannedStart = Carbon::parse($planning->planned_start_datetime);
+      $plannedEnd = Carbon::parse($planning->planned_end_datetime);
+
+      // Solo se puede autocompletar una vez que el horario programado ya finalizó
+      if (Carbon::now()->lt($plannedEnd)) {
+        throw new Exception(
+          "No se puede autocompletar este trabajo porque el horario programado " .
+          "(hasta las {$plannedEnd->format('H:i')}) aún no ha finalizado."
+        );
+      }
+
+      // Crear la sesión completa respetando el horario planificado
+      $minutesWorked = $plannedStart->diffInMinutes($plannedEnd);
+      ApWorkOrderPlanningSession::create([
+        'work_order_planning_id' => $planning->id,
+        'start_datetime' => $plannedStart,
+        'end_datetime' => $plannedEnd,
+        'hours_worked' => round($minutesWorked / 60, 2),
+        'status' => 'completed',
+        'notes' => 'Sesión generada automáticamente por el supervisor porque el técnico no registró el inicio del trabajo.',
+      ]);
+
+      // Actualizar el planning con los datos del horario planificado
+      $planning->actual_start_datetime = $plannedStart;
+      $planning->actual_end_datetime = $plannedEnd;
+      $planning->actual_hours = $planning->calculateTotalHoursWorked();
+      $planning->status = 'completed';
+      $planning->save();
+
+      // Verificar y actualizar estado de Work Order si todos los trabajos están completados
+      $planning->checkAndUpdateWorkOrderStatus();
+
+      return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+    });
   }
 
   /**

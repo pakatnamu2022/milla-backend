@@ -297,17 +297,20 @@ class ApWorkOrder extends Model
   {
     $totals = $this->getTotalsArray();
 
-    // Actualizar los campos de la orden de trabajo
-    $this->total_labor_cost = $totals['labour_cost'];
-    $this->total_parts_cost = $totals['parts_cost'];
-    $this->subtotal = $totals['total_cost'];
-    $this->discount_amount = $totals['discount_amount'];
-    $this->tax_amount = $totals['tax_amount'];
-    $this->final_amount = $totals['total_amount'];
+    // Actualizar los campos de la orden de trabajo. Redondeo en cadena a 1 decimal (S/ 0.10):
+    // los ítems de repuestos/mano de obra (y los pendientes de cotización) ya llegan
+    // redondeados a 1 decimal, pero se vuelve a redondear aquí por seguridad ante
+    // arrastre de precisión flotante al sumar varios ítems.
+    $this->total_labor_cost = round($totals['labour_cost'], 1);
+    $this->total_parts_cost = round($totals['parts_cost'], 1);
+    $this->subtotal = round($totals['total_cost'], 1);
+    $this->discount_amount = round($totals['discount_amount'], 1);
+    $this->tax_amount = round($totals['tax_amount'], 1);
+    $this->final_amount = round($totals['total_amount'], 1);
 
     // Calcular discount_percentage basado en el discount_amount y subtotal
     if ($totals['total_cost'] > 0) {
-      $this->discount_percentage = round(($totals['discount_amount'] / $totals['total_cost']) * 100, 2);
+      $this->discount_percentage = round(($totals['discount_amount'] / $totals['total_cost']) * 100, 1);
     } else {
       $this->discount_percentage = 0;
     }
@@ -424,9 +427,11 @@ class ApWorkOrder extends Model
         ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
 
       foreach ($pendingDetails as $detail) {
-        $itemTotalCost = $detail->total_cost ?? 0;
-        $itemNetAmount = $detail->net_amount ?? 0;
-        $itemTaxAmount = $detail->tax_amount ?? 0;
+        // Redondeo en cadena a 1 decimal (S/ 0.10), igual que en los repuestos/mano de obra
+        // ya cargados a la OT, para que al asociar una cotización el total no rompa esa regla.
+        $itemTotalCost = round((float)($detail->total_cost ?? 0), 1);
+        $itemNetAmount = round((float)($detail->net_amount ?? 0), 1);
+        $itemTaxAmount = round((float)($detail->tax_amount ?? 0), 1);
 
         if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
           $totalLabourCostBeforeDiscount += $itemTotalCost;
