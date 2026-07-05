@@ -7,6 +7,7 @@ use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnSyncLogResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
@@ -39,6 +40,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       ApModelsVn::sorts,
       ApModelsVnResource::class,
     );
+  }
+
+  public function export(Request $request)
+  {
+    return (new ExportService())->exportFromRequest($request, ApModelsVn::class);
   }
 
   public function find($id)
