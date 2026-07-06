@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -83,6 +84,10 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         $data['created_by'] = auth()->user()->id;
       }
 
+      // total_cost/net_amount/tax_amount: misma fórmula (redondeo en cadena a 1 decimal)
+      // que repuestos y mano de obra de la OT, única fuente de verdad compartida.
+      $this->calculatePricesAndTotals($data);
+
       // Create quotation detail
       $apOrderQuotationDetails = ApOrderQuotationDetails::create($data);
 
@@ -105,6 +110,24 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     return new ApOrderQuotationDetailsResource($this->find($id));
   }
 
+  /**
+   * total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10) vía
+   * PriceRounding, la misma fórmula usada en ApWorkOrderPartsService y
+   * WorkOrderLabourService, para que un detalle de cotización facture igual sin
+   * importar si termina como repuesto, mano de obra o queda pendiente en la cotización.
+   */
+  private function calculatePricesAndTotals(array &$data): void
+  {
+    $data['unit_price'] = PriceRounding::roundUnitPrice((float)$data['unit_price']);
+    $quantity = (float)$data['quantity'];
+    $discountPercentage = (float)($data['discount_percentage'] ?? 0);
+
+    $totals = PriceRounding::calculateLineTotals($data['unit_price'], $quantity, $discountPercentage);
+    $data['total_cost'] = $totals['total_cost'];
+    $data['net_amount'] = $totals['net_amount'];
+    $data['tax_amount'] = $totals['tax_amount'];
+  }
+
   public function update(mixed $data)
   {
     return DB::transaction(function () use ($data) {
@@ -120,6 +143,14 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
           $product->validateDecimals($data['quantity']);
         }
       }
+
+      // total_cost/net_amount/tax_amount: recalcular siempre con los valores finales
+      // (nuevos o los ya existentes si no vinieron en este update parcial), para no
+      // dividir por/multiplicar contra un unit_price o quantity ausente en el payload.
+      $data['unit_price'] = $data['unit_price'] ?? $apOrderQuotationDetails->unit_price;
+      $data['quantity'] = $data['quantity'] ?? $apOrderQuotationDetails->quantity;
+      $data['discount_percentage'] = $data['discount_percentage'] ?? $apOrderQuotationDetails->discount_percentage;
+      $this->calculatePricesAndTotals($data);
 
       // Update quotation detail
       $apOrderQuotationDetails->update($data);

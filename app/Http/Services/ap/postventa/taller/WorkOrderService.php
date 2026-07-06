@@ -7,8 +7,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
@@ -507,30 +507,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
 
     foreach ($labours as $labour) {
-      // Convertir el precio unitario (hourly_rate)
-      $newHourlyRate = round($labour->hourly_rate * $factor, 2);
-
-      // Recalcular total_cost basado en el nuevo hourly_rate
-      // Usar time_spent_decimal para obtener el valor numérico
-      $newTotalCost = $newHourlyRate * $labour->time_spent_decimal;
-
-      // Calcular net_amount aplicando el descuento al nuevo total_cost
-      $discountPercentage = $labour->discount_percentage ?? 0;
-      if ($discountPercentage > 0) {
-        $discountAmount = $newTotalCost * ($discountPercentage / 100);
-        $newNetAmount = $newTotalCost - $discountAmount;
-      } else {
-        $newNetAmount = $newTotalCost;
-      }
-
-      // Calcular tax_amount sobre el net_amount
-      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
+      // Convertir el precio unitario (hourly_rate) y recalcular total_cost/net_amount/
+      // tax_amount con la misma fuente de verdad (PriceRounding) usada al crear el ítem,
+      // para no romper la regla de redondeo en cadena a 1 decimal.
+      $newHourlyRate = PriceRounding::roundUnitPrice($labour->hourly_rate * $factor);
+      $totals = PriceRounding::calculateLineTotals(
+        $newHourlyRate,
+        $labour->time_spent_decimal,
+        (float)($labour->discount_percentage ?? 0)
+      );
 
       $labour->update([
         'hourly_rate' => $newHourlyRate,
-        'total_cost' => round($newTotalCost, 2),
-        'net_amount' => round($newNetAmount, 2),
-        'tax_amount' => round($newTaxAmount, 2),
+        ...$totals,
       ]);
     }
   }
@@ -540,29 +529,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
 
     foreach ($parts as $part) {
-      // Convertir el precio unitario
-      $newUnitPrice = round($part->unit_price * $factor, 2);
-
-      // Recalcular total_cost basado en el nuevo unit_price
-      $newTotalCost = $newUnitPrice * $part->quantity_used;
-
-      // Calcular net_amount aplicando el descuento al nuevo total_cost
-      $discountPercentage = $part->discount_percentage ?? 0;
-      if ($discountPercentage > 0) {
-        $discountAmount = $newTotalCost * ($discountPercentage / 100);
-        $newNetAmount = $newTotalCost - $discountAmount;
-      } else {
-        $newNetAmount = $newTotalCost;
-      }
-
-      // Calcular tax_amount sobre el net_amount
-      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
+      // Convertir el precio unitario y recalcular total_cost/net_amount/tax_amount con
+      // la misma fuente de verdad (PriceRounding) usada al crear el ítem, para no romper
+      // la regla de redondeo en cadena a 1 decimal.
+      $newUnitPrice = PriceRounding::roundUnitPrice($part->unit_price * $factor);
+      $totals = PriceRounding::calculateLineTotals(
+        $newUnitPrice,
+        (float)$part->quantity_used,
+        (float)($part->discount_percentage ?? 0)
+      );
 
       $part->update([
         'unit_price' => $newUnitPrice,
-        'total_cost' => round($newTotalCost, 2),
-        'net_amount' => round($newNetAmount, 2),
-        'tax_amount' => round($newTaxAmount, 2),
+        ...$totals,
       ]);
     }
   }
@@ -1743,6 +1722,42 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     });
   }
 
+  /**
+   * Recalcula total_cost/net_amount/tax_amount de cada mano de obra a partir de
+   * sus campos base (hourly_rate, time_spent, discount_percentage), usando la
+   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   */
+  private function recalculateLabourItems(ApWorkOrder $workOrder): void
+  {
+    foreach ($workOrder->labours as $labour) {
+      $totals = PriceRounding::calculateLineTotals(
+        (float)$labour->hourly_rate,
+        $labour->time_spent_decimal,
+        (float)($labour->discount_percentage ?? 0)
+      );
+
+      $labour->update($totals);
+    }
+  }
+
+  /**
+   * Recalcula total_cost/net_amount/tax_amount de cada repuesto a partir de sus
+   * campos base (unit_price, quantity_used, discount_percentage), usando la
+   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   */
+  private function recalculatePartItems(ApWorkOrder $workOrder): void
+  {
+    foreach ($workOrder->parts as $part) {
+      $totals = PriceRounding::calculateLineTotals(
+        (float)$part->unit_price,
+        (float)$part->quantity_used,
+        (float)($part->discount_percentage ?? 0)
+      );
+
+      $part->update($totals);
+    }
+  }
+
   public function recalculateTotals($id)
   {
     return DB::transaction(function () use ($id) {
@@ -1755,7 +1770,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Cargar relaciones necesarias para el cálculo
       $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
 
-      // Recalcular totales
+      // Recalcular primero los ítems hijos (mano de obra y repuestos) desde sus
+      // campos base, con el mismo redondeo en cadena a 1 decimal usado al crearlos
+      // (PriceRounding), para que total_labor_cost/total_parts_cost del padre sean
+      // siempre una suma consistente de hijos ya redondeados y no arrastren
+      // valores desalineados (ej. de una conversión de moneda o de datos antiguos).
+      $this->recalculateLabourItems($workOrder);
+      $this->recalculatePartItems($workOrder);
+      $workOrder->refresh();
+      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+      // Recalcular totales del padre a partir de los hijos ya recalculados
       $workOrder->calculateTotals();
 
       // Recargar la orden de trabajo con todas las relaciones para mostrar

@@ -103,6 +103,20 @@ class WorkOrderPlanningController extends Controller
   }
 
   /**
+   * Permite al supervisor crear y finalizar automáticamente un trabajo que el técnico
+   * nunca inició, respetando el horario planificado (inicio y fin asignados)
+   * POST /api/workOrderPlanning/{id}/auto-complete
+   */
+  public function autoComplete($id)
+  {
+    try {
+      return $this->success($this->service->autoComplete($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Cancela un trabajo de planificación
    * POST /api/workOrderPlanning/{id}/cancel
    */

@@ -6,7 +6,7 @@ use App\Http\Resources\ap\postventa\taller\DiscountRequestsOrderQuotationResourc
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
-use App\Http\Utils\Constants;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
@@ -289,17 +289,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     $unitPrice = (float)$detail->unit_price;
     $quantity = (float)$detail->quantity;
 
-    // Calcular total_cost, net_amount y tax_amount
-    $totalCost = $unitPrice * $quantity;
-    $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+    // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+    // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+    $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
     // Actualizar el detalle con el nuevo descuento y los campos calculados
     $detail->update([
       'discount_percentage' => $discountPercentage,
-      'total_cost' => $totalCost,
-      'net_amount' => $netAmount,
-      'tax_amount' => $taxAmount,
+      ...$totals,
     ]);
   }
 
@@ -323,17 +320,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       $unitPrice = (float)$detail->unit_price;
       $quantity = (float)$detail->quantity;
 
-      // Calcular total_cost, net_amount y tax_amount
-      $totalCost = $unitPrice * $quantity;
-      $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-      $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+      // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+      // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+      $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
       // Actualizar el detalle con el nuevo descuento y los campos calculados
       $detail->update([
         'discount_percentage' => $discountPercentage,
-        'total_cost' => $totalCost,
-        'net_amount' => $netAmount,
-        'tax_amount' => $taxAmount,
+        ...$totals,
       ]);
     }
   }
@@ -372,17 +366,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     // Resetear el descuento a 0
     $discountPercentage = 0;
 
-    // Calcular total_cost, net_amount y tax_amount sin descuento
-    $totalCost = $unitPrice * $quantity;
-    $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-    $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+    // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+    // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+    $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
     // Actualizar el detalle removiendo el descuento
     $detail->update([
       'discount_percentage' => $discountPercentage,
-      'total_cost' => $totalCost,
-      'net_amount' => $netAmount,
-      'tax_amount' => $taxAmount,
+      ...$totals,
     ]);
   }
 
@@ -408,17 +399,14 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       $unitPrice = (float)$detail->unit_price;
       $quantity = (float)$detail->quantity;
 
-      // Calcular total_cost, net_amount y tax_amount sin descuento
-      $totalCost = $unitPrice * $quantity;
-      $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-      $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+      // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+      // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+      $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
       // Actualizar el detalle removiendo el descuento
       $detail->update([
         'discount_percentage' => $discountPercentage,
-        'total_cost' => $totalCost,
-        'net_amount' => $netAmount,
-        'tax_amount' => $taxAmount,
+        ...$totals,
       ]);
     }
   }
