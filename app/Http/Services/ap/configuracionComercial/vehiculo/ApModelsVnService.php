@@ -10,12 +10,22 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApReceivingChecklist;
+use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApFuelType;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -61,18 +71,23 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
+    $existe = ApModelsVn::where('family_id', $data['family_id'])
+      ->where('type_operation_id', $data['type_operation_id'])
+      ->where('version', $data['version'])
+      ->where('model_year', $data['model_year'] ?? null)
+      ->where('fuel_id', $data['fuel_id'] ?? null)
+      ->where('vehicle_type_id', $data['vehicle_type_id'] ?? null)
+      ->where('body_type_id', $data['body_type_id'] ?? null)
+      ->where('traction_type_id', $data['traction_type_id'] ?? null)
+      ->where('transmission_id', $data['transmission_id'] ?? null)
+      ->whereNull('deleted_at')
+      ->exists();
+
+    if ($existe) {
+      throw new Exception('Ya existe un modelo con la misma versión, familia, año, combustible, tipo de vehículo, carrocería, tracción y transmisión.');
+    }
+
     if ((int) $data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
-      $existe = ApModelsVn::where('family_id', $data['family_id'])
-        ->where('model_year', $data['model_year'])
-        ->where('version', $data['version'])
-        ->where('fuel_id', $data['fuel_id'])
-        ->whereNull('deleted_at')
-        ->exists();
-
-      if ($existe) {
-        throw new Exception('Ya existe un modelo con esa familia, año y tipo de combustible.');
-      }
-
       // Generate code using model method (separates correlatives by operation type)
       $data['code'] = ApModelsVn::generateNextCode(
         $data['family_id'],
@@ -613,6 +628,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $skipped = [];
 
     foreach ($models as $model) {
+      // Modelo bloqueado: su código es intocable, se omite siempre
+      if ($model->locked) {
+        $skipped[] = ['id' => $model->id, 'code' => $model->code, 'reason' => 'bloqueado (locked)'];
+        continue;
+      }
+
       $familia = $model->family;
       if (!$familia) {
         $skipped[] = ['id' => $model->id, 'code' => $model->code, 'reason' => 'Familia no encontrada'];
@@ -626,24 +647,31 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       // Año correcto en el código
       $yearOk = str_starts_with($currentCode, $expectedPrefix);
 
+      // Longitud exacta: len(familyCode) + 2(año) + 3(correlativo)
+      $expectedLength = strlen($expectedPrefix) + 3;
+      $correlativeOk  = strlen($currentCode) === $expectedLength
+        && ctype_digit(substr($currentCode, -3));
+
       // Duplicado dentro del mismo espacio de códigos (mismo tipo operación)
-      $isDuplicated = ApModelsVn::where('code', $currentCode)
+      // Si el duplicado está locked, este modelo DEBE moverse aunque su código sea válido
+      $duplicateInScope = ApModelsVn::where('code', $currentCode)
         ->where('id', '!=', $model->id)
         ->where('type_operation_id', $model->type_operation_id)
         ->whereNull('deleted_at')
-        ->exists();
+        ->first(['id', 'locked']);
 
-      // Duplicado global (cualquier tipo): el código ya lo usa otro modelo
-      $isGlobalDuplicate = !$isDuplicated && ApModelsVn::where('code', $currentCode)
-        ->where('id', '!=', $model->id)
-        ->whereNull('deleted_at')
-        ->exists();
+      $isDuplicated      = $duplicateInScope !== null;
+      $duplicateIsLocked = $isDuplicated && $duplicateInScope->locked;
 
-      if ($yearOk && !$isDuplicated && !$isGlobalDuplicate) {
+      if ($yearOk && $correlativeOk && !$isDuplicated) {
         continue;
       }
 
-      $reason = !$yearOk ? 'año incorrecto en código' : 'código duplicado';
+      $reason = $duplicateIsLocked
+        ? 'duplicado con modelo bloqueado (cede el código)'
+        : (!$yearOk
+            ? 'año incorrecto en código'
+            : (!$correlativeOk ? 'correlativo inválido (' . substr($currentCode, -3) . ')' : 'código duplicado'));
 
       // Sacar temporalmente del pool para que generateNextCode no lo cuente
       DB::table('ap_models_vn')->where('id', $model->id)->update(['code' => '__FIXING__' . $model->id]);
@@ -973,5 +1001,297 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }, 'modelos_vn_match.xlsx', [
       'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ]);
+  }
+
+  public function importInitialStockFromExcel(UploadedFile $file): array
+  {
+    $reader = IOFactory::createReaderForFile($file->getPathname());
+    if (method_exists($reader, 'setReadDataOnly')) {
+      $reader->setReadDataOnly(true);
+    }
+    $spreadsheet = $reader->load($file->getPathname());
+    $sheet       = $spreadsheet->getActiveSheet();
+    $highestRow  = $sheet->getHighestRow();
+    $highestCol  = $sheet->getHighestColumn();
+
+    // Map headers from row 1 (uppercase normalized)
+    $colMap   = [];
+    $colIndex = 1;
+    while (true) {
+      $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+      $header = mb_strtoupper(trim((string) $sheet->getCell("{$letter}1")->getValue()));
+      if ($header === '' && $colIndex > 1) break;
+      $colMap[$header] = $letter;
+      if ($letter === $highestCol) break;
+      $colIndex++;
+    }
+
+    $cVer    = $colMap['VERSION']        ?? null;
+    $cYear   = $colMap['AÑO MODELO']     ?? null;
+    $cFuel   = $colMap['COMBUSTIBLE']    ?? null;
+    $cSerie  = $colMap['SERIE']          ?? null;
+    $cSitio  = $colMap['SITIOID']        ?? null;
+    $cQty    = $colMap['CANTIDAD']       ?? null;
+    $cUPrice = $colMap['COSTO UNITARIO'] ?? null;
+    $cTotal  = $colMap['COSTO TOTAL']    ?? null;
+
+    if (!$cVer || !$cYear || !$cFuel || !$cSerie || !$cSitio) {
+      throw new Exception('El archivo no contiene las columnas requeridas: VERSION, AÑO MODELO, COMBUSTIBLE, Serie, SitioId.');
+    }
+
+    $fuelMap = ApFuelType::whereNull('deleted_at')
+      ->get()
+      ->keyBy(fn($f) => mb_strtoupper(trim($f->description)));
+
+    $models = ApModelsVn::whereNull('deleted_at')
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
+      ->select(['id', 'code', 'version', 'model_year', 'fuel_id'])
+      ->get();
+
+    $normalizeVersion = fn(string $v): string =>
+      mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($v)));
+
+    $modelIndex = [];
+    foreach ($models as $m) {
+      $key = $normalizeVersion($m->version) . '|' . $m->model_year . '|' . $m->fuel_id;
+      if (!isset($modelIndex[$key])) $modelIndex[$key] = $m;
+    }
+
+    $warehouseMap = Warehouse::whereNull('deleted_at')
+      ->where('status', true)
+      ->get()
+      ->keyBy(fn($w) => mb_strtoupper(trim($w->dyn_code ?? '')));
+
+    $results    = ['created' => 0, 'errors' => 0, 'rows' => []];
+    $uploadDate = now();
+
+    for ($row = 2; $row <= $highestRow; $row++) {
+      $rawVersion = trim((string) $sheet->getCell("{$cVer}{$row}")->getValue());
+      $rawYear    = trim((string) $sheet->getCell("{$cYear}{$row}")->getValue());
+      $rawFuel    = trim((string) $sheet->getCell("{$cFuel}{$row}")->getValue());
+      $rawSerie   = trim((string) $sheet->getCell("{$cSerie}{$row}")->getValue());
+      $rawSitio   = trim((string) $sheet->getCell("{$cSitio}{$row}")->getValue());
+
+      if ($rawVersion === '' && $rawSerie === '') continue;
+
+      $rawQty    = $cQty    ? (float) $sheet->getCell("{$cQty}{$row}")->getValue()    : 1;
+      $rawUPrice = $cUPrice ? (float) $sheet->getCell("{$cUPrice}{$row}")->getValue() : 0;
+      $rawTotal  = $cTotal  ? (float) $sheet->getCell("{$cTotal}{$row}")->getValue()  : 0;
+
+      try {
+        if (strlen($rawSerie) < 10) {
+          throw new Exception("Serie/VIN inválido: \"{$rawSerie}\".");
+        }
+        if (Vehicles::where('vin', $rawSerie)->exists()) {
+          throw new Exception("El VIN \"{$rawSerie}\" ya existe en el sistema.");
+        }
+
+        $fuelUp     = mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($rawFuel)));
+        $fuelRecord = $fuelMap[$fuelUp] ?? null;
+        if (!$fuelRecord) {
+          throw new Exception("Combustible \"{$rawFuel}\" no registrado en el sistema.");
+        }
+        if (!is_numeric($rawYear)) {
+          throw new Exception("Año de modelo inválido: \"{$rawYear}\".");
+        }
+
+        $versionUp   = $normalizeVersion($rawVersion);
+        $key         = "{$versionUp}|{$rawYear}|{$fuelRecord->id}";
+        $modelRecord = $modelIndex[$key] ?? null;
+        if (!$modelRecord) {
+          throw new Exception("Modelo no encontrado: VERSION=\"{$rawVersion}\", AÑO={$rawYear}, COMBUSTIBLE=\"{$rawFuel}\".");
+        }
+
+        $sitioUp   = mb_strtoupper(trim($rawSitio));
+        $warehouse = $warehouseMap[$sitioUp] ?? null;
+
+        if (str_contains($sitioUp, 'EXISTENCIAS') || str_contains($sitioUp, 'EXISTENCIA')) {
+          $isAlmacen = false;
+        } elseif (str_contains($sitioUp, 'ALMACEN') || str_contains($sitioUp, 'ALMACÉN')) {
+          $isAlmacen = true;
+        } else {
+          $isAlmacen = $warehouse && $warehouse->type === 'FISICO';
+        }
+
+        DB::transaction(function () use (
+          $rawSerie, $rawYear, $rawVersion, $modelRecord,
+          $warehouse, $isAlmacen, $rawQty, $rawUPrice, $rawTotal,
+          $uploadDate, $row, &$results
+        ) {
+          $vehicle = Vehicles::create([
+            'vin'                  => $rawSerie,
+            'engine_number'        => 'SI-' . $rawSerie,
+            'year'                 => (int) $rawYear,
+            'ap_models_vn_id'      => $modelRecord->id,
+            'warehouse_id'         => $warehouse?->id,
+            'vehicle_color_id'     => ApMasters::COLOR_OTHERS_ID,
+            'engine_type_id'       => ApMasters::ENGINE_TYPE_OTHERS_ID,
+            'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+            'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
+            'status'               => true,
+          ]);
+
+          $movPedido = VehicleMovement::create([
+            'movement_type'        => VehicleMovement::ORDERED,
+            'ap_vehicle_id'        => $vehicle->id,
+            'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
+            'previous_status_id'   => null,
+            'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
+            'movement_date'        => $uploadDate,
+            'observation'          => 'Saldo inicial',
+          ]);
+
+          VehicleMovement::create([
+            'movement_type'        => VehicleMovement::IN_TRANSIT,
+            'ap_vehicle_id'        => $vehicle->id,
+            'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+            'previous_status_id'   => ApVehicleStatus::PEDIDO_VN,
+            'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+            'movement_date'        => $uploadDate,
+            'observation'          => 'Saldo inicial - tránsito',
+          ]);
+
+          $movInventory = VehicleMovement::create([
+            'movement_type'        => VehicleMovement::INVENTORY,
+            'ap_vehicle_id'        => $vehicle->id,
+            'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+            'previous_status_id'   => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+            'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
+            'movement_date'        => $uploadDate,
+            'observation'          => 'Saldo inicial - ingreso a inventario',
+          ]);
+
+          $po = PurchaseOrder::create([
+            'number'              => 'SI-' . $rawSerie,
+            'vehicle_movement_id' => $movPedido->id,
+            'emission_date'       => $uploadDate->toDateString(),
+            'subtotal'            => round($rawUPrice * $rawQty, 2),
+            'igv'                 => round($rawTotal - ($rawUPrice * $rawQty), 2),
+            'total'               => $rawTotal,
+            'warehouse_id'        => $warehouse?->id,
+            'type_operation_id'   => ApMasters::TIPO_OPERACION_COMERCIAL,
+            'migration_status'    => 'completed',
+            'migrated_at'         => $uploadDate,
+            'invoice_dynamics'    => 'SI-' . $rawSerie,
+            'receipt_dynamics'    => 'SI-' . $rawSerie,
+            'status'              => true,
+            'notes'               => 'Saldo inicial importado desde Excel',
+          ]);
+
+          PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'is_vehicle'        => true,
+            'description'       => $rawVersion,
+            'unit_price'        => $rawUPrice,
+            'quantity'          => $rawQty,
+            'quantity_received' => $rawQty,
+            'quantity_pending'  => 0,
+            'total'             => $rawTotal,
+          ]);
+
+          $poSteps = [
+            VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER,
+            VehiclePurchaseOrderMigrationLog::STEP_ARTICLE,
+            VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER,
+            VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL,
+            VehiclePurchaseOrderMigrationLog::STEP_RECEPTION,
+            VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL,
+            VehiclePurchaseOrderMigrationLog::STEP_RECEPTION_DETAIL_SERIAL,
+          ];
+          foreach ($poSteps as $step) {
+            VehiclePurchaseOrderMigrationLog::create([
+              'vehicle_purchase_order_id' => $po->id,
+              'ap_vehicles_id'            => $vehicle->id,
+              'step'                      => $step,
+              'status'                    => VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED,
+              'table_name'                => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step] ?? null,
+              'external_id'              => 'SI-' . $rawSerie,
+              'proceso_estado'            => 1,
+              'completed_at'              => $uploadDate,
+            ]);
+          }
+
+          if ($isAlmacen) {
+            $guide = ShippingGuides::create([
+              'document_type'       => ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA,
+              'issuer_type'         => ShippingGuides::ISSUER_TYPE_SUPPLIER,
+              'series'              => 'SI',
+              'correlative'         => str_pad($vehicle->id, 8, '0', STR_PAD_LEFT),
+              'document_number'     => 'SI-' . $rawSerie,
+              'issue_date'          => $uploadDate->toDateString(),
+              'requires_sunat'      => true,
+              'is_sunat_registered' => true,
+              'aceptada_por_sunat'  => true,
+              'sent_at'             => $uploadDate,
+              'accepted_at'         => $uploadDate,
+              'migration_status'    => 'completed',
+              'migrated_at'         => $uploadDate,
+              'send_dynamics'       => true,
+              'dynamics_date'       => $uploadDate->toDateString(),
+              'vehicle_movement_id' => $movInventory->id,
+              'is_received'         => true,
+              'received_date'       => $uploadDate->toDateString(),
+              'notes'               => 'Saldo inicial importado desde Excel',
+              'status'              => true,
+              'sunat_responsecode'  => '0',
+              'sunat_description'   => 'Saldo inicial',
+            ]);
+
+            ApReceivingChecklist::create([
+              'shipping_guide_id' => $guide->id,
+              'quantity'          => max(1, (int) $rawQty),
+              'kilometers'        => 0,
+            ]);
+
+            ApReceivingInspection::create([
+              'shipping_guide_id'    => $guide->id,
+              'photo_front_url'      => '/images/placeholder.png',
+              'photo_back_url'       => '/images/placeholder.png',
+              'photo_left_url'       => '/images/placeholder.png',
+              'photo_right_url'      => '/images/placeholder.png',
+              'general_observations' => 'SALDO INICIAL - IMAGENES PENDIENTES DE ACTUALIZACION',
+            ]);
+
+            $guideSteps = [
+              VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+              VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+              VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+            ];
+            foreach ($guideSteps as $step) {
+              VehiclePurchaseOrderMigrationLog::create([
+                'vehicle_purchase_order_id' => $po->id,
+                'shipping_guide_id'         => $guide->id,
+                'ap_vehicles_id'            => $vehicle->id,
+                'step'                      => $step,
+                'status'                    => VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED,
+                'table_name'                => VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[$step] ?? null,
+                'external_id'              => 'SI-' . $rawSerie,
+                'proceso_estado'            => 1,
+                'completed_at'              => $uploadDate,
+              ]);
+            }
+          }
+
+          $results['created']++;
+          $results['rows'][] = [
+            'row'    => $row,
+            'vin'    => $rawSerie,
+            'model'  => $modelRecord->code,
+            'type'   => $isAlmacen ? 'almacen' : 'existencias',
+            'status' => 'created',
+          ];
+        });
+      } catch (\Throwable $th) {
+        $results['errors']++;
+        $results['rows'][] = [
+          'row'    => $row,
+          'vin'    => $rawSerie,
+          'status' => 'error',
+          'error'  => $th->getMessage(),
+        ];
+      }
+    }
+
+    return $results;
   }
 }
