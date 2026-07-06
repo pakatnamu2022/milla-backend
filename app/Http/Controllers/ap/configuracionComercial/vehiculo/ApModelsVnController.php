@@ -185,4 +185,17 @@ class ApModelsVnController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function importInitialStock(Request $request)
+  {
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls|max:10240',
+    ]);
+
+    try {
+      return $this->success($this->service->importInitialStockFromExcel($request->file('file')));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
