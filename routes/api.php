@@ -1040,6 +1040,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('modelsVn/fix-codes', [ApModelsVnController::class, 'fixWrongCodes']);
       Route::get('modelsVn/match-excel/template', [ApModelsVnController::class, 'matchExcelTemplate']);
       Route::post('modelsVn/match-excel', [ApModelsVnController::class, 'matchExcel']);
+      Route::post('modelsVn/import-initial-stock', [ApModelsVnController::class, 'importInitialStock']);
       Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
       Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
       Route::apiResource('modelsVn', ApModelsVnController::class)->only([
