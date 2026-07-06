@@ -58,7 +58,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
-    if ($data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
+    if ((int) $data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
       $existe = ApModelsVn::where('family_id', $data['family_id'])
         ->where('model_year', $data['model_year'])
         ->where('version', $data['version'])
