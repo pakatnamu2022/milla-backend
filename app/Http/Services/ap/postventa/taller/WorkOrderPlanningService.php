@@ -738,27 +738,6 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       throw new Exception('Solo se pueden completar trabajos que estén en progreso.');
     }
 
-    $currentDate = Carbon::now()->format('Y-m-d');
-    $plannedDate = Carbon::parse($planning->planned_end_datetime)->format('Y-m-d');
-
-    // Si ya es otro día diferente al planificado, no permitir
-    if ($currentDate !== $plannedDate) {
-      throw new Exception(
-        'No se puede completar este trabajo porque ya pasó el día programado (' .
-        Carbon::parse($planning->planned_end_datetime)->format('d/m/Y') . '). ' .
-        'Esta acción debe ser realizada por el encargado.'
-      );
-    }
-
-    // Si es el mismo día, validar que sea después de las 6pm
-    $currentTime = Carbon::now()->format('H:i');
-    if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
-      throw new Exception(
-        'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
-        ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
-      );
-    }
-
     $endDatetime = Carbon::parse($data['end_datetime']);
     $plannedEndDatetime = Carbon::parse($planning->planned_end_datetime);
 

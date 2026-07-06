@@ -37,6 +37,7 @@ class WorkOrderItemService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     $item = ApWorkOrderItem::create($data);
+    $item->workOrder->calculateTotals();
     return new WorkOrderItemResource($item->load(['workOrder', 'typePlanning']));
   }
 
@@ -49,13 +50,16 @@ class WorkOrderItemService extends BaseService implements BaseServiceInterface
   {
     $item = $this->find($data['id']);
     $item->update($data);
+    $item->workOrder->calculateTotals();
     return new WorkOrderItemResource($item->fresh(['workOrder', 'typePlanning']));
   }
 
   public function destroy($id)
   {
     $item = $this->find($id);
+    $workOrder = $item->workOrder;
     $item->delete();
+    $workOrder->calculateTotals();
     return response()->json(['message' => 'Item de orden de trabajo eliminado correctamente']);
   }
 }
