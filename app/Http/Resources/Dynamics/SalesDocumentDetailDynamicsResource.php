@@ -78,7 +78,7 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Precio unitario neto (con descuento aplicado, sin IGV)
     // Se usa directamente el valor_unitario de la tabla para evitar irregularidades con decimales
     $valorUnitario = $this->overrideValorUnitario ?? $this->valor_unitario;
-    $precioUnitario = $valorUnitario;
+    $precioUnitario = $this->precio_unitario;
 
     // descuento es el monto total de descuento de la línea; dividir por cantidad da el descuento por unidad
     $descuentoLinea = (float)($this->descuento ?? 0);
