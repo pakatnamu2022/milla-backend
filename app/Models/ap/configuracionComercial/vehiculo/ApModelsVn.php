@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\configuracionComercial\vehiculo;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Support\Str;
 
 class ApModelsVn extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'ap_models_vn';
 
@@ -215,6 +216,59 @@ class ApModelsVn extends Model
    * @param int $typeOperationId Operation type ID (COMERCIAL or POSTVENTA)
    * @return string Generated code (e.g., "HILUX24001")
    */
+  protected $reportRelations = [
+    'family.brand',
+    'classArticle',
+    'fuelType',
+    'vehicleType',
+    'bodyType',
+    'tractionType',
+    'vehicleTransmission',
+    'typeCurrency',
+    'typeOperation',
+  ];
+
+  protected $reportColumns = [
+    'code'                       => ['label' => 'CÓDIGO',             'formatter' => null],
+    'version'                    => ['label' => 'VERSIÓN',            'formatter' => null],
+    'model_year'                 => ['label' => 'AÑO MODELO',         'formatter' => null],
+    'family.brand.name'          => ['label' => 'MARCA',              'formatter' => null],
+    'family.description'         => ['label' => 'FAMILIA',            'formatter' => null],
+    'classArticle.description'   => ['label' => 'CLASE',              'formatter' => null],
+    'typeOperation.description'  => ['label' => 'TIPO OPERACIÓN',     'formatter' => null],
+    'fuelType.description'       => ['label' => 'COMBUSTIBLE',        'formatter' => null],
+    'vehicleType.description'    => ['label' => 'TIPO VEHÍCULO',      'formatter' => null],
+    'bodyType.description'       => ['label' => 'CARROCERÍA',         'formatter' => null],
+    'tractionType.description'   => ['label' => 'TRACCIÓN',           'formatter' => null],
+    'vehicleTransmission.description' => ['label' => 'TRANSMISIÓN',   'formatter' => null],
+    'power'                      => ['label' => 'POTENCIA',           'formatter' => null],
+    'displacement'               => ['label' => 'CILINDRADA',         'formatter' => null],
+    'cylinders_number'           => ['label' => 'NRO. CILINDROS',     'formatter' => null],
+    'wheelbase'                  => ['label' => 'ENTRE EJES',         'formatter' => null],
+    'width'                      => ['label' => 'ANCHO',              'formatter' => null],
+    'length'                     => ['label' => 'LARGO',              'formatter' => null],
+    'height'                     => ['label' => 'ALTURA',             'formatter' => null],
+    'axles_number'               => ['label' => 'NRO. EJES',          'formatter' => null],
+    'seats_number'               => ['label' => 'NRO. ASIENTOS',      'formatter' => null],
+    'doors_number'               => ['label' => 'NRO. PUERTAS',       'formatter' => null],
+    'passengers_number'          => ['label' => 'NRO. PASAJEROS',     'formatter' => null],
+    'wheels_number'              => ['label' => 'NRO. RUEDAS',        'formatter' => null],
+    'net_weight'                 => ['label' => 'PESO NETO',          'formatter' => null],
+    'gross_weight'               => ['label' => 'PESO BRUTO',         'formatter' => null],
+    'payload'                    => ['label' => 'CARGA ÚTIL',         'formatter' => null],
+    'typeCurrency.description'   => ['label' => 'MONEDA',             'formatter' => null],
+    'distributor_price'          => ['label' => 'PRECIO DISTRIBUIDOR','formatter' => 'number'],
+    'transport_cost'             => ['label' => 'COSTO TRANSPORTE',   'formatter' => 'number'],
+    'other_amounts'              => ['label' => 'OTROS MONTOS',       'formatter' => 'number'],
+    'purchase_discount'          => ['label' => 'DESCUENTO COMPRA',   'formatter' => 'number'],
+    'igv_amount'                 => ['label' => 'IGV',                'formatter' => 'number'],
+    'total_purchase_excl_igv'    => ['label' => 'TOTAL COMPRA S/IGV', 'formatter' => 'number'],
+    'total_purchase_incl_igv'    => ['label' => 'TOTAL COMPRA C/IGV', 'formatter' => 'number'],
+    'sale_price'                 => ['label' => 'PRECIO VENTA',       'formatter' => 'number'],
+    'margin'                     => ['label' => 'MARGEN',             'formatter' => 'number'],
+    'status'                     => ['label' => 'ESTADO',             'formatter' => null],
+  ];
+
   public static function generateNextCode(int $familyId, string $modelYear, int $typeOperationId): string
   {
     // Get family code
