@@ -110,7 +110,6 @@ class OpGoalTravelController extends Controller
             $data = $this->service->getComparativaMensual((int)$year, (int)$month);
             return response()->json($data);
 
-
         }catch(Throwable $th){
             return $this->error($th->getMessage());
         }

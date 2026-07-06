@@ -11,12 +11,28 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use IntlDateFormatter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Throwable;
 use Illuminate\Support\Facades\Cache;
 
 class OpGoalTravelService extends BaseService
 {
+
+    const MESES = [
+        1 => 'Enero', 
+        2 => 'Febrero', 
+        3 => 'Marzo', 
+        4 => 'Abril',
+        5 => 'Mayo', 
+        6 => 'Junio', 
+        7 => 'Julio', 
+        8 => 'Agosto',
+        9 => 'Septiembre', 
+        10 => 'Octubre', 
+        11 => 'Noviembre', 
+        12 => 'Diciembre'
+    ];
     public function list(Request $request)
     {
         $query = OpGoalTravel::query();
@@ -207,7 +223,7 @@ class OpGoalTravelService extends BaseService
 
         $cacheKey = "comparativa_{$year}_{$month}";
         return Cache::remember($cacheKey, 3600, function () use ($year, $month) {
-            try {
+        try {
             $mesActual = $month;
             $anioActual = $year;
 
@@ -250,17 +266,38 @@ class OpGoalTravelService extends BaseService
                 ORDER BY total_viajes DESC
             ", [$anioAnterior, $mesAnterior]);
 
+            $totalActual = DB::selectOne("
+                    SELECT
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as total_produccion
+                    FROM op_despacho od
+                    WHERE od.estado <> 10
+                          AND YEAR(od.fecha_viaje) = ?
+                          AND MONTH(od.fecha_viaje) = ?
+            ", [$anioActual, $mesActual]);
+
+            $totalAnterior = DB::selectOne("
+                SELECT 
+                    COUNT(od.id) as total_viajes,
+                    SUM(od.produccion) as total_produccion
+                FROM op_despacho od
+                WHERE od.estado <> 10
+                    AND YEAR(od.fecha_viaje) = ?
+                    AND MONTH(od.fecha_viaje) = ?
+            ", [$anioAnterior, $mesAnterior]);
+
             $clientes = [];
             $viajesActual = [];
             $viajesAnterior = [];
             $produccionActual = [];
             $produccionAnterior = [];
+            $participacionActual = [];
+            $participacionAnterior = [];
 
-            foreach ($datosActual as $item) {
-                $clientes[] = $item->cliente;
-                $viajesActual[] = (int) $item->total_viajes;
-                $produccionActual[] = (float) $item->total_produccion;
-            }
+            $totalViajesActual = $totalActual->total_viajes ?? 0;
+            $totalProdActual = $totalActual->total_produccion ?? 0;
+            $totalViajesAnterior = $totalAnterior->total_viajes ?? 0;
+            $totalProdAnterior = $totalAnterior->total_produccion ?? 0;
 
             $mapaAnterior = [];
             foreach ($datosAnterior as $item) {
@@ -270,31 +307,58 @@ class OpGoalTravelService extends BaseService
                 ];
             }
             foreach ($datosActual as $item) {
+                $clientes[] = $item->cliente;
+                $viajesActual[] = (int) $item->total_viajes;
+                $produccionActual[] = (float) $item->total_produccion;
+                $participacionActual[] = $totalProdActual > 0 
+                    ? round(($item->total_produccion / $totalProdActual) * 100, 2) 
+                    : 0;
+
                 if (isset($mapaAnterior[$item->cliente_id])) {
                     $viajesAnterior[] = $mapaAnterior[$item->cliente_id]['viajes'];
                     $produccionAnterior[] = $mapaAnterior[$item->cliente_id]['produccion'];
+                    $participacionAnterior[] = $totalProdAnterior > 0 
+                        ? round(($mapaAnterior[$item->cliente_id]['produccion'] / $totalProdAnterior) * 100, 2) 
+                        : 0;
                 } else {
                     $viajesAnterior[] = 0;
                     $produccionAnterior[] = 0;
+                    $participacionAnterior[] = 0;
                 }
             }
-             return [
-            'clientes' => $clientes,
-            'viajes_actual' => $viajesActual,
-            'viajes_anterior' => $viajesAnterior,
-            'produccion_actual' => $produccionActual,
-            'produccion_anterior' => $produccionAnterior,
-            'periodo_actual' => [
-                'mes' => $mesActual,
-                'anio' => $anioActual,
-                'label' => date('F Y', mktime(0, 0, 0, $mesActual, 1, $anioActual))
-            ],
-            'periodo_anterior' => [
-                'mes' => $mesAnterior,
-                'anio' => $anioAnterior,
-                'label' => date('F Y', mktime(0, 0, 0, $mesAnterior, 1, $anioAnterior))
-            ]
-        ];
+
+            return [
+                'clientes' => $clientes,
+                'viajes_actual' => $viajesActual,
+                'viajes_anterior' => $viajesAnterior,
+                'produccion_actual' => $produccionActual,
+                'produccion_anterior' => $produccionAnterior,
+                'participacion_actual' => $participacionActual,
+                'participacion_anterior' => $participacionAnterior,
+                'resumen' => [
+                    'actual' => [
+                        'viajes' => (int) $totalViajesActual,
+                        'produccion' => (float) $totalProdActual,
+                        'label' => self::MESES[$mesActual] . ' ' . $anioActual,
+                    ],
+                    'anterior' => [
+                        'viajes' => (int) $totalViajesAnterior,
+                        'produccion' => (float) $totalProdAnterior,
+                        'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior,
+                    ]
+                ],
+                'periodo_actual' => [
+                    'mes' => $mesActual,
+                    'anio' => $anioActual,
+                    'label' => self::MESES[$mesActual] . ' ' . $anioActual
+                ],
+                'periodo_anterior' => [
+                    'mes' => $mesAnterior,
+                    'anio' => $anioAnterior,
+                    'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior
+                ]
+            ];
+
         } catch (Throwable $th) {
             Log::error("Error en el servicio de comparativa mensual: " . $th->getMessage());
             throw new Exception("Error al obtener la comparativa mensual: " . $th->getMessage());
