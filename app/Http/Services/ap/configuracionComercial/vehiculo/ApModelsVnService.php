@@ -862,15 +862,20 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       ->get()
       ->keyBy(fn($f) => mb_strtoupper(trim($f->description)));
 
-    // Pre-cargar modelos activos con fuel_id en memoria
+    // Pre-cargar solo modelos COMERCIAL activos con fuel_id en memoria
     $models = ApModelsVn::whereNull('deleted_at')
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
       ->select(['id', 'code', 'version', 'model_year', 'fuel_id'])
       ->get();
+
+    // Normaliza espacios: reemplaza no-breaking spaces y colapsa múltiples espacios
+    $normalizeVersion = fn(string $v): string =>
+      mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($v)));
 
     // Agrupar por (version_upper|model_year|fuel_id) para búsqueda O(1)
     $modelIndex = [];
     foreach ($models as $m) {
-      $key = mb_strtoupper(trim($m->version)) . '|' . $m->model_year . '|' . $m->fuel_id;
+      $key = $normalizeVersion($m->version) . '|' . $m->model_year . '|' . $m->fuel_id;
       // Guardar solo el primero encontrado; podrían existir duplicados
       if (!isset($modelIndex[$key])) {
         $modelIndex[$key] = $m->code;
@@ -912,8 +917,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       // Fila vacía → saltar
       if ($rawVersion === '' && $rawModelYear === '' && $rawFuel === '') continue;
 
-      $versionUp = mb_strtoupper($rawVersion);
-      $fuelUp    = mb_strtoupper($rawFuel);
+      $versionUp = $normalizeVersion($rawVersion);
+      $fuelUp    = mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($rawFuel)));
 
       // Buscar combustible
       $fuelRecord = $fuelMap[$fuelUp] ?? null;
@@ -942,12 +947,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         $sheet->getStyle("{$codeColLetter}{$row}:{$obsColLetter}{$row}")->applyFromArray($foundStyle);
       } else {
         // Diagnóstico más detallado
-        $byVersion = collect($models)->first(fn($m) => mb_strtoupper(trim($m->version)) === $versionUp);
+        $byVersion = collect($models)->first(fn($m) => $normalizeVersion($m->version) === $versionUp);
         if (!$byVersion) {
           $obs = "No se encontró ningún modelo con versión \"{$rawVersion}\".";
         } else {
           $byVersionYear = collect($models)->first(
-            fn($m) => mb_strtoupper(trim($m->version)) === $versionUp && (string) $m->model_year === (string) $rawModelYear
+            fn($m) => $normalizeVersion($m->version) === $versionUp && (string) $m->model_year === (string) $rawModelYear
           );
           if (!$byVersionYear) {
             $obs = "Versión encontrada, pero no con año {$rawModelYear}.";
