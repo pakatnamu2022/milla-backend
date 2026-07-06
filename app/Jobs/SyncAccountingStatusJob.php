@@ -52,7 +52,7 @@ class SyncAccountingStatusJob implements ShouldQueue
       try {
         $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
           ->table('SOP30200')
-          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
+          ->where('SOPNUMBE', $document->full_number)
           ->first();
 
         if ($sopRecord) {
@@ -61,7 +61,7 @@ class SyncAccountingStatusJob implements ShouldQueue
           if (!$isAnnulled) {
             $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
               ->table('RM20101')
-              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
+              ->where('DOCNUMBR', $document->full_number)
               ->whereNot('RMDTYPAL', '9')
               ->first();
 
@@ -74,7 +74,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           $document->update([
             'is_accounted' => true,
-            'is_annulled' => $isAnnulled,
+            'is_annulled'  => $isAnnulled,
           ]);
 
           if (!$wasAccounted && !$isAnnulled) {
@@ -98,14 +98,14 @@ class SyncAccountingStatusJob implements ShouldQueue
         } else {
           $document->update([
             'is_accounted' => false,
-            'is_annulled' => false,
+            'is_annulled'  => false,
           ]);
         }
       } catch (Throwable $e) {
         Log::error('Error al sincronizar estado contable desde Dynamics', [
           'document_id' => $document->id,
           'full_number' => $document->full_number,
-          'error' => $e->getMessage(),
+          'error'       => $e->getMessage(),
         ]);
       }
     }
@@ -205,8 +205,8 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la cotización como totalmente pagada y facturada
       $quotation->update([
-        'is_fully_paid' => true,
-        'status' => ApOrderQuotations::STATUS_FACTURADO,
+        'is_fully_paid'               => true,
+        'status'                      => ApOrderQuotations::STATUS_FACTURADO,
         'output_generation_warehouse' => true,
       ]);
 
@@ -220,7 +220,7 @@ class SyncAccountingStatusJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,
-        'error' => $e->getMessage(),
+        'error'        => $e->getMessage(),
       ]);
     }
   }
@@ -269,15 +269,15 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la OT como facturada y cerrada
       $workOrder->update([
-        'is_invoiced' => true,
-        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+        'is_invoiced'                 => true,
+        'status_id'                   => ApMasters::CLOSED_WORK_ORDER_ID,
         'output_generation_warehouse' => true,
       ]);
 
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para orden de trabajo', [
         'work_order_id' => $workOrderId,
-        'error' => $e->getMessage(),
+        'error'         => $e->getMessage(),
       ]);
     }
   }
@@ -331,8 +331,8 @@ class SyncAccountingStatusJob implements ShouldQueue
       default:
         // Otros tipos de NC (descuentos, bonificaciones, etc.) no requieren reversión de estados/inventario
         Log::info('NC contabilizada sin reversión de estados', [
-          'credit_note_id' => $document->id,
-          'credit_note_type_id' => $creditNoteType,
+          'credit_note_id'       => $document->id,
+          'credit_note_type_id'  => $creditNoteType,
           'original_document_id' => $originalDocument->id,
         ]);
         break;
@@ -438,8 +438,8 @@ class SyncAccountingStatusJob implements ShouldQueue
         if (!$workOrderPart) {
           Log::warning('Repuesto no encontrado en OT para NC parcial', [
             'credit_note_id' => $creditNote->id,
-            'work_order_id' => $workOrder->id,
-            'product_id' => $item->product_id,
+            'work_order_id'  => $workOrder->id,
+            'product_id'     => $item->product_id,
           ]);
           continue;
         }
@@ -450,7 +450,7 @@ class SyncAccountingStatusJob implements ShouldQueue
         // Guardar para el movimiento de inventario
         $itemsToReturn[] = [
           'product_id' => $item->product_id,
-          'quantity' => $quantityToReturn,
+          'quantity'   => $quantityToReturn,
         ];
 
         // Actualizar la cantidad en ApWorkOrderParts
@@ -489,9 +489,9 @@ class SyncAccountingStatusJob implements ShouldQueue
       }
     } catch (Exception $e) {
       Log::error('Error al procesar NC por ítem', [
-        'credit_note_id' => $creditNote->id,
+        'credit_note_id'       => $creditNote->id,
         'original_document_id' => $originalDocument->id,
-        'error' => $e->getMessage(),
+        'error'                => $e->getMessage(),
       ]);
     }
   }
