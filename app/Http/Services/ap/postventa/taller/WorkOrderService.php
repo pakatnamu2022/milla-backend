@@ -671,6 +671,27 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     });
   }
 
+  public function changeAdvisor(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que la orden pueda ser modificada
+      $workOrder->ensureCanBeModified();
+
+      // Actualizar el asesor
+      $workOrder->update([
+        'advisor_id' => $data['advisor_id'],
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
   public function generateDelivery(mixed $data)
   {
     return DB::transaction(function () use ($data) {
