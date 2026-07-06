@@ -196,6 +196,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Recalcular totales después de crear los items
+      $workOrder->calculateTotals();
+
       return new WorkOrderResource($workOrder);
     });
   }
@@ -274,9 +277,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $quotation->update(['is_take' => 1]);
         }
 
-        // Recalcular totales usando el método del modelo (detecta automáticamente si tiene cotización)
+        // Cargar relaciones necesarias para el cálculo
         $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
-        $workOrder->calculateTotals();
       }
 
       // If existe $data['vehicle_inspection_id']
@@ -299,6 +301,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           }
         }
       }
+
+      // Recalcular totales SIEMPRE (detecta automáticamente si tiene cotización o cambio de moneda)
+      $workOrder->calculateTotals();
 
       // Reload relations
       $workOrder->load([
@@ -1727,6 +1732,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'type_operation_id' => $data['type_operation_id'],
         'description' => $data['description'],
       ]);
+
+      // Recalcular totales después de actualizar el item
+      $workOrder->calculateTotals();
 
       // Reload relations
       $workOrder->load([
