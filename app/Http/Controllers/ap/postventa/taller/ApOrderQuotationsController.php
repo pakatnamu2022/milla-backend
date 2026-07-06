@@ -297,4 +297,13 @@ class ApOrderQuotationsController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function recalculateTotals($id)
+  {
+    try {
+      return $this->success($this->service->recalculateTotals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -66,6 +66,15 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function downloadTemplate()
   {
     try {
@@ -133,6 +142,15 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function fixWrongCodes()
+  {
+    try {
+      return $this->success($this->service->fixWrongCodes());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function verify(Request $request)
   {
     $request->validate([
@@ -141,6 +159,28 @@ class ApModelsVnController extends Controller
 
     try {
       return $this->success($this->service->verifyFromExcel($request->file('file')));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function matchExcelTemplate()
+  {
+    try {
+      return $this->service->matchExcelTemplate();
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function matchExcel(Request $request)
+  {
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls|max:10240',
+    ]);
+
+    try {
+      return $this->service->matchFromExcel($request->file('file'));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

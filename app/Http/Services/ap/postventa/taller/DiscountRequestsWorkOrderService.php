@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\DiscountRequestsWorkOrderResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
@@ -315,18 +316,16 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Parte no encontrada.');
       }
 
-      // Recalcular totales de la parte
+      // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+      // vía PriceRounding, misma fuente de verdad que ApWorkOrderPartsService.
       $unitPrice = (float)$part->unit_price;
       $quantity = (float)$part->quantity_used;
-      $totalCost = $unitPrice * $quantity;
-      $discountAmount = $totalCost * ($discountPercentage / 100);
-      $netAmount = $totalCost - $discountAmount;
+      $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
       // Aplicar el descuento y actualizar totales
       $part->update([
         'discount_percentage' => $discountPercentage,
-        'total_cost' => $totalCost,
-        'net_amount' => $netAmount,
+        ...$totals,
       ]);
     } elseif ($partLabourModel === WorkOrderLabour::class) {
       // Descuento a una labor específica
@@ -335,18 +334,16 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Labor no encontrada.');
       }
 
-      // Recalcular el costo total de la labor
+      // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+      // vía PriceRounding, misma fuente de verdad que WorkOrderLabourService.
       $hourlyRate = (float)$labour->hourly_rate;
       $timeSpent = $labour->time_spent_decimal;
-      $totalCost = $hourlyRate * $timeSpent;
-      $discountAmount = $totalCost * ($discountPercentage / 100);
-      $netAmount = $totalCost - $discountAmount;
+      $totals = PriceRounding::calculateLineTotals($hourlyRate, $timeSpent, $discountPercentage);
 
       // Aplicar el descuento y actualizar totales
       $labour->update([
         'discount_percentage' => $discountPercentage,
-        'total_cost' => $totalCost,
-        'net_amount' => $netAmount,
+        ...$totals,
       ]);
     }
   }
@@ -366,18 +363,16 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       }
 
       foreach ($parts as $part) {
-        // Recalcular totales de la parte
+        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+        // vía PriceRounding, misma fuente de verdad que ApWorkOrderPartsService.
         $unitPrice = (float)$part->unit_price;
         $quantity = (float)$part->quantity_used;
-        $totalCost = $unitPrice * $quantity;
-        $discountAmount = $totalCost * ($discountPercentage / 100);
-        $netAmount = $totalCost - $discountAmount;
+        $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
 
         // Aplicar el descuento y actualizar totales
         $part->update([
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totalCost,
-          'net_amount' => $netAmount,
+          ...$totals,
         ]);
       }
     } elseif ($partLabourModel === WorkOrderLabour::class) {
@@ -389,18 +384,16 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
       }
 
       foreach ($labours as $labour) {
-        // Recalcular el costo total de la labor
+        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+        // vía PriceRounding, misma fuente de verdad que WorkOrderLabourService.
         $hourlyRate = (float)$labour->hourly_rate;
         $timeSpent = $labour->time_spent_decimal;
-        $totalCost = $hourlyRate * $timeSpent;
-        $discountAmount = $totalCost * ($discountPercentage / 100);
-        $netAmount = $totalCost - $discountAmount;
+        $totals = PriceRounding::calculateLineTotals($hourlyRate, $timeSpent, $discountPercentage);
 
         // Aplicar el descuento y actualizar totales
         $labour->update([
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totalCost,
-          'net_amount' => $netAmount,
+          ...$totals,
         ]);
       }
     }

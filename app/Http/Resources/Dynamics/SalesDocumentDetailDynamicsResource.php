@@ -95,8 +95,9 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
 
     $precioUnitario = $precioUnitario > 0 ? $precioUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
-    // Precio total neto (cantidad × valor_unitario ya tiene el descuento aplicado)
-    $precioTotal = ($cantidad * $valorUnitario) > 0 ? round($cantidad * $valorUnitario, 2) : throw new Exception('El ítem no tiene precio total definido.');
+    // Precio total neto: (precioUnitario - descuentoUnitario) × cantidad
+    $precioTotalNeto = ($precioUnitario - $descuentoUnitario) * $cantidad;
+    $precioTotal = $precioTotalNeto > 0 ? round($precioTotalNeto, 2) : throw new Exception('El ítem no tiene precio total definido.');
 
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
