@@ -369,15 +369,15 @@ class ApOrderQuotations extends Model
     // Calculate total amount (suma de net_amount items + tax_amount)
     $totalAmount = $sumNetAmountItems + $taxAmount;
 
-    // Update quotation with all calculated values. Redondeo a 1 decimal (S/ 0.10):
-    // los detalles (ApOrderQuotationDetails) ya llegan redondeados a 1 decimal desde
+    // Update quotation with all calculated values. Redondeo a 2 decimales:
+    // los detalles (ApOrderQuotationDetails) ya llegan redondeados a 2 decimales desde
     // ApOrderQuotationDetailsService, esto es un resguardo ante arrastre de precisión
     // flotante al sumar varios ítems, igual que en ApWorkOrder::calculateTotals().
-    $this->subtotal = round($subtotal, 1);
-    $this->discount_amount = round($discountAmount, 1);
-    $this->discount_percentage = round($discountPercentage, 1);
-    $this->tax_amount = round($taxAmount, 1);
-    $this->total_amount = round($totalAmount, 1);
+    $this->subtotal = round($subtotal, 2);
+    $this->discount_amount = round($discountAmount, 2);
+    $this->discount_percentage = round($discountPercentage, 2);
+    $this->tax_amount = round($taxAmount, 2);
+    $this->total_amount = round($totalAmount, 2);
   }
 
   /**
