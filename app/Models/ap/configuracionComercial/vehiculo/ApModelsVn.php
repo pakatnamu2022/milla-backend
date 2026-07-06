@@ -52,7 +52,8 @@ class ApModelsVn extends Model
     'transmission_id',
     'currency_type_id',
     'type_operation_id',
-    'status'
+    'status',
+    'locked',
   ];
 
   const filters = [

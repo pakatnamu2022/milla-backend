@@ -623,6 +623,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $skipped = [];
 
     foreach ($models as $model) {
+      // Modelo bloqueado: su código es intocable, se omite siempre
+      if ($model->locked) {
+        $skipped[] = ['id' => $model->id, 'code' => $model->code, 'reason' => 'bloqueado (locked)'];
+        continue;
+      }
+
       $familia = $model->family;
       if (!$familia) {
         $skipped[] = ['id' => $model->id, 'code' => $model->code, 'reason' => 'Familia no encontrada'];
@@ -637,19 +643,22 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $yearOk = str_starts_with($currentCode, $expectedPrefix);
 
       // Longitud exacta: len(familyCode) + 2(año) + 3(correlativo)
-      // Los últimos 3 chars deben ser dígitos — independiente de yearOk
       $expectedLength = strlen($expectedPrefix) + 3;
       $correlativeOk  = strlen($currentCode) === $expectedLength
         && ctype_digit(substr($currentCode, -3));
 
       // Duplicado dentro del mismo espacio de códigos (mismo tipo operación)
-      $isDuplicated = ApModelsVn::where('code', $currentCode)
+      // Si el duplicado está locked, este modelo DEBE moverse aunque su código sea válido
+      $duplicateInScope = ApModelsVn::where('code', $currentCode)
         ->where('id', '!=', $model->id)
         ->where('type_operation_id', $model->type_operation_id)
         ->whereNull('deleted_at')
-        ->exists();
+        ->first(['id', 'locked']);
 
-      // Duplicado global (cualquier tipo): el código ya lo usa otro modelo
+      $isDuplicated        = $duplicateInScope !== null;
+      $duplicateIsLocked   = $isDuplicated && $duplicateInScope->locked;
+
+      // Duplicado global (cualquier tipo)
       $isGlobalDuplicate = !$isDuplicated && ApModelsVn::where('code', $currentCode)
         ->where('id', '!=', $model->id)
         ->whereNull('deleted_at')
@@ -659,9 +668,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $reason = !$yearOk
-        ? 'año incorrecto en código'
-        : (!$correlativeOk ? 'correlativo inválido (' . substr($currentCode, -3) . ')' : 'código duplicado');
+      $reason = $duplicateIsLocked
+        ? 'duplicado con modelo bloqueado (cede el código)'
+        : (!$yearOk
+            ? 'año incorrecto en código'
+            : (!$correlativeOk ? 'correlativo inválido (' . substr($currentCode, -3) . ')' : 'código duplicado'));
 
       // Sacar temporalmente del pool para que generateNextCode no lo cuente
       DB::table('ap_models_vn')->where('id', $model->id)->update(['code' => '__FIXING__' . $model->id]);
