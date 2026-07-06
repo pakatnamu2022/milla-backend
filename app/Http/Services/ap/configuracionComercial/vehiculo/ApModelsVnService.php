@@ -655,16 +655,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         ->whereNull('deleted_at')
         ->first(['id', 'locked']);
 
-      $isDuplicated        = $duplicateInScope !== null;
-      $duplicateIsLocked   = $isDuplicated && $duplicateInScope->locked;
+      $isDuplicated      = $duplicateInScope !== null;
+      $duplicateIsLocked = $isDuplicated && $duplicateInScope->locked;
 
-      // Duplicado global (cualquier tipo)
-      $isGlobalDuplicate = !$isDuplicated && ApModelsVn::where('code', $currentCode)
-        ->where('id', '!=', $model->id)
-        ->whereNull('deleted_at')
-        ->exists();
-
-      if ($yearOk && $correlativeOk && !$isDuplicated && !$isGlobalDuplicate) {
+      if ($yearOk && $correlativeOk && !$isDuplicated) {
         continue;
       }
 
