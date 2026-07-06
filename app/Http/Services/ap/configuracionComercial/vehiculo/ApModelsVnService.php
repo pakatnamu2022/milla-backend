@@ -71,18 +71,23 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function store(mixed $data)
   {
+    $existe = ApModelsVn::where('family_id', $data['family_id'])
+      ->where('type_operation_id', $data['type_operation_id'])
+      ->where('version', $data['version'])
+      ->where('model_year', $data['model_year'] ?? null)
+      ->where('fuel_id', $data['fuel_id'] ?? null)
+      ->where('vehicle_type_id', $data['vehicle_type_id'] ?? null)
+      ->where('body_type_id', $data['body_type_id'] ?? null)
+      ->where('traction_type_id', $data['traction_type_id'] ?? null)
+      ->where('transmission_id', $data['transmission_id'] ?? null)
+      ->whereNull('deleted_at')
+      ->exists();
+
+    if ($existe) {
+      throw new Exception('Ya existe un modelo con la misma versión, familia, año, combustible, tipo de vehículo, carrocería, tracción y transmisión.');
+    }
+
     if ((int) $data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
-      $existe = ApModelsVn::where('family_id', $data['family_id'])
-        ->where('model_year', $data['model_year'])
-        ->where('version', $data['version'])
-        ->where('fuel_id', $data['fuel_id'])
-        ->whereNull('deleted_at')
-        ->exists();
-
-      if ($existe) {
-        throw new Exception('Ya existe un modelo con esa familia, año y tipo de combustible.');
-      }
-
       // Generate code using model method (separates correlatives by operation type)
       $data['code'] = ApModelsVn::generateNextCode(
         $data['family_id'],
