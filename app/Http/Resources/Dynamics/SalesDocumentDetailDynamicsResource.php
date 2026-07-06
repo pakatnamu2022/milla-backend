@@ -76,7 +76,9 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $cantidad = $this->cantidad > 0 ? $this->cantidad : throw new Exception('El ítem no tiene cantidad definida.');
 
     // Precio unitario neto (con descuento aplicado, sin IGV)
+    // Se usa directamente el valor_unitario de la tabla para evitar irregularidades con decimales
     $valorUnitario = $this->overrideValorUnitario ?? $this->valor_unitario;
+    $precioUnitario = $valorUnitario;
 
     // descuento es el monto total de descuento de la línea; dividir por cantidad da el descuento por unidad
     $descuentoLinea = (float)($this->descuento ?? 0);
@@ -85,13 +87,14 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Si hay descuento y no es un precio override (vehículos con accesorios),
     // Dynamics necesita el precio bruto sin IGV para poder aplicar el descuento:
     //   PrecioUnitario - DescuentoUnitario = valor_unitario (precio neto)
-    if ($descuentoUnitario > 0 && !$this->overrideValorUnitario) {
-      $igvDivisor = 1 + ($this->document->porcentaje_de_igv / 100);
-      $precioUnitario = round((float)$this->precio_unitario / $igvDivisor, 2);
-    } else {
-      $precioUnitario = $valorUnitario;
-      $descuentoUnitario = 0;
-    }
+    // Usamos directamente valor_unitario en lugar de recalcularlo para evitar irregularidades con decimales
+    //    if ($descuentoUnitario > 0 && !$this->overrideValorUnitario) {
+    //      Calcular el precio bruto sumando el descuento al valor unitario (precio neto)
+    //      $precioUnitario = round($valorUnitario + $descuentoUnitario, 2);
+    //    } else {
+    //      $precioUnitario = $valorUnitario;
+    //      $descuentoUnitario = 0;
+    //    }
 
     $precioUnitario = $precioUnitario > 0 ? $precioUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
 

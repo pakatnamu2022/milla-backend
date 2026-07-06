@@ -1800,7 +1800,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
 
       // Recalcular primero los ítems hijos (mano de obra y repuestos) desde sus
-      // campos base, con el mismo redondeo en cadena a 1 decimal usado al crearlos
+      // campos base, con el mismo redondeo en cadena a 2 decimales usado al crearlos
       // (PriceRounding), para que total_labor_cost/total_parts_cost del padre sean
       // siempre una suma consistente de hijos ya redondeados y no arrastren
       // valores desalineados (ej. de una conversión de moneda o de datos antiguos).
