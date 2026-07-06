@@ -65,11 +65,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $existe = ApModelsVn::where('family_id', $data['family_id'])
         ->where('model_year', $data['model_year'])
         ->where('version', $data['version'])
+        ->where('fuel_id', $data['fuel_id'])
         ->whereNull('deleted_at')
         ->exists();
 
       if ($existe) {
-        throw new Exception('Ya existe un modelo con esa familia y año.');
+        throw new Exception('Ya existe un modelo con esa familia, año y tipo de combustible.');
       }
 
       // Generate code using model method (separates correlatives by operation type)
