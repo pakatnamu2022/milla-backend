@@ -20,6 +20,10 @@ class StoreApFamiliesRequest extends StoreRequest
         'integer',
         'exists:ap_vehicle_brand,id',
       ],
+      'status' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 

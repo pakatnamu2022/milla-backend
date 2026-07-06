@@ -24,8 +24,11 @@ use App\Imports\ap\vehiculo\ApModelsVnImport;
 use App\Imports\ap\vehiculo\ApModelsVnVerifyImport;
 use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -516,6 +519,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new Exception("El modelo ID {$id} no tiene código asignado y no puede sincronizarse con Dynamics.");
     }
 
+    if ($model->type_operation_id !== ApMasters::TIPO_OPERACION_COMERCIAL) {
+      throw new Exception("Solo los modelos de tipo COMERCIAL pueden sincronizarse con Dynamics.");
+    }
+
     $existing = ApModelsVnSyncLog::where('model_vn_id', $model->id)
       ->whereIn('status', [
         ApModelsVnSyncLog::STATUS_COMPLETED,
@@ -556,6 +563,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     ])->pluck('model_vn_id');
 
     $models = ApModelsVn::whereNotNull('code')
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
       ->whereNotIn('id', $syncedIds)
       ->get();
 
@@ -591,6 +599,93 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     );
   }
 
+  public function fixWrongCodes(): array
+  {
+    $comercialId = ApMasters::TIPO_OPERACION_COMERCIAL;
+
+    $models = ApModelsVn::with('family')
+      ->where('type_operation_id', $comercialId)
+      ->whereNull('deleted_at')
+      ->get();
+
+    $fixed = [];
+    $skipped = [];
+
+    foreach ($models as $model) {
+      $familia = $model->family;
+      if (!$familia) {
+        $skipped[] = ['id' => $model->id, 'code' => $model->code, 'reason' => 'Familia no encontrada'];
+        continue;
+      }
+
+      $familyCode      = $familia->code;
+      $expectedPrefix  = $familyCode . substr($model->model_year, -2);
+      $currentCode     = $model->code;
+
+      // Año correcto en el código
+      $yearOk = str_starts_with($currentCode, $expectedPrefix);
+
+      // Duplicado dentro del mismo espacio de códigos (mismo tipo operación)
+      $isDuplicated = ApModelsVn::where('code', $currentCode)
+        ->where('id', '!=', $model->id)
+        ->where('type_operation_id', $model->type_operation_id)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      // Duplicado global (cualquier tipo): el código ya lo usa otro modelo
+      $isGlobalDuplicate = !$isDuplicated && ApModelsVn::where('code', $currentCode)
+        ->where('id', '!=', $model->id)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($yearOk && !$isDuplicated && !$isGlobalDuplicate) {
+        continue;
+      }
+
+      $reason = !$yearOk ? 'año incorrecto en código' : 'código duplicado';
+
+      // Sacar temporalmente del pool para que generateNextCode no lo cuente
+      DB::table('ap_models_vn')->where('id', $model->id)->update(['code' => '__FIXING__' . $model->id]);
+
+      $newCode = ApModelsVn::generateNextCode($model->family_id, $model->model_year, $model->type_operation_id);
+
+      // Garantizar unicidad global: si el código generado ya existe, incrementar correlativo
+      $prefix = substr($newCode, 0, -3);
+      $correlative = (int) substr($newCode, -3);
+      while (
+        ApModelsVn::where('code', $newCode)
+          ->whereNull('deleted_at')
+          ->exists()
+      ) {
+        $correlative++;
+        $newCode = $prefix . str_pad($correlative, 3, '0', STR_PAD_LEFT);
+      }
+
+      DB::table('ap_models_vn')->where('id', $model->id)->update(['code' => $newCode]);
+
+      $deletedLogs = ApModelsVnSyncLog::where('model_vn_id', $model->id)->count();
+      ApModelsVnSyncLog::where('model_vn_id', $model->id)->delete();
+
+      $fixed[] = [
+        'id'           => $model->id,
+        'version'      => $model->version,
+        'reason'       => $reason,
+        'old_code'     => $currentCode,
+        'new_code'     => $newCode,
+        'logs_deleted' => $deletedLogs,
+      ];
+    }
+
+    Cache::forget('models.all');
+
+    return [
+      'fixed'   => count($fixed),
+      'skipped' => count($skipped),
+      'details' => $fixed,
+      'errors'  => $skipped,
+    ];
+  }
+
   public function importFromExcel(UploadedFile $file): array
   {
     $import = new ApModelsVnImport();
@@ -608,15 +703,269 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       'success'        => !$hayErrores,
       'message'        => $msg,
       'rows_processed' => $results['rows_processed'],
-      // errores primero (mayor nivel de alerta)
       'errors_count'   => $totalErrors,
       'errors'         => $results['errors'],
-      // omitidos
       'skipped'        => $results['skipped'],
       'skipped_rows'   => $results['skipped_rows'],
-      // creados
       'created'        => $results['created'],
       'created_rows'   => $results['created_rows'],
     ];
+  }
+
+  public function matchExcelTemplate(): StreamedResponse
+  {
+    $combustibles = ApFuelType::whereNull('deleted_at')->where('status', true)->pluck('description')->toArray();
+
+    $spreadsheet = new Spreadsheet();
+
+    // Hoja oculta de listas
+    $listsSheet = $spreadsheet->createSheet(1);
+    $listsSheet->setTitle('_Listas');
+    $listsSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+    $listsSheet->setCellValue('A1', 'Combustible');
+    foreach ($combustibles as $i => $val) {
+      $listsSheet->setCellValue('A' . ($i + 2), $val);
+    }
+    $combRange = count($combustibles) > 0
+      ? '_Listas!$A$2:$A$' . (count($combustibles) + 1)
+      : null;
+
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Match Modelos VN');
+
+    $headers = [
+      'A' => 'VERSION',
+      'B' => 'MARCA',
+      'C' => 'UM',
+      'D' => 'cantidad',
+      'E' => 'Costo Unitario',
+      'F' => 'Costo Total',
+      'G' => 'SitioId',
+      'H' => 'Serie',
+      'I' => 'Cta. Inventario',
+      'J' => 'Cta. ContraPartida',
+      'K' => 'Año Modelo',
+      'L' => 'COMBUSTIBLE',
+    ];
+
+    foreach ($headers as $col => $label) {
+      $sheet->setCellValue("{$col}1", $label);
+    }
+
+    $headerStyle = [
+      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+      'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
+      'borders'   => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+    ];
+    $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+    $sheet->getRowDimension(1)->setRowHeight(30);
+
+    // Fila de ejemplo
+    $example = [
+      'A2' => 'POER MT 2.4T 4X4 STD NEW FL',
+      'B2' => 'GREAT WALL',
+      'C2' => 'UND',
+      'D2' => 1,
+      'E2' => 66030.23,
+      'F2' => 66030.23,
+      'G2' => 'EXR-CM-CIX',
+      'H2' => 'LGWDCF19XVJ609324',
+      'I2' => '2811000-01',
+      'J2' => '0211111-01',
+      'K2' => 2027,
+      'L2' => !empty($combustibles) ? $combustibles[0] : 'DIESEL',
+    ];
+    foreach ($example as $cell => $value) {
+      $sheet->setCellValue($cell, $value);
+    }
+    $sheet->getStyle('A2:L2')->applyFromArray([
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EBF3FB']],
+      'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
+    ]);
+
+    // Anchos
+    $widths = ['A' => 38, 'B' => 16, 'C' => 8, 'D' => 10, 'E' => 16, 'F' => 16,
+               'G' => 16, 'H' => 24, 'I' => 18, 'J' => 18, 'K' => 12, 'L' => 18];
+    foreach ($widths as $col => $w) {
+      $sheet->getColumnDimension($col)->setWidth($w);
+    }
+
+    // Dropdown combustible en columna L
+    if ($combRange) {
+      for ($row = 2; $row <= 1001; $row++) {
+        $v = $sheet->getCell("L{$row}")->getDataValidation();
+        $v->setType(DataValidation::TYPE_LIST);
+        $v->setErrorStyle(DataValidation::STYLE_INFORMATION);
+        $v->setAllowBlank(true);
+        $v->setShowDropDown(true);
+        $v->setFormula1($combRange);
+      }
+    }
+
+    $sheet->freezePane('A2');
+    $spreadsheet->setActiveSheetIndex(0);
+
+    $writer = new Xlsx($spreadsheet);
+
+    return response()->streamDownload(function () use ($writer) {
+      $writer->save('php://output');
+    }, 'plantilla_match_modelos_vn.xlsx', [
+      'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+  }
+
+  public function matchFromExcel(UploadedFile $file): StreamedResponse
+  {
+    // setReadDataOnly(true) evita que PhpSpreadsheet evalúe referencias
+    // estructuradas de tablas Excel que causarían "Table for Structured Reference
+    // cannot be identified"
+    $reader = IOFactory::createReaderForFile($file->getPathname());
+    if (method_exists($reader, 'setReadDataOnly')) {
+      $reader->setReadDataOnly(true);
+    }
+    $spreadsheet = $reader->load($file->getPathname());
+    $sheet       = $spreadsheet->getActiveSheet();
+    $highestRow  = $sheet->getHighestRow();
+    $highestCol  = $sheet->getHighestColumn();
+
+    // Leer cabeceras de la fila 1 y mapear columnas por nombre
+    $headers = [];
+    $colIndex = 1;
+    while (true) {
+      $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+      $header    = trim((string) $sheet->getCell("{$colLetter}1")->getValue());
+      if ($header === '' && $colIndex > 1) break;
+      $headers[$colLetter] = $header;
+      if ($colLetter === $highestCol) break;
+      $colIndex++;
+    }
+
+    // Identificar columnas clave (case-insensitive)
+    $colVersion   = null;
+    $colModelYear = null;
+    $colFuel      = null;
+    foreach ($headers as $letter => $name) {
+      $normalized = mb_strtoupper(trim($name));
+      if ($normalized === 'VERSION')    $colVersion   = $letter;
+      if ($normalized === 'AÑO MODELO') $colModelYear = $letter;
+      if ($normalized === 'COMBUSTIBLE') $colFuel     = $letter;
+    }
+
+    if (!$colVersion || !$colModelYear || !$colFuel) {
+      throw new Exception('El archivo no contiene las columnas requeridas: VERSION, AÑO MODELO, COMBUSTIBLE.');
+    }
+
+    // Pre-cargar combustibles en memoria para evitar N+1
+    $fuelMap = ApFuelType::whereNull('deleted_at')
+      ->get()
+      ->keyBy(fn($f) => mb_strtoupper(trim($f->description)));
+
+    // Pre-cargar modelos activos con fuel_id en memoria
+    $models = ApModelsVn::whereNull('deleted_at')
+      ->select(['id', 'code', 'version', 'model_year', 'fuel_id'])
+      ->get();
+
+    // Agrupar por (version_upper|model_year|fuel_id) para búsqueda O(1)
+    $modelIndex = [];
+    foreach ($models as $m) {
+      $key = mb_strtoupper(trim($m->version)) . '|' . $m->model_year . '|' . $m->fuel_id;
+      // Guardar solo el primero encontrado; podrían existir duplicados
+      if (!isset($modelIndex[$key])) {
+        $modelIndex[$key] = $m->code;
+      }
+    }
+
+    // Determinar columna de salida (siguiente tras la última)
+    $lastColIndex   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+    $codeColLetter  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 1);
+    $obsColLetter   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 2);
+
+    // Cabeceras nuevas
+    $headerStyle = [
+      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+      'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
+    ];
+    $sheet->setCellValue("{$codeColLetter}1", 'Código Modelo');
+    $sheet->setCellValue("{$obsColLetter}1", 'Observación');
+    $sheet->getStyle("{$codeColLetter}1:{$obsColLetter}1")->applyFromArray($headerStyle);
+    $sheet->getColumnDimension($codeColLetter)->setWidth(18);
+    $sheet->getColumnDimension($obsColLetter)->setWidth(50);
+
+    // Estilos para resultado encontrado / no encontrado
+    $foundStyle = [
+      'font' => ['bold' => true, 'color' => ['rgb' => '1D6B38']],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D6F0DE']],
+    ];
+    $notFoundStyle = [
+      'font' => ['color' => ['rgb' => '9C0006']],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFC7CE']],
+    ];
+
+    for ($row = 2; $row <= $highestRow; $row++) {
+      $rawVersion   = trim((string) $sheet->getCell("{$colVersion}{$row}")->getValue());
+      $rawModelYear = trim((string) $sheet->getCell("{$colModelYear}{$row}")->getValue());
+      $rawFuel      = trim((string) $sheet->getCell("{$colFuel}{$row}")->getValue());
+
+      // Fila vacía → saltar
+      if ($rawVersion === '' && $rawModelYear === '' && $rawFuel === '') continue;
+
+      $versionUp = mb_strtoupper($rawVersion);
+      $fuelUp    = mb_strtoupper($rawFuel);
+
+      // Buscar combustible
+      $fuelRecord = $fuelMap[$fuelUp] ?? null;
+
+      if (!$fuelRecord) {
+        $sheet->setCellValue("{$codeColLetter}{$row}", '');
+        $sheet->setCellValue("{$obsColLetter}{$row}", "Combustible \"{$rawFuel}\" no registrado en el sistema.");
+        $sheet->getStyle("{$codeColLetter}{$row}:{$obsColLetter}{$row}")->applyFromArray($notFoundStyle);
+        continue;
+      }
+
+      // Validar año
+      if (!is_numeric($rawModelYear)) {
+        $sheet->setCellValue("{$codeColLetter}{$row}", '');
+        $sheet->setCellValue("{$obsColLetter}{$row}", "Año de modelo inválido: \"{$rawModelYear}\".");
+        $sheet->getStyle("{$codeColLetter}{$row}:{$obsColLetter}{$row}")->applyFromArray($notFoundStyle);
+        continue;
+      }
+
+      $key  = "{$versionUp}|{$rawModelYear}|{$fuelRecord->id}";
+      $code = $modelIndex[$key] ?? null;
+
+      if ($code) {
+        $sheet->setCellValue("{$codeColLetter}{$row}", $code);
+        $sheet->setCellValue("{$obsColLetter}{$row}", 'Encontrado');
+        $sheet->getStyle("{$codeColLetter}{$row}:{$obsColLetter}{$row}")->applyFromArray($foundStyle);
+      } else {
+        // Diagnóstico más detallado
+        $byVersion = collect($models)->first(fn($m) => mb_strtoupper(trim($m->version)) === $versionUp);
+        if (!$byVersion) {
+          $obs = "No se encontró ningún modelo con versión \"{$rawVersion}\".";
+        } else {
+          $byVersionYear = collect($models)->first(
+            fn($m) => mb_strtoupper(trim($m->version)) === $versionUp && (string) $m->model_year === (string) $rawModelYear
+          );
+          if (!$byVersionYear) {
+            $obs = "Versión encontrada, pero no con año {$rawModelYear}.";
+          } else {
+            $obs = "Versión y año encontrados, pero no con combustible \"{$rawFuel}\".";
+          }
+        }
+        $sheet->setCellValue("{$codeColLetter}{$row}", '');
+        $sheet->setCellValue("{$obsColLetter}{$row}", $obs);
+        $sheet->getStyle("{$codeColLetter}{$row}:{$obsColLetter}{$row}")->applyFromArray($notFoundStyle);
+      }
+    }
+
+    $writer = new Xlsx($spreadsheet);
+
+    return response()->streamDownload(function () use ($writer) {
+      $writer->save('php://output');
+    }, 'modelos_vn_match.xlsx', [
+      'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
   }
 }
