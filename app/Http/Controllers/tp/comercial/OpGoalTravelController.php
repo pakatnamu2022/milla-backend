@@ -119,7 +119,9 @@ class OpGoalTravelController extends Controller
     public function viajesNoFacturados(Request $request){
         try{
             $dias = $request->input('dias', 4);
-            $data = $this->service->getViajesNoFacturados((int)$dias);
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', null); 
+            $data = $this->service->getViajesNoFacturados((int)$dias, (int)$year, $month ? (int)$month : null);
             return response()->json($data);
 
         }catch(Throwable $th){
@@ -167,7 +169,6 @@ class OpGoalTravelController extends Controller
             $threshold = $request->input('threshold', 70);
             $year = $request->input('year', date('Y'));
             $month = $request->input('month', date('m'));
-        
             $data = $this->service->getAlerts((int)$threshold, (int)$year, (int)$month);
             return response()->json($data);
         } catch (Throwable $th) {
