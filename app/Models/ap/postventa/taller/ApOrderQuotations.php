@@ -1004,8 +1004,10 @@ class ApOrderQuotations extends Model
    * de verdad que ApOrderQuotationDetailsService), en vez de recalcularlos a partir de
    * basePrice/quantity: recalcular redondeando el precio unitario antes de multiplicarlo
    * por una cantidad fraccionaria diverge unos centavos del monto ya guardado.
-   * valor_unitario/descuento se derivan de esos montos solo para mostrar, nunca
-   * alimentan el total.
+   * valor_unitario/precio_unitario/descuento se derivan de esos montos ya redondeados
+   * solo para mostrar (nunca alimentan el total), para que con cantidad=1 precio_unitario
+   * coincida siempre con total: antes se recalculaba desde basePrice crudo (sin descuento
+   * y con su propio redondeo), lo que lo desalineaba del total hasta en S/ 0.10.
    */
   private function calculateInvoiceItemAmounts(
     float $basePrice,
@@ -1014,13 +1016,11 @@ class ApOrderQuotations extends Model
     float $netAmount,
     float $taxAmount
   ): array {
-    $vatRate = Constants::VAT_TAX / 100;
-
     $subtotal = round($netAmount, 2);
     $igv = round($taxAmount, 2);
     $total = round($subtotal + $igv, 2);
     $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
-    $precioUnitario = round($basePrice * (1 + $vatRate), 2);
+    $precioUnitario = $quantity > 0 ? round($total / $quantity, 2) : $total;
     $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
 
     return [
