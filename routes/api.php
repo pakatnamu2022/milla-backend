@@ -275,7 +275,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
     Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
     Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
-
+    Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
+    
     Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',

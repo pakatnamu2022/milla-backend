@@ -122,7 +122,7 @@ class OpGoalTravelController extends Controller
                 $year2 !== null ? (int)$year2 : null, 
                 $month2 !== null ? (int)$month2 : null
             );
-            
+
             return response()->json($data);
 
         }catch(Throwable $th){
@@ -191,7 +191,7 @@ class OpGoalTravelController extends Controller
         }
     }
 
-     public function availableYears()
+    public function availableYears()
     {
         try {
             return response()->json($this->service->getAvailableYears());
@@ -199,4 +199,15 @@ class OpGoalTravelController extends Controller
             return $this->error($th->getMessage());
         }
     }
+    
+    public function analisisEstrategico()
+    {
+        try {
+            $data = $this->service->getAnalisisEstrategico();
+            return response()->json($data);
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
 }
