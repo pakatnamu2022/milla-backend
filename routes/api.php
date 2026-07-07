@@ -269,14 +269,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'goal'], function () {
-    Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
-    Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
-    Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
-    Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
-    Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
-    Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+      Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+      Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+      Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+      Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+      Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+      Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
 
-    Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
         'store',
@@ -953,7 +953,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'update',
           'destroy'
         ]);
-        
+
         // Mapeo de códigos incorrectos del dispositivo a DNI real
         Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
           'index',
@@ -1352,7 +1352,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
       Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
-      Route::put('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
+      Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
