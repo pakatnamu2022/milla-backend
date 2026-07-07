@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\configuracionComercial\vehiculo;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApModelsVnRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreAutomaticApModelsVnRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApModelsVnRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApModelsVnService;
 use Illuminate\Http\Request;
@@ -32,6 +33,15 @@ class ApModelsVnController extends Controller
   {
     try {
       return $this->success($this->service->store($request->all()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeAutomatic(StoreAutomaticApModelsVnRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeAutomatic($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -100,7 +110,7 @@ class ApModelsVnController extends Controller
   public function sync($id)
   {
     try {
-      return $this->success($this->service->syncModel((int) $id));
+      return $this->success($this->service->syncModel((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -23,6 +23,7 @@ use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApFuelType;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVnSyncLog;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -87,7 +88,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new Exception('Ya existe un modelo con la misma versión, familia, año, combustible, tipo de vehículo, carrocería, tracción y transmisión.');
     }
 
-    if ((int) $data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
+    if ((int)$data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
       // Generate code using model method (separates correlatives by operation type)
       $data['code'] = ApModelsVn::generateNextCode(
         $data['family_id'],
@@ -108,6 +109,66 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     Cache::forget('models.all');
 
     return new ApModelsVnResource($engineType);
+  }
+
+  public function storeAutomatic(mixed $data)
+  {
+    // Buscar si ya existe una familia con ese brand_id
+    $family = ApFamilies::where('brand_id', $data['brand_id'])->first();
+
+    if (!$family) {
+      // Crear la familia automáticamente solo si no existe ninguna con esa marca
+      $marca = ApVehicleBrand::findOrFail($data['brand_id']);
+
+      // Generar código de familia
+      $familyCode = $marca->dyn_code . $this->nextCorrelativeCount(
+          ApFamilies::class,
+          2,
+          ['brand_id' => $data['brand_id']]
+        );
+
+      $family = ApFamilies::create([
+        'code' => $familyCode,
+        'description' => $data['version'],
+        'brand_id' => $data['brand_id'],
+        'status' => true,
+      ]);
+    }
+
+    // Preparar datos para crear el modelo VN
+    $modelData = [
+      'family_id' => $family->id,
+      'class_id' => $data['class_id'],
+      'type_operation_id' => $data['type_operation_id'],
+      'version' => $data['version'],
+      'status' => true,
+    ];
+
+    // Si es COMERCIAL, necesitamos agregar model_year por defecto
+    if ((int)$data['type_operation_id'] === ApMasters::TIPO_OPERACION_COMERCIAL) {
+      $modelData['model_year'] = date('Y');
+
+      // Generar código
+      $modelData['code'] = ApModelsVn::generateNextCode(
+        $family->id,
+        $modelData['model_year'],
+        $data['type_operation_id']
+      );
+    } else {
+      $modelData['code'] = ApModelsVn::generateNextCode(
+        $family->id,
+        date('Y'),
+        $data['type_operation_id']
+      );
+    }
+
+    // Crear el modelo VN
+    $modelVn = ApModelsVn::create($modelData);
+
+    // Invalidar caché
+    Cache::forget('models.all');
+
+    return new ApModelsVnResource($modelVn);
   }
 
   public function show($id)
@@ -146,15 +207,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   public function downloadTemplate(): StreamedResponse
   {
     // ── Cargar opciones desde base de datos ──────────────────────────────────
-    $familias      = ApFamilies::where('status', true)->pluck('description')->toArray();
-    $clases        = ApClassArticle::where('status', true)->pluck('description')->toArray();
-    $combustibles  = ApFuelType::where('status', true)->pluck('description')->toArray();
+    $familias = ApFamilies::where('status', true)->pluck('description')->toArray();
+    $clases = ApClassArticle::where('status', true)->pluck('description')->toArray();
+    $combustibles = ApFuelType::where('status', true)->pluck('description')->toArray();
     $tiposVehiculo = ApMasters::where('type', 'TIPO_VEHICULO')->where('status', true)->pluck('description')->toArray();
-    $carrocerias   = ApMasters::where('type', 'TIPO_CARROCERIA')->where('status', true)->pluck('description')->toArray();
-    $tracciones    = ApMasters::where('type', 'TIPO_TRACCION')->where('status', true)->pluck('description')->toArray();
+    $carrocerias = ApMasters::where('type', 'TIPO_CARROCERIA')->where('status', true)->pluck('description')->toArray();
+    $tracciones = ApMasters::where('type', 'TIPO_TRACCION')->where('status', true)->pluck('description')->toArray();
     $transmisiones = ApMasters::where('type', 'TRANSMISION_VEHICULO')->where('status', true)->pluck('description')->toArray();
-    $monedas       = TypeCurrency::where('status', true)->pluck('code')->toArray();
-    $tiposOp       = ApMasters::where('type', 'TIPO_OPERACION')->where('status', true)->pluck('description')->toArray();
+    $monedas = TypeCurrency::where('status', true)->pluck('code')->toArray();
+    $tiposOp = ApMasters::where('type', 'TIPO_OPERACION')->where('status', true)->pluck('description')->toArray();
 
     $spreadsheet = new Spreadsheet();
 
@@ -165,15 +226,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $listsSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
 
     $listColumns = [
-      'A' => ['titulo' => 'Familia',         'valores' => $familias],
-      'B' => ['titulo' => 'Clase',            'valores' => $clases],
-      'C' => ['titulo' => 'Combustible',      'valores' => $combustibles],
-      'D' => ['titulo' => 'Tipo Vehículo',    'valores' => $tiposVehiculo],
-      'E' => ['titulo' => 'Tipo Carrocería',  'valores' => $carrocerias],
-      'F' => ['titulo' => 'Tipo Tracción',    'valores' => $tracciones],
-      'G' => ['titulo' => 'Transmisión',      'valores' => $transmisiones],
-      'H' => ['titulo' => 'Moneda',           'valores' => $monedas],
-      'I' => ['titulo' => 'Tipo Operación',   'valores' => $tiposOp],
+      'A' => ['titulo' => 'Familia', 'valores' => $familias],
+      'B' => ['titulo' => 'Clase', 'valores' => $clases],
+      'C' => ['titulo' => 'Combustible', 'valores' => $combustibles],
+      'D' => ['titulo' => 'Tipo Vehículo', 'valores' => $tiposVehiculo],
+      'E' => ['titulo' => 'Tipo Carrocería', 'valores' => $carrocerias],
+      'F' => ['titulo' => 'Tipo Tracción', 'valores' => $tracciones],
+      'G' => ['titulo' => 'Transmisión', 'valores' => $transmisiones],
+      'H' => ['titulo' => 'Moneda', 'valores' => $monedas],
+      'I' => ['titulo' => 'Tipo Operación', 'valores' => $tiposOp],
     ];
 
     $listRanges = [];
@@ -191,32 +252,32 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $sheet->setTitle('Modelos VN');
 
     $headers = [
-      'A'  => 'N°',
-      'B'  => 'Tipo de Operación *',
-      'C'  => 'Familia *',
-      'D'  => 'Clase *',
-      'E'  => 'Versión / Descripción del Modelo *',
-      'F'  => 'Año del Modelo',
-      'G'  => 'Combustible *',
-      'H'  => 'Tipo de Vehículo *',
-      'I'  => 'Tipo de Carrocería *',
-      'J'  => 'Tipo de Tracción *',
-      'K'  => 'Transmisión *',
-      'L'  => 'Moneda *',
-      'M'  => 'Potencia (HP)',
-      'N'  => 'Distancia entre Ejes (mm)',
-      'O'  => 'N° de Ejes',
-      'P'  => 'Ancho (mm)',
-      'Q'  => 'Largo (mm)',
-      'R'  => 'Alto (mm)',
-      'S'  => 'N° de Asientos',
-      'T'  => 'N° de Puertas',
-      'U'  => 'Peso Neto (kg)',
-      'V'  => 'Peso Bruto (kg)',
-      'W'  => 'Carga Útil (kg)',
-      'X'  => 'Cilindrada (cc)',
-      'Y'  => 'N° de Cilindros',
-      'Z'  => 'N° de Pasajeros',
+      'A' => 'N°',
+      'B' => 'Tipo de Operación *',
+      'C' => 'Familia *',
+      'D' => 'Clase *',
+      'E' => 'Versión / Descripción del Modelo *',
+      'F' => 'Año del Modelo',
+      'G' => 'Combustible *',
+      'H' => 'Tipo de Vehículo *',
+      'I' => 'Tipo de Carrocería *',
+      'J' => 'Tipo de Tracción *',
+      'K' => 'Transmisión *',
+      'L' => 'Moneda *',
+      'M' => 'Potencia (HP)',
+      'N' => 'Distancia entre Ejes (mm)',
+      'O' => 'N° de Ejes',
+      'P' => 'Ancho (mm)',
+      'Q' => 'Largo (mm)',
+      'R' => 'Alto (mm)',
+      'S' => 'N° de Asientos',
+      'T' => 'N° de Puertas',
+      'U' => 'Peso Neto (kg)',
+      'V' => 'Peso Bruto (kg)',
+      'W' => 'Carga Útil (kg)',
+      'X' => 'Cilindrada (cc)',
+      'Y' => 'N° de Cilindros',
+      'Z' => 'N° de Pasajeros',
       'AA' => 'N° de Ruedas',
       'AB' => 'Precio Distribuidor',
       'AC' => 'Costo de Transporte',
@@ -230,32 +291,32 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // ── Fila de ejemplo ──────────────────────────────────────────────────────
     $example = [
-      'A2'  => 0,  // N°=0 → se ignora al importar (fila de ejemplo)
-      'B2'  => !empty($tiposOp) ? $tiposOp[0] : 'COMERCIAL',
-      'C2'  => !empty($familias) ? $familias[0] : 'HILUX',
-      'D2'  => !empty($clases) ? $clases[0] : 'VEHICULOS COMERCIALES',
-      'E2'  => 'HILUX 4X4 SRV AT',
-      'F2'  => 2025,
-      'G2'  => !empty($combustibles) ? $combustibles[0] : 'DIESEL',
-      'H2'  => !empty($tiposVehiculo) ? $tiposVehiculo[0] : 'PICK UP',
-      'I2'  => !empty($carrocerias) ? $carrocerias[0] : 'CABINA DOBLE',
-      'J2'  => !empty($tracciones) ? $tracciones[0] : '4X4',
-      'K2'  => !empty($transmisiones) ? $transmisiones[0] : 'AUTOMATICA',
-      'L2'  => !empty($monedas) ? $monedas[0] : 'USD',
-      'M2'  => '204 HP',
-      'N2'  => '3085',
-      'O2'  => '2',
-      'P2'  => '1855',
-      'Q2'  => '5335',
-      'R2'  => '1815',
-      'S2'  => '5',
-      'T2'  => '4',
-      'U2'  => '2080',
-      'V2'  => '3010',
-      'W2'  => '930',
-      'X2'  => '2755',
-      'Y2'  => '4',
-      'Z2'  => '5',
+      'A2' => 0,  // N°=0 → se ignora al importar (fila de ejemplo)
+      'B2' => !empty($tiposOp) ? $tiposOp[0] : 'COMERCIAL',
+      'C2' => !empty($familias) ? $familias[0] : 'HILUX',
+      'D2' => !empty($clases) ? $clases[0] : 'VEHICULOS COMERCIALES',
+      'E2' => 'HILUX 4X4 SRV AT',
+      'F2' => 2025,
+      'G2' => !empty($combustibles) ? $combustibles[0] : 'DIESEL',
+      'H2' => !empty($tiposVehiculo) ? $tiposVehiculo[0] : 'PICK UP',
+      'I2' => !empty($carrocerias) ? $carrocerias[0] : 'CABINA DOBLE',
+      'J2' => !empty($tracciones) ? $tracciones[0] : '4X4',
+      'K2' => !empty($transmisiones) ? $transmisiones[0] : 'AUTOMATICA',
+      'L2' => !empty($monedas) ? $monedas[0] : 'USD',
+      'M2' => '204 HP',
+      'N2' => '3085',
+      'O2' => '2',
+      'P2' => '1855',
+      'Q2' => '5335',
+      'R2' => '1815',
+      'S2' => '5',
+      'T2' => '4',
+      'U2' => '2080',
+      'V2' => '3010',
+      'W2' => '930',
+      'X2' => '2755',
+      'Y2' => '4',
+      'Z2' => '5',
       'AA2' => '4',
       'AB2' => 44800.00,
       'AC2' => 850.00,
@@ -287,7 +348,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // ── Anchos de columna ────────────────────────────────────────────────────
     $widths = [
-      'A' => 6,  'B' => 18, 'C' => 20, 'D' => 22, 'E' => 30,
+      'A' => 6, 'B' => 18, 'C' => 20, 'D' => 22, 'E' => 30,
       'F' => 10, 'G' => 18, 'H' => 18, 'I' => 20, 'J' => 18,
       'K' => 16, 'L' => 10, 'M' => 14, 'N' => 20, 'O' => 10,
       'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 14, 'T' => 14,
@@ -504,7 +565,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $existing = array_map(function (array $row) {
       $model = ApModelsVn::with(['classArticle', 'family.brand'])->find($row['id']);
       $dynamicsPayload = null;
-      $dynamicsError   = null;
+      $dynamicsError = null;
       if ($model) {
         try {
           $dynamicsPayload = (new ApModelsVnDynamicsResource($model))->toArray(request());
@@ -514,16 +575,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       }
       return array_merge($row, [
         'dynamics_payload' => $dynamicsPayload,
-        'dynamics_error'   => $dynamicsError,
+        'dynamics_error' => $dynamicsError,
       ]);
     }, $results['existing']);
 
     return [
       'rows_processed' => $results['rows_processed'],
       'existing_count' => count($existing),
-      'not_found_count'=> count($results['not_found']),
-      'existing'       => $existing,
-      'not_found'      => $results['not_found'],
+      'not_found_count' => count($results['not_found']),
+      'existing' => $existing,
+      'not_found' => $results['not_found'],
     ];
   }
 
@@ -554,19 +615,19 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     $log = ApModelsVnSyncLog::create([
       'model_vn_id' => $model->id,
-      'code'        => $model->code,
-      'status'      => ApModelsVnSyncLog::STATUS_PENDING,
-      'attempts'    => 0,
+      'code' => $model->code,
+      'status' => ApModelsVnSyncLog::STATUS_PENDING,
+      'attempts' => 0,
     ]);
 
     SyncModelVnJob::dispatch($model->id, $log->id);
 
     return [
-      'log_id'     => $log->id,
-      'model_id'   => $model->id,
-      'code'       => $model->code,
-      'status'     => $log->status,
-      'message'    => 'Job de sincronización despachado correctamente.',
+      'log_id' => $log->id,
+      'model_id' => $model->id,
+      'code' => $model->code,
+      'status' => $log->status,
+      'message' => 'Job de sincronización despachado correctamente.',
     ];
   }
 
@@ -591,9 +652,9 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     foreach ($models as $model) {
       $log = ApModelsVnSyncLog::create([
         'model_vn_id' => $model->id,
-        'code'        => $model->code,
-        'status'      => ApModelsVnSyncLog::STATUS_PENDING,
-        'attempts'    => 0,
+        'code' => $model->code,
+        'status' => ApModelsVnSyncLog::STATUS_PENDING,
+        'attempts' => 0,
       ]);
       SyncModelVnJob::dispatch($model->id, $log->id);
       $dispatched++;
@@ -640,16 +701,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $familyCode      = $familia->code;
-      $expectedPrefix  = $familyCode . substr($model->model_year, -2);
-      $currentCode     = $model->code;
+      $familyCode = $familia->code;
+      $expectedPrefix = $familyCode . substr($model->model_year, -2);
+      $currentCode = $model->code;
 
       // Año correcto en el código
       $yearOk = str_starts_with($currentCode, $expectedPrefix);
 
       // Longitud exacta: len(familyCode) + 2(año) + 3(correlativo)
       $expectedLength = strlen($expectedPrefix) + 3;
-      $correlativeOk  = strlen($currentCode) === $expectedLength
+      $correlativeOk = strlen($currentCode) === $expectedLength
         && ctype_digit(substr($currentCode, -3));
 
       // Duplicado dentro del mismo espacio de códigos (mismo tipo operación)
@@ -660,7 +721,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         ->whereNull('deleted_at')
         ->first(['id', 'locked']);
 
-      $isDuplicated      = $duplicateInScope !== null;
+      $isDuplicated = $duplicateInScope !== null;
       $duplicateIsLocked = $isDuplicated && $duplicateInScope->locked;
 
       if ($yearOk && $correlativeOk && !$isDuplicated) {
@@ -670,8 +731,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $reason = $duplicateIsLocked
         ? 'duplicado con modelo bloqueado (cede el código)'
         : (!$yearOk
-            ? 'año incorrecto en código'
-            : (!$correlativeOk ? 'correlativo inválido (' . substr($currentCode, -3) . ')' : 'código duplicado'));
+          ? 'año incorrecto en código'
+          : (!$correlativeOk ? 'correlativo inválido (' . substr($currentCode, -3) . ')' : 'código duplicado'));
 
       // Sacar temporalmente del pool para que generateNextCode no lo cuente
       DB::table('ap_models_vn')->where('id', $model->id)->update(['code' => '__FIXING__' . $model->id]);
@@ -680,11 +741,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
       // Garantizar unicidad global: si el código generado ya existe, incrementar correlativo
       $prefix = substr($newCode, 0, -3);
-      $correlative = (int) substr($newCode, -3);
+      $correlative = (int)substr($newCode, -3);
       while (
-        ApModelsVn::where('code', $newCode)
-          ->whereNull('deleted_at')
-          ->exists()
+      ApModelsVn::where('code', $newCode)
+        ->whereNull('deleted_at')
+        ->exists()
       ) {
         $correlative++;
         $newCode = $prefix . str_pad($correlative, 3, '0', STR_PAD_LEFT);
@@ -696,11 +757,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       ApModelsVnSyncLog::where('model_vn_id', $model->id)->delete();
 
       $fixed[] = [
-        'id'           => $model->id,
-        'version'      => $model->version,
-        'reason'       => $reason,
-        'old_code'     => $currentCode,
-        'new_code'     => $newCode,
+        'id' => $model->id,
+        'version' => $model->version,
+        'reason' => $reason,
+        'old_code' => $currentCode,
+        'new_code' => $newCode,
         'logs_deleted' => $deletedLogs,
       ];
     }
@@ -708,10 +769,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     Cache::forget('models.all');
 
     return [
-      'fixed'   => count($fixed),
+      'fixed' => count($fixed),
       'skipped' => count($skipped),
       'details' => $fixed,
-      'errors'  => $skipped,
+      'errors' => $skipped,
     ];
   }
 
@@ -721,7 +782,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     Excel::import($import, $file);
     $results = $import->getResults();
 
-    $hayErrores  = !empty($results['errors']);
+    $hayErrores = !empty($results['errors']);
     $totalErrors = count($results['errors']);
     $msg = "Importación completada: {$results['created']} creado(s), {$results['skipped']} omitido(s) por duplicado.";
     if ($hayErrores) {
@@ -729,15 +790,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     return [
-      'success'        => !$hayErrores,
-      'message'        => $msg,
+      'success' => !$hayErrores,
+      'message' => $msg,
       'rows_processed' => $results['rows_processed'],
-      'errors_count'   => $totalErrors,
-      'errors'         => $results['errors'],
-      'skipped'        => $results['skipped'],
-      'skipped_rows'   => $results['skipped_rows'],
-      'created'        => $results['created'],
-      'created_rows'   => $results['created_rows'],
+      'errors_count' => $totalErrors,
+      'errors' => $results['errors'],
+      'skipped' => $results['skipped'],
+      'skipped_rows' => $results['skipped_rows'],
+      'created' => $results['created'],
+      'created_rows' => $results['created_rows'],
     ];
   }
 
@@ -776,10 +837,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     $sheet->getStyle('A1:G1')->applyFromArray([
-      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-      'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
-      'borders'   => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
     ]);
     $sheet->getRowDimension(1)->setRowHeight(36);
 
@@ -796,8 +857,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $sheet->setCellValue($cell, $value);
     }
     $sheet->getStyle('A2:G2')->applyFromArray([
-      'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EBF3FB']],
-      'font'    => ['italic' => true, 'color' => ['rgb' => '555555']],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EBF3FB']],
+      'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
       'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']]],
     ]);
 
@@ -869,10 +930,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     $headerStyle = [
-      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-      'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
-      'borders'   => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
     ];
     $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
     $sheet->getRowDimension(1)->setRowHeight(30);
@@ -902,7 +963,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // Anchos
     $widths = ['A' => 38, 'B' => 16, 'C' => 8, 'D' => 10, 'E' => 16, 'F' => 16,
-               'G' => 16, 'H' => 24, 'I' => 18, 'J' => 18, 'K' => 12, 'L' => 18];
+      'G' => 16, 'H' => 24, 'I' => 18, 'J' => 18, 'K' => 12, 'L' => 18];
     foreach ($widths as $col => $w) {
       $sheet->getColumnDimension($col)->setWidth($w);
     }
@@ -941,16 +1002,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $reader->setReadDataOnly(true);
     }
     $spreadsheet = $reader->load($file->getPathname());
-    $sheet       = $spreadsheet->getActiveSheet();
-    $highestRow  = $sheet->getHighestRow();
-    $highestCol  = $sheet->getHighestColumn();
+    $sheet = $spreadsheet->getActiveSheet();
+    $highestRow = $sheet->getHighestRow();
+    $highestCol = $sheet->getHighestColumn();
 
     // Leer cabeceras de la fila 1 y mapear columnas por nombre
     $headers = [];
     $colIndex = 1;
     while (true) {
       $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
-      $header    = trim((string) $sheet->getCell("{$colLetter}1")->getValue());
+      $header = trim((string)$sheet->getCell("{$colLetter}1")->getValue());
       if ($header === '' && $colIndex > 1) break;
       $headers[$colLetter] = $header;
       if ($colLetter === $highestCol) break;
@@ -958,14 +1019,14 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     // Identificar columnas clave (case-insensitive)
-    $colVersion   = null;
+    $colVersion = null;
     $colModelYear = null;
-    $colFuel      = null;
+    $colFuel = null;
     foreach ($headers as $letter => $name) {
       $normalized = mb_strtoupper(trim($name));
-      if ($normalized === 'VERSION')    $colVersion   = $letter;
+      if ($normalized === 'VERSION') $colVersion = $letter;
       if ($normalized === 'AÑO MODELO') $colModelYear = $letter;
-      if ($normalized === 'COMBUSTIBLE') $colFuel     = $letter;
+      if ($normalized === 'COMBUSTIBLE') $colFuel = $letter;
     }
 
     if (!$colVersion || !$colModelYear || !$colFuel) {
@@ -984,8 +1045,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       ->get();
 
     // Normaliza espacios: reemplaza no-breaking spaces y colapsa múltiples espacios
-    $normalizeVersion = fn(string $v): string =>
-      mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($v)));
+    $normalizeVersion = fn(string $v): string => mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($v)));
 
     // Agrupar por (version_upper|model_year|fuel_id) para búsqueda O(1)
     $modelIndex = [];
@@ -998,9 +1058,9 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     // Determinar columna de salida (siguiente tras la última)
-    $lastColIndex   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
-    $codeColLetter  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 1);
-    $obsColLetter   = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 2);
+    $lastColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+    $codeColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 1);
+    $obsColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex + 2);
 
     // Cabeceras nuevas
     $headerStyle = [
@@ -1025,15 +1085,15 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     ];
 
     for ($row = 2; $row <= $highestRow; $row++) {
-      $rawVersion   = trim((string) $sheet->getCell("{$colVersion}{$row}")->getValue());
-      $rawModelYear = trim((string) $sheet->getCell("{$colModelYear}{$row}")->getValue());
-      $rawFuel      = trim((string) $sheet->getCell("{$colFuel}{$row}")->getValue());
+      $rawVersion = trim((string)$sheet->getCell("{$colVersion}{$row}")->getValue());
+      $rawModelYear = trim((string)$sheet->getCell("{$colModelYear}{$row}")->getValue());
+      $rawFuel = trim((string)$sheet->getCell("{$colFuel}{$row}")->getValue());
 
       // Fila vacía → saltar
       if ($rawVersion === '' && $rawModelYear === '' && $rawFuel === '') continue;
 
       $versionUp = $normalizeVersion($rawVersion);
-      $fuelUp    = mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($rawFuel)));
+      $fuelUp = mb_strtoupper(preg_replace('/[\s\x{00A0}]+/u', ' ', trim($rawFuel)));
 
       // Buscar combustible
       $fuelRecord = $fuelMap[$fuelUp] ?? null;
@@ -1053,7 +1113,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $key  = "{$versionUp}|{$rawModelYear}|{$fuelRecord->id}";
+      $key = "{$versionUp}|{$rawModelYear}|{$fuelRecord->id}";
       $code = $modelIndex[$key] ?? null;
 
       if ($code) {
@@ -1067,7 +1127,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           $obs = "No se encontró ningún modelo con versión \"{$rawVersion}\".";
         } else {
           $byVersionYear = collect($models)->first(
-            fn($m) => $normalizeVersion($m->version) === $versionUp && (string) $m->model_year === (string) $rawModelYear
+            fn($m) => $normalizeVersion($m->version) === $versionUp && (string)$m->model_year === (string)$rawModelYear
           );
           if (!$byVersionYear) {
             $obs = "Versión encontrada, pero no con año {$rawModelYear}.";
@@ -1098,28 +1158,28 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       $reader->setReadDataOnly(true);
     }
     $spreadsheet = $reader->load($file->getPathname());
-    $sheet       = $spreadsheet->getActiveSheet();
-    $highestRow  = $sheet->getHighestRow();
-    $highestCol  = $sheet->getHighestColumn();
+    $sheet = $spreadsheet->getActiveSheet();
+    $highestRow = $sheet->getHighestRow();
+    $highestCol = $sheet->getHighestColumn();
 
     // Map headers from row 1 (uppercase normalized)
-    $colMap   = [];
+    $colMap = [];
     $colIndex = 1;
     while (true) {
       $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
-      $header = mb_strtoupper(trim(str_replace('*', '', (string) $sheet->getCell("{$letter}1")->getValue())));
+      $header = mb_strtoupper(trim(str_replace('*', '', (string)$sheet->getCell("{$letter}1")->getValue())));
       if ($header === '' && $colIndex > 1) break;
       $colMap[$header] = $letter;
       if ($letter === $highestCol) break;
       $colIndex++;
     }
 
-    $cCodigo = $colMap['CODIGO']         ?? null;
-    $cSerie  = $colMap['SERIE']          ?? null;
-    $cSitio  = $colMap['SITIOID']        ?? null;
-    $cQty    = $colMap['CANTIDAD']       ?? null;
+    $cCodigo = $colMap['CODIGO'] ?? null;
+    $cSerie = $colMap['SERIE'] ?? null;
+    $cSitio = $colMap['SITIOID'] ?? null;
+    $cQty = $colMap['CANTIDAD'] ?? null;
     $cUPrice = $colMap['COSTO UNITARIO'] ?? null;
-    $cTotal  = $colMap['COSTO TOTAL']    ?? null;
+    $cTotal = $colMap['COSTO TOTAL'] ?? null;
 
     if (!$cCodigo || !$cSerie || !$cSitio) {
       throw new Exception('El archivo no contiene las columnas requeridas: CODIGO, SERIE, SITIOID.');
@@ -1141,19 +1201,19 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new \Exception('No se ha registrado el tipo de cambio para hoy.');
     }
 
-    $results    = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
+    $results = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
     $uploadDate = now();
 
     for ($row = 2; $row <= $highestRow; $row++) {
-      $rawCodigo = mb_strtoupper(trim((string) $sheet->getCell("{$cCodigo}{$row}")->getValue()));
-      $rawSerie  = trim((string) $sheet->getCell("{$cSerie}{$row}")->getValue());
-      $rawSitio  = trim((string) $sheet->getCell("{$cSitio}{$row}")->getValue());
+      $rawCodigo = mb_strtoupper(trim((string)$sheet->getCell("{$cCodigo}{$row}")->getValue()));
+      $rawSerie = trim((string)$sheet->getCell("{$cSerie}{$row}")->getValue());
+      $rawSitio = trim((string)$sheet->getCell("{$cSitio}{$row}")->getValue());
 
       if ($rawCodigo === '' && $rawSerie === '') continue;
 
-      $rawQty    = $cQty    ? (float) $sheet->getCell("{$cQty}{$row}")->getValue()    : 1;
-      $rawUPrice = $cUPrice ? (float) $sheet->getCell("{$cUPrice}{$row}")->getValue() : 0;
-      $rawTotal  = $cTotal  ? (float) $sheet->getCell("{$cTotal}{$row}")->getValue()  : 0;
+      $rawQty = $cQty ? (float)$sheet->getCell("{$cQty}{$row}")->getValue() : 1;
+      $rawUPrice = $cUPrice ? (float)$sheet->getCell("{$cUPrice}{$row}")->getValue() : 0;
+      $rawTotal = $cTotal ? (float)$sheet->getCell("{$cTotal}{$row}")->getValue() : 0;
 
       DB::beginTransaction();
 
@@ -1167,7 +1227,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           throw new Exception("Código de modelo no encontrado: \"{$rawCodigo}\".");
         }
 
-        $sitioUp   = mb_strtoupper(trim($rawSitio));
+        $sitioUp = mb_strtoupper(trim($rawSitio));
         $warehouse = $warehouseMap[$sitioUp] ?? null;
 
         $existingVehicle = Vehicles::where('vin', $rawSerie)->first();
@@ -1178,110 +1238,110 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           }
           $existingVehicle->update([
             'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-            'ap_models_vn_id'   => $modelRecord->id,
+            'ap_models_vn_id' => $modelRecord->id,
           ]);
           $vehicle = $existingVehicle->fresh();
         } else {
           $vehicle = Vehicles::create([
-            'vin'                  => $rawSerie,
-            'engine_number'        => 'SI-' . $rawSerie,
-            'year'                 => (int) $modelRecord->model_year,
-            'ap_models_vn_id'      => $modelRecord->id,
-            'warehouse_id'         => $warehouse?->id,
-            'vehicle_color_id'     => ApMasters::COLOR_OTHERS_ID,
-            'engine_type_id'       => ApMasters::ENGINE_TYPE_OTHERS_ID,
+            'vin' => $rawSerie,
+            'engine_number' => 'SI-' . $rawSerie,
+            'year' => (int)$modelRecord->model_year,
+            'ap_models_vn_id' => $modelRecord->id,
+            'warehouse_id' => $warehouse?->id,
+            'vehicle_color_id' => ApMasters::COLOR_OTHERS_ID,
+            'engine_type_id' => ApMasters::ENGINE_TYPE_OTHERS_ID,
             'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-            'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
-            'status'               => true,
+            'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
+            'status' => true,
           ]);
         }
 
         $movPedido = VehicleMovement::create([
-          'movement_type'        => VehicleMovement::ORDERED,
-          'ap_vehicle_id'        => $vehicle->id,
+          'movement_type' => VehicleMovement::ORDERED,
+          'ap_vehicle_id' => $vehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-          'previous_status_id'   => null,
-          'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
-          'movement_date'        => $uploadDate,
-          'observation'          => 'Saldo inicial',
+          'previous_status_id' => null,
+          'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+          'movement_date' => $uploadDate,
+          'observation' => 'Saldo inicial',
         ]);
 
         VehicleMovement::create([
-          'movement_type'        => VehicleMovement::IN_TRANSIT,
-          'ap_vehicle_id'        => $vehicle->id,
+          'movement_type' => VehicleMovement::IN_TRANSIT,
+          'ap_vehicle_id' => $vehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'previous_status_id'   => ApVehicleStatus::PEDIDO_VN,
-          'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'movement_date'        => $uploadDate,
-          'observation'          => 'Saldo inicial - tránsito',
+          'previous_status_id' => ApVehicleStatus::PEDIDO_VN,
+          'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'movement_date' => $uploadDate,
+          'observation' => 'Saldo inicial - tránsito',
         ]);
 
         VehicleMovement::create([
-          'movement_type'        => VehicleMovement::INVENTORY,
-          'ap_vehicle_id'        => $vehicle->id,
+          'movement_type' => VehicleMovement::INVENTORY,
+          'ap_vehicle_id' => $vehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'previous_status_id'   => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
-          'movement_date'        => $uploadDate,
-          'observation'          => 'Saldo inicial - ingreso a inventario',
+          'previous_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'movement_date' => $uploadDate,
+          'observation' => 'Saldo inicial - ingreso a inventario',
         ]);
 
         $correlative = (DB::table('ap_purchase_order')->max('number_correlative') ?? 0) + 1;
 
         $po = PurchaseOrder::create([
-          'number'              => 'SI-' . $rawSerie,
-          'number_correlative'  => $correlative,
-          'number_guide'        => 'SI-' . $rawSerie,
-          'invoice_series'      => 'SI',
-          'invoice_number'      => $rawSerie,
-          'supplier_id'         => 4, // DERCO PERU S.A.
-          'currency_id'         => 1, // USD - DOLAR AMERICANO
-          'exchange_rate_id'    => $exchangeRate->id,
-          'created_by'          => auth()->id(),
+          'number' => 'SI-' . $rawSerie,
+          'number_correlative' => $correlative,
+          'number_guide' => 'SI-' . $rawSerie,
+          'invoice_series' => 'SI',
+          'invoice_number' => $rawSerie,
+          'supplier_id' => 4, // DERCO PERU S.A.
+          'currency_id' => 1, // USD - DOLAR AMERICANO
+          'exchange_rate_id' => $exchangeRate->id,
+          'created_by' => auth()->id(),
           'vehicle_movement_id' => $movPedido->id,
-          'emission_date'       => $uploadDate->toDateString(),
-          'subtotal'            => round($rawTotal / 1.18, 2),
-          'igv'                 => round($rawTotal - $rawTotal / 1.18, 2),
-          'total'               => $rawTotal,
-          'sede_id'             => $warehouse?->sede_id,
-          'warehouse_id'        => $warehouse?->id,
-          'type_operation_id'   => ApMasters::TIPO_OPERACION_COMERCIAL,
-          'migration_status'    => 'completed',
-          'migrated_at'         => $uploadDate,
-          'invoice_dynamics'    => 'SI-' . $rawSerie,
-          'receipt_dynamics'    => 'SI-' . $rawSerie,
-          'status'              => true,
-          'notes'               => 'Saldo inicial importado desde Excel',
+          'emission_date' => $uploadDate->toDateString(),
+          'subtotal' => round($rawTotal / 1.18, 2),
+          'igv' => round($rawTotal - $rawTotal / 1.18, 2),
+          'total' => $rawTotal,
+          'sede_id' => $warehouse?->sede_id,
+          'warehouse_id' => $warehouse?->id,
+          'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
+          'migration_status' => 'completed',
+          'migrated_at' => $uploadDate,
+          'invoice_dynamics' => 'SI-' . $rawSerie,
+          'receipt_dynamics' => 'SI-' . $rawSerie,
+          'status' => true,
+          'notes' => 'Saldo inicial importado desde Excel',
         ]);
 
         PurchaseOrderItem::create([
           'purchase_order_id' => $po->id,
-          'is_vehicle'        => true,
-          'description'       => $modelRecord->version,
-          'unit_price'        => $rawUPrice,
-          'quantity'          => $rawQty,
+          'is_vehicle' => true,
+          'description' => $modelRecord->version,
+          'unit_price' => $rawUPrice,
+          'quantity' => $rawQty,
           'quantity_received' => $rawQty,
-          'quantity_pending'  => 0,
-          'total'             => $rawTotal,
+          'quantity_pending' => 0,
+          'total' => $rawTotal,
         ]);
 
         if ($preview) {
           DB::rollBack();
           $results['rows'][] = [
-            'row'    => $row,
-            'vin'    => $rawSerie,
-            'code'   => $rawCodigo,
-            'sitio'  => $sitioUp,
+            'row' => $row,
+            'vin' => $rawSerie,
+            'code' => $rawCodigo,
+            'sitio' => $sitioUp,
             'status' => 'preview_ok',
           ];
         } else {
           DB::commit();
           $results['created']++;
           $results['rows'][] = [
-            'row'    => $row,
-            'vin'    => $rawSerie,
-            'code'   => $rawCodigo,
-            'sitio'  => $sitioUp,
+            'row' => $row,
+            'vin' => $rawSerie,
+            'code' => $rawCodigo,
+            'sitio' => $sitioUp,
             'status' => 'created',
           ];
         }
@@ -1289,12 +1349,12 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         DB::rollBack();
         $results['errors']++;
         $results['rows'][] = [
-          'row'    => $row,
-          'vin'    => $rawSerie,
-          'code'   => $rawCodigo ?? '',
-          'sitio'  => isset($sitioUp) ? $sitioUp : mb_strtoupper(trim((string) $sheet->getCell("{$cSitio}{$row}")->getValue())),
+          'row' => $row,
+          'vin' => $rawSerie,
+          'code' => $rawCodigo ?? '',
+          'sitio' => isset($sitioUp) ? $sitioUp : mb_strtoupper(trim((string)$sheet->getCell("{$cSitio}{$row}")->getValue())),
           'status' => 'error',
-          'error'  => $th->getMessage(),
+          'error' => $th->getMessage(),
         ];
       }
     }
