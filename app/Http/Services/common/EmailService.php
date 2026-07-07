@@ -17,7 +17,7 @@ class EmailService
         $config['attachments'] ?? []
       );
 
-      $ticsMail = [];
+      $ticsMail = config('mail.tics') ?? [];
 
       $mailsTo = [
         ...(array)($config['to'] ?? []),
