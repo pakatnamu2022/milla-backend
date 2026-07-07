@@ -728,13 +728,9 @@ class OpGoalTravelService extends BaseService
      */
     public function getAnalisisEstrategico(): array
     {
-        // $yearActual = (int) date('Y');
-        // $monthActual = (int) date('m');
+        $yearActual = (int) date('Y');
+        $monthActual = (int) date('m');
 
-        $yearActual = 2024;
-        $monthActual = 3;
-
-        // 1. Tendencia últimos 6 meses
         $tendencia = [];
         for ($i = 5; $i >= 0; $i--) {
             $mes = $monthActual - $i;
