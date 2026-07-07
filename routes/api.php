@@ -1374,6 +1374,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
       Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
 
+      // Vehicles Delivery - Stock Inicial
+      Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
+      Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
+
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);

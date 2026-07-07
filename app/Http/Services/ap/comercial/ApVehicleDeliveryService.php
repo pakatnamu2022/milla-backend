@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\ApVehicleDeliveryResource;
 use App\Http\Resources\ap\comercial\ShippingGuidesResource;
+use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
@@ -11,6 +12,9 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\VehicleMovement;
+use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\comercial\BusinessPartners;
@@ -334,39 +338,39 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
         // Crear la guía de remisión
         $shippingGuideData = [
-          'document_type' => 'GUIA_REMISION',
-          'type_voucher_id' => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
-          'issuer_type' => ShippingGuides::ISSUER_TYPE_SYSTEM,
-          'document_series_id' => $documentSeriesId,
-          'series' => $series,
-          'correlative' => $correlative,
-          'document_number' => $documentNumber,
-          'issue_date' => now(),
-          'requires_sunat' => true,
-          'vehicle_movement_id' => $vehicleMovement->id,
-          'sede_transmitter_id' => $record->sede_id,
-          'sede_receiver_id' => $record->sede_id,
-          'transmitter_id' => $originEstablishment->id,
-          'receiver_id' => $originEstablishment->id,
-          'transport_company_id' => $transportCompanyId,
-          'driver_doc' => $data['driver_doc'],
-          'driver_name' => $data['driver_name'],
-          'license' => $data['license'] ?? null,
-          'plate' => $data['plate'] ?? '',
-          'notes' => $data['notes'] ?? 'ENTREGA DE VEHÍCULO VENDIDO',
-          'status' => true,
-          'transfer_reason_id' => SunatConcepts::TRANSFER_REASON_VENTA,
-          'transfer_modality_id' => $data['transfer_modality_id'],
-          'created_by' => auth()->id(),
-          'ap_class_article_id' => $record->ap_class_article_id,
-          'origin_ubigeo' => $originUbigeo,
-          'origin_address' => $originAddress,
-          'destination_ubigeo' => $destinationUbigeo,
-          'destination_address' => $destinationAddress,
-          'ruc_transport' => $data['carrier_ruc'] ?? null,
+          'document_type'          => 'GUIA_REMISION',
+          'type_voucher_id'        => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
+          'issuer_type'            => ShippingGuides::ISSUER_TYPE_SYSTEM,
+          'document_series_id'     => $documentSeriesId,
+          'series'                 => $series,
+          'correlative'            => $correlative,
+          'document_number'        => $documentNumber,
+          'issue_date'             => now(),
+          'requires_sunat'         => true,
+          'vehicle_movement_id'    => $vehicleMovement->id,
+          'sede_transmitter_id'    => $record->sede_id,
+          'sede_receiver_id'       => $record->sede_id,
+          'transmitter_id'         => $originEstablishment->id,
+          'receiver_id'            => $originEstablishment->id,
+          'transport_company_id'   => $transportCompanyId,
+          'driver_doc'             => $data['driver_doc'],
+          'driver_name'            => $data['driver_name'],
+          'license'                => $data['license'] ?? null,
+          'plate'                  => $data['plate'] ?? '',
+          'notes'                  => $data['notes'] ?? 'ENTREGA DE VEHÍCULO VENDIDO',
+          'status'                 => true,
+          'transfer_reason_id'     => SunatConcepts::TRANSFER_REASON_VENTA,
+          'transfer_modality_id'   => $data['transfer_modality_id'],
+          'created_by'             => auth()->id(),
+          'ap_class_article_id'    => $record->ap_class_article_id,
+          'origin_ubigeo'          => $originUbigeo,
+          'origin_address'         => $originAddress,
+          'destination_ubigeo'     => $destinationUbigeo,
+          'destination_address'    => $destinationAddress,
+          'ruc_transport'          => $data['carrier_ruc'] ?? null,
           'company_name_transport' => $data['company_name_transport'] ?? null,
-          'net_weight' => 1,
-          'total_weight' => preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight),
+          'net_weight'             => 1,
+          'total_weight'           => preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight),
         ];
 
         $shippingGuide = ShippingGuides::create($shippingGuideData);
@@ -416,22 +420,22 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $responseData = $response['data'];
 
         $shippingGuide->update([
-          'enlace' => $responseData['enlace'] ?? null,
-          'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? null,
-          'enlace_del_xml' => $responseData['enlace_del_xml'] ?? null,
-          'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? null,
+          'enlace'                => $responseData['enlace'] ?? null,
+          'enlace_del_pdf'        => $responseData['enlace_del_pdf'] ?? null,
+          'enlace_del_xml'        => $responseData['enlace_del_xml'] ?? null,
+          'enlace_del_cdr'        => $responseData['enlace_del_cdr'] ?? null,
           'cadena_para_codigo_qr' => $responseData['cadena_para_codigo_qr'] ?? null,
-          'sunat_description' => $responseData['sunat_description'] ?? null,
-          'sunat_note' => $responseData['sunat_note'] ?? null,
-          'sunat_responsecode' => $responseData['sunat_responsecode'] ?? null,
-          'sunat_soap_error' => $responseData['sunat_soap_error'] ?? null,
+          'sunat_description'     => $responseData['sunat_description'] ?? null,
+          'sunat_note'            => $responseData['sunat_note'] ?? null,
+          'sunat_responsecode'    => $responseData['sunat_responsecode'] ?? null,
+          'sunat_soap_error'      => $responseData['sunat_soap_error'] ?? null,
         ]);
 
         // Verificar si fue aceptada por SUNAT
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat']) {
           $shippingGuide->markAsAccepted($responseData);
           $vehicleDelivery->update([
-            'status_nubefact' => true,
+            'status_nubefact'    => true,
             'real_delivery_date' => now()
           ]);
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
@@ -448,10 +452,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       DB::commit();
 
       return response()->json([
-        'success' => $response['success'],
-        'message' => $message,
-        'data' => new ApVehicleDeliveryResource($vehicleDelivery->fresh()),
-        'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
+        'success'           => $response['success'],
+        'message'           => $message,
+        'data'              => new ApVehicleDeliveryResource($vehicleDelivery->fresh()),
+        'shipping_guide'    => new ShippingGuidesResource($shippingGuide->fresh()),
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
@@ -491,15 +495,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         } else {
           // Actualizar los enlaces aunque no esté aceptada aún
           $shippingGuide->update([
-            'enlace' => $responseData['enlace'] ?? $shippingGuide->enlace,
+            'enlace'         => $responseData['enlace'] ?? $shippingGuide->enlace,
             'enlace_del_pdf' => $responseData['enlace_del_pdf'] ?? $shippingGuide->enlace_del_pdf,
             'enlace_del_xml' => $responseData['enlace_del_xml'] ?? $shippingGuide->enlace_del_xml,
             'enlace_del_cdr' => $responseData['enlace_del_cdr'] ?? $shippingGuide->enlace_del_cdr,
           ]);
           if ($responseData['sunat_soap_error'] !== '') {
             $shippingGuide->update([
-              'aceptada_por_sunat' => false,
-              'cancelled_at' => now(),
+              'aceptada_por_sunat'  => false,
+              'cancelled_at'        => now(),
               'cancellation_reason' => 'Error en SOAP: ' . $responseData['sunat_soap_error'],
             ]);
             $vehicleDelivery->update(['sent_at' => null]);
@@ -512,14 +516,88 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       }
 
       return response()->json([
-        'success' => $response['success'],
-        'message' => $message,
-        'data' => new ApVehicleDeliveryResource($vehicleDelivery->fresh()),
-        'shipping_guide' => new ShippingGuidesResource($shippingGuide->fresh()),
+        'success'           => $response['success'],
+        'message'           => $message,
+        'data'              => new ApVehicleDeliveryResource($vehicleDelivery->fresh()),
+        'shipping_guide'    => new ShippingGuidesResource($shippingGuide->fresh()),
         'nubefact_response' => $response['data'] ?? null
       ]);
     } catch (Exception $e) {
       throw new Exception('Error al consultar la guía en Nubefact: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Lista los vehículos de stock inicial (compra con '%SI-%') en estado VENDIDO NO ENTREGADO
+   * que aún no tienen una entrega registrada.
+   */
+  public function listStockInicialVehicles(?int $sedeId = null)
+  {
+    $vehicleIds = PurchaseOrder::whereNull('deleted_at')
+      ->where('number', 'like', '%SI-%')
+      ->whereHas('vehicleMovement', function ($q) {
+        $q->whereNotNull('ap_vehicle_id');
+      })
+      ->with('vehicleMovement')
+      ->get()
+      ->pluck('vehicleMovement.ap_vehicle_id')
+      ->filter()
+      ->unique()
+      ->values();
+
+    $deliveredVehicleIds = ApVehicleDelivery::whereNull('deleted_at')
+      ->pluck('vehicle_id');
+
+    $query = Vehicles::whereIn('id', $vehicleIds)
+      ->whereNotIn('id', $deliveredVehicleIds)
+      ->where('ap_vehicle_status_id', ApVehicleStatus::VENDIDO_NO_ENTREGADO)
+      ->with(['model', 'color', 'vehicleStatus']);
+
+    if ($sedeId) {
+      $query->whereHas('warehousePhysical', fn($q) => $q->where('sede_id', $sedeId));
+    }
+
+    return VehiclesResource::collection($query->get());
+  }
+
+  /**
+   * Crea una entrega para un vehículo de stock inicial.
+   * El lavado se marca como completado por defecto.
+   * El advisor_id proviene del request (no del usuario autenticado).
+   */
+  public function storeStockInicial(mixed $data): ApVehicleDeliveryResource
+  {
+    try {
+      return DB::transaction(function () use ($data) {
+        $vehicle = Vehicles::findOrFail($data['vehicle_id']);
+
+        // Reutilizar el movimiento SOLD_NOT_DELIVERED ya existente
+        $vehicleMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+          ->where('movement_type', VehicleMovement::SOLD_NOT_DELIVERED)
+          ->latest()
+          ->first();
+
+        $deliveryData = [
+          'advisor_id'              => $data['advisor_id'],
+          'vehicle_id'              => $data['vehicle_id'],
+          'sede_id'                 => $data['sede_id'],
+          'ap_class_article_id'     => $data['ap_class_article_id'],
+          'scheduled_delivery_date' => $data['scheduled_delivery_date'],
+          'wash_date'               => now()->toDateString(),
+          'real_wash_date'          => now(),
+          'status_wash'             => 'completed',
+          'status_delivery'         => 'pending',
+          'observations'            => $data['observations'] ?? null,
+          'client_id'               => null,
+          'vehicle_movement_id'     => $vehicleMovement?->id,
+        ];
+
+        $vehicleDelivery = ApVehicleDelivery::create($deliveryData);
+
+        return new ApVehicleDeliveryResource($vehicleDelivery);
+      });
+    } catch (Exception $e) {
+      throw new Exception('Error al crear la entrega de stock inicial: ' . $e->getMessage());
     }
   }
 
