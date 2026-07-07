@@ -10,9 +10,14 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
+use App\Http\Utils\Constants;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -330,18 +335,18 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // ── Estilo de cabecera ───────────────────────────────────────────────────
     $headerStyle = [
-      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '1F4E79']],
+      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill'      => ['fillType' => 'solid', 'startColor' => ['rgb' => '1F4E79']],
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
-      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+      'borders'   => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
     ];
     $sheet->getStyle('A1:AE1')->applyFromArray($headerStyle);
     $sheet->getRowDimension(1)->setRowHeight(40);
 
     // ── Estilo de fila de ejemplo ────────────────────────────────────────────
     $exampleStyle = [
-      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EBF3FB']],
-      'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
+      'fill'    => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EBF3FB']],
+      'font'    => ['italic' => true, 'color' => ['rgb' => '555555']],
       'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']]],
     ];
     $sheet->getStyle('A2:AE2')->applyFromArray($exampleStyle);
@@ -449,8 +454,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }
 
     $info->getStyle('A5:D5')->applyFromArray([
-      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '2F75B6']],
+      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+      'fill'      => ['fillType' => 'solid', 'startColor' => ['rgb' => '2F75B6']],
       'alignment' => ['horizontal' => 'center'],
     ]);
     foreach (['A' => 35, 'B' => 65, 'C' => 25, 'D' => 14] as $c => $w) {
@@ -506,17 +511,17 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     $sheet->setCellValue('D2', !empty($combustibles) ? $combustibles[0] : 'DIESEL');
 
     $headerStyle = [
-      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '1F4E79']],
+      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+      'fill'      => ['fillType' => 'solid', 'startColor' => ['rgb' => '1F4E79']],
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
-      'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
+      'borders'   => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'FFFFFF']]],
     ];
     $sheet->getStyle('A1:D1')->applyFromArray($headerStyle);
     $sheet->getRowDimension(1)->setRowHeight(40);
 
     $exampleStyle = [
-      'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EBF3FB']],
-      'font' => ['italic' => true, 'color' => ['rgb' => '555555']],
+      'fill'    => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EBF3FB']],
+      'font'    => ['italic' => true, 'color' => ['rgb' => '555555']],
       'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'CCCCCC']]],
     ];
     $sheet->getStyle('A2:D2')->applyFromArray($exampleStyle);
@@ -580,11 +585,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     }, $results['existing']);
 
     return [
-      'rows_processed' => $results['rows_processed'],
-      'existing_count' => count($existing),
+      'rows_processed'  => $results['rows_processed'],
+      'existing_count'  => count($existing),
       'not_found_count' => count($results['not_found']),
-      'existing' => $existing,
-      'not_found' => $results['not_found'],
+      'existing'        => $existing,
+      'not_found'       => $results['not_found'],
     ];
   }
 
@@ -623,11 +628,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     SyncModelVnJob::dispatch($model->id, $log->id);
 
     return [
-      'log_id' => $log->id,
+      'log_id'   => $log->id,
       'model_id' => $model->id,
-      'code' => $model->code,
-      'status' => $log->status,
-      'message' => 'Job de sincronización despachado correctamente.',
+      'code'     => $model->code,
+      'status'   => $log->status,
+      'message'  => 'Job de sincronización despachado correctamente.',
     ];
   }
 
@@ -1064,8 +1069,8 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     // Cabeceras nuevas
     $headerStyle = [
-      'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-      'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+      'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+      'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
       'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
     ];
     $sheet->setCellValue("{$codeColLetter}1", 'Código Modelo');
@@ -1152,7 +1157,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function importInitialStockFromExcel(UploadedFile $file): array
   {
-    $preview = true; // cambiar a false para persistir
+    $preview = false; // cambiar a false para persistir
     $reader = IOFactory::createReaderForFile($file->getPathname());
     if (method_exists($reader, 'setReadDataOnly')) {
       $reader->setReadDataOnly(true);
@@ -1187,22 +1192,34 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     $modelIndex = ApModelsVn::whereNull('deleted_at')
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->select(['id', 'code', 'version', 'model_year'])
+      ->select(['id', 'code', 'version', 'model_year', 'class_id'])
       ->get()
       ->keyBy(fn($m) => mb_strtoupper(trim($m->code)));
 
+    // Clave compuesta dyn_code|article_class_id para distinguir bodegas del mismo sitio por categoría de vehículo
     $warehouseMap = Warehouse::whereNull('deleted_at')
       ->where('status', true)
       ->get()
-      ->keyBy(fn($w) => mb_strtoupper(trim($w->dyn_code ?? '')));
+      ->keyBy(fn($w) => mb_strtoupper(trim($w->dyn_code ?? '')) . '|' . ($w->article_class_id ?? ''));
 
-    $exchangeRate = \App\Models\gp\maestroGeneral\ExchangeRate::where('date', now()->toDateString())->first();
+    $uploadDate = \Carbon\Carbon::parse('2026-06-30');
+
+    $exchangeRate = \App\Models\gp\maestroGeneral\ExchangeRate::where('date', $uploadDate->toDateString())->first();
     if (!$exchangeRate) {
-      throw new \Exception('No se ha registrado el tipo de cambio para hoy.');
+      throw new \Exception('No se ha registrado el tipo de cambio para el 30 de junio de 2026.');
     }
 
     $results = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
-    $uploadDate = now();
+
+    $checklistItems = ApDeliveryReceivingChecklist::where('status', true)->get();
+    $placeholderPhotoUrl = url('images/ap/body_car.png');
+
+    $dercoPartner = BusinessPartners::find(4);
+    $dercoEstablishment = BusinessPartnersEstablishment::where('business_partner_id', 4)->first();
+    $automotoresEstablishments = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+      ->get()
+      ->keyBy('sede_id');
+    $automotoresFallbackEstablishment = $automotoresEstablishments->first();
 
     for ($row = 2; $row <= $highestRow; $row++) {
       $rawCodigo = mb_strtoupper(trim((string)$sheet->getCell("{$cCodigo}{$row}")->getValue()));
@@ -1228,7 +1245,11 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         }
 
         $sitioUp = mb_strtoupper(trim($rawSitio));
-        $warehouse = $warehouseMap[$sitioUp] ?? null;
+        $warehouse = $warehouseMap[$sitioUp . '|' . ($modelRecord->class_id ?? '')] ?? null;
+
+        // EXR = "existencias por recibir" → vehículo llega hasta EN TRÁNSITO
+        $isPorRecibir = $warehouse && str_starts_with(mb_strtoupper($warehouse->dyn_code ?? ''), 'EXR');
+        $finalStatus = $isPorRecibir ? ApVehicleStatus::VEHICULO_EN_TRAVESIA : ApVehicleStatus::INVENTARIO_VN;
 
         $existingVehicle = Vehicles::where('vin', $rawSerie)->first();
 
@@ -1237,22 +1258,23 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             throw new Exception("El VIN \"{$rawSerie}\" ya existe y no es de postventa.");
           }
           $existingVehicle->update([
-            'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-            'ap_models_vn_id' => $modelRecord->id,
+            'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
+            'ap_models_vn_id'      => $modelRecord->id,
+            'ap_vehicle_status_id' => $finalStatus,
           ]);
           $vehicle = $existingVehicle->fresh();
         } else {
           $vehicle = Vehicles::create([
-            'vin' => $rawSerie,
-            'engine_number' => 'SI-' . $rawSerie,
-            'year' => (int)$modelRecord->model_year,
-            'ap_models_vn_id' => $modelRecord->id,
-            'warehouse_id' => $warehouse?->id,
-            'vehicle_color_id' => ApMasters::COLOR_OTHERS_ID,
-            'engine_type_id' => ApMasters::ENGINE_TYPE_OTHERS_ID,
-            'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-            'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-            'status' => true,
+            'vin'                  => $rawSerie,
+            'engine_number'        => 'SI-' . $rawSerie,
+            'year'                 => (int)$modelRecord->model_year,
+            'ap_models_vn_id'      => $modelRecord->id,
+            'warehouse_id'         => $warehouse?->id,
+            'vehicle_color_id'     => ApMasters::COLOR_OTHERS_ID,
+            'engine_type_id'       => ApMasters::ENGINE_TYPE_OTHERS_ID,
+            'ap_vehicle_status_id' => $finalStatus,
+            'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
+            'status'               => true,
           ]);
         }
 
@@ -1276,42 +1298,106 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'observation' => 'Saldo inicial - tránsito',
         ]);
 
-        VehicleMovement::create([
-          'movement_type' => VehicleMovement::INVENTORY,
-          'ap_vehicle_id' => $vehicle->id,
-          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'previous_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'movement_date' => $uploadDate,
-          'observation' => 'Saldo inicial - ingreso a inventario',
-        ]);
+        $shippingGuide = null;
+        if (!$isPorRecibir) {
+          $movInventario = VehicleMovement::create([
+            'movement_type'        => VehicleMovement::INVENTORY,
+            'ap_vehicle_id'        => $vehicle->id,
+            'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+            'previous_status_id'   => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+            'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
+            'movement_date'        => $uploadDate,
+            'observation'          => 'Saldo inicial - ingreso a inventario',
+          ]);
+
+          $automotoresEstablishment = $automotoresEstablishments[$warehouse?->sede_id] ?? $automotoresFallbackEstablishment;
+
+          $shippingGuide = ShippingGuides::create([
+            'document_type'          => ShippingGuides::DOCUMENT_TYPE_GR,
+            'issuer_type'            => ShippingGuides::ISSUER_TYPE_SUPPLIER,
+            'series'                 => 'SI',
+            'correlative'            => $rawSerie,
+            'document_number'        => 'SI-' . $rawSerie,
+            'issue_date'             => $uploadDate,
+            'vehicle_movement_id'    => $movInventario->id,
+            'requires_sunat'         => false,
+            'is_sunat_registered'    => true,
+            'aceptada_por_sunat'     => true,
+            'sent_at'                => $uploadDate,
+            'accepted_at'            => $uploadDate,
+            'is_received'            => true,
+            'received_date'          => $uploadDate,
+            'received_by'            => auth()->id(),
+            'status'                 => true,
+            'send_dynamics'          => true,
+            'status_dynamic'         => true,
+            'migration_status'       => 'completed',
+            'migrated_at'            => $uploadDate,
+            'sede_transmitter_id'    => $warehouse?->sede_id,
+            'sede_receiver_id'       => $warehouse?->sede_id,
+            'transmitter_id'         => $dercoEstablishment?->id,
+            'receiver_id'            => $automotoresEstablishment?->id,
+            'transport_company_id'   => $dercoPartner?->id,
+            'ruc_transport'          => $dercoPartner?->num_doc,
+            'company_name_transport' => $dercoPartner?->full_name,
+            'transfer_reason_id'     => SunatConcepts::TRANSFER_REASON_COMPRA,
+            'transfer_modality_id'   => SunatConcepts::TYPE_TRANSPORTATION_PUBLICO,
+            'origin_ubigeo'          => $dercoEstablishment?->ubigeo ?? '-',
+            'origin_address'         => $dercoEstablishment?->address ?? '-',
+            'destination_ubigeo'     => $automotoresEstablishment?->ubigeo ?? '-',
+            'destination_address'    => $automotoresEstablishment?->address ?? '-',
+            'notes'                  => 'Saldo inicial importado desde Excel',
+            'note_received'          => 'SALDO INICIAL',
+            'created_by'             => auth()->id(),
+          ]);
+
+          foreach ($checklistItems as $item) {
+            ApReceivingChecklist::create([
+              'receiving_id'      => $item->id,
+              'shipping_guide_id' => $shippingGuide->id,
+              'kilometers'        => 0,
+            ]);
+          }
+
+          ApReceivingInspection::create([
+            'shipping_guide_id'    => $shippingGuide->id,
+            'photo_front_url'      => $placeholderPhotoUrl,
+            'photo_back_url'       => $placeholderPhotoUrl,
+            'photo_left_url'       => $placeholderPhotoUrl,
+            'photo_right_url'      => $placeholderPhotoUrl,
+            'general_observations' => 'SALDO INICIAL',
+            'inspected_by'         => auth()->id(),
+          ]);
+        }
 
         $correlative = (DB::table('ap_purchase_order')->max('number_correlative') ?? 0) + 1;
 
         $po = PurchaseOrder::create([
-          'number' => 'SI-' . $rawSerie,
-          'number_correlative' => $correlative,
-          'number_guide' => 'SI-' . $rawSerie,
-          'invoice_series' => 'SI',
-          'invoice_number' => $rawSerie,
-          'supplier_id' => 4, // DERCO PERU S.A.
-          'currency_id' => 1, // USD - DOLAR AMERICANO
-          'exchange_rate_id' => $exchangeRate->id,
-          'created_by' => auth()->id(),
-          'vehicle_movement_id' => $movPedido->id,
-          'emission_date' => $uploadDate->toDateString(),
-          'subtotal' => round($rawTotal / 1.18, 2),
-          'igv' => round($rawTotal - $rawTotal / 1.18, 2),
-          'total' => $rawTotal,
-          'sede_id' => $warehouse?->sede_id,
-          'warehouse_id' => $warehouse?->id,
-          'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-          'migration_status' => 'completed',
-          'migrated_at' => $uploadDate,
-          'invoice_dynamics' => 'SI-' . $rawSerie,
-          'receipt_dynamics' => 'SI-' . $rawSerie,
-          'status' => true,
-          'notes' => 'Saldo inicial importado desde Excel',
+          'number'                    => 'SI-' . $rawSerie,
+          'number_correlative'        => $correlative,
+          'number_guide'              => 'SI-' . $rawSerie,
+          'invoice_series'            => 'SI',
+          'invoice_number'            => $rawSerie,
+          'supplier_id'               => 4, // DERCO PERU S.A.
+          'currency_id'               => 1, // USD - DOLAR AMERICANO
+          'exchange_rate_id'          => $exchangeRate->id,
+          'created_by'                => auth()->id(),
+          'vehicle_movement_id'       => $movPedido->id,
+          'emission_date'             => $uploadDate->toDateString(),
+          'subtotal'                  => round($rawTotal / 1.18, 2),
+          'igv'                       => round($rawTotal - $rawTotal / 1.18, 2),
+          'total'                     => $rawTotal,
+          'sede_id'                   => $warehouse?->sede_id,
+          'warehouse_id'              => $warehouse?->id,
+          'type_operation_id'         => ApMasters::TIPO_OPERACION_COMERCIAL,
+          'migration_status'          => 'completed',
+          'migrated_at'               => $uploadDate,
+          'invoice_dynamics'          => 'SI-' . $rawSerie,
+          'receipt_dynamics'          => 'SI-' . $rawSerie,
+          'invoice_sync_attempted_at' => $uploadDate,
+          'invoice_sync_attempts'     => 1,
+          'status'                    => true,
+          'notes'                     => 'Saldo inicial importado desde Excel',
         ]);
 
         PurchaseOrderItem::create([
@@ -1325,34 +1411,59 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'total' => $rawTotal,
         ]);
 
+        $movements = ['ORDERED', 'IN_TRANSIT'];
+        if (!$isPorRecibir) {
+          $movements[] = 'INVENTORY';
+        }
+
         if ($preview) {
           DB::rollBack();
           $results['rows'][] = [
-            'row' => $row,
-            'vin' => $rawSerie,
-            'code' => $rawCodigo,
-            'sitio' => $sitioUp,
-            'status' => 'preview_ok',
+            'row'            => $row,
+            'vin'            => $rawSerie,
+            'code'           => $rawCodigo,
+            'sitio'          => $sitioUp,
+            'status'         => 'preview_ok',
+            'warehouse_id'   => $warehouse?->id,
+            'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
+            'warehouse_code' => $warehouse?->dyn_code ?? null,
+            'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
+            'movements'      => $movements,
+            'po_number'      => 'SI-' . $rawSerie,
+            'shipping_guide' => $isPorRecibir ? null : 'SI-' . $rawSerie,
+            'checklist'      => $isPorRecibir ? null : $checklistItems->count() . ' ítems',
+            'inspection'     => $isPorRecibir ? null : 'placeholder (body_car.png)',
+            'total'          => $rawTotal,
+            'subtotal'       => round($rawTotal / 1.18, 2),
+            'igv'            => round($rawTotal - $rawTotal / 1.18, 2),
+            'emission_date'  => $uploadDate->toDateString(),
+            'exchange_rate'  => $exchangeRate->rate ?? null,
           ];
         } else {
           DB::commit();
           $results['created']++;
           $results['rows'][] = [
-            'row' => $row,
-            'vin' => $rawSerie,
-            'code' => $rawCodigo,
-            'sitio' => $sitioUp,
-            'status' => 'created',
+            'row'               => $row,
+            'vin'               => $rawSerie,
+            'code'              => $rawCodigo,
+            'sitio'             => $sitioUp,
+            'status'            => 'created',
+            'warehouse_id'      => $warehouse?->id,
+            'warehouse_name'    => $warehouse?->name ?? '(sin almacén)',
+            'final_status'      => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
+            'movements'         => $movements,
+            'po_number'         => 'SI-' . $rawSerie,
+            'shipping_guide_id' => $shippingGuide?->id,
           ];
         }
       } catch (\Throwable $th) {
         DB::rollBack();
         $results['errors']++;
         $results['rows'][] = [
-          'row' => $row,
-          'vin' => $rawSerie,
-          'code' => $rawCodigo ?? '',
-          'sitio' => isset($sitioUp) ? $sitioUp : mb_strtoupper(trim((string)$sheet->getCell("{$cSitio}{$row}")->getValue())),
+          'row'    => $row,
+          'vin'    => $rawSerie,
+          'code'   => $rawCodigo ?? '',
+          'sitio'  => isset($sitioUp) ? $sitioUp : mb_strtoupper(trim((string)$sheet->getCell("{$cSitio}{$row}")->getValue())),
           'status' => 'error',
           'error' => $th->getMessage(),
         ];
