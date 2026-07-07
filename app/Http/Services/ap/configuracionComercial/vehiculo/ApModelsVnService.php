@@ -10,9 +10,14 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Jobs\SyncModelVnJob;
 use App\Models\ap\ApMasters;
+use App\Http\Utils\Constants;
 use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\configuracionComercial\vehiculo\ApDeliveryReceivingChecklist;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -1145,6 +1150,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     $results = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
 
+    $checklistItems = ApDeliveryReceivingChecklist::where('status', true)->get();
+    $placeholderPhotoUrl = url('images/ap/body_car.png');
+
+    $dercoPartner = BusinessPartners::find(4);
+    $dercoEstablishment = BusinessPartnersEstablishment::where('business_partner_id', 4)->first();
+    $automotoresEstablishments = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+      ->get()
+      ->keyBy('sede_id');
+    $automotoresFallbackEstablishment = $automotoresEstablishments->first();
+
     for ($row = 2; $row <= $highestRow; $row++) {
       $rawCodigo = mb_strtoupper(trim((string)$sheet->getCell("{$cCodigo}{$row}")->getValue()));
       $rawSerie = trim((string)$sheet->getCell("{$cSerie}{$row}")->getValue());
@@ -1222,8 +1237,9 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'observation'          => 'Saldo inicial - tránsito',
         ]);
 
+        $shippingGuide = null;
         if (!$isPorRecibir) {
-          VehicleMovement::create([
+          $movInventario = VehicleMovement::create([
             'movement_type'        => VehicleMovement::INVENTORY,
             'ap_vehicle_id'        => $vehicle->id,
             'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
@@ -1231,6 +1247,65 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
             'movement_date'        => $uploadDate,
             'observation'          => 'Saldo inicial - ingreso a inventario',
+          ]);
+
+          $automotoresEstablishment = $automotoresEstablishments[$warehouse?->sede_id] ?? $automotoresFallbackEstablishment;
+
+          $shippingGuide = ShippingGuides::create([
+            'document_type'          => ShippingGuides::DOCUMENT_TYPE_GR,
+            'issuer_type'            => ShippingGuides::ISSUER_TYPE_SUPPLIER,
+            'series'                 => 'SI',
+            'correlative'            => $rawSerie,
+            'document_number'        => 'SI-' . $rawSerie,
+            'issue_date'             => $uploadDate,
+            'vehicle_movement_id'    => $movInventario->id,
+            'requires_sunat'         => false,
+            'is_sunat_registered'    => true,
+            'aceptada_por_sunat'     => true,
+            'sent_at'                => $uploadDate,
+            'accepted_at'            => $uploadDate,
+            'is_received'            => true,
+            'received_date'          => $uploadDate,
+            'received_by'            => auth()->id(),
+            'status'                 => true,
+            'send_dynamics'          => true,
+            'status_dynamic'         => true,
+            'migration_status'       => 'completed',
+            'migrated_at'            => $uploadDate,
+            'sede_transmitter_id'    => $warehouse?->sede_id,
+            'sede_receiver_id'       => $warehouse?->sede_id,
+            'transmitter_id'         => $dercoEstablishment?->id,
+            'receiver_id'            => $automotoresEstablishment?->id,
+            'transport_company_id'   => $dercoPartner?->id,
+            'ruc_transport'          => $dercoPartner?->num_doc,
+            'company_name_transport' => $dercoPartner?->full_name,
+            'transfer_reason_id'     => SunatConcepts::TRANSFER_REASON_COMPRA,
+            'transfer_modality_id'   => SunatConcepts::TYPE_TRANSPORTATION_PUBLICO,
+            'origin_ubigeo'          => $dercoEstablishment?->ubigeo ?? '-',
+            'origin_address'         => $dercoEstablishment?->address ?? '-',
+            'destination_ubigeo'     => $automotoresEstablishment?->ubigeo ?? '-',
+            'destination_address'    => $automotoresEstablishment?->address ?? '-',
+            'notes'                  => 'Saldo inicial importado desde Excel',
+            'note_received'          => 'SALDO INICIAL',
+            'created_by'             => auth()->id(),
+          ]);
+
+          foreach ($checklistItems as $item) {
+            ApReceivingChecklist::create([
+              'receiving_id'      => $item->id,
+              'shipping_guide_id' => $shippingGuide->id,
+              'kilometers'        => 0,
+            ]);
+          }
+
+          ApReceivingInspection::create([
+            'shipping_guide_id'    => $shippingGuide->id,
+            'photo_front_url'      => $placeholderPhotoUrl,
+            'photo_back_url'       => $placeholderPhotoUrl,
+            'photo_left_url'       => $placeholderPhotoUrl,
+            'photo_right_url'      => $placeholderPhotoUrl,
+            'general_observations' => 'SALDO INICIAL',
+            'inspected_by'         => auth()->id(),
           ]);
         }
 
@@ -1254,12 +1329,14 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'sede_id'             => $warehouse?->sede_id,
           'warehouse_id'        => $warehouse?->id,
           'type_operation_id'   => ApMasters::TIPO_OPERACION_COMERCIAL,
-          'migration_status'    => 'completed',
-          'migrated_at'         => $uploadDate,
-          'invoice_dynamics'    => 'SI-' . $rawSerie,
-          'receipt_dynamics'    => 'SI-' . $rawSerie,
-          'status'              => true,
-          'notes'               => 'Saldo inicial importado desde Excel',
+          'migration_status'          => 'completed',
+          'migrated_at'               => $uploadDate,
+          'invoice_dynamics'          => 'SI-' . $rawSerie,
+          'receipt_dynamics'          => 'SI-' . $rawSerie,
+          'invoice_sync_attempted_at' => $uploadDate,
+          'invoice_sync_attempts'     => 1,
+          'status'                    => true,
+          'notes'                     => 'Saldo inicial importado desde Excel',
         ]);
 
         PurchaseOrderItem::create([
@@ -1281,17 +1358,20 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         if ($preview) {
           DB::rollBack();
           $results['rows'][] = [
-            'row'          => $row,
-            'vin'          => $rawSerie,
-            'code'         => $rawCodigo,
-            'sitio'        => $sitioUp,
-            'status'       => 'preview_ok',
+            'row'            => $row,
+            'vin'            => $rawSerie,
+            'code'           => $rawCodigo,
+            'sitio'          => $sitioUp,
+            'status'         => 'preview_ok',
             'warehouse_id'   => $warehouse?->id,
             'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
             'warehouse_code' => $warehouse?->dyn_code ?? null,
             'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
             'movements'      => $movements,
             'po_number'      => 'SI-' . $rawSerie,
+            'shipping_guide' => $isPorRecibir ? null : 'SI-' . $rawSerie,
+            'checklist'      => $isPorRecibir ? null : $checklistItems->count() . ' ítems',
+            'inspection'     => $isPorRecibir ? null : 'placeholder (body_car.png)',
             'total'          => $rawTotal,
             'subtotal'       => round($rawTotal / 1.18, 2),
             'igv'            => round($rawTotal - $rawTotal / 1.18, 2),
@@ -1302,16 +1382,17 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           DB::commit();
           $results['created']++;
           $results['rows'][] = [
-            'row'          => $row,
-            'vin'          => $rawSerie,
-            'code'         => $rawCodigo,
-            'sitio'        => $sitioUp,
-            'status'       => 'created',
+            'row'            => $row,
+            'vin'            => $rawSerie,
+            'code'           => $rawCodigo,
+            'sitio'          => $sitioUp,
+            'status'         => 'created',
             'warehouse_id'   => $warehouse?->id,
             'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
             'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
             'movements'      => $movements,
             'po_number'      => 'SI-' . $rawSerie,
+            'shipping_guide_id' => $shippingGuide?->id,
           ];
         }
       } catch (\Throwable $th) {
