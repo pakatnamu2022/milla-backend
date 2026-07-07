@@ -258,54 +258,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     }
   }
 
-  public function updateByVin(array $data): array
+  public function updateByVin(UploadedFile $file): array
   {
-    DB::beginTransaction();
-    try {
-      $vehicle = Vehicles::where('vin', $data['vin'])->whereNull('deleted_at')->first();
-      if (!$vehicle) {
-        throw new Exception("No se encontró vehículo con VIN {$data['vin']}");
-      }
-
-      // Resolver color
-      $normalized = Str::upper(Str::ascii(trim($data['color'])));
-      $color = ApMasters::where('type', 'COLOR')->where('description', $normalized)->first();
-      if (!$color) {
-        $color = ApMasters::create([
-          'code'        => $normalized,
-          'description' => $normalized,
-          'type'        => 'COLOR',
-          'status'      => 1,
-        ]);
-      }
-
-      // Obtener combustible del modelo del vehículo
-      $model = ApModelsVn::find($vehicle->ap_models_vn_id);
-      if (!$model) {
-        throw new Exception("El vehículo no tiene un modelo asignado");
-      }
-
-      $vehicle->update([
-        'engine_number'    => $data['motor'],
-        'vehicle_color_id' => $color->id,
-        'engine_type_id'   => $model->fuel_id,
-      ]);
-
-      DB::commit();
-
-      return [
-        'id'               => $vehicle->id,
-        'vin'              => $vehicle->vin,
-        'engine_number'    => $vehicle->engine_number,
-        'vehicle_color_id' => $vehicle->vehicle_color_id,
-        'color'            => $color->description,
-        'engine_type_id'   => $vehicle->engine_type_id,
-        'color_created'    => $color->wasRecentlyCreated,
-      ];
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    $import = new VehicleUpdateByVinImport();
+    Excel::import($import, $file);
+    return $import->getResults();
   }
 
   /**
