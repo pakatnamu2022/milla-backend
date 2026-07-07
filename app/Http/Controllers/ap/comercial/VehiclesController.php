@@ -191,4 +191,19 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function updateStatus(Request $request, int $id): JsonResponse
+  {
+    try {
+      $data = $request->validate([
+        'status_id'     => 'required|integer|exists:ap_vehicle_status,id',
+        'movement_type' => 'nullable|string',
+        'observation'   => 'nullable|string',
+        'movement_date' => 'nullable|date',
+      ]);
+      return $this->success($this->service->updateStatus($id, $data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

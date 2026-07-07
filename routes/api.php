@@ -1350,6 +1350,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
+      Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
