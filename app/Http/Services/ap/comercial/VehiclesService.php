@@ -9,11 +9,16 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
+use App\Imports\ap\comercial\VehicleUpdateByVinImport;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApReceivingAccessoryStatus;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
@@ -108,7 +113,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       // Enriquecer datos del vehículo
       $data['year'] = now()->year;
       $data['year_delivery'] = now()->year;
-      $data['ap_models_vn_id'] = ApModelsVn::MODEL_VN_SEVERAL_ID;
       $data['vehicle_color_id'] = ApMasters::COLOR_OTHERS_ID;
       $data['engine_type_id'] = ApMasters::ENGINE_TYPE_OTHERS_ID;
       $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
@@ -252,6 +256,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  public function updateByVin(UploadedFile $file): array
+  {
+    $import = new VehicleUpdateByVinImport();
+    Excel::import($import, $file);
+    return $import->getResults();
   }
 
   /**
@@ -613,5 +624,58 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicle' => VehiclesResource::make($vehicle),
       'purchase_order' => new PurchaseOrderResource($purchaseOrder),
     ]);
+  }
+
+  public function updateStatus(int $vehicleId, array $data): array
+  {
+    $statusId = (int)$data['status_id'];
+    $observation = $data['observation'] ?? null;
+    $movementDate = $data['movement_date'] ?? now();
+    $movementType = $data['movement_type'] ?? null;
+
+    $movementTypeMap = [
+      ApVehicleStatus::PEDIDO_VN               => VehicleMovement::ORDERED,
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA     => VehicleMovement::IN_TRANSIT,
+      ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO => VehicleMovement::IN_TRANSIT_RETURNED,
+      ApVehicleStatus::VENDIDO_NO_ENTREGADO     => VehicleMovement::SOLD_NOT_DELIVERED,
+      ApVehicleStatus::INVENTARIO_VN            => VehicleMovement::INVENTORY,
+      ApVehicleStatus::VENDIDO_ENTREGADO        => VehicleMovement::SOLD_DELIVERED,
+      ApVehicleStatus::FACTURADO                => VehicleMovement::INVOICED,
+      ApVehicleStatus::CONSIGNACION             => VehicleMovement::CONSIGNMENT,
+      ApVehicleStatus::FACTURADO_FINAL          => VehicleMovement::INVOICED,
+    ];
+
+    if (!$movementType) {
+      $movementType = $movementTypeMap[$statusId] ?? null;
+    }
+
+    if (!$movementType) {
+      throw new Exception("No se pudo determinar el tipo de movimiento para el estado ID {$statusId}.");
+    }
+
+    $vehicle = $this->find($vehicleId);
+    $previousStatusId = $vehicle->ap_vehicle_status_id;
+
+    DB::transaction(function () use ($vehicle, $statusId, $previousStatusId, $movementType, $movementDate, $observation) {
+      $vehicle->update(['ap_vehicle_status_id' => $statusId]);
+
+      VehicleMovement::create([
+        'movement_type'        => $movementType,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => $statusId,
+        'previous_status_id'   => $previousStatusId,
+        'new_status_id'        => $statusId,
+        'movement_date'        => $movementDate,
+        'observation'          => $observation,
+        'created_by'           => auth()->id(),
+      ]);
+    });
+
+    return [
+      'vehicle_id'         => $vehicle->id,
+      'previous_status_id' => $previousStatusId,
+      'new_status_id'      => $statusId,
+      'movement_type'      => $movementType,
+    ];
   }
 }

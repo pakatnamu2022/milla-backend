@@ -498,6 +498,22 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Sync accounting status for a single document synchronously and return the result.
+   */
+  public function syncAccountingStatusForDocument(int $id): JsonResponse
+  {
+    $document = ElectronicDocument::findOrFail($id);
+    SyncAccountingStatusJob::dispatchSync($id);
+    $document->refresh();
+    return $this->success([
+      'id' => $document->id,
+      'full_number' => $document->full_number,
+      'is_accounted' => $document->is_accounted,
+      'is_annulled' => $document->is_annulled,
+    ]);
+  }
+
+  /**
    * Generate report of electronic documents
    */
   public function report(ElectronicDocumentReportRequest $request): JsonResponse

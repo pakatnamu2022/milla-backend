@@ -38,6 +38,12 @@ class ElectronicDocumentResource extends JsonResource
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
       'order_quotation_id' => $this->order_quotation_id,
       'work_order_id' => $this->work_order_id,
+      'related_document_number' => $this->order_quotation_id
+        ? $this->orderQuotation?->quotation_number
+        : ($this->work_order_id ? $this->workOrder?->correlative : null),
+      'related_document_type' => $this->order_quotation_id
+        ? 'Cotización'
+        : ($this->work_order_id ? 'Orden de Trabajo' : null),
       'credit_note_id' => $creditNote?->id,
       'credit_note_number' => $creditNote?->full_number,
       'credit_note_type_id' => $creditNote?->sunat_concept_credit_note_type_id,

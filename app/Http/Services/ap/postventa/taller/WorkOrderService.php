@@ -7,8 +7,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
@@ -109,6 +109,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
+      $data['opening_date'] = Carbon::now();
+      $data['diagnosis_date'] = Carbon::now();
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
@@ -196,6 +198,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Recalcular totales después de crear los items
+      $workOrder->calculateTotals();
+
       return new WorkOrderResource($workOrder);
     });
   }
@@ -274,9 +279,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           $quotation->update(['is_take' => 1]);
         }
 
-        // Recalcular totales usando el método del modelo (detecta automáticamente si tiene cotización)
+        // Cargar relaciones necesarias para el cálculo
         $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
-        $workOrder->calculateTotals();
       }
 
       // If existe $data['vehicle_inspection_id']
@@ -299,6 +303,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           }
         }
       }
+
+      // Recalcular totales SIEMPRE (detecta automáticamente si tiene cotización o cambio de moneda)
+      $workOrder->calculateTotals();
 
       // Reload relations
       $workOrder->load([
@@ -453,11 +460,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener el factor de conversión
     $factor = $this->getConversionFactor($workOrder, $oldCurrencyId, $newCurrencyId);
 
-    // Recalcular labours
-    $this->recalculateLabours($workOrder->id, $factor);
-
-    // Recalcular parts
-    $this->recalculateParts($workOrder->id, $factor);
+    // Recalcular labours y parts con el mismo método usado por recalculateTotals(),
+    // única fuente de verdad para refrescar hijos de la OT (con o sin cambio de moneda).
+    $this->recalculateLabourItems($workOrder, $factor);
+    $this->recalculatePartItems($workOrder, $factor);
   }
 
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
@@ -500,71 +506,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     return (float)$exchangeRate->rate;
-  }
-
-  private function recalculateLabours(int $workOrderId, float $factor): void
-  {
-    $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
-
-    foreach ($labours as $labour) {
-      // Convertir el precio unitario (hourly_rate)
-      $newHourlyRate = round($labour->hourly_rate * $factor, 2);
-
-      // Recalcular total_cost basado en el nuevo hourly_rate
-      // Usar time_spent_decimal para obtener el valor numérico
-      $newTotalCost = $newHourlyRate * $labour->time_spent_decimal;
-
-      // Calcular net_amount aplicando el descuento al nuevo total_cost
-      $discountPercentage = $labour->discount_percentage ?? 0;
-      if ($discountPercentage > 0) {
-        $discountAmount = $newTotalCost * ($discountPercentage / 100);
-        $newNetAmount = $newTotalCost - $discountAmount;
-      } else {
-        $newNetAmount = $newTotalCost;
-      }
-
-      // Calcular tax_amount sobre el net_amount
-      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
-
-      $labour->update([
-        'hourly_rate' => $newHourlyRate,
-        'total_cost' => round($newTotalCost, 2),
-        'net_amount' => round($newNetAmount, 2),
-        'tax_amount' => round($newTaxAmount, 2),
-      ]);
-    }
-  }
-
-  private function recalculateParts(int $workOrderId, float $factor): void
-  {
-    $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
-
-    foreach ($parts as $part) {
-      // Convertir el precio unitario
-      $newUnitPrice = round($part->unit_price * $factor, 2);
-
-      // Recalcular total_cost basado en el nuevo unit_price
-      $newTotalCost = $newUnitPrice * $part->quantity_used;
-
-      // Calcular net_amount aplicando el descuento al nuevo total_cost
-      $discountPercentage = $part->discount_percentage ?? 0;
-      if ($discountPercentage > 0) {
-        $discountAmount = $newTotalCost * ($discountPercentage / 100);
-        $newNetAmount = $newTotalCost - $discountAmount;
-      } else {
-        $newNetAmount = $newTotalCost;
-      }
-
-      // Calcular tax_amount sobre el net_amount
-      $newTaxAmount = $newNetAmount * (Constants::VAT_TAX / 100);
-
-      $part->update([
-        'unit_price' => $newUnitPrice,
-        'total_cost' => round($newTotalCost, 2),
-        'net_amount' => round($newNetAmount, 2),
-        'tax_amount' => round($newTaxAmount, 2),
-      ]);
-    }
   }
 
   public function unlinkQuotation(int $id): WorkOrderResource
@@ -681,6 +622,27 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'num_doc_pickup' => $data['num_doc_pickup'],
         'full_pickup_name' => $data['full_pickup_name'],
         'phone_pickup' => $data['phone_pickup'],
+      ]);
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  public function changeAdvisor(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que la orden pueda ser modificada
+      $workOrder->ensureCanBeModified();
+
+      // Actualizar el asesor
+      $workOrder->update([
+        'advisor_id' => $data['advisor_id'],
       ]);
 
       return new WorkOrderResource($workOrder);
@@ -1728,6 +1690,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'description' => $data['description'],
       ]);
 
+      // Recalcular totales después de actualizar el item
+      $workOrder->calculateTotals();
+
       // Reload relations
       $workOrder->load([
         'appointmentPlanning',
@@ -1740,6 +1705,102 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ]);
 
       return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Recalcula hourly_rate (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada mano de obra a partir de sus campos
+   * base (hourly_rate, time_spent, discount_percentage), usando la misma fuente
+   * de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
+   */
+  private function recalculateLabourItems(ApWorkOrder $workOrder, float $factor = 1.0): void
+  {
+    foreach ($workOrder->labours as $labour) {
+      $result = PriceRounding::calculateLine(
+        $labour->hourly_rate,
+        $labour->time_spent_decimal,
+        (float)($labour->discount_percentage ?? 0),
+        $factor
+      );
+
+      $labour->update([
+        'hourly_rate' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
+    }
+  }
+
+  /**
+   * Recalcula unit_price (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada repuesto a partir de sus campos
+   * base (unit_price, quantity_used, discount_percentage), usando la misma
+   * fuente de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
+   */
+  private function recalculatePartItems(ApWorkOrder $workOrder, float $factor = 1.0): void
+  {
+    foreach ($workOrder->parts as $part) {
+      $result = PriceRounding::calculateLine(
+        $part->unit_price,
+        (float)$part->quantity_used,
+        (float)($part->discount_percentage ?? 0),
+        $factor
+      );
+
+      $part->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
+    }
+  }
+
+  public function recalculateTotals($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $workOrder = $this->find($id);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Cargar relaciones necesarias para el cálculo
+      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+      // Recalcular primero los ítems hijos (mano de obra y repuestos) desde sus
+      // campos base, con el mismo redondeo en cadena a 2 decimales usado al crearlos
+      // (PriceRounding), para que total_labor_cost/total_parts_cost del padre sean
+      // siempre una suma consistente de hijos ya redondeados y no arrastren
+      // valores desalineados (ej. de una conversión de moneda o de datos antiguos).
+      $this->recalculateLabourItems($workOrder);
+      $this->recalculatePartItems($workOrder);
+      $workOrder->refresh();
+      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+      // Recalcular totales del padre a partir de los hijos ya recalculados
+      $workOrder->calculateTotals();
+
+      // Recargar la orden de trabajo con todas las relaciones para mostrar
+      $workOrder->load([
+        'items',
+        'orderQuotation.details.product.unitMeasurement',
+        'labours',
+        'parts.product.unitMeasurement',
+        'advancesWorkOrder'
+      ]);
+
+      $additionalData['includeCostManHours'] = true;
+
+      return (new WorkOrderResource($workOrder))->additional($additionalData);
     });
   }
 }

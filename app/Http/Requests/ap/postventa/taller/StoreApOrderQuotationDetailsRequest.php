@@ -53,7 +53,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'quantity' => [
         'required',
         'numeric',
-        'min:0.01',
+        'min:0',
       ],
       'unit_measure' => [
         'required',
@@ -63,7 +63,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'unit_price' => [
         'required',
         'numeric',
-        'min:0.1',
+        'min:0',
       ],
       'discount_percentage' => [
         'nullable',
@@ -78,7 +78,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'retail_price_external' => [
         'nullable',
         'numeric',
-        'min:0.1',
+        'min:0',
       ],
       'exchange_rate' => [
         'nullable',
@@ -119,7 +119,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
 
       'quantity.required' => 'La cantidad es obligatoria.',
       'quantity.numeric' => 'La cantidad debe ser un número.',
-      'quantity.min' => 'La cantidad debe ser mayor a 0.',
+      'quantity.min' => 'La cantidad no puede ser negativa.',
 
       'unit_measure.required' => 'La unidad de medida es obligatoria.',
       'unit_measure.string' => 'La unidad de medida debe ser una cadena de texto.',
@@ -127,7 +127,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
 
       'unit_price.required' => 'El precio unitario es obligatorio.',
       'unit_price.numeric' => 'El precio unitario debe ser un número.',
-      'unit_price.min' => 'El precio unitario no puede ser cero o negativo.',
+      'unit_price.min' => 'El precio unitario no puede ser negativo.',
 
       'discount_percentage.numeric' => 'El porcentaje de descuento debe ser un número.',
       'discount_percentage.min' => 'El porcentaje de descuento no puede ser negativo.',
@@ -138,7 +138,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
 
       'retail_price_external.numeric' => 'El precio minorista externo debe ser un número.',
-      'retail_price_external.min' => 'El precio no puede ser diferente de 0 y negativo.',
+      'retail_price_external.min' => 'El precio no puede ser negativo.',
     ];
   }
 

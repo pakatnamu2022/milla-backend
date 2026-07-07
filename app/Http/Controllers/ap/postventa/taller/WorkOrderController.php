@@ -4,11 +4,15 @@ namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\ChangeAdvisorWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -42,6 +46,7 @@ class WorkOrderController extends Controller
   public function store(StoreWorkOrderRequest $request)
   {
     try {
+      $this->validateVehicleForWorkOrder($request->vehicle_id);
       return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
@@ -61,6 +66,12 @@ class WorkOrderController extends Controller
   {
     try {
       $data = $request->validated();
+
+      // Validar el vehículo si está presente en la actualización
+      if (isset($data['vehicle_id'])) {
+        $this->validateVehicleForWorkOrder($data['vehicle_id']);
+      }
+
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
@@ -152,6 +163,17 @@ class WorkOrderController extends Controller
       );
       $data['id'] = $id;
       return $this->success($this->service->updatePickupPerson($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function changeAdvisor(ChangeAdvisorWorkOrderRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->changeAdvisor($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -290,6 +312,62 @@ class WorkOrderController extends Controller
       return $this->service->exportWorkOrders($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  public function recalculateTotals($id)
+  {
+    try {
+      return $this->success($this->service->recalculateTotals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Valida que el vehículo cumpla con los requisitos para crear/actualizar una orden de trabajo
+   *
+   * @param int $vehicleId ID del vehículo a validar
+   * @throws Exception Si el vehículo no cumple con los requisitos
+   */
+  private function validateVehicleForWorkOrder(int $vehicleId): void
+  {
+    $vehicle = Vehicles::with([
+      'model.family.brand',
+      'color'
+    ])->find($vehicleId);
+
+    if (!$vehicle) {
+      throw new Exception('El vehículo seleccionado no existe.');
+    }
+
+    // Validar que el vehículo tenga un modelo asignado
+    if (!$vehicle->ap_models_vn_id) {
+      throw new Exception('El vehículo debe tener un modelo asignado para crear una orden de trabajo.');
+    }
+
+    // Validar que el modelo exista y tenga familia
+    if (!$vehicle->model) {
+      throw new Exception('El modelo del vehículo no existe.');
+    }
+
+    if (!$vehicle->model->family) {
+      throw new Exception('El modelo del vehículo debe tener una familia asignada.');
+    }
+
+    // Validar que la familia tenga marca
+    if (!$vehicle->model->family->brand) {
+      throw new Exception('La familia del modelo debe tener una marca asignada.');
+    }
+
+    // Validar que la marca no sea otros id = 13
+    if ($vehicle->model->family->brand->id === ApVehicleBrand::BRAND_OTHERS_ID) {
+      throw new Exception('No se puede crear una orden de trabajo para vehículos de marca "OTROS".');
+    }
+
+    // Validar que el vehículo no tenga color "OTROS" (COLOR_OTHERS_ID = 1003)
+    if ($vehicle->vehicle_color_id === ApMasters::COLOR_OTHERS_ID) {
+      throw new Exception('No se puede crear una orden de trabajo para vehículos con color "OTROS".');
     }
   }
 }

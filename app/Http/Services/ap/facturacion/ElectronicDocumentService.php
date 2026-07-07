@@ -444,6 +444,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 2) : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -717,6 +720,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // Crear nuevos items
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 2) : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -2921,8 +2927,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Si el monto total de la work_order supera o iguala el monto de detracción,
-    // aplicar ID_SUJETA_DETRACCION a todos los documentos de esta orden
-    if ($entityTotal >= $detractionAmount && $detractionAmount > 0) {
+    // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
+    if ($entityTotal >= $detractionAmount && $detractionAmount > 0
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
       $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
@@ -2957,7 +2964,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
       $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
 
-      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0) {
+      // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
+      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
         $data['detraccion'] = true;
         $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
           ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
@@ -3034,83 +3042,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     $workOrder->update(['has_invoice_generated' => true]);
-  }
-
-  /*
-   * Consulta Dynamics y actualiza is_accounted e is_annulled para todos los
-   * documentos que han sido solicitados a Dynamics y cuya migración está completada.
-   *
-   * @return array
-   */
-  public function syncAccountingStatusFromDynamics(): array
-  {
-    $documents = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
-      ->get();
-
-    $results = [];
-    $errors = [];
-
-    foreach ($documents as $document) {
-      try {
-        $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
-          ->table('SOP30200')
-          ->where('SOPNUMBE', 'like', '%' . $document->full_number . '%')
-          ->first();
-
-        $source = null;
-
-        if ($sopRecord) {
-          $isAnnulled = $sopRecord->VOIDSTTS == "1";
-          $source = 'SOP30200';
-
-          // Segunda opinión: si SOP30200 no lo marca como anulado, consultamos RM20101
-          if (!$isAnnulled) {
-            $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
-              ->table('RM20101')
-              ->where('DOCNUMBR', 'like', '%' . $document->full_number . '%')
-              ->whereNot('RMDTYPAL', '9') // Excluir documentos de tipo 9 (cobros)
-              ->first();
-
-            if ($rmRecord) {
-              $isAnnulled = $rmRecord->VOIDSTTS == "1";
-              $source = 'RM20101';
-            }
-          }
-
-          $document->update([
-            'is_accounted' => true,
-            'is_annulled' => $isAnnulled,
-          ]);
-        } else {
-          $isAnnulled = false;
-          $document->update([
-            'is_accounted' => false,
-            'is_annulled' => false,
-          ]);
-        }
-
-        $results[] = [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'is_accounted' => $document->is_accounted,
-          'is_annulled' => $isAnnulled,
-          'source' => $source,
-        ];
-      } catch (Throwable $e) {
-        $errors[] = [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'error' => $e->getMessage(),
-        ];
-      }
-    }
-
-    return [
-      'total' => $documents->count(),
-      'updated' => count($results),
-      'results' => $results,
-      'errors' => $errors,
-    ];
   }
 
   public function createConsolidatedInvoice(array $data): array
@@ -3271,8 +3202,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($company && isset($invoiceData['total'])) {
         $detractionAmount = (float)($company->detraction_amount ?? 0);
 
-        // Verificar si el total de la factura consolidada supera o iguala el monto de detracción
-        if ($total >= $detractionAmount && $detractionAmount > 0) {
+        // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
+        if ($total >= $detractionAmount && $detractionAmount > 0 && (int)$invoiceData['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
           $invoiceData['detraccion'] = true;
           $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
           $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
@@ -3294,14 +3225,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 13. Create invoice items from frontend data
       $lineNumber = 1;
       foreach ($data['items'] as $item) {
+        $cantidad = max(1, (float)($item['cantidad'] ?? 1));
+        $descuento = (float)($item['descuento'] ?? 0);
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
           'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
           'descripcion' => $item['descripcion'],
-          'cantidad' => $item['cantidad'],
+          'cantidad' => $cantidad,
           'valor_unitario' => round((float)$item['valor_unitario'], 2),
           'precio_unitario' => round((float)$item['precio_unitario'], 2),
+          'descuento' => $descuento > 0 ? $descuento : null,
+          'descuento_unitario' => $descuento > 0 ? round($descuento / $cantidad, 2) : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
           'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
           'igv' => round((float)$item['igv'], 2),

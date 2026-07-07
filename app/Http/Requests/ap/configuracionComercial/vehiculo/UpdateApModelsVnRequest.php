@@ -10,10 +10,6 @@ class UpdateApModelsVnRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'version' => [
-        'nullable',
-        'max:255',
-      ],
       'power' => [
         'nullable',
         'max:50',
@@ -133,31 +129,6 @@ class UpdateApModelsVnRequest extends StoreRequest
         'integer',
         'exists:ap_class_article,id',
       ],
-      'fuel_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_fuel_type,id',
-      ],
-      'vehicle_type_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
-      'body_type_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
-      'traction_type_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
-      'transmission_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
       'currency_type_id' => [
         'nullable',
         'integer',
@@ -170,7 +141,6 @@ class UpdateApModelsVnRequest extends StoreRequest
   public function attributes()
   {
     return [
-      'version' => 'versión',
       'power' => 'potencia',
       'wheelbase' => 'distancia entre ejes',
       'axles_number' => 'número de ejes',
@@ -197,11 +167,6 @@ class UpdateApModelsVnRequest extends StoreRequest
       'margin' => 'margen',
       // Relaciones
       'class_id' => 'clase',
-      'fuel_id' => 'combustible',
-      'vehicle_type_id' => 'tipo de vehículo',
-      'body_type_id' => 'tipo de carrocería',
-      'traction_type_id' => 'tipo de tracción',
-      'transmission_id' => 'transmisión',
       'currency_type_id' => 'tipo de moneda',
     ];
   }

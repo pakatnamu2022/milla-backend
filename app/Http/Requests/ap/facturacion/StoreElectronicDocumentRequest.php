@@ -78,7 +78,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
 
     foreach ($decimalFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
-        $dataToMerge[$field] = (float)$this->input($field);
+        $dataToMerge[$field] = abs((float)$this->input($field));
       }
     }
 
@@ -117,7 +117,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
-            $items[$index][$field] = (float)$item[$field];
+            $items[$index][$field] = abs((float)$item[$field]);
           }
         }
         if (isset($item['anticipo_regularizacion'])) {
@@ -149,7 +149,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
           $cuotas[$index]['cuota'] = (int)$cuota['cuota'];
         }
         if (isset($cuota['importe'])) {
-          $cuotas[$index]['importe'] = (float)$cuota['importe'];
+          $cuotas[$index]['importe'] = abs((float)$cuota['importe']);
         }
       }
       $dataToMerge['venta_al_credito'] = $cuotas;
@@ -346,7 +346,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.subtotal' => 'required|numeric|min:0',
       'items.*.sunat_concept_igv_type_id' => 'required|integer|exists:sunat_concepts,id',
       'items.*.igv' => 'required|numeric|min:0',
-      'items.*.total' => 'required|numeric|min:1',
+      'items.*.total' => 'required|numeric|min:0',
       'items.*.anticipo_regularizacion' => 'nullable|boolean',
       'items.*.anticipo_documento_serie' => 'nullable|string|size:4',
       'items.*.anticipo_documento_numero' => 'nullable|integer|min:1',

@@ -75,16 +75,22 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     // Cantidad
     $cantidad = $this->cantidad > 0 ? $this->cantidad : throw new Exception('El ítem no tiene cantidad definida.');
 
-    // Precio unitario (puede ser precio_unitario o valor_unitario dependiendo del caso)
-    $valorUnitario = $this->overrideValorUnitario ?? $this->valor_unitario;
-    $precioUnitario = $valorUnitario > 0 ? $valorUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
+    // Precio unitario neto sin IGV (después de descuento) — o valor override para vehículos con accesorios
+    $valorUnitario = $this->overrideValorUnitario ?? (float)$this->valor_unitario;
 
-    // Descuento: el descuento ya está embebido en valor_unitario (precio neto),
-    // enviarlo aquí causaría que Dynamics lo aplique dos veces.
-    $descuentoUnitario = 0;
+    // Descuento por unidad sin IGV pre-calculado. Con override se fuerza a cero.
+    $descuentoUnitario = $this->overrideValorUnitario !== null ? 0.0 : (float)($this->descuento_unitario ?? 0);
 
-    // Precio total: Dynamics valida que UNITPRCE × QTY == XTNDPRCE, sin descontar.
-    $precioTotal = ($cantidad * $precioUnitario) > 0 ? round($cantidad * $precioUnitario, 2) : throw new Exception('El ítem no tiene precio total definido.');
+    // Precio unitario bruto sin IGV (antes de descuento): Dynamics aplica el descuento internamente
+    //   PrecioUnitario - DescuentoUnitario = valor_unitario (precio neto)
+    $precioUnitario = round($valorUnitario + $descuentoUnitario, 2);
+    $precioUnitario = $precioUnitario > 0 ? $precioUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
+
+    // Precio total neto: subtotal almacenado, o cantidad × override cuando aplica precio alternativo
+    $precioTotalNeto = $this->overrideValorUnitario !== null
+      ? $valorUnitario * $cantidad
+      : (float)$this->subtotal;
+    $precioTotal = $precioTotalNeto > 0 ? round($precioTotalNeto, 2) : throw new Exception('El ítem no tiene precio total definido.');
 
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {

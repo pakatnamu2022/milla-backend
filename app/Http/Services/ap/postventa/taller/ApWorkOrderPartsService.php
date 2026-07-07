@@ -9,6 +9,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -73,22 +74,13 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['unit_price'] = $product->sale_price ?? 0;
     }
 
-    // Aplicar factor de tipo de cambio al precio unitario
-    $data['unit_price'] = floatval($data['unit_price']) * $factor;
-
-    // Calcular total_cost (monto sin descuento)
-    $data['total_cost'] = $data['unit_price'] * $quantity;
-
-    // Calcular net_amount (monto con descuento aplicado)
-    if ($discountPercentage > 0) {
-      $discountAmount = $data['total_cost'] * ($discountPercentage / 100);
-      $data['net_amount'] = $data['total_cost'] - $discountAmount;
-    } else {
-      $data['net_amount'] = $data['total_cost'];
-    }
-
-    // Calcular tax_amount (IGV del 18% sobre net_amount)
-    $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
+    // unit_price (convertido por factor) + total_cost/net_amount/tax_amount: única
+    // fuente de verdad compartida con mano de obra y detalles de cotización.
+    $result = PriceRounding::calculateLine(floatval($data['unit_price']), $quantity, $discountPercentage, $factor);
+    $data['unit_price'] = $result['unit_price'];
+    $data['total_cost'] = $result['total_cost'];
+    $data['net_amount'] = $result['net_amount'];
+    $data['tax_amount'] = $result['tax_amount'];
   }
 
   private function calculateExchangeRateFactor(int $workOrderId): float
