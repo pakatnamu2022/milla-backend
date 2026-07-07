@@ -194,10 +194,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
 
-      //Obtenemos el kilometraje de su ultima OT
-      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
+      // Si el usuario no envía mileage o envía 0, obtener el kilometraje de su última inspección vehicular
+      if (!isset($data['mileage']) || empty($data['mileage'])) {
+        $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])
+          ->orderBy('created_at', 'desc')
+          ->first()?->vehicleInspection?->mileage ?? 0;
+      }
 
       $quotation = ApOrderQuotations::create($data);
+
+      // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
+      if (isset($data['mileage']) && $data['mileage'] > 0 && $vehicle->mileage < $data['mileage']) {
+        $vehicle->update(['mileage' => $data['mileage']]);
+      }
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
@@ -425,10 +434,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['validity_days'] = $validation_days;
       $data['exchange_rate'] = $exchangeRate->rate;
 
-      //Obtenemos el kilometraje de su ultima OT
-      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
+      // Si el usuario no envía mileage o envía 0, obtener el kilometraje de su última inspección vehicular
+      if (!isset($data['mileage']) || empty($data['mileage'])) {
+        $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])
+          ->orderBy('created_at', 'desc')
+          ->first()?->vehicleInspection?->mileage ?? 0;
+      }
 
       $quotation->update($data);
+
+      // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
+      if (isset($data['mileage']) && $data['mileage'] > 0 && $vehicle->mileage < $data['mileage']) {
+        $vehicle->update(['mileage' => $data['mileage']]);
+      }
 
       $quotation->load([
         'vehicle',
@@ -864,10 +882,24 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_plate'] = $vehicle->plate ?? 'N/A';
       $data['vehicle_vin'] = $vehicle->vin ?? 'N/A';
       $data['vehicle_engine'] = $vehicle->engine_number ?? 'N/A';
-      $data['vehicle_model'] = $vehicle->model ? $vehicle->model->version : 'N/A';
-      $data['vehicle_brand'] = $vehicle->model && $vehicle->model->family && $vehicle->model->family->brand
-        ? $vehicle->model->family->brand->name
-        : 'N/A';
+
+      // Get model version
+      if ($vehicle->model) {
+        $data['vehicle_model'] = $vehicle->model->version ?? 'N/A';
+
+        // Get brand name through family relationship
+        if ($vehicle->model->family) {
+          $data['vehicle_brand'] = $vehicle->model->family->brand
+            ? $vehicle->model->family->brand->name
+            : 'N/A';
+        } else {
+          $data['vehicle_brand'] = 'N/A';
+        }
+      } else {
+        $data['vehicle_model'] = 'N/A';
+        $data['vehicle_brand'] = 'N/A';
+      }
+
       $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
     } else {
       $data['vehicle_plate'] = 'N/A';

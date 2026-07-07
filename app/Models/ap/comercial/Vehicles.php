@@ -43,6 +43,7 @@ class Vehicles extends BaseModel
     'customer_id',
     'has_pdi',
     'generated_pdi',
+    'mileage',
   ];
 
   protected $casts = [
@@ -51,6 +52,7 @@ class Vehicles extends BaseModel
     'has_pdi'       => 'boolean',
     'is_heavy'      => 'boolean',
     'generated_pdi' => 'boolean',
+    'mileage'       => 'integer',
   ];
 
   const array filters = [

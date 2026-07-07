@@ -15,6 +15,7 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
       'vehicle_id' => ['sometimes', 'required', 'integer', 'exists:ap_vehicles,id'],
       'sede_id' => ['sometimes', 'required', 'integer', 'exists:config_sede,id'],
       'client_id' => ['sometimes', 'required', 'integer', 'exists:business_partners,id'],
+      'mileage' => ['sometimes', 'required', 'integer', 'min:1', 'max:500000'],
       'quotation_date' => ['sometimes', 'required', 'date'],
       'expiration_date' => ['nullable', 'date', 'after_or_equal:quotation_date'],
       'is_requested_by_management' => ['nullable', 'boolean'],
@@ -36,6 +37,9 @@ class UpdateApOrderQuotationsRequest extends StoreRequest
       'sede_id.exists' => 'La sede no existe.',
       'client_id.required' => 'El cliente es obligatorio.',
       'client_id.exists' => 'El cliente no existe.',
+      'mileage.integer' => 'El kilometraje debe ser un número entero.',
+      'mileage.min' => 'El kilometraje debe ser al menos 1.',
+      'mileage.max' => 'El kilometraje no puede ser mayor a 500,000.',
       'quotation_date.required' => 'La fecha de cotización es obligatoria.',
       'expiration_date.after_or_equal' => 'La fecha de expiración debe ser posterior o igual a la fecha de cotización.',
     ];

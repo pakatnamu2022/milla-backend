@@ -9,19 +9,28 @@ class StoreApVehicleBrandRequest extends StoreRequest
 {
   public function rules(): array
   {
+    $codeRules = [
+      'nullable',
+      'required_if:type_operation_id,794',
+      'string',
+      'max:100',
+    ];
+
+    $dynCodeRules = [
+      'nullable',
+      'required_if:type_operation_id,794',
+      'string',
+      'max:100',
+    ];
+
+    if ($this->type_operation_id == 794) {
+      $codeRules[] = Rule::unique('ap_vehicle_brand', 'code')->whereNull('deleted_at');
+      $dynCodeRules[] = Rule::unique('ap_vehicle_brand', 'dyn_code')->whereNull('deleted_at');
+    }
+
     return [
-      'code' => [
-        'required',
-        'string',
-        'max:100',
-        Rule::unique('ap_vehicle_brand', 'code')->whereNull('deleted_at'),
-      ],
-      'dyn_code' => [
-        'required',
-        'string',
-        'max:100',
-        Rule::unique('ap_vehicle_brand', 'dyn_code')->whereNull('deleted_at'),
-      ],
+      'code' => $codeRules,
+      'dyn_code' => $dynCodeRules,
       'name' => [
         'required',
         'string',
@@ -69,10 +78,10 @@ class StoreApVehicleBrandRequest extends StoreRequest
   public function messages(): array
   {
     return [
-      'code.required' => 'El código es requerido',
+      'code.required_if' => 'El código es requerido cuando el tipo de operación es 794',
       'code.unique' => 'Este código ya existe',
       'code.max' => 'El código no debe exceder 100 caracteres',
-      'dyn_code.required' => 'El código DYN es requerido',
+      'dyn_code.required_if' => 'El código DYN es requerido cuando el tipo de operación es 794',
       'dyn_code.unique' => 'Este código DYN ya existe',
       'dyn_code.max' => 'El dyn_code no debe exceder 100 caracteres',
       'name.required' => 'El nombre es requerido',

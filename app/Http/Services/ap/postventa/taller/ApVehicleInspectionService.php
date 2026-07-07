@@ -100,6 +100,14 @@ class ApVehicleInspectionService extends BaseService
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
       ]);
 
+      // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
+      if ($workOrder->vehicle_id && isset($data['mileage']) && $data['mileage'] > 0) {
+        $vehicle = $workOrder->vehicle;
+        if ($vehicle && $vehicle->mileage < $data['mileage']) {
+          $vehicle->update(['mileage' => $data['mileage']]);
+        }
+      }
+
       // Procesar y guardar firmas si existen
       if ($customerSignature) {
         $this->processSignature($inspection, $customerSignature);

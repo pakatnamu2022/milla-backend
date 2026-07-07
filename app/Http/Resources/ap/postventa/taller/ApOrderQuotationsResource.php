@@ -27,6 +27,7 @@ class ApOrderQuotationsResource extends JsonResource
       'vehicle_id' => $this->vehicle_id,
       'client_id' => $this->client_id,
       'sede_id' => $this->sede_id,
+      'mileage' => $this->mileage,
       'warehouse_id' => Warehouse::getPhysicalWarehouseForPostsale($this->sede_id)?->id,
       'plate' => $this->vehicle ? $this->vehicle->plate : "-",
       'vehicle' => new VehiclesResource($this->vehicle),

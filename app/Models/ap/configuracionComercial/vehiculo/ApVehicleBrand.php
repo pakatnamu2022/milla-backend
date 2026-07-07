@@ -39,6 +39,8 @@ class ApVehicleBrand extends Model
     'name',
   ];
 
+  const int BRAND_OTHERS_ID = 13;
+
   public function getSedeIdAttribute()
   {
     return $this->group?->sede_id;
