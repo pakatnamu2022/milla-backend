@@ -2923,7 +2923,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si el monto total de la work_order supera o iguala el monto de detracción,
     // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
     if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-        && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
       $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
