@@ -31,6 +31,16 @@ use Throwable;
 class VehiclesService extends BaseService implements BaseServiceInterface
 {
 
+  public function exportAll(Request $request)
+  {
+    $request->merge([
+      'title' => $request->get('title', 'Reporte General de Vehículos'),
+    ]);
+
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, Vehicles::class);
+  }
+
   public function exportSales(Request $request)
   {
     $exportService = new ExportService();

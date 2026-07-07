@@ -492,9 +492,45 @@ class Vehicles extends BaseModel
       'label'     => 'PLACA',
       'formatter' => null,
     ],
+    'year'                                                                             => [
+      'label'     => 'AÑO',
+      'formatter' => null,
+    ],
     'engine_number'                                                                    => [
       'label'     => 'NRO. MOTOR',
       'formatter' => null,
+    ],
+    'engineType.description'                                                           => [
+      'label'     => 'TIPO MOTOR',
+      'formatter' => null,
+    ],
+    'vehicleStatus.description'                                                        => [
+      'label'     => 'ESTADO',
+      'formatter' => null,
+    ],
+    'typeOperation.description'                                                        => [
+      'label'     => 'TIPO OPERACIÓN',
+      'formatter' => null,
+    ],
+    'warehouse.description'                                                            => [
+      'label'     => 'ALMACÉN',
+      'formatter' => null,
+    ],
+    'warehousePhysical.description'                                                    => [
+      'label'     => 'ALMACÉN FÍSICO',
+      'formatter' => null,
+    ],
+    'is_heavy'                                                                         => [
+      'label'     => 'PESADO',
+      'formatter' => 'boolean',
+    ],
+    'has_pdi'                                                                          => [
+      'label'     => 'PDI',
+      'formatter' => 'boolean',
+    ],
+    'generated_pdi'                                                                    => [
+      'label'     => 'PDI GENERADO',
+      'formatter' => 'boolean',
     ],
     'electronicDocumentParent.full_number'                                             => [
       'label'     => 'NRO. FACTURA',
@@ -548,6 +584,10 @@ class Vehicles extends BaseModel
       'label'     => 'FECHA ENTREGA',
       'formatter' => 'date',
     ],
+    'created_at'                                                                       => [
+      'label'     => 'FECHA REGISTRO',
+      'formatter' => 'date',
+    ],
   ];
 
   protected $reportRelations = [
@@ -556,6 +596,11 @@ class Vehicles extends BaseModel
     'electronicDocumentParent.identityDocumentType',
     'model.family.brand.group',
     'color',
+    'engineType',
+    'vehicleStatus',
+    'typeOperation',
+    'warehouse',
+    'warehousePhysical',
     'shippingGuideReceiving',
     'purchaseOrder.supplierOrderType',
     'vehicleDelivery.advisor',
