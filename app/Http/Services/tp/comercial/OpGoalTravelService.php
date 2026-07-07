@@ -405,6 +405,7 @@ class OpGoalTravelService extends BaseService
                     FROM op_despacho od
                     INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
                     WHERE od.estado <> 10
+                        AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
                         {$filtrosFecha}
@@ -420,6 +421,7 @@ class OpGoalTravelService extends BaseService
                         SUM(od.produccion) as total_produccion
                     FROM op_despacho od
                     WHERE od.estado <> 10
+                        AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
                         {$filtrosFecha}
