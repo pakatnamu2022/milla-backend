@@ -481,6 +481,8 @@ class NubefactApiService
       // derive precio_unitario from the net valor_unitario instead of the list price.
       $hasDescuento = $item->descuento && (float) $item->descuento > 0;
 
+      // valor_unitario already is the net price (discount embedded), so multiply by igv factor to get
+      // the Nubefact precio_unitario. descuento_unitario is informational here — valor_unitario is authoritative.
       $precioUnitario = $hasDescuento
         ? round((float) $item->valor_unitario * (1 + (float) $document->porcentaje_de_igv / 100), 2)
         : $item->precio_unitario;
