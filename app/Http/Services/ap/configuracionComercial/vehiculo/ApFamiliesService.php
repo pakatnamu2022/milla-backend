@@ -37,9 +37,9 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
   public function store(mixed $data)
   {
     $marca = ApVehicleBrand::findOrFail($data['brand_id']);
-    $data['code'] = $marca->codigo_dyn . $this->nextCorrelativeCount(
+    $data['code'] = $marca->dyn_code . $this->nextCorrelativeCount(
         ApFamilies::class,
-        4,
+        2,
         ['brand_id' => $data['brand_id']]
       );
 
@@ -91,6 +91,65 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
     }
     $family->update($data);
     return new ApFamiliesResource($family);
+  }
+
+  public function fixWrongCodes(): array
+  {
+    $families = ApFamilies::with('brand')->get();
+
+    $fixed = [];
+    $skipped = [];
+
+    foreach ($families as $family) {
+      $brand = $family->brand;
+      if (!$brand || !$brand->dyn_code) {
+        $skipped[] = ['id' => $family->id, 'code' => $family->code, 'reason' => 'Marca o dyn_code no encontrado'];
+        continue;
+      }
+
+      $expectedPrefix = strtoupper($brand->dyn_code);
+      $currentCode    = $family->code;
+
+      $prefixOk = str_starts_with($currentCode, $expectedPrefix);
+      $lengthOk = strlen($currentCode) === 4;
+      $isDuplicated = ApFamilies::where('code', $currentCode)
+        ->where('id', '!=', $family->id)
+        ->exists();
+
+      if ($prefixOk && $lengthOk && !$isDuplicated) {
+        continue;
+      }
+
+      $reason = !$prefixOk ? 'prefijo de marca incorrecto' : (!$lengthOk ? 'longitud incorrecta' : 'código duplicado');
+
+      DB::table('ap_families')->where('id', $family->id)->update(['code' => '__FIXING__' . $family->id]);
+
+      $lastCode = ApFamilies::where('brand_id', $family->brand_id)
+        ->where('code', 'not like', '__FIXING__%')
+        ->whereRaw('LENGTH(code) = 4')
+        ->orderBy('code', 'desc')
+        ->value('code');
+
+      $nextSuffix = $lastCode ? (int) substr($lastCode, 2) + 1 : 1;
+      $newCode = strtoupper($brand->dyn_code . str_pad($nextSuffix, 2, '0', STR_PAD_LEFT));
+
+      DB::table('ap_families')->where('id', $family->id)->update(['code' => $newCode]);
+
+      $fixed[] = [
+        'id'          => $family->id,
+        'description' => $family->description,
+        'reason'      => $reason,
+        'old_code'    => $currentCode,
+        'new_code'    => $newCode,
+      ];
+    }
+
+    return [
+      'fixed'   => count($fixed),
+      'skipped' => count($skipped),
+      'details' => $fixed,
+      'errors'  => $skipped,
+    ];
   }
 
   public function destroy($id)

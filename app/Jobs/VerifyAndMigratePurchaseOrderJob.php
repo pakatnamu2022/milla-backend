@@ -631,7 +631,19 @@ class VerifyAndMigratePurchaseOrderJob implements ShouldQueue
       return $log->status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED;
     });
 
-    if ($allCompleted && $logs->count() === 8) { // 8 pasos en total
+    $requiredSteps = [
+      VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER,
+      VehiclePurchaseOrderMigrationLog::STEP_SUPPLIER_ADDRESS,
+      VehiclePurchaseOrderMigrationLog::STEP_ARTICLE,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER,
+      VehiclePurchaseOrderMigrationLog::STEP_PURCHASE_ORDER_DETAIL,
+    ];
+
+    $hasAllRequiredSteps = collect($requiredSteps)->every(
+      fn($step) => $logs->where('step', $step)->isNotEmpty()
+    );
+
+    if ($allCompleted && $hasAllRequiredSteps) {
       $purchaseOrder->update([
         'migration_status' => 'completed',
         'migrated_at'      => now(),

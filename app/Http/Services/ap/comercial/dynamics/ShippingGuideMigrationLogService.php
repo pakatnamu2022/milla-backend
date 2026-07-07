@@ -141,7 +141,25 @@ class ShippingGuideMigrationLogService
       ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED)
       ->exists();
 
-    if ($allCompleted && $logs->count() === 3) {
+    $isSale = $shippingGuide->transfer_reason_id === \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_VENTA;
+
+    $requiredSteps = $isSale
+      ? [
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_SALE_SHIPPING_GUIDE_SERIAL,
+      ]
+      : [
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL,
+      ];
+
+    $hasAllRequiredSteps = collect($requiredSteps)->every(
+      fn($step) => $logs->where('step', $step)->isNotEmpty()
+    );
+
+    if ($allCompleted && $hasAllRequiredSteps) {
       $shippingGuide->update([
         'status_dynamic' => 1,
         'migration_status' => 'completed',

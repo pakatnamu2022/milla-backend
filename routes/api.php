@@ -954,7 +954,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'update',
           'destroy'
         ]);
-        
+
         // Mapeo de códigos incorrectos del dispositivo a DNI real
         Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
           'index',
@@ -1017,6 +1017,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::post('families/fix-codes', [ApFamiliesController::class, 'fixWrongCodes']);
       Route::apiResource('families', ApFamiliesController::class)->only([
         'index',
         'show',
@@ -1041,12 +1042,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::get('modelsVn/export', [ApModelsVnController::class, 'export']);
       Route::get('modelsVn/template', [ApModelsVnController::class, 'downloadTemplate']);
       Route::post('modelsVn/import', [ApModelsVnController::class, 'import']);
       Route::get('modelsVn/verify/template', [ApModelsVnController::class, 'downloadVerifyTemplate']);
       Route::post('modelsVn/verify', [ApModelsVnController::class, 'verify']);
       Route::get('modelsVn/sync-logs', [ApModelsVnController::class, 'syncLogs']);
       Route::post('modelsVn/sync-all', [ApModelsVnController::class, 'syncAll']);
+      Route::post('modelsVn/fix-codes', [ApModelsVnController::class, 'fixWrongCodes']);
+      Route::get('modelsVn/match-excel/template', [ApModelsVnController::class, 'matchExcelTemplate']);
+      Route::post('modelsVn/match-excel', [ApModelsVnController::class, 'matchExcel']);
+      Route::get('modelsVn/initial-stock/template', [ApModelsVnController::class, 'downloadInitialStockTemplate']);
+      Route::post('modelsVn/import-initial-stock', [ApModelsVnController::class, 'importInitialStock']);
+      Route::post('modelsVn/store-automatic', [ApModelsVnController::class, 'storeAutomatic']);
       Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
       Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
       Route::apiResource('modelsVn', ApModelsVnController::class)->only([
@@ -1344,6 +1352,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
+      Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
+      Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
@@ -1366,6 +1376,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::put('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'updateItem']);
       Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
       Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
+
+      // Vehicles Delivery - Stock Inicial
+      Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
+      Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
@@ -1523,11 +1537,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
       Route::patch('workOrders/{id}/update-pickup-person', [WorkOrderController::class, 'updatePickupPerson']);
+      Route::patch('workOrders/{id}/change-advisor', [WorkOrderController::class, 'changeAdvisor']);
       Route::patch('workOrders/{id}/update-items', [WorkOrderController::class, 'updateItems']);
       Route::patch('workOrders/{id}/change-currency', [WorkOrderController::class, 'changeCurrency']);
       Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
       Route::patch('workOrders/{id}/revertir', [WorkOrderController::class, 'revertir']);
       Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
+      Route::post('workOrders/{id}/recalculate-totals', [WorkOrderController::class, 'recalculateTotals']);
       Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
@@ -1619,6 +1635,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/segment-by-supply-type', [ApOrderQuotationsController::class, 'segmentBySupplyType']);
       Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
+      Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1705,6 +1722,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Order Planning - Completar trabajo por supervisor
       Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
 
+      // Work Order Planning - Autocompletar trabajo nunca iniciado por el técnico, respetando el horario planificado
+      Route::post('workOrderPlanning/{id}/auto-complete', [WorkOrderPlanningController::class, 'autoComplete']);
+
       // Work Order Planning - Cancelar trabajo
       Route::post('workOrderPlanning/{id}/cancel', [WorkOrderPlanningController::class, 'cancel']);
 
@@ -1739,6 +1759,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
+      Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
 
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);

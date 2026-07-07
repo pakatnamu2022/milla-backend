@@ -360,24 +360,25 @@
   </tr>
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> - DNI: {{ $quotation['customer_document'] }}
-      - {{ $quotation['customer_address'] }}</td>
+    <td colspan="3"><strong>{{ $quotation['customer_document'] }} - {{ $quotation['customer_name'] }}</strong></td>
+  </tr>
+  <tr>
+    <td class="label-cell">Dirección:</td>
+    <td colspan="3">{{ $quotation['customer_address'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Correo Cliente:</td>
+    <td colspan="3">{{ $quotation['customer_email'] }}</td>
+  </tr>
+  <tr>
+    <td class="label-cell">Asesor:</td>
+    <td colspan="3">{{ $quotation['advisor_phone'] }} - {{ $quotation['advisor_name'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Observaciones:</td>
     <td class="data-cell">{{ $quotation['observations'] }}</td>
     <td class="label-cell">Estado:</td>
     <td class="data-cell">Pendiente de validación por parte del cliente</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Asesor:</td>
-    <td class="data-cell">{{ $quotation['advisor_name'] }}</td>
-    <td class="label-cell">Celular:</td>
-    <td class="data-cell">{{ $quotation['advisor_phone'] }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Correo:</td>
-    <td colspan="3">{{ $quotation['advisor_email'] }}</td>
   </tr>
 </table>
 
@@ -389,20 +390,24 @@
   <tr>
     <td class="label-cell">Placa:</td>
     <td class="data-cell">{{ $quotation['vehicle_plate'] }}</td>
-    <td class="label-cell">Modelo:</td>
-    <td class="data-cell">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+    <td class="label-cell">Marca:</td>
+    <td class="data-cell">{{ $quotation['vehicle_brand'] }}</td>
   </tr>
   <tr>
+    <td class="label-cell">Modelo:</td>
+    <td class="data-cell">{{ $quotation['vehicle_model'] }}</td>
     <td class="label-cell">Nº Chasis:</td>
     <td class="data-cell">{{ $quotation['vehicle_vin'] }}</td>
-    <td class="label-cell">Nº Motor:</td>
-    <td class="data-cell">{{ $quotation['vehicle_engine'] }}</td>
   </tr>
   <tr>
+    <td class="label-cell">Nº Motor:</td>
+    <td class="data-cell">{{ $quotation['vehicle_engine'] }}</td>
     <td class="label-cell">Color:</td>
     <td class="data-cell">{{ $quotation['vehicle_color'] }}</td>
+  </tr>
+  <tr>
     <td class="label-cell">Kilometraje:</td>
-    <td class="data-cell">{{ $quotation['vehicle_km'] }} km</td>
+    <td class="data-cell" colspan="3">{{ $quotation['vehicle_km'] }} km</td>
   </tr>
 </table>
 

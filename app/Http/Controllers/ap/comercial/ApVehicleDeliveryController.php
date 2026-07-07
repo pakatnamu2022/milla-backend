@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\comercial;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
+use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryStockInicialRequest;
 use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
 use App\Http\Services\ap\comercial\ApVehicleDeliveryService;
 use App\Jobs\SyncAccountingEntryJob;
@@ -64,6 +65,31 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Lista vehículos de stock inicial en estado VENDIDO NO ENTREGADO sin entrega registrada
+   */
+  public function vehiclesStockInicial(Request $request)
+  {
+    try {
+      $sedeId = $request->integer('sede_id') ?: null;
+      return $this->success($this->service->listStockInicialVehicles($sedeId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Crea una entrega para un vehículo de stock inicial
+   */
+  public function storeStockInicial(StoreApVehicleDeliveryStockInicialRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeStockInicial($request->all()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -80,11 +80,6 @@ class SyncShippingGuideDynamicsCommand extends Command
    */
   protected function syncAllShippingGuides(): int
   {
-    // Validar límite de jobs pendientes antes de despachar
-    if (!$this->canDispatchMoreJobs(SyncShippingGuideDynamicsJob::class)) {
-      return Command::SUCCESS;
-    }
-
 
     // Obtener guías que no tienen dyn_series sincronizado
     $shippingGuides = ShippingGuides::where('is_accounted', 0)

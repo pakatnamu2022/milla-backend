@@ -297,13 +297,16 @@ class ApWorkOrder extends Model
   {
     $totals = $this->getTotalsArray();
 
-    // Actualizar los campos de la orden de trabajo
-    $this->total_labor_cost = $totals['labour_cost'];
-    $this->total_parts_cost = $totals['parts_cost'];
-    $this->subtotal = $totals['total_cost'];
-    $this->discount_amount = $totals['discount_amount'];
-    $this->tax_amount = $totals['tax_amount'];
-    $this->final_amount = $totals['total_amount'];
+    // Actualizar los campos de la orden de trabajo. Redondeo en cadena a 2 decimales:
+    // los ítems de repuestos/mano de obra (y los pendientes de cotización) ya llegan
+    // redondeados a 2 decimales, pero se vuelve a redondear aquí por seguridad ante
+    // arrastre de precisión flotante al sumar varios ítems.
+    $this->total_labor_cost = round($totals['labour_cost'], 2);
+    $this->total_parts_cost = round($totals['parts_cost'], 2);
+    $this->subtotal = round($totals['total_cost'], 2);
+    $this->discount_amount = round($totals['discount_amount'], 2);
+    $this->tax_amount = round($totals['tax_amount'], 2);
+    $this->final_amount = round($totals['total_amount'], 2);
 
     // Calcular discount_percentage basado en el discount_amount y subtotal
     if ($totals['total_cost'] > 0) {
@@ -424,9 +427,11 @@ class ApWorkOrder extends Model
         ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
 
       foreach ($pendingDetails as $detail) {
-        $itemTotalCost = $detail->total_cost ?? 0;
-        $itemNetAmount = $detail->net_amount ?? 0;
-        $itemTaxAmount = $detail->tax_amount ?? 0;
+        // Redondeo en cadena a 2 decimales, igual que en los repuestos/mano de obra
+        // ya cargados a la OT, para que al asociar una cotización el total no rompa esa regla.
+        $itemTotalCost = round((float)($detail->total_cost ?? 0), 2);
+        $itemNetAmount = round((float)($detail->net_amount ?? 0), 2);
+        $itemTaxAmount = round((float)($detail->tax_amount ?? 0), 2);
 
         if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
           $totalLabourCostBeforeDiscount += $itemTotalCost;
@@ -1441,8 +1446,10 @@ class ApWorkOrder extends Model
    * de verdad que WorkOrderLabourService/ApWorkOrderPartsService), en vez de recalcularlos
    * a partir de basePrice/quantity: recalcular redondeando el precio unitario antes de
    * multiplicarlo por una cantidad fraccionaria (ej. 7.5 litros) diverge unos centavos del
-   * monto ya guardado. valor_unitario/descuento se derivan de esos montos solo para mostrar,
-   * nunca alimentan el total.
+   * monto ya guardado. valor_unitario/precio_unitario/descuento se derivan de esos montos
+   * ya redondeados solo para mostrar (nunca alimentan el total), para que con cantidad=1
+   * precio_unitario coincida siempre con total: antes se recalculaba desde basePrice crudo
+   * (sin descuento y con su propio redondeo), lo que lo desalineaba del total hasta en S/ 0.10.
    */
   private function calculateInvoiceItemAmounts(
     float $basePrice,
@@ -1451,13 +1458,11 @@ class ApWorkOrder extends Model
     float $netAmount,
     float $taxAmount
   ): array {
-    $vatRate = Constants::VAT_TAX / 100;
-
     $subtotal = round($netAmount, 2);
     $igv = round($taxAmount, 2);
     $total = round($subtotal + $igv, 2);
     $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
-    $precioUnitario = round($basePrice * (1 + $vatRate), 2);
+    $precioUnitario = $quantity > 0 ? round($total / $quantity, 2) : $total;
     $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
 
     return [

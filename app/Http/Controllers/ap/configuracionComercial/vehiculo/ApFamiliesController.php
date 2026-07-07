@@ -55,6 +55,15 @@ class ApFamiliesController extends Controller
     }
   }
 
+  public function fixWrongCodes()
+  {
+    try {
+      return $this->success($this->service->fixWrongCodes());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function destroy($id)
   {
     try {
