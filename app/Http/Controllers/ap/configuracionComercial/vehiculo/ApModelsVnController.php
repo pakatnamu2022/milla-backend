@@ -164,6 +164,15 @@ class ApModelsVnController extends Controller
     }
   }
 
+  public function downloadInitialStockTemplate()
+  {
+    try {
+      return $this->service->downloadInitialStockTemplate();
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function matchExcelTemplate()
   {
     try {

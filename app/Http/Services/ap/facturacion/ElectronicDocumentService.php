@@ -444,6 +444,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 2) : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -717,6 +720,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // Crear nuevos items
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
         foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 2) : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -3219,14 +3225,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 13. Create invoice items from frontend data
       $lineNumber = 1;
       foreach ($data['items'] as $item) {
+        $cantidad = max(1, (float)($item['cantidad'] ?? 1));
+        $descuento = (float)($item['descuento'] ?? 0);
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
           'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
           'descripcion' => $item['descripcion'],
-          'cantidad' => $item['cantidad'],
+          'cantidad' => $cantidad,
           'valor_unitario' => round((float)$item['valor_unitario'], 2),
           'precio_unitario' => round((float)$item['precio_unitario'], 2),
+          'descuento' => $descuento > 0 ? $descuento : null,
+          'descuento_unitario' => $descuento > 0 ? round($descuento / $cantidad, 2) : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
           'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
           'igv' => round((float)$item['igv'], 2),
