@@ -109,6 +109,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
+      $data['opening_date'] = Carbon::now();
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);

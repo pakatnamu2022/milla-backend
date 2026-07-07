@@ -71,10 +71,6 @@ class StoreWorkOrderRequest extends StoreRequest
         'nullable',
         'string',
       ],
-      'opening_date' => [
-        'required',
-        'date',
-      ],
       'estimated_delivery_time' => [
         'required',
         'date',
@@ -206,9 +202,6 @@ class StoreWorkOrderRequest extends StoreRequest
 
       'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
       'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
-
-      'opening_date.required' => 'La fecha de apertura es obligatoria.',
-      'opening_date.date' => 'La fecha de apertura debe ser una fecha válida.',
 
       'estimated_delivery_time.required' => 'La fecha y hora estimada de entrega es obligatoria.',
       'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
