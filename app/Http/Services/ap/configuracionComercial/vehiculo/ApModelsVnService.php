@@ -1126,7 +1126,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
     $modelIndex = ApModelsVn::whereNull('deleted_at')
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->select(['id', 'code', 'version', 'model_year'])
+      ->select(['id', 'code', 'version', 'model_year', 'class_id'])
       ->get()
       ->keyBy(fn($m) => mb_strtoupper(trim($m->code)));
 
@@ -1136,13 +1136,14 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       ->get()
       ->keyBy(fn($w) => mb_strtoupper(trim($w->dyn_code ?? '')) . '|' . ($w->article_class_id ?? ''));
 
-    $exchangeRate = \App\Models\gp\maestroGeneral\ExchangeRate::where('date', now()->toDateString())->first();
+    $uploadDate = \Carbon\Carbon::parse('2026-06-30');
+
+    $exchangeRate = \App\Models\gp\maestroGeneral\ExchangeRate::where('date', $uploadDate->toDateString())->first();
     if (!$exchangeRate) {
-      throw new \Exception('No se ha registrado el tipo de cambio para hoy.');
+      throw new \Exception('No se ha registrado el tipo de cambio para el 30 de junio de 2026.');
     }
 
     $results = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
-    $uploadDate = now();
 
     for ($row = 2; $row <= $highestRow; $row++) {
       $rawCodigo = mb_strtoupper(trim((string)$sheet->getCell("{$cCodigo}{$row}")->getValue()));
@@ -1272,24 +1273,45 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'total'             => $rawTotal,
         ]);
 
+        $movements = ['ORDERED', 'IN_TRANSIT'];
+        if (!$isPorRecibir) {
+          $movements[] = 'INVENTORY';
+        }
+
         if ($preview) {
           DB::rollBack();
           $results['rows'][] = [
-            'row'    => $row,
-            'vin'    => $rawSerie,
-            'code'   => $rawCodigo,
-            'sitio'  => $sitioUp,
-            'status' => 'preview_ok',
+            'row'          => $row,
+            'vin'          => $rawSerie,
+            'code'         => $rawCodigo,
+            'sitio'        => $sitioUp,
+            'status'       => 'preview_ok',
+            'warehouse_id'   => $warehouse?->id,
+            'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
+            'warehouse_code' => $warehouse?->dyn_code ?? null,
+            'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
+            'movements'      => $movements,
+            'po_number'      => 'SI-' . $rawSerie,
+            'total'          => $rawTotal,
+            'subtotal'       => round($rawTotal / 1.18, 2),
+            'igv'            => round($rawTotal - $rawTotal / 1.18, 2),
+            'emission_date'  => $uploadDate->toDateString(),
+            'exchange_rate'  => $exchangeRate->rate ?? null,
           ];
         } else {
           DB::commit();
           $results['created']++;
           $results['rows'][] = [
-            'row'    => $row,
-            'vin'    => $rawSerie,
-            'code'   => $rawCodigo,
-            'sitio'  => $sitioUp,
-            'status' => 'created',
+            'row'          => $row,
+            'vin'          => $rawSerie,
+            'code'         => $rawCodigo,
+            'sitio'        => $sitioUp,
+            'status'       => 'created',
+            'warehouse_id'   => $warehouse?->id,
+            'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
+            'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
+            'movements'      => $movements,
+            'po_number'      => 'SI-' . $rawSerie,
           ];
         }
       } catch (\Throwable $th) {
