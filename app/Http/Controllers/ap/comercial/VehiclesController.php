@@ -206,4 +206,16 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function updateByVin(Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'file' => 'required|file|mimes:xlsx,xls,csv',
+      ]);
+      return $this->success($this->service->updateByVin($request->file('file')));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
