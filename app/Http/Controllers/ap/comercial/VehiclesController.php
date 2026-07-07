@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\ExportVehiclesDeliveryRequest;
+use App\Http\Requests\ap\comercial\ExportVehiclesRequest;
 use App\Http\Requests\ap\comercial\ExportVehiclesSalesRequest;
 use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesReplacementRequest;
@@ -25,6 +26,15 @@ class VehiclesController extends Controller
   public function __construct(VehiclesService $service)
   {
     $this->service = $service;
+  }
+
+  public function exportAll(ExportVehiclesRequest $request)
+  {
+    try {
+      return $this->service->exportAll($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
   }
 
   public function exportSales(ExportVehiclesSalesRequest $request)
