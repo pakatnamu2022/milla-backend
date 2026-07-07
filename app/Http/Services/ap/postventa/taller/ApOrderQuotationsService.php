@@ -221,6 +221,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['created_by'] = auth()->user()->id;
       }
 
+      // Validar que no se repita el mismo producto dentro del payload de details
+      $this->quotationDetailsService->validateNoDuplicateProductsInDetails($data['details']);
+
       // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
@@ -328,11 +331,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create details
       foreach ($data['details'] as $detail) {
-        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
-        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+        // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
+        // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? 0;
-        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
-        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -340,11 +342,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $unitPrice,
+          'unit_price' => $result['unit_price'],
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totals['total_cost'],
-          'net_amount' => $totals['net_amount'],
-          'tax_amount' => $totals['tax_amount'],
+          'total_cost' => $result['total_cost'],
+          'net_amount' => $result['net_amount'],
+          'tax_amount' => $result['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -475,6 +477,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
+      // Validar que no se repita el mismo producto dentro del payload de details
+      $this->quotationDetailsService->validateNoDuplicateProductsInDetails($data['details']);
+
       // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
@@ -527,11 +532,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
-        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
-        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+        // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
+        // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
-        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
-        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -539,11 +543,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $unitPrice,
+          'unit_price' => $result['unit_price'],
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totals['total_cost'],
-          'net_amount' => $totals['net_amount'],
-          'tax_amount' => $totals['tax_amount'],
+          'total_cost' => $result['total_cost'],
+          'net_amount' => $result['net_amount'],
+          'tax_amount' => $result['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -1816,13 +1820,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   private function recalculateDetailItems(ApOrderQuotations $quotation): void
   {
     foreach ($quotation->details as $detail) {
-      $totals = PriceRounding::calculateLineTotals(
+      $result = PriceRounding::calculateLine(
         (float)$detail->unit_price,
         (float)$detail->quantity,
         (float)($detail->discount_percentage ?? 0)
       );
 
-      $detail->update($totals);
+      $detail->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 

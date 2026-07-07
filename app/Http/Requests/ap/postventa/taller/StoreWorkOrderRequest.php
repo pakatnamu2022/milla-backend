@@ -75,10 +75,6 @@ class StoreWorkOrderRequest extends StoreRequest
         'required',
         'date',
       ],
-      'diagnosis_date' => [
-        'required',
-        'date',
-      ],
       'observations' => [
         'nullable',
         'string',
@@ -205,9 +201,6 @@ class StoreWorkOrderRequest extends StoreRequest
 
       'estimated_delivery_time.required' => 'La fecha y hora estimada de entrega es obligatoria.',
       'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
-
-      'diagnosis_date.required' => 'La fecha de diagnóstico es obligatoria.',
-      'diagnosis_date.date' => 'La fecha de diagnóstico debe ser una fecha válida.',
 
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
 

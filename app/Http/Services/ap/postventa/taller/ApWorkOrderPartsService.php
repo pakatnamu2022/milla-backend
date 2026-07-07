@@ -74,15 +74,13 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $data['unit_price'] = $product->sale_price ?? 0;
     }
 
-    // Aplicar factor de tipo de cambio al precio unitario (se mantiene en 2 decimales)
-    $data['unit_price'] = PriceRounding::roundUnitPrice(floatval($data['unit_price']) * $factor);
-
-    // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10),
-    // única fuente de verdad compartida con mano de obra y detalles de cotización.
-    $totals = PriceRounding::calculateLineTotals($data['unit_price'], $quantity, $discountPercentage);
-    $data['total_cost'] = $totals['total_cost'];
-    $data['net_amount'] = $totals['net_amount'];
-    $data['tax_amount'] = $totals['tax_amount'];
+    // unit_price (convertido por factor) + total_cost/net_amount/tax_amount: única
+    // fuente de verdad compartida con mano de obra y detalles de cotización.
+    $result = PriceRounding::calculateLine(floatval($data['unit_price']), $quantity, $discountPercentage, $factor);
+    $data['unit_price'] = $result['unit_price'];
+    $data['total_cost'] = $result['total_cost'];
+    $data['net_amount'] = $result['net_amount'];
+    $data['tax_amount'] = $result['tax_amount'];
   }
 
   private function calculateExchangeRateFactor(int $workOrderId): float

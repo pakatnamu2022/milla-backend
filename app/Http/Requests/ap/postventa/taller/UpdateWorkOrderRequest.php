@@ -107,11 +107,6 @@ class UpdateWorkOrderRequest extends StoreRequest
         'nullable',
         'date',
       ],
-      'diagnosis_date' => [
-        'sometimes',
-        'nullable',
-        'date',
-      ],
       'observations' => [
         'sometimes',
         'nullable',
@@ -263,8 +258,6 @@ class UpdateWorkOrderRequest extends StoreRequest
       'estimated_delivery_time.date' => 'La fecha y hora estimada de entrega debe ser una fecha válida.',
 
       'actual_delivery_date.date' => 'La fecha real de entrega debe ser una fecha válida.',
-
-      'diagnosis_date.date' => 'La fecha de diagnóstico debe ser una fecha válida.',
 
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
 

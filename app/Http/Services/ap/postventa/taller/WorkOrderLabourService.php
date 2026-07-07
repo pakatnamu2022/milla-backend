@@ -60,9 +60,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $this->handleQuotationDetail($data['quotation_detail_id'] ?? null);
 
       $factor = $this->getCurrencyConversionFactor($workOrder);
-      $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
-
-      $data['hourly_rate'] = PriceRounding::roundUnitPrice(floatval($data['hourly_rate']) * $factor);
+      $data['hourly_rate'] = $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
       $data['time_spent'] = $timeSpentDecimal;
 
       $workOrderLabour = WorkOrderLabour::create($data);
@@ -120,10 +118,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         $discountPercentage = $data['discount_percentage'] ?? $workOrderLabour->discount_percentage ?? 0;
 
         $factor = $this->getCurrencyConversionFactor($workOrder);
-        $this->calculateLabourCosts($data, $timeSpent, floatval($hourlyRate), $discountPercentage, $factor);
+        $newHourlyRate = $this->calculateLabourCosts($data, $timeSpent, floatval($hourlyRate), $discountPercentage, $factor);
 
         if (isset($data['hourly_rate'])) {
-          $data['hourly_rate'] = PriceRounding::roundUnitPrice(floatval($data['hourly_rate']) * $factor);
+          $data['hourly_rate'] = $newHourlyRate;
         }
 
         if (isset($data['time_spent'])) {
@@ -250,17 +248,19 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Calcular los costos de mano de obra
+   * Calcular los costos de mano de obra. hourly_rate (convertido por factor) +
+   * total_cost/net_amount/tax_amount: única fuente de verdad compartida con
+   * repuestos y detalles de cotización. Devuelve el hourly_rate ya convertido y
+   * redondeado para que el llamador decida si lo persiste (ver store()/update()).
    */
-  private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): void
+  private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): float
   {
-    // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10),
-    // única fuente de verdad compartida con repuestos y detalles de cotización.
-    $hourlyRate = PriceRounding::roundUnitPrice($hourlyRate * $factor);
-    $totals = PriceRounding::calculateLineTotals($hourlyRate, $timeSpent, $discountPercentage);
-    $data['total_cost'] = $totals['total_cost'];
-    $data['net_amount'] = $totals['net_amount'];
-    $data['tax_amount'] = $totals['tax_amount'];
+    $result = PriceRounding::calculateLine($hourlyRate, $timeSpent, $discountPercentage, $factor);
+    $data['total_cost'] = $result['total_cost'];
+    $data['net_amount'] = $result['net_amount'];
+    $data['tax_amount'] = $result['tax_amount'];
+
+    return $result['unit_price'];
   }
 
   /**
