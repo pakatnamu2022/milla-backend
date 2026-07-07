@@ -554,7 +554,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ->with(['model', 'color', 'vehicleStatus']);
 
     if ($sedeId) {
-      $query->whereHas('warehousePhysical', fn($q) => $q->where('sede_id', $sedeId));
+      $query->whereHas('warehouse', fn($q) => $q->where('sede_id', $sedeId));
     }
 
     return VehiclesResource::collection($query->get());
