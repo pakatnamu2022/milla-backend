@@ -1096,7 +1096,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
   public function importInitialStockFromExcel(UploadedFile $file): array
   {
-    $preview = true; // cambiar a false para persistir
+    $preview = false; // cambiar a false para persistir
     $reader = IOFactory::createReaderForFile($file->getPathname());
     if (method_exists($reader, 'setReadDataOnly')) {
       $reader->setReadDataOnly(true);
@@ -1312,23 +1312,23 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
         $correlative = (DB::table('ap_purchase_order')->max('number_correlative') ?? 0) + 1;
 
         $po = PurchaseOrder::create([
-          'number'              => 'SI-' . $rawSerie,
-          'number_correlative'  => $correlative,
-          'number_guide'        => 'SI-' . $rawSerie,
-          'invoice_series'      => 'SI',
-          'invoice_number'      => $rawSerie,
-          'supplier_id'         => 4, // DERCO PERU S.A.
-          'currency_id'         => 1, // USD - DOLAR AMERICANO
-          'exchange_rate_id'    => $exchangeRate->id,
-          'created_by'          => auth()->id(),
-          'vehicle_movement_id' => $movPedido->id,
-          'emission_date'       => $uploadDate->toDateString(),
-          'subtotal'            => round($rawTotal / 1.18, 2),
-          'igv'                 => round($rawTotal - $rawTotal / 1.18, 2),
-          'total'               => $rawTotal,
-          'sede_id'             => $warehouse?->sede_id,
-          'warehouse_id'        => $warehouse?->id,
-          'type_operation_id'   => ApMasters::TIPO_OPERACION_COMERCIAL,
+          'number'                    => 'SI-' . $rawSerie,
+          'number_correlative'        => $correlative,
+          'number_guide'              => 'SI-' . $rawSerie,
+          'invoice_series'            => 'SI',
+          'invoice_number'            => $rawSerie,
+          'supplier_id'               => 4, // DERCO PERU S.A.
+          'currency_id'               => 1, // USD - DOLAR AMERICANO
+          'exchange_rate_id'          => $exchangeRate->id,
+          'created_by'                => auth()->id(),
+          'vehicle_movement_id'       => $movPedido->id,
+          'emission_date'             => $uploadDate->toDateString(),
+          'subtotal'                  => round($rawTotal / 1.18, 2),
+          'igv'                       => round($rawTotal - $rawTotal / 1.18, 2),
+          'total'                     => $rawTotal,
+          'sede_id'                   => $warehouse?->sede_id,
+          'warehouse_id'              => $warehouse?->id,
+          'type_operation_id'         => ApMasters::TIPO_OPERACION_COMERCIAL,
           'migration_status'          => 'completed',
           'migrated_at'               => $uploadDate,
           'invoice_dynamics'          => 'SI-' . $rawSerie,
@@ -1382,16 +1382,16 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           DB::commit();
           $results['created']++;
           $results['rows'][] = [
-            'row'            => $row,
-            'vin'            => $rawSerie,
-            'code'           => $rawCodigo,
-            'sitio'          => $sitioUp,
-            'status'         => 'created',
-            'warehouse_id'   => $warehouse?->id,
-            'warehouse_name' => $warehouse?->name ?? '(sin almacén)',
-            'final_status'   => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
-            'movements'      => $movements,
-            'po_number'      => 'SI-' . $rawSerie,
+            'row'               => $row,
+            'vin'               => $rawSerie,
+            'code'              => $rawCodigo,
+            'sitio'             => $sitioUp,
+            'status'            => 'created',
+            'warehouse_id'      => $warehouse?->id,
+            'warehouse_name'    => $warehouse?->name ?? '(sin almacén)',
+            'final_status'      => $isPorRecibir ? 'EN_TRÁNSITO (EXR)' : 'INVENTARIO_VN',
+            'movements'         => $movements,
+            'po_number'         => 'SI-' . $rawSerie,
             'shipping_guide_id' => $shippingGuide?->id,
           ];
         }
