@@ -11,18 +11,33 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Throwable;
+use Illuminate\Support\Facades\Cache;
 
 class OpGoalTravelService extends BaseService
 {
+
+    const MESES = [
+        1 => 'Enero',
+        2 => 'Febrero',
+        3 => 'Marzo',
+        4 => 'Abril',
+        5 => 'Mayo',
+        6 => 'Junio',
+        7 => 'Julio',
+        8 => 'Agosto',
+        9 => 'Septiembre',
+        10 => 'Octubre',
+        11 => 'Noviembre',
+        12 => 'Diciembre'
+    ];
     public function list(Request $request)
     {
         $query = OpGoalTravel::query();
         if ($request->has('status_id')) {
             $statusId = $request->input('status_id');
-            
+
             switch ($statusId) {
                 case '0':
                     $query->where('status_deleted', 0);
@@ -49,7 +64,7 @@ class OpGoalTravelService extends BaseService
             OpGoalTravelResource::class
         );
 
-        if($response instanceof JsonResponse){
+        if ($response instanceof JsonResponse) {
             $data = $response->getData(true);
 
 
@@ -60,33 +75,32 @@ class OpGoalTravelService extends BaseService
 
         return $response;
     }
-    private function getAvailableYears()
+
+    public function getAvailableYears()
     {
         try {
 
             $years = OpGoalTravel::where('status_deleted', 1)
-                    ->get()
-                    ->map(function($item){
-                        if($item->fecha && !is_null($item->fecha)){
-                            try{
+                ->get()
+                ->map(function ($item) {
+                    if ($item->fecha && !is_null($item->fecha)) {
+                        try {
 
-                                return $item->fecha->year;
-
-                            }catch(Exception $e){
-                                return null;
-                            }
+                            return $item->fecha->year;
+                        } catch (Exception $e) {
+                            return null;
                         }
+                    }
 
-                        return null;
-                    })
-                    ->filter()
-                    ->unique()
-                    ->sortDesc()
-                    ->values()
-                    ->toArray();
+                    return null;
+                })
+                ->filter()
+                ->unique()
+                ->sortDesc()
+                ->values()
+                ->toArray();
 
-        return $years;
-        
+            return $years;
         } catch (\Exception $e) {
             Log::error('Error getting available years: ' . $e->getMessage());
             return [];
@@ -94,19 +108,19 @@ class OpGoalTravelService extends BaseService
     }
 
 
-    public function store($data){
+    public function store($data)
+    {
         DB::beginTransaction();
-        try{
+        try {
             $driverCount = Driver::where('sede_id', 1)->count();
             $vehicleCount = Vehicle::where('tercero', 0)
-                              ->where('sede_id', 1)
-                              ->where('tipo_vehiculo_id', 1)
-                              ->where('vehiculo_status', 1)
-                              ->where('status_deleted', 1)
-                              ->count();
+                ->where('sede_id', 1)
+                ->where('tipo_vehiculo_id', 1)
+                ->where('vehiculo_status', 1)
+                ->where('status_deleted', 1)
+                ->count();
 
-            if($driverCount === 0 || $vehicleCount === 0)
-            {
+            if ($driverCount === 0 || $vehicleCount === 0) {
                 throw new Exception("No hay conductores o vehículos activos para calcular las metas.");
             }
 
@@ -114,8 +128,8 @@ class OpGoalTravelService extends BaseService
                 'fecha' => $data['date'],
                 'total' => $data['total'],
                 'meta_conductor' => $data['total'] / $driverCount,
-                'meta_vehiculo' => $data['total'] / $vehicleCount ,
-                'total_unidades' => $vehicleCount ,
+                'meta_vehiculo' => $data['total'] / $vehicleCount,
+                'total_unidades' => $vehicleCount,
                 'status_deleted' => 1,
             ]);
 
@@ -125,8 +139,7 @@ class OpGoalTravelService extends BaseService
                 'data' => new OpGoalTravelResource($goalTravel),
                 'message' => 'Meta creada exitosamente'
             ];
-
-        }catch(Throwable $th){
+        } catch (Throwable $th) {
             DB::rollBack();
             Log::error("Error en el servicio de metas de viajes" . $th->getMessage());
             throw $th;
@@ -136,30 +149,29 @@ class OpGoalTravelService extends BaseService
     public function show($id)
     {
         $goalTravel = OpGoalTravel::where('status_deleted', 1)
-                                    ->findOrFail($id);
+            ->findOrFail($id);
         return new OpGoalTravelResource($goalTravel);
     }
 
     public function update($data)
     {
         DB::beginTransaction();
-        try{
+        try {
             $goalTravel = OpGoalTravel::where('status_deleted', 1)
-                                      ->findOrFail($data['id']);
-            
-            if(!$goalTravel){
+                ->findOrFail($data['id']);
+
+            if (!$goalTravel) {
                 throw new Exception('Meta no encontrado');
             }
             $driverCount = Driver::where('sede_id', 1)->count();
             $vehicleCount = Vehicle::where('tercero', 0)
-                              ->where('sede_id', 1)
-                              ->where('tipo_vehiculo_id', 1)
-                              ->where('vehiculo_status', 1)
-                              ->where('status_deleted', 1)
-                              ->count();
+                ->where('sede_id', 1)
+                ->where('tipo_vehiculo_id', 1)
+                ->where('vehiculo_status', 1)
+                ->where('status_deleted', 1)
+                ->count();
 
-            if($driverCount === 0 || $vehicleCount === 0)
-            {
+            if ($driverCount === 0 || $vehicleCount === 0) {
                 throw new Exception("No hay conductores o vehículos activos para calcular las metas.");
             }
 
@@ -167,8 +179,8 @@ class OpGoalTravelService extends BaseService
                 'fecha' => $data['date'],
                 'total' => $data['total'],
                 'meta_conductor' => $data['total'] / $driverCount,
-                'meta_vehiculo' => $data['total'] / $vehicleCount ,
-                'total_unidades' => $vehicleCount ,
+                'meta_vehiculo' => $data['total'] / $vehicleCount,
+                'total_unidades' => $vehicleCount,
             ]);
 
             DB::commit();
@@ -177,10 +189,9 @@ class OpGoalTravelService extends BaseService
                 'data' => new OpGoalTravelResource($goalTravel->fresh()),
                 'message' => 'Meta actualizada exitosamente'
             ];
-
-        } catch(Throwable $th){
+        } catch (Throwable $th) {
             DB::rollBack();
-            Log::error("Error en el servicio de meta de viajes: ".$th->getMessage());
+            Log::error("Error en el servicio de meta de viajes: " . $th->getMessage());
             throw $th;
         }
     }
@@ -199,11 +210,514 @@ class OpGoalTravelService extends BaseService
                 'success' => true,
                 'message' => 'Meta eliminado exitosamente'
             ];
-        }catch(Throwable $th){
+        } catch (Throwable $th) {
             DB::rollBack();
-            Log::error("Error en el servicio de meta: ".$th->getMessage());
-            throw new Exception("Error al eliminar el meta: ".$th->getMessage());
+            Log::error("Error en el servicio de meta: " . $th->getMessage());
+            throw new Exception("Error al eliminar el meta: " . $th->getMessage());
         }
     }
 
+    public function getComparativaMensual(int $year, int $month)
+    {
+
+        $cacheKey = "comparativa_{$year}_{$month}";
+        return Cache::remember($cacheKey, 3600, function () use ($year, $month) {
+            try {
+                $mesActual = $month;
+                $anioActual = $year;
+
+                $mesAnterior = $mesActual - 1;
+                $anioAnterior = $year;
+
+
+                if ($mesAnterior == 0) {
+                    $mesAnterior = 12;
+                    $anioAnterior = $year - 1;
+                }
+
+                $datosActual = DB::select("
+                SELECT 
+                    rp.id as cliente_id,
+                    rp.nombre_completo as cliente,
+                    COUNT(od.id) as total_viajes,
+                    SUM(od.produccion) as total_produccion
+                FROM op_despacho od
+                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                WHERE od.estado <> 10
+                    AND YEAR(od.fecha_viaje) = ?
+                    AND MONTH(od.fecha_viaje) = ?
+                GROUP BY od.idcliente
+                ORDER BY total_viajes DESC
+            ", [$anioActual, $mesActual]);
+
+                $datosAnterior = DB::select("
+                SELECT 
+                    rp.id as cliente_id,
+                    rp.nombre_completo as cliente,
+                    COUNT(od.id) as total_viajes,
+                    SUM(od.produccion) as total_produccion
+                FROM op_despacho od
+                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                WHERE od.estado <> 10
+                    AND YEAR(od.fecha_viaje) = ?
+                    AND MONTH(od.fecha_viaje) = ?
+                GROUP BY od.idcliente
+                ORDER BY total_viajes DESC
+            ", [$anioAnterior, $mesAnterior]);
+
+                $totalActual = DB::selectOne("
+                    SELECT
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as total_produccion
+                    FROM op_despacho od
+                    WHERE od.estado <> 10
+                          AND YEAR(od.fecha_viaje) = ?
+                          AND MONTH(od.fecha_viaje) = ?
+            ", [$anioActual, $mesActual]);
+
+                $totalAnterior = DB::selectOne("
+                SELECT 
+                    COUNT(od.id) as total_viajes,
+                    SUM(od.produccion) as total_produccion
+                FROM op_despacho od
+                WHERE od.estado <> 10
+                    AND YEAR(od.fecha_viaje) = ?
+                    AND MONTH(od.fecha_viaje) = ?
+            ", [$anioAnterior, $mesAnterior]);
+
+                $clientes = [];
+                $viajesActual = [];
+                $viajesAnterior = [];
+                $produccionActual = [];
+                $produccionAnterior = [];
+                $participacionActual = [];
+                $participacionAnterior = [];
+
+                $totalViajesActual = $totalActual->total_viajes ?? 0;
+                $totalProdActual = $totalActual->total_produccion ?? 0;
+                $totalViajesAnterior = $totalAnterior->total_viajes ?? 0;
+                $totalProdAnterior = $totalAnterior->total_produccion ?? 0;
+
+                $mapaAnterior = [];
+                foreach ($datosAnterior as $item) {
+                    $mapaAnterior[$item->cliente_id] = [
+                        'viajes' => (int) $item->total_viajes,
+                        'produccion' => (float) $item->total_produccion
+                    ];
+                }
+                foreach ($datosActual as $item) {
+                    $clientes[] = $item->cliente;
+                    $viajesActual[] = (int) $item->total_viajes;
+                    $produccionActual[] = (float) $item->total_produccion;
+                    $participacionActual[] = $totalProdActual > 0
+                        ? round(($item->total_produccion / $totalProdActual) * 100, 2)
+                        : 0;
+
+                    if (isset($mapaAnterior[$item->cliente_id])) {
+                        $viajesAnterior[] = $mapaAnterior[$item->cliente_id]['viajes'];
+                        $produccionAnterior[] = $mapaAnterior[$item->cliente_id]['produccion'];
+                        $participacionAnterior[] = $totalProdAnterior > 0
+                            ? round(($mapaAnterior[$item->cliente_id]['produccion'] / $totalProdAnterior) * 100, 2)
+                            : 0;
+                    } else {
+                        $viajesAnterior[] = 0;
+                        $produccionAnterior[] = 0;
+                        $participacionAnterior[] = 0;
+                    }
+                }
+
+                return [
+                    'clientes' => $clientes,
+                    'viajes_actual' => $viajesActual,
+                    'viajes_anterior' => $viajesAnterior,
+                    'produccion_actual' => $produccionActual,
+                    'produccion_anterior' => $produccionAnterior,
+                    'participacion_actual' => $participacionActual,
+                    'participacion_anterior' => $participacionAnterior,
+                    'resumen' => [
+                        'actual' => [
+                            'viajes' => (int) $totalViajesActual,
+                            'produccion' => (float) $totalProdActual,
+                            'label' => self::MESES[$mesActual] . ' ' . $anioActual,
+                        ],
+                        'anterior' => [
+                            'viajes' => (int) $totalViajesAnterior,
+                            'produccion' => (float) $totalProdAnterior,
+                            'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior,
+                        ]
+                    ],
+                    'periodo_actual' => [
+                        'mes' => $mesActual,
+                        'anio' => $anioActual,
+                        'label' => self::MESES[$mesActual] . ' ' . $anioActual
+                    ],
+                    'periodo_anterior' => [
+                        'mes' => $mesAnterior,
+                        'anio' => $anioAnterior,
+                        'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior
+                    ]
+                ];
+            } catch (Throwable $th) {
+                Log::error("Error en el servicio de comparativa mensual: " . $th->getMessage());
+                throw new Exception("Error al obtener la comparativa mensual: " . $th->getMessage());
+            }
+        });
+    }
+
+    public function getViajesNoFacturados(int $dias = 4, ?int $year = null, ?int $month = null)
+    {
+
+        $monthKey = $month ?? 'all';
+        $cacheKey = "viajes_no_facturados_{$dias}_{$year}_{$monthKey}";
+
+        return Cache::remember($cacheKey, 600, function () use ($dias, $year, $month) {
+            try {
+
+                if ($year === null) {
+                    $year = (int)date('Y');
+                }
+
+                $fechaLimite = date('Y-m-d', strtotime("-{$dias} days"));
+
+                $filtrosFecha = "AND YEAR(od.fecha_viaje) = ?";
+                $params = [$fechaLimite, $year];
+
+                if ($month !== null) {
+                    $filtrosFecha .= " AND MONTH(od.fecha_viaje) = ?";
+                    $params[] = $month;
+                }
+
+                $viajesFacturados = DB::table('fac_viaje_asignada')
+                    ->where('status_deleted', 1)
+                    ->pluck('viaje_id')
+                    ->toArray();
+                $viajesFacturados = empty($viajesFacturados) ? [0] : $viajesFacturados;
+
+                $resultados = DB::select("
+                    SELECT 
+                        rp.id as cliente_id,
+                        rp.nombre_completo as cliente,
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as total_produccion,
+                        MIN(od.fecha_viaje) as viaje_mas_antiguo,
+                        MAX(od.fecha_viaje) as viaje_mas_reciente,
+                        GROUP_CONCAT(DISTINCT CONCAT('TPV', LPAD(od.id, 8, '0')) SEPARATOR ', ') as codigos_viajes
+                    FROM op_despacho od
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                    WHERE od.estado <> 10
+                        AND od.fecha_viaje <= ?
+                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        {$filtrosFecha}
+                    GROUP BY od.idcliente
+                    HAVING COUNT(od.id) > 0
+                    ORDER BY total_viajes DESC
+                    LIMIT 500
+                    ", $params);
+
+                $totalGeneral = DB::selectOne("
+                    SELECT 
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as total_produccion
+                    FROM op_despacho od
+                    WHERE od.estado <> 10
+                        AND od.fecha_viaje <= ?
+                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        {$filtrosFecha}
+                        ", $params);
+
+                return [
+                    'data' => $resultados,
+                    'resumen' => [
+                        'total_viajes' => $totalGeneral ? (int) $totalGeneral->total_viajes : 0,
+                        'total_produccion' => $totalGeneral ? (float) $totalGeneral->total_produccion : 0,
+                        'dias_umbral' => $dias,
+                        'fecha_limite' => $fechaLimite,
+                        'periodo' => [
+                            'anio' => $year,
+                            'mes' => $month,
+                        ]
+                    ]
+                ];
+            } catch (Throwable $th) {
+                Log::error("Error en el servicio de viajes no facturados: " . $th->getMessage());
+                throw new Exception("Error al obtener los viajes no facturados: " . $th->getMessage());
+            }
+        });
+    }
+
+    public function getDashboardData($year, $month)
+    {
+        $cacheKey = "dashboard_{$year}_{$month}";
+
+        return Cache::remember($cacheKey, 300, function () use ($year, $month) {
+            try{
+                $goal = OpGoalTravel::whereYear('fecha', $year)
+                ->whereMonth('fecha', $month)
+                ->where('status_deleted', 1)
+                ->first();
+
+                if (!$goal) {
+                    return [
+                        'meta' => null,
+                        'conductores' => [],
+                        'vehiculos' => [],
+                        'resumen' => null
+                    ];
+                }
+                $conductores = DB::select("
+                            SELECT 
+                                rp.id as conductor_id,
+                                rp.nombre_completo as conductor,
+                                COUNT(od.id) as total_viajes,
+                                SUM(od.produccion) as produccion_real,
+                                ? as meta_conductor,
+                                ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
+                            FROM op_despacho od
+                            INNER JOIN rrhh_persona rp ON rp.id = od.conductor_id
+                            WHERE od.estado <> 10
+                                AND YEAR(od.fecha_viaje) = ?
+                                AND MONTH(od.fecha_viaje) = ?
+                            GROUP BY od.conductor_id
+                            ORDER BY produccion_real DESC
+                        ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month]);
+
+                $vehiculos = DB::select("
+                            SELECT 
+                                v.id as vehiculo_id,
+                                v.placa as vehiculo,
+                                COUNT(od.id) as total_viajes,
+                                SUM(od.produccion) as produccion_real,
+                                ? as meta_vehiculo,
+                                ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
+                            FROM op_despacho od
+                            INNER JOIN op_vehiculo v ON v.id = od.tracto_id
+                            WHERE od.estado <> 10
+                                AND YEAR(od.fecha_viaje) = ?
+                                AND MONTH(od.fecha_viaje) = ?
+                            GROUP BY od.tracto_id
+                            ORDER BY produccion_real DESC
+                        ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
+
+                $resumen = DB::selectOne("
+                        SELECT 
+                            COUNT(DISTINCT od.conductor_id) as conductores_activos,
+                            COUNT(DISTINCT od.tracto_id) as vehiculos_activos,
+                            COUNT(od.id) as total_viajes,
+                            SUM(od.produccion) as produccion_total,
+                            ? as meta_total,
+                            ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
+                        FROM op_despacho od
+                        WHERE od.estado <> 10
+                            AND YEAR(od.fecha_viaje) = ?
+                            AND MONTH(od.fecha_viaje) = ?
+                    ", [$goal->total, $goal->total, $year, $month]);
+
+                return [
+                    'meta' => [
+                        'id' => (int) $goal->id,
+                        'fecha' => $goal->fecha ? $goal->fecha->format('Y-m-d') : null,
+                        'total' => (float) $goal->total,
+                        'meta_conductor' => (float) $goal->meta_conductor,
+                        'meta_vehiculo' => (float) $goal->meta_vehiculo,
+                        'total_unidades' => (int) $goal->total_unidades,
+                    ],
+                    'conductores' => array_map(function ($item) {
+                        return [
+                            'conductor_id' => (int) $item->conductor_id,
+                            'conductor' => $item->conductor ?? 'Sin conductor',
+                            'total_viajes' => (int) $item->total_viajes,
+                            'produccion_real' => (float) $item->produccion_real,
+                            'meta_conductor' => (float) $item->meta_conductor,
+                            'porcentaje_cumplimiento' => (float) $item->porcentaje_cumplimiento,
+                        ];
+                    }, $conductores),
+                    'vehiculos' => array_map(function ($item) {
+                        return [
+                            'vehiculo_id' => (int) $item->vehiculo_id,
+                            'vehiculo' => $item->vehiculo ?? 'Sin vehículo',
+                            'total_viajes' => (int) $item->total_viajes,
+                            'produccion_real' => (float) $item->produccion_real,
+                            'meta_vehiculo' => (float) $item->meta_vehiculo,
+                            'porcentaje_cumplimiento' => (float) $item->porcentaje_cumplimiento,
+                        ];
+                    }, $vehiculos),
+                    'resumen' => $resumen ? [
+                        'conductores_activos' => (int) $resumen->conductores_activos,
+                        'vehiculos_activos' => (int) $resumen->vehiculos_activos,
+                        'total_viajes' => (int) $resumen->total_viajes,
+                        'produccion_total' => (float) $resumen->produccion_total,
+                        'meta_total' => (float) $resumen->meta_total,
+                        'porcentaje_cumplimiento' => (float) $resumen->porcentaje_cumplimiento,
+                    ] : null
+                ];
+
+        }catch(Throwable $th){
+            Log::error("Error en el servicio dashboard: " . $th->getMessage());
+            throw new Exception("Error al obtener los datos para el dashboard: " . $th->getMessage());
+        }
+        });
+    }
+
+
+
+
+    public function getRanking(string $periodo = 'month', int $limit = 10, ?int $year = null, ?int $month = null)
+    {
+
+        $year = $year ?? date('Y');
+        $month = $month ?? date('m');
+        $cacheKey = "ranking_{$periodo}_{$year}_{$month}_{$limit}";
+        return Cache::remember($cacheKey, 300, function () use ($periodo, $limit, $year, $month) {
+            try {
+                if ($periodo === 'week') {
+                    // Para semana: usamos la semana del año/mes especificado
+                    $dateCondition = "YEARWEEK(od.fecha_viaje) = YEARWEEK('{$year}-{$month}-01')";
+                } else {
+                    // Para mes: año y mes específicos
+                    $dateCondition = "YEAR(od.fecha_viaje) = {$year} AND MONTH(od.fecha_viaje) = {$month}";
+                }
+                $ranking = DB::select("
+                SELECT 
+                    rp.id as conductor_id,
+                    rp.nombre_completo as conductor,
+                    COUNT(od.id) as total_viajes,
+                    COALESCE(SUM(od.produccion), 0) as produccion_total,
+                    COALESCE(AVG(od.produccion), 0) as promedio_por_viaje,
+                    COUNT(DISTINCT od.tracto_id) as vehiculos_usados,
+                    MIN(od.fecha_viaje) as primer_viaje,
+                    MAX(od.fecha_viaje) as ultimo_viaje
+                FROM rrhh_persona rp
+                LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
+                    AND od.estado = 9
+                    AND {$dateCondition}
+                WHERE rp.b_empleado = 1 
+                    AND rp.status_id = 22 
+                    AND rp.status_deleted = 1
+                GROUP BY rp.id, rp.nombre_completo
+                HAVING COUNT(od.id) > 0
+                ORDER BY produccion_total DESC
+                LIMIT ?
+            ", [$limit]);
+
+                $result = [];
+                foreach ($ranking as $index => $item) {
+                    $medal = '';
+                    if ($index === 0) $medal = '🥇';
+                    else if ($index === 1) $medal = '🥈';
+                    else if ($index === 2) $medal = '🥉';
+
+                    $result[] = [
+                        'position' => $index + 1,
+                        'medal' => $medal,
+                        'conductor_id' => (int) $item->conductor_id,
+                        'conductor' => $item->conductor,
+                        'total_viajes' => (int) $item->total_viajes,
+                        'produccion_total' => (float) $item->produccion_total,
+                        'promedio_por_viaje' => (float) $item->promedio_por_viaje,
+                        'vehiculos_usados' => (int) $item->vehiculos_usados,
+                        'periodo' => "{$year}-{$month}",
+                    ];
+                }
+
+                return $result;
+            } catch (\Exception $e) {
+                Log::error('Error en getRanking: ' . $e->getMessage());
+                throw $e;
+            }
+        });
+    }
+
+    public function getAlerts(int $threshold = 70, ?int $year = null, ?int $month = null)
+    {
+       $cacheKey = "alerts_{$threshold}_{$year}_{$month}";
+
+       return Cache::remember($cacheKey, 300, function () use ($threshold, $year, $month) {
+            try {
+                $year = $year ?? date('Y');
+                $month = $month ?? date('m');
+
+                $goal = OpGoalTravel::whereYear('fecha', $year)
+                    ->whereMonth('fecha', $month)
+                    ->where('status_deleted', 1)
+                    ->first();
+
+                if (!$goal) {
+                    return [
+                        'conductores' => [],
+                        'vehiculos' => [],
+                        'periodo' => "{$year}-{$month}"
+                    ];
+                }
+
+                // Conductores por debajo del umbral
+                $conductores = DB::select("
+                    SELECT 
+                        rp.id as conductor_id,
+                        rp.nombre_completo as conductor,
+                        COUNT(od.id) as total_viajes,
+                        COALESCE(SUM(od.produccion), 0) as produccion,
+                        ? as meta,
+                        COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
+                    FROM rrhh_persona rp
+                    LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
+                        AND od.estado = 9
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                    WHERE rp.b_empleado = 1 
+                        AND rp.status_id = 22 
+                        AND rp.status_deleted = 1
+                    GROUP BY rp.id, rp.nombre_completo
+                    HAVING porcentaje < ? AND porcentaje > 0
+                ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month, $threshold]);
+
+                // Vehículos por debajo del umbral
+                $vehiculos = DB::select("
+                    SELECT 
+                        v.id as vehiculo_id,
+                        v.placa as vehiculo,
+                        COUNT(od.id) as total_viajes,
+                        COALESCE(SUM(od.produccion), 0) as produccion,
+                        ? as meta,
+                        COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
+                    FROM op_vehiculo v
+                    LEFT JOIN op_despacho od ON od.tracto_id = v.id 
+                        AND od.estado = 9
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                    WHERE v.tipo_vehiculo_id = 1 
+                        AND v.status_deleted = 1 
+                        AND v.vehiculo_status = 1
+                        AND v.tercero = 0
+                    GROUP BY v.id, v.placa
+                    HAVING porcentaje < ? AND porcentaje > 0
+                ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month, $threshold]);
+
+                return [
+                    'conductores' => array_map(function ($item) {
+                        return [
+                            'conductor_id' => (int) $item->conductor_id,
+                            'conductor' => $item->conductor,
+                            'total_viajes' => (int) $item->total_viajes,
+                            'produccion' => (float) $item->produccion,
+                            'meta' => (float) $item->meta,
+                            'porcentaje' => (float) $item->porcentaje,
+                        ];
+                    }, $conductores),
+                    'vehiculos' => array_map(function ($item) {
+                        return [
+                            'vehiculo_id' => (int) $item->vehiculo_id,
+                            'vehiculo' => $item->vehiculo,
+                            'total_viajes' => (int) $item->total_viajes,
+                            'produccion' => (float) $item->produccion,
+                            'meta' => (float) $item->meta,
+                            'porcentaje' => (float) $item->porcentaje,
+                        ];
+                    }, $vehiculos)
+                ];
+            } catch (\Exception $e) {
+                Log::error('Error en getAlerts: ' . $e->getMessage());
+                throw $e;
+            }
+       });
+    }
 }

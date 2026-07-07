@@ -9,6 +9,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
+use App\Models\ap\postventa\taller\ApWorkOrderPlanningSession;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -215,8 +216,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   {
     $workerId = $data['worker_id'];
     $type = $data['type'];
-    $plannedStart = Carbon::parse($data['planned_start_datetime']);
-    $plannedEnd = Carbon::parse($data['planned_end_datetime']);
+    $plannedStart = Carbon::parse($data['planned_start_datetime'])->startOfMinute();
+    $plannedEnd = Carbon::parse($data['planned_end_datetime'])->startOfMinute();
 
     // Obtener fecha del día para las validaciones
     $currentDate = $plannedStart->format('Y-m-d');
@@ -241,7 +242,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       $lastInternalWork = $workerPlannings->where('type', 'internal')->first(); // Ya ordenado desc por planned_end_datetime
 
       if ($lastInternalWork) {
-        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
+        $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime)->startOfMinute();
 
         // El nuevo trabajo debe comenzar desde la hora fin del último trabajo en adelante
         if ($plannedStart->lt($lastEndTime)) {
@@ -271,9 +272,14 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Filtrar solo los trabajos del mismo tipo
     $samePlannings = $existingPlannings->where('type', $type);
 
+    // Normalizar los timestamps del nuevo trabajo (eliminar segundos y microsegundos)
+    $plannedStart = $plannedStart->copy()->startOfMinute();
+    $plannedEnd = $plannedEnd->copy()->startOfMinute();
+
     foreach ($samePlannings as $existing) {
-      $existingStart = Carbon::parse($existing->planned_start_datetime);
-      $existingEnd = Carbon::parse($existing->planned_end_datetime);
+      // Normalizar los timestamps del trabajo existente (eliminar segundos y microsegundos)
+      $existingStart = Carbon::parse($existing->planned_start_datetime)->startOfMinute();
+      $existingEnd = Carbon::parse($existing->planned_end_datetime)->startOfMinute();
 
       // Verificar si hay solapamiento
       if (
@@ -720,6 +726,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   /**
    * Permite al supervisor finalizar manualmente un trabajo cuando el trabajador olvida hacerlo
    * Recibe la hora fin y valida que no sea mayor a la hora programada
+   * Si se finaliza después de las 6pm pero el mismo día, ajusta la hora a las 6pm
+   * Si ya es otro día, no permite y debe hacerlo el encargado
    */
   public function supervisorComplete($id, array $data)
   {
@@ -728,22 +736,6 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     // Validar que el trabajo esté en progreso
     if ($planning->status !== 'in_progress') {
       throw new Exception('Solo se pueden completar trabajos que estén en progreso.');
-    }
-
-    // Validar que solo pueda realizarse después del horario laboral (después de las 6PM)
-    // SOLO si es el mismo día del trabajo planificado
-    $currentDate = Carbon::now()->format('Y-m-d');
-    $plannedDate = Carbon::parse($planning->planned_end_datetime)->format('Y-m-d');
-
-    // Solo validar horario si es el mismo día
-    if ($currentDate === $plannedDate) {
-      $currentTime = Carbon::now()->format('H:i');
-      if ($currentTime < ApWorkOrderPlanning::WORK_END_TIME) {
-        throw new Exception(
-          'Esta acción solo puede realizarse al finalizar el día laboral (después de las ' .
-          ApWorkOrderPlanning::WORK_END_TIME . '). Hora actual: ' . $currentTime . '.'
-        );
-      }
     }
 
     $endDatetime = Carbon::parse($data['end_datetime']);
@@ -771,13 +763,10 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
       );
     }
 
-    // Validar que la hora de finalización no sea mayor a las 6pm (hora de salida)
+    // Si la hora de finalización es después de las 6pm, ajustarla a las 6pm
     $workEndTime = Carbon::parse($endDatetime->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
     if ($endDatetime->greaterThan($workEndTime)) {
-      throw new Exception(
-        'La hora de finalización (' . $endDatetime->format('H:i') . ') ' .
-        'no puede ser mayor a la hora de salida (' . ApWorkOrderPlanning::WORK_END_TIME . ').'
-      );
+      $endDatetime = $workEndTime;
     }
 
     // 1. Finalizar sesión activa si existe
@@ -809,6 +798,66 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $planning->checkAndUpdateWorkOrderStatus();
 
     return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+  }
+
+  /**
+   * Permite al supervisor crear y finalizar automáticamente un trabajo que el técnico
+   * nunca llegó a iniciar (olvidó dar inicio), respetando el horario planificado
+   * (planned_start_datetime y planned_end_datetime) como si se hubiera trabajado en ese horario.
+   */
+  public function autoComplete($id)
+  {
+    return DB::transaction(function () use ($id) {
+      $planning = $this->find($id);
+
+      if ($planning->status !== 'planned') {
+        throw new Exception(
+          "Solo se pueden autocompletar trabajos que aún no han sido iniciados. " .
+          "Este trabajo se encuentra en estado \"{$planning->status}\"."
+        );
+      }
+
+      if ($planning->sessions->isNotEmpty()) {
+        throw new Exception(
+          'Este trabajo ya tiene sesiones registradas. ' .
+          'Use "completar" o "supervisor-complete" según corresponda.'
+        );
+      }
+
+      $plannedStart = Carbon::parse($planning->planned_start_datetime);
+      $plannedEnd = Carbon::parse($planning->planned_end_datetime);
+
+      // Solo se puede autocompletar una vez que el horario programado ya finalizó
+      if (Carbon::now()->lt($plannedEnd)) {
+        throw new Exception(
+          "No se puede autocompletar este trabajo porque el horario programado " .
+          "(hasta las {$plannedEnd->format('H:i')}) aún no ha finalizado."
+        );
+      }
+
+      // Crear la sesión completa respetando el horario planificado
+      $minutesWorked = $plannedStart->diffInMinutes($plannedEnd);
+      ApWorkOrderPlanningSession::create([
+        'work_order_planning_id' => $planning->id,
+        'start_datetime' => $plannedStart,
+        'end_datetime' => $plannedEnd,
+        'hours_worked' => round($minutesWorked / 60, 2),
+        'status' => 'completed',
+        'notes' => 'Sesión generada automáticamente por el supervisor porque el técnico no registró el inicio del trabajo.',
+      ]);
+
+      // Actualizar el planning con los datos del horario planificado
+      $planning->actual_start_datetime = $plannedStart;
+      $planning->actual_end_datetime = $plannedEnd;
+      $planning->actual_hours = $planning->calculateTotalHoursWorked();
+      $planning->status = 'completed';
+      $planning->save();
+
+      // Verificar y actualizar estado de Work Order si todos los trabajos están completados
+      $planning->checkAndUpdateWorkOrderStatus();
+
+      return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+    });
   }
 
   /**

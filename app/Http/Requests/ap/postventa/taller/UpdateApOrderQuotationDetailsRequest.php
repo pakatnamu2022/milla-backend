@@ -51,7 +51,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         'sometimes',
         'required',
         'numeric',
-        'min:0.01',
+        'min:0',
       ],
       'unit_measure' => [
         'sometimes',
@@ -86,7 +86,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         'sometimes',
         'nullable',
         'numeric',
-        'min:0.1',
+        'min:0',
       ],
       'exchange_rate' => [
         'sometimes',
@@ -126,7 +126,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
 
       'quantity.required' => 'La cantidad es obligatoria.',
       'quantity.numeric' => 'La cantidad debe ser un número.',
-      'quantity.min' => 'La cantidad debe ser mayor a 0.',
+      'quantity.min' => 'La cantidad no puede ser negativa.',
 
       'unit_measure.required' => 'La unidad de medida es obligatoria.',
       'unit_measure.string' => 'La unidad de medida debe ser una cadena de texto.',
@@ -145,7 +145,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'observations.string' => 'Las observaciones deben ser una cadena de texto.',
 
       'retail_price_external.numeric' => 'El precio minorista externo debe ser un número.',
-      'retail_price_external.min' => 'El precio no puede ser diferente de 0 y negativo.',
+      'retail_price_external.min' => 'El precio no puede ser negativo.',
 
       'exchange_rate.numeric' => 'El tipo de cambio debe ser un número.',
       'exchange_rate.min' => 'El tipo de cambio no puede ser negativo.',

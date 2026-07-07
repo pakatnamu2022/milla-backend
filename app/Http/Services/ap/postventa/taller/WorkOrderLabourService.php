@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\WorkOrderLabourResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
@@ -61,7 +62,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $factor = $this->getCurrencyConversionFactor($workOrder);
       $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
 
-      $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
+      $data['hourly_rate'] = PriceRounding::roundUnitPrice(floatval($data['hourly_rate']) * $factor);
       $data['time_spent'] = $timeSpentDecimal;
 
       $workOrderLabour = WorkOrderLabour::create($data);
@@ -122,7 +123,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         $this->calculateLabourCosts($data, $timeSpent, floatval($hourlyRate), $discountPercentage, $factor);
 
         if (isset($data['hourly_rate'])) {
-          $data['hourly_rate'] = floatval($data['hourly_rate']) * $factor;
+          $data['hourly_rate'] = PriceRounding::roundUnitPrice(floatval($data['hourly_rate']) * $factor);
         }
 
         if (isset($data['time_spent'])) {
@@ -253,18 +254,13 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
    */
   private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): void
   {
-    $costBase = $timeSpent * $hourlyRate * $factor;
-    $data['total_cost'] = $costBase;
-
-    if ($discountPercentage > 0) {
-      $discountAmount = $costBase * ($discountPercentage / 100);
-      $data['net_amount'] = $costBase - $discountAmount;
-    } else {
-      $data['net_amount'] = $costBase;
-    }
-
-    // Calcular tax_amount (IGV del 18% sobre net_amount)
-    $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
+    // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10),
+    // única fuente de verdad compartida con repuestos y detalles de cotización.
+    $hourlyRate = PriceRounding::roundUnitPrice($hourlyRate * $factor);
+    $totals = PriceRounding::calculateLineTotals($hourlyRate, $timeSpent, $discountPercentage);
+    $data['total_cost'] = $totals['total_cost'];
+    $data['net_amount'] = $totals['net_amount'];
+    $data['tax_amount'] = $totals['tax_amount'];
   }
 
   /**

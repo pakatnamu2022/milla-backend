@@ -8,6 +8,7 @@ use App\Http\Requests\tp\comercial\UpdateOpGoalTravelRequest;
 use App\Http\Services\tp\comercial\OpGoalTravelService;
 use App\Models\tp\comercial\OpGoalTravel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class OpGoalTravelController extends Controller
@@ -96,6 +97,90 @@ class OpGoalTravelController extends Controller
         try{
             return response()->json($this->service->destroy($id));
         }catch(Throwable $th){
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function comparativaMensual(Request $request)
+    {
+        try{
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', date('m'));
+
+            $data = $this->service->getComparativaMensual((int)$year, (int)$month);
+            return response()->json($data);
+
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
+        }
+
+    }
+
+    public function viajesNoFacturados(Request $request){
+        try{
+            $dias = $request->input('dias', 4);
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', null); 
+            $data = $this->service->getViajesNoFacturados((int)$dias, (int)$year, $month ? (int)$month : null);
+            return response()->json($data);
+
+        }catch(Throwable $th){
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function dashboard(Request $request)
+    {
+        try{
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', date('m'));
+
+            $data = $this->service->getDashboardData((int)$year, (int)$month);
+
+            return response()->json($data);
+
+        }catch(Throwable $th){
+            return response()->json([
+                'success' => false,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
+
+    public function ranking(Request $request)
+    {
+        try {
+            $periodo = $request->input('periodo', 'month');
+            $limit = $request->input('limit', 10);
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', date('m'));
+            
+            $data = $this->service->getRanking($periodo, $limit, $year, $month);
+            return response()->json($data);
+
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function alerts(Request $request)
+    {
+        try {
+            $threshold = $request->input('threshold', 70);
+            $year = $request->input('year', date('Y'));
+            $month = $request->input('month', date('m'));
+            $data = $this->service->getAlerts((int)$threshold, (int)$year, (int)$month);
+            return response()->json($data);
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
+     public function availableYears()
+    {
+        try {
+            return response()->json($this->service->getAvailableYears());
+        } catch (Throwable $th) {
             return $this->error($th->getMessage());
         }
     }

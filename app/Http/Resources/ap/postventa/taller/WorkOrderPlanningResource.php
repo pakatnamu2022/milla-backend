@@ -12,6 +12,8 @@ class WorkOrderPlanningResource extends JsonResource
     return [
       'id' => $this->id,
       'work_order_correlative' => $this->workOrder ? $this->workOrder->correlative : null,
+      'vehicle_plate' => $this->workOrder && $this->workOrder->vehicle ? $this->workOrder->vehicle->plate : null,
+      'mileage' => $this->workOrder ? $this->workOrder->vehicleInspection?->mileage : null,
       'work_order_id' => $this->work_order_id,
       'worker_id' => $this->worker_id,
       'worker_name' => $this->worker ? $this->worker->nombre_completo : null,

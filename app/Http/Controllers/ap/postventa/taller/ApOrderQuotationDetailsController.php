@@ -7,7 +7,6 @@ use App\Http\Requests\ap\postventa\taller\IndexApOrderQuotationDetailsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationDetailsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationDetailsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationDetailsService;
-use App\Http\Utils\Constants;
 
 class ApOrderQuotationDetailsController extends Controller
 {
@@ -32,12 +31,6 @@ class ApOrderQuotationDetailsController extends Controller
     try {
       $data = $request->validated();
 
-      // Calcular total_cost, net_amount y tax_amount
-      $discountPercentage = $data['discount_percentage'] ?? 0;
-      $data['total_cost'] = $data['quantity'] * $data['unit_price'];
-      $data['net_amount'] = $data['total_cost'] - ($data['total_cost'] * $discountPercentage / 100);
-      $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
-
       return $this->success($this->service->store($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
@@ -56,14 +49,8 @@ class ApOrderQuotationDetailsController extends Controller
   public function update(UpdateApOrderQuotationDetailsRequest $request, $id)
   {
     try {
-      $data = $request->all();
+      $data = $request->validated();
       $data['id'] = $id;
-
-      // Calcular total_cost, net_amount y tax_amount
-      $discountPercentage = $data['discount_percentage'] ?? 0;
-      $data['total_cost'] = $data['quantity'] * $data['unit_price'];
-      $data['net_amount'] = $data['total_cost'] - ($data['total_cost'] * $discountPercentage / 100);
-      $data['tax_amount'] = $data['net_amount'] * (Constants::VAT_TAX / 100);
 
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\ChangeAdvisorWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use Exception;
 use Illuminate\Http\Request;
@@ -62,6 +64,17 @@ class WorkOrderController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updateItems(UpdateWorkOrderItemsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['work_order_id'] = $id;
+      return $this->success($this->service->updateItems($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -140,6 +153,17 @@ class WorkOrderController extends Controller
       );
       $data['id'] = $id;
       return $this->success($this->service->updatePickupPerson($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function changeAdvisor(ChangeAdvisorWorkOrderRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->changeAdvisor($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -267,6 +291,24 @@ class WorkOrderController extends Controller
     try {
       $data['id'] = $id;
       return $this->success($this->service->revertir($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function exportWorkOrders(IndexWorkOrderRequest $request)
+  {
+    try {
+      return $this->service->exportWorkOrders($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function recalculateTotals($id)
+  {
+    try {
+      return $this->success($this->service->recalculateTotals($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -269,7 +269,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'goal'], function () {
-      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+    Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+    Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+    Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+    Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+    Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+    Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+
+    Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
         'store',
@@ -299,6 +306,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/', 'index');
         Route::get('latest', 'latest');
         Route::get('{id}', 'show');
+
+
+        Route::get('history/{driverId}', 'history');
+        Route::delete('history/clean', 'cleanHistory');
       });
 
       // Conductores
@@ -1489,6 +1500,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
       Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
         'index',
@@ -1510,21 +1522,27 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Work Orders - Órdenes de Trabajo
       Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
       Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
+      Route::get('workOrders/export', [WorkOrderController::class, 'exportWorkOrders']);
       Route::post('workOrders/by-ids', [WorkOrderController::class, 'getByIds']);
       Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
       Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
       Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
       Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
       Route::patch('workOrders/{id}/update-pickup-person', [WorkOrderController::class, 'updatePickupPerson']);
+      Route::patch('workOrders/{id}/change-advisor', [WorkOrderController::class, 'changeAdvisor']);
+      Route::patch('workOrders/{id}/update-items', [WorkOrderController::class, 'updateItems']);
       Route::patch('workOrders/{id}/change-currency', [WorkOrderController::class, 'changeCurrency']);
       Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
       Route::patch('workOrders/{id}/revertir', [WorkOrderController::class, 'revertir']);
       Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
+      Route::post('workOrders/{id}/recalculate-totals', [WorkOrderController::class, 'recalculateTotals']);
       Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+      Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
+      Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
 
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
@@ -1562,10 +1580,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
       Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+      Route::post('workOrderParts/assign-bulk', [ApWorkOrderPartsController::class, 'assignToTechnicianBulk']);
       Route::post('workOrderParts/{id}/unassign', [ApWorkOrderPartsController::class, 'unassignFromTechnician']);
       Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
       Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
       Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);
+      Route::get('workOrderParts/work-order/{workOrderId}/report-pdf', [ApWorkOrderPartsController::class, 'generatePartsReportPDF']);
 
       // Work Order Labour - Mano de Obra de Órdenes de Trabajo
       Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
@@ -1607,6 +1627,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/segment-by-supply-type', [ApOrderQuotationsController::class, 'segmentBySupplyType']);
       Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
+      Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1666,8 +1687,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Vehicle Inspections - Inspecciones Vehiculares
-      Route::get('vehicleInspections/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
-      Route::get('vehicleInspections/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
       Route::post('vehicleInspections/{id}/request-cancellation', [ApVehicleInspectionController::class, 'requestCancellation']);
       Route::post('vehicleInspections/{id}/confirm-cancellation', [ApVehicleInspectionController::class, 'confirmCancellation']);
       Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
@@ -1694,6 +1713,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Planning - Completar trabajo por supervisor
       Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
+
+      // Work Order Planning - Autocompletar trabajo nunca iniciado por el técnico, respetando el horario planificado
+      Route::post('workOrderPlanning/{id}/auto-complete', [WorkOrderPlanningController::class, 'autoComplete']);
 
       // Work Order Planning - Cancelar trabajo
       Route::post('workOrderPlanning/{id}/cancel', [WorkOrderPlanningController::class, 'cancel']);

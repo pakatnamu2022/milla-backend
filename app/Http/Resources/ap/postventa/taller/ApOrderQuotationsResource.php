@@ -16,6 +16,9 @@ class ApOrderQuotationsResource extends JsonResource
 {
   public function toArray(Request $request): array
   {
+    $includeInvoicePreview = $this->relationLoaded('details');
+    $invoicePreviewData = $includeInvoicePreview ? $this->getInvoicePreview() : null;
+
     return [
       'id' => $this->id,
       'parent_quotation_id' => $this->parent_quotation_id,
@@ -97,6 +100,8 @@ class ApOrderQuotationsResource extends JsonResource
         $this->relationLoaded('advancesOrderQuotation'),
         fn() => $this->getPaymentSummary()
       ),
+      'items_invoice' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['items_invoice']),
+      'invoice_preview' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['invoice_preview']),
       'client' => $this->client,
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty(),
       'shipping_guide' => $this->when('shippingGuide', fn() => new ShippingGuidesResource($this->shippingGuide)),

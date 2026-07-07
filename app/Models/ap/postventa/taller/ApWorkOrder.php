@@ -6,10 +6,12 @@ use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
@@ -295,13 +297,16 @@ class ApWorkOrder extends Model
   {
     $totals = $this->getTotalsArray();
 
-    // Actualizar los campos de la orden de trabajo
-    $this->total_labor_cost = $totals['labour_cost'];
-    $this->total_parts_cost = $totals['parts_cost'];
-    $this->subtotal = $totals['total_cost'];
-    $this->discount_amount = $totals['discount_amount'];
-    $this->tax_amount = $totals['tax_amount'];
-    $this->final_amount = $totals['total_amount'];
+    // Actualizar los campos de la orden de trabajo. Redondeo en cadena a 2 decimales:
+    // los ítems de repuestos/mano de obra (y los pendientes de cotización) ya llegan
+    // redondeados a 2 decimales, pero se vuelve a redondear aquí por seguridad ante
+    // arrastre de precisión flotante al sumar varios ítems.
+    $this->total_labor_cost = round($totals['labour_cost'], 2);
+    $this->total_parts_cost = round($totals['parts_cost'], 2);
+    $this->subtotal = round($totals['total_cost'], 2);
+    $this->discount_amount = round($totals['discount_amount'], 2);
+    $this->tax_amount = round($totals['tax_amount'], 2);
+    $this->final_amount = round($totals['total_amount'], 2);
 
     // Calcular discount_percentage basado en el discount_amount y subtotal
     if ($totals['total_cost'] > 0) {
@@ -422,9 +427,11 @@ class ApWorkOrder extends Model
         ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
 
       foreach ($pendingDetails as $detail) {
-        $itemTotalCost = $detail->total_cost ?? 0;
-        $itemNetAmount = $detail->net_amount ?? 0;
-        $itemTaxAmount = $detail->tax_amount ?? 0;
+        // Redondeo en cadena a 2 decimales, igual que en los repuestos/mano de obra
+        // ya cargados a la OT, para que al asociar una cotización el total no rompa esa regla.
+        $itemTotalCost = round((float)($detail->total_cost ?? 0), 2);
+        $itemNetAmount = round((float)($detail->net_amount ?? 0), 2);
+        $itemTaxAmount = round((float)($detail->tax_amount ?? 0), 2);
 
         if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
           $totalLabourCostBeforeDiscount += $itemTotalCost;
@@ -522,22 +529,21 @@ class ApWorkOrder extends Model
 
     foreach ($pendingDetails as $detail) {
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
-        // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour
-        $quantity = 1; // Para labores, la cantidad es 1
-        $unitPrice = $detail->unit_price ?? 0;
-        $discountPercentage = $detail->discount_percentage ?? 0;
-        $subtotal = $quantity * $unitPrice;
-        $discountAmount = ($subtotal * $discountPercentage) / 100;
-        $total = $subtotal - $discountAmount;
-
+        // Mapear ApOrderQuotationDetails a estructura de WorkOrderLabour.
+        // total_cost/net_amount/tax_amount se toman TAL CUAL del detalle (misma fuente
+        // que usa calculateTotalsWithQuotation()), nunca se recalculan aquí: recalcular
+        // asumiendo cantidad=1 producía un net_amount incorrecto cuando el detalle real
+        // tenía otra cantidad (ej. 2.5 horas), y con eso este PDF llegó a mostrar un monto
+        // muy por debajo del real.
         $mappedLabour = new \stdClass();
         $mappedLabour->id = null; // No tiene ID porque es de cotización
         $mappedLabour->description = $detail->description;
         $mappedLabour->time_spent = null;
-        $mappedLabour->hourly_rate = $unitPrice;
-        $mappedLabour->discount_percentage = $discountPercentage;
-        $mappedLabour->total_cost = $subtotal; // Total sin descuento
-        $mappedLabour->net_amount = $total; // Total con descuento aplicado
+        $mappedLabour->hourly_rate = (float)$detail->unit_price;
+        $mappedLabour->discount_percentage = (float)$detail->discount_percentage;
+        $mappedLabour->total_cost = (float)$detail->total_cost;
+        $mappedLabour->tax_amount = (float)$detail->tax_amount;
+        $mappedLabour->net_amount = (float)$detail->net_amount;
         $mappedLabour->worker_id = null;
         $mappedLabour->worker = null;
         $mappedLabour->group_number = null;
@@ -546,24 +552,19 @@ class ApWorkOrder extends Model
 
         $quotationLabours->push($mappedLabour);
       } elseif ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
-        // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts
-        $quantity = $detail->quantity ?? 0;
-        $unitPrice = $detail->unit_price ?? 0;
-        $discountPercentage = $detail->discount_percentage ?? 0;
-        $subtotal = $quantity * $unitPrice;
-        $discountAmount = ($subtotal * $discountPercentage) / 100;
-        $total = $subtotal - $discountAmount;
-
+        // Mapear ApOrderQuotationDetails a estructura de ApWorkOrderParts.
+        // Mismo criterio: total_cost/net_amount/tax_amount tal cual el detalle, sin
+        // recalcular (antes tax_amount quedaba hardcodeado en 0 para estos ítems).
         $mappedPart = new \stdClass();
         $mappedPart->id = null; // No tiene ID porque es de cotización
         $mappedPart->product_id = $detail->product_id;
-        $mappedPart->quantity_used = $quantity;
-        $mappedPart->unit_cost = $detail->purchase_price ?? 0;
-        $mappedPart->unit_price = $unitPrice;
-        $mappedPart->discount_percentage = $discountPercentage;
-        $mappedPart->total_cost = $subtotal; // Total sin descuento
-        $mappedPart->tax_amount = 0;
-        $mappedPart->net_amount = $total; // Total con descuento aplicado
+        $mappedPart->quantity_used = (float)$detail->quantity;
+        $mappedPart->unit_cost = (float)($detail->purchase_price ?? 0);
+        $mappedPart->unit_price = (float)$detail->unit_price;
+        $mappedPart->discount_percentage = (float)$detail->discount_percentage;
+        $mappedPart->total_cost = (float)$detail->total_cost;
+        $mappedPart->tax_amount = (float)$detail->tax_amount;
+        $mappedPart->net_amount = (float)$detail->net_amount;
         $mappedPart->product = $detail->product;
         $mappedPart->group_number = null;
         $mappedPart->work_order_id = $this->id;
@@ -608,6 +609,26 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Check if a document is accepted by SUNAT based on its type.
+   * Boletas can be in 'sent' status (provider sometimes takes time to respond).
+   * Facturas must be in 'accepted' status.
+   *
+   * @param ElectronicDocument $document
+   * @return bool
+   */
+  private function isDocumentAcceptedBySunat($document): bool
+  {
+    // For boletas, accept if sent or accepted
+    if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_BOLETA) {
+      return $document->status === ElectronicDocument::STATUS_SENT
+        || $document->status === ElectronicDocument::STATUS_ACCEPTED;
+    }
+
+    // For facturas and other documents, must be accepted
+    return $document->aceptada_por_sunat;
+  }
+
+  /**
    * Get active advances for this work order.
    *
    * An advance is truly cancelled (and therefore excluded) only when:
@@ -631,7 +652,7 @@ class ApWorkOrder extends Model
     return $this->advancesWorkOrder->filter(function ($advance) use ($annullingTypes) {
       $passed = true;
 
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         $passed = false;
@@ -670,7 +691,7 @@ class ApWorkOrder extends Model
     ];
 
     return $this->advancesWorkOrder->filter(function ($advance) use ($annullingTypes) {
-      if (!$advance->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($advance)
         || !$advance->is_advance_payment
         || !in_array($advance->sunat_concept_document_type_id, [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])) {
         return false;
@@ -711,7 +732,7 @@ class ApWorkOrder extends Model
       }
 
       // Must be accepted by SUNAT
-      if (!$document->aceptada_por_sunat) {
+      if (!$this->isDocumentAcceptedBySunat($document)) {
         return false;
       }
 
@@ -772,44 +793,53 @@ class ApWorkOrder extends Model
    */
   public function getNetAmountFromAdvances(): float
   {
-    $activeAdvances = $this->getActiveAdvances();
-
     $totalNet = 0;
 
-    foreach ($activeAdvances as $advance) {
-      $netAmount = $advance->total;
-
-      // Restar notas de crédito sobre este anticipo (que NO sean de anulación/devolución total)
-      // porque esas ya están excluidas por getActiveAdvances()
-      $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
-        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', 0)
-        ->whereNotIn('sunat_concept_credit_note_type_id', [
-          SunatConcepts::ID_CREDIT_NOTE_ANULACION,
-          SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
-        ])
-        ->get();
-
-      foreach ($creditNotesOnAdvance as $creditNote) {
-        $netAmount -= $creditNote->total;
-      }
-
-      // Sumar notas de débito sobre este anticipo
-      $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
-        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-        ->where('aceptada_por_sunat', true)
-        ->where('anulado', 0)
-        ->get();
-
-      foreach ($debitNotesOnAdvance as $debitNote) {
-        $netAmount += $debitNote->total;
-      }
-
-      $totalNet += $netAmount;
+    foreach ($this->getActiveAdvances() as $advance) {
+      $totalNet += $this->getNetAmountForAdvance($advance);
     }
 
     return (float)$totalNet;
+  }
+
+  /**
+   * Neto de un anticipo puntual (su total menos NC parciales, más ND) aplicando
+   * la misma regla que getNetAmountFromAdvances(). Se usa también para armar la
+   * línea "anticipo_regularizacion" en getInvoicePreview(), de modo que ambos
+   * cuadren siempre entre sí.
+   */
+  private function getNetAmountForAdvance(ElectronicDocument $advance): float
+  {
+    $netAmount = $advance->total;
+
+    // Restar notas de crédito sobre este anticipo (que NO sean de anulación/devolución total)
+    // porque esas ya están excluidas por getActiveAdvances()
+    $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->whereNotIn('sunat_concept_credit_note_type_id', [
+        SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+        SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+      ])
+      ->get();
+
+    foreach ($creditNotesOnAdvance as $creditNote) {
+      $netAmount -= $creditNote->total;
+    }
+
+    // Sumar notas de débito sobre este anticipo
+    $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->get();
+
+    foreach ($debitNotesOnAdvance as $debitNote) {
+      $netAmount += $debitNote->total;
+    }
+
+    return (float)$netAmount;
   }
 
   /**
@@ -949,6 +979,35 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Valida que la orden de trabajo esté en uno de los estados permitidos
+   *
+   * @param array $allowedStatuses Estados permitidos
+   * @param string|null $action Acción que se está intentando (opcional, para personalizar mensaje)
+   * @throws \Exception
+   */
+  public function ensureInStates(array $allowedStatuses, ?string $action = null): void
+  {
+    if (!in_array($this->status_id, $allowedStatuses, true)) {
+      $statusNames = [
+        ApMasters::CANCELED_WORK_ORDER_ID => 'anulada',
+        ApMasters::FINISHED_WORK_ORDER_ID => 'finalizada',
+        ApMasters::CLOSED_WORK_ORDER_ID => 'cerrada',
+        ApMasters::OPENING_WORK_ORDER_ID => 'abierta',
+        ApMasters::RECEIVED_WORK_ORDER_ID => 'recepcionada',
+        ApMasters::AT_WORK_WORK_ORDER_ID => 'en trabajo',
+        ApMasters::END_WORK_WORK_ORDER_ID => 'trabajo finalizado',
+      ];
+
+      $currentStatusName = $statusNames[$this->status_id] ?? 'este estado';
+      $message = $action
+        ? "No se puede {$action} en una orden de trabajo {$currentStatusName}"
+        : "Esta acción no está permitida en una orden de trabajo {$currentStatusName}";
+
+      throw new \Exception($message);
+    }
+  }
+
+  /**
    * Valida que la orden de trabajo pueda ser modificada
    * (no esté anulada, finalizada o cerrada)
    *
@@ -982,7 +1041,7 @@ class ApWorkOrder extends Model
     // Process all documents
     foreach ($this->advancesWorkOrder as $document) {
       // Skip if not accepted by SUNAT or not the right type
-      if (!$document->aceptada_por_sunat
+      if (!$this->isDocumentAcceptedBySunat($document)
         || !in_array($document->sunat_concept_document_type_id, [
           ElectronicDocument::TYPE_FACTURA,
           ElectronicDocument::TYPE_BOLETA
@@ -1146,6 +1205,399 @@ class ApWorkOrder extends Model
       // Payment status indicators
       'has_final_invoice' => $finalInvoice !== null,
       'advances_count' => $activeAdvances->count(),
+    ];
+  }
+
+  /**
+   * Construye el detalle de facturación (items_invoice) y sus totales (invoice_preview)
+   * para que el frontend deje de recalcular esto por su cuenta.
+   *
+   * Reutiliza los montos ya persistidos por item (net_amount/tax_amount/total_cost) y
+   * el mismo neto de anticipos usado en getPaymentSummary(), así todo cuadra entre sí.
+   *
+   * @return array{items_invoice: array, invoice_preview: array}
+   */
+  public function getInvoicePreview(): array
+  {
+    $items = $this->buildInvoiceItems();
+
+    // La línea anticipo_regularizacion va en negativo (ver buildAdvanceInvoiceItem),
+    // igual que buildRegularizationItems() para vehículos, así que SÍ se suma aquí junto
+    // con el resto: el neto es justamente lo que falta facturar ahora (0 si el/los
+    // anticipo(s) ya cubrieron todo). total_gravada/total_igv/total quedan siempre
+    // = suma exacta de items_invoice, sin ninguna fórmula aparte.
+    $totalGravada = 0;
+    $totalIgv = 0;
+
+    foreach ($items as $item) {
+      $totalGravada += $item['subtotal'];
+      $totalIgv += $item['igv'];
+    }
+
+    // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
+    // positivo aunque su línea en items_invoice esté en negativo.
+    $totalAnticipo = $this->getNetAmountFromAdvances();
+
+    // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
+    // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
+    return [
+      'items_invoice' => $items,
+      'invoice_preview' => [
+        'total_gravada' => round($totalGravada, 2) + 0,
+        'total_inafecta' => 0,
+        'total_exonerada' => 0,
+        'total_igv' => round($totalIgv, 2) + 0,
+        'total_gratuita' => 0,
+        'total_anticipo' => round($totalAnticipo, 2) + 0,
+        'total' => round($totalGravada + $totalIgv, 2) + 0,
+      ],
+    ];
+  }
+
+  private function buildInvoiceItems(): array
+  {
+    $items = [];
+
+    foreach ($this->labours as $labour) {
+      $items[] = $this->buildLabourInvoiceItem($labour);
+    }
+
+    foreach ($this->parts as $part) {
+      $items[] = $this->buildPartInvoiceItem($part);
+    }
+
+    // Misma condición que calculateTotalsWithQuotation(): si la OT está ligada a una
+    // cotización, sus ítems PENDIENTES (aún no materializados en labours/parts) también
+    // forman parte de lo que hay que facturar y ya cuentan en final_amount.
+    if ($this->order_quotation_id && $this->orderQuotation) {
+      $pendingDetails = $this->orderQuotation->details
+        ->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+
+      foreach ($pendingDetails as $detail) {
+        $items[] = $this->buildQuotationDetailInvoiceItem($detail);
+      }
+    }
+
+    foreach ($this->getActiveAdvances() as $advance) {
+      $items[] = $this->buildAdvanceInvoiceItem($advance);
+    }
+
+    return $items;
+  }
+
+  private function buildLabourInvoiceItem(WorkOrderLabour $labour): array
+  {
+    $isMaterial = trim(strtolower($labour->description ?? '')) === 'materiales';
+
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$labour->hourly_rate,
+      (float)$labour->time_spent_decimal,
+      (float)$labour->discount_percentage,
+      (float)$labour->net_amount,
+      (float)$labour->tax_amount
+    );
+
+    return array_merge([
+      'type' => 'labour',
+      'source_id' => $labour->id,
+      'account_plan_id' => $isMaterial
+        ? ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID
+        : ApAccountingAccountPlan::LABOUR_ACCOUNT_ID,
+      'unidad_de_medida' => $this->getServiceUnitCode(),
+      'codigo' => (string)$labour->id,
+      'product_id' => null,
+      'descripcion' => $labour->description,
+      'cantidad' => (float)$labour->time_spent_decimal,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => false,
+    ], $billing);
+  }
+
+  private function buildPartInvoiceItem(ApWorkOrderParts $part): array
+  {
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$part->unit_price,
+      (float)$part->quantity_used,
+      (float)$part->discount_percentage,
+      (float)$part->net_amount,
+      (float)$part->tax_amount
+    );
+
+    return array_merge([
+      'type' => 'part',
+      'source_id' => $part->id,
+      'account_plan_id' => ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID,
+      'unidad_de_medida' => $part->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+      'codigo' => $part->product?->code ?? (string)$part->product_id,
+      'product_id' => $part->product_id,
+      'descripcion' => $part->product?->name,
+      'cantidad' => (float)$part->quantity_used,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => false,
+    ], $billing);
+  }
+
+  private function buildQuotationDetailInvoiceItem(ApOrderQuotationDetails $detail): array
+  {
+    $billing = $this->calculateInvoiceItemAmounts(
+      (float)$detail->unit_price,
+      (float)$detail->quantity,
+      (float)$detail->discount_percentage,
+      (float)$detail->net_amount,
+      (float)$detail->tax_amount
+    );
+
+    if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+      $isMaterial = trim(strtolower($detail->description ?? '')) === 'materiales';
+
+      return array_merge([
+        'type' => 'labour',
+        'source_id' => $detail->id,
+        'account_plan_id' => $isMaterial
+          ? ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID
+          : ApAccountingAccountPlan::LABOUR_ACCOUNT_ID,
+        'unidad_de_medida' => $this->getServiceUnitCode(),
+        'codigo' => (string)$detail->id,
+        'product_id' => null,
+        'descripcion' => $detail->description,
+        'cantidad' => (float)$detail->quantity,
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+        'anticipo_regularizacion' => false,
+        'anticipo_documento_serie' => null,
+        'anticipo_documento_numero' => null,
+        'reference_document_id' => null,
+        'from_quotation' => true,
+      ], $billing);
+    }
+
+    return array_merge([
+      'type' => 'part',
+      'source_id' => $detail->id,
+      'account_plan_id' => ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID,
+      'unidad_de_medida' => $detail->product?->unitMeasurement?->nubefac_code ?? 'NIU',
+      'codigo' => $detail->product?->code ?? (string)$detail->product_id,
+      'product_id' => $detail->product_id,
+      'descripcion' => $detail->product?->name ?? $detail->description,
+      'cantidad' => (float)$detail->quantity,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'anticipo_regularizacion' => false,
+      'anticipo_documento_serie' => null,
+      'anticipo_documento_numero' => null,
+      'reference_document_id' => null,
+      'from_quotation' => true,
+    ], $billing);
+  }
+
+  private function buildAdvanceInvoiceItem(ElectronicDocument $advance): array
+  {
+    $netTotal = $this->getNetAmountForAdvance($advance);
+    $valorUnitario = round($netTotal / (1 + Constants::VAT_TAX / 100), 2);
+    $igv = round($netTotal - $valorUnitario, 2);
+
+    return [
+      'type' => 'anticipo_regularizacion',
+      'source_id' => $advance->id,
+      'account_plan_id' => ApAccountingAccountPlan::ADVANCE_PAYMENTS_ACCOUNT_ID,
+      'unidad_de_medida' => $this->getServiceUnitCode(),
+      'codigo' => (string)$advance->id,
+      'product_id' => null,
+      'descripcion' => 'ANTICIPO: ' . $advance->serie . '-' . $advance->numero
+        . ' DEL ' . $advance->fecha_de_emision?->format('d/m/Y'),
+      'cantidad' => 1,
+      // Negativo, igual que buildRegularizationItems() para vehículos: esta línea resta
+      // del total a facturar lo que ya se cobró como anticipo (no es solo informativa).
+      'valor_unitario' => -$valorUnitario,
+      'precio_unitario' => -round($netTotal, 2),
+      'descuento' => null,
+      'subtotal' => -$valorUnitario,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO,
+      'igv' => -$igv,
+      'total' => -round($netTotal, 2),
+      'anticipo_regularizacion' => true,
+      'anticipo_documento_serie' => $advance->serie,
+      'anticipo_documento_numero' => $advance->numero,
+      'reference_document_id' => $advance->id,
+      'from_quotation' => false,
+    ];
+  }
+
+  /**
+   * Código SUNAT (catálogo 03) de "servicio", única fuente de verdad para las líneas
+   * de mano de obra y de anticipo en items_invoice. Cambiar el nubefac_code del
+   * UnitMeasurement::SERVICE_ID en la BD basta para que ambas líneas se actualicen.
+   */
+  private function getServiceUnitCode(): string
+  {
+    return UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->nubefac_code ?? 'ZZ';
+  }
+
+  /**
+   * valor_unitario/precio_unitario/descuento/subtotal/igv/total de una línea gravada.
+   *
+   * subtotal/igv se toman DIRECTO de net_amount/tax_amount ya persistidos (misma fuente
+   * de verdad que WorkOrderLabourService/ApWorkOrderPartsService), en vez de recalcularlos
+   * a partir de basePrice/quantity: recalcular redondeando el precio unitario antes de
+   * multiplicarlo por una cantidad fraccionaria (ej. 7.5 litros) diverge unos centavos del
+   * monto ya guardado. valor_unitario/precio_unitario/descuento se derivan de esos montos
+   * ya redondeados solo para mostrar (nunca alimentan el total), para que con cantidad=1
+   * precio_unitario coincida siempre con total: antes se recalculaba desde basePrice crudo
+   * (sin descuento y con su propio redondeo), lo que lo desalineaba del total hasta en S/ 0.10.
+   */
+  private function calculateInvoiceItemAmounts(
+    float $basePrice,
+    float $quantity,
+    float $discountPercentage,
+    float $netAmount,
+    float $taxAmount
+  ): array {
+    $subtotal = round($netAmount, 2);
+    $igv = round($taxAmount, 2);
+    $total = round($subtotal + $igv, 2);
+    $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
+    $precioUnitario = $quantity > 0 ? round($total / $quantity, 2) : $total;
+    $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
+
+    return [
+      'valor_unitario' => $valorUnitario,
+      'precio_unitario' => $precioUnitario,
+      'descuento' => $descuento,
+      'subtotal' => $subtotal,
+      'igv' => $igv,
+      'total' => $total,
+    ];
+  }
+
+  // Export Methods
+  public static function getReportData($filters = [])
+  {
+    $query = self::with([
+      'vehicle',
+      'advisor',
+      'sede',
+      'status',
+      'items.typePlanning',
+      'creator',
+      'typeCurrency',
+      'invoiceTo'
+    ]);
+
+    // Apply filters
+    foreach ($filters as $filter) {
+      $column = $filter['column'];
+      $operator = $filter['operator'];
+      $value = $filter['value'];
+
+      if ($column === 'advisor_id' && $operator === '=') {
+        $query->where('advisor_id', $value);
+      } elseif ($column === 'sede_id' && $operator === '=') {
+        $query->where('sede_id', $value);
+      } elseif ($column === 'status_id' && $operator === 'in_or_equal') {
+        if (is_array($value)) {
+          $query->whereIn('status_id', $value);
+        } else {
+          $query->where('status_id', $value);
+        }
+      } elseif ($column === 'opening_date' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('opening_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'estimated_delivery_date' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('estimated_delivery_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'actual_delivery_date' && $operator === 'between') {
+        if (is_array($value) && count($value) === 2) {
+          $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+        }
+      } elseif ($column === 'is_invoiced' && $operator === '=') {
+        $query->where('is_invoiced', $value);
+      } elseif ($column === 'currency_id' && $operator === '=') {
+        $query->where('currency_id', $value);
+      } elseif ($column === 'vehicle_plate' && $operator === 'like') {
+        $query->where('vehicle_plate', 'like', '%' . $value . '%');
+      }
+    }
+
+    $workOrders = $query->get();
+
+    return $workOrders->map(function ($workOrder) {
+      return [
+        'id' => $workOrder->id,
+        'correlativo' => $workOrder->correlative,
+        'placa_vehiculo' => $workOrder->vehicle_plate,
+        'vin_vehiculo' => $workOrder->vehicle_vin,
+        'estado' => $workOrder->status ? $workOrder->status->description : '',
+        'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
+        'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
+        'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
+        'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
+        'fecha_entrega_real' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d H:i:s') : '',
+        'fecha_diagnostico' => $workOrder->diagnosis_date ? $workOrder->diagnosis_date->format('Y-m-d H:i:s') : '',
+        'moneda' => $workOrder->typeCurrency ? $workOrder->typeCurrency->symbol : '',
+        'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->dyn_name : '',
+        'subtotal' => number_format($workOrder->subtotal_amount ?? 0, 2),
+        'descuento' => number_format($workOrder->discount_amount ?? 0, 2),
+        'impuestos' => number_format($workOrder->tax_amount ?? 0, 2),
+        'total' => number_format($workOrder->final_amount ?? 0, 2),
+        'es_garantia' => $workOrder->is_guarantee ? 'Sí' : 'No',
+        'es_recall' => $workOrder->is_recall ? 'Sí' : 'No',
+        'esta_entregado' => $workOrder->is_delivery ? 'Sí' : 'No',
+        'esta_facturado' => $workOrder->is_invoiced ? 'Sí' : 'No',
+        'observaciones' => $workOrder->observations,
+        'creado_por' => $workOrder->creator ? $workOrder->creator->name : '',
+        'fecha_creacion' => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d H:i:s') : '',
+      ];
+    });
+  }
+
+  public static function getReportableColumns()
+  {
+    return [
+      'id' => 'ID',
+      'correlativo' => 'Correlativo',
+      'placa_vehiculo' => 'Placa Vehículo',
+      'vin_vehiculo' => 'VIN Vehículo',
+      'estado' => 'Estado',
+      'asesor' => 'Asesor',
+      'sede' => 'Sede',
+      'fecha_apertura' => 'Fecha Apertura',
+      'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
+      'fecha_entrega_real' => 'Fecha Entrega Real',
+      'fecha_diagnostico' => 'Fecha Diagnóstico',
+      'moneda' => 'Moneda',
+      'cliente_facturar' => 'Cliente Facturar',
+      'subtotal' => 'Subtotal',
+      'descuento' => 'Descuento',
+      'impuestos' => 'Impuestos',
+      'total' => 'Total',
+      'es_garantia' => 'Es Garantía',
+      'es_recall' => 'Es Recall',
+      'esta_entregado' => 'Está Entregado',
+      'esta_facturado' => 'Está Facturado',
+      'observaciones' => 'Observaciones',
+      'creado_por' => 'Creado Por',
+      'fecha_creacion' => 'Fecha Creación',
+    ];
+  }
+
+  public static function getReportStyles()
+  {
+    return [
+      'headerBackgroundColor' => '4472C4',
+      'headerFontColor' => 'FFFFFF',
+      'headerFontSize' => 11,
+      'headerBold' => true,
+      'bodyFontSize' => 10,
+      'freezePane' => 'A2',
+      'autoFilter' => true,
     ];
   }
 }

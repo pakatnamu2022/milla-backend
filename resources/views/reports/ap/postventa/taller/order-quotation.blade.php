@@ -87,23 +87,23 @@
     .quotation-info {
       margin-bottom: 10px;
       text-align: left;
-      font-size: 14px;
+      font-size: 12px;
     }
 
     .quotation-info strong {
       font-weight: bold;
-      font-size: 14px;
+      font-size: 12px;
     }
 
     table.data-section {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       border: 1px solid #000;
     }
 
     table.data-section td {
-      padding: 5px;
+      padding: 3px 5px;
       font-size: 11px;
       vertical-align: top;
       border: none;
@@ -114,41 +114,54 @@
       color: black;
       font-weight: bold;
       font-size: 11px;
-      padding: 5px;
+      padding: 4px 5px;
       text-align: left;
       border: 1px solid #000;
     }
 
     .label-cell {
       font-weight: bold;
-      width: 15%;
+      width: 12%;
     }
 
     .data-cell {
-      width: 35%;
+      width: 38%;
     }
 
     table.details-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      border: 1px solid #000;
     }
 
     table.details-table th {
       background-color: #8b8b8b;
       color: black;
       font-weight: bold;
-      font-size: 11px;
-      padding: 5px 3px;
+      font-size: 10px;
+      padding: 4px 3px;
       text-align: center;
-      border: 1px solid #000;
+      border: 1px solid #666;
     }
 
     table.details-table td {
-      padding: 4px 3px;
-      font-size: 11px;
-      border: 1px solid #000;
+      padding: 2px 3px;
+      font-size: 10px;
+      border: none;
+      border-bottom: 1px solid #ddd;
       vertical-align: middle;
+    }
+
+    table.details-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.details-table .subtotal-row td {
+      border-top: 1px solid #999 !important;
+      border-bottom: 1px solid #999 !important;
+      padding: 4px 3px !important;
+      font-size: 10px !important;
     }
 
     .text-center {
@@ -336,7 +349,8 @@
 <!-- Número de propuesta y fecha -->
 <div class="quotation-info">
   <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
-  <strong>Fecha:</strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
+  <strong>Fecha Emisión : </strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
+  <strong>Fecha Caducidad : </strong> {{ \Carbon\Carbon::parse($quotation['expiration_date'])->format('d/m/Y') }}
 </div>
 
 <!-- Sección 1: Datos de la Propuesta y Asesor -->
@@ -346,13 +360,14 @@
   </tr>
   <tr>
     <td class="label-cell">Cliente:</td>
-    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> DNI: {{ $quotation['customer_document'] }}
-      <br>{{ $quotation['customer_address'] }}
-    </td>
+    <td colspan="3"><strong>{{ $quotation['customer_name'] }}</strong> - DNI: {{ $quotation['customer_document'] }}
+      - {{ $quotation['customer_address'] }}</td>
   </tr>
   <tr>
     <td class="label-cell">Observaciones:</td>
-    <td colspan="3">{{ $quotation['observations'] }}</td>
+    <td class="data-cell">{{ $quotation['observations'] }}</td>
+    <td class="label-cell">Estado:</td>
+    <td class="data-cell">Pendiente de validación por parte del cliente</td>
   </tr>
   <tr>
     <td class="label-cell">Asesor:</td>
@@ -361,10 +376,8 @@
     <td class="data-cell">{{ $quotation['advisor_phone'] }}</td>
   </tr>
   <tr>
-    <td class="label-cell">Estado:</td>
-    <td class="data-cell">Pendiente de validación por parte del cliente</td>
     <td class="label-cell">Correo:</td>
-    <td class="data-cell">{{ $quotation['advisor_email'] }}</td>
+    <td colspan="3">{{ $quotation['advisor_email'] }}</td>
   </tr>
 </table>
 
@@ -376,22 +389,20 @@
   <tr>
     <td class="label-cell">Placa:</td>
     <td class="data-cell">{{ $quotation['vehicle_plate'] }}</td>
+    <td class="label-cell">Modelo:</td>
+    <td class="data-cell">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
+  </tr>
+  <tr>
     <td class="label-cell">Nº Chasis:</td>
     <td class="data-cell">{{ $quotation['vehicle_vin'] }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Modelo:</td>
-    <td colspan="3">{{ $quotation['vehicle_brand'] }} {{ $quotation['vehicle_model'] }}</td>
-  </tr>
-  <tr>
-    <td class="label-cell">Color:</td>
-    <td class="data-cell">{{ $quotation['vehicle_color'] }}</td>
     <td class="label-cell">Nº Motor:</td>
     <td class="data-cell">{{ $quotation['vehicle_engine'] }}</td>
   </tr>
   <tr>
+    <td class="label-cell">Color:</td>
+    <td class="data-cell">{{ $quotation['vehicle_color'] }}</td>
     <td class="label-cell">Kilometraje:</td>
-    <td colspan="3">{{ $quotation['vehicle_km'] }} km</td>
+    <td class="data-cell">{{ $quotation['vehicle_km'] }} km</td>
   </tr>
 </table>
 
@@ -436,7 +447,7 @@
       </tr>
       @php $laborSubtotal += $detail['total_amount']; @endphp
     @endforeach
-    <tr style="background-color: #f0f0f0;">
+    <tr class="subtotal-row" style="background-color: #f0f0f0;">
       <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Mano de Obra:</td>
       <td class="text-right" style="font-weight: bold;">{{ number_format($laborSubtotal, 2) }}</td>
     </tr>
@@ -462,7 +473,7 @@
       </tr>
       @php $productSubtotal += $detail['total_amount']; @endphp
     @endforeach
-    <tr style="background-color: #f0f0f0;">
+    <tr class="subtotal-row" style="background-color: #f0f0f0;">
       <td colspan="6" class="text-right" style="font-weight: bold; padding-right: 10px;">Subtotal Repuestos:</td>
       <td class="text-right" style="font-weight: bold;">{{ number_format($productSubtotal, 2) }}</td>
     </tr>
@@ -538,7 +549,7 @@
         TOTAL.
       </li>
       <li>
-        COTIZACIÓN VÁLIDA PARA 04 DÍAS NATURALES.
+        COTIZACIÓN VÁLIDA PARA 07 DÍAS NATURALES.
       </li>
     </ol>
   </div>

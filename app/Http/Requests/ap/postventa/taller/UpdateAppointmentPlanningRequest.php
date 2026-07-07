@@ -144,23 +144,28 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
           );
         }
 
-        // Validar que no exista otra cita en esa fecha y hora (solo se puede recibir un vehículo a la vez)
-        $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
-          ->where('time_appointment', $timeAppointment)
-          ->when($this->route('appointmentPlanning'), function ($query, $id) {
-            return $query->where('id', '!=', $id);
-          })
-          ->exists();
+        // Validar que no exista otra cita en esa fecha y hora para este asesor
+        $advisor_id = auth()->user()->person->id ?? null;
 
-        if ($existingAppointment) {
-          $validator->errors()->add(
-            'date_appointment',
-            'Ya existe una cita programada para esta fecha y hora.'
-          );
-          $validator->errors()->add(
-            'time_appointment',
-            'Ya existe una cita programada para esta fecha y hora.'
-          );
+        if ($advisor_id) {
+          $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
+            ->where('time_appointment', $timeAppointment)
+            ->where('advisor_id', $advisor_id)
+            ->when($this->route('appointmentPlanning'), function ($query, $id) {
+              return $query->where('id', '!=', $id);
+            })
+            ->exists();
+
+          if ($existingAppointment) {
+            $validator->errors()->add(
+              'date_appointment',
+              'Ya tienes una cita programada para esta fecha y hora.'
+            );
+            $validator->errors()->add(
+              'time_appointment',
+              'Ya tienes una cita programada para esta fecha y hora.'
+            );
+          }
         }
       }
     });

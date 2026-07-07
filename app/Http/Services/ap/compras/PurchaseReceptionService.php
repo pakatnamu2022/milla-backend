@@ -416,13 +416,23 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       throw new Exception("No hay recepción vinculada a esta factura");
     }
 
-    // 2. Procesar cada detalle de la recepción
+    // 2. Verificar si ya existe un movimiento de inventario para esta recepción
+    $existingMovement = \App\Models\ap\postventa\gestionProductos\InventoryMovement::where('reference_type', get_class($reception))
+      ->where('reference_id', $reception->id)
+      ->exists();
+
+    if ($existingMovement) {
+      // Ya existe un movimiento de inventario para esta recepción, no crear duplicado
+      return;
+    }
+
+    // 3. Procesar cada detalle de la recepción
     foreach ($reception->details as $index => $receptionDetail) {
       $quantityReceived = $receptionDetail->quantity_received;
       $observedQuantity = $receptionDetail->observed_quantity ?? 0;
       $totalProcessed = $quantityReceived + $observedQuantity;
 
-      // 3. Buscar el PurchaseOrderItem correspondiente a este producto
+      // 4. Buscar el PurchaseOrderItem correspondiente a este producto
       $orderItem = $purchaseOrder->items()
         ->where('product_id', $receptionDetail->product_id)
         ->first();
@@ -431,16 +441,16 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         throw new Exception("No se encontró el item de la factura para el producto ID {$receptionDetail->product_id}");
       }
 
-      // 4. Vincular el detalle de recepción con el item de la factura
+      // 5. Vincular el detalle de recepción con el item de la factura
       $receptionDetail->update(['purchase_order_item_id' => $orderItem->id]);
 
-      // 5. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
+      // 6. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
       if ($receptionDetail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
         $orderItem->quantity_received += $quantityReceived;
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
-        // 6. Actualizar quantity_pending_credit_note si hay observaciones Y is_credit_note = true
+        // 7. Actualizar quantity_pending_credit_note si hay observaciones Y is_credit_note = true
         // Solo se usa como campo de monitoreo cuando se espera una NC futura
         if ($observedQuantity > 0 && $receptionDetail->is_credit_note) {
           $stockService->addPendingCreditNote(
@@ -450,7 +460,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
           );
         }
 
-        // 7. Remover de in-transit (total procesado: recibido + observado)
+        // 8. Remover de in-transit (total procesado: recibido + observado)
         $stockService->removeInTransitStock(
           $receptionDetail->product_id,
           $reception->warehouse_id,
@@ -459,7 +469,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       }
     }
 
-    // 8. Crear movimiento de inventario y actualizar stock físico
+    // 9. Crear movimiento de inventario y actualizar stock físico
     $inventoryMovementService = app(InventoryMovementService::class);
     try {
       $inventoryMovementService->createFromPurchaseReception($reception);
@@ -467,10 +477,10 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       throw new Exception('Error al crear el movimiento de inventario y actualizar stock: ' . $e->getMessage());
     }
 
-    // 9. Marcar detalles de solicitud de compra y su cabecera como recepcionados
+    // 10. Marcar detalles de solicitud de compra y su cabecera como recepcionados
     $this->markRequestDetailsAsReceived($purchaseOrder);
 
-    // 10. Notificar usuarios si es POSTVENTA y tiene solicitudes vinculadas
+    // 11. Notificar usuarios si es POSTVENTA y tiene solicitudes vinculadas
     if ($purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
       $reception = $purchaseOrder->reception;
       if ($reception->supplierOrder) {

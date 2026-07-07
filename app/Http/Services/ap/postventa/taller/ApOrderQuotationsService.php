@@ -10,6 +10,7 @@ use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
+use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -65,19 +66,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function listForPurchaseRequestTaller(Request $request): JsonResponse
   {
     // Query base con las condiciones requeridas para solicitudes de compra
-    // Envolver en un where para agrupar correctamente las condiciones con los filtros posteriores
+    // Filtrar siempre por área taller
     $query = ApOrderQuotations::query()
+      ->where('area_id', ApMasters::AREA_TALLER)
       ->where(function ($query) {
         $query->where(function ($q) {
-          // Condición 1: Cotizaciones aprobadas por jefe y gerente en área taller
-          $q->where('area_id', ApMasters::AREA_TALLER)
-            ->where(function ($q2) {
-              $q2->whereNotNull('chief_approval_by')
-                ->orWhereNotNull('manager_approval_by');
-            });
+          // Condición 1: Cotización aprobada por jefe O gerente
+          $q->whereNotNull('chief_approval_by')
+            ->orWhereNotNull('manager_approval_by');
         })
           ->orWhereHas('workOrders', function ($q) {
-            // Condición 2: Cotizaciones asociadas a OT con factura generada y con al menos un anticipo contabilizado
+            // Condición 2: Cotización asociada a OT con factura generada Y anticipo contabilizado
             $q->where('has_invoice_generated', true)
               ->whereHas('advancesWorkOrder', function ($q2) {
                 $q2->where('is_advance_payment', 1)
@@ -121,15 +120,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
                     ->where('is_accounted', true);
                 });
             })
-            // Opción 2: Aprobada por jefe
-            ->orWhereNotNull('chief_approval_by')
-            // Opción 3: Aprobada por gerente
-            ->orWhereNotNull('manager_approval_by')
-            // Opción 4: Tiene avance de pago contabilizado (sin factura generada aún)
-            ->orWhereHas('advancesOrderQuotation', function ($q2) {
-              $q2->where('is_advance_payment', 1)
-                ->where('is_accounted', true);
-            });
+              // Opción 2: Aprobada por jefe
+              ->orWhereNotNull('chief_approval_by')
+              // Opción 3: Aprobada por gerente
+              ->orWhereNotNull('manager_approval_by')
+              // Opción 4: Tiene avance de pago contabilizado (sin factura generada aún)
+              ->orWhereHas('advancesOrderQuotation', function ($q2) {
+                $q2->where('is_advance_payment', 1)
+                  ->where('is_accounted', true);
+              });
           });
       })
       // Condición: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
@@ -329,11 +328,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create details
       foreach ($data['details'] as $detail) {
-        // Calcular total_cost, net_amount y tax_amount
+        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? 0;
-        $totalCost = $detail['quantity'] * $detail['unit_price'];
-        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
+        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -341,11 +340,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $detail['unit_price'],
+          'unit_price' => $unitPrice,
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totalCost,
-          'net_amount' => $netAmount,
-          'tax_amount' => $taxAmount,
+          'total_cost' => $totals['total_cost'],
+          'net_amount' => $totals['net_amount'],
+          'tax_amount' => $totals['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -528,11 +527,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
-        // Calcular total_cost, net_amount y tax_amount
+        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
+        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
-        $totalCost = $detail['quantity'] * $detail['unit_price'];
-        $netAmount = $totalCost - ($totalCost * $discountPercentage / 100);
-        $taxAmount = $netAmount * (Constants::VAT_TAX / 100);
+        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
+        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -540,11 +539,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $detail['unit_price'],
+          'unit_price' => $unitPrice,
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totalCost,
-          'net_amount' => $netAmount,
-          'tax_amount' => $taxAmount,
+          'total_cost' => $totals['total_cost'],
+          'net_amount' => $totals['net_amount'],
+          'tax_amount' => $totals['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -700,7 +699,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
       $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
@@ -847,7 +846,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     // Datos del asesor
     if ($quotation->createdBy) {
       $data['advisor_name'] = $quotation->createdBy->person->nombre_completo ?? 'N/A';
-      $data['advisor_phone'] = $quotation->createdBy->person->cel_personal ?? 'N/A';
+      $data['advisor_phone'] = $quotation->createdBy->person->tel_referencia_3 ?? 'N/A';
       $data['advisor_email'] = $quotation->createdBy->person->email2 ?? 'N/A';
     } else {
       $data['advisor_name'] = 'N/A';
@@ -1019,8 +1018,102 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'managerApprovalBy',
       ]);
 
+      $this->sendQuotationApprovalEvidenceEmail(
+        $quotation,
+        $data,
+        $user,
+        Position::POSITION_JEFE_TALLER_PVT_IDS,
+        'Jefe de Taller',
+        'Taller'
+      );
+
       return new ApOrderQuotationsResource($quotation);
     });
+  }
+
+  /**
+   * Envía correo de evidencia cuando se aprueba una cotización (Taller o Repuesto), a 3 actores:
+   * el asesor que creó la cotización, el Jefe del área y el Gerente.
+   */
+  private function sendQuotationApprovalEvidenceEmail(
+    ApOrderQuotations $quotation,
+    array             $data,
+    User              $approver,
+    array             $chiefPositionIds,
+    string            $chiefRoleLabel,
+    string            $areaLabel
+  ): void
+  {
+    try {
+      $quotation->loadMissing(['vehicle', 'client', 'createdBy.person']);
+
+      $approverRole = isset($data['manager_approval_by']) ? 'Gerente' : $chiefRoleLabel;
+      $approverName = $approver->person?->nombre_completo ?? $approverRole;
+
+      $emailData = [
+        'quotation_number' => $quotation->quotation_number,
+        'plate' => $quotation->vehicle?->plate,
+        'customer_name' => $quotation->client?->full_name ?? $quotation->vehicle?->customer?->full_name ?? 'N/A',
+        'total_amount' => (float)$quotation->total_amount,
+        'currency' => $quotation->typeCurrency?->code ?? 'PEN',
+        'requester_name' => $quotation->createdBy?->person?->nombre_completo ?? 'Asesor',
+        'approver_name' => $approverName,
+        'approver_role' => $approverRole,
+        'area_label' => $areaLabel,
+        'approval_date' => Carbon::now()->format('d/m/Y H:i'),
+        'button_url' => config('app.frontend_url') . '/ap/post-venta/taller/cotizacion-taller/aprobar/' . $quotation->id,
+      ];
+
+      $subject = 'Cotización de ' . $areaLabel . ' Aprobada - ' . $quotation->quotation_number;
+
+      // 1. Notificar al asesor (usuario al que le aprobaron la cotización)
+      if ($quotation->createdBy?->person?->email2) {
+        $this->emailService->queue([
+          'to' => $quotation->createdBy->person->email2,
+          'subject' => $subject,
+          'template' => 'emails.quotation-taller-approved',
+          'data' => array_merge($emailData, ['recipient_name' => $quotation->createdBy->person->nombre_completo ?? 'Asesor']),
+        ]);
+      }
+
+      // 2. Notificar a los Jefes del área
+      $chiefUsers = User::whereHas('person', function ($query) use ($chiefPositionIds) {
+        $query->whereIn('cargo_id', $chiefPositionIds)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      foreach ($chiefUsers as $chief) {
+        if ($chief->person?->email2) {
+          $this->emailService->queue([
+            'to' => $chief->person->email2,
+            'subject' => $subject,
+            'template' => 'emails.quotation-taller-approved',
+            'data' => array_merge($emailData, ['recipient_name' => $chief->person->nombre_completo ?? $chiefRoleLabel]),
+          ]);
+        }
+      }
+
+      // 3. Notificar a los Gerentes
+      $managerUsers = User::whereHas('person', function ($query) {
+        $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+          ->where('status_deleted', 1)
+          ->where('status_id', 22);
+      })->get();
+
+      foreach ($managerUsers as $manager) {
+        if ($manager->person?->email2) {
+          $this->emailService->queue([
+            'to' => $manager->person->email2,
+            'subject' => $subject,
+            'template' => 'emails.quotation-taller-approved',
+            'data' => array_merge($emailData, ['recipient_name' => $manager->person->nombre_completo ?? 'Gerente']),
+          ]);
+        }
+      }
+    } catch (Exception $e) {
+      \Log::error('Error al enviar notificación de evidencia de aprobación de ' . $areaLabel . ': ' . $e->getMessage());
+    }
   }
 
   /**
@@ -1070,6 +1163,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'chiefApprovalBy',
         'managerApprovalBy',
       ]);
+
+      $this->sendQuotationApprovalEvidenceEmail(
+        $quotation,
+        $data,
+        $user,
+        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
+        'Jefe de Repuesto',
+        'Repuestos'
+      );
 
       return new ApOrderQuotationsResource($quotation);
     });
@@ -1703,6 +1805,68 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'message' => 'Guía de remisión desasociada exitosamente',
         'quotation' => new ApOrderQuotationsResource($quotation),
       ];
+    });
+  }
+
+  /**
+   * Recalcula total_cost/net_amount/tax_amount de cada detalle a partir de sus
+   * campos base (unit_price, quantity, discount_percentage), usando la misma
+   * fuente de verdad (PriceRounding) que se usa al crear/editar el detalle.
+   */
+  private function recalculateDetailItems(ApOrderQuotations $quotation): void
+  {
+    foreach ($quotation->details as $detail) {
+      $totals = PriceRounding::calculateLineTotals(
+        (float)$detail->unit_price,
+        (float)$detail->quantity,
+        (float)($detail->discount_percentage ?? 0)
+      );
+
+      $detail->update($totals);
+    }
+  }
+
+  /**
+   * Recalcula y persiste los totales de la cotización a partir de sus detalles,
+   * igual que WorkOrderService::recalculateTotals() para ApWorkOrder. Útil para
+   * normalizar cotizaciones antiguas al nuevo redondeo en cadena a 1 decimal.
+   *
+   * @param int $id
+   * @return ApOrderQuotationsResource
+   * @throws Exception
+   */
+  public function recalculateTotals($id)
+  {
+    return DB::transaction(function () use ($id) {
+      // find() ya carga 'details', necesarios para calculateTotals()
+      $quotation = $this->find($id);
+
+      // Recalcular primero los detalles (hijos) desde sus campos base, con el mismo
+      // redondeo en cadena a 1 decimal usado al crearlos (PriceRounding), para que
+      // el total de la cotización sea siempre una suma consistente de hijos ya
+      // redondeados y no arrastre valores desalineados (datos antiguos, ediciones
+      // directas, etc.), igual que en WorkOrderService::recalculateTotals().
+      $this->recalculateDetailItems($quotation);
+      $quotation->refresh();
+      $quotation->load('details');
+
+      // Recalcular totales del padre a partir de los hijos ya recalculados
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recargar relaciones para mostrar, igual que show()
+      $quotation->load('advancesOrderQuotation');
+
+      $additionalData = [
+        'checkStock' => true,
+        'includeConfirmationData' => true,
+      ];
+
+      if ($quotation->area_id === ApMasters::AREA_TALLER) {
+        $additionalData['includeCostManHours'] = true;
+      }
+
+      return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
     });
   }
 }

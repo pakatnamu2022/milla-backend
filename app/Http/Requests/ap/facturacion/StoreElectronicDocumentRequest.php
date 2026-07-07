@@ -346,7 +346,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'items.*.subtotal' => 'required|numeric|min:0',
       'items.*.sunat_concept_igv_type_id' => 'required|integer|exists:sunat_concepts,id',
       'items.*.igv' => 'required|numeric|min:0',
-      'items.*.total' => 'required|numeric|min:1',
+      'items.*.total' => 'required|numeric|min:0',
       'items.*.anticipo_regularizacion' => 'nullable|boolean',
       'items.*.anticipo_documento_serie' => 'nullable|string|size:4',
       'items.*.anticipo_documento_numero' => 'nullable|integer|min:1',
