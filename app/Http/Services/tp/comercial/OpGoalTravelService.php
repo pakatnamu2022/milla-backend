@@ -726,23 +726,43 @@ class OpGoalTravelService extends BaseService
      * - Proyección de cierre del mes actual
      * - Distribución por cliente
      */
-    public function getAnalisisEstrategico(): array
+    public function getAnalisisEstrategico(?string $fechaInicio = null, ?string $fechaFin = null): array
     {
-        $yearActual = (int) date('Y');
-        $monthActual = (int) date('m');
+        $fechaInicio = $fechaInicio ? \Carbon\Carbon::parse($fechaInicio) : null;
+        $fechaFin = $fechaFin ? \Carbon\Carbon::parse($fechaFin) : null;
 
+        //si no se establecen fechas, poner como 6 meses como el mes actual por defecto
+
+        if (!$fechaInicio || !$fechaFin) {
+            $fechaFin = \Carbon\Carbon::now()->startOfMonth();
+            $fechaInicio = $fechaFin->copy()->subMonths(5)->startOfMonth();
+        } else {
+            if ($fechaInicio->greaterThan($fechaFin)) {
+                throw new \Exception("La fecha inicial no puede ser mayor que la fecha final.");
+            }
+
+            if ($fechaFin->isFuture()) {
+                throw new \Exception("La fecha final no puede ser una fecha futura.");
+            }
+
+            if ($fechaInicio->diffInMonths($fechaFin) > 24) {
+                throw new \Exception("El rango máximo permitido es de 24 meses.");
+            }
+
+            //ajustar el primer dia del mes de inicio y ultimo dia del mes de fin
+            $fechaInicio = $fechaInicio->copy()->startOfMonth();
+            $fechaFin = $fechaFin->copy()->endOfMonth();
+        }
+
+        $yearInicio = $fechaInicio->year;
+        $monthInicio = $fechaInicio->month;
+        $yearFin = $fechaFin->year;
+        $monthFin = $fechaFin->month;
         $tendencia = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $mes = $monthActual - $i;
-            $anio = $yearActual;
-            if ($mes <= 0) {
-                $mes += 12;
-                $anio--;
-            }
-            if ($mes > 12) {
-                $mes -= 12;
-                $anio++;
-            }
+        $current = $fechaInicio->copy();
+        while ($current->lte($fechaFin)) {
+            $mes = $current->month;
+            $anio = $current->year;
 
             $meta = OpGoalTravel::whereYear('fecha', $anio)
                 ->whereMonth('fecha', $mes)
@@ -750,11 +770,11 @@ class OpGoalTravelService extends BaseService
                 ->first();
 
             $real = DB::selectOne("
-            SELECT COALESCE(SUM(produccion), 0) as total
-            FROM op_despacho
-            WHERE estado <> 10
-                AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
-        ", [$anio, $mes]);
+                SELECT COALESCE(SUM(produccion), 0) as total
+                FROM op_despacho
+                WHERE estado <> 10
+                    AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
+            ", [$anio, $mes]);
 
             $metaValue = (float) ($meta->total ?? 0);
             $realValue = (float) ($real->total ?? 0);
@@ -765,39 +785,100 @@ class OpGoalTravelService extends BaseService
                 'real' => $realValue,
                 'cumplimiento' => $metaValue > 0 ? round(($realValue / $metaValue) * 100, 2) : 0,
             ];
+
+            $current->addMonth();
         }
 
-        // 2. Top clientes (crecimiento vs decrecimiento)
-        $mesAnterior = $monthActual - 1;
-        $anioAnterior = $yearActual;
-        if ($mesAnterior == 0) {
-            $mesAnterior = 12;
-            $anioAnterior--;
+        //top clientes (crecimiento vs decrecimiento) en el rango
+        //mes actual vs mes anterior dentro del rango
+        $mesActualRango = $fechaFin->month;
+        $anioActualRango = $fechaFin->year;
+        $mesAnteriorRango = $fechaFin->copy()->subMonth()->month;
+        $anioAnteriorRango = $fechaFin->copy()->subMonth()->year;
+
+        //si el mes anterior esta fuera del rango, usar el mes siguiente al inciio
+        if ($mesAnteriorRango < $monthInicio && $anioAnteriorRango <= $yearInicio) {
+            $mesAnteriorRango = $monthInicio;
+            $anioAnteriorRango = $yearInicio;
         }
 
         $clientesActual = DB::select("
-        SELECT 
-            rp.id as cliente_id,
-            rp.nombre_completo as cliente,
-            SUM(od.produccion) as produccion
-        FROM op_despacho od
-        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-        WHERE od.estado <> 10
-            AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
-        GROUP BY od.idcliente
-    ", [$yearActual, $monthActual]);
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ",  [$anioActualRango, $mesActualRango]);
 
         $clientesAnterior = DB::select("
-        SELECT 
-            rp.id as cliente_id,
-            rp.nombre_completo as cliente,
-            SUM(od.produccion) as produccion
-        FROM op_despacho od
-        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-        WHERE od.estado <> 10
-            AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
-        GROUP BY od.idcliente
-    ", [$anioAnterior, $mesAnterior]);
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioAnteriorRango, $mesAnteriorRango]);
+
+        // Obtener clientes actuales y anteriores
+        $clientesActual = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioActualRango, $mesActualRango]);
+
+        $clientesAnterior = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioAnteriorRango, $mesAnteriorRango]);
+
+        //clientes nuevos e inactivos
+        $clientesActualIds = array_column($clientesActual, 'cliente_id');
+        $clientesAnteriorIds = array_column($clientesAnterior, 'cliente_id');
+
+        // Clientes nuevos: están en actual pero NO en anterior
+        $clientesNuevos = [];
+        foreach ($clientesActual as $item) {
+            if (!in_array($item->cliente_id, $clientesAnteriorIds)) {
+                $clientesNuevos[] = [
+                    'cliente_id' => (int) $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'produccion' => (float) $item->produccion,
+                ];
+            }
+        }
+        $clientesInactivos = [];
+        foreach ($clientesAnterior as $item) {
+            if (!in_array($item->cliente_id, $clientesActualIds)) {
+                $clientesInactivos[] = [
+                    'cliente_id' => (int) $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'produccion' => (float) $item->produccion,
+                ];
+            }
+        }
+
+        usort($clientesNuevos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
+        usort($clientesInactivos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
 
         // Mapear producción anterior por cliente_id
         $mapaAnterior = [];
@@ -834,41 +915,42 @@ class OpGoalTravelService extends BaseService
         usort($topCrecimiento, fn($a, $b) => $b['diferencia'] <=> $a['diferencia']);
         usort($topDecrecimiento, fn($a, $b) => $a['diferencia'] <=> $b['diferencia']);
 
-        // 3. Proyección de cierre del mes actual
-        $diasTranscurridos = (int) date('d');
-        $diasTotales = (int) date('t');
+        // 3. Proyección de cierre para el último mes del rango
+        $yearProyeccion = $anioActualRango;
+        $monthProyeccion = $mesActualRango;
+        $diasTranscurridos = min((int) date('d'), $fechaFin->day);
+        $diasTotales = $fechaFin->daysInMonth;
 
         $acumuladoMes = DB::selectOne("
-        SELECT COALESCE(SUM(produccion), 0) as total
-        FROM op_despacho
-        WHERE estado <> 10
-            AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
-    ", [$yearActual, $monthActual]);
+                SELECT COALESCE(SUM(produccion), 0) as total
+                FROM op_despacho
+                WHERE estado <> 10
+                    AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
+            ", [$yearProyeccion, $monthProyeccion]);
 
         $acumulado = (float) ($acumuladoMes->total ?? 0);
         $promedioDiario = $diasTranscurridos > 0 ? $acumulado / $diasTranscurridos : 0;
         $proyeccion = $promedioDiario * $diasTotales;
 
-        $metaActual = OpGoalTravel::whereYear('fecha', $yearActual)
-            ->whereMonth('fecha', $monthActual)
+        $metaActual = OpGoalTravel::whereYear('fecha', $yearProyeccion)
+            ->whereMonth('fecha', $monthProyeccion)
             ->where('status_deleted', 1)
             ->first();
-
         $metaValor = (float) ($metaActual->total ?? 0);
         $cumplimientoProyectado = $metaValor > 0 ? round(($proyeccion / $metaValor) * 100, 2) : 0;
 
         // 4. Distribución por cliente (Pareto)
         $distribucion = DB::select("
-        SELECT 
-            rp.nombre_completo as cliente,
-            SUM(od.produccion) as produccion
-        FROM op_despacho od
-        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-        WHERE od.estado <> 10
-            AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
-        GROUP BY od.idcliente
-        ORDER BY produccion DESC
-    ", [$yearActual, $monthActual]);
+                    SELECT 
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND od.fecha_viaje BETWEEN ? AND ?
+            GROUP BY od.idcliente
+            ORDER BY produccion DESC
+            ", [$fechaInicio->toDateString(), $fechaFin->toDateString()]);
 
         $totalProduccion = array_sum(array_column($distribucion, 'produccion'));
         $distribucion = array_map(function ($item) use ($totalProduccion) {
@@ -890,6 +972,8 @@ class OpGoalTravelService extends BaseService
             'tendencia' => $tendencia,
             'top_crecimiento' => array_slice($topCrecimiento, 0, 5),
             'top_decrecimiento' => array_slice($topDecrecimiento, 0, 5),
+            'clientes_nuevos' => array_slice($clientesNuevos, 0, 5),
+            'clientes_inactivos' => array_slice($clientesInactivos, 0, 5),
             'proyeccion' => [
                 'acumulado' => $acumulado,
                 'promedio_diario' => $promedioDiario,
@@ -898,6 +982,7 @@ class OpGoalTravelService extends BaseService
                 'cumplimiento' => $cumplimientoProyectado,
                 'dias_transcurridos' => $diasTranscurridos,
                 'dias_totales' => $diasTotales,
+                'periodo' => self::MESES[$monthProyeccion] . ' ' . $yearProyeccion,
             ],
             'distribucion' => $distribucion,
         ];

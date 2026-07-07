@@ -199,11 +199,13 @@ class OpGoalTravelController extends Controller
             return $this->error($th->getMessage());
         }
     }
-    
-    public function analisisEstrategico()
+
+    public function analisisEstrategico(Request $request)
     {
         try {
-            $data = $this->service->getAnalisisEstrategico();
+            $fechaInicio = $request->input('fecha_inicio');
+            $fechaFin = $request->input('fecha_fin');
+            $data = $this->service->getAnalisisEstrategico($fechaInicio, $fechaFin);
             return response()->json($data);
         } catch (Throwable $th) {
             return $this->error($th->getMessage());
