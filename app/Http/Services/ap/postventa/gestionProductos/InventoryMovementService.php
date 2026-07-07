@@ -1447,6 +1447,11 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate stock availability for all products
+      // Nota: se compara contra `quantity` (stock físico) y no contra `available_quantity`,
+      // porque estos repuestos ya reservaron su cantidad al agregarse a la OT
+      // (ApWorkOrderPartsService::reserveStock). Esa reserva ya dejó `available_quantity`
+      // en 0 para esta misma cantidad, así que exigir disponible libre aquí bloquearía
+      // siempre la venta cuando la reserva cubre el 100% del stock restante.
       foreach ($productParts as $part) {
         $stock = $this->stockService->getStock($part->product_id, $warehouse->id);
 
@@ -1456,10 +1461,10 @@ class InventoryMovementService extends BaseService
           );
         }
 
-        if ($stock->available_quantity < $part->quantity_used) {
+        if ($stock->quantity < $part->quantity_used) {
           throw new Exception(
             "Stock insuficiente para producto '{$part->product->name}'. " .
-            "Disponible: {$stock->available_quantity}, Requerido: {$part->quantity_used}"
+            "Stock físico: {$stock->quantity}, Requerido: {$part->quantity_used}"
           );
         }
       }
@@ -1509,6 +1514,14 @@ class InventoryMovementService extends BaseService
 
       // Update ApWorkOrder output_generation_warehouse
       $workOrder->update(['output_generation_warehouse' => true]);
+
+      // Liberar la reserva hecha al agregar los repuestos a la OT: esa cantidad ya se
+      // está consumiendo como venta real, no debe seguir contando como "reservada".
+      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
+      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      foreach ($productParts as $part) {
+        $this->stockService->releaseReservedStock($part->product_id, $warehouse->id, $part->quantity_used);
+      }
 
       // Update stock automatically
       $this->stockService->updateStockFromMovement($movement->fresh('details'));

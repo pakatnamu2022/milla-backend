@@ -56,7 +56,11 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       // Validate supplier order exists
       $supplierOrder = ApSupplierOrder::findOrFail($data['ap_supplier_order_id']);
 
-      if (is_null($supplierOrder->approved_by) && is_null($supplierOrder->order_number_external)) {
+      if (
+        is_null($supplierOrder->approved_by)
+        && is_null($supplierOrder->order_number_external)
+        && !$this->hasLinkedRequestWithQuotation($supplierOrder)
+      ) {
         throw new Exception('El pedido a proveedor debe estar aprobada para generar una recepción');
       }
 
@@ -228,6 +232,21 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Verifica si el pedido a proveedor tiene al menos una solicitud de compra
+   * asociada (a través de request_detail_ids) que ya cuenta con una cotización
+   * vinculada (ap_order_quotation_id). De ser así, no se exige la aprobación
+   * manual del pedido para poder generar la recepción.
+   */
+  protected function hasLinkedRequestWithQuotation(ApSupplierOrder $supplierOrder): bool
+  {
+    return $supplierOrder->requestDetails()
+      ->whereHas('orderPurchaseRequest', function ($query) {
+        $query->whereNotNull('ap_order_quotation_id');
+      })
+      ->exists();
   }
 
   protected function checkIfAllItemsReceived($supplierOrder): bool

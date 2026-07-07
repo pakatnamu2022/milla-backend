@@ -6,12 +6,12 @@ use App\Http\Services\ap\comercial\PurchaseRequestQuoteService;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
-use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\common\EmailService;
-use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\gestionsistema\Position;
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -216,6 +216,17 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           Log::error("Error al vincular anticipos al vehículo para OC #{$purchaseOrder->id}: {$e->getMessage()}");
         }
 
+        /**
+         * Notificar a gerencia cuando el comprobante está contabilizado
+         */
+        if ($isNotVoided) {
+          try {
+            $this->notifyManagerInvoiceAccounted($purchaseOrder);
+          } catch (Throwable $e) {
+            Log::error("Error al notificar a gerencia para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
+        }
+
         return;
       }
 
@@ -280,6 +291,101 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       return null;
     } catch (\Exception $e) {
       throw $e;
+    }
+  }
+
+  /**
+   * Notifica a gerencia cuando el comprobante está contabilizado
+   */
+  protected function notifyManagerInvoiceAccounted(PurchaseOrder $purchaseOrder): void
+  {
+    // Cargar relaciones necesarias
+    $purchaseOrder->load([
+      'sede',
+      'supplier',
+      'vehicle',
+      'currency'
+    ]);
+
+    // Verificar que tenga sede
+    if (!$purchaseOrder->sede_id) {
+      Log::warning("OC #{$purchaseOrder->number}: No se pudo obtener la sede de la orden de compra.");
+      return;
+    }
+
+    $sedeId = $purchaseOrder->sede_id;
+
+    // Obtener solo usuarios con cargo de Gerente de Postventa asignados a la sede
+    $managers = User::whereHas('person', function ($query) {
+      $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22);
+    })
+      ->whereHas('sedes', function ($query) use ($sedeId) {
+        $query->where('config_sede.id', $sedeId)
+          ->where('assigment_user_sede.status', true);
+      })
+      ->with('person')
+      ->get();
+
+    if ($managers->isEmpty()) {
+      Log::warning("OC #{$purchaseOrder->number}: No se encontraron gerentes de postventa para la sede {$sedeId}.");
+      return;
+    }
+
+    // Preparar datos para el correo
+    $emailData = [
+      'purchase_order_number' => $purchaseOrder->number,
+      'invoice_dynamics' => $purchaseOrder->invoice_dynamics,
+      'receipt_dynamics' => $purchaseOrder->receipt_dynamics,
+      'invoice_date' => $purchaseOrder->invoice_date_dyn
+        ? $purchaseOrder->invoice_date_dyn->format('d/m/Y')
+        : 'N/A',
+      'emission_date' => $purchaseOrder->emission_date
+        ? $purchaseOrder->emission_date->format('d/m/Y')
+        : 'N/A',
+
+      // Datos de la sede
+      'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
+
+      // Datos del proveedor
+      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'supplier_ruc' => $purchaseOrder->supplier?->num_doc ?? 'N/A',
+
+      // Datos del vehículo (si existe)
+      'vehicle_plate' => $purchaseOrder->vehicle?->plate ?? 'N/A',
+      'vehicle_vin' => $purchaseOrder->vehicle?->vin ?? 'N/A',
+
+      // Totales
+      'currency_symbol' => $purchaseOrder->currency?->symbol ?? '',
+      'total' => number_format($purchaseOrder->total, 2),
+
+      // URL del frontend
+      'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
+    ];
+
+    $subject = 'Comprobante Contabilizado - OC ' . $purchaseOrder->number;
+
+    // Enviar correo a cada gerente
+    $emailService = new EmailService();
+    foreach ($managers as $manager) {
+      $managerEmail = $manager->person?->email2;
+
+      if ($managerEmail) {
+        try {
+          $emailService->queue([
+            'to' => $managerEmail,
+            'subject' => $subject,
+            'template' => 'emails.invoice-accounted-notification',
+            'data' => array_merge($emailData, [
+              'recipient_name' => $manager->person->nombre_completo ?? 'Gerente',
+              'recipient_role' => 'Gerente de Postventa',
+            ]),
+          ]);
+        } catch (\Exception $e) {
+          Log::error("Error al enviar correo al gerente (User ID: {$manager->id}): " . $e->getMessage());
+        }
+      }
     }
   }
 

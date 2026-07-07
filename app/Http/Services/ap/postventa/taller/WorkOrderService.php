@@ -109,6 +109,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
+      $data['opening_date'] = Carbon::now();
+      $data['diagnosis_date'] = Carbon::now();
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
@@ -458,11 +460,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener el factor de conversión
     $factor = $this->getConversionFactor($workOrder, $oldCurrencyId, $newCurrencyId);
 
-    // Recalcular labours
-    $this->recalculateLabours($workOrder->id, $factor);
-
-    // Recalcular parts
-    $this->recalculateParts($workOrder->id, $factor);
+    // Recalcular labours y parts con el mismo método usado por recalculateTotals(),
+    // única fuente de verdad para refrescar hijos de la OT (con o sin cambio de moneda).
+    $this->recalculateLabourItems($workOrder, $factor);
+    $this->recalculatePartItems($workOrder, $factor);
   }
 
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
@@ -505,50 +506,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     return (float)$exchangeRate->rate;
-  }
-
-  private function recalculateLabours(int $workOrderId, float $factor): void
-  {
-    $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
-
-    foreach ($labours as $labour) {
-      // Convertir el precio unitario (hourly_rate) y recalcular total_cost/net_amount/
-      // tax_amount con la misma fuente de verdad (PriceRounding) usada al crear el ítem,
-      // para no romper la regla de redondeo en cadena a 1 decimal.
-      $newHourlyRate = PriceRounding::roundUnitPrice($labour->hourly_rate * $factor);
-      $totals = PriceRounding::calculateLineTotals(
-        $newHourlyRate,
-        $labour->time_spent_decimal,
-        (float)($labour->discount_percentage ?? 0)
-      );
-
-      $labour->update([
-        'hourly_rate' => $newHourlyRate,
-        ...$totals,
-      ]);
-    }
-  }
-
-  private function recalculateParts(int $workOrderId, float $factor): void
-  {
-    $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
-
-    foreach ($parts as $part) {
-      // Convertir el precio unitario y recalcular total_cost/net_amount/tax_amount con
-      // la misma fuente de verdad (PriceRounding) usada al crear el ítem, para no romper
-      // la regla de redondeo en cadena a 1 decimal.
-      $newUnitPrice = PriceRounding::roundUnitPrice($part->unit_price * $factor);
-      $totals = PriceRounding::calculateLineTotals(
-        $newUnitPrice,
-        (float)$part->quantity_used,
-        (float)($part->discount_percentage ?? 0)
-      );
-
-      $part->update([
-        'unit_price' => $newUnitPrice,
-        ...$totals,
-      ]);
-    }
   }
 
   public function unlinkQuotation(int $id): WorkOrderResource
@@ -1752,38 +1709,58 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Recalcula total_cost/net_amount/tax_amount de cada mano de obra a partir de
-   * sus campos base (hourly_rate, time_spent, discount_percentage), usando la
-   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   * Recalcula hourly_rate (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada mano de obra a partir de sus campos
+   * base (hourly_rate, time_spent, discount_percentage), usando la misma fuente
+   * de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
    */
-  private function recalculateLabourItems(ApWorkOrder $workOrder): void
+  private function recalculateLabourItems(ApWorkOrder $workOrder, float $factor = 1.0): void
   {
     foreach ($workOrder->labours as $labour) {
-      $totals = PriceRounding::calculateLineTotals(
-        (float)$labour->hourly_rate,
+      $result = PriceRounding::calculateLine(
+        $labour->hourly_rate,
         $labour->time_spent_decimal,
-        (float)($labour->discount_percentage ?? 0)
+        (float)($labour->discount_percentage ?? 0),
+        $factor
       );
 
-      $labour->update($totals);
+      $labour->update([
+        'hourly_rate' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 
   /**
-   * Recalcula total_cost/net_amount/tax_amount de cada repuesto a partir de sus
-   * campos base (unit_price, quantity_used, discount_percentage), usando la
-   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   * Recalcula unit_price (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada repuesto a partir de sus campos
+   * base (unit_price, quantity_used, discount_percentage), usando la misma
+   * fuente de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
    */
-  private function recalculatePartItems(ApWorkOrder $workOrder): void
+  private function recalculatePartItems(ApWorkOrder $workOrder, float $factor = 1.0): void
   {
     foreach ($workOrder->parts as $part) {
-      $totals = PriceRounding::calculateLineTotals(
-        (float)$part->unit_price,
+      $result = PriceRounding::calculateLine(
+        $part->unit_price,
         (float)$part->quantity_used,
-        (float)($part->discount_percentage ?? 0)
+        (float)($part->discount_percentage ?? 0),
+        $factor
       );
 
-      $part->update($totals);
+      $part->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 

@@ -158,6 +158,18 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         // Validar que las fechas de solicitud no sean mayores a la fecha del pedido
         $this->validateRequestDates($data['request_detail_ids'], $data['order_date']);
         $this->linkPurchaseRequests($supplierOrder, $data['request_detail_ids']);
+
+        // Si hay alguna solicitud aprobada, tomar el reviewed_by de la primera
+        $approvedRequestUserId = DB::table('ap_order_purchase_request_details as details')
+          ->join('ap_order_purchase_requests as requests', 'details.order_purchase_request_id', '=', 'requests.id')
+          ->whereIn('details.id', $data['request_detail_ids'])
+          ->where('requests.approved', 1)
+          ->whereNotNull('requests.reviewed_by')
+          ->value('requests.reviewed_by');
+
+        if ($approvedRequestUserId) {
+          $supplierOrder->update(['approved_by' => $approvedRequestUserId]);
+        }
       }
 
       // Create details
@@ -177,8 +189,11 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      //Enviamos notificación a gerencia
-      $this->notifyManagersForApproval($supplierOrder->id);
+      // Enviamos notificación a gerencia solo si no fue aprobada automáticamente
+      $supplierOrder->refresh();
+      if (!$supplierOrder->approved_by) {
+        $this->notifyManagersForApproval($supplierOrder->id);
+      }
 
       return new ApSupplierOrderResource($supplierOrder->load([
         'supplier',
