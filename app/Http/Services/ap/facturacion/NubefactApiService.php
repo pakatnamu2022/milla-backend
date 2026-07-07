@@ -313,7 +313,9 @@ class NubefactApiService
       'fecha_de_emision' => $document->fecha_de_emision->format('d-m-Y'),
       'moneda' => $document->currency->code_nubefact,
       'porcentaje_de_igv' => $document->porcentaje_de_igv,
-      'total_descuento' => $document->total_descuento ?? round($document->items->sum(fn($i) => (float) $i->descuento), 2),
+      // Los descuentos ya están "embebidos" en los precios (valor_unitario y precio_unitario),
+      // por lo que enviamos total_descuento = 0 para ser consistentes con descuento = 0 en items
+      'total_descuento' => $document->total_descuento ?? 0,
       'total_anticipo' => $document->total_anticipo ?? 0,
       'total_gravada' => $document->total_gravada ?? 0,
       'total_inafecta' => $document->total_inafecta ?? 0,
@@ -477,14 +479,20 @@ class NubefactApiService
 
       $hasDescuento = $item->descuento && (float) $item->descuento > 0;
 
-      // When descuento > 0: reconstruct the gross list price (before discount) so SUNAT can
-      // verify: subtotal = (precio_unitario_sin_igv × cantidad) − descuento.
-      // precio_unitario sent = (valor_unitario + descuento_unitario) × igv_factor  (list price with IGV)
-      // descuento sent = stored $item->descuento  (total line discount, no IGV)
-      $igvFactor = 1 + (float) $document->porcentaje_de_igv / 100;
-      $precioUnitario = $hasDescuento
-        ? round(((float) $item->valor_unitario + (float) $item->descuento_unitario) * $igvFactor, 2)
-        : (float) $item->precio_unitario;
+      // LÓGICA ANTERIOR (INCORRECTA - comentada como evidencia):
+      // Intentaba reconstruir el precio de lista antes del descuento: (valor_unitario + descuento_unitario) × igv_factor
+      // Pero Nubefact/SUNAT NO espera el precio de lista, sino el precio NETO después del descuento.
+      // Esto causaba errores como: "precio_unitario no puede ser: 193.1. Debería ser: 154.47"
+      // $igvFactor = 1 + (float) $document->porcentaje_de_igv / 100;
+      // $precioUnitario = $hasDescuento
+      //   ? round(((float) $item->valor_unitario + (float) $item->descuento_unitario) * $igvFactor, 2)
+      //   : (float) $item->precio_unitario;
+
+      // LÓGICA CORREGIDA:
+      // El precio_unitario debe ser el precio NETO con IGV (después del descuento)
+      // Este valor ya está correctamente calculado y guardado en la BD como precio_unitario
+      // Formula: precio_unitario = valor_unitario × (1 + IGV%)
+      $precioUnitario = round((float) $item->precio_unitario, 2);
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
@@ -493,7 +501,9 @@ class NubefactApiService
         'cantidad' => $item->cantidad,
         'valor_unitario' => round((float) $item->valor_unitario, 2),
         'precio_unitario' => $precioUnitario,
-        'descuento' => $hasDescuento ? (float) $item->descuento : 0,
+        // Cuando hay descuento, el descuento ya está aplicado en valor_unitario y precio_unitario,
+        // por lo que enviamos descuento = 0 a Nubefact (el descuento está "embebido" en los precios)
+        'descuento' => $hasDescuento ? 0 : ((float) $item->descuento ?? 0),
         'subtotal' => $item->subtotal,
         'tipo_de_igv' => $tipoIgv,
         'igv' => round((float) $igvItem, 2),
