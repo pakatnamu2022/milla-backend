@@ -318,6 +318,21 @@ class Vehicles extends BaseModel
   public static function isVehiclePaid($vehicleId): bool
   {
     try {
+      // Stock inicial: OC con número "SI-..." + estado VENDIDO NO ENTREGADO + movimiento SOLD_NOT_DELIVERED
+      $isInitialStock = PurchaseOrder::whereHas('vehicleMovement', function ($q) use ($vehicleId) {
+        $q->where('ap_vehicle_id', $vehicleId);
+      })->whereNull('deleted_at')->where('number', 'like', 'SI-%')->exists();
+
+      if ($isInitialStock) {
+        $vehicle = self::find($vehicleId);
+        $isSoldNotDelivered = $vehicle
+          && $vehicle->ap_vehicle_status_id === ApVehicleStatus::VENDIDO_NO_ENTREGADO
+          && VehicleMovement::where('ap_vehicle_id', $vehicleId)
+               ->where('movement_type', VehicleMovement::SOLD_NOT_DELIVERED)
+               ->exists();
+        return $isSoldNotDelivered;
+      }
+
       // Obtener el documento electrónico usando el método centralizado
       $data = self::getElectronicDocumentWithClient($vehicleId);
       $electronicDocument = $data->electronicDocument;
