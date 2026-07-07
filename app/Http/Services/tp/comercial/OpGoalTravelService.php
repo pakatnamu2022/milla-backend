@@ -217,144 +217,144 @@ class OpGoalTravelService extends BaseService
         }
     }
 
-    public function getComparativaMensual(int $year, int $month)
+    public function getComparativaMensual(int $year1, int $month1, ?int $year2 = null, ?int $month2 = null)
     {
+        if ($year2 === null || $month2 === null) {
+            $year2 = $year1;
+            $month2 = $month1 - 1;
+            if ($month2 == 0) {
+                $month2 = 12;
+                $year2 = $year1 - 1;
+            }
+        }
 
-        $cacheKey = "comparativa_{$year}_{$month}";
-        return Cache::remember($cacheKey, 3600, function () use ($year, $month) {
+        $cacheKey = "comparativa_{$year1}_{$month1}_{$year2}_{$month2}";
+        return Cache::remember($cacheKey, 3600, function () use ($year1, $month1, $year2, $month2) {
             try {
-                $mesActual = $month;
-                $anioActual = $year;
 
-                $mesAnterior = $mesActual - 1;
-                $anioAnterior = $year;
+                //validar fechas
+                $fecha1 = \Carbon\Carbon::create($year1, $month1, 1);
+                $fecha2 = \Carbon\Carbon::create($year2, $month2, 1);
 
-
-                if ($mesAnterior == 0) {
-                    $mesAnterior = 12;
-                    $anioAnterior = $year - 1;
+                if ($fecha1->isFuture() || $fecha2->isFuture()) {
+                    throw new Exception("No se pueden comparar períodos futuros.");
                 }
 
-                $datosActual = DB::select("
+
+                $datos1 = DB::select("
                 SELECT 
                     rp.id as cliente_id,
                     rp.nombre_completo as cliente,
                     COUNT(od.id) as total_viajes,
                     SUM(od.produccion) as total_produccion
-                FROM op_despacho od
-                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-                WHERE od.estado <> 10
-                    AND YEAR(od.fecha_viaje) = ?
-                    AND MONTH(od.fecha_viaje) = ?
-                GROUP BY od.idcliente
-                ORDER BY total_viajes DESC
-            ", [$anioActual, $mesActual]);
+                    FROM op_despacho od
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                    WHERE od.estado <> 10
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                    GROUP BY od.idcliente
+                    ORDER BY total_viajes DESC
+                ", [$year1, $month1]);
 
-                $datosAnterior = DB::select("
-                SELECT 
-                    rp.id as cliente_id,
-                    rp.nombre_completo as cliente,
-                    COUNT(od.id) as total_viajes,
-                    SUM(od.produccion) as total_produccion
-                FROM op_despacho od
-                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-                WHERE od.estado <> 10
-                    AND YEAR(od.fecha_viaje) = ?
-                    AND MONTH(od.fecha_viaje) = ?
-                GROUP BY od.idcliente
-                ORDER BY total_viajes DESC
-            ", [$anioAnterior, $mesAnterior]);
-
-                $totalActual = DB::selectOne("
-                    SELECT
+                $datos2 = DB::select("
+                    SELECT 
+                        rp.id as cliente_id,
+                        rp.nombre_completo as cliente,
                         COUNT(od.id) as total_viajes,
                         SUM(od.produccion) as total_produccion
                     FROM op_despacho od
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
                     WHERE od.estado <> 10
-                          AND YEAR(od.fecha_viaje) = ?
-                          AND MONTH(od.fecha_viaje) = ?
-            ", [$anioActual, $mesActual]);
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                    GROUP BY od.idcliente
+                    ORDER BY total_viajes DESC
+                ", [$year2, $month2]);
 
-                $totalAnterior = DB::selectOne("
-                SELECT 
-                    COUNT(od.id) as total_viajes,
-                    SUM(od.produccion) as total_produccion
-                FROM op_despacho od
-                WHERE od.estado <> 10
-                    AND YEAR(od.fecha_viaje) = ?
-                    AND MONTH(od.fecha_viaje) = ?
-            ", [$anioAnterior, $mesAnterior]);
+                $total1 = DB::selectOne("
+                    SELECT COUNT(od.id) as total_viajes, SUM(od.produccion) as total_produccion
+                    FROM op_despacho od
+                    WHERE od.estado <> 10 AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+                ", [$year1, $month1]);
+
+                $total2 = DB::selectOne("
+                    SELECT COUNT(od.id) as total_viajes, SUM(od.produccion) as total_produccion
+                    FROM op_despacho od
+                    WHERE od.estado <> 10 AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+                ", [$year2, $month2]);
 
                 $clientes = [];
-                $viajesActual = [];
-                $viajesAnterior = [];
-                $produccionActual = [];
-                $produccionAnterior = [];
-                $participacionActual = [];
-                $participacionAnterior = [];
+                $viajes1 = [];
+                $viajes2 = [];
+                $produccion1 = [];
+                $produccion2 = [];
+                $participacion1 = [];
+                $participacion2 = [];
 
-                $totalViajesActual = $totalActual->total_viajes ?? 0;
-                $totalProdActual = $totalActual->total_produccion ?? 0;
-                $totalViajesAnterior = $totalAnterior->total_viajes ?? 0;
-                $totalProdAnterior = $totalAnterior->total_produccion ?? 0;
+                $totalViajes1 = $total1->total_viajes ?? 0;
+                $totalProd1 = $total1->total_produccion ?? 0;
+                $totalViajes2 = $total2->total_viajes ?? 0;
+                $totalProd2 = $total2->total_produccion ?? 0;
 
-                $mapaAnterior = [];
-                foreach ($datosAnterior as $item) {
-                    $mapaAnterior[$item->cliente_id] = [
+                $mapa2 = [];
+                foreach ($datos2 as $item) {
+                    $mapa2[$item->cliente_id] = [
                         'viajes' => (int) $item->total_viajes,
                         'produccion' => (float) $item->total_produccion
                     ];
                 }
-                foreach ($datosActual as $item) {
+
+
+                foreach ($datos1 as $item) {
                     $clientes[] = $item->cliente;
-                    $viajesActual[] = (int) $item->total_viajes;
-                    $produccionActual[] = (float) $item->total_produccion;
-                    $participacionActual[] = $totalProdActual > 0
-                        ? round(($item->total_produccion / $totalProdActual) * 100, 2)
+                    $viajes1[] = (int) $item->total_viajes;
+                    $produccion1[] = (float) $item->total_produccion;
+                    $participacion1[] = $totalProd1 > 0
+                        ? round(($item->total_produccion / $totalProd1) * 100, 2)
                         : 0;
 
-                    if (isset($mapaAnterior[$item->cliente_id])) {
-                        $viajesAnterior[] = $mapaAnterior[$item->cliente_id]['viajes'];
-                        $produccionAnterior[] = $mapaAnterior[$item->cliente_id]['produccion'];
-                        $participacionAnterior[] = $totalProdAnterior > 0
-                            ? round(($mapaAnterior[$item->cliente_id]['produccion'] / $totalProdAnterior) * 100, 2)
+                    if (isset($mapa2[$item->cliente_id])) {
+                        $viajes2[] = $mapa2[$item->cliente_id]['viajes'];
+                        $produccion2[] = $mapa2[$item->cliente_id]['produccion'];
+                        $participacion2[] = $totalProd2 > 0
+                            ? round(($mapa2[$item->cliente_id]['produccion'] / $totalProd2) * 100, 2)
                             : 0;
                     } else {
-                        $viajesAnterior[] = 0;
-                        $produccionAnterior[] = 0;
-                        $participacionAnterior[] = 0;
+                        $viajes2[] = 0;
+                        $produccion2[] = 0;
+                        $participacion2[] = 0;
                     }
                 }
 
                 return [
                     'clientes' => $clientes,
-                    'viajes_actual' => $viajesActual,
-                    'viajes_anterior' => $viajesAnterior,
-                    'produccion_actual' => $produccionActual,
-                    'produccion_anterior' => $produccionAnterior,
-                    'participacion_actual' => $participacionActual,
-                    'participacion_anterior' => $participacionAnterior,
+                    'viajes_actual' => $viajes1,
+                    'viajes_anterior' => $viajes2,
+                    'produccion_actual' => $produccion1,
+                    'produccion_anterior' => $produccion2,
+                    'participacion_actual' => $participacion1,
+                    'participacion_anterior' => $participacion2,
                     'resumen' => [
                         'actual' => [
-                            'viajes' => (int) $totalViajesActual,
-                            'produccion' => (float) $totalProdActual,
-                            'label' => self::MESES[$mesActual] . ' ' . $anioActual,
+                            'viajes' => (int) $totalViajes1,
+                            'produccion' => (float) $totalProd1,
+                            'label' => self::MESES[$month1] . ' ' . $year1,
                         ],
                         'anterior' => [
-                            'viajes' => (int) $totalViajesAnterior,
-                            'produccion' => (float) $totalProdAnterior,
-                            'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior,
+                            'viajes' => (int) $totalViajes2,
+                            'produccion' => (float) $totalProd2,
+                            'label' => self::MESES[$month2] . ' ' . $year2,
                         ]
                     ],
                     'periodo_actual' => [
-                        'mes' => $mesActual,
-                        'anio' => $anioActual,
-                        'label' => self::MESES[$mesActual] . ' ' . $anioActual
+                        'mes' => $month1,
+                        'anio' => $year1,
+                        'label' => self::MESES[$month1] . ' ' . $year1
                     ],
                     'periodo_anterior' => [
-                        'mes' => $mesAnterior,
-                        'anio' => $anioAnterior,
-                        'label' => self::MESES[$mesAnterior] . ' ' . $anioAnterior
+                        'mes' => $month2,
+                        'anio' => $year2,
+                        'label' => self::MESES[$month2] . ' ' . $year2
                     ]
                 ];
             } catch (Throwable $th) {
@@ -393,6 +393,25 @@ class OpGoalTravelService extends BaseService
                     ->toArray();
                 $viajesFacturados = empty($viajesFacturados) ? [0] : $viajesFacturados;
 
+                $viajesExcluir = DB::table('op_despacho_item as odi')
+                    ->join('op_despacho as od', 'od.id', '=', 'odi.despacho_id')
+                    ->where('od.produccion', 0)
+                    ->where(function ($query) {
+                        $query->where('odi.idproducto', 89)
+                            ->orWhere('odi.idproducto', 90)
+                            ->orWhere(function ($q) {
+                                $q->where('odi.precio_unit', 0)
+                                    ->where('odi.total', 0);
+                            });
+                    })
+                    ->pluck('odi.despacho_id')
+                    ->toArray();
+                 // Combinar con los viajes facturados para excluir
+                $viajesExcluir = array_merge($viajesExcluir, $viajesFacturados);
+                $viajesExcluir = empty($viajesExcluir) ? [0] : array_unique($viajesExcluir);
+
+                
+
                 $resultados = DB::select("
                     SELECT 
                         rp.id as cliente_id,
@@ -407,7 +426,7 @@ class OpGoalTravelService extends BaseService
                     WHERE od.estado <> 10
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
-                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
                         {$filtrosFecha}
                     GROUP BY od.idcliente
                     HAVING COUNT(od.id) > 0
@@ -423,7 +442,7 @@ class OpGoalTravelService extends BaseService
                     WHERE od.estado <> 10
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
-                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
                         {$filtrosFecha}
                         ", $params);
 
@@ -452,11 +471,11 @@ class OpGoalTravelService extends BaseService
         $cacheKey = "dashboard_{$year}_{$month}";
 
         return Cache::remember($cacheKey, 300, function () use ($year, $month) {
-            try{
+            try {
                 $goal = OpGoalTravel::whereYear('fecha', $year)
-                ->whereMonth('fecha', $month)
-                ->where('status_deleted', 1)
-                ->first();
+                    ->whereMonth('fecha', $month)
+                    ->where('status_deleted', 1)
+                    ->first();
 
                 if (!$goal) {
                     return [
@@ -552,16 +571,12 @@ class OpGoalTravelService extends BaseService
                         'porcentaje_cumplimiento' => (float) $resumen->porcentaje_cumplimiento,
                     ] : null
                 ];
-
-        }catch(Throwable $th){
-            Log::error("Error en el servicio dashboard: " . $th->getMessage());
-            throw new Exception("Error al obtener los datos para el dashboard: " . $th->getMessage());
-        }
+            } catch (Throwable $th) {
+                Log::error("Error en el servicio dashboard: " . $th->getMessage());
+                throw new Exception("Error al obtener los datos para el dashboard: " . $th->getMessage());
+            }
         });
     }
-
-
-
 
     public function getRanking(string $periodo = 'month', int $limit = 10, ?int $year = null, ?int $month = null)
     {
@@ -631,9 +646,9 @@ class OpGoalTravelService extends BaseService
 
     public function getAlerts(int $threshold = 70, ?int $year = null, ?int $month = null)
     {
-       $cacheKey = "alerts_{$threshold}_{$year}_{$month}";
+        $cacheKey = "alerts_{$threshold}_{$year}_{$month}";
 
-       return Cache::remember($cacheKey, 300, function () use ($threshold, $year, $month) {
+        return Cache::remember($cacheKey, 300, function () use ($threshold, $year, $month) {
             try {
                 $year = $year ?? date('Y');
                 $month = $month ?? date('m');
@@ -720,6 +735,275 @@ class OpGoalTravelService extends BaseService
                 Log::error('Error en getAlerts: ' . $e->getMessage());
                 throw $e;
             }
-       });
+        });
+    }
+
+    /**
+     * Obtiene datos para el análisis estratégico
+     * - Tendencia últimos 6 meses
+     * - Top clientes (crecimiento/decrecimiento)
+     * - Proyección de cierre del mes actual
+     * - Distribución por cliente
+     */
+    public function getAnalisisEstrategico(?string $fechaInicio = null, ?string $fechaFin = null): array
+    {
+        $fechaInicio = $fechaInicio ? \Carbon\Carbon::parse($fechaInicio) : null;
+        $fechaFin = $fechaFin ? \Carbon\Carbon::parse($fechaFin) : null;
+
+        //si no se establecen fechas, poner como 6 meses como el mes actual por defecto
+
+        if (!$fechaInicio || !$fechaFin) {
+            $fechaFin = \Carbon\Carbon::now()->startOfMonth();
+            $fechaInicio = $fechaFin->copy()->subMonths(5)->startOfMonth();
+        } else {
+            if ($fechaInicio->greaterThan($fechaFin)) {
+                throw new \Exception("La fecha inicial no puede ser mayor que la fecha final.");
+            }
+
+            if ($fechaFin->isFuture()) {
+                throw new \Exception("La fecha final no puede ser una fecha futura.");
+            }
+
+            if ($fechaInicio->diffInMonths($fechaFin) > 24) {
+                throw new \Exception("El rango máximo permitido es de 24 meses.");
+            }
+
+            //ajustar el primer dia del mes de inicio y ultimo dia del mes de fin
+            $fechaInicio = $fechaInicio->copy()->startOfMonth();
+            $fechaFin = $fechaFin->copy()->endOfMonth();
+        }
+
+        $yearInicio = $fechaInicio->year;
+        $monthInicio = $fechaInicio->month;
+        $yearFin = $fechaFin->year;
+        $monthFin = $fechaFin->month;
+        $tendencia = [];
+        $current = $fechaInicio->copy();
+        while ($current->lte($fechaFin)) {
+            $mes = $current->month;
+            $anio = $current->year;
+
+            $meta = OpGoalTravel::whereYear('fecha', $anio)
+                ->whereMonth('fecha', $mes)
+                ->where('status_deleted', 1)
+                ->first();
+
+            $real = DB::selectOne("
+                SELECT COALESCE(SUM(produccion), 0) as total
+                FROM op_despacho
+                WHERE estado <> 10
+                    AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
+            ", [$anio, $mes]);
+
+            $metaValue = (float) ($meta->total ?? 0);
+            $realValue = (float) ($real->total ?? 0);
+
+            $tendencia[] = [
+                'periodo' => self::MESES[$mes] . ' ' . $anio,
+                'meta' => $metaValue,
+                'real' => $realValue,
+                'cumplimiento' => $metaValue > 0 ? round(($realValue / $metaValue) * 100, 2) : 0,
+            ];
+
+            $current->addMonth();
+        }
+
+        //top clientes (crecimiento vs decrecimiento) en el rango
+        //mes actual vs mes anterior dentro del rango
+        $mesActualRango = $fechaFin->month;
+        $anioActualRango = $fechaFin->year;
+        $mesAnteriorRango = $fechaFin->copy()->subMonth()->month;
+        $anioAnteriorRango = $fechaFin->copy()->subMonth()->year;
+
+        //si el mes anterior esta fuera del rango, usar el mes siguiente al inciio
+        if ($mesAnteriorRango < $monthInicio && $anioAnteriorRango <= $yearInicio) {
+            $mesAnteriorRango = $monthInicio;
+            $anioAnteriorRango = $yearInicio;
+        }
+
+        $clientesActual = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ",  [$anioActualRango, $mesActualRango]);
+
+        $clientesAnterior = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioAnteriorRango, $mesAnteriorRango]);
+
+        // Obtener clientes actuales y anteriores
+        $clientesActual = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioActualRango, $mesActualRango]);
+
+        $clientesAnterior = DB::select("
+            SELECT 
+                rp.id as cliente_id,
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+            GROUP BY od.idcliente
+        ", [$anioAnteriorRango, $mesAnteriorRango]);
+
+        //clientes nuevos e inactivos
+        $clientesActualIds = array_column($clientesActual, 'cliente_id');
+        $clientesAnteriorIds = array_column($clientesAnterior, 'cliente_id');
+
+        // Clientes nuevos: están en actual pero NO en anterior
+        $clientesNuevos = [];
+        foreach ($clientesActual as $item) {
+            if (!in_array($item->cliente_id, $clientesAnteriorIds)) {
+                $clientesNuevos[] = [
+                    'cliente_id' => (int) $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'produccion' => (float) $item->produccion,
+                ];
+            }
+        }
+        $clientesInactivos = [];
+        foreach ($clientesAnterior as $item) {
+            if (!in_array($item->cliente_id, $clientesActualIds)) {
+                $clientesInactivos[] = [
+                    'cliente_id' => (int) $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'produccion' => (float) $item->produccion,
+                ];
+            }
+        }
+
+        usort($clientesNuevos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
+        usort($clientesInactivos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
+
+        // Mapear producción anterior por cliente_id
+        $mapaAnterior = [];
+        foreach ($clientesAnterior as $item) {
+            $mapaAnterior[$item->cliente_id] = (float) $item->produccion;
+        }
+
+        $topCrecimiento = [];
+        $topDecrecimiento = [];
+
+        foreach ($clientesActual as $item) {
+            $actual = (float) $item->produccion;
+            $anterior = $mapaAnterior[$item->cliente_id] ?? 0;
+            $diferencia = $actual - $anterior;
+            $variacion = $anterior > 0 ? round(($diferencia / $anterior) * 100, 2) : ($actual > 0 ? 100 : 0);
+
+            $data = [
+                'cliente_id' => (int) $item->cliente_id,
+                'cliente' => $item->cliente,
+                'actual' => $actual,
+                'anterior' => $anterior,
+                'diferencia' => $diferencia,
+                'variacion' => $variacion,
+            ];
+
+            if ($diferencia > 0) {
+                $topCrecimiento[] = $data;
+            } elseif ($diferencia < 0) {
+                $topDecrecimiento[] = $data;
+            }
+        }
+
+        // Ordenar: mayor crecimiento primero, mayor decrecimiento primero (más negativo)
+        usort($topCrecimiento, fn($a, $b) => $b['diferencia'] <=> $a['diferencia']);
+        usort($topDecrecimiento, fn($a, $b) => $a['diferencia'] <=> $b['diferencia']);
+
+        // 3. Proyección de cierre para el último mes del rango
+        $yearProyeccion = $anioActualRango;
+        $monthProyeccion = $mesActualRango;
+        $diasTranscurridos = min((int) date('d'), $fechaFin->day);
+        $diasTotales = $fechaFin->daysInMonth;
+
+        $acumuladoMes = DB::selectOne("
+                SELECT COALESCE(SUM(produccion), 0) as total
+                FROM op_despacho
+                WHERE estado <> 10
+                    AND YEAR(fecha_viaje) = ? AND MONTH(fecha_viaje) = ?
+            ", [$yearProyeccion, $monthProyeccion]);
+
+        $acumulado = (float) ($acumuladoMes->total ?? 0);
+        $promedioDiario = $diasTranscurridos > 0 ? $acumulado / $diasTranscurridos : 0;
+        $proyeccion = $promedioDiario * $diasTotales;
+
+        $metaActual = OpGoalTravel::whereYear('fecha', $yearProyeccion)
+            ->whereMonth('fecha', $monthProyeccion)
+            ->where('status_deleted', 1)
+            ->first();
+        $metaValor = (float) ($metaActual->total ?? 0);
+        $cumplimientoProyectado = $metaValor > 0 ? round(($proyeccion / $metaValor) * 100, 2) : 0;
+
+        // 4. Distribución por cliente (Pareto)
+        $distribucion = DB::select("
+                    SELECT 
+                rp.nombre_completo as cliente,
+                SUM(od.produccion) as produccion
+            FROM op_despacho od
+            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+            WHERE od.estado <> 10
+                AND od.fecha_viaje BETWEEN ? AND ?
+            GROUP BY od.idcliente
+            ORDER BY produccion DESC
+            ", [$fechaInicio->toDateString(), $fechaFin->toDateString()]);
+
+        $totalProduccion = array_sum(array_column($distribucion, 'produccion'));
+        $distribucion = array_map(function ($item) use ($totalProduccion) {
+            return [
+                'cliente' => $item->cliente,
+                'produccion' => (float) $item->produccion,
+                'porcentaje' => $totalProduccion > 0 ? round(($item->produccion / $totalProduccion) * 100, 2) : 0,
+            ];
+        }, $distribucion);
+
+        // Calcular Pareto acumulado
+        $acumuladoPareto = 0;
+        foreach ($distribucion as &$item) {
+            $acumuladoPareto += $item['porcentaje'];
+            $item['acumulado'] = round($acumuladoPareto, 2);
+        }
+
+        return [
+            'tendencia' => $tendencia,
+            'top_crecimiento' => array_slice($topCrecimiento, 0, 5),
+            'top_decrecimiento' => array_slice($topDecrecimiento, 0, 5),
+            'clientes_nuevos' => array_slice($clientesNuevos, 0, 5),
+            'clientes_inactivos' => array_slice($clientesInactivos, 0, 5),
+            'proyeccion' => [
+                'acumulado' => $acumulado,
+                'promedio_diario' => $promedioDiario,
+                'proyeccion' => $proyeccion,
+                'meta' => $metaValor,
+                'cumplimiento' => $cumplimientoProyectado,
+                'dias_transcurridos' => $diasTranscurridos,
+                'dias_totales' => $diasTotales,
+                'periodo' => self::MESES[$monthProyeccion] . ' ' . $yearProyeccion,
+            ],
+            'distribucion' => $distribucion,
+        ];
     }
 }

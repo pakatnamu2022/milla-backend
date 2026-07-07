@@ -104,10 +104,25 @@ class OpGoalTravelController extends Controller
     public function comparativaMensual(Request $request)
     {
         try{
-            $year = $request->input('year', date('Y'));
-            $month = $request->input('month', date('m'));
+            $year1 = $request->input('year1', date('Y'));
+            $month1 = $request->input('month1', date('m'));
+            $year2 = $request->input('year2', null);
+            $month2 = $request->input('month2', null);
 
-            $data = $this->service->getComparativaMensual((int)$year, (int)$month);
+            $fecha1 = \Carbon\Carbon::create($year1, $month1, 1);
+            if ($fecha1->isFuture()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El período principal no puede ser una fecha futura.'
+                ], 400);
+            }
+            $data = $this->service->getComparativaMensual(
+                (int)$year1, 
+                (int)$month1, 
+                $year2 !== null ? (int)$year2 : null, 
+                $month2 !== null ? (int)$month2 : null
+            );
+
             return response()->json($data);
 
         }catch(Throwable $th){
@@ -176,7 +191,7 @@ class OpGoalTravelController extends Controller
         }
     }
 
-     public function availableYears()
+    public function availableYears()
     {
         try {
             return response()->json($this->service->getAvailableYears());
@@ -184,4 +199,17 @@ class OpGoalTravelController extends Controller
             return $this->error($th->getMessage());
         }
     }
+
+    public function analisisEstrategico(Request $request)
+    {
+        try {
+            $fechaInicio = $request->input('fecha_inicio');
+            $fechaFin = $request->input('fecha_fin');
+            $data = $this->service->getAnalisisEstrategico($fechaInicio, $fechaFin);
+            return response()->json($data);
+        } catch (Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
 }
