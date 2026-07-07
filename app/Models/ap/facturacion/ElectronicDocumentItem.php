@@ -29,6 +29,7 @@ class ElectronicDocumentItem extends BaseModel
     'valor_unitario',
     'precio_unitario',
     'descuento',
+    'descuento_unitario',
     'subtotal',
     'sunat_concept_igv_type_id',
     'igv',
@@ -43,6 +44,7 @@ class ElectronicDocumentItem extends BaseModel
     'valor_unitario' => 'decimal:2',
     'precio_unitario' => 'decimal:2',
     'descuento' => 'decimal:2',
+    'descuento_unitario' => 'decimal:2',
     'subtotal' => 'decimal:2',
     'igv' => 'decimal:2',
     'total' => 'decimal:2',
@@ -66,6 +68,11 @@ class ElectronicDocumentItem extends BaseModel
   public function setDescuentoAttribute($value)
   {
     $this->attributes['descuento'] = $value ? round((float)$value, 2) : null;
+  }
+
+  public function setDescuentoUnitarioAttribute($value)
+  {
+    $this->attributes['descuento_unitario'] = round((float)$value, 2);
   }
 
   public function setSubtotalAttribute($value)
