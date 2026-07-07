@@ -206,4 +206,18 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function updateByVin(Request $request): JsonResponse
+  {
+    try {
+      $data = $request->validate([
+        'vin'   => 'required|string',
+        'motor' => 'required|string|max:50',
+        'color' => 'required|string|max:100',
+      ]);
+      return $this->success($this->service->updateByVin($data));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
