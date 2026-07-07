@@ -393,6 +393,25 @@ class OpGoalTravelService extends BaseService
                     ->toArray();
                 $viajesFacturados = empty($viajesFacturados) ? [0] : $viajesFacturados;
 
+                $viajesExcluir = DB::table('op_despacho_item as odi')
+                    ->join('op_despacho as od', 'od.id', '=', 'odi.despacho_id')
+                    ->where('od.produccion', 0)
+                    ->where(function ($query) {
+                        $query->where('odi.idproducto', 89)
+                            ->orWhere('odi.idproducto', 90)
+                            ->orWhere(function ($q) {
+                                $q->where('odi.precio_unit', 0)
+                                    ->where('odi.total', 0);
+                            });
+                    })
+                    ->pluck('odi.despacho_id')
+                    ->toArray();
+                 // Combinar con los viajes facturados para excluir
+                $viajesExcluir = array_merge($viajesExcluir, $viajesFacturados);
+                $viajesExcluir = empty($viajesExcluir) ? [0] : array_unique($viajesExcluir);
+
+                
+
                 $resultados = DB::select("
                     SELECT 
                         rp.id as cliente_id,
@@ -407,7 +426,7 @@ class OpGoalTravelService extends BaseService
                     WHERE od.estado <> 10
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
-                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
                         {$filtrosFecha}
                     GROUP BY od.idcliente
                     HAVING COUNT(od.id) > 0
@@ -423,7 +442,7 @@ class OpGoalTravelService extends BaseService
                     WHERE od.estado <> 10
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
-                        AND od.id NOT IN (" . implode(',', $viajesFacturados) . ")
+                        AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
                         {$filtrosFecha}
                         ", $params);
 
