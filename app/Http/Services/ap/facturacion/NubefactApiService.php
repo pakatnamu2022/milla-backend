@@ -491,7 +491,7 @@ class NubefactApiService
         'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
-        'valor_unitario' => $valorUnitarioRedondeado,
+        'valor_unitario' => round((float) $item->valor_unitario, 2),
         'precio_unitario' => $precioUnitario,
         'descuento' => $hasDescuento ? (float) $item->descuento : 0,
         'subtotal' => $item->subtotal,

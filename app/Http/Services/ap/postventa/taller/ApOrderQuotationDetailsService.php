@@ -57,6 +57,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Only validate price for products, not for labor
       if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+        // Validar que el producto no esté ya agregado como otro detalle de esta cotización
+        $this->validateProductNotAlreadyInQuotation($data['order_quotation_id'], $data['product_id']);
+
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($data['product_id']);
         if ($product) {
@@ -118,14 +121,14 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
    */
   private function calculatePricesAndTotals(array &$data): void
   {
-    $data['unit_price'] = PriceRounding::roundUnitPrice((float)$data['unit_price']);
     $quantity = (float)$data['quantity'];
     $discountPercentage = (float)($data['discount_percentage'] ?? 0);
 
-    $totals = PriceRounding::calculateLineTotals($data['unit_price'], $quantity, $discountPercentage);
-    $data['total_cost'] = $totals['total_cost'];
-    $data['net_amount'] = $totals['net_amount'];
-    $data['tax_amount'] = $totals['tax_amount'];
+    $result = PriceRounding::calculateLine((float)$data['unit_price'], $quantity, $discountPercentage);
+    $data['unit_price'] = $result['unit_price'];
+    $data['total_cost'] = $result['total_cost'];
+    $data['net_amount'] = $result['net_amount'];
+    $data['tax_amount'] = $result['tax_amount'];
   }
 
   public function update(mixed $data)
@@ -136,13 +139,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Validate if quotation is already associated with a work order
       $this->validateQuotationNotAssociatedWithWorkOrder($apOrderQuotationDetails->order_quotation_id);
 
-      // Validar decimales para productos
-      if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
-        $product = Products::find($data['product_id']);
-        if ($product) {
-          $product->validateDecimals($data['quantity']);
-        }
-      }
+      $quotation = ApOrderQuotations::findOrFail($apOrderQuotationDetails->order_quotation_id);
 
       // total_cost/net_amount/tax_amount: recalcular siempre con los valores finales
       // (nuevos o los ya existentes si no vinieron en este update parcial), para no
@@ -150,13 +147,46 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       $data['unit_price'] = $data['unit_price'] ?? $apOrderQuotationDetails->unit_price;
       $data['quantity'] = $data['quantity'] ?? $apOrderQuotationDetails->quantity;
       $data['discount_percentage'] = $data['discount_percentage'] ?? $apOrderQuotationDetails->discount_percentage;
+
+      $itemType = $data['item_type'] ?? $apOrderQuotationDetails->item_type;
+      $productId = $data['product_id'] ?? $apOrderQuotationDetails->product_id;
+
+      // Only validate price for products, not for labor
+      if ($itemType === 'PRODUCT' && $productId) {
+        // Validar que el producto no esté ya agregado como otro detalle de esta cotización
+        $this->validateProductNotAlreadyInQuotation(
+          $apOrderQuotationDetails->order_quotation_id,
+          $productId,
+          $apOrderQuotationDetails->id
+        );
+
+        // Validar decimales según la unidad de medida del producto
+        $product = Products::find($productId);
+        if ($product) {
+          $product->validateDecimals($data['quantity']);
+        }
+
+        // Validar que el precio unitario respete el precio mínimo de venta al público
+        $validation = ProductWarehouseStock::validatePublicSalePrice(
+          $productId,
+          $quotation->sede_id,
+          $data['unit_price']
+        );
+
+        if (!$validation['valid']) {
+          $description = $data['description'] ?? $apOrderQuotationDetails->description;
+          throw new Exception(
+            "Producto ({$description}): {$validation['message']}"
+          );
+        }
+      }
+
       $this->calculatePricesAndTotals($data);
 
       // Update quotation detail
       $apOrderQuotationDetails->update($data);
 
       // Recalculate quotation totals using centralized method in model
-      $quotation = ApOrderQuotations::find($apOrderQuotationDetails->order_quotation_id);
       $quotation->calculateTotals();
       $quotation->save();
 
@@ -194,6 +224,61 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     });
 
     return response()->json(['message' => 'Detalle de cotización eliminado correctamente.']);
+  }
+
+  /**
+   * Valida que no se repita el mismo product_id entre los detalles de tipo PRODUCT
+   * de un mismo payload (creación/actualización en bloque de una cotización, vía
+   * ApOrderQuotationsService::storeWithProducts/updateWithProducts).
+   *
+   * @param array $details
+   * @return void
+   * @throws Exception
+   */
+  public function validateNoDuplicateProductsInDetails(array $details): void
+  {
+    $seenProductIds = [];
+
+    foreach ($details as $detail) {
+      if (($detail['item_type'] ?? 'PRODUCT') !== 'PRODUCT' || !isset($detail['product_id'])) {
+        continue;
+      }
+
+      $productId = $detail['product_id'];
+
+      if (isset($seenProductIds[$productId])) {
+        throw new Exception(
+          "Producto ({$detail['description']}): ya fue agregado en esta cotización, no se puede repetir el mismo producto."
+        );
+      }
+
+      $seenProductIds[$productId] = true;
+    }
+  }
+
+  /**
+   * Valida que el producto no exista ya como otro detalle PRODUCT dentro de la misma
+   * cotización, usado por store/update individual (ApOrderQuotationDetailsService).
+   *
+   * @param int $quotationId
+   * @param int $productId
+   * @param int|null $excludeDetailId Id del detalle actual, para excluirlo en update
+   * @return void
+   * @throws Exception
+   */
+  private function validateProductNotAlreadyInQuotation(int $quotationId, int $productId, ?int $excludeDetailId = null): void
+  {
+    $query = ApOrderQuotationDetails::where('order_quotation_id', $quotationId)
+      ->where('item_type', 'PRODUCT')
+      ->where('product_id', $productId);
+
+    if ($excludeDetailId) {
+      $query->where('id', '!=', $excludeDetailId);
+    }
+
+    if ($query->exists()) {
+      throw new Exception('Este producto ya se encuentra agregado en esta cotización, no se puede repetir el mismo producto.');
+    }
   }
 
   /**
