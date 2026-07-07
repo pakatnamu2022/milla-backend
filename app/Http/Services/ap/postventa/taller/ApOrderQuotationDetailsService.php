@@ -72,7 +72,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $data['product_id'],
           $sedeId,
-          $data['unit_price']
+          $data['unit_price'],
+          $quotation->currency_id,
+          $quotation->exchange_rate
         );
 
         if (!$validation['valid']) {
@@ -170,7 +172,9 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $productId,
           $quotation->sede_id,
-          $data['unit_price']
+          $data['unit_price'],
+          $quotation->currency_id,
+          $quotation->exchange_rate
         );
 
         if (!$validation['valid']) {
