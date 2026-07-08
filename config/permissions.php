@@ -283,6 +283,24 @@ return [
       'description'   => 'Permite quitar un repuesto de una cotización',
       'icon'          => 'XCircle',
       'policy_method' => 'removeSparePartQuote',
+    ],
+    'regularizationAdvances' => [
+      'label' => 'Regularización de Anticipos',
+      'description' => 'Permite realizar la regularización de anticipos en el sistema',
+      'icon' => 'Plus',
+      'policy_method' => 'regularizationAdvances',
+    ],
+    'invoiceOtherSales' => [
+      'label' => 'Facturar Otros',
+      'description' => 'Permite realizar ventas de otros productos',
+      'icon' => 'Plus',
+      'policy_method' => 'invoiceOtherSales',
+    ],
+    'changeAdvisor' => [
+      'label' => 'Cambiar Advisor',
+      'description' => 'Permite cambiar advisor de otros productos',
+      'icon' => 'Plus',
+      'policy_method' => 'changeAdvisor',
     ]
   ],
 

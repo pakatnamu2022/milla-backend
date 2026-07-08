@@ -155,7 +155,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
   {
     // Establecer estado inicial del vehículo
     if (!isset($data['ap_vehicle_status_id'])) {
-      $data['ap_vehicle_status_id'] = ApVehicleStatus::PEDIDO_VN;
+      $data['ap_vehicle_status_id'] = ApVehicleStatus::VENDIDO_ENTREGADO;
     }
 
     // Validar que el VIN no exista
@@ -211,6 +211,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     try {
       $vehicle = $this->find($data['id']);
 
+      if ($vehicle->ap_vehicle_status_id !== ApVehicleStatus::VENDIDO_ENTREGADO) {
+        throw new Exception("Solo se pueden actualizar vehículos con estado 'VENDIDO ENTREGADO'");
+      }
+
       // Si se actualiza el VIN, validar que no exista
       if (isset($data['vin']) && $data['vin'] !== $vehicle->vin) {
         $existingVehicle = Vehicles::where('vin', $data['vin'])
@@ -238,6 +242,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       if (!isset($data['warehouse_id'])) {
         $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;
       }
+
+      // No permitir actualizar warehouse_physical_id aunque se envíe
+      unset($data['warehouse_physical_id']);
 
       $vehicle->update($data);
 
@@ -679,22 +686,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $vehicle->update(['ap_vehicle_status_id' => $statusId]);
 
       VehicleMovement::create([
-        'movement_type'        => $movementType,
-        'ap_vehicle_id'        => $vehicle->id,
+        'movement_type' => $movementType,
+        'ap_vehicle_id' => $vehicle->id,
         'ap_vehicle_status_id' => $statusId,
-        'previous_status_id'   => $previousStatusId,
-        'new_status_id'        => $statusId,
-        'movement_date'        => $movementDate,
-        'observation'          => $observation,
-        'created_by'           => auth()->id(),
+        'previous_status_id' => $previousStatusId,
+        'new_status_id' => $statusId,
+        'movement_date' => $movementDate,
+        'observation' => $observation,
+        'created_by' => auth()->id(),
       ]);
     });
 
     return [
-      'vehicle_id'         => $vehicle->id,
+      'vehicle_id' => $vehicle->id,
       'previous_status_id' => $previousStatusId,
-      'new_status_id'      => $statusId,
-      'movement_type'      => $movementType,
+      'new_status_id' => $statusId,
+      'movement_type' => $movementType,
     ];
   }
 }

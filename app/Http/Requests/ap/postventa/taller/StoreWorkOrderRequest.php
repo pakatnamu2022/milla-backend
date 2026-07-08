@@ -46,16 +46,16 @@ class StoreWorkOrderRequest extends StoreRequest
         'exists:config_sede,id',
       ],
       'num_doc_contact' => [
-        'required',
+        'nullable',
         'string',
         'digits:8',
       ],
       'full_contact_name' => [
-        'required',
+        'nullable',
         'string',
       ],
       'phone_contact' => [
-        'required',
+        'nullable',
         'string',
       ],
       'num_doc_pickup' => [
@@ -190,13 +190,9 @@ class StoreWorkOrderRequest extends StoreRequest
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
-      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
       'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
 
-      'full_contact_name.required' => 'El nombre completo del contacto es obligatorio.',
       'full_contact_name.string' => 'El nombre completo del contacto debe ser una cadena de texto.',
-
-      'phone_contact.required' => 'El teléfono de contacto es obligatorio.',
       'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
 
       'estimated_delivery_time.required' => 'La fecha y hora estimada de entrega es obligatoria.',

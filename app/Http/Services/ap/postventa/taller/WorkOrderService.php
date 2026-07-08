@@ -196,11 +196,22 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Create items
+      $hasPDIService = false;
       if (!empty($items)) {
         foreach ($items as $item) {
           $item['work_order_id'] = $workOrder->id;
           ApWorkOrderItem::create($item);
+
+          // Verificar si es un servicio de PDI
+          if (isset($item['type_planning_id']) && $item['type_planning_id'] == TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID) {
+            $hasPDIService = true;
+          }
         }
+      }
+
+      // Si es un servicio de PDI, copiar automáticamente la recepción del vehículo
+      if ($hasPDIService) {
+        $this->copyReceivingInspectionToVehicleInspection($workOrder, $vehicle);
       }
 
       // Recalcular totales después de crear los items
@@ -1768,6 +1779,56 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  /**
+   * Copia automáticamente los datos de la inspección de recepción (ap_receiving_inspection)
+   * a la inspección del vehículo (ap_vehicle_inspection) cuando es un servicio de PDI
+   */
+  private function copyReceivingInspectionToVehicleInspection(ApWorkOrder $workOrder, Vehicles $vehicle): void
+  {
+    // Obtener la guía de remisión de recepción del vehículo
+    $shippingGuide = $vehicle->shippingGuideReceiving;
+
+    // Validar que exista la guía y su inspección de recepción
+    if (!$shippingGuide || !$shippingGuide->receivingInspection) {
+      throw new Exception('El vehículo no tiene una inspección de recepción asociada. Se requiere una inspección de recepción para crear un servicio de PDI.');
+    }
+
+    $receivingInspection = $shippingGuide->receivingInspection;
+
+    // Crear ApVehicleInspection copiando datos de ApReceivingInspection
+    $vehicleInspection = ApVehicleInspection::create([
+      'ap_work_order_id' => $workOrder->id,
+      'photo_front_url' => $receivingInspection->photo_front_url,
+      'photo_back_url' => $receivingInspection->photo_back_url,
+      'photo_left_url' => $receivingInspection->photo_left_url,
+      'photo_right_url' => $receivingInspection->photo_right_url,
+      'general_observations' => $receivingInspection->general_observations,
+      'inspected_by' => $receivingInspection->inspected_by,
+      'inspection_date' => now(),
+      'mileage' => 0,
+      'fuel_level' => '0',
+      'oil_level' => '0',
+    ]);
+
+    // Copiar los damages de ApReceivingInspectionDamage a ApVehicleInspectionDamages
+    foreach ($receivingInspection->damages as $damage) {
+      ApVehicleInspectionDamages::create([
+        'vehicle_inspection_id' => $vehicleInspection->id,
+        'damage_type' => $damage->damage_type,
+        'x_coordinate' => $damage->x_coordinate,
+        'y_coordinate' => $damage->y_coordinate,
+        'description' => $damage->description,
+        'photo_url' => $damage->photo_url,
+      ]);
+    }
+
+    // Actualizar la OT con el vehicle_inspection_id y cambiar el estado a RECEIVED
+    $workOrder->update([
+      'vehicle_inspection_id' => $vehicleInspection->id,
+      'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
+    ]);
   }
 
   /**
