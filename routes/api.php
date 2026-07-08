@@ -1355,6 +1355,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
       Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
       Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
+      Route::post('vehicles/update-purchase-order-by-vin', [VehiclesController::class, 'updatePurchaseOrderByVin']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',

@@ -205,6 +205,7 @@ class NubefactShippingGuideApiService
       'peso_bruto_total' => number_format($guide->total_weight, 2, '.', ''),
       'peso_bruto_unidad_de_medida' => 'KGM', // Kilogramos
       'fecha_de_inicio_de_traslado' => $guide->issue_date->format('d-m-Y'),
+      'fecha_de_entrega_al_transportista' => $guide->issue_date->format('d-m-Y'),
       'enviar_automaticamente_al_cliente' => 'false',
       'formato_de_pdf' => '',
     ];
