@@ -3651,22 +3651,55 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // ================================================================
-      // 1. SERIE Y NÚMERO CORRELATIVO
+      // 1. SERIE Y NÚMERO — buscar o crear en assign_sales_series
       // ================================================================
-      $series = AssignSalesSeries::find($data['series_id']);
-      if (!$series) {
-        throw new Exception('Serie no encontrada');
-      }
-
-      $nextNumberData = $this->nextDocumentNumberCorrelative(
-        $data['sunat_concept_document_type_id'],
-        $series->series
-      );
-      $data['numero'] = $nextNumberData['number'];
-      $data['serie']  = $series->series;
+      $data['serie']  = strtoupper(trim($data['serie']));
+      $data['numero'] = (int) $data['numero'];
 
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
         throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      $alreadyExists = ElectronicDocument::whereNull('deleted_at')
+        ->where('serie', $data['serie'])
+        ->where('numero', $data['numero'])
+        ->exists();
+
+      if ($alreadyExists) {
+        throw new Exception("Ya existe un documento activo con la serie {$data['serie']} y número {$data['numero']}");
+      }
+
+      // Mapeo sunat_concept_document_type_id → ap_masters type_receipt_id
+      $docTypeToReceiptMap = [
+        AssignSalesSeries::FACTURA_NUBEFACT     => AssignSalesSeries::FACTURA,
+        AssignSalesSeries::BOLETA_NUBEFACT      => AssignSalesSeries::BOLETA,
+        AssignSalesSeries::NOTA_CREDITO_NUBEFACT => AssignSalesSeries::NOTA_CREDITO,
+        AssignSalesSeries::NOTA_DEBITO_NUBEFACT  => AssignSalesSeries::NOTA_DEBITO,
+      ];
+      $typeReceiptId = $docTypeToReceiptMap[$data['sunat_concept_document_type_id']] ?? null;
+      if (!$typeReceiptId) {
+        throw new Exception('El tipo de documento no es compatible con series de venta');
+      }
+
+      $quote = PurchaseRequestQuote::find($data['purchase_request_quote_id']);
+      if (!$quote) {
+        throw new Exception('Cotización de solicitud de compra no encontrada');
+      }
+
+      $seriesRecord = AssignSalesSeries::whereNull('deleted_at')
+        ->where('series', $data['serie'])
+        ->first();
+
+      if (!$seriesRecord) {
+        $seriesRecord = AssignSalesSeries::create([
+          'series'            => $data['serie'],
+          'correlative_start' => 1,
+          'type'              => AssignSalesSeries::SALE,
+          'type_receipt_id'   => $typeReceiptId,
+          'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
+          'sede_id'           => $quote->sede_id,
+          'status'            => false,
+        ]);
       }
 
       // ================================================================
@@ -3701,8 +3734,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       // 5. OBSERVACIONES CON MARCA DE REGISTRO EXTERNO
       // ================================================================
-      $markerExterno  = '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]';
-      $observaciones  = trim($markerExterno . ($data['observaciones'] ? ' ' . $data['observaciones'] : ''));
+      $observaciones = '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]';
 
       // ================================================================
       // 6. DATOS DEL DOCUMENTO
@@ -3711,10 +3743,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $documentData = [
         'sunat_concept_document_type_id'    => $data['sunat_concept_document_type_id'],
-        'serie'                             => $series->series,
-        'series_id'                         => $series->id,
+        'series_id'                         => $seriesRecord->id,
+        'serie'                             => $data['serie'],
         'numero'                            => $data['numero'],
-        'full_number'                       => $series->series . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'full_number'                       => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
         'is_advance_payment'                => 1,
         'sunat_concept_transaction_type_id' => SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS,
 
@@ -3742,7 +3774,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total'                             => $totalInput,
 
         'observaciones'                     => $observaciones,
-        'condiciones_de_pago'               => $data['condiciones_de_pago'] ?? null,
+        'condiciones_de_pago'               => 'CONTADO',
 
         // Documento histórico externo: ya enviado, aceptado, migrado y contabilizado
         'status'                            => ElectronicDocument::STATUS_ACCEPTED,
@@ -3766,12 +3798,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // ================================================================
       // 8. CREAR ÚNICO ÍTEM (cálculo desde el total)
+      // account_plan_id=2 (anticipos), sunat_concept_igv_type_id=49 (gravada) — fijos
       // ================================================================
-      $igvTypeId = $data['sunat_concept_igv_type_id'] ?? SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
-
       ElectronicDocumentItem::create([
         'ap_billing_electronic_document_id' => $document->id,
-        'account_plan_id'                   => $data['account_plan_id'] ?? null,
+        'account_plan_id'                   => 2,
         'line_number'                        => 1,
         'codigo'                             => 'ANTICIPO',
         'descripcion'                        => $data['descripcion'],
@@ -3782,7 +3813,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'descuento'                          => 0,
         'descuento_unitario'                 => 0,
         'subtotal'                           => $totalGravada,
-        'sunat_concept_igv_type_id'          => $igvTypeId,
+        'sunat_concept_igv_type_id'          => 49,
         'igv'                                => $totalIgv,
         'total'                              => $totalInput,
         'anticipo_regularizacion'            => 0,
