@@ -1637,6 +1637,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
+      Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
