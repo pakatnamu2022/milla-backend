@@ -217,6 +217,24 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         }
       }
 
+      $transferReceptionService = app(TransferReceptionService::class);
+
+      // Traslado de sede: no hay recepción; el movimiento de inventario se genera
+      // directamente desde el TRANSFER_OUT una vez que Dynamics confirma la contabilización.
+      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        if (!$isCancelled) {
+          $transferOutMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+            ->where('reference_id', $shippingGuide->id)
+            ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+            ->first();
+
+          if ($transferOutMovement && $transferOutMovement->status !== InventoryMovement::STATUS_APPROVED) {
+            $transferReceptionService->generateInventoryMovementFromTransferOut($transferOutMovement);
+          }
+        }
+        return;
+      }
+
       // Verificar si la guía ya fue procesada (para evitar duplicados)
       $transferReception = TransferReception::where('shipping_guide_id', $shippingGuide->id)->first();
 
@@ -237,8 +255,6 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         ]);
         return;
       }
-
-      $transferReceptionService = app(TransferReceptionService::class);
 
       if ($isCancelled) {
         // Para cancelaciones, buscar el movimiento de cancelación (TRANSFER_OUT con almacenes invertidos)
