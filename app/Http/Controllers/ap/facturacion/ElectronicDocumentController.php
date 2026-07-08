@@ -13,6 +13,7 @@ use App\Http\Requests\ap\facturacion\UpdateCreditNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreConsolidatedInvoiceRequest;
+use App\Http\Requests\ap\facturacion\RegularizeAdvancePaymentRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Jobs\SyncAccountingStatusJob;
@@ -605,6 +606,29 @@ class ElectronicDocumentController extends Controller
       $result = $this->service->getInvoiceWithWorkOrders($id);
 
       return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Regulariza/registra un anticipo con valores predefinidos
+   * Este endpoint NO envía a Nubefact, solo registra el anticipo como referencia
+   * Ya marca como aceptada_por_sunat = 1 y status = 'accepted'
+   *
+   * @param RegularizeAdvancePaymentRequest $request
+   * @return JsonResponse
+   */
+  public function regularizeAdvancePayment(RegularizeAdvancePaymentRequest $request): JsonResponse
+  {
+    try {
+      $document = $this->service->regularizeAdvancePayment($request->validated());
+
+      return $this->success([
+        'success' => true,
+        'message' => 'Anticipo regularizado correctamente',
+        'data' => $document
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

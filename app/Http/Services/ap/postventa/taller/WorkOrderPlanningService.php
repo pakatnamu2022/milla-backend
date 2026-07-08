@@ -346,9 +346,12 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
         $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
 
-        // 4. Verificar que el último trabajo termine exactamente a las 6pm
-        if (!$lastEndTime->equalTo($endOfWorkDay)) {
-          $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay);
+        // 4. Verificar que el último trabajo termine exactamente a las 6pm (con tolerancia de 1 minuto)
+        $diffInMinutes = abs($lastEndTime->diffInMinutes($endOfWorkDay, false));
+
+        // Permitir una tolerancia de 1 minuto para evitar problemas con redondeos
+        if ($diffInMinutes > 1) {
+          $remainingMinutes = $lastEndTime->diffInMinutes($endOfWorkDay, false);
           $remainingHours = round($remainingMinutes / 60, 2);
 
           throw new Exception(

@@ -255,8 +255,15 @@ class ProductWarehouseStock extends Model
     }
   }
 
-  public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice): array
+  public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice, ?int $currencyId = null, ?float $exchangeRate = null): array
   {
+    // Convertir el precio unitario a soles si está en dólares
+    // El precio de venta mínimo (sale_price_min) siempre está en soles
+    $unitPriceInSoles = $unitPrice;
+    if ($currencyId === TypeCurrency::USD_ID && $exchangeRate) {
+      $unitPriceInSoles = $unitPrice * $exchangeRate;
+    }
+
     // Obtener el warehouse físico de postventa para la sede
     $warehouse = Warehouse::where('sede_id', $sedeId)
       ->where('is_physical_warehouse', true)
@@ -290,8 +297,8 @@ class ProductWarehouseStock extends Model
         // Obtener el precio menor de todos los almacenes
         $minSalePrice = $stocksInOtherWarehouses->min('sale_price_min');
 
-        // Validar que unit_price no sea menor al precio menor
-        if ($unitPrice < $minSalePrice) {
+        // Validar que unit_price no sea menor al precio menor (comparar en soles)
+        if ($unitPriceInSoles < $minSalePrice) {
           return [
             'valid' => false,
             'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado en otros almacenes ({$minSalePrice})",
@@ -302,8 +309,8 @@ class ProductWarehouseStock extends Model
         return ['valid' => true, 'message' => null, 'sale_price' => $minSalePrice];
       }
 
-      // Validar que unit_price no sea menor a sale_price
-      if ($unitPrice < $salePriceMin) {
+      // Validar que unit_price no sea menor a sale_price (comparar en soles)
+      if ($unitPriceInSoles < $salePriceMin) {
         return [
           'valid' => false,
           'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado en este almacén ({$salePriceMin})",
@@ -327,8 +334,8 @@ class ProductWarehouseStock extends Model
     // Obtener el precio menor de todos los almacenes
     $minSalePrice = $stocksInOtherWarehouses->min('sale_price_min');
 
-    // Validar que unit_price no sea menor al precio menor
-    if ($unitPrice < $minSalePrice) {
+    // Validar que unit_price no sea menor al precio menor (comparar en soles)
+    if ($unitPriceInSoles < $minSalePrice) {
       return [
         'valid' => false,
         'message' => "El precio unitario ({$unitPrice}) no puede ser menor al precio de venta mínimo registrado ({$minSalePrice})",

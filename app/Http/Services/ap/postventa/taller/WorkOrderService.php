@@ -109,6 +109,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Generate correlative
       $data['correlative'] = $this->generateCorrelative();
       $data['status_id'] = ApMasters::OPENING_WORK_ORDER_ID;
+      $data['opening_date'] = Carbon::now();
+      $data['diagnosis_date'] = Carbon::now();
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
@@ -132,13 +134,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Obtener tipo de cambio actual para USD
-      $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-      } else {
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
         $data['exchange_rate'] = $exchangeRate->rate;
         $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
@@ -240,6 +247,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if (isset($data['items'])) {
         $items = $data['items'];
         unset($data['items']);
+      }
+
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
+      if ($currencyId == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Update work order
@@ -458,11 +480,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener el factor de conversión
     $factor = $this->getConversionFactor($workOrder, $oldCurrencyId, $newCurrencyId);
 
-    // Recalcular labours
-    $this->recalculateLabours($workOrder->id, $factor);
-
-    // Recalcular parts
-    $this->recalculateParts($workOrder->id, $factor);
+    // Recalcular labours y parts con el mismo método usado por recalculateTotals(),
+    // única fuente de verdad para refrescar hijos de la OT (con o sin cambio de moneda).
+    $this->recalculateLabourItems($workOrder, $factor);
+    $this->recalculatePartItems($workOrder, $factor);
   }
 
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
@@ -504,51 +525,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy: ' . $today);
     }
 
+    // Actualizar la OT con el tipo de cambio del día que se está aplicando
+    $workOrder->update([
+      'exchange_rate_id' => $exchangeRate->id,
+      'exchange_rate' => $exchangeRate->rate,
+    ]);
+
     return (float)$exchangeRate->rate;
-  }
-
-  private function recalculateLabours(int $workOrderId, float $factor): void
-  {
-    $labours = WorkOrderLabour::where('work_order_id', $workOrderId)->get();
-
-    foreach ($labours as $labour) {
-      // Convertir el precio unitario (hourly_rate) y recalcular total_cost/net_amount/
-      // tax_amount con la misma fuente de verdad (PriceRounding) usada al crear el ítem,
-      // para no romper la regla de redondeo en cadena a 1 decimal.
-      $newHourlyRate = PriceRounding::roundUnitPrice($labour->hourly_rate * $factor);
-      $totals = PriceRounding::calculateLineTotals(
-        $newHourlyRate,
-        $labour->time_spent_decimal,
-        (float)($labour->discount_percentage ?? 0)
-      );
-
-      $labour->update([
-        'hourly_rate' => $newHourlyRate,
-        ...$totals,
-      ]);
-    }
-  }
-
-  private function recalculateParts(int $workOrderId, float $factor): void
-  {
-    $parts = ApWorkOrderParts::where('work_order_id', $workOrderId)->get();
-
-    foreach ($parts as $part) {
-      // Convertir el precio unitario y recalcular total_cost/net_amount/tax_amount con
-      // la misma fuente de verdad (PriceRounding) usada al crear el ítem, para no romper
-      // la regla de redondeo en cadena a 1 decimal.
-      $newUnitPrice = PriceRounding::roundUnitPrice($part->unit_price * $factor);
-      $totals = PriceRounding::calculateLineTotals(
-        $newUnitPrice,
-        (float)$part->quantity_used,
-        (float)($part->discount_percentage ?? 0)
-      );
-
-      $part->update([
-        'unit_price' => $newUnitPrice,
-        ...$totals,
-      ]);
-    }
   }
 
   public function unlinkQuotation(int $id): WorkOrderResource
@@ -1032,8 +1015,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
       }
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1048,7 +1049,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
@@ -1165,8 +1166,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Obtenemos la guía de recepción del vehículo (puede no existir para accesorios de posventa)
       $shippingGuide = $vehicle->shippingGuideReceiving;
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1183,7 +1202,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
@@ -1752,38 +1771,58 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Recalcula total_cost/net_amount/tax_amount de cada mano de obra a partir de
-   * sus campos base (hourly_rate, time_spent, discount_percentage), usando la
-   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   * Recalcula hourly_rate (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada mano de obra a partir de sus campos
+   * base (hourly_rate, time_spent, discount_percentage), usando la misma fuente
+   * de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
    */
-  private function recalculateLabourItems(ApWorkOrder $workOrder): void
+  private function recalculateLabourItems(ApWorkOrder $workOrder, float $factor = 1.0): void
   {
     foreach ($workOrder->labours as $labour) {
-      $totals = PriceRounding::calculateLineTotals(
-        (float)$labour->hourly_rate,
+      $result = PriceRounding::calculateLine(
+        $labour->hourly_rate,
         $labour->time_spent_decimal,
-        (float)($labour->discount_percentage ?? 0)
+        (float)($labour->discount_percentage ?? 0),
+        $factor
       );
 
-      $labour->update($totals);
+      $labour->update([
+        'hourly_rate' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 
   /**
-   * Recalcula total_cost/net_amount/tax_amount de cada repuesto a partir de sus
-   * campos base (unit_price, quantity_used, discount_percentage), usando la
-   * misma fuente de verdad (PriceRounding) que se usa al crear/editar el ítem.
+   * Recalcula unit_price (si $factor != 1, ej. cambio de moneda) y
+   * total_cost/net_amount/tax_amount de cada repuesto a partir de sus campos
+   * base (unit_price, quantity_used, discount_percentage), usando la misma
+   * fuente de verdad (PriceRounding) que se usa al crear/editar el ítem. Única
+   * implementación para este cálculo: la usan tanto recalculateTotals() (factor
+   * por defecto 1.0, solo refresca totales) como handleCurrencyChange() (factor
+   * real de conversión).
    */
-  private function recalculatePartItems(ApWorkOrder $workOrder): void
+  private function recalculatePartItems(ApWorkOrder $workOrder, float $factor = 1.0): void
   {
     foreach ($workOrder->parts as $part) {
-      $totals = PriceRounding::calculateLineTotals(
-        (float)$part->unit_price,
+      $result = PriceRounding::calculateLine(
+        $part->unit_price,
         (float)$part->quantity_used,
-        (float)($part->discount_percentage ?? 0)
+        (float)($part->discount_percentage ?? 0),
+        $factor
       );
 
-      $part->update($totals);
+      $part->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 

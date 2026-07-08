@@ -269,14 +269,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'goal'], function () {
-      Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
-      Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
-      Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
-      Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
-      Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
-      Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
-
-      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+    Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+    Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+    Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+    Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+    Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+    Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+    Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
+    
+    Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
         'store',
@@ -1053,6 +1054,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('modelsVn/match-excel', [ApModelsVnController::class, 'matchExcel']);
       Route::get('modelsVn/initial-stock/template', [ApModelsVnController::class, 'downloadInitialStockTemplate']);
       Route::post('modelsVn/import-initial-stock', [ApModelsVnController::class, 'importInitialStock']);
+      Route::post('modelsVn/store-automatic', [ApModelsVnController::class, 'storeAutomatic']);
       Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
       Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
       Route::apiResource('modelsVn', ApModelsVnController::class)->only([
@@ -1635,6 +1637,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
+      Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1779,6 +1782,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
       Route::delete('electronic-documents/{id}/consolidated-invoice', [ElectronicDocumentController::class, 'cancelConsolidatedInvoice']);
       Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
+
+      // Regularizar anticipos (sin enviar a Nubefact)
+      Route::post('electronic-documents/regularize-advance-payment', [ElectronicDocumentController::class, 'regularizeAdvancePayment']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

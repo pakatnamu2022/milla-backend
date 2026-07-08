@@ -30,12 +30,33 @@ class PriceRounding
       $netAmount = $totalCost;
     }
 
-    $taxAmount = round($netAmount * (Constants::VAT_TAX / 100), 2);
+    // Redondear primero a 3 decimales y luego a 2 para un redondeo más preciso
+    // Ejemplo: 960.47 * 0.18 = 172.8846 → 172.885 → 172.89
+    $taxAmount = round(round($netAmount * (Constants::VAT_TAX / 100), 3), 2);
 
     return [
       'total_cost' => $totalCost,
       'net_amount' => $netAmount,
       'tax_amount' => $taxAmount,
     ];
+  }
+
+  /**
+   * Punto único para el par "redondear precio unitario ya convertido de moneda" +
+   * "calcular totales de línea", usado por repuestos, mano de obra y detalles de
+   * cotización de OT/cotización, tanto al crear/editar un ítem como al recalcular
+   * en lote (cambio de moneda, reparación de totales). $factor por defecto 1.0
+   * cuando no hay conversión de moneda de por medio.
+   *
+   * @return array{unit_price: float, total_cost: float, net_amount: float, tax_amount: float}
+   */
+  public static function calculateLine(float $basePrice, float $quantity, float $discountPercentage = 0, float $factor = 1.0): array
+  {
+    $unitPrice = self::roundUnitPrice($basePrice * $factor);
+
+    return array_merge(
+      ['unit_price' => $unitPrice],
+      self::calculateLineTotals($unitPrice, $quantity, $discountPercentage)
+    );
   }
 }

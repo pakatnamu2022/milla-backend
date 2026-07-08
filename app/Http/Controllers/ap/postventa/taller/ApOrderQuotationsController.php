@@ -12,6 +12,10 @@ use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use Exception;
 use Illuminate\Http\Request;
 
 class ApOrderQuotationsController extends Controller
@@ -53,6 +57,7 @@ class ApOrderQuotationsController extends Controller
   public function store(StoreApOrderQuotationsRequest $request)
   {
     try {
+      $this->validateVehicleForQuotation($request->vehicle_id);
       return $this->success($this->service->store($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
@@ -81,6 +86,12 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       $data = $request->validated();
+
+      // Validar el vehículo si está presente en la actualización
+      if (isset($data['vehicle_id'])) {
+        $this->validateVehicleForQuotation($data['vehicle_id']);
+      }
+
       $data['id'] = $id;
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
@@ -304,6 +315,76 @@ class ApOrderQuotationsController extends Controller
       return $this->success($this->service->recalculateTotals($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Cambiar el tipo de moneda de una cotización
+   *
+   * @param Request $request
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function changeCurrency(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'currency_id' => 'required|integer|exists:type_currency,id',
+      ]);
+
+      $data = $request->only(['currency_id']);
+      $data['id'] = $id;
+
+      return $this->success($this->service->changeCurrency($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Valida que el vehículo cumpla con los requisitos para crear/actualizar una cotización
+   *
+   * @param int $vehicleId ID del vehículo a validar
+   * @throws Exception Si el vehículo no cumple con los requisitos
+   */
+  private function validateVehicleForQuotation(int $vehicleId): void
+  {
+    $vehicle = Vehicles::with([
+      'model.family.brand',
+      'color'
+    ])->find($vehicleId);
+
+    if (!$vehicle) {
+      throw new Exception('El vehículo seleccionado no existe.');
+    }
+
+    // Validar que el vehículo tenga un modelo asignado
+    if (!$vehicle->ap_models_vn_id) {
+      throw new Exception('El vehículo debe tener un modelo asignado para crear una cotización.');
+    }
+
+    // Validar que el modelo exista y tenga familia
+    if (!$vehicle->model) {
+      throw new Exception('El modelo del vehículo no existe.');
+    }
+
+    if (!$vehicle->model->family) {
+      throw new Exception('El modelo del vehículo debe tener una familia asignada.');
+    }
+
+    // Validar que la familia tenga marca
+    if (!$vehicle->model->family->brand) {
+      throw new Exception('La familia del modelo debe tener una marca asignada.');
+    }
+
+    // Validar que la marca no sea otros id = 13
+    if ($vehicle->model->family->brand->id === ApVehicleBrand::BRAND_OTHERS_ID) {
+      throw new Exception('No se puede crear una cotización para vehículos de marca "OTROS".');
+    }
+
+    // Validar que el vehículo no tenga color "OTROS" (COLOR_OTHERS_ID = 1003)
+    if ($vehicle->vehicle_color_id === ApMasters::COLOR_OTHERS_ID) {
+      throw new Exception('No se puede crear una cotización para vehículos con color "OTROS".');
     }
   }
 }

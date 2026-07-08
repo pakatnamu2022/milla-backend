@@ -2929,7 +2929,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Si el monto total de la work_order supera o iguala el monto de detracción,
     // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
     if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-        && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
       $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
@@ -3469,5 +3469,176 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total_amount' => $invoice->total,
       ],
     ];
+  }
+
+  /**
+   * Regulariza/registra un anticipo con valores predefinidos
+   * Este método NO envía a Nubefact, solo registra el anticipo como referencia
+   * Ya marca como aceptada_por_sunat = 1 y status = 'accepted'
+   *
+   * @param array $data
+   * @return ElectronicDocumentResource
+   * @throws Exception
+   */
+  public function regularizeAdvancePayment(array $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // ================================================================
+      // 1. PREPARACIÓN INICIAL
+      // ================================================================
+
+      // Obtener la serie
+      $series = AssignSalesSeries::find($data['series_id']);
+      if (!$series) {
+        throw new Exception('Serie no encontrada');
+      }
+
+      // Validar y calcular el siguiente número correlativo
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $series->series
+      );
+      $data['numero'] = $nextNumberData['number'];
+      $data['serie'] = $series->series;
+
+      // Validar que la serie sea correcta
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      // ================================================================
+      // 2. OBTENER DATOS DEL CLIENTE Y TIPO DE CAMBIO
+      // ================================================================
+
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      $client = BusinessPartners::find($data['client_id']);
+      if (!$client) {
+        throw new Exception('Cliente no encontrado');
+      }
+
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      // ================================================================
+      // 3. OBTENER TIPO DE OPERACIÓN PARA ANTICIPOS (36)
+      // ================================================================
+      $transactionTypeAnticipo = SunatConcepts::where('type', SunatConcepts::TYPE_TRANSACTION)
+        ->where('tribute_code', '36') // Código SUNAT para Anticipos
+        ->first();
+
+      if (!$transactionTypeAnticipo) {
+        throw new Exception('No se encontró el tipo de operación para Anticipos (código 36)');
+      }
+
+      // ================================================================
+      // 4. PREPARAR DATOS DEL DOCUMENTO
+      // ================================================================
+
+      $documentData = [
+        // Datos del documento
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'serie' => $series->series,
+        'series_id' => $series->id,
+        'numero' => $data['numero'],
+        'full_number' => $series->series . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'is_advance_payment' => 1, // SIEMPRE 1 PARA ANTICIPOS
+        'sunat_concept_transaction_type_id' => $transactionTypeAnticipo->id,
+
+        // Origen
+        'area_id' => $data['area_id'],
+        'origin_entity_type' => $data['origin_entity_type'] ?? null,
+        'origin_entity_id' => $data['origin_entity_id'] ?? null,
+        'order_quotation_id' => $data['order_quotation_id'] ?? null,
+        'work_order_id' => $data['work_order_id'] ?? null,
+
+        // Datos del cliente
+        'client_id' => $client->id,
+        'sunat_concept_identity_document_type_id' => $documentType->id,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
+        'cliente_email_1' => $data['cliente_email_1'] ?? null,
+        'cliente_email_2' => $data['cliente_email_2'] ?? null,
+
+        // Fechas
+        'fecha_de_emision' => $emissionDate,
+        'fecha_de_vencimiento' => $data['fecha_de_vencimiento'] ?? null,
+
+        // Moneda y tipo de cambio
+        'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
+
+        // Totales
+        'total_gravada' => $data['total_gravada'] ?? 0,
+        'total_inafecta' => $data['total_inafecta'] ?? 0,
+        'total_exonerada' => $data['total_exonerada'] ?? 0,
+        'total_igv' => $data['total_igv'] ?? 0,
+        'total' => $data['total'],
+
+        // Campos opcionales
+        'observaciones' => $data['observaciones'] ?? null,
+        'condiciones_de_pago' => $data['condiciones_de_pago'] ?? null,
+        'medio_de_pago' => $data['medio_de_pago'] ?? null,
+        'bank_id' => $data['bank_id'] ?? null,
+        'operation_number' => $data['operation_number'] ?? null,
+        'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
+
+        // ESTADO Y METADATA - YA MARCADO COMO ACEPTADO
+        'status' => ElectronicDocument::STATUS_ACCEPTED, // Aceptado
+        'aceptada_por_sunat' => 1, // Ya aceptada por SUNAT
+        'migration_status' => 'completed', // Migración completada
+        'enviado_a_sunat_el' => now(), // Fecha de envío a SUNAT
+        'created_by' => auth()->id(),
+      ];
+
+      // Validar que el total sea mayor a 0
+      if ($documentData['total'] <= 0) {
+        throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+      }
+
+      // ================================================================
+      // 5. CREAR EL DOCUMENTO
+      // ================================================================
+
+      $document = ElectronicDocument::create($documentData);
+
+      // ================================================================
+      // 6. CREAR LOS ITEMS
+      // ================================================================
+
+      if (isset($data['items']) && is_array($data['items'])) {
+        foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+
+          $itemData['ap_billing_electronic_document_id'] = $document->id;
+          $itemData['line_number'] = $index + 1;
+          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 2) : 0;
+          $itemData['anticipo_regularizacion'] = 0; // NO es regularización, ES el anticipo
+
+          ElectronicDocumentItem::create($itemData);
+        }
+      }
+
+      DB::commit();
+
+      return new ElectronicDocumentResource($document->load(['items']));
+    } catch (Throwable $e) {
+      DB::rollBack();
+      throw new Exception('Error al regularizar el anticipo: ' . $e->getMessage());
+    }
   }
 }

@@ -2,9 +2,7 @@
 
 namespace App\Http\Resources\ap\comercial;
 
-use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
-use App\Http\Resources\ap\configuracionComercial\vehiculo\ApVehicleBrandResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,6 +19,7 @@ class VehiclesResource extends JsonResource
       'id' => $this->id,
       'vin' => $this->vin,
       'plate' => $this->plate,
+      'mileage' => $this->mileage,
       'year' => $this->year,
       'year_delivery' => $this->year_delivery,
       'engine_number' => $this->engine_number,

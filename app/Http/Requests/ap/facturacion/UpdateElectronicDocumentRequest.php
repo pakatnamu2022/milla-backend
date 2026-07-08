@@ -104,7 +104,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
     foreach ($decimalFields as $field) {
       if ($this->has($field) && $this->input($field) !== null && $this->input($field) !== '') {
-        $dataToMerge[$field] = (float)$this->input($field);
+        $dataToMerge[$field] = abs((float)$this->input($field));
       }
     }
 
@@ -149,7 +149,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];
         foreach ($numericItemFields as $field) {
           if (isset($item[$field])) {
-            $items[$index][$field] = (float)$item[$field];
+            $items[$index][$field] = abs((float)$item[$field]);
           }
         }
         if (isset($item['anticipo_regularizacion'])) {
@@ -181,7 +181,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
           $cuotas[$index]['cuota'] = (int)$cuota['cuota'];
         }
         if (isset($cuota['importe'])) {
-          $cuotas[$index]['importe'] = (float)$cuota['importe'];
+          $cuotas[$index]['importe'] = abs((float)$cuota['importe']);
         }
       }
       $dataToMerge['venta_al_credito'] = $cuotas;

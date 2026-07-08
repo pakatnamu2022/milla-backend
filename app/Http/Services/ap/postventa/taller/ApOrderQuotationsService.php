@@ -13,6 +13,7 @@ use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -168,9 +169,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $vehicle = Vehicles::find($data['vehicle_id']);
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
-      $exchangeRate = ExchangeRate::where('date', $date)->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $data['exchange_rate'] = $exchangeRate->rate;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
       }
 
 //      if ($vehicle->customer_id === null) {
@@ -186,7 +194,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['discount_amount'] = 0;
       $data['tax_amount'] = 0;
       $data['total_amount'] = 0;
-      $data['exchange_rate'] = $exchangeRate->rate;
 
       // Calculate validity days
       $quotation_date = Carbon::parse($data['quotation_date']);
@@ -194,10 +201,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
 
-      //Obtenemos el kilometraje de su ultima OT
-      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
+      // Si el usuario no envía mileage o envía 0, obtener el kilometraje de su última inspección vehicular
+      if (!isset($data['mileage']) || empty($data['mileage'])) {
+        $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])
+          ->orderBy('created_at', 'desc')
+          ->first()?->vehicleInspection?->mileage ?? 0;
+      }
 
       $quotation = ApOrderQuotations::create($data);
+
+      // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
+      if (isset($data['mileage']) && $data['mileage'] > 0 && $vehicle->mileage < $data['mileage']) {
+        $vehicle->update(['mileage' => $data['mileage']]);
+      }
 
       return new ApOrderQuotationsResource($quotation->load([
         'vehicle',
@@ -212,14 +228,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
-      $exchangeRate = ExchangeRate::where('date', $date)->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      // Solo obtener y validar el tipo de cambio si la moneda es USD
+      $exchangeRate = null;
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
       }
 
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
       }
+
+      // Validar que no se repita el mismo producto dentro del payload de details
+      $this->quotationDetailsService->validateNoDuplicateProductsInDetails($data['details']);
 
       // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
@@ -227,7 +250,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $unitPrice = $detail['unit_price'];
         $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
-        $vehicleId = $data['vehicle_id'] ?? null;
 
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($productId);
@@ -235,11 +257,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           $product->validateDecimals($quantity);
         }
 
-        // Validar precio de venta al público
+        // Validar precio de venta al público (solo si hay tipo de cambio, es decir, si es USD)
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $productId,
           $sedeId,
-          $unitPrice
+          $unitPrice,
+          $data['currency_id'],
+          $exchangeRate ? $exchangeRate->rate : null
         );
 
         if (!$validation['valid']) {
@@ -318,7 +342,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'tax_amount' => 0,
         'total_amount' => 0,
         'validity_days' => $validation_days,
-        'exchange_rate' => $exchangeRate->rate,
+        'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'currency_id' => $data['currency_id'],
         'collection_date' => $data['collection_date'] ?? null,
       ];
@@ -328,11 +352,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create details
       foreach ($data['details'] as $detail) {
-        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
-        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+        // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
+        // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? 0;
-        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
-        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -340,11 +363,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $unitPrice,
+          'unit_price' => $result['unit_price'],
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totals['total_cost'],
-          'net_amount' => $totals['net_amount'],
-          'tax_amount' => $totals['tax_amount'],
+          'total_cost' => $result['total_cost'],
+          'net_amount' => $result['net_amount'],
+          'tax_amount' => $result['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -391,9 +414,23 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $vehicle = Vehicles::find($data['vehicle_id']);
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
-      $exchangeRate = ExchangeRate::where('date', $date)->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      // Detectar si cambió el tipo de moneda
+      $oldCurrencyId = $quotation->currency_id;
+      $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
+      $currencyChanged = $oldCurrencyId !== null && $newCurrencyId !== null && $oldCurrencyId != $newCurrencyId;
+
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       if ($vehicle->customer_id === null) {
@@ -421,12 +458,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $expiration_date = Carbon::parse($data['expiration_date']);
       $validation_days = $quotation_date->diffInDays($expiration_date);
       $data['validity_days'] = $validation_days;
-      $data['exchange_rate'] = $exchangeRate->rate;
 
-      //Obtenemos el kilometraje de su ultima OT
-      $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])->orderBy('created_at', 'desc')->first()?->vehicleInspection?->mileage ?? 0;
+      // Si el usuario no envía mileage o envía 0, obtener el kilometraje de su última inspección vehicular
+      if (!isset($data['mileage']) || empty($data['mileage'])) {
+        $data['mileage'] = ApWorkOrder::where('vehicle_id', $data['vehicle_id'])
+          ->orderBy('created_at', 'desc')
+          ->first()?->vehicleInspection?->mileage ?? 0;
+      }
 
       $quotation->update($data);
+
+      // Si cambió el tipo de moneda, recalcular los detalles con el nuevo tipo de cambio
+      if ($currencyChanged) {
+        $this->handleCurrencyChange($quotation, $oldCurrencyId, $newCurrencyId);
+      }
+
+      // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
+      if (isset($data['mileage']) && $data['mileage'] > 0 && $vehicle->mileage < $data['mileage']) {
+        $vehicle->update(['mileage' => $data['mileage']]);
+      }
 
       $quotation->load([
         'vehicle',
@@ -445,9 +495,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $vehicleId = $data['vehicle_id'] ?? null;
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
-      $exchangeRate = ExchangeRate::where('date', $date)->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+      // Solo obtener y validar el tipo de cambio si la moneda es USD
+      $exchangeRate = null;
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
       }
 
       if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
@@ -475,6 +529,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
+      // Validar que no se repita el mismo producto dentro del payload de details
+      $this->quotationDetailsService->validateNoDuplicateProductsInDetails($data['details']);
+
       // Validar precios de venta al público, decimales y marca para cada producto en details
       foreach ($data['details'] as $index => $detail) {
         $productId = $detail['product_id'];
@@ -492,7 +549,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $validation = ProductWarehouseStock::validatePublicSalePrice(
           $productId,
           $sedeId,
-          $unitPrice
+          $unitPrice,
+          $data['currency_id'],
+          $exchangeRate ? $exchangeRate->rate : null
         );
 
         if (!$validation['valid']) {
@@ -518,7 +577,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
-        'exchange_rate' => $exchangeRate->rate,
+        'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'collection_date' => $data['collection_date'] ?? null,
       ]);
 
@@ -527,11 +586,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
-        // total_cost/net_amount/tax_amount: redondeo en cadena a 1 decimal (S/ 0.10)
-        // vía PriceRounding, misma fuente de verdad que ApOrderQuotationDetailsService.
+        // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
+        // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
-        $unitPrice = PriceRounding::roundUnitPrice((float)$detail['unit_price']);
-        $totals = PriceRounding::calculateLineTotals($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -539,11 +597,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'description' => $detail['description'],
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
-          'unit_price' => $unitPrice,
+          'unit_price' => $result['unit_price'],
           'discount_percentage' => $discountPercentage,
-          'total_cost' => $totals['total_cost'],
-          'net_amount' => $totals['net_amount'],
-          'tax_amount' => $totals['tax_amount'],
+          'total_cost' => $result['total_cost'],
+          'net_amount' => $result['net_amount'],
+          'tax_amount' => $result['tax_amount'],
           'observations' => $detail['observations'] ?? null,
           'retail_price_external' => $detail['retail_price_external'] ?? null,
           'exchange_rate' => $detail['exchange_rate'] ?? null,
@@ -860,10 +918,24 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_plate'] = $vehicle->plate ?? 'N/A';
       $data['vehicle_vin'] = $vehicle->vin ?? 'N/A';
       $data['vehicle_engine'] = $vehicle->engine_number ?? 'N/A';
-      $data['vehicle_model'] = $vehicle->model ? $vehicle->model->version : 'N/A';
-      $data['vehicle_brand'] = $vehicle->model && $vehicle->model->family && $vehicle->model->family->brand
-        ? $vehicle->model->family->brand->name
-        : 'N/A';
+
+      // Get model version
+      if ($vehicle->model) {
+        $data['vehicle_model'] = $vehicle->model->version ?? 'N/A';
+
+        // Get brand name through family relationship
+        if ($vehicle->model->family) {
+          $data['vehicle_brand'] = $vehicle->model->family->brand
+            ? $vehicle->model->family->brand->name
+            : 'N/A';
+        } else {
+          $data['vehicle_brand'] = 'N/A';
+        }
+      } else {
+        $data['vehicle_model'] = 'N/A';
+        $data['vehicle_brand'] = 'N/A';
+      }
+
       $data['vehicle_color'] = $vehicle->color ? $vehicle->color->description : 'N/A';
     } else {
       $data['vehicle_plate'] = 'N/A';
@@ -1809,6 +1881,181 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   }
 
   /**
+   * Cambiar el tipo de moneda de una cotización
+   *
+   * @param mixed $data
+   * @return ApOrderQuotationsResource
+   * @throws Exception
+   */
+  public function changeCurrency(mixed $data): ApOrderQuotationsResource
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = ApOrderQuotations::with(['advancesOrderQuotation'])->find($data['id']);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que no esté descartada
+      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        throw new Exception('No se puede cambiar la moneda de una cotización descartada');
+      }
+
+      // Validar que no tenga anticipos activos
+      if ($quotation->getActiveAdvances()->count() > 0) {
+        throw new Exception("Esta cotización no puede cambiar de moneda. Ya se han registrado anticipos para esta cotización.");
+      }
+
+      // Validar que no esté tomada
+      if ($quotation->is_take === true) {
+        throw new Exception('No se puede cambiar la moneda de una cotización que ya ha sido tomada en una solicitud de compra / OT.');
+      }
+
+      // Verificar que la moneda sea diferente
+      $oldCurrencyId = $quotation->currency_id;
+      $newCurrencyId = $data['currency_id'];
+
+      if ($oldCurrencyId == $newCurrencyId) {
+        throw new Exception('La moneda seleccionada es la misma que la actual');
+      }
+
+      $date = Carbon::now()->format('Y-m-d');
+
+      // Obtener el tipo de cambio si la nueva moneda es USD
+      if ($newCurrencyId == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $quotation->exchange_rate = $exchangeRate->rate;
+        $quotation->exchange_rate_id = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $quotation->exchange_rate = null;
+        $quotation->exchange_rate_id = null;
+      }
+
+      // Actualizar la moneda
+      $quotation->currency_id = $newCurrencyId;
+      $quotation->save();
+
+      // Recalcular detalles con el nuevo tipo de cambio
+      $this->handleCurrencyChange($quotation, $oldCurrencyId, $newCurrencyId);
+
+      // Recalcular totales de la cotización
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recargar relaciones
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+        'typeCurrency'
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Maneja el cambio de moneda recalculando los precios de los detalles
+   *
+   * @param ApOrderQuotations $quotation
+   * @param int $oldCurrencyId
+   * @param int $newCurrencyId
+   * @return void
+   * @throws Exception
+   */
+  private function handleCurrencyChange(ApOrderQuotations $quotation, int $oldCurrencyId, int $newCurrencyId): void
+  {
+    // Obtener el factor de conversión
+    $factor = $this->getConversionFactor($quotation, $oldCurrencyId, $newCurrencyId);
+
+    // Recalcular los precios de los detalles
+    $this->recalculateDetailItemsWithFactor($quotation, $factor);
+  }
+
+  /**
+   * Obtiene el factor de conversión entre dos monedas
+   *
+   * @param ApOrderQuotations $quotation
+   * @param int $oldCurrencyId
+   * @param int $newCurrencyId
+   * @return float
+   * @throws Exception
+   */
+  private function getConversionFactor(ApOrderQuotations $quotation, int $oldCurrencyId, int $newCurrencyId): float
+  {
+    // Obtener el tipo de cambio
+    $exchangeRate = $this->getExchangeRate($quotation);
+
+    // De soles a dólares: dividir por tipo de cambio
+    if ($oldCurrencyId === TypeCurrency::PEN_ID && $newCurrencyId === TypeCurrency::USD_ID) {
+      return 1 / $exchangeRate;
+    }
+
+    // De dólares a soles: multiplicar por tipo de cambio
+    if ($oldCurrencyId === TypeCurrency::USD_ID && $newCurrencyId === TypeCurrency::PEN_ID) {
+      return $exchangeRate;
+    }
+
+    throw new Exception('Conversión de moneda no soportada');
+  }
+
+  /**
+   * Obtiene el tipo de cambio para la cotización
+   *
+   * @param ApOrderQuotations $quotation
+   * @return float
+   * @throws Exception
+   */
+  private function getExchangeRate(ApOrderQuotations $quotation): float
+  {
+    // Si la cotización ya tiene un tipo de cambio, usarlo
+    if ($quotation->exchange_rate) {
+      return (float)$quotation->exchange_rate;
+    }
+
+    // Si no tiene, obtener el del día actual
+    $exchangeRate = ExchangeRate::where('date', Carbon::now()->format('Y-m-d'))->first();
+    if (!$exchangeRate) {
+      throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+    }
+
+    return (float)$exchangeRate->rate;
+  }
+
+  /**
+   * Recalcula los precios de los detalles aplicando un factor de conversión
+   *
+   * @param ApOrderQuotations $quotation
+   * @param float $factor
+   * @return void
+   */
+  private function recalculateDetailItemsWithFactor(ApOrderQuotations $quotation, float $factor): void
+  {
+    foreach ($quotation->details as $detail) {
+      // Convertir el precio unitario
+      $newUnitPrice = $detail->unit_price * $factor;
+
+      // Recalcular usando PriceRounding para mantener consistencia
+      $result = PriceRounding::calculateLine(
+        (float)$newUnitPrice,
+        (float)$detail->quantity,
+        (float)($detail->discount_percentage ?? 0)
+      );
+
+      $detail->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
+    }
+  }
+
+  /**
    * Recalcula total_cost/net_amount/tax_amount de cada detalle a partir de sus
    * campos base (unit_price, quantity, discount_percentage), usando la misma
    * fuente de verdad (PriceRounding) que se usa al crear/editar el detalle.
@@ -1816,13 +2063,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   private function recalculateDetailItems(ApOrderQuotations $quotation): void
   {
     foreach ($quotation->details as $detail) {
-      $totals = PriceRounding::calculateLineTotals(
+      $result = PriceRounding::calculateLine(
         (float)$detail->unit_price,
         (float)$detail->quantity,
         (float)($detail->discount_percentage ?? 0)
       );
 
-      $detail->update($totals);
+      $detail->update([
+        'unit_price' => $result['unit_price'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
+      ]);
     }
   }
 
