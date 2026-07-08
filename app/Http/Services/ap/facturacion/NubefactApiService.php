@@ -313,9 +313,7 @@ class NubefactApiService
       'fecha_de_emision' => $document->fecha_de_emision->format('d-m-Y'),
       'moneda' => $document->currency->code_nubefact,
       'porcentaje_de_igv' => $document->porcentaje_de_igv,
-      // Los descuentos ya están "embebidos" en los precios (valor_unitario y precio_unitario),
-      // por lo que enviamos total_descuento = 0 para ser consistentes con descuento = 0 en items
-      'total_descuento' => $document->total_descuento ?? 0,
+      'total_descuento' => round($document->items->sum(fn($i) => (float) $i->descuento), 2),
       'total_anticipo' => $document->total_anticipo ?? 0,
       'total_gravada' => $document->total_gravada ?? 0,
       'total_inafecta' => $document->total_inafecta ?? 0,
@@ -479,14 +477,11 @@ class NubefactApiService
 
       $hasDescuento = $item->descuento && (float) $item->descuento > 0;
 
-      // Nubefact valida: precio_unitario = valor_unitario × igvFactor (siempre valores BRUTOS antes del descuento).
-      // Nubefact aplica internamente: valor_venta_item = subtotal_sent - descuento.
-      // Por eso cuando hay descuento, subtotal debe ser el BRUTO (valor_unitario × cantidad),
-      // no el neto que ya tiene el descuento aplicado.
-      $cantidad = max(1, (float) $item->cantidad);
-      $subtotal = $hasDescuento
-        ? round((float) $item->valor_unitario * $cantidad, 2)
-        : $item->subtotal;
+      // Nubefact espera (según ejemplo oficial "FACTURA 8 DESCUENTO POR ITEM"):
+      //   valor_unitario = bruto sin IGV, precio_unitario = bruto con IGV (= valor_unitario × igvFactor)
+      //   descuento = importe del descuento sin IGV
+      //   subtotal = NETO sin IGV (= valor_unitario - descuento), igv = subtotal × igv%, total = subtotal + igv
+      // Todos estos valores ya están correctamente almacenados en BD.
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
@@ -496,7 +491,7 @@ class NubefactApiService
         'valor_unitario' => round((float) $item->valor_unitario, 2),
         'precio_unitario' => round((float) $item->precio_unitario, 2),
         'descuento' => $hasDescuento ? round((float) $item->descuento, 2) : 0,
-        'subtotal' => $subtotal,
+        'subtotal' => $item->subtotal,
         'tipo_de_igv' => $tipoIgv,
         'igv' => round((float) $igvItem, 2),
         'total' => round((float) $item->total, 2),
