@@ -1787,6 +1787,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Regularizar anticipos (sin enviar a Nubefact)
       Route::post('electronic-documents/regularize-advance-payment', [ElectronicDocumentController::class, 'regularizeAdvancePayment']);
 
+      // Registrar anticipo histórico externo (ya emitido fuera de Nubefact, amarrado a cotización)
+      Route::post('electronic-documents/register-historical-advance', [ElectronicDocumentController::class, 'registerHistoricalAdvance']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
