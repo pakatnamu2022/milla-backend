@@ -3488,19 +3488,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 1. PREPARACIÓN INICIAL
       // ================================================================
 
-      // Obtener la serie
-      $series = AssignSalesSeries::find($data['series_id']);
-      if (!$series) {
-        throw new Exception('Serie no encontrada');
+      // Mapear sunat_concept_document_type_id a type_receipt_id
+      $typeReceiptMap = [
+        29 => AssignSalesSeries::FACTURA, // 799
+        30 => AssignSalesSeries::BOLETA,  // 800
+      ];
+
+      if (!isset($typeReceiptMap[$data['sunat_concept_document_type_id']])) {
+        throw new Exception('Tipo de documento no válido para regularización de anticipos');
       }
 
-      // Validar y calcular el siguiente número correlativo
-      $nextNumberData = $this->nextDocumentNumberCorrelative(
-        $data['sunat_concept_document_type_id'],
-        $series->series
-      );
-      $data['numero'] = $nextNumberData['number'];
-      $data['serie'] = $series->series;
+      $typeReceiptId = $typeReceiptMap[$data['sunat_concept_document_type_id']];
+
+      // Buscar cualquier serie activa con sede_id y type_receipt_id
+      $series = AssignSalesSeries::where('sede_id', $data['sede_id'])
+        ->where('type_receipt_id', $typeReceiptId)
+        ->where('status', 1)
+        ->first();
+
+      if (!$series) {
+        throw new Exception('No se encontró una serie activa para la sede y tipo de documento seleccionado');
+      }
+
+      // Usar serie y número enviados por el usuario
+      // El full_number se armará con estos valores
+      if (!isset($data['serie']) || !isset($data['numero'])) {
+        throw new Exception('Debe proporcionar serie y número correlativo');
+      }
 
       // Validar que la serie sea correcta
       if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
@@ -3532,8 +3546,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       // 3. OBTENER TIPO DE OPERACIÓN PARA ANTICIPOS (36)
       // ================================================================
-      $transactionTypeAnticipo = SunatConcepts::where('type', SunatConcepts::TYPE_TRANSACTION)
-        ->where('tribute_code', '36') // Código SUNAT para Anticipos
+      $transactionTypeAnticipo = SunatConcepts::where('type', SunatConcepts::BILLING_TRANSACTION_TYPE)
+        ->where('code_nubefact', '04') // Código SUNAT para Anticipos
         ->first();
 
       if (!$transactionTypeAnticipo) {
@@ -3547,10 +3561,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $documentData = [
         // Datos del documento
         'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
-        'serie' => $series->series,
+        'serie' => strtoupper($data['serie']), // Convertir a mayúsculas
         'series_id' => $series->id,
         'numero' => $data['numero'],
-        'full_number' => $series->series . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'full_number' => strtoupper($data['serie']) . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
         'is_advance_payment' => 1, // SIEMPRE 1 PARA ANTICIPOS
         'sunat_concept_transaction_type_id' => $transactionTypeAnticipo->id,
 
