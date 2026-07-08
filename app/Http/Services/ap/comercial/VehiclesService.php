@@ -66,7 +66,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'electronicDocumentParent.client_phone',
         'vehicleDelivery.advisor.nombre_completo',
       ],
-      'title' => $request->get('title', 'Consolidado Entregas Vehículos Nuevos'),
+      'title'   => $request->get('title', 'Consolidado Entregas Vehículos Nuevos'),
     ]);
 
     $exportService = new ExportService();
@@ -297,7 +297,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicleStatus',
       'warehousePhysical',
       'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
-    ]);
+    ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL);
 
     // Aplicar filtros si existen
     if ($request->has('search') && $request->search) {
@@ -363,26 +363,27 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $freightCost = $vehicle->model?->transport_cost ?? 0;
 
       return [
-        'id' => $vehicle->id,
-        'vin' => $vehicle->vin,
-        'year' => $vehicle->year,
-        'engine_number' => $vehicle->engine_number,
-        'ap_models_vn_id' => $vehicle->ap_models_vn_id,
-        'vehicle_color_id' => $vehicle->vehicle_color_id,
-        'engine_type_id' => $vehicle->engine_type_id,
-        'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
-        'model' => $vehicle->model?->version,
-        'model_code' => $vehicle->model?->code,
-        'family' => $vehicle->model?->family?->description,
-        'vehicle_color' => $vehicle->color?->description,
-        'engine_type' => $vehicle->engineType?->description,
-        'status' => $vehicle->status,
-        'vehicle_status' => $vehicle->vehicleStatus?->description,
-        'status_color' => $vehicle->vehicleStatus?->color,
+        'id'                    => $vehicle->id,
+        'vin'                   => $vehicle->vin,
+        'year'                  => $vehicle->year,
+        'engine_number'         => $vehicle->engine_number,
+        'ap_models_vn_id'       => $vehicle->ap_models_vn_id,
+        'vehicle_color_id'      => $vehicle->vehicle_color_id,
+        'engine_type_id'        => $vehicle->engine_type_id,
+        'ap_vehicle_status_id'  => $vehicle->ap_vehicle_status_id,
+        'model'                 => $vehicle->model?->version,
+        'model_code'            => $vehicle->model?->code,
+        'family'                => $vehicle->model?->family?->description,
+        'vehicle_color'         => $vehicle->color?->description,
+        'engine_type'           => $vehicle->engineType?->description,
+        'status'                => $vehicle->status,
+        'vehicle_status'        => $vehicle->vehicleStatus?->description,
+        'status_color'          => $vehicle->vehicleStatus?->color,
         'warehouse_physical_id' => $vehicle->warehouse_physical_id,
-        'warehouse_physical' => $vehicle->warehousePhysical?->description,
-        'billed_cost' => $vehicle->purchase_price,
-        'freight_cost' => $freightCost,
+        'warehouse_physical'    => $vehicle->warehousePhysical?->description,
+        'billed_cost'           => $vehicle->purchase_price,
+        'freight_cost'          => $freightCost,
+        'warehouse'             => $vehicle->warehouse?->description,
       ];
     };
 
@@ -424,10 +425,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       ->get();
 
     return response()->json([
-      'vehicle' => VehiclesResource::make($vehicle),
-      'documents' => ElectronicDocumentResource::collection($documents),
+      'vehicle'         => VehiclesResource::make($vehicle),
+      'documents'       => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
-      'total_amount' => $documents->sum('total'),
+      'total_amount'    => $documents->sum('total'),
     ]);
   }
 
@@ -473,14 +474,14 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     foreach ($documents as $doc) {
       $docInfo = [
-        'id' => $doc->id,
-        'serie' => $doc->serie,
-        'numero' => $doc->numero,
+        'id'              => $doc->id,
+        'serie'           => $doc->serie,
+        'numero'          => $doc->numero,
         'document_number' => $doc->document_number,
-        'fecha_emision' => $doc->fecha_de_emision?->format('Y-m-d'),
-        'moneda' => $doc->currency?->description,
-        'total' => $doc->total,
-        'tipo_documento' => $doc->documentType?->description,
+        'fecha_emision'   => $doc->fecha_de_emision?->format('Y-m-d'),
+        'moneda'          => $doc->currency?->description,
+        'total'           => $doc->total,
+        'tipo_documento'  => $doc->documentType?->description,
       ];
 
       // Facturas y boletas suman al total pagado
@@ -520,38 +521,38 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     }
 
     return response()->json([
-      'vehicle' => VehiclesResource::make($vehicle),
-      'client' => [
-        'id' => $client->id,
-        'num_doc' => $client->num_doc,
+      'vehicle'           => VehiclesResource::make($vehicle),
+      'client'            => [
+        'id'        => $client->id,
+        'num_doc'   => $client->num_doc,
         'full_name' => $client->full_name,
         'direction' => $client->direction,
-        'email' => $client->email,
+        'email'     => $client->email,
       ],
-      'purchase_quote' => [
-        'id' => $purchaseRequestQuote->id,
+      'purchase_quote'    => [
+        'id'          => $purchaseRequestQuote->id,
         'correlative' => $purchaseRequestQuote->correlative,
-        'sale_price' => round($totalSalePrice, 2),
+        'sale_price'  => round($totalSalePrice, 2),
       ],
-      'debt_summary' => [
+      'debt_summary'      => [
         'total_sale_price' => round($totalSalePrice, 2),
-        'total_paid' => round($totalPaid, 2),
-        'pending_debt' => round($pendingDebt, 2),
-        'status' => $debtStatus,
-        'message' => $debtMessage,
+        'total_paid'       => round($totalPaid, 2),
+        'pending_debt'     => round($pendingDebt, 2),
+        'status'           => $debtStatus,
+        'message'          => $debtMessage,
         'has_pending_debt' => $pendingDebt > 0.01,
-        'debt_is_paid' => $isPaid,
+        'debt_is_paid'     => $isPaid,
       ],
       'documents_summary' => [
-        'total_documents' => $documents->count(),
-        'total_facturas' => count($facturas),
+        'total_documents'     => $documents->count(),
+        'total_facturas'      => count($facturas),
         'total_notas_credito' => count($notasCredito),
-        'total_notas_debito' => count($notasDebito),
+        'total_notas_debito'  => count($notasDebito),
       ],
-      'facturas' => $facturas,
-      'notas_credito' => $notasCredito,
-      'notas_debito' => $notasDebito,
-      'reception' => $this->buildReceptionData($vehicle),
+      'facturas'          => $facturas,
+      'notas_credito'     => $notasCredito,
+      'notas_debito'      => $notasDebito,
+      'reception'         => $this->buildReceptionData($vehicle),
     ]);
   }
 
@@ -569,40 +570,40 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     return [
       'shipping_guide_id' => $guide->id,
-      'document_number' => $guide->document_number,
-      'issue_date' => $guide->issue_date?->format('Y-m-d'),
-      'received_date' => $guide->received_date?->format('Y-m-d H:i:s'),
-      'note_received' => $guide->note_received,
-      'received_by' => $guide->receivedBy?->name,
-      'checklist_items' => $guide->receivingChecklists->map(fn($c) => [
-        'id' => $c->id,
+      'document_number'   => $guide->document_number,
+      'issue_date'        => $guide->issue_date?->format('Y-m-d'),
+      'received_date'     => $guide->received_date?->format('Y-m-d H:i:s'),
+      'note_received'     => $guide->note_received,
+      'received_by'       => $guide->receivedBy?->name,
+      'checklist_items'   => $guide->receivingChecklists->map(fn($c) => [
+        'id'          => $c->id,
         'description' => $c->receiving?->description,
-        'quantity' => $c->quantity,
-        'kilometers' => $c->kilometers,
+        'quantity'    => $c->quantity,
+        'kilometers'  => $c->kilometers,
       ])->values(),
-      'inspection' => $inspection ? [
-        'id' => $inspection->id,
-        'photo_front_url' => $inspection->photo_front_url,
-        'photo_back_url' => $inspection->photo_back_url,
-        'photo_left_url' => $inspection->photo_left_url,
-        'photo_right_url' => $inspection->photo_right_url,
+      'inspection'        => $inspection ? [
+        'id'                   => $inspection->id,
+        'photo_front_url'      => $inspection->photo_front_url,
+        'photo_back_url'       => $inspection->photo_back_url,
+        'photo_left_url'       => $inspection->photo_left_url,
+        'photo_right_url'      => $inspection->photo_right_url,
         'general_observations' => $inspection->general_observations,
-        'inspected_by' => $inspection->inspectedBy?->name,
-        'created_at' => $inspection->created_at?->format('Y-m-d H:i:s'),
-        'damages' => $inspection->damages->map(fn($d) => [
-          'id' => $d->id,
-          'damage_type' => $d->damage_type,
+        'inspected_by'         => $inspection->inspectedBy?->name,
+        'created_at'           => $inspection->created_at?->format('Y-m-d H:i:s'),
+        'damages'              => $inspection->damages->map(fn($d) => [
+          'id'           => $d->id,
+          'damage_type'  => $d->damage_type,
           'x_coordinate' => $d->x_coordinate,
           'y_coordinate' => $d->y_coordinate,
-          'description' => $d->description,
-          'photo_url' => $d->photo_url,
+          'description'  => $d->description,
+          'photo_url'    => $d->photo_url,
         ])->values(),
       ] : null,
-      'accessories' => $accessoryStatuses->map(fn($a) => [
-        'id' => $a->id,
-        'description' => $a->description,
-        'quantity' => $a->quantity,
-        'received' => $a->received,
+      'accessories'       => $accessoryStatuses->map(fn($a) => [
+        'id'           => $a->id,
+        'description'  => $a->description,
+        'quantity'     => $a->quantity,
+        'received'     => $a->received,
         'is_installed' => $a->is_installed,
       ])->values(),
     ];
@@ -639,7 +640,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     }
 
     return response()->json([
-      'vehicle' => VehiclesResource::make($vehicle),
+      'vehicle'        => VehiclesResource::make($vehicle),
       'purchase_order' => new PurchaseOrderResource($purchaseOrder),
     ]);
   }
@@ -652,15 +653,15 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $movementType = $data['movement_type'] ?? null;
 
     $movementTypeMap = [
-      ApVehicleStatus::PEDIDO_VN               => VehicleMovement::ORDERED,
-      ApVehicleStatus::VEHICULO_EN_TRAVESIA     => VehicleMovement::IN_TRANSIT,
+      ApVehicleStatus::PEDIDO_VN                  => VehicleMovement::ORDERED,
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA       => VehicleMovement::IN_TRANSIT,
       ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO => VehicleMovement::IN_TRANSIT_RETURNED,
-      ApVehicleStatus::VENDIDO_NO_ENTREGADO     => VehicleMovement::SOLD_NOT_DELIVERED,
-      ApVehicleStatus::INVENTARIO_VN            => VehicleMovement::INVENTORY,
-      ApVehicleStatus::VENDIDO_ENTREGADO        => VehicleMovement::SOLD_DELIVERED,
-      ApVehicleStatus::FACTURADO                => VehicleMovement::INVOICED,
-      ApVehicleStatus::CONSIGNACION             => VehicleMovement::CONSIGNMENT,
-      ApVehicleStatus::FACTURADO_FINAL          => VehicleMovement::INVOICED,
+      ApVehicleStatus::VENDIDO_NO_ENTREGADO       => VehicleMovement::SOLD_NOT_DELIVERED,
+      ApVehicleStatus::INVENTARIO_VN              => VehicleMovement::INVENTORY,
+      ApVehicleStatus::VENDIDO_ENTREGADO          => VehicleMovement::SOLD_DELIVERED,
+      ApVehicleStatus::FACTURADO                  => VehicleMovement::INVOICED,
+      ApVehicleStatus::CONSIGNACION               => VehicleMovement::CONSIGNMENT,
+      ApVehicleStatus::FACTURADO_FINAL            => VehicleMovement::INVOICED,
     ];
 
     if (!$movementType) {

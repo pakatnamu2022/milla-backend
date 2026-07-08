@@ -14,6 +14,7 @@ use App\Http\Requests\ap\facturacion\UpdateDebitNoteRequest;
 use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreConsolidatedInvoiceRequest;
 use App\Http\Requests\ap\facturacion\RegularizeAdvancePaymentRequest;
+use App\Http\Requests\ap\facturacion\StoreHistoricalAdvancePaymentRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Jobs\SyncAccountingStatusJob;
@@ -628,6 +629,21 @@ class ElectronicDocumentController extends Controller
         'success' => true,
         'message' => 'Anticipo regularizado correctamente',
         'data' => $document
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function registerHistoricalAdvance(StoreHistoricalAdvancePaymentRequest $request): JsonResponse
+  {
+    try {
+      $document = $this->service->registerHistoricalAdvance($request->validated());
+
+      return $this->success([
+        'success' => true,
+        'message' => 'Anticipo histórico registrado correctamente',
+        'data' => $document,
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());

@@ -2038,6 +2038,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede sincronizar un documento anulado');
     }
 
+    if ($document->internal_note === 'REGISTRO_EXTERNO') {
+      throw new Exception('Este documento es un anticipo histórico externo y no puede sincronizarse con Dynamics');
+    }
+
     $document->update(['was_dyn_requested' => true]);
 
     // Dispatch the sync job con deduplicación
@@ -3639,6 +3643,157 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     } catch (Throwable $e) {
       DB::rollBack();
       throw new Exception('Error al regularizar el anticipo: ' . $e->getMessage());
+    }
+  }
+
+  public function registerHistoricalAdvance(array $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // ================================================================
+      // 1. SERIE Y NÚMERO CORRELATIVO
+      // ================================================================
+      $series = AssignSalesSeries::find($data['series_id']);
+      if (!$series) {
+        throw new Exception('Serie no encontrada');
+      }
+
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $series->series
+      );
+      $data['numero'] = $nextNumberData['number'];
+      $data['serie']  = $series->series;
+
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      // ================================================================
+      // 2. CLIENTE Y TIPO DE CAMBIO
+      // ================================================================
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      $client = BusinessPartners::find($data['client_id']);
+      if (!$client) {
+        throw new Exception('Cliente no encontrado');
+      }
+
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      // ================================================================
+      // 3. CÁLCULO HACIA ATRÁS DESDE EL TOTAL
+      // ================================================================
+      $igvRate      = $client->taxClassType->igv / 100; // ej. 0.18
+      $totalInput   = round((float) $data['total'], 2);
+      $totalGravada = round($totalInput / (1 + $igvRate), 2);
+      $totalIgv     = round($totalInput - $totalGravada, 2);
+
+      // ================================================================
+      // 5. OBSERVACIONES CON MARCA DE REGISTRO EXTERNO
+      // ================================================================
+      $markerExterno  = '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]';
+      $observaciones  = trim($markerExterno . ($data['observaciones'] ? ' ' . $data['observaciones'] : ''));
+
+      // ================================================================
+      // 6. DATOS DEL DOCUMENTO
+      // ================================================================
+      $emissionCarbon = Carbon::parse($emissionDate);
+
+      $documentData = [
+        'sunat_concept_document_type_id'    => $data['sunat_concept_document_type_id'],
+        'serie'                             => $series->series,
+        'series_id'                         => $series->id,
+        'numero'                            => $data['numero'],
+        'full_number'                       => $series->series . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'is_advance_payment'                => 1,
+        'sunat_concept_transaction_type_id' => SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS,
+
+        'area_id'                           => $data['area_id'],
+        'purchase_request_quote_id'         => $data['purchase_request_quote_id'],
+
+        'client_id'                                   => $client->id,
+        'sunat_concept_identity_document_type_id'     => $documentType->id,
+        'cliente_numero_de_documento'                 => $client->num_doc,
+        'cliente_denominacion'                        => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion'                           => $client->direction,
+        'cliente_email'                               => $client->email,
+
+        'fecha_de_emision'                  => $emissionDate,
+
+        'sunat_concept_currency_id'         => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio'                    => $exchangeRate->rate,
+        'exchange_rate_id'                  => $exchangeRate->id,
+        'porcentaje_de_igv'                 => $client->taxClassType->igv,
+
+        'total_gravada'                     => $totalGravada,
+        'total_inafecta'                    => 0,
+        'total_exonerada'                   => 0,
+        'total_igv'                         => $totalIgv,
+        'total'                             => $totalInput,
+
+        'observaciones'                     => $observaciones,
+        'condiciones_de_pago'               => $data['condiciones_de_pago'] ?? null,
+
+        // Documento histórico externo: ya enviado, aceptado, migrado y contabilizado
+        'status'                            => ElectronicDocument::STATUS_ACCEPTED,
+        'aceptada_por_sunat'                => 1,
+        'migration_status'                  => 'completed',
+        'is_accounted'                      => 1,
+        'sent_at'                           => $emissionCarbon,
+        'accepted_at'                       => $emissionCarbon,
+        'migrated_at'                       => $emissionCarbon,
+
+        // Marca para bloquear futuros intentos de migrar o enviar
+        'internal_note'                     => 'REGISTRO_EXTERNO',
+
+        'created_by'                        => auth()->id(),
+      ];
+
+      // ================================================================
+      // 7. CREAR DOCUMENTO
+      // ================================================================
+      $document = ElectronicDocument::create($documentData);
+
+      // ================================================================
+      // 8. CREAR ÚNICO ÍTEM (cálculo desde el total)
+      // ================================================================
+      $igvTypeId = $data['sunat_concept_igv_type_id'] ?? SunatConcepts::ID_IGV_GRAVADO_ONEROSA;
+
+      ElectronicDocumentItem::create([
+        'ap_billing_electronic_document_id' => $document->id,
+        'account_plan_id'                   => $data['account_plan_id'] ?? null,
+        'line_number'                        => 1,
+        'codigo'                             => 'ANTICIPO',
+        'descripcion'                        => $data['descripcion'],
+        'unidad_de_medida'                   => 'ZZ',
+        'cantidad'                           => 1,
+        'valor_unitario'                     => $totalGravada,
+        'precio_unitario'                    => $totalInput,
+        'descuento'                          => 0,
+        'descuento_unitario'                 => 0,
+        'subtotal'                           => $totalGravada,
+        'sunat_concept_igv_type_id'          => $igvTypeId,
+        'igv'                                => $totalIgv,
+        'total'                              => $totalInput,
+        'anticipo_regularizacion'            => 0,
+      ]);
+
+      DB::commit();
+
+      return new ElectronicDocumentResource($document->load(['items']));
+    } catch (Throwable $e) {
+      DB::rollBack();
+      throw new Exception('Error al registrar anticipo histórico: ' . $e->getMessage());
     }
   }
 }
