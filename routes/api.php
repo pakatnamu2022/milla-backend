@@ -275,7 +275,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
     Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
     Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
-
+    Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
+    
     Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
@@ -953,7 +954,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'update',
           'destroy'
         ]);
-        
+
         // Mapeo de códigos incorrectos del dispositivo a DNI real
         Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
           'index',
@@ -1345,6 +1346,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
 
       // Vehicles
+      Route::match(['get', 'post'], 'vehicles/export', [VehiclesController::class, 'exportAll']);
       Route::post('vehicles/export/sales', [VehiclesController::class, 'exportSales']);
       Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
@@ -1352,6 +1354,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
       Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
+      Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',

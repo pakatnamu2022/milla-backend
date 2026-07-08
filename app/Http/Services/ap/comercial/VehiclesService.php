@@ -9,12 +9,16 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
+use App\Imports\ap\comercial\VehicleUpdateByVinImport;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
@@ -26,6 +30,16 @@ use Throwable;
 
 class VehiclesService extends BaseService implements BaseServiceInterface
 {
+
+  public function exportAll(Request $request)
+  {
+    $request->merge([
+      'title' => $request->get('title', 'Reporte General de Vehículos'),
+    ]);
+
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, Vehicles::class);
+  }
 
   public function exportSales(Request $request)
   {
@@ -252,6 +266,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  public function updateByVin(UploadedFile $file): array
+  {
+    $import = new VehicleUpdateByVinImport();
+    Excel::import($import, $file);
+    return $import->getResults();
   }
 
   /**
