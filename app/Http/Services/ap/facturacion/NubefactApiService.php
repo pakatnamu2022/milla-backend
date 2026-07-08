@@ -477,23 +477,23 @@ class NubefactApiService
 
       $hasDescuento = $item->descuento && (float) $item->descuento > 0;
 
-      // When descuento > 0: reconstruct the gross list price (before discount) so SUNAT can
-      // verify: subtotal = (precio_unitario_sin_igv × cantidad) − descuento.
-      // precio_unitario sent = (valor_unitario + descuento_unitario) × igv_factor  (list price with IGV)
-      // descuento sent = stored $item->descuento  (total line discount, no IGV)
-      $igvFactor = 1 + (float) $document->porcentaje_de_igv / 100;
-      $precioUnitario = $hasDescuento
-        ? round(((float) $item->valor_unitario + (float) $item->descuento_unitario) * $igvFactor, 2)
-        : (float) $item->precio_unitario;
+      // precio_unitario en BD = precio bruto con IGV antes del descuento (= valor_unitario * igvFactor).
+      // Se envía tal cual a Nubefact como cac:AlternativeConditionPrice (precio de lista con IGV).
+      // valor_unitario para Nubefact = valor NETO sin IGV después del descuento = subtotal / cantidad,
+      // de modo que SUNAT valide: precio_unitario = (valor_unitario + descuento) * igvFactor.
+      $cantidad = max(1, (float) $item->cantidad);
+      $valorUnitario = $hasDescuento
+        ? round((float) $item->subtotal / $cantidad, 2)
+        : round((float) $item->valor_unitario, 2);
 
       $itemData = [
         'unidad_de_medida' => $item->unidad_de_medida,
         'codigo' => $codigo,
         'descripcion' => $item->descripcion,
         'cantidad' => $item->cantidad,
-        'valor_unitario' => $valorUnitarioRedondeado,
-        'precio_unitario' => $precioUnitario,
-        'descuento' => $hasDescuento ? (float) $item->descuento : 0,
+        'valor_unitario' => $valorUnitario,
+        'precio_unitario' => round((float) $item->precio_unitario, 2),
+        'descuento' => $hasDescuento ? round((float) $item->descuento, 2) : 0,
         'subtotal' => $item->subtotal,
         'tipo_de_igv' => $tipoIgv,
         'igv' => round((float) $igvItem, 2),
