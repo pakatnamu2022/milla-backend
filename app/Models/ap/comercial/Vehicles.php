@@ -91,9 +91,7 @@ class Vehicles extends BaseModel
    */
   public function getIsReceivedAttribute()
   {
-    return false;
-    return $this->shippingGuides()->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)->where('')
-      ->orWhere('document_number', 'like', 'SI-%')->exists();
+    return $this->shippingGuides()->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)->exists();
   }
 
   /**
