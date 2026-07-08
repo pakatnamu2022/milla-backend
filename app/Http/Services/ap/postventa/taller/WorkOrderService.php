@@ -134,13 +134,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Obtener tipo de cambio actual para USD
-      $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-      } else {
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
         $data['exchange_rate'] = $exchangeRate->rate;
         $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
@@ -242,6 +247,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if (isset($data['items'])) {
         $items = $data['items'];
         unset($data['items']);
+      }
+
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
+      if ($currencyId == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Update work order
@@ -995,8 +1015,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
       }
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1011,7 +1049,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
@@ -1128,8 +1166,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Obtenemos la guía de recepción del vehículo (puede no existir para accesorios de posventa)
       $shippingGuide = $vehicle->shippingGuideReceiving;
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1146,7 +1202,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
