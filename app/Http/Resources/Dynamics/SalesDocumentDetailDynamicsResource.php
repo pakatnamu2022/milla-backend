@@ -82,8 +82,8 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $descuentoUnitario = $this->overrideValorUnitario !== null ? 0.0 : (float)($this->descuento_unitario ?? 0);
 
     // Precio unitario bruto sin IGV (antes de descuento): Dynamics aplica el descuento internamente
-    //   PrecioUnitario - DescuentoUnitario = valor_unitario (precio neto)
-    $precioUnitario = round($valorUnitario + $descuentoUnitario, 2);
+    //   PrecioUnitario - DescuentoUnitario = subtotal / cantidad
+    $precioUnitario = round($valorUnitario, 2);
     $precioUnitario = $precioUnitario > 0 ? $precioUnitario : throw new Exception('El ítem no tiene precio unitario definido.');
 
     // Precio total neto: subtotal almacenado, o cantidad × override cuando aplica precio alternativo
