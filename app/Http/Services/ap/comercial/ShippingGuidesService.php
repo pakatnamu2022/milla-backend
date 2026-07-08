@@ -848,7 +848,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           if ($guide->area_id === ApMasters::AREA_POSVENTA) {
             $inventoryMovement = $guide->inventoryMovement;
             if ($inventoryMovement && $inventoryMovement->item_type === 'PRODUCTO') {
-              MigrateProductReceptionToDynamicsJob::dispatch($guide->id);
+              if ($guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+                // Traslado de sede: sin recepción, migra directamente a Dynamics
+                VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+              } else {
+                MigrateProductReceptionToDynamicsJob::dispatch($guide->id);
+              }
             } else {
               $guide->update(['is_received' => true]);
               $inventoryMovement->update(['status' => InventoryMovement::STATUS_APPROVED]);
@@ -905,6 +910,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       if ($guide->cancelled_at) {
         throw new Exception('No se puede marcar como recepcionada una guía anulada');
+      }
+
+      if ($guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        throw new Exception('Las guías de traslado de sede no requieren recepción; la migración a Dynamics se dispara automáticamente al ser aceptada por SUNAT');
       }
 
       if (
@@ -1074,7 +1083,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('Las guías de remisión como SERVICIO no se sincronizan con Dynamics');
       }
 
-      if ($movement && $movement->item_type === 'PRODUCTO') {
+      if ($movement && $movement->item_type === 'PRODUCTO'
+        && $shippingGuide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
         $transferReception = $shippingGuide->transferReceptions()->first();
 
         if (!$transferReception) {
