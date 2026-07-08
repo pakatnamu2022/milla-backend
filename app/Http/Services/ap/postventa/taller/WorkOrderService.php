@@ -505,6 +505,12 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy: ' . $today);
     }
 
+    // Actualizar la OT con el tipo de cambio del día que se está aplicando
+    $workOrder->update([
+      'exchange_rate_id' => $exchangeRate->id,
+      'exchange_rate' => $exchangeRate->rate,
+    ]);
+
     return (float)$exchangeRate->rate;
   }
 

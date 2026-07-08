@@ -30,7 +30,9 @@ class PriceRounding
       $netAmount = $totalCost;
     }
 
-    $taxAmount = round($netAmount * (Constants::VAT_TAX / 100), 2);
+    // Redondear primero a 3 decimales y luego a 2 para un redondeo más preciso
+    // Ejemplo: 960.47 * 0.18 = 172.8846 → 172.885 → 172.89
+    $taxAmount = round(round($netAmount * (Constants::VAT_TAX / 100), 3), 2);
 
     return [
       'total_cost' => $totalCost,

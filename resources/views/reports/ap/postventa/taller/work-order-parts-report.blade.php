@@ -270,7 +270,7 @@
     <tr>
       <td class="center">{{ $index + 1 }}</td>
       <td class="center">{{ $part['code'] }}</td>
-      <td class="text-left">{{ $part['description'] }}</td>
+      <td class="text-left">{{ $part['name'] }}</td>
       <td class="number">{{ number_format($part['quantity_used'], 2) }}</td>
       <td class="number">{{ number_format($part['pending_quantity'], 2) }}</td>
       <td class="text-left" style="padding: 5px;">
