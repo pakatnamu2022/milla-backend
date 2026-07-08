@@ -205,6 +205,10 @@ class ApReceivingChecklistService extends BaseService
         throw new Exception('La guía de remisión ya ha sido recepcionada');
       }
 
+      if ($shippingGuide->transfer_reason_id === \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
+        throw new Exception('Las guías de traslado de sede no requieren recepción; el sistema la registra automáticamente al contabilizarse en Dynamics');
+      }
+
       // Validate items_receiving is provided and is an array/object
       if (!isset($data['items_receiving']) || !is_array($data['items_receiving'])) {
         throw new Exception('items_receiving debe ser un objeto');
