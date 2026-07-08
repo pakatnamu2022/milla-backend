@@ -1029,7 +1029,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       return [
         'code' => $part->product ? $part->product->code : 'N/A',
-        'description' => $part->product ? $part->product->description : 'N/A',
+        'name' => $part->product ? $part->product->name : 'N/A',
         'warehouse' => $part->warehouse ? $part->warehouse->name : 'N/A',
         'quantity_used' => $part->quantity_used,
         'unit_price' => $part->unit_price,
