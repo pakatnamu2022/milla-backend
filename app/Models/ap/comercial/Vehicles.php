@@ -319,7 +319,6 @@ class Vehicles extends BaseModel
    */
   public static function isVehiclePaid($vehicleId): bool
   {
-    return true;
     try {
       // Stock inicial: OC con número "SI-..." + estado VENDIDO NO ENTREGADO + movimiento SOLD_NOT_DELIVERED
       $isInitialStock = PurchaseOrder::whereHas('vehicleMovement', function ($q) use ($vehicleId) {
