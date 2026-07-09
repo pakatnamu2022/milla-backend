@@ -1983,4 +1983,107 @@ class ProductWarehouseStockService extends BaseService
       throw $e;
     }
   }
+
+  /**
+   * Get reserved stock report showing which work orders have reserved stock
+   * and who reserved them, grouped by warehouse
+   *
+   * @param Request $request
+   * @return array
+   * @throws Exception
+   */
+  public function getReservedStockReport(Request $request): array
+  {
+    try {
+      $warehouseId = $request->input('warehouse_id');
+      $productId = $request->input('product_id');
+
+      // Build base query for products with reserved stock
+      $query = ProductWarehouseStock::with([
+        'product:id,name,code,dyn_code',
+        'warehouse:id,dyn_code'
+      ])
+        ->where('reserved_quantity', '>', 0);
+
+      // Filter by warehouse if provided
+      if ($warehouseId) {
+        $query->where('warehouse_id', $warehouseId);
+      }
+
+      // Filter by product if provided
+      if ($productId) {
+        $query->where('product_id', $productId);
+      }
+
+      $stocksWithReservations = $query->get();
+
+      $report = [];
+
+      foreach ($stocksWithReservations as $stock) {
+        // Get all work order parts that are reserving this product in this warehouse
+        $workOrderParts = DB::table('ap_work_order_parts as wop')
+          ->join('ap_work_orders as wo', 'wop.work_order_id', '=', 'wo.id')
+          ->join('usr_users as u', 'wop.registered_by', '=', 'u.id')
+          ->leftJoin('config_sede as s', 'wo.sede_id', '=', 's.id')
+          ->where('wop.product_id', $stock->product_id)
+          ->where('wop.warehouse_id', $stock->warehouse_id)
+          ->whereNull('wop.deleted_at')
+          ->whereNull('wo.deleted_at')
+          // Only include work orders that haven't generated warehouse output yet
+          ->where(function ($q) {
+            $q->where('wo.output_generation_warehouse', false)
+              ->orWhereNull('wo.output_generation_warehouse');
+          })
+          ->select([
+            'wo.id as work_order_id',
+            'wo.correlative as work_order_correlative',
+            'wo.status_id',
+            'wop.quantity_used',
+            'wop.created_at as reserved_at',
+            'u.id as user_id',
+            'u.name as user_name',
+            's.abreviatura as sede_name'
+          ])
+          ->orderBy('wop.created_at', 'desc')
+          ->get();
+
+        if ($workOrderParts->isNotEmpty()) {
+          $report[] = [
+            'product_id' => $stock->product_id,
+            'product_code' => $stock->product->code,
+            'product_dyn_code' => $stock->product->dyn_code,
+            'product_name' => $stock->product->name,
+            'warehouse_id' => $stock->warehouse_id,
+            'warehouse_name' => $stock->warehouse->dyn_code,
+            'total_reserved_quantity' => $stock->reserved_quantity,
+            'physical_stock' => $stock->quantity,
+            'available_quantity' => $stock->available_quantity,
+            'reservations' => $workOrderParts->map(function ($part) {
+              return [
+                'work_order_id' => $part->work_order_id,
+                'work_order_correlative' => $part->work_order_correlative,
+                'sede_name' => $part->sede_name,
+                'quantity_reserved' => $part->quantity_used,
+                'reserved_at' => $part->reserved_at,
+                'reserved_by_user_id' => $part->user_id,
+                'reserved_by_user_name' => $part->user_name,
+              ];
+            })->toArray()
+          ];
+        }
+      }
+
+      return [
+        'success' => true,
+        'data' => $report,
+        'summary' => [
+          'total_products_with_reservations' => count($report),
+          'total_reserved_quantity' => $stocksWithReservations->sum('reserved_quantity'),
+          'total_work_orders' => collect($report)->sum(fn($item) => count($item['reservations']))
+        ]
+      ];
+    } catch (Exception $e) {
+      throw $e;
+    }
+  }
 }
