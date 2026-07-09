@@ -588,7 +588,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'status_wash'             => 'completed',
           'status_delivery'         => 'pending',
           'observations'            => $data['observations'] ?? null,
-          'client_id'               => null,
+          'client_id'               => $data['client_id'],
           'vehicle_movement_id'     => $vehicleMovement?->id,
         ];
 
