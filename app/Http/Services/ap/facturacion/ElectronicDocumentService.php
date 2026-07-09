@@ -4004,6 +4004,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'status'             => ElectronicDocument::STATUS_ACCEPTED,
         'aceptada_por_sunat' => 1,
+        'anulado'            => 0,
+        'is_annulled'        => 0,
         'migration_status'   => 'completed',
         'is_accounted'       => 1,
         'sent_at'            => $emissionCarbon,

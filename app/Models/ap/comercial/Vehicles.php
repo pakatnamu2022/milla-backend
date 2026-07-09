@@ -289,7 +289,7 @@ class Vehicles extends BaseModel
       $query->where('ap_vehicle_id', $vehicleId);
     })
       ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
+      ->where(function ($q) { $q->where('anulado', false)->orWhereNull('anulado'); })
       ->whereNotNull('client_id')
       ->whereNotNull('purchase_request_quote_id')
       ->with(['client', 'purchaseRequestQuote'])
@@ -330,9 +330,9 @@ class Vehicles extends BaseModel
       // Obtener todos los documentos electrónicos asociados a esta cotización
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
+        ->where(function ($q) { $q->where('anulado', false)->orWhereNull('anulado'); })
         ->where('is_accounted', true)
-        ->where('is_annulled', false)
+        ->where(function ($q) { $q->where('is_annulled', false)->orWhereNull('is_annulled'); })
         ->get();
 
       // Calcular total pagado
@@ -376,9 +376,9 @@ class Vehicles extends BaseModel
       // Obtener todos los documentos electrónicos asociados a esta cotización
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
+        ->where(function ($q) { $q->where('anulado', false)->orWhereNull('anulado'); })
         ->where('is_accounted', true)
-        ->where('is_annulled', false)
+        ->where(function ($q) { $q->where('is_annulled', false)->orWhereNull('is_annulled'); })
         ->get();
 
       // Calcular total pagado

@@ -415,8 +415,9 @@ class ShippingGuides extends BaseModel
 
   public static function generateNextCorrelative(int $documentSeriesId, int $correlativeStart = 1): array
   {
-    // Buscar el último correlativo usado para esta serie
-    $lastShippingGuide = self::where('document_series_id', $documentSeriesId)
+    // Incluir eliminados/anulados para no reutilizar correlativos ya usados
+    $lastShippingGuide = self::withTrashed()
+      ->where('document_series_id', $documentSeriesId)
       ->orderBy('correlative', 'desc')
       ->first();
 

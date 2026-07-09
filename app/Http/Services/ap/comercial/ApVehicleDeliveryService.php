@@ -370,7 +370,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'ruc_transport'          => $data['carrier_ruc'] ?? null,
           'company_name_transport' => $data['company_name_transport'] ?? null,
           'net_weight'             => 1,
-          'total_weight'           => (float) preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight ?? '') ?: 0,
+          'total_weight'           => (float) preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight ?? '') ?: 1000,
         ];
 
         $shippingGuide = ShippingGuides::create($shippingGuideData);
