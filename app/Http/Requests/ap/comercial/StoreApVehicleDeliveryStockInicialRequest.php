@@ -62,6 +62,11 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
         'integer',
         'exists:ap_class_article,id',
       ],
+      'client_id' => [
+        'required',
+        'integer',
+        'exists:business_partners,id',
+      ],
       'observations' => [
         'nullable',
         'string',
@@ -87,6 +92,9 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
       'ap_class_article_id.required' => 'La clase de artículo es obligatoria.',
       'ap_class_article_id.integer'  => 'La clase de artículo debe ser un número entero.',
       'ap_class_article_id.exists'   => 'La clase de artículo no existe.',
+      'client_id.required'           => 'El cliente es obligatorio.',
+      'client_id.integer'            => 'El cliente debe ser un número entero.',
+      'client_id.exists'             => 'El cliente no existe.',
       'observations.string'          => 'Las observaciones deben ser texto.',
       'observations.max'             => 'Las observaciones no deben exceder los 500 caracteres.',
     ];
