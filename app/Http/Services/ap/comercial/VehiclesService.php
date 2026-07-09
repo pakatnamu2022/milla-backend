@@ -305,7 +305,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'warehousePhysical',
       'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
     ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN);
+      ->whereIn('ap_vehicle_status_id', [
+        ApVehicleStatus::INVENTARIO_VN,
+        ApVehicleStatus::VEHICULO_EN_TRAVESIA
+      ]);
 
     // Aplicar filtros si existen
     if ($request->has('search') && $request->search) {
