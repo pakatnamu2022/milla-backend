@@ -304,7 +304,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicleStatus',
       'warehousePhysical',
       'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
-    ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL);
+    ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
+      ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN);
 
     // Aplicar filtros si existen
     if ($request->has('search') && $request->search) {
@@ -318,10 +319,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     if ($request->has('ap_models_vn_id') && $request->ap_models_vn_id) {
       $query->where('ap_models_vn_id', $request->ap_models_vn_id);
-    }
-
-    if ($request->has('ap_vehicle_status_id') && $request->ap_vehicle_status_id) {
-      $query->where('ap_vehicle_status_id', $request->ap_vehicle_status_id);
     }
 
     if ($request->has('vehicle_color_id') && $request->vehicle_color_id) {
@@ -686,22 +683,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $vehicle->update(['ap_vehicle_status_id' => $statusId]);
 
       VehicleMovement::create([
-        'movement_type' => $movementType,
-        'ap_vehicle_id' => $vehicle->id,
+        'movement_type'        => $movementType,
+        'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => $statusId,
-        'previous_status_id' => $previousStatusId,
-        'new_status_id' => $statusId,
-        'movement_date' => $movementDate,
-        'observation' => $observation,
-        'created_by' => auth()->id(),
+        'previous_status_id'   => $previousStatusId,
+        'new_status_id'        => $statusId,
+        'movement_date'        => $movementDate,
+        'observation'          => $observation,
+        'created_by'           => auth()->id(),
       ]);
     });
 
     return [
-      'vehicle_id' => $vehicle->id,
+      'vehicle_id'         => $vehicle->id,
       'previous_status_id' => $previousStatusId,
-      'new_status_id' => $statusId,
-      'movement_type' => $movementType,
+      'new_status_id'      => $statusId,
+      'movement_type'      => $movementType,
     ];
   }
 }

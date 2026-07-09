@@ -4021,7 +4021,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $document = ElectronicDocument::create($documentData);
 
       // ================================================================
-      // 8. ÍTEM ÚNICO
+      // 8. ACTUALIZAR ESTADO DEL VEHÍCULO → FACTURADO FINAL
+      // ================================================================
+      $this->createVehicleMovement($vehicle->id, $document);
+
+      // ================================================================
+      // 9. ÍTEM ÚNICO
       // ================================================================
       ElectronicDocumentItem::create([
         'ap_billing_electronic_document_id' => $document->id,
