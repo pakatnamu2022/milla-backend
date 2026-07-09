@@ -1813,9 +1813,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener la guía de remisión de recepción del vehículo
     $shippingGuide = $vehicle->shippingGuideReceiving;
 
-    // Validar que exista la guía y su inspección de recepción
+    // Si no existe la guía o su inspección de recepción, dejarlo pasar normal
     if (!$shippingGuide || !$shippingGuide->receivingInspection) {
-      throw new Exception('El vehículo no tiene una inspección de recepción asociada. Se requiere una inspección de recepción para crear un servicio de PDI.');
+      return;
     }
 
     $receivingInspection = $shippingGuide->receivingInspection;
