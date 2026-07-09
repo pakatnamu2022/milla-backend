@@ -323,7 +323,7 @@ class Vehicles extends BaseModel
   public static function isVehiclePaid($vehicleId): bool
   {
     try {
-      if ($vehicleId !== 0 && $vehicleId === GeneralMaster::where('code', 'SKIP_VEHICULO')) {
+      if ($vehicleId !== 0 && $vehicleId === GeneralMaster::where('code', 'SKIP_VEHICULO')->first()->value) {
         return true;
       }
       // Obtener el documento electrónico usando el método centralizado
