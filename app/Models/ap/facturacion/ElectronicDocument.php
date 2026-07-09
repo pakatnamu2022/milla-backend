@@ -239,7 +239,9 @@ class ElectronicDocument extends BaseModel
         && $model->area_id === ApMasters::AREA_COMERCIAL
         && $model->purchaseRequestQuote) {
         $quote = $model->purchaseRequestQuote;
+        if (!$quote->opportunity_id) return;
         $opportunity = Opportunity::find($quote->opportunity_id);
+        if (!$opportunity) return;
         $opportunity->update([
           'opportunity_status_id' => ApMasters::where('code', Opportunity::SOLD)
             ->whereNull('deleted_at')
