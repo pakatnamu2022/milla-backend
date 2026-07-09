@@ -44,7 +44,7 @@ class ElectronicDocumentItem extends BaseModel
     'valor_unitario' => 'decimal:2',
     'precio_unitario' => 'decimal:2',
     'descuento' => 'decimal:2',
-    'descuento_unitario' => 'decimal:2',
+    'descuento_unitario' => 'decimal:3',
     'subtotal' => 'decimal:2',
     'igv' => 'decimal:2',
     'total' => 'decimal:2',
