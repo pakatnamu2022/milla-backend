@@ -1040,22 +1040,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Verificar si es un item de anticipo regularización
       $isAnticipo = isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] === true;
 
-      // Determinar el multiplicador (1 para items normales, -1 para anticipos)
-      $multiplier = $isAnticipo ? -1 : 1;
+      // Los items de anticipo NO deben afectar los totales (total_gravada, total_igv, total)
+      // Solo se suman al total_anticipo para informar el monto deducido
+      if ($isAnticipo) {
+        $totals['total_anticipo'] += abs((float)($item['total'] ?? 0));
+        continue; // Saltar este item, no afecta los demás totales
+      }
 
-      // Acumular IGV (restar si es anticipo)
-      $totals['total_igv'] += $multiplier * (float)($item['igv'] ?? 0);
+      // A partir de aquí, solo procesamos items normales (no anticipos)
+
+      // Acumular IGV
+      $totals['total_igv'] += (float)($item['igv'] ?? 0);
 
       // Acumular descuentos
       $totals['total_descuento'] += (float)($item['descuento'] ?? 0);
 
-      // Acumular total anticipo (siempre positivo)
-      if ($isAnticipo) {
-        $totals['total_anticipo'] += (float)($item['total'] ?? 0);
-      }
-
-      // Acumular total (restar si es anticipo)
-      $totals['total'] += $multiplier * (float)($item['total'] ?? 0);
+      // Acumular total
+      $totals['total'] += (float)($item['total'] ?? 0);
 
       // Determinar el tipo de IGV y acumular en el total correspondiente
       $igvTypeId = $item['sunat_concept_igv_type_id'] ?? null;
@@ -1067,17 +1068,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       if ($igvCode) {
         if ($igvCode == '1') {
-          // Gravado - Operación Onerosa (restar si es anticipo)
-          $totals['total_gravada'] += $multiplier * $subtotal;
+          // Gravado - Operación Onerosa
+          $totals['total_gravada'] += $subtotal;
         } elseif ($igvCode == '20') {
-          // Exonerado - Operación Onerosa (restar si es anticipo)
-          $totals['total_exonerada'] += $multiplier * $subtotal;
+          // Exonerado - Operación Onerosa
+          $totals['total_exonerada'] += $subtotal;
         } elseif ($igvCode == '30') {
-          // Inafecto - Operación Onerosa (restar si es anticipo)
-          $totals['total_inafecta'] += $multiplier * $subtotal;
+          // Inafecto - Operación Onerosa
+          $totals['total_inafecta'] += $subtotal;
         } elseif (in_array($igvCode, ['11', '12', '13', '14', '15', '16', '17', '21', '31', '32', '33', '34', '35', '36', '37'])) {
-          // Operaciones gratuitas (restar si es anticipo)
-          $totals['total_gratuita'] += $multiplier * $subtotal;
+          // Operaciones gratuitas
+          $totals['total_gratuita'] += $subtotal;
         }
       }
     }
