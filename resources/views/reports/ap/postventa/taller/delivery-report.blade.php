@@ -456,6 +456,39 @@
       margin-right: auto;
     }
 
+    .coordinator-signature {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #ccc;
+      width: 110px;
+      text-align: center;
+    }
+
+    .coordinator-signature-img {
+      max-width: 100px;
+      max-height: 35px;
+      display: block;
+      margin: 0 auto 2px;
+    }
+
+    .coordinator-signature-name {
+      font-size: 7px;
+      font-weight: bold;
+      text-transform: uppercase;
+      border-top: 1px solid #000;
+      padding-top: 2px;
+      line-height: 1.2;
+    }
+
+    .coordinator-signature-subtitle {
+      font-size: 6px;
+      font-weight: normal;
+      font-style: italic;
+      color: #666;
+      letter-spacing: 0.2px;
+      line-height: 1.2;
+    }
+
     .text-center {
       text-align: center;
     }
@@ -1358,6 +1391,14 @@
             <span>{{ $inspection->fuel_level ?? 'N/A' }}</span>
           </div>
         </div>
+
+        @if($workshopCoordinator && $workshopCoordinator->nombre_completo && $workshopCoordinatorSignature)
+          <div class="coordinator-signature">
+            <img src="{{ $workshopCoordinatorSignature }}" alt="Firma Coordinador de Taller" class="coordinator-signature-img">
+            <div class="coordinator-signature-name">{{ $workshopCoordinator->nombre_completo }}</div>
+            <div class="coordinator-signature-subtitle">(Visto Bueno de Técnico)</div>
+          </div>
+        @endif
       </div>
     </td>
 
@@ -1481,6 +1522,13 @@
   <div style="margin-top: 10px; font-size: 8px;">
     <strong>Observaciones Generales:</strong><br>
     {{ $inspection->general_observations }}
+  </div>
+@endif
+
+@if($workOrder->notes_delivery)
+  <div style="margin-top: 10px; font-size: 8px;">
+    <strong>Notas de Entrega:</strong><br>
+    {{ $workOrder->notes_delivery }}
   </div>
 @endif
 

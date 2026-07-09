@@ -25,7 +25,9 @@ use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
+use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Carbon\Carbon;
 use Exception;
@@ -735,6 +737,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->check() ? auth()->user()->id : null,
         'post_service_follow_up' => json_encode($followUps),
+        'notes_delivery' => $data['notes_delivery'] ?? null,
       ]);
 
       // Procesar y guardar firma si existe
@@ -786,6 +789,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
       if ($workerSignature && $workerSignature->signature_url) {
         $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
+      }
+    }
+
+    // Obtener firma del coordinador de taller de la sede de la OT
+    $workshopCoordinator = Worker::where('sede_id', $workOrder->sede_id)
+      ->whereIn('cargo_id', Position::WORKSHOP_COORDINATOR)
+      ->first();
+
+    $workshopCoordinatorSignature = null;
+    if ($workshopCoordinator) {
+      $coordinatorSignature = WorkerSignature::where('worker_id', $workshopCoordinator->id)->first();
+      if ($coordinatorSignature && $coordinatorSignature->signature_url) {
+        $workshopCoordinatorSignature = Helpers::convertUrlToBase64($coordinatorSignature->signature_url);
       }
     }
 
@@ -851,6 +867,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'customerSignatureReception' => $customerSignatureReception,
       'customerSignatureDelivery' => $customerSignatureDelivery,
       'advisorSignature' => $advisorSignature,
+      'workshopCoordinator' => $workshopCoordinator,
+      'workshopCoordinatorSignature' => $workshopCoordinatorSignature,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
       'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,

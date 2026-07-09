@@ -8,6 +8,7 @@ use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
 use App\Http\Services\common\EmailService;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\Position;
@@ -217,7 +218,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         }
 
         /**
-         * Notificar a gerencia cuando el comprobante está contabilizado
+         * Notificar a gerencia cuando el comprobante está recepcionado
          */
         if ($isNotVoided) {
           try {
@@ -295,7 +296,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
   }
 
   /**
-   * Notifica a gerencia cuando el comprobante está contabilizado
+   * Notifica a gerencia cuando el comprobante está recepcionado, con el detalle
+   * de los repuestos recibidos en la recepción (purchase_receptions / purchase_reception_details)
    */
   protected function notifyManagerInvoiceAccounted(PurchaseOrder $purchaseOrder): void
   {
@@ -304,7 +306,9 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       'sede',
       'supplier',
       'vehicle',
-      'currency'
+      'currency',
+      'reception.warehouse',
+      'reception.details.product',
     ]);
 
     // Verificar que tenga sede
@@ -360,11 +364,30 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       'currency_symbol' => $purchaseOrder->currency?->symbol ?? '',
       'total' => number_format($purchaseOrder->total, 2),
 
+      // Datos de la recepción
+      'reception_number' => $purchaseOrder->reception?->reception_number ?? 'N/A',
+      'reception_date' => $purchaseOrder->reception?->reception_date
+        ? $purchaseOrder->reception->reception_date->format('d/m/Y')
+        : 'N/A',
+      'shipping_guide_number' => $purchaseOrder->reception?->shipping_guide_number ?? 'N/A',
+      'warehouse_name' => $purchaseOrder->reception?->warehouse?->name ?? 'N/A',
+
+      // Detalle de repuestos recepcionados
+      'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
+        return [
+          'product_code' => $detail->product?->code ?? 'N/A',
+          'product_name' => $detail->product?->name ?? 'N/A',
+          'quantity_received' => $detail->quantity_received,
+          'observed_quantity' => $detail->observed_quantity,
+          'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
+        ];
+      })->all() ?? [],
+
       // URL del frontend
       'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
     ];
 
-    $subject = 'Comprobante Contabilizado - OC ' . $purchaseOrder->number;
+    $subject = 'Comprobante Recepcionado - OC ' . $purchaseOrder->number;
 
     // Enviar correo a cada gerente
     $emailService = new EmailService();
