@@ -1791,6 +1791,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Registrar anticipo histórico externo (ya emitido fuera de Nubefact, amarrado a cotización)
       Route::post('electronic-documents/register-historical-advance', [ElectronicDocumentController::class, 'registerHistoricalAdvance']);
 
+      // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
+      Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
