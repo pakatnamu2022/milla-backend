@@ -810,6 +810,7 @@ class ProductWarehouseStockService extends BaseService
         }
 
         $warehouses[] = [
+          'sede_id' => $stock->warehouse?->sede_id,
           'warehouse_id' => $stock->warehouse_id,
           'warehouse_name' => $stock->warehouse?->description,
           'quantity' => (float)$stock->quantity,
