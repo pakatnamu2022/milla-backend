@@ -260,6 +260,81 @@ class TransferReceptionService extends BaseService
   }
 
   /**
+   * Genera el movimiento de inventario de entrada para un traslado de sede
+   * que no pasa por recepción: toma los datos directamente del TRANSFER_OUT.
+   */
+  public function generateInventoryMovementFromTransferOut(InventoryMovement $transferOutMovement): InventoryMovement
+  {
+    $shippingGuide = $transferOutMovement->reference;
+
+    $shippingGuide->update([
+      'is_received' => true,
+      'received_by' => $transferOutMovement->user_id,
+      'received_date' => now(),
+    ]);
+
+    $transferInMovement = InventoryMovement::create([
+      'movement_number' => InventoryMovement::generateMovementNumber(),
+      'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
+      'item_type' => $transferOutMovement->item_type,
+      'movement_date' => now(),
+      'warehouse_id' => $transferOutMovement->warehouse_id,
+      'warehouse_destination_id' => $transferOutMovement->warehouse_destination_id,
+      'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
+      'reference_type' => ShippingGuides::class,
+      'reference_id' => $shippingGuide->id,
+      'user_id' => $transferOutMovement->user_id,
+      'status' => InventoryMovement::STATUS_APPROVED,
+      'notes' => "Ingreso por traslado de sede desde {$transferOutMovement->movement_number}",
+      'total_items' => 0,
+      'total_quantity' => 0,
+    ]);
+
+    $totalItems = 0;
+    $totalQuantity = 0;
+
+    foreach ($transferOutMovement->details as $detail) {
+      InventoryMovementDetail::create([
+        'inventory_movement_id' => $transferInMovement->id,
+        'product_id' => $detail->product_id,
+        'quantity' => $detail->quantity,
+        'unit_cost' => 0,
+        'total_cost' => 0,
+        'batch_number' => null,
+        'expiration_date' => null,
+        'notes' => "Traslado de sede {$transferOutMovement->movement_number}",
+      ]);
+
+      $totalItems++;
+      $totalQuantity += $detail->quantity;
+    }
+
+    $transferInMovement->update([
+      'total_items' => $totalItems,
+      'total_quantity' => $totalQuantity,
+    ]);
+
+    if ($transferOutMovement->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
+      foreach ($transferOutMovement->details as $detail) {
+        if (!$detail->product_id) continue;
+
+        $this->stockService->moveFromInTransitToDestination(
+          $detail->product_id,
+          $transferOutMovement->warehouse_id,
+          $transferOutMovement->warehouse_destination_id,
+          $detail->quantity
+        );
+      }
+    }
+
+    $transferOutMovement->update([
+      'status' => InventoryMovement::STATUS_APPROVED,
+    ]);
+
+    return $transferInMovement;
+  }
+
+  /**
    * Genera el movimiento de inventario inverso cuando se anula una transferencia
    * Crea un TRANSFER_IN para completar la reversión (el TRANSFER_OUT ya fue creado en cancelTransfer)
    */
