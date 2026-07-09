@@ -13,275 +13,275 @@ return [
 
   'actions' => [
     'view' => [
-      'label'         => 'Ver',
-      'description'   => 'Permite visualizar información',
-      'icon'          => 'Eye',
+      'label' => 'Ver',
+      'description' => 'Permite visualizar información',
+      'icon' => 'Eye',
       'policy_method' => 'view',
     ],
 
     'create' => [
-      'label'         => 'Crear',
-      'description'   => 'Permite crear nuevos registros',
-      'icon'          => 'Plus',
+      'label' => 'Crear',
+      'description' => 'Permite crear nuevos registros',
+      'icon' => 'Plus',
       'policy_method' => 'create',
     ],
 
     'update' => [
-      'label'         => 'Editar',
-      'description'   => 'Permite modificar registros existentes',
-      'icon'          => 'Pencil',
+      'label' => 'Editar',
+      'description' => 'Permite modificar registros existentes',
+      'icon' => 'Pencil',
       'policy_method' => 'update',
     ],
 
     'delete' => [
-      'label'         => 'Eliminar',
-      'description'   => 'Permite eliminar o anular registros',
-      'icon'          => 'Trash2',
+      'label' => 'Eliminar',
+      'description' => 'Permite eliminar o anular registros',
+      'icon' => 'Trash2',
       'policy_method' => 'delete',
     ],
 
     'export' => [
-      'label'         => 'Exportar',
-      'description'   => 'Permite exportar datos',
-      'icon'          => 'Download',
+      'label' => 'Exportar',
+      'description' => 'Permite exportar datos',
+      'icon' => 'Download',
       'policy_method' => 'export',
     ],
 
     'import' => [
-      'label'         => 'Importar',
-      'description'   => 'Permite importar datos',
-      'icon'          => 'Upload',
+      'label' => 'Importar',
+      'description' => 'Permite importar datos',
+      'icon' => 'Upload',
       'policy_method' => 'import',
     ],
 
     'authorize' => [
-      'label'         => 'Autorizar',
-      'description'   => 'Permite autorizar solicitudes o acciones',
-      'icon'          => 'CheckCircle',
+      'label' => 'Autorizar',
+      'description' => 'Permite autorizar solicitudes o acciones',
+      'icon' => 'CheckCircle',
       'policy_method' => 'authorize',
     ],
 
     'approve' => [
-      'label'         => 'Aprobar',
-      'description'   => 'Permite aprobar documentos o procesos',
-      'icon'          => 'ThumbsUp',
+      'label' => 'Aprobar',
+      'description' => 'Permite aprobar documentos o procesos',
+      'icon' => 'ThumbsUp',
       'policy_method' => 'approve',
     ],
 
     'reject' => [
-      'label'         => 'Rechazar',
-      'description'   => 'Permite rechazar solicitudes',
-      'icon'          => 'ThumbsDown',
+      'label' => 'Rechazar',
+      'description' => 'Permite rechazar solicitudes',
+      'icon' => 'ThumbsDown',
       'policy_method' => 'reject',
     ],
 
     'annul' => [
-      'label'         => 'Anular',
-      'description'   => 'Permite anular registros o documentos',
-      'icon'          => 'XCircle',
+      'label' => 'Anular',
+      'description' => 'Permite anular registros o documentos',
+      'icon' => 'XCircle',
       'policy_method' => 'annul',
     ],
 
     'print' => [
-      'label'         => 'Imprimir',
-      'description'   => 'Permite imprimir documentos',
-      'icon'          => 'Printer',
+      'label' => 'Imprimir',
+      'description' => 'Permite imprimir documentos',
+      'icon' => 'Printer',
       'policy_method' => 'print',
     ],
 
     'send' => [
-      'label'         => 'Enviar',
-      'description'   => 'Permite enviar información',
-      'icon'          => 'Send',
+      'label' => 'Enviar',
+      'description' => 'Permite enviar información',
+      'icon' => 'Send',
       'policy_method' => 'send',
     ],
 
     'duplicate' => [
-      'label'         => 'Duplicar',
-      'description'   => 'Permite duplicar registros',
-      'icon'          => 'Copy',
+      'label' => 'Duplicar',
+      'description' => 'Permite duplicar registros',
+      'icon' => 'Copy',
       'policy_method' => 'duplicate',
     ],
 
     'viewAdvisors' => [
-      'label'         => 'Ver Asesores',
-      'description'   => 'Permite visualizar la lista de asesores',
-      'icon'          => 'Users',
+      'label' => 'Ver Asesores',
+      'description' => 'Permite visualizar la lista de asesores',
+      'icon' => 'Users',
       'policy_method' => 'viewAdvisors',
     ],
 
-    'viewBranches'                 => [
-      'label'         => 'Ver por Sedes',
-      'description'   => 'Permite visualizar la lista por sedes',
-      'icon'          => 'Building',
+    'viewBranches' => [
+      'label' => 'Ver por Sedes',
+      'description' => 'Permite visualizar la lista por sedes',
+      'icon' => 'Building',
       'policy_method' => 'viewBranches',
     ],
-    'assign'                       => [
-      'label'         => 'Asignar',
-      'description'   => 'Permite asignar registros o tareas',
-      'icon'          => 'UserCheck',
+    'assign' => [
+      'label' => 'Asignar',
+      'description' => 'Permite asignar registros o tareas',
+      'icon' => 'UserCheck',
       'policy_method' => 'assign',
     ],
-    'bill'                         => [
-      'label'         => 'Facturar',
-      'description'   => 'Permite facturar cotizaciones o servicios',
-      'icon'          => 'DollarSign',
+    'bill' => [
+      'label' => 'Facturar',
+      'description' => 'Permite facturar cotizaciones o servicios',
+      'icon' => 'DollarSign',
       'policy_method' => 'bill',
     ],
-    'otOptions'                    => [
-      'label'         => 'Opciones OT',
-      'description'   => 'Permite acceder a opciones de órdenes de trabajo',
-      'icon'          => 'Settings',
+    'otOptions' => [
+      'label' => 'Opciones OT',
+      'description' => 'Permite acceder a opciones de órdenes de trabajo',
+      'icon' => 'Settings',
       'policy_method' => 'otOptions',
     ],
-    'manage'                       => [
-      'label'         => 'Gestionar',
-      'description'   => 'Permite gestionar configuraciones avanzadas',
-      'icon'          => 'Settings',
+    'manage' => [
+      'label' => 'Gestionar',
+      'description' => 'Permite gestionar configuraciones avanzadas',
+      'icon' => 'Settings',
       'policy_method' => 'manage',
     ],
-    'receive'                      => [
-      'label'         => 'Recepcionar',
-      'description'   => 'Permite recepcionar en el sistema vehículos o activos',
-      'icon'          => 'Truck',
+    'receive' => [
+      'label' => 'Recepcionar',
+      'description' => 'Permite recepcionar en el sistema vehículos o activos',
+      'icon' => 'Truck',
       'policy_method' => 'receive',
     ],
-    'history'                      => [
-      'label'         => 'Historial',
-      'description'   => 'Permite visualizar el historial de cambios o acciones',
-      'icon'          => 'History',
+    'history' => [
+      'label' => 'Historial',
+      'description' => 'Permite visualizar el historial de cambios o acciones',
+      'icon' => 'History',
       'policy_method' => 'history',
     ],
-    'maintenance'                  => [
-      'label'         => 'Mantenimiento',
-      'description'   => 'Permite realizar tareas de mantenimiento del sistema',
-      'icon'          => 'Tool',
+    'maintenance' => [
+      'label' => 'Mantenimiento',
+      'description' => 'Permite realizar tareas de mantenimiento del sistema',
+      'icon' => 'Tool',
       'policy_method' => 'maintenance',
     ],
-    'request'                      => [
-      'label'         => 'Solicitar',
-      'description'   => 'Permite realizar solicitudes dentro del sistema',
-      'icon'          => 'Send',
+    'request' => [
+      'label' => 'Solicitar',
+      'description' => 'Permite realizar solicitudes dentro del sistema',
+      'icon' => 'Send',
       'policy_method' => 'request',
     ],
-    'editDiscount'                 => [
-      'label'         => 'Editar Descuento',
-      'description'   => 'Permite editar descuentos en cotizaciones o facturas',
-      'icon'          => 'Edit3',
+    'editDiscount' => [
+      'label' => 'Editar Descuento',
+      'description' => 'Permite editar descuentos en cotizaciones o facturas',
+      'icon' => 'Edit3',
       'policy_method' => 'editDiscount',
     ],
-    'seeReception'                 => [
-      'label'         => 'Ver Recepción',
-      'description'   => 'Permite visualizar la información de recepción comercial del vehículo',
-      'icon'          => 'Eye',
+    'seeReception' => [
+      'label' => 'Ver Recepción',
+      'description' => 'Permite visualizar la información de recepción comercial del vehículo',
+      'icon' => 'Eye',
       'policy_method' => 'seeReception',
     ],
-    'requestCancellation'          => [
-      'label'         => 'Solicitar Anulación',
-      'description'   => 'Permite solicitar la anulación de un registro o documento',
-      'icon'          => 'XCircle',
+    'requestCancellation' => [
+      'label' => 'Solicitar Anulación',
+      'description' => 'Permite solicitar la anulación de un registro o documento',
+      'icon' => 'XCircle',
       'policy_method' => 'requestCancellation',
     ],
-    'migrate'                      => [
-      'label'         => 'Migrar',
-      'description'   => 'Permite realizar migraciones de datos o configuraciones',
-      'icon'          => 'XCircle',
+    'migrate' => [
+      'label' => 'Migrar',
+      'description' => 'Permite realizar migraciones de datos o configuraciones',
+      'icon' => 'XCircle',
       'policy_method' => 'migrate',
     ],
-    'generate'                     => [
-      'label'         => 'Generar',
-      'description'   => 'Permite generar documentos, reportes u otros elementos dentro del sistema',
-      'icon'          => 'XCircle',
+    'generate' => [
+      'label' => 'Generar',
+      'description' => 'Permite generar documentos, reportes u otros elementos dentro del sistema',
+      'icon' => 'XCircle',
       'policy_method' => 'generate',
     ],
-    'checklist'                    => [
-      'label'         => 'Checklist',
-      'description'   => 'Permite acceder y gestionar checklists dentro del sistema',
-      'icon'          => 'CheckSquare',
+    'checklist' => [
+      'label' => 'Checklist',
+      'description' => 'Permite acceder y gestionar checklists dentro del sistema',
+      'icon' => 'CheckSquare',
       'policy_method' => 'checklist',
     ],
-    'createSpare'                  => [
-      'label'         => 'Crear Nuevo Repuesto',
-      'description'   => 'Permite crear un nuevo repuesto directamente desde la cotización',
-      'icon'          => 'Plus',
+    'createSpare' => [
+      'label' => 'Crear Nuevo Repuesto',
+      'description' => 'Permite crear un nuevo repuesto directamente desde la cotización',
+      'icon' => 'Plus',
       'policy_method' => 'createSpare',
     ],
     'confirmCancellationReception' => [
-      'label'         => 'Confirmar Anulación Recepción',
-      'description'   => 'Permite confirmar la anulación de una recepción comercial',
-      'icon'          => 'CheckCircle',
+      'label' => 'Confirmar Anulación Recepción',
+      'description' => 'Permite confirmar la anulación de una recepción comercial',
+      'icon' => 'CheckCircle',
       'policy_method' => 'confirmCancellationReception',
     ],
-    'notify'                       => [
-      'label'         => 'Notificar',
-      'description'   => 'Permite enviar notificaciones a usuarios o grupos',
-      'icon'          => 'Bell',
+    'notify' => [
+      'label' => 'Notificar',
+      'description' => 'Permite enviar notificaciones a usuarios o grupos',
+      'icon' => 'Bell',
       'policy_method' => 'notify',
     ],
-    'salesforce'                   => [
-      'label'         => 'Salesforce',
-      'description'   => 'Permite habilitar opciones de Salesforce',
-      'icon'          => 'XCircle',
+    'salesforce' => [
+      'label' => 'Salesforce',
+      'description' => 'Permite habilitar opciones de Salesforce',
+      'icon' => 'XCircle',
       'policy_method' => 'salesforce',
     ],
-    'addSparePartsOT'              => [
-      'label'         => 'Agregar Repuestos a OT',
-      'description'   => 'Permite agregar repuestos a una orden de trabajo',
-      'icon'          => 'Plus',
+    'addSparePartsOT' => [
+      'label' => 'Agregar Repuestos a OT',
+      'description' => 'Permite agregar repuestos a una orden de trabajo',
+      'icon' => 'Plus',
       'policy_method' => 'addSparePartsOT',
     ],
-    'removeSparePartsOT'           => [
-      'label'         => 'Quitar Repuestos de OT',
-      'description'   => 'Permite quitar repuestos de una orden de trabajo',
-      'icon'          => 'XCircle',
+    'removeSparePartsOT' => [
+      'label' => 'Quitar Repuestos de OT',
+      'description' => 'Permite quitar repuestos de una orden de trabajo',
+      'icon' => 'XCircle',
       'policy_method' => 'removeSparePartsOT',
     ],
-    'assignSparePartsOT'           => [
-      'label'         => 'Asignar Repuestos a OT',
-      'description'   => 'Permite asignar repuestos a una orden de trabajo',
-      'icon'          => 'XCircle',
+    'assignSparePartsOT' => [
+      'label' => 'Asignar Repuestos a OT',
+      'description' => 'Permite asignar repuestos a una orden de trabajo',
+      'icon' => 'XCircle',
       'policy_method' => 'assignSparePartsOT',
     ],
-    'removeAssignSparePartsOT'     => [
-      'label'         => 'Remover Asignación de Repuestos a OT',
-      'description'   => 'Permite quitar repuestos a ot',
-      'icon'          => 'XCircle',
+    'removeAssignSparePartsOT' => [
+      'label' => 'Remover Asignación de Repuestos a OT',
+      'description' => 'Permite quitar repuestos a ot',
+      'icon' => 'XCircle',
       'policy_method' => 'removeAssignSparePartsOT',
     ],
-    'completePlannedWork'          => [
-      'label'         => 'Completar Trabajo Planificado',
-      'description'   => 'Permite completar un trabajo planificado en una orden de trabajo',
-      'icon'          => 'Plus',
+    'completePlannedWork' => [
+      'label' => 'Completar Trabajo Planificado',
+      'description' => 'Permite completar un trabajo planificado en una orden de trabajo',
+      'icon' => 'Plus',
       'policy_method' => 'completePlannedWork',
     ],
-    'group'                        => [
-      'label'         => 'Agrupar',
-      'description'   => 'Permite agrupar registros o elementos relacionados',
-      'icon'          => 'Box',
+    'group' => [
+      'label' => 'Agrupar',
+      'description' => 'Permite agrupar registros o elementos relacionados',
+      'icon' => 'Box',
       'policy_method' => 'group',
     ],
-    'reverseDiscount'              => [
-      'label'         => 'Revertir Descuento',
-      'description'   => 'Permite revertir descuentos aplicados en cotizaciones / ordenes de trabajo',
-      'icon'          => 'Box',
+    'reverseDiscount' => [
+      'label' => 'Revertir Descuento',
+      'description' => 'Permite revertir descuentos aplicados en cotizaciones / ordenes de trabajo',
+      'icon' => 'Box',
       'policy_method' => 'reverseDiscount',
     ],
-    'removeSparePartLabor'         => [
-      'label'         => 'Quitar Mano de Obra',
-      'description'   => 'Permite quitar mano de obra de una orden de trabajo',
-      'icon'          => 'Box',
+    'removeSparePartLabor' => [
+      'label' => 'Quitar Mano de Obra',
+      'description' => 'Permite quitar mano de obra de una orden de trabajo',
+      'icon' => 'Box',
       'policy_method' => 'removeSparePartLabor',
     ],
-    'viewExternal'                 => [
-      'label'         => 'Ver Externo',
-      'description'   => 'Permite visualizar información desde una perspectiva externa o de terceros',
-      'icon'          => 'Eye',
+    'viewExternal' => [
+      'label' => 'Ver Externo',
+      'description' => 'Permite visualizar información desde una perspectiva externa o de terceros',
+      'icon' => 'Eye',
       'policy_method' => 'viewExternal',
     ],
-    'removeSparePartQuote'         => [
-      'label'         => 'Quitar Repuesto de Cotización',
-      'description'   => 'Permite quitar un repuesto de una cotización',
-      'icon'          => 'XCircle',
+    'removeSparePartQuote' => [
+      'label' => 'Quitar Repuesto de Cotización',
+      'description' => 'Permite quitar un repuesto de una cotización',
+      'icon' => 'XCircle',
       'policy_method' => 'removeSparePartQuote',
     ],
     'regularizationAdvances'       => [
@@ -307,6 +307,12 @@ return [
       'description'   => 'Permite cambiar la ubicación de un vehículo',
       'icon'          => 'MapPin',
       'policy_method' => 'changeLocation',
+    ],
+    'generateInternalNote' => [
+      'label' => 'Generar Nota Interna',
+      'description' => 'Permite generar notas internas para las órdenes de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'generateInternalNote',
     ]
   ],
 
@@ -321,9 +327,9 @@ return [
   */
 
   'types' => [
-    'basic'    => 'Básico (CRUD)',
+    'basic' => 'Básico (CRUD)',
     'advanced' => 'Avanzado',
-    'special'  => 'Especial',
-    'admin'    => 'Administrador',
+    'special' => 'Especial',
+    'admin' => 'Administrador',
   ],
 ];

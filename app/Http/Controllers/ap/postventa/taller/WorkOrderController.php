@@ -190,6 +190,7 @@ class WorkOrderController extends Controller
           'follow_ups.*.time_start' => 'required|date_format:H:i',
           'follow_ups.*.time_end' => 'required|date_format:H:i',
           'signature_delivery' => 'required|string|regex:/^data:image\/[a-z+]+;base64,/',
+          'notes_delivery' => 'nullable|string|max:250',
         ]
       );
       $data['id'] = $id;

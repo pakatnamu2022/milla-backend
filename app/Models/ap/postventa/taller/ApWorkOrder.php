@@ -78,6 +78,7 @@ class ApWorkOrder extends Model
     'created_by',
     'post_service_follow_up',
     'signature_delivery_url',
+    'notes_delivery',
     'discard_reason_id',
     'discarded_note',
     'discarded_by',

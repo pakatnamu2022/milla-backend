@@ -25,7 +25,9 @@ use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
+use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Carbon\Carbon;
 use Exception;
@@ -699,7 +701,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo ya tiene una entrega generada');
       }
 
-      $workOrder->ensureInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
+      //$workOrder->ensureInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
 
       // Extraer firma en base64 del array
       $deliverySignature = $data['signature_delivery'] ?? null;
@@ -735,6 +737,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->check() ? auth()->user()->id : null,
         'post_service_follow_up' => json_encode($followUps),
+        'notes_delivery' => $data['notes_delivery'] ?? null,
       ]);
 
       // Procesar y guardar firma si existe
@@ -786,6 +789,20 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
       if ($workerSignature && $workerSignature->signature_url) {
         $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
+      }
+    }
+
+    // Obtener firma del coordinador de taller de la sede de la OT
+    $workshopCoordinator = Worker::where('sede_id', $workOrder->sede_id)
+      ->whereIn('cargo_id', Position::WORKSHOP_COORDINATOR)
+      ->where('status_id', 22)
+      ->first();
+
+    $workshopCoordinatorSignature = null;
+    if ($workshopCoordinator) {
+      $coordinatorSignature = WorkerSignature::where('worker_id', $workshopCoordinator->id)->first();
+      if ($coordinatorSignature && $coordinatorSignature->signature_url) {
+        $workshopCoordinatorSignature = Helpers::convertUrlToBase64($coordinatorSignature->signature_url);
       }
     }
 
@@ -851,6 +868,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'customerSignatureReception' => $customerSignatureReception,
       'customerSignatureDelivery' => $customerSignatureDelivery,
       'advisorSignature' => $advisorSignature,
+      'workshopCoordinator' => $workshopCoordinator,
+      'workshopCoordinatorSignature' => $workshopCoordinatorSignature,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
       'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,
@@ -1589,6 +1608,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      if ($workOrder->is_delivery) {
+        throw new Exception('No se puede revertir una orden de trabajo que ya ha sido entregada al cliente');
+      }
+
       if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
         throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
       }
@@ -1790,9 +1813,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener la guía de remisión de recepción del vehículo
     $shippingGuide = $vehicle->shippingGuideReceiving;
 
-    // Validar que exista la guía y su inspección de recepción
+    // Si no existe la guía o su inspección de recepción, dejarlo pasar normal
     if (!$shippingGuide || !$shippingGuide->receivingInspection) {
-      throw new Exception('El vehículo no tiene una inspección de recepción asociada. Se requiere una inspección de recepción para crear un servicio de PDI.');
+      return;
     }
 
     $receivingInspection = $shippingGuide->receivingInspection;
