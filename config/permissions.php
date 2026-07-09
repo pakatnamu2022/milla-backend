@@ -194,6 +194,12 @@ return [
       'icon' => 'XCircle',
       'policy_method' => 'generate',
     ],
+    'checklist' => [
+      'label' => 'Checklist',
+      'description' => 'Permite acceder y gestionar checklists dentro del sistema',
+      'icon' => 'CheckSquare',
+      'policy_method' => 'checklist',
+    ],
     'createSpare' => [
       'label' => 'Crear Nuevo Repuesto',
       'description' => 'Permite crear un nuevo repuesto directamente desde la cotización',
@@ -277,6 +283,36 @@ return [
       'description' => 'Permite quitar un repuesto de una cotización',
       'icon' => 'XCircle',
       'policy_method' => 'removeSparePartQuote',
+    ],
+    'regularizationAdvances'       => [
+      'label'         => 'Regularización de Anticipos',
+      'description'   => 'Permite realizar la regularización de anticipos en el sistema',
+      'icon'          => 'Plus',
+      'policy_method' => 'regularizationAdvances',
+    ],
+    'invoiceOtherSales'            => [
+      'label'         => 'Facturar Otros',
+      'description'   => 'Permite realizar ventas de otros productos',
+      'icon'          => 'Plus',
+      'policy_method' => 'invoiceOtherSales',
+    ],
+    'changeAdvisor'                => [
+      'label'         => 'Cambiar Advisor',
+      'description'   => 'Permite cambiar advisor de otros productos',
+      'icon'          => 'Plus',
+      'policy_method' => 'changeAdvisor',
+    ],
+    'changeLocation'               => [
+      'label'         => 'Cambiar Ubicación',
+      'description'   => 'Permite cambiar la ubicación de un vehículo',
+      'icon'          => 'MapPin',
+      'policy_method' => 'changeLocation',
+    ],
+    'generateInternalNote' => [
+      'label' => 'Generar Nota Interna',
+      'description' => 'Permite generar notas internas para las órdenes de trabajo',
+      'icon' => 'Plus',
+      'policy_method' => 'generateInternalNote',
     ]
   ],
 

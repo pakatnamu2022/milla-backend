@@ -100,20 +100,20 @@ class ShippingGuides extends BaseModel
   ];
 
   protected $casts = [
-    'issue_date' => 'datetime',
-    'dynamics_date' => 'date',
-    'cancelled_at' => 'datetime',
-    'sent_at' => 'datetime',
-    'accepted_at' => 'datetime',
-    'received_date' => 'datetime',
-    'migrated_at' => 'datetime',
-    'requires_sunat' => 'boolean',
+    'issue_date'          => 'datetime',
+    'dynamics_date'       => 'date',
+    'cancelled_at'        => 'datetime',
+    'sent_at'             => 'datetime',
+    'accepted_at'         => 'datetime',
+    'received_date'       => 'datetime',
+    'migrated_at'         => 'datetime',
+    'requires_sunat'      => 'boolean',
     'is_sunat_registered' => 'boolean',
-    'aceptada_por_sunat' => 'boolean',
-    'status' => 'boolean',
-    'is_received' => 'boolean',
-    'is_accounted' => 'boolean',
-    'is_annulled' => 'boolean',
+    'aceptada_por_sunat'  => 'boolean',
+    'status'              => 'boolean',
+    'is_received'         => 'boolean',
+    'is_accounted'        => 'boolean',
+    'is_annulled'         => 'boolean',
   ];
 
   // Issuer types
@@ -123,29 +123,29 @@ class ShippingGuides extends BaseModel
   const DOCUMENT_TYPE_GUIA_INTERNA = 'GUIA_INTERNA';
 
   const filters = [
-    'search' => ['document_number', 'plate', 'driver_name', 'documentSeries.series'],
-    'document_type' => '=',
-    'issuer_type' => '=',
-    'issue_date' => 'date_between',
-    'requires_sunat' => '=',
-    'is_sunat_registered' => '=',
-    'vehicle_movement_id' => '=',
-    'sede_transmitter_id' => '=',
-    'sede_receiver_id' => '=',
-    'transmitter_id' => '=', // Ubicacion Origen (Proveedor)
-    'receiver_id' => '=', // Ubicacion Destino (Cliente)
+    'search'               => ['document_number', 'plate', 'driver_name', 'documentSeries.series', 'vehicleMovement.vehicle.vin'],
+    'document_type'        => '=',
+    'issuer_type'          => '=',
+    'issue_date'           => 'date_between',
+    'requires_sunat'       => '=',
+    'is_sunat_registered'  => '=',
+    'vehicle_movement_id'  => '=',
+    'sede_transmitter_id'  => '=',
+    'sede_receiver_id'     => '=',
+    'transmitter_id'       => '=', // Ubicacion Origen (Proveedor)
+    'receiver_id'          => '=', // Ubicacion Destino (Cliente)
     'transport_company_id' => '=',
-    'driver_doc' => '=',
-    'license' => '=',
-    'plate' => '=',
-    'driver_name' => 'like',
-    'status' => '=',
-    'transfer_reason_id' => 'in',
+    'driver_doc'           => '=',
+    'license'              => '=',
+    'plate'                => '=',
+    'driver_name'          => 'like',
+    'status'               => '=',
+    'transfer_reason_id'   => 'in',
     'transfer_modality_id' => '=',
-    'area_id' => '=',
-    'send_dynamics' => '=',
-    'is_consignment' => '=',
-    'is_associated' => 'scope',
+    'area_id'              => '=',
+    'send_dynamics'        => '=',
+    'is_consignment'       => '=',
+    'is_associated'        => 'scope',
   ];
 
   const sorts = [
@@ -334,7 +334,7 @@ class ShippingGuides extends BaseModel
   {
     $this->update([
       'is_sunat_registered' => true,
-      'sent_at' => now(),
+      'sent_at'             => now(),
     ]);
   }
 
@@ -354,18 +354,18 @@ class ShippingGuides extends BaseModel
   public function markAsAccepted(array $sunatResponse): void
   {
     $this->update([
-      'is_sunat_registered' => true,
-      'aceptada_por_sunat' => true,
-      'accepted_at' => now(),
-      'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
-      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
-      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
-      'enlace' => $sunatResponse['enlace'] ?? null,
-      'enlace_del_pdf' => $sunatResponse['enlace_del_pdf'] ?? null,
-      'enlace_del_xml' => $sunatResponse['enlace_del_xml'] ?? null,
-      'enlace_del_cdr' => $sunatResponse['enlace_del_cdr'] ?? null,
+      'is_sunat_registered'   => true,
+      'aceptada_por_sunat'    => true,
+      'accepted_at'           => now(),
+      'sunat_responsecode'    => $sunatResponse['sunat_responsecode'] ?? null,
+      'sunat_description'     => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note'            => $sunatResponse['sunat_note'] ?? null,
+      'enlace'                => $sunatResponse['enlace'] ?? null,
+      'enlace_del_pdf'        => $sunatResponse['enlace_del_pdf'] ?? null,
+      'enlace_del_xml'        => $sunatResponse['enlace_del_xml'] ?? null,
+      'enlace_del_cdr'        => $sunatResponse['enlace_del_cdr'] ?? null,
       'cadena_para_codigo_qr' => $sunatResponse['cadena_para_codigo_qr'] ?? null,
-      'codigo_hash' => $sunatResponse['codigo_hash'] ?? null,
+      'codigo_hash'           => $sunatResponse['codigo_hash'] ?? null,
     ]);
   }
 
@@ -376,11 +376,11 @@ class ShippingGuides extends BaseModel
   {
     $this->update([
       'aceptada_por_sunat' => false,
-      'error_message' => $errorMessage,
+      'error_message'      => $errorMessage,
       'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
-      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
-      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
-      'sunat_soap_error' => $sunatResponse['sunat_soap_error'] ?? null,
+      'sunat_description'  => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note'         => $sunatResponse['sunat_note'] ?? null,
+      'sunat_soap_error'   => $sunatResponse['sunat_soap_error'] ?? null,
     ]);
   }
 
@@ -390,10 +390,10 @@ class ShippingGuides extends BaseModel
   public function markAsCancelled(string $reason = null): void
   {
     $this->update([
-      'status' => false,
-      'cancelled_at' => now(),
+      'status'              => false,
+      'cancelled_at'        => now(),
       'cancellation_reason' => $reason,
-      'cancelled_by' => auth()->id(),
+      'cancelled_by'        => auth()->id(),
     ]);
   }
 
@@ -430,7 +430,7 @@ class ShippingGuides extends BaseModel
 
     return [
       'correlative_number' => $correlativeNumber,
-      'correlative' => $correlative,
+      'correlative'        => $correlative,
     ];
   }
 

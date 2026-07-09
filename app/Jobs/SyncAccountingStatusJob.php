@@ -237,7 +237,7 @@ class SyncAccountingStatusJob implements ShouldQueue
   private function createInventoryMovementForWorkOrder(int $workOrderId): void
   {
     try {
-      $workOrder = ApWorkOrder::with('advancesWorkOrder')->find($workOrderId);
+      $workOrder = ApWorkOrder::with(['advancesWorkOrder', 'parts'])->find($workOrderId);
 
       if (!$workOrder) {
         return;
@@ -260,14 +260,19 @@ class SyncAccountingStatusJob implements ShouldQueue
         return; // La factura final aún no está contabilizada
       }
 
-      // Crear la salida de inventario
-      $inventoryMovementService = app(InventoryMovementService::class);
-      $movement = $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
+      // Verificar si la orden tiene repuestos (productos)
+      $hasProducts = $workOrder->parts->where('product_id', '!=', null)->isNotEmpty();
 
-      // Actualizar electronic_document_id con la factura final
-      $movement->update(['electronic_document_id' => $finalInvoice->id]);
+      // Si tiene repuestos, crear la salida de inventario
+      if ($hasProducts) {
+        $inventoryMovementService = app(InventoryMovementService::class);
+        $movement = $inventoryMovementService->createSaleFromWorkOrder($workOrderId);
 
-      // Marcar la OT como facturada y cerrada
+        // Actualizar electronic_document_id con la factura final
+        $movement->update(['electronic_document_id' => $finalInvoice->id]);
+      }
+
+      // Marcar la OT como facturada y cerrada (con o sin repuestos)
       $workOrder->update([
         'is_invoiced'                 => true,
         'status_id'                   => ApMasters::CLOSED_WORK_ORDER_ID,

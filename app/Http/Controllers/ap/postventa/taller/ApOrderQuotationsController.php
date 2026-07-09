@@ -319,6 +319,29 @@ class ApOrderQuotationsController extends Controller
   }
 
   /**
+   * Cambiar el tipo de moneda de una cotización
+   *
+   * @param Request $request
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function changeCurrency(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'currency_id' => 'required|integer|exists:type_currency,id',
+      ]);
+
+      $data = $request->only(['currency_id']);
+      $data['id'] = $id;
+
+      return $this->success($this->service->changeCurrency($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Valida que el vehículo cumpla con los requisitos para crear/actualizar una cotización
    *
    * @param int $vehicleId ID del vehículo a validar

@@ -9,6 +9,7 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
@@ -53,6 +54,7 @@ class ApOrderQuotations extends Model
     'area_id',
     'invoice_to',
     'currency_id',
+    'exchange_rate_id',
     'exchange_rate',
     'has_invoice_generated',
     'is_fully_paid',
@@ -199,6 +201,11 @@ class ApOrderQuotations extends Model
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
+  }
+
+  public function exchangeRate(): BelongsTo
+  {
+    return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
   }
 
   public function client(): BelongsTo
@@ -1015,12 +1022,15 @@ class ApOrderQuotations extends Model
     float $discountPercentage,
     float $netAmount,
     float $taxAmount
-  ): array {
+  ): array
+  {
     $subtotal = round($netAmount, 2);
     $igv = round($taxAmount, 2);
     $total = round($subtotal + $igv, 2);
-    $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
-    $precioUnitario = $quantity > 0 ? round($total / $quantity, 2) : $total;
+
+    // Según SUNAT/UBL 2.1: valor_unitario y precio_unitario deben ser ANTES del descuento
+    $valorUnitario = round($basePrice, 2);
+    $precioUnitario = round($basePrice * (1 + Constants::VAT_TAX / 100), 2);
     $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
 
     return [

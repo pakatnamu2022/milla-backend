@@ -78,6 +78,7 @@ class ApWorkOrder extends Model
     'created_by',
     'post_service_follow_up',
     'signature_delivery_url',
+    'notes_delivery',
     'discard_reason_id',
     'discarded_note',
     'discarded_by',
@@ -1461,8 +1462,10 @@ class ApWorkOrder extends Model
     $subtotal = round($netAmount, 2);
     $igv = round($taxAmount, 2);
     $total = round($subtotal + $igv, 2);
-    $valorUnitario = $quantity > 0 ? round($subtotal / $quantity, 2) : $subtotal;
-    $precioUnitario = $quantity > 0 ? round($total / $quantity, 2) : $total;
+
+    // Según SUNAT/UBL 2.1: valor_unitario y precio_unitario deben ser ANTES del descuento
+    $valorUnitario = round($basePrice, 2);
+    $precioUnitario = round($basePrice * (1 + Constants::VAT_TAX / 100), 2);
     $descuento = $discountPercentage > 0 ? round(($basePrice * $quantity) - $netAmount, 2) : null;
 
     return [

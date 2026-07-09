@@ -25,7 +25,9 @@ use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
+use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use Carbon\Carbon;
 use Exception;
@@ -134,13 +136,18 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Obtener tipo de cambio actual para USD
-      $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
-      if (!$exchangeRate) {
-        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-      } else {
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
         $data['exchange_rate'] = $exchangeRate->rate;
         $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Extract date from estimated_delivery_time and set to estimated_delivery_date
@@ -191,11 +198,22 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Create items
+      $hasPDIService = false;
       if (!empty($items)) {
         foreach ($items as $item) {
           $item['work_order_id'] = $workOrder->id;
           ApWorkOrderItem::create($item);
+
+          // Verificar si es un servicio de PDI
+          if (isset($item['type_planning_id']) && $item['type_planning_id'] == TypePlanningWorkOrder::TYPE_PLANNING_PDI_ID) {
+            $hasPDIService = true;
+          }
         }
+      }
+
+      // Si es un servicio de PDI, copiar automáticamente la recepción del vehículo
+      if ($hasPDIService) {
+        $this->copyReceivingInspectionToVehicleInspection($workOrder, $vehicle);
       }
 
       // Recalcular totales después de crear los items
@@ -242,6 +260,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if (isset($data['items'])) {
         $items = $data['items'];
         unset($data['items']);
+      }
+
+      // Solo validar y guardar el tipo de cambio si la moneda es USD
+      $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
+      if ($currencyId == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $data['exchange_rate'] = $exchangeRate->rate;
+        $data['exchange_rate_id'] = $exchangeRate->id;
+      } else {
+        // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate'] = null;
+        $data['exchange_rate_id'] = null;
       }
 
       // Update work order
@@ -668,7 +701,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo ya tiene una entrega generada');
       }
 
-      $workOrder->ensureInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
+      //$workOrder->ensureInStates([ApMasters::CLOSED_WORK_ORDER_ID], 'generar la entrega');
 
       // Extraer firma en base64 del array
       $deliverySignature = $data['signature_delivery'] ?? null;
@@ -704,6 +737,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->check() ? auth()->user()->id : null,
         'post_service_follow_up' => json_encode($followUps),
+        'notes_delivery' => $data['notes_delivery'] ?? null,
       ]);
 
       // Procesar y guardar firma si existe
@@ -755,6 +789,20 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workerSignature = WorkerSignature::where('worker_id', $advisor->id)->first();
       if ($workerSignature && $workerSignature->signature_url) {
         $advisorSignature = Helpers::convertUrlToBase64($workerSignature->signature_url);
+      }
+    }
+
+    // Obtener firma del coordinador de taller de la sede de la OT
+    $workshopCoordinator = Worker::where('sede_id', $workOrder->sede_id)
+      ->whereIn('cargo_id', Position::WORKSHOP_COORDINATOR)
+      ->where('status_id', 22)
+      ->first();
+
+    $workshopCoordinatorSignature = null;
+    if ($workshopCoordinator) {
+      $coordinatorSignature = WorkerSignature::where('worker_id', $workshopCoordinator->id)->first();
+      if ($coordinatorSignature && $coordinatorSignature->signature_url) {
+        $workshopCoordinatorSignature = Helpers::convertUrlToBase64($coordinatorSignature->signature_url);
       }
     }
 
@@ -820,6 +868,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'customerSignatureReception' => $customerSignatureReception,
       'customerSignatureDelivery' => $customerSignatureDelivery,
       'advisorSignature' => $advisorSignature,
+      'workshopCoordinator' => $workshopCoordinator,
+      'workshopCoordinatorSignature' => $workshopCoordinatorSignature,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
       'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,
@@ -995,8 +1045,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('El vehículo no tiene una guía de remisión de recepción asociada');
       }
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1011,7 +1079,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
@@ -1128,8 +1196,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Obtenemos la guía de recepción del vehículo (puede no existir para accesorios de posventa)
       $shippingGuide = $vehicle->shippingGuideReceiving;
 
+      // Preparar datos de tipo de cambio según la moneda
+      $exchangeRateData = [];
+      if ($typeCurrency == TypeCurrency::USD_ID) {
+        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+        if (!$exchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        }
+        $exchangeRateData = [
+          'exchange_rate' => $exchangeRate->rate,
+          'exchange_rate_id' => $exchangeRate->id,
+        ];
+      } else {
+        $exchangeRateData = [
+          'exchange_rate' => null,
+          'exchange_rate_id' => null,
+        ];
+      }
+
       //3. Creamos la cabecera de la OT
-      $apWorkOrder = ApWorkOrder::create([
+      $apWorkOrder = ApWorkOrder::create(array_merge([
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
@@ -1146,7 +1232,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'is_delivery' => true,
         'delivery_by' => auth()->id(),
         'created_by' => auth()->id(),
-      ]);
+      ], $exchangeRateData));
 
       //4. Generamos el detalle de la OT
       ApWorkOrderItem::create([
@@ -1522,6 +1608,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      if ($workOrder->is_delivery) {
+        throw new Exception('No se puede revertir una orden de trabajo que ya ha sido entregada al cliente');
+      }
+
       if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
         throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
       }
@@ -1712,6 +1802,56 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  /**
+   * Copia automáticamente los datos de la inspección de recepción (ap_receiving_inspection)
+   * a la inspección del vehículo (ap_vehicle_inspection) cuando es un servicio de PDI
+   */
+  private function copyReceivingInspectionToVehicleInspection(ApWorkOrder $workOrder, Vehicles $vehicle): void
+  {
+    // Obtener la guía de remisión de recepción del vehículo
+    $shippingGuide = $vehicle->shippingGuideReceiving;
+
+    // Si no existe la guía o su inspección de recepción, dejarlo pasar normal
+    if (!$shippingGuide || !$shippingGuide->receivingInspection) {
+      return;
+    }
+
+    $receivingInspection = $shippingGuide->receivingInspection;
+
+    // Crear ApVehicleInspection copiando datos de ApReceivingInspection
+    $vehicleInspection = ApVehicleInspection::create([
+      'ap_work_order_id' => $workOrder->id,
+      'photo_front_url' => $receivingInspection->photo_front_url,
+      'photo_back_url' => $receivingInspection->photo_back_url,
+      'photo_left_url' => $receivingInspection->photo_left_url,
+      'photo_right_url' => $receivingInspection->photo_right_url,
+      'general_observations' => $receivingInspection->general_observations,
+      'inspected_by' => $receivingInspection->inspected_by,
+      'inspection_date' => now(),
+      'mileage' => 0,
+      'fuel_level' => '0',
+      'oil_level' => '0',
+    ]);
+
+    // Copiar los damages de ApReceivingInspectionDamage a ApVehicleInspectionDamages
+    foreach ($receivingInspection->damages as $damage) {
+      ApVehicleInspectionDamages::create([
+        'vehicle_inspection_id' => $vehicleInspection->id,
+        'damage_type' => $damage->damage_type,
+        'x_coordinate' => $damage->x_coordinate,
+        'y_coordinate' => $damage->y_coordinate,
+        'description' => $damage->description,
+        'photo_url' => $damage->photo_url,
+      ]);
+    }
+
+    // Actualizar la OT con el vehicle_inspection_id y cambiar el estado a RECEIVED
+    $workOrder->update([
+      'vehicle_inspection_id' => $vehicleInspection->id,
+      'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
+    ]);
   }
 
   /**

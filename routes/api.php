@@ -1380,6 +1380,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
       Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
       Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
+      Route::post('vehicles/update-purchase-order-by-vin', [VehiclesController::class, 'updatePurchaseOrderByVin']);
       Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
       Route::apiResource('vehicles', VehiclesController::class)->only([
         'index',
@@ -1662,6 +1663,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
+      Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -1809,6 +1811,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Regularizar anticipos (sin enviar a Nubefact)
       Route::post('electronic-documents/regularize-advance-payment', [ElectronicDocumentController::class, 'regularizeAdvancePayment']);
+
+      // Registrar anticipo histórico externo (ya emitido fuera de Nubefact, amarrado a cotización)
+      Route::post('electronic-documents/register-historical-advance', [ElectronicDocumentController::class, 'registerHistoricalAdvance']);
+
+      // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
+      Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
