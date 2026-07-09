@@ -11,6 +11,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\BaseModel;
+use App\Models\GeneralMaster;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -322,7 +323,9 @@ class Vehicles extends BaseModel
   public static function isVehiclePaid($vehicleId): bool
   {
     try {
-      return true;
+      if ($vehicleId !== 0 && $vehicleId === GeneralMaster::where('code', 'SKIP_VEHICULO')) {
+        return true;
+      }
       // Obtener el documento electrónico usando el método centralizado
       $data = self::getElectronicDocumentWithClient($vehicleId);
       $electronicDocument = $data->electronicDocument;
