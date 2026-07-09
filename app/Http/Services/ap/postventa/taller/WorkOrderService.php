@@ -795,6 +795,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Obtener firma del coordinador de taller de la sede de la OT
     $workshopCoordinator = Worker::where('sede_id', $workOrder->sede_id)
       ->whereIn('cargo_id', Position::WORKSHOP_COORDINATOR)
+      ->where('status_id', 22)
       ->first();
 
     $workshopCoordinatorSignature = null;
@@ -1605,6 +1606,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->is_delivery) {
+        throw new Exception('No se puede revertir una orden de trabajo que ya ha sido entregada al cliente');
       }
 
       if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
