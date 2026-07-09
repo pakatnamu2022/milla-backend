@@ -446,7 +446,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         foreach ($data['items'] as $index => $itemData) {
           $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
           $descuento = (float)($itemData['descuento'] ?? 0);
-          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 3) : 0;
+          $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -722,7 +722,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         foreach ($data['items'] as $index => $itemData) {
           $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
           $descuento = (float)($itemData['descuento'] ?? 0);
-          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 3) : 0;
+          $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
@@ -3240,7 +3240,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'valor_unitario' => round((float)$item['valor_unitario'], 2),
           'precio_unitario' => round((float)$item['precio_unitario'], 2),
           'descuento' => $descuento > 0 ? $descuento : null,
-          'descuento_unitario' => $descuento > 0 ? round($descuento / $cantidad, 3) : 0,
+          'descuento_unitario' => $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
           'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
           'igv'                       => round((float)$item['igv'], 2),
@@ -3644,7 +3644,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           $itemData['ap_billing_electronic_document_id'] = $document->id;
           $itemData['line_number'] = $index + 1;
-          $itemData['descuento_unitario'] = $descuento > 0 ? round($descuento / $cantidad, 3) : 0;
+          $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
           $itemData['anticipo_regularizacion'] = 0; // NO es regularización, ES el anticipo
 
           ElectronicDocumentItem::create($itemData);
