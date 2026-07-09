@@ -19,7 +19,7 @@ class WorkOrderPlanningSessionService
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
     $this->validateWorkHours('iniciar');
 
     // Validar que no se pueda iniciar antes de la hora programada (permitiendo 0 minutos de antelación)
@@ -129,7 +129,7 @@ class WorkOrderPlanningSessionService
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
     $this->validateWorkHours('pausar');
 
     if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
@@ -179,7 +179,7 @@ class WorkOrderPlanningSessionService
       throw new Exception('Planificación no encontrada');
     }
 
-    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
     $this->validateWorkHours('continuar');
 
     // Validar que sea un trabajo del día actual (trabajos de días anteriores usan startSession)
@@ -240,7 +240,7 @@ class WorkOrderPlanningSessionService
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
     $this->validateWorkHours('completar');
 
     if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
@@ -317,7 +317,7 @@ class WorkOrderPlanningSessionService
    */
   private function validateWorkHours(string $event): void
   {
-    // Validar que el inicio esté dentro del horario laboral (8am a 6pm)
+    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
     $now = now();
     $workStartTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_START_TIME);
     $workEndTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_END_TIME);

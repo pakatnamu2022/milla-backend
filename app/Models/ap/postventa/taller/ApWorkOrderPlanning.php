@@ -45,10 +45,10 @@ class ApWorkOrderPlanning extends Model
   ];
 
   // Constantes de horario laboral
-  const WORK_START_TIME = '08:00';
+  const WORK_START_TIME = '00:00';
   const LUNCH_START_TIME = '13:00';
   const LUNCH_END_TIME = '14:24';
-  const WORK_END_TIME = '18:00';
+  const WORK_END_TIME = '23:59';
 
   const filters = [
     'search' => ['description', 'workOrder.correlative'],

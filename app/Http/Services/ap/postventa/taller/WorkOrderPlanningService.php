@@ -157,7 +157,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         // Bloque 1: desde inicio hasta inicio de almuerzo
         $blocks[] = $this->createBlock($data, $currentStart, $lunchStart);
 
-        // Bloque 2: desde fin de almuerzo hasta fin de jornada (6pm)
+        // Bloque 2: desde fin de almuerzo hasta fin de jornada (23:59)
         $blocks[] = $this->createBlock($data, $lunchEnd, $workEnd);
 
         // Calcular minutos del bloque 2
@@ -166,7 +166,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         // Calcular minutos restantes para el día siguiente
         $nextDayMinutes = $remainingMinutes - $block2Minutes;
 
-        // Bloque 3: las horas restantes van al día siguiente desde 8am
+        // Bloque 3: las horas restantes van al día siguiente desde 00:00
         if ($nextDayMinutes > 0) {
           $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($nextDayMinutes);
           $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
@@ -178,10 +178,10 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
     // Caso 3: No cruza almuerzo pero excede horario laboral
     if (($currentStart >= $lunchEnd || $end <= $lunchStart) && $end > $workEnd) {
-      // Bloque 1: desde inicio hasta fin de jornada (6pm)
+      // Bloque 1: desde inicio hasta fin de jornada (23:59)
       $blocks[] = $this->createBlock($data, $currentStart, $workEnd);
 
-      // Bloque 2: las horas restantes van al día siguiente desde 8am
+      // Bloque 2: las horas restantes van al día siguiente desde 00:00
       $remainingMinutes = $workEnd->diffInMinutes($end);
       $nextDayEnd = $nextDayWorkStart->copy()->addMinutes($remainingMinutes);
       $blocks[] = $this->createBlock($data, $nextDayWorkStart, $nextDayEnd);
@@ -346,7 +346,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         $lastEndTime = Carbon::parse($lastInternalWork->planned_end_datetime);
         $endOfWorkDay = Carbon::parse($plannedStart->format('Y-m-d') . ' ' . ApWorkOrderPlanning::WORK_END_TIME);
 
-        // 4. Verificar que el último trabajo termine exactamente a las 6pm (con tolerancia de 1 minuto)
+        // 4. Verificar que el último trabajo termine exactamente al final de la jornada (con tolerancia de 1 minuto)
         $diffInMinutes = abs($lastEndTime->diffInMinutes($endOfWorkDay, false));
 
         // Permitir una tolerancia de 1 minuto para evitar problemas con redondeos
@@ -374,21 +374,27 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     $endTime = $plannedEnd->format('H:i');
 
     // Usar constantes del modelo
-    $morningStart = ApWorkOrderPlanning::WORK_START_TIME;
-    $morningEnd = ApWorkOrderPlanning::LUNCH_START_TIME;
-    $afternoonStart = ApWorkOrderPlanning::LUNCH_END_TIME;
-    $afternoonEnd = ApWorkOrderPlanning::WORK_END_TIME;
+    $workStart = ApWorkOrderPlanning::WORK_START_TIME;
+    $workEnd = ApWorkOrderPlanning::WORK_END_TIME;
+    $lunchStart = ApWorkOrderPlanning::LUNCH_START_TIME;
+    $lunchEnd = ApWorkOrderPlanning::LUNCH_END_TIME;
 
-    $isInMorningShift = $startTime >= $morningStart && $endTime <= $morningEnd;
-    $isInAfternoonShift = $startTime >= $afternoonStart && $endTime <= $afternoonEnd;
-
-    // Validar que el horario esté dentro de los rangos permitidos
-    // Ya no validamos si cruza turnos porque ahora se divide automáticamente
-    if (!$isInMorningShift && !$isInAfternoonShift) {
+    // Validar que esté dentro del horario laboral (00:00 - 23:59)
+    if ($startTime < $workStart || $endTime > $workEnd) {
       throw new Exception(
-        "Los trabajos deben estar dentro de los horarios permitidos: " .
-        "Mañana ({$morningStart} - {$morningEnd}) o Tarde ({$afternoonStart} - {$afternoonEnd}). " .
-        "El horario asignado ({$startTime} - {$endTime}) está fuera de estos rangos."
+        "Los trabajos deben estar dentro del horario laboral ({$workStart} - {$workEnd}). " .
+        "El horario asignado ({$startTime} - {$endTime}) está fuera de este rango."
+      );
+    }
+
+    // Validar que NO caiga ni cruce el periodo de almuerzo
+    $beforeLunch = $endTime <= $lunchStart;
+    $afterLunch = $startTime >= $lunchEnd;
+
+    if (!$beforeLunch && !$afterLunch) {
+      throw new Exception(
+        "El horario asignado ({$startTime} - {$endTime}) no puede caer ni cruzar el periodo de almuerzo ({$lunchStart} - {$lunchEnd}). " .
+        "Los bloques válidos son: antes del almuerzo ({$workStart} - {$lunchStart}) o después del almuerzo ({$lunchEnd} - {$workEnd})."
       );
     }
   }
@@ -729,7 +735,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   /**
    * Permite al supervisor finalizar manualmente un trabajo cuando el trabajador olvida hacerlo
    * Recibe la hora fin y valida que no sea mayor a la hora programada
-   * Si se finaliza después de las 6pm pero el mismo día, ajusta la hora a las 6pm
+   * Si se finaliza después del fin de jornada pero el mismo día, ajusta la hora al final de la jornada
    * Si ya es otro día, no permite y debe hacerlo el encargado
    */
   public function supervisorComplete($id, array $data)
