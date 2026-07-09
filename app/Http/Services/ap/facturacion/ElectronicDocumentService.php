@@ -4023,7 +4023,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       // 8. ACTUALIZAR ESTADO DEL VEHÍCULO → FACTURADO FINAL
       // ================================================================
-      $this->createVehicleMovement($vehicle->id, $document);
+      $vehicleMovement = $this->createVehicleMovement($vehicle->id, $document);
+      $document->update(['ap_vehicle_movement_id' => $vehicleMovement->id]);
 
       // ================================================================
       // 9. ÍTEM ÚNICO
