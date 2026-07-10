@@ -80,6 +80,7 @@ class Vehicles extends BaseModel
     'is_received'                        => 'accessor_bool',
     'has_delivery_guide'                 => 'accessor_bool',
     'has_vehicle_delivery'               => 'accessor_bool',
+    'vehicleMovements.new_status_id'     => '=',
   ];
 
   const array sorts = [
