@@ -312,16 +312,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $vehicle = Vehicles::find($record->vehicle_id);
         $vehicleId = $record->vehicle_id;
 
-        // Validar si el vehículo está completamente pagado usando el método centralizado
-        $isPaid = Vehicles::isVehiclePaid($vehicleId);
-
-        if (!$isPaid) {
+        if (!$vehicle->is_paid) {
           throw new Exception('El vehículo no está completamente pagado. No se puede generar la guía de remisión.');
         }
 
-        // Obtener el documento electrónico y cliente usando el método centralizado
-        $documentData = Vehicles::getElectronicDocumentWithClient($vehicleId);
-        $client = $documentData->client;
+        $client = $record->client()->with('district')->first();
+        if (!$client) {
+          throw new Exception('No se encontró cliente asociado a la entrega');
+        }
         $originEstablishment = BusinessPartnersEstablishment::where('sede_id', $record->sede_id)->first();
 
         if (!$originEstablishment) {
