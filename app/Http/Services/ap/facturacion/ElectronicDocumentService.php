@@ -480,6 +480,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->update([
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
+
+        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        if (($data['is_advance_payment'] ?? 1) == 0) {
+          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+        }
       }
 
       // ================================================================
@@ -712,6 +717,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $this->enrichItemsCodigoFromQuotation($data['items'], (int)$effectiveQuotationId, $isAdvancePayment);
         } elseif (!empty($effectiveWorkOrderId)) {
           $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId, $isAdvancePayment);
+        }
+
+        // Guardar items existentes antes de eliminarlos para hacer match por codigo
+        $existingItems = $document->items->keyBy('codigo');
+
+        // Rellenar dyn_code desde items existentes si falta
+        foreach ($data['items'] as &$newItem) {
+          // Si el nuevo item no tiene dyn_code pero tiene codigo
+          if (empty($newItem['dyn_code']) && !empty($newItem['codigo'])) {
+            // Buscar el item existente con el mismo codigo
+            $existingItem = $existingItems->get($newItem['codigo']);
+            if ($existingItem && $existingItem->dyn_code) {
+              $newItem['dyn_code'] = $existingItem->dyn_code;
+            }
+          }
         }
 
         // Eliminar items existentes
@@ -2964,19 +2984,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
 
       if ($hasActiveAdvances) {
-        // Si tiene anticipos activos, usar concepto de anticipos
+        // Si tiene anticipos activos, SIEMPRE usar concepto de anticipos (sin importar el monto)
         $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
       } else {
-        // Si no tiene anticipos, usar concepto de venta interna normal
-        $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+        // Si NO tiene anticipos, evaluar detracción solo para FACTURAS
+        // Si el monto total de la work_order supera o iguala el monto de detracción,
+        // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
+        if ($entityTotal >= $detractionAmount && $detractionAmount > 0
+          && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+          $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+        } else {
+          // Si no aplica detracción, usar concepto de venta interna normal
+          $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+        }
       }
-    }
-
-    // Si el monto total de la work_order supera o iguala el monto de detracción,
-    // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
-    if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
-      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
     // Sobrescribir el valor enviado por el frontend
@@ -3002,16 +3023,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
-    $detractionAmount = (float)($company->detraction_amount ?? 0);
-    $entityTotal = 0;
-
     // Determinar el tipo de entidad y aplicar su lógica específica
     if (isset($data['work_order_id']) && $data['work_order_id'] && (int)$data['area_id'] === ApMasters::AREA_TALLER) {
-      $entityTotal = $this->applyDetractionForWorkOrder($data, $company);
-      $amountToCheck = $entityTotal > 0 ? $entityTotal : (float)$data['total'];
+      $this->applyDetractionForWorkOrder($data, $company);
 
-      // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
-      if ($amountToCheck >= $detractionAmount && $detractionAmount > 0 && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+      // Solo aplicar detracción si ya fue marcada con ID_SUJETA_DETRACCION
+      // (esto significa que NO tiene anticipos y cumple las condiciones de monto)
+      if (isset($data['sunat_concept_transaction_type_id'])
+        && (int)$data['sunat_concept_transaction_type_id'] === SunatConcepts::ID_SUJETA_DETRACCION) {
         $data['detraccion'] = true;
         $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
           ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
@@ -4119,6 +4138,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total'                             => $totalInput,
         'anticipo_regularizacion'           => 0,
       ]);
+
+      $vehicle->update(['is_paid' => true]);
 
       DB::commit();
 

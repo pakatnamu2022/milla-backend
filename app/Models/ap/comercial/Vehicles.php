@@ -11,7 +11,6 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\BaseModel;
-use App\Models\GeneralMaster;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -45,6 +44,7 @@ class Vehicles extends BaseModel
     'has_pdi',
     'generated_pdi',
     'mileage',
+    'is_paid',
   ];
 
   protected $casts = [
@@ -54,6 +54,7 @@ class Vehicles extends BaseModel
     'is_heavy'      => 'boolean',
     'generated_pdi' => 'boolean',
     'mileage'       => 'integer',
+    'is_paid'       => 'boolean',
   ];
 
   const array filters = [
@@ -73,7 +74,7 @@ class Vehicles extends BaseModel
     'warehouse.sede_id'                  => '=',
     'warehouse.is_received'              => '=',
     'warehouse.article_class_id'         => '=',
-    'is_paid'                            => 'accessor_bool',
+    'is_paid'                            => '=',
     'customer_id'                        => '=',
     'type_operation_id'                  => '=',
     'is_received'                        => 'accessor_bool',
@@ -92,9 +93,13 @@ class Vehicles extends BaseModel
    * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
    * @return bool
    */
-  public function getIsReceivedAttribute()
+  public function getIsReceivedAttribute(): bool
   {
-    return $this->shippingGuides()->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)->exists();
+    return $this->shippingGuides()
+      ->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)
+      ->whereHas('receivingChecklists')
+      ->where('is_accounted', true)
+      ->exists();
   }
 
   /**
@@ -314,124 +319,9 @@ class Vehicles extends BaseModel
     ];
   }
 
-  /**
-   * Valida si un vehículo está completamente pagado
-   *
-   * @param int $vehicleId ID del vehículo
-   * @return bool
-   */
-  public static function isVehiclePaid($vehicleId): bool
-  {
-    try {
-      if ($vehicleId !== 0 && $vehicleId === GeneralMaster::where('code', 'SKIP_VEHICULO')->first()->value) {
-        return true;
-      }
-      // Obtener el documento electrónico usando el método centralizado
-      $data = self::getElectronicDocumentWithClient($vehicleId);
-      $electronicDocument = $data->electronicDocument;
-
-      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
-      $totalSalePrice = $purchaseRequestQuote->sale_price;
-
-      // Obtener todos los documentos electrónicos asociados a esta cotización
-      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
-        ->where('aceptada_por_sunat', true)
-        ->where(function ($q) {
-          $q->where('anulado', false)->orWhereNull('anulado');
-        })
-        ->where('is_accounted', true)
-        ->where(function ($q) {
-          $q->where('is_annulled', false)->orWhereNull('is_annulled');
-        })
-        ->get();
-
-      // Calcular total pagado
-      $totalPaid = 0;
-      foreach ($documents as $doc) {
-        // Facturas y boletas suman al total pagado
-        if (in_array($doc->sunat_concept_document_type_id, [
-          ElectronicDocument::TYPE_FACTURA,
-          ElectronicDocument::TYPE_BOLETA
-        ])) {
-          $totalPaid += $doc->total;
-        } // Notas de crédito restan del total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
-          $totalPaid -= $doc->total;
-        } // Notas de débito suman al total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
-          $totalPaid += $doc->total;
-        }
-      }
-
-      // Calcular deuda pendiente
-      $pendingDebt = $totalSalePrice - $totalPaid;
-
-      // Consideramos pagado si la diferencia es menor a 0.01
-      return abs($pendingDebt) < 0.01;
-    } catch (\Exception $e) {
-      return false;
-    }
-  }
-
-  public static function vehiclePaid($vehicleId)
-  {
-    try {
-      // Obtener el documento electrónico usando el método centralizado
-      $data = self::getElectronicDocumentWithClient($vehicleId);
-      $electronicDocument = $data->electronicDocument;
-
-      $purchaseRequestQuote = $electronicDocument->purchaseRequestQuote;
-      $totalSalePrice = $purchaseRequestQuote->sale_price;
-
-      // Obtener todos los documentos electrónicos asociados a esta cotización
-      $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
-        ->where('aceptada_por_sunat', true)
-        ->where(function ($q) {
-          $q->where('anulado', false)->orWhereNull('anulado');
-        })
-        ->where('is_accounted', true)
-        ->where(function ($q) {
-          $q->where('is_annulled', false)->orWhereNull('is_annulled');
-        })
-        ->get();
-
-      // Calcular total pagado
-      $totalPaid = 0;
-      foreach ($documents as $doc) {
-        // Facturas y boletas suman al total pagado
-        if (in_array($doc->sunat_concept_document_type_id, [
-          ElectronicDocument::TYPE_FACTURA,
-          ElectronicDocument::TYPE_BOLETA
-        ])) {
-          $totalPaid += $doc->total;
-        } // Notas de crédito restan del total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
-          $totalPaid -= $doc->total;
-        } // Notas de débito suman al total pagado
-        elseif ($doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_DEBITO) {
-          $totalPaid += $doc->total;
-        }
-      }
-
-      // Calcular deuda pendiente
-      $pendingDebt = $totalSalePrice - $totalPaid;
-
-      // Consideramos pagado si la diferencia es menor a 0.01
-      return $pendingDebt;
-    } catch (\Exception $e) {
-      return false;
-    }
-  }
-
   public function getIsPaidAttribute(): bool
   {
-    return self::isVehiclePaid($this->id);
-  }
-
-
-  public function getPaidAttribute()
-  {
-    return self::vehiclePaid($this->id);
+    return (bool)($this->attributes['is_paid'] ?? false);
   }
 
   public function getPurchasePriceAttribute(): float

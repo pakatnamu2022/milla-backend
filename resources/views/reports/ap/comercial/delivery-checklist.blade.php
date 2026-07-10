@@ -26,9 +26,9 @@
     : 'N/A';
 
   $items          = $checklist->items ?? collect();
-  $receptionItems = $items->where('source', 'reception');
-  $poItems        = $items->where('source', 'purchase_order');
-  $manualItems    = $items->where('source', 'manual');
+  $receptionItems = $items->where('source', 'reception')->where('is_confirmed', true);
+  $poItems        = $items->where('source', 'purchase_order')->where('is_confirmed', true);
+  $manualItems    = $items->where('source', 'manual')->where('is_confirmed', true);
 @endphp
   <!doctype html>
 <html lang="es">
@@ -523,7 +523,7 @@
     </div>
   @endif
 
-  @if($items->count() === 0)
+  @if($receptionItems->count() === 0 && $poItems->count() === 0 && $manualItems->count() === 0)
     <div style="border:1px solid #d2d2d2; border-radius:6px; padding:10px 12px;
             font-style:italic; color:#aaaaaa; font-size:11px; margin-bottom:11px;">
       No se registraron ítems en este checklist.

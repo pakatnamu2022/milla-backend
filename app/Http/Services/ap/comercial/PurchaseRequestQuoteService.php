@@ -64,9 +64,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   private function getPurchaseRequestQuoteQuery($worker, Request $request)
   {
     $user = $request->user();
-//    throw new Exception($user->role->id);
     // Si es del área de TICS, ver todo
-    if ($user->role->id === Constants::TICS_ROL_ID) {
+    if ($user->role->id === Constants::TICS_ROL_ID || $user->role->id === Constants::JAC_ID) {
       return PurchaseRequestQuote::class;
     }
 
@@ -78,11 +77,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     // Buscar si el trabajador es jefe (tiene consultores asignados en ApAssignmentLeadership)
     $consultantIds = $this->getAllConsultantIds($worker->id);
 
-    // Si tiene consultores asignados, mostrar las quotes de esos consultores
+    // Si tiene consultores asignados, mostrar las quotes de esos consultores y las propias
     if ($consultantIds->isNotEmpty()) {
+      $consultantIdsWithSelf = $consultantIds->push($worker->id)->unique()->values();
       return PurchaseRequestQuote::query()
-        ->whereHas('opportunity', function ($query) use ($consultantIds) {
-          $query->whereIn('worker_id', $consultantIds);
+        ->whereHas('opportunity', function ($query) use ($consultantIdsWithSelf) {
+          $query->whereIn('worker_id', $consultantIdsWithSelf);
         });
     }
 
@@ -125,25 +125,25 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       // Preparar datos para crear el PurchaseRequestQuote
       $quoteData = [
-        'correlative' => $correlative,
-        'type_document' => $data['type_document'],
-        'opportunity_id' => $data['opportunity_id'],
-        'comment' => $data['comment'] ?? null,
-        'warranty_years' => $data['warranty_years'],
-        'warranty_km' => $data['warranty_km'],
-        'holder_id' => $data['holder_id'],
-        'vehicle_color_id' => $data['vehicle_color_id'],
-        'ap_models_vn_id' => $data['ap_models_vn_id'],
-        'ap_vehicle_id' => $data['ap_vehicle_id'] ?? null,
-        'type_currency_id' => $data['type_currency_id'],
+        'correlative'          => $correlative,
+        'type_document'        => $data['type_document'],
+        'opportunity_id'       => $data['opportunity_id'],
+        'comment'              => $data['comment'] ?? null,
+        'warranty_years'       => $data['warranty_years'],
+        'warranty_km'          => $data['warranty_km'],
+        'holder_id'            => $data['holder_id'],
+        'vehicle_color_id'     => $data['vehicle_color_id'],
+        'ap_models_vn_id'      => $data['ap_models_vn_id'],
+        'ap_vehicle_id'        => $data['ap_vehicle_id'] ?? null,
+        'type_currency_id'     => $data['type_currency_id'],
         'doc_type_currency_id' => $data['doc_type_currency_id'],
-        'exchange_rate_id' => $exchangeRateId,
-        'base_selling_price' => $data['base_selling_price'],
-        'sale_price' => $data['sale_price'],
-        'doc_sale_price' => $data['doc_sale_price'],
-        'down_payment' => $data['down_payment'] ?? null,
-        'sede_id' => $data['sede_id'] ?? null,
-        'quote_deadline' => $data['quote_deadline'] ?? null,
+        'exchange_rate_id'     => $exchangeRateId,
+        'base_selling_price'   => $data['base_selling_price'],
+        'sale_price'           => $data['sale_price'],
+        'doc_sale_price'       => $data['doc_sale_price'],
+        'down_payment'         => $data['down_payment'] ?? null,
+        'sede_id'              => $data['sede_id'] ?? null,
+        'quote_deadline'       => $data['quote_deadline'] ?? null,
       ];
 
       // Crear el registro principal
@@ -162,7 +162,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       }
 
       // Guardar costos internos (OTROS) y calcular margen
-      $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float) $data['base_selling_price']);
+      $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float)$data['base_selling_price']);
       $this->refreshMargin($purchaseRequestQuote);
 
       // Enviar correo de notificación
@@ -223,7 +223,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       // Guardar costos internos (OTROS) y recalcular margen
       if (array_key_exists('others', $data)) {
-        $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float) ($data['base_selling_price'] ?? $purchaseRequestQuote->base_selling_price));
+        $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float)($data['base_selling_price'] ?? $purchaseRequestQuote->base_selling_price));
       }
       $this->refreshMargin($purchaseRequestQuote);
 
@@ -372,32 +372,32 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
           ->first();
 
         VehicleMovement::create([
-          'movement_type' => VehicleMovement::INVENTORY,
-          'ap_vehicle_id' => $oldVehicle->id,
+          'movement_type'        => VehicleMovement::INVENTORY,
+          'ap_vehicle_id'        => $oldVehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'movement_date' => now(),
-          'observation' => 'Vehículo regresado a inventario por cambio en cotización #' . $quote->correlative,
-          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
-          'new_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'created_by' => auth()->id(),
+          'movement_date'        => now(),
+          'observation'          => 'Vehículo regresado a inventario por cambio en cotización #' . $quote->correlative,
+          'previous_status_id'   => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
+          'created_by'           => auth()->id(),
         ]);
 
         $oldVehicle->update([
           'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-          'warehouse_id' => $warehouse
+          'warehouse_id'         => $warehouse
             ? $warehouse->id
             : throw new Exception('No se encontró almacén válido para devolver el vehículo anterior.'),
         ]);
       } else {
         VehicleMovement::create([
-          'movement_type' => VehicleMovement::IN_TRANSIT,
-          'ap_vehicle_id' => $oldVehicle->id,
+          'movement_type'        => VehicleMovement::IN_TRANSIT,
+          'ap_vehicle_id'        => $oldVehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'movement_date' => now(),
-          'observation' => 'Vehículo regresado a tránsito por cambio en cotización #' . $quote->correlative,
-          'previous_status_id' => $oldVehicle->ap_vehicle_status_id,
-          'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'created_by' => auth()->id(),
+          'movement_date'        => now(),
+          'observation'          => 'Vehículo regresado a tránsito por cambio en cotización #' . $quote->correlative,
+          'previous_status_id'   => $oldVehicle->ap_vehicle_status_id,
+          'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'created_by'           => auth()->id(),
         ]);
 
         $oldVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA]);
@@ -412,14 +412,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       // igual que en el assignVehicle normal que no toca el estado del vehículo.
       if ($hasAnticipos) {
         VehicleMovement::create([
-          'movement_type' => VehicleMovement::INVOICED,
-          'ap_vehicle_id' => $newVehicleId,
+          'movement_type'        => VehicleMovement::INVOICED,
+          'ap_vehicle_id'        => $newVehicleId,
           'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO,
-          'movement_date' => now(),
-          'observation' => 'Vehículo con anticipos migrados por cambio en cotización #' . $quote->correlative,
-          'previous_status_id' => $newVehicle->ap_vehicle_status_id,
-          'new_status_id' => ApVehicleStatus::FACTURADO,
-          'created_by' => auth()->id(),
+          'movement_date'        => now(),
+          'observation'          => 'Vehículo con anticipos migrados por cambio en cotización #' . $quote->correlative,
+          'previous_status_id'   => $newVehicle->ap_vehicle_status_id,
+          'new_status_id'        => ApVehicleStatus::FACTURADO,
+          'created_by'           => auth()->id(),
         ]);
 
         $newVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
@@ -487,10 +487,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
     // Configurar PDF
     $pdf->setOptions([
-      'defaultFont' => 'Arial',
+      'defaultFont'          => 'Arial',
       'isHtml5ParserEnabled' => true,
-      'isRemoteEnabled' => false,
-      'dpi' => 96,
+      'isRemoteEnabled'      => false,
+      'dpi'                  => 96,
     ]);
 
     return $pdf;
@@ -563,15 +563,15 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       }
 
       DiscountCoupons::create([
-        'description' => $discount['description'],
-        'type' => $discount['type'],
-        'percentage' => $percentage,
-        'amount' => $amount,
+        'description'               => $discount['description'],
+        'type'                      => $discount['type'],
+        'percentage'                => $percentage,
+        'amount'                    => $amount,
 //        'igv' => $igv,
-        'valor_unitario' => $valorUnitario,
-        'precio_unitario' => $precioUnitario,
-        'is_negative' => $discount['is_negative'] ?? false,
-        'concept_code_id' => $discount['concept_id'],
+        'valor_unitario'            => $valorUnitario,
+        'precio_unitario'           => $precioUnitario,
+        'is_negative'               => $discount['is_negative'] ?? false,
+        'concept_code_id'           => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
@@ -619,7 +619,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $recipients = $this->getQuoteRecipients($quote);
 
     return [
-      'message' => 'Correo enviado a la cola correctamente.',
+      'message'    => 'Correo enviado a la cola correctamente.',
       'recipients' => array_values(array_unique($recipients)),
     ];
   }
@@ -668,64 +668,64 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       $emailData = [
         // Layout base
-        'title' => ($quote->type_document === 'COTIZACION' ? 'Nueva Cotización' : 'Nueva Solicitud de Compra') . ' — N° ' . $quote->correlative,
-        'subtitle' => ($quote->sede?->abreviatura ?? '') . ' · ' . $quote->created_at->format('d/m/Y H:i'),
-        'company_name' => 'Grupo Pakatnamu',
+        'title'              => ($quote->type_document === 'COTIZACION' ? 'Nueva Cotización' : 'Nueva Solicitud de Compra') . ' — N° ' . $quote->correlative,
+        'subtitle'           => ($quote->sede?->abreviatura ?? '') . ' · ' . $quote->created_at->format('d/m/Y H:i'),
+        'company_name'       => 'Grupo Pakatnamu',
         // Template
-        'document_type' => $quote->type_document,
-        'quote_number' => $quote->correlative,
-        'quote_date' => $quote->created_at->format('d/m/Y H:i'),
-        'quote_deadline' => $quote->quote_deadline
+        'document_type'      => $quote->type_document,
+        'quote_number'       => $quote->correlative,
+        'quote_date'         => $quote->created_at->format('d/m/Y H:i'),
+        'quote_deadline'     => $quote->quote_deadline
           ? \Carbon\Carbon::parse($quote->quote_deadline)->format('d/m/Y')
           : null,
         // Titular
-        'holder_name' => $quote->holder->full_name ?? '-',
-        'holder_doc' => $quote->holder->num_doc ?? null,
-        'holder_phone' => $quote->holder->phone ?? null,
-        'holder_email' => $quote->holder->email ?? null,
+        'holder_name'        => $quote->holder->full_name ?? '-',
+        'holder_doc'         => $quote->holder->num_doc ?? null,
+        'holder_phone'       => $quote->holder->phone ?? null,
+        'holder_email'       => $quote->holder->email ?? null,
         // Asesor
-        'advisor_name' => $quote->opportunity?->worker?->nombre_completo ?? '-',
-        'sede' => $quote->sede?->abreviatura ?? null,
+        'advisor_name'       => $quote->opportunity?->worker?->nombre_completo ?? '-',
+        'sede'               => $quote->sede?->abreviatura ?? null,
         // Vehículo
-        'brand' => $quote->apModelsVn?->family?->brand?->name ?? '-',
-        'model' => $quote->apModelsVn?->version ?? '-',
-        'color' => $quote->vehicleColor?->description ?? null,
-        'model_year' => $modelYear,
-        'warranty_years' => $quote->warranty_years,
-        'warranty_km' => $quote->warranty_km,
+        'brand'              => $quote->apModelsVn?->family?->brand?->name ?? '-',
+        'model'              => $quote->apModelsVn?->version ?? '-',
+        'color'              => $quote->vehicleColor?->description ?? null,
+        'model_year'         => $modelYear,
+        'warranty_years'     => $quote->warranty_years,
+        'warranty_km'        => $quote->warranty_km,
         // Precios
-        'currency' => $quote->typeCurrency?->code ?? 'PEN',
+        'currency'           => $quote->typeCurrency?->code ?? 'PEN',
         'base_selling_price' => $quote->base_selling_price,
-        'sale_price' => $quote->sale_price,
-        'down_payment' => $quote->down_payment,
-        'doc_currency' => $quote->docTypeCurrency?->code ?? null,
-        'doc_sale_price' => $quote->doc_sale_price,
+        'sale_price'         => $quote->sale_price,
+        'down_payment'       => $quote->down_payment,
+        'doc_currency'       => $quote->docTypeCurrency?->code ?? null,
+        'doc_sale_price'     => $quote->doc_sale_price,
         // Descuentos y accesorios
-        'discounts' => $quote->discountCoupons->map(function ($d) {
+        'discounts'          => $quote->discountCoupons->map(function ($d) {
           return [
-            'description' => $d->description,
-            'type' => $d->type,
+            'description'     => $d->description,
+            'type'            => $d->type,
             'precio_unitario' => $d->precio_unitario,
-            'is_negative' => $d->is_negative,
+            'is_negative'     => $d->is_negative,
           ];
         })->toArray(),
-        'accessories' => $quote->accessories->map(function ($a) {
+        'accessories'        => $quote->accessories->map(function ($a) {
           return [
-            'description' => $a->approvedAccessory ? $a->approvedAccessory->description : '-',
-            'quantity' => $a->quantity,
-            'total' => $a->total,
+            'description'        => $a->approvedAccessory ? $a->approvedAccessory->description : '-',
+            'quantity'           => $a->quantity,
+            'total'              => $a->total,
             'type_currency_code' => $a->typeCurrency ? $a->typeCurrency->code : 'PEN',
           ];
         })->toArray(),
         // Comentario
-        'comment' => $quote->comment,
+        'comment'            => $quote->comment,
       ];
 
       (new EmailService())->queue([
-        'to' => array_unique($recipients),
-        'subject' => $documentType . ' N° ' . $quote->correlative . ' — ' . ($quote->holder->full_name ?? ''),
+        'to'       => array_unique($recipients),
+        'subject'  => $documentType . ' N° ' . $quote->correlative . ' — ' . ($quote->holder->full_name ?? ''),
         'template' => 'emails.purchase-request-quote-created',
-        'data' => $emailData,
+        'data'     => $emailData,
       ]);
     } catch (\Exception $e) {
       \Log::error('Error al enviar correo de cotización: ' . $e->getMessage());
@@ -752,13 +752,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $total = $quantity * ($price + $additionalPrice);
 
       DetailsApprovedAccessoriesQuote::create([
-        'approved_accessory_id' => $accessory['accessory_id'],
-        'type' => $type,
-        'quantity' => $quantity,
-        'price' => $price,
-        'additional_price' => $additionalPrice,
-        'total' => $total,
-        'type_currency_id' => $approvedAccessory->type_currency_id,
+        'approved_accessory_id'     => $accessory['accessory_id'],
+        'type'                      => $type,
+        'quantity'                  => $quantity,
+        'price'                     => $price,
+        'additional_price'          => $additionalPrice,
+        'total'                     => $total,
+        'type_currency_id'          => $approvedAccessory->type_currency_id,
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
@@ -769,53 +769,53 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     PurchaseRequestQuoteOther::where('purchase_request_quote_id', $quoteId)->delete();
     foreach ($others as $item) {
       $amount = $item['type'] === 'PORCENTAJE'
-        ? $salePrice * (float) $item['value'] / 100
-        : (float) $item['value'];
+        ? $salePrice * (float)$item['value'] / 100
+        : (float)$item['value'];
       PurchaseRequestQuoteOther::create([
         'purchase_request_quote_id' => $quoteId,
-        'description' => $item['description'],
-        'type'        => $item['type'],
-        'value'       => $item['value'],
-        'amount'      => $amount,
+        'description'               => $item['description'],
+        'type'                      => $item['type'],
+        'value'                     => $item['value'],
+        'amount'                    => $amount,
       ]);
     }
   }
 
   private function calculateMargin(PurchaseRequestQuote $quote): array
   {
-    $vehicle    = $quote->vehicle;
-    $salePrice  = (float) $quote->base_selling_price;
-    $billedCost = $vehicle ? (float) $vehicle->purchase_price : 0;
+    $vehicle = $quote->vehicle;
+    $salePrice = (float)$quote->base_selling_price;
+    $billedCost = $vehicle ? (float)$vehicle->purchase_price : 0;
 
     if (!$vehicle || !$vehicle->vin || $billedCost <= 0 || $salePrice <= 0) {
       return ['margin_amount' => 0, 'margin_pct' => 0];
     }
 
-    $bonusTotal    = 0.0;
+    $bonusTotal = 0.0;
     $discountTotal = 0.0;
     foreach ($quote->discountCoupons as $d) {
       $d->is_negative
-        ? $discountTotal += (float) $d->precio_unitario
-        : $bonusTotal    += (float) $d->precio_unitario;
+        ? $discountTotal += (float)$d->precio_unitario
+        : $bonusTotal += (float)$d->precio_unitario;
     }
 
     $paidAccTotal = 0.0;
-    $giftTotal    = 0.0;
+    $giftTotal = 0.0;
     foreach ($quote->accessories as $acc) {
       $acc->type === 'OBSEQUIO'
-        ? $giftTotal    += (float) $acc->total
-        : $paidAccTotal += (float) $acc->total;
+        ? $giftTotal += (float)$acc->total
+        : $paidAccTotal += (float)$acc->total;
     }
 
     $clientRevenue = $salePrice - $discountTotal + $paidAccTotal;
-    $totalIncome   = $clientRevenue + $bonusTotal;
-    $vehicleCosts  = $billedCost + $giftTotal;
-    $netDiff       = ($totalIncome - $vehicleCosts) / 1.18;
-    $othersTotal   = (float) $quote->others->sum('amount');
+    $totalIncome = $clientRevenue + $bonusTotal;
+    $vehicleCosts = $billedCost + $giftTotal;
+    $netDiff = ($totalIncome - $vehicleCosts) / 1.18;
+    $othersTotal = (float)$quote->others->sum('amount');
 
     $realMarginAmount = $netDiff - $othersTotal;
-    $netSalePrice     = $salePrice / 1.18;
-    $realMarginPct    = $netSalePrice > 0 ? ($realMarginAmount / $netSalePrice) * 100 : 0;
+    $netSalePrice = $salePrice / 1.18;
+    $realMarginPct = $netSalePrice > 0 ? ($realMarginAmount / $netSalePrice) * 100 : 0;
 
     return [
       'margin_amount' => round($realMarginAmount, 4),
@@ -890,10 +890,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $vehicle = $purchaseRequestQuote->vehicle ?? null;
 
     return response()->json([
-      'vehicle' => $vehicle ? VehiclesResource::make($vehicle) : null,
-      'documents' => ElectronicDocumentResource::collection($documents),
+      'vehicle'         => $vehicle ? VehiclesResource::make($vehicle) : null,
+      'documents'       => ElectronicDocumentResource::collection($documents),
       'total_documents' => $documents->count(),
-      'total_amount' => $documents->sum('total'),
+      'total_amount'    => $documents->sum('total'),
     ]);
   }
 }

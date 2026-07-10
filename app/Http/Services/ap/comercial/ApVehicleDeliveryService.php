@@ -10,6 +10,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
+use Carbon\Carbon;
 use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
@@ -83,6 +84,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       return DB::transaction(function () use ($data) {
         $user = auth()->user();
         $data['advisor_id'] = $user->partner_id;
+        $data['wash_date'] = now();
 
         if (!$data['advisor_id']) {
           throw new Exception('El asesor no está asociado a un socio válido');
@@ -312,16 +314,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $vehicle = Vehicles::find($record->vehicle_id);
         $vehicleId = $record->vehicle_id;
 
-        // Validar si el vehículo está completamente pagado usando el método centralizado
-        $isPaid = Vehicles::isVehiclePaid($vehicleId);
-
-        if (!$isPaid) {
+        if (!$vehicle->is_paid) {
           throw new Exception('El vehículo no está completamente pagado. No se puede generar la guía de remisión.');
         }
 
-        // Obtener el documento electrónico y cliente usando el método centralizado
-        $documentData = Vehicles::getElectronicDocumentWithClient($vehicleId);
-        $client = $documentData->client;
+        $client = $record->client()->with('district')->first();
+        if (!$client) {
+          throw new Exception('No se encontró cliente asociado a la entrega');
+        }
         $originEstablishment = BusinessPartnersEstablishment::where('sede_id', $record->sede_id)->first();
 
         if (!$originEstablishment) {
@@ -583,7 +583,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'sede_id'                 => $data['sede_id'],
           'ap_class_article_id'     => $data['ap_class_article_id'],
           'scheduled_delivery_date' => $data['scheduled_delivery_date'],
-          'wash_date'               => now()->toDateString(),
+          'wash_date'               => now(),
           'real_wash_date'          => now(),
           'status_wash'             => 'completed',
           'status_delivery'         => 'pending',
@@ -599,6 +599,34 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     } catch (Exception $e) {
       throw new Exception('Error al crear la entrega de stock inicial: ' . $e->getMessage());
     }
+  }
+
+  public function availableSlots(string $date): array
+  {
+    $day = Carbon::parse($date);
+    $dayOfWeek = $day->dayOfWeek;
+
+    if ($dayOfWeek === Carbon::SUNDAY) {
+      return ['date' => $date, 'slots' => []];
+    }
+
+    $slots = $dayOfWeek === Carbon::SATURDAY
+      ? ApVehicleDelivery::SATURDAY_SLOTS
+      : ApVehicleDelivery::WEEKDAY_SLOTS;
+
+    $takenDatetimes = ApVehicleDelivery::whereDate('scheduled_delivery_date', $date)
+      ->whereNull('deleted_at')
+      ->pluck('scheduled_delivery_date')
+      ->map(fn($dt) => Carbon::parse($dt)->format('H:i'))
+      ->toArray();
+
+    $result = array_map(fn($time) => [
+      'time'      => $time,
+      'datetime'  => $date . ' ' . $time . ':00',
+      'available' => !in_array($time, $takenDatetimes, true),
+    ], $slots);
+
+    return ['date' => $date, 'slots' => $result];
   }
 
   public function sendToDynamic($id): JsonResponse

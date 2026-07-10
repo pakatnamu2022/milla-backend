@@ -15,6 +15,7 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
@@ -576,7 +577,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $quotation->update([
           'is_take' => 0
         ]);
+
+        // Regresar todos los items del detalle de la cotización a status 'pending'
+        $quotation->details()->update([
+          'status' => ApOrderQuotationDetails::STATUS_PENDING
+        ]);
       }
+
+      // Desasociar la cotización de la orden de trabajo
+      $workOrder->update(['order_quotation_id' => null]);
 
       // Actualizar allow_remove_associated_quote a false
       $workOrder->update([
