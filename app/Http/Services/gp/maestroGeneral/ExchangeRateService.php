@@ -111,10 +111,20 @@ class ExchangeRateService extends BaseService
    */
   public function getExchangeRate(int $toCurrencyId, string $date, string $type = ExchangeRate::TYPE_VENTA)
   {
-    return ExchangeRate::where('to_currency_id', $toCurrencyId)
+    $rate = ExchangeRate::where('to_currency_id', $toCurrencyId)
       ->where('date', $date)
       ->where('type', $type)
       ->orderBy('created_at', 'desc')
       ->first();
+
+    if (!$rate) {
+      $rate = ExchangeRate::where('to_currency_id', $toCurrencyId)
+        ->where('type', $type)
+        ->where('created_at', '>=', now()->subHours(5))
+        ->orderBy('created_at', 'desc')
+        ->first();
+    }
+
+    return $rate;
   }
 }

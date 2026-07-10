@@ -48,7 +48,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_address'               => $this->holder->direction,
       'holder_email'                 => $this->holder->email,
       'holder_phone'                 => $this->holder->phone,
-      'client_name'                  => $this->opportunity->client->full_name ?? null,
+      'client_name'                  => $this->opportunity?->client->full_name ?? null,
       'ap_vehicle_id'                => $this->ap_vehicle_id,
       'vehicle_color_id'             => $this->vehicle_color_id,
       'vehicle_color'                => $this->vehicleColor->description ?? null,
@@ -60,10 +60,10 @@ class PurchaseRequestQuoteResource extends JsonResource
       'doc_type_currency_id'         => $this->doc_type_currency_id ?? null,
       'doc_type_currency'            => $this->docTypeCurrency->code ?? null,
       'doc_type_currency_symbol'     => $this->docTypeCurrency->symbol ?? null,
-      'advisor_name'                 => $this->opportunity->worker?->nombre_completo ?? null,
+      'advisor_name'                 => $this->opportunity?->worker?->nombre_completo ?? null,
       'warranty_years'               => $this->warranty_years,
       'warranty_km'                  => $this->warranty_km,
-      'consultant'                   => $this->opportunity->worker ? WorkerResource::make($this->opportunity->worker) : null,
+      'consultant'                   => $this->opportunity?->worker ? WorkerResource::make($this->opportunity->worker) : null,
       'bonus_discounts'              => $this->discountCoupons->map(function ($discount) {
         return [
           'id'              => $discount->id,
