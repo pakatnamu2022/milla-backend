@@ -339,10 +339,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       });
     }
 
-    // Excluir vehículos ya asignados a otro PurchaseRequestQuote (solo al crear)
     $isEditing = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
+    $excludeQuoteId = $request->get('purchase_request_quote_id');
     if (!$isEditing) {
-      $excludeQuoteId = $request->get('purchase_request_quote_id');
       $query->where(function ($q) use ($excludeQuoteId) {
         $q->whereDoesntHave('purchaseRequestQuote');
         if ($excludeQuoteId) {
@@ -351,6 +350,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
           });
         }
       });
+    } else {
+      if ($excludeQuoteId) {
+        $quoteHasDocuments = ElectronicDocument::where('purchase_request_quote_id', $excludeQuoteId)->exists();
+        if ($quoteHasDocuments) {
+          $query->whereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
+            $subQ->where('id', $excludeQuoteId);
+          });
+        } else {
+          $query->where(function ($q) use ($excludeQuoteId) {
+            $q->whereDoesntHave('purchaseRequestQuote')
+              ->orWhereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
+                $subQ->where('id', $excludeQuoteId);
+              });
+          });
+        }
+      }
     }
 
     // Verificar si se solicita todos los registros sin paginación
