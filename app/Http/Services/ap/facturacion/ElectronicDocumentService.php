@@ -2827,6 +2827,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 
+    // Validar que no exista ya una factura final para esta cotización
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $existingFinalInvoice = $quotation->getFinalInvoice();
+
+      if ($existingFinalInvoice) {
+        throw new Exception(
+          'Ya existe una factura final generada para esta cotización de repuesto (N° ' .
+          $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+          '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+        );
+      }
+    }
+
     // Validar stock de productos si no es un anticipo
     $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
 
@@ -2884,14 +2897,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    // Cargar la orden de trabajo con sus relaciones necesarias
+    $workOrder = ApWorkOrder::with('advancesWorkOrder')->find($data['work_order_id']);
+
+    if (!$workOrder) {
+      throw new Exception('No se encontró la orden de trabajo especificada.');
+    }
+
+    // Validar que no exista ya una factura final para esta orden de trabajo
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $existingFinalInvoice = $workOrder->getFinalInvoice();
+
+      if ($existingFinalInvoice) {
+        throw new Exception(
+          'Ya existe una factura final generada para esta orden de trabajo (N° ' .
+          $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+          '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+        );
+      }
+    }
+
     // Validar reglas de negocio de la orden de trabajo
     $this->validateWorkOrderInvoice($data);
 
     // Validar stock reservado para repuestos de la OT
-    $workOrder = ApWorkOrder::find($data['work_order_id']);
-    if ($workOrder) {
-      $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
-    }
+    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
   }
 
   // ========================================================================
