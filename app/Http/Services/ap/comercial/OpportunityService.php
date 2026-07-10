@@ -194,7 +194,9 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       $workerIdToUse = $requestWorkerId;
     }
 
-    $accessibleWorkerIds = $this->getAccessibleWorkerIds($workerIdToUse);
+    $accessibleWorkerIds = array_unique(
+      array_merge($this->getAccessibleWorkerIds($workerIdToUse), [$workerId])
+    );
 
     $query = OpportunityAction::whereHas('opportunity', function ($q) use ($accessibleWorkerIds) {
       $q->whereIn('worker_id', $accessibleWorkerIds);

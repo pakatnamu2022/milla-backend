@@ -78,11 +78,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     // Buscar si el trabajador es jefe (tiene consultores asignados en ApAssignmentLeadership)
     $consultantIds = $this->getAllConsultantIds($worker->id);
 
-    // Si tiene consultores asignados, mostrar las quotes de esos consultores
+    // Si tiene consultores asignados, mostrar las quotes de esos consultores y las propias
     if ($consultantIds->isNotEmpty()) {
+      $consultantIdsWithSelf = $consultantIds->push($worker->id)->unique()->values();
       return PurchaseRequestQuote::query()
-        ->whereHas('opportunity', function ($query) use ($consultantIds) {
-          $query->whereIn('worker_id', $consultantIds);
+        ->whereHas('opportunity', function ($query) use ($consultantIdsWithSelf) {
+          $query->whereIn('worker_id', $consultantIdsWithSelf);
         });
     }
 
