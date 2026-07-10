@@ -1393,6 +1393,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
       Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
 
+      // Vehicles Delivery - Horarios disponibles
+      Route::get('vehiclesDelivery/available-slots', [ApVehicleDeliveryController::class, 'availableSlots']);
+
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
