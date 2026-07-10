@@ -44,6 +44,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultant
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApCampaignController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
@@ -1187,6 +1188,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::apiResource('apSafeCreditGoal', ApSafeCreditGoalController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::get('campaigns/active', [ApCampaignController::class, 'active']);
+      Route::apiResource('campaigns', ApCampaignController::class)->only([
         'index',
         'show',
         'store',

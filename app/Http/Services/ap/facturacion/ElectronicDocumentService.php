@@ -4004,6 +4004,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'status'             => ElectronicDocument::STATUS_ACCEPTED,
         'aceptada_por_sunat' => 1,
+        'anulado'            => 0,
+        'is_annulled'        => 0,
         'migration_status'   => 'completed',
         'is_accounted'       => 1,
         'sent_at'            => $emissionCarbon,
@@ -4021,10 +4023,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $document = ElectronicDocument::create($documentData);
 
       // ================================================================
-      // 8. ACTUALIZAR ESTADO DEL VEHÍCULO → FACTURADO FINAL
+      // 8. ENLAZAR MOVIMIENTO EXISTENTE DEL VEHÍCULO
+      // Para ventas históricas el estado ya fue ajustado manualmente;
+      // reutilizamos el último movimiento existente en lugar de crear uno nuevo.
       // ================================================================
-      $vehicleMovement = $this->createVehicleMovement($vehicle->id, $document);
-      $document->update(['ap_vehicle_movement_id' => $vehicleMovement->id]);
+      $existingMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+        ->whereNull('deleted_at')
+        ->latest('id')
+        ->first();
+
+      if ($existingMovement) {
+        $document->update(['ap_vehicle_movement_id' => $existingMovement->id]);
+      } else {
+        $vehicleMovement = $this->createVehicleMovement($vehicle->id, $document);
+        $document->update(['ap_vehicle_movement_id' => $vehicleMovement->id]);
+      }
 
       // ================================================================
       // 9. ÍTEM ÚNICO
