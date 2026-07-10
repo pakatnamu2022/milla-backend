@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\gp\maestroGeneral\Sede;
 use Carbon\Carbon;
 
 class StoreApVehicleDeliveryRequest extends StoreRequest
@@ -47,12 +48,20 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             return;
           }
 
+          // Obtener sedes del mismo shop para validar el slot agrupado
+          $requestedSedeId = $this->input('sede_id');
+          $sede = $requestedSedeId ? Sede::find($requestedSedeId) : null;
+          $sedeIdsDelShop = $sede && $sede->shop_id
+            ? Sede::where('shop_id', $sede->shop_id)->pluck('id')
+            : collect(array_filter([$requestedSedeId]));
+
           $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $deliveryDate->format('Y-m-d H:i:s'))
+            ->whereIn('sede_id', $sedeIdsDelShop)
             ->whereNull('deleted_at')
             ->exists();
 
           if ($slotTaken) {
-            $fail("El horario {$requestedTime} del {$deliveryDate->format('d/m/Y')} ya está ocupado. Elija otro horario.");
+            $fail("El horario $requestedTime del " . $deliveryDate->format('d/m/Y') . " ya está ocupado en este shop. Elija otro horario.");
           }
         },
       ],
