@@ -512,8 +512,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     // Calcular deuda pendiente
     $pendingDebt = $totalSalePrice - $totalPaid;
 
-    // Usar el método centralizado para determinar si está pagado
-    $isPaid = Vehicles::isVehiclePaid($vehicle->id);
+    $isPaid = $vehicle->is_paid;
 
     // Determinar estado de la deuda
     $debtStatus = 'Sin deuda';

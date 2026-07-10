@@ -312,10 +312,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $vehicle = Vehicles::find($record->vehicle_id);
         $vehicleId = $record->vehicle_id;
 
-        // Validar si el vehículo está completamente pagado usando el método centralizado
-        $isPaid = Vehicles::isVehiclePaid($vehicleId);
-
-        if (!$isPaid) {
+        if (!$vehicle->is_paid) {
           throw new Exception('El vehículo no está completamente pagado. No se puede generar la guía de remisión.');
         }
 

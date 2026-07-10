@@ -34,10 +34,10 @@ class ApVehicleDelivery extends Model
   ];
 
   protected $casts = [
-    'scheduled_delivery_date' => 'date',
-    'real_delivery_date' => 'date',
-    'wash_date' => 'date',
-    'real_wash_date' => 'date',
+    'scheduled_delivery_date' => 'datetime',
+    'real_delivery_date' => 'datetime',
+    'wash_date' => 'datetime',
+    'real_wash_date' => 'datetime',
     'is_accounted' => 'boolean',
   ];
 
