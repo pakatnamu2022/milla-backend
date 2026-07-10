@@ -9,8 +9,8 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'items_receiving' => 'nullable|array',
-      'items_receiving.*' => 'nullable|integer|exists:ap_delivery_receiving_checklist,id',
+      'items_receiving' => 'required|array|min:1',
+      'items_receiving.*' => 'integer|exists:ap_delivery_receiving_checklist,id',
       'shipping_guide_id' => 'required|integer|exists:shipping_guides,id',
       'note' => 'nullable|string|max:250',
       'kilometers' => 'required|numeric|min:0',
@@ -31,6 +31,14 @@ class UpdateApReceivingChecklistRequest extends StoreRequest
       'accessories.*.description' => 'required_with:accessories|string|max:500',
       'accessories.*.quantity' => 'nullable|numeric|min:0',
       'accessories.*.received' => 'required_with:accessories|boolean',
+    ];
+  }
+
+  public function messages(): array
+  {
+    return [
+      'items_receiving.required' => 'Debe seleccionar al menos un ítem de recepción.',
+      'items_receiving.min' => 'Debe seleccionar al menos un ítem de recepción.',
     ];
   }
 
