@@ -35,25 +35,25 @@ class ApVehicleDelivery extends Model
 
   protected $casts = [
     'scheduled_delivery_date' => 'datetime',
-    'real_delivery_date' => 'datetime',
-    'wash_date' => 'datetime',
-    'real_wash_date' => 'datetime',
-    'is_accounted' => 'boolean',
+    'real_delivery_date'      => 'datetime',
+    'wash_date'               => 'datetime',
+    'real_wash_date'          => 'datetime',
+    'is_accounted'            => 'boolean',
   ];
 
   const WEEKDAY_SLOTS = ['09:00', '10:00', '11:00', '12:00', '15:00', '16:00', '17:00'];
   const SATURDAY_SLOTS = ['10:00', '11:00', '12:00'];
 
   const filters = [
-    'search' => ['vehicle.vin', 'advisor.nombre_completo'],
+    'search'                  => ['vehicle.vin', 'advisor.nombre_completo'],
     'vehicle_id',
-    'scheduled_delivery_date',
-    'real_delivery_date' => 'date_between',
+    'scheduled_delivery_date' => 'date_between',
+    'real_delivery_date'      => 'date_between',
     'advisor_id',
     'sede_id',
     'status_delivery',
     'status_wash',
-    'has_vehicle_delivery' => 'accessor_bool',
+    'has_vehicle_delivery'    => 'accessor_bool',
   ];
 
   const sorts = [
