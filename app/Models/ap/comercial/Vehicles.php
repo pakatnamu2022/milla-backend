@@ -11,6 +11,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\BaseModel;
+use App\Models\GeneralMaster;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -289,7 +290,9 @@ class Vehicles extends BaseModel
       $query->where('ap_vehicle_id', $vehicleId);
     })
       ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
+      ->where(function ($q) {
+        $q->where('anulado', false)->orWhereNull('anulado');
+      })
       ->whereNotNull('client_id')
       ->whereNotNull('purchase_request_quote_id')
       ->with(['client', 'purchaseRequestQuote'])
@@ -320,6 +323,9 @@ class Vehicles extends BaseModel
   public static function isVehiclePaid($vehicleId): bool
   {
     try {
+      if ($vehicleId !== 0 && $vehicleId === GeneralMaster::where('code', 'SKIP_VEHICULO')->first()->value) {
+        return true;
+      }
       // Obtener el documento electrónico usando el método centralizado
       $data = self::getElectronicDocumentWithClient($vehicleId);
       $electronicDocument = $data->electronicDocument;
@@ -330,9 +336,13 @@ class Vehicles extends BaseModel
       // Obtener todos los documentos electrónicos asociados a esta cotización
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
+        ->where(function ($q) {
+          $q->where('anulado', false)->orWhereNull('anulado');
+        })
         ->where('is_accounted', true)
-        ->where('is_annulled', false)
+        ->where(function ($q) {
+          $q->where('is_annulled', false)->orWhereNull('is_annulled');
+        })
         ->get();
 
       // Calcular total pagado
@@ -376,9 +386,13 @@ class Vehicles extends BaseModel
       // Obtener todos los documentos electrónicos asociados a esta cotización
       $documents = ElectronicDocument::where('purchase_request_quote_id', $purchaseRequestQuote->id)
         ->where('aceptada_por_sunat', true)
-        ->where('anulado', false)
+        ->where(function ($q) {
+          $q->where('anulado', false)->orWhereNull('anulado');
+        })
         ->where('is_accounted', true)
-        ->where('is_annulled', false)
+        ->where(function ($q) {
+          $q->where('is_annulled', false)->orWhereNull('is_annulled');
+        })
         ->get();
 
       // Calcular total pagado

@@ -28,10 +28,10 @@
               </table>
 
               <h1 style="margin:16px 0 4px 0;font:700 20px/1.25 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Comprobante Recepcionado
+                Recepción por Compra
               </h1>
               <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                OC {{ $purchase_order_number }} &mdash; Movimiento de inventario generado
+                {{ $purchase_order_number }} &mdash; Movimiento de inventario generado
               </p>
             </td>
           </tr>
@@ -45,11 +45,13 @@
                 Hola <strong style="font-weight:600;">{{ $recipient_name }}</strong>,
               </p>
               <p style="margin:0 0 20px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                El comprobante de la orden de compra <strong>{{ $purchase_order_number }}</strong> ha sido recepcionado exitosamente y se ha generado el movimiento de inventario correspondiente.
+                El comprobante de la orden de compra <strong>{{ $purchase_order_number }}</strong> ha sido recepcionado
+                exitosamente y se ha generado el movimiento de inventario correspondiente.
               </p>
 
               <!-- Datos del comprobante -->
-              <div style="margin:0 0 16px 0;padding:14px 16px;border-left:4px solid #059669;background:#d1fae5;border-radius:0 10px 10px 0;">
+              <div
+                style="margin:0 0 16px 0;padding:14px 16px;border-left:4px solid #059669;background:#d1fae5;border-radius:0 10px 10px 0;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#059669;margin-bottom:6px;">
                   Información del Comprobante
                 </div>
@@ -64,7 +66,8 @@
               </div>
 
               <!-- Datos del proveedor -->
-              <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+              <div
+                style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">
                   Proveedor
                 </div>
@@ -75,7 +78,8 @@
               </div>
 
               <!-- Datos de la recepción -->
-              <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+              <div
+                style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">
                   Recepción
                 </div>
@@ -89,7 +93,8 @@
 
               <!-- Detalle de repuestos recepcionados -->
               @if(!empty($reception_items))
-                <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+                <div
+                  style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                   <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:10px;">
                     Repuestos Recepcionados
                   </div>
@@ -99,16 +104,22 @@
                       <td style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Código</td>
                       <td style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Repuesto</td>
                       <td style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Tipo</td>
-                      <td align="right" style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Cant. Recibida</td>
-                      <td align="right" style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Cant. Observada</td>
+                      <td align="right" style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Cant.
+                        Recibida
+                      </td>
+                      <td align="right" style="padding:6px 8px;border-bottom:1px solid #e6e8ee;font-weight:600;">Cant.
+                        Observada
+                      </td>
                     </tr>
                     @foreach($reception_items as $item)
                       <tr>
                         <td style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['product_code'] }}</td>
                         <td style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['product_name'] }}</td>
                         <td style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['reception_type'] }}</td>
-                        <td align="right" style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['quantity_received'] }}</td>
-                        <td align="right" style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['observed_quantity'] }}</td>
+                        <td align="right"
+                            style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['quantity_received'] }}</td>
+                        <td align="right"
+                            style="padding:6px 8px;border-bottom:1px solid #f2f3f7;">{{ $item['observed_quantity'] }}</td>
                       </tr>
                     @endforeach
                   </table>
@@ -117,7 +128,8 @@
 
               <!-- Datos del vehículo (si existe) -->
               @if($vehicle_plate !== 'N/A' || $vehicle_vin !== 'N/A')
-                <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+                <div
+                  style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                   <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">
                     Vehículo
                   </div>
@@ -133,7 +145,8 @@
               @endif
 
               <!-- Total -->
-              <div style="margin:0 0 20px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+              <div
+                style="margin:0 0 20px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">
                   Total
                 </div>
@@ -150,7 +163,8 @@
                   Información
                 </strong>
                 <div style="font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                  El comprobante ha sido recepcionado y el movimiento de inventario se ha generado correctamente en el sistema.
+                  El comprobante ha sido recepcionado y el movimiento de inventario se ha generado correctamente en el
+                  sistema.
                 </div>
               </div>
 
@@ -179,8 +193,13 @@
 
   <style>
     @media (max-width: 480px) {
-      h1 { font-size: 18px !important; }
-      p, td, div { font-size: 13px !important; }
+      h1 {
+        font-size: 18px !important;
+      }
+
+      p, td, div {
+        font-size: 13px !important;
+      }
     }
   </style>
 @endsection

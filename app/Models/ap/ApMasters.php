@@ -24,9 +24,9 @@ class ApMasters extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
-    'type' => 'in_or_equal',
-    'status' => '=',
+    'search'                  => ['code', 'description', 'type'],
+    'type'                    => 'in_or_equal',
+    'status'                  => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
 
@@ -96,6 +96,7 @@ class ApMasters extends Model
   /**
    * AREAS
    */
+  const string TYPE_AREA = 'AREA';
   const int AREA_COMERCIAL = 826;
   const int AREA_POSVENTA = 825;
   const int AREA_TALLER = 881;
