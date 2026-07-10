@@ -24,26 +24,37 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
-        'after_or_equal:' . now()->addDay()->format('Y-m-d'), // Debe ser al menos 24 horas después
+        'after_or_equal:' . now()->addDay()->format('Y-m-d'),
         function ($attribute, $value, $fail) {
           $deliveryDate = Carbon::parse($value);
-          $isSaturday = $deliveryDate->isSaturday();
-          $maxDeliveriesPerDay = $isSaturday ? 3 : 6;
+          $dayOfWeek = $deliveryDate->dayOfWeek; // 0=domingo, 6=sábado
 
-          // Contar entregas ya programadas para esa fecha
-          $deliveriesCount = ApVehicleDelivery::where('scheduled_delivery_date', $deliveryDate->format('Y-m-d'))
+          if ($dayOfWeek === Carbon::SUNDAY) {
+            $fail('No se programan entregas los domingos.');
+            return;
+          }
+
+          $allowedSlots = $dayOfWeek === Carbon::SATURDAY
+            ? ApVehicleDelivery::SATURDAY_SLOTS
+            : ApVehicleDelivery::WEEKDAY_SLOTS;
+
+          $requestedTime = $deliveryDate->format('H:i');
+
+          if (!in_array($requestedTime, $allowedSlots, true)) {
+            $slotsLabel = implode(', ', $allowedSlots);
+            $dayLabel = $dayOfWeek === Carbon::SATURDAY ? 'sábado' : 'día de semana';
+            $fail("El horario '$requestedTime' no está disponible para un $dayLabel. Horarios permitidos: $slotsLabel.");
+            return;
+          }
+
+          $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $deliveryDate->format('Y-m-d H:i:s'))
             ->whereNull('deleted_at')
-            ->count();
+            ->exists();
 
-          if ($deliveriesCount >= $maxDeliveriesPerDay) {
-            $dayType = $isSaturday ? 'sábado' : 'día';
-            $fail("Ya se alcanzó el máximo de $maxDeliveriesPerDay entregas permitidas para este $dayType.");
+          if ($slotTaken) {
+            $fail("El horario {$requestedTime} del {$deliveryDate->format('d/m/Y')} ya está ocupado. Elija otro horario.");
           }
         },
-      ],
-      'wash_date' => [
-        'nullable',
-        'date',
       ],
       'ap_class_article_id' => [
         'required',
@@ -67,11 +78,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'vehicle_id.required' => 'El vehículo es obligatorio.',
       'vehicle_id.integer' => 'El vehículo debe ser un número entero.',
       'vehicle_id.exists' => 'El vehículo no existe.',
-      'scheduled_delivery_date.required' => 'La fecha de entrega programada es obligatoria.',
-      'scheduled_delivery_date.date' => 'La fecha de entrega programada no es una fecha válida.',
-      'scheduled_delivery_date.after_or_equal' => 'La entrega debe programarse con al menos 24 horas de anticipación (un día antes).',
-      'wash_date.date' => 'La fecha de lavado no es una fecha válida.',
-      'actual_delivery_date.date' => 'La fecha de entrega real no es una fecha válida.',
+      'scheduled_delivery_date.required' => 'La fecha y hora de entrega programada es obligatoria.',
+      'scheduled_delivery_date.date' => 'La fecha y hora de entrega programada no es válida.',
+      'scheduled_delivery_date.after_or_equal' => 'La entrega debe programarse con al menos 24 horas de anticipación.',
       'ap_class_article_id.required' => 'La clase de artículo es obligatoria.',
       'ap_class_article_id.integer' => 'La clase de artículo debe ser un número entero.',
       'ap_class_article_id.exists' => 'La clase de artículo no existe.',

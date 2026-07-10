@@ -93,9 +93,13 @@ class Vehicles extends BaseModel
    * Accesor para determinar si el vehículo ha sido recibido en bodega: 'is_received'
    * @return bool
    */
-  public function getIsReceivedAttribute()
+  public function getIsReceivedAttribute(): bool
   {
-    return $this->shippingGuides()->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)->exists();
+    return $this->shippingGuides()
+      ->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)
+      ->whereHas('receivingChecklists')
+      ->where('is_accounted', true)
+      ->exists();
   }
 
   /**
@@ -317,7 +321,7 @@ class Vehicles extends BaseModel
 
   public function getIsPaidAttribute(): bool
   {
-    return (bool) ($this->attributes['is_paid'] ?? false);
+    return (bool)($this->attributes['is_paid'] ?? false);
   }
 
   public function getPurchasePriceAttribute(): float

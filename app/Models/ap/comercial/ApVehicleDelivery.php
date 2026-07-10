@@ -41,6 +41,9 @@ class ApVehicleDelivery extends Model
     'is_accounted' => 'boolean',
   ];
 
+  const WEEKDAY_SLOTS = ['09:00', '10:00', '11:00', '12:00', '15:00', '16:00', '17:00'];
+  const SATURDAY_SLOTS = ['10:00', '11:00', '12:00'];
+
   const filters = [
     'search' => ['vehicle.vin', 'advisor.nombre_completo'],
     'vehicle_id',
