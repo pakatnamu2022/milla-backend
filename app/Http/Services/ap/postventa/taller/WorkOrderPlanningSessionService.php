@@ -13,26 +13,30 @@ class WorkOrderPlanningSessionService
 {
   /**
    * Inicia una nueva sesión de trabajo
+   *
+   * NOTA: El técnico tiene libertad total para iniciar trabajos en cualquier momento.
+   * Las validaciones restrictivas fueron removidas para permitir flexibilidad operativa.
+   * El sistema registra los tiempos reales para auditoría.
+   *
    * @throws Exception
    */
   public function startSession($planningId, ?string $notes = null)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
-    $this->validateWorkHours('iniciar');
+    // VALIDACIÓN REMOVIDA: Horario laboral (00:00 a 23:59)
+    // Razón: El técnico puede iniciar en cualquier momento, se registra el tiempo real
+    // $this->validateWorkHours('iniciar');
 
-    // Validar que no se pueda iniciar antes de la hora programada (permitiendo 0 minutos de antelación)
-    if ($planning->planned_start_datetime) {
-      $now = now();
-      $allowedStartTime = $planning->planned_start_datetime->copy()->subMinutes(0);
-
-      if ($now->lt($allowedStartTime)) {
-        $plannedTime = $planning->planned_start_datetime->format('d/m/Y h:i A');
-        $earliestTime = $allowedStartTime->format('h:i A');
-        throw new Exception("No puede iniciar el trabajo antes de la hora programada. El trabajo está programado para {$plannedTime}. Puede iniciarlo desde las {$earliestTime}.");
-      }
-    }
+    // VALIDACIÓN REMOVIDA: No iniciar antes de la hora programada
+    // Razón: El técnico puede iniciar en cualquier momento (antes, después o en la hora programada)
+    // if ($planning->planned_start_datetime) {
+    //   $now = now();
+    //   $allowedStartTime = $planning->planned_start_datetime->copy()->subMinutes(0);
+    //   if ($now->lt($allowedStartTime)) {
+    //     throw new Exception("No puede iniciar el trabajo antes de la hora programada...");
+    //   }
+    // }
 
     $userId = auth()->id();
     $user = User::find($userId);
@@ -55,66 +59,55 @@ class WorkOrderPlanningSessionService
       throw new Exception('Planificación no encontrada');
     }
 
-    // Verificar si ya hay una sesión activa
-    if ($planning->activeSession()) {
-      throw new Exception('Ya existe una sesión activa. Debe pausarla o completarla antes de iniciar una nueva.');
-    }
+    // VALIDACIÓN REMOVIDA: Sesión activa en este mismo trabajo
+    // Razón: Permitir múltiples sesiones activas (ya se maneja en el modelo)
+    // if ($planning->activeSession()) {
+    //   throw new Exception('Ya existe una sesión activa...');
+    // }
 
-    // Validar que no tenga otro trabajo en progreso (evitar trabajos en paralelo)
-    $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
-      ->where('id', '!=', $planning->id)
-      ->whereHas('sessions', function ($query) {
-        $query->where('status', 'in_progress')->whereNull('end_datetime');
-      })
-      ->first();
+    // VALIDACIÓN REMOVIDA: Otro trabajo en progreso (trabajos paralelos)
+    // Razón: El técnico puede tener múltiples trabajos activos simultáneamente
+    // $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
+    //   ->where('id', '!=', $planning->id)
+    //   ->whereHas('sessions', function ($query) {
+    //     $query->where('status', 'in_progress')->whereNull('end_datetime');
+    //   })
+    //   ->first();
+    // if ($otherActiveWork) {
+    //   throw new Exception('No puede iniciar este trabajo porque ya tiene otro trabajo en progreso...');
+    // }
 
-    if ($otherActiveWork) {
-      throw new Exception('No puede iniciar este trabajo porque ya tiene otro trabajo en progreso. Debe completar o pausar el trabajo actual primero.');
-    }
+    // VALIDACIÓN REMOVIDA: No pasó más de la mitad del tiempo asignado
+    // Razón: El técnico puede iniciar en cualquier momento, lo importante es la duración real
+    // if ($planning->planned_start_datetime && $planning->planned_end_datetime) {
+    //   $now = now();
+    //   $plannedStart = $planning->planned_start_datetime;
+    //   $plannedEnd = $planning->planned_end_datetime;
+    //   $totalDurationMinutes = $plannedStart->diffInMinutes($plannedEnd);
+    //   $halfDurationMinutes = $totalDurationMinutes / 2;
+    //   $timeLimit = $plannedStart->copy()->addMinutes($halfDurationMinutes);
+    //   if ($now->gt($timeLimit)) {
+    //     throw new Exception('No se puede iniciar el trabajo porque ya pasó más de la mitad del tiempo asignado...');
+    //   }
+    // }
 
-    // Validar que no haya pasado más de la mitad del tiempo asignado
-    if ($planning->planned_start_datetime && $planning->planned_end_datetime) {
-      $now = now();
-      $plannedStart = $planning->planned_start_datetime;
-      $plannedEnd = $planning->planned_end_datetime;
-
-      // Calcular la duración total en minutos
-      $totalDurationMinutes = $plannedStart->diffInMinutes($plannedEnd);
-
-      // Calcular la mitad de la duración
-      $halfDurationMinutes = $totalDurationMinutes / 2;
-
-      // Calcular el límite de tiempo (hora de inicio + mitad de duración)
-      $timeLimit = $plannedStart->copy()->addMinutes($halfDurationMinutes);
-
-      // Si la hora actual es mayor al límite, lanzar error
-      if ($now->gt($timeLimit)) {
-        throw new Exception('No se puede iniciar el trabajo porque ya pasó más de la mitad del tiempo asignado. Debe reprogramar este trabajo.');
-      }
-    }
-
-    // Validar que no se adelante trabajos del mismo día (debe ir en orden cronológico)
-    // Solo considera trabajos PENDIENTES (ignora los pausados)
-    if ($planning->planned_start_datetime) {
-      $currentPlannedStart = $planning->planned_start_datetime;
-      $dayStart = $currentPlannedStart->copy()->startOfDay();
-      $dayEnd = $currentPlannedStart->copy()->endOfDay();
-
-      // Buscar trabajos PENDIENTES anteriores del mismo día (ignora pausados)
-      $previousPendingWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
-        ->where('id', '!=', $planning->id)
-        ->where('status', 'planned')
-        ->whereBetween('planned_start_datetime', [$dayStart, $dayEnd])
-        ->where('planned_start_datetime', '<', $currentPlannedStart)
-        ->orderBy('planned_start_datetime', 'asc')
-        ->first();
-
-      if ($previousPendingWork) {
-        $previousStartTime = $previousPendingWork->planned_start_datetime->format('h:i A');
-        $currentStartTime = $currentPlannedStart->format('h:i A');
-        throw new Exception("No puede iniciar el trabajo de las {$currentStartTime} porque tiene un trabajo anterior programado para las {$previousStartTime} que aún no ha iniciado. Debe completar los trabajos en orden cronológico.");
-      }
-    }
+    // VALIDACIÓN REMOVIDA: Orden cronológico (no adelantar trabajos)
+    // Razón: El técnico puede iniciar trabajos en cualquier orden
+    // if ($planning->planned_start_datetime) {
+    //   $currentPlannedStart = $planning->planned_start_datetime;
+    //   $dayStart = $currentPlannedStart->copy()->startOfDay();
+    //   $dayEnd = $currentPlannedStart->copy()->endOfDay();
+    //   $previousPendingWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
+    //     ->where('id', '!=', $planning->id)
+    //     ->where('status', 'planned')
+    //     ->whereBetween('planned_start_datetime', [$dayStart, $dayEnd])
+    //     ->where('planned_start_datetime', '<', $currentPlannedStart)
+    //     ->orderBy('planned_start_datetime', 'asc')
+    //     ->first();
+    //   if ($previousPendingWork) {
+    //     throw new Exception("No puede iniciar el trabajo de las {$currentStartTime} porque tiene un trabajo anterior...");
+    //   }
+    // }
 
     $planning->startSession($notes);
 
@@ -123,18 +116,24 @@ class WorkOrderPlanningSessionService
 
   /**
    * Pausa el trabajo actual
+   *
+   * NOTA: El técnico puede pausar en cualquier momento, sin restricciones de horario o fecha.
+   *
    * @throws Exception
    */
   public function pauseSession($planningId, ?string $pauseReason = null)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
-    $this->validateWorkHours('pausar');
+    // VALIDACIÓN REMOVIDA: Horario laboral (00:00 a 23:59)
+    // Razón: El técnico puede pausar en cualquier momento
+    // $this->validateWorkHours('pausar');
 
-    if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
-      throw new Exception('No se puede pausar una sesión de un trabajo con fecha planificada pasada');
-    }
+    // VALIDACIÓN REMOVIDA: No ser de fecha pasada
+    // Razón: El técnico puede pausar trabajos de días anteriores
+    // if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
+    //   throw new Exception('No se puede pausar una sesión de un trabajo con fecha planificada pasada');
+    // }
 
     $userId = auth()->id();
     $user = User::find($userId);
@@ -169,6 +168,10 @@ class WorkOrderPlanningSessionService
 
   /**
    * Continúa un trabajo pausado
+   *
+   * NOTA: El técnico puede continuar trabajos en cualquier momento, sin restricciones de horario,
+   * fecha ni trabajos activos simultáneos.
+   *
    * @throws Exception
    */
   public function continueSession($planningId, ?string $notes = null)
@@ -179,13 +182,15 @@ class WorkOrderPlanningSessionService
       throw new Exception('Planificación no encontrada');
     }
 
-    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
-    $this->validateWorkHours('continuar');
+    // VALIDACIÓN REMOVIDA: Horario laboral (00:00 a 23:59)
+    // Razón: El técnico puede continuar en cualquier momento
+    // $this->validateWorkHours('continuar');
 
-    // Validar que sea un trabajo del día actual (trabajos de días anteriores usan startSession)
-    if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
-      throw new Exception('No se puede continuar un trabajo de días anteriores. Los trabajos pausados de días pasados se reinician como nuevas sesiones.');
-    }
+    // VALIDACIÓN REMOVIDA: No ser de días anteriores
+    // Razón: El técnico puede continuar trabajos de días pasados
+    // if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
+    //   throw new Exception('No se puede continuar un trabajo de días anteriores...');
+    // }
 
     $userId = auth()->id();
     $user = User::find($userId);
@@ -215,17 +220,17 @@ class WorkOrderPlanningSessionService
       throw new Exception('Este trabajo no tiene sesiones pausadas. Use "iniciar" en lugar de "continuar"');
     }
 
-    // Validar que no tenga otro trabajo en progreso (evitar trabajos en paralelo)
-    $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
-      ->where('id', '!=', $planning->id)
-      ->whereHas('sessions', function ($query) {
-        $query->where('status', 'in_progress')->whereNull('end_datetime');
-      })
-      ->first();
-
-    if ($otherActiveWork) {
-      throw new Exception('No puede continuar este trabajo porque ya tiene otro trabajo en progreso. Debe completar o pausar el trabajo actual primero.');
-    }
+    // VALIDACIÓN REMOVIDA: Otro trabajo en progreso (trabajos paralelos)
+    // Razón: El técnico puede tener múltiples trabajos activos simultáneamente
+    // $otherActiveWork = ApWorkOrderPlanning::where('worker_id', $planning->worker_id)
+    //   ->where('id', '!=', $planning->id)
+    //   ->whereHas('sessions', function ($query) {
+    //     $query->where('status', 'in_progress')->whereNull('end_datetime');
+    //   })
+    //   ->first();
+    // if ($otherActiveWork) {
+    //   throw new Exception('No puede continuar este trabajo porque ya tiene otro trabajo en progreso...');
+    // }
 
     $planning->continueSession($notes);
 
@@ -234,18 +239,24 @@ class WorkOrderPlanningSessionService
 
   /**
    * Completa el trabajo
+   *
+   * NOTA: El técnico puede completar trabajos en cualquier momento, sin restricciones de horario o fecha.
+   *
    * @throws Exception
    */
   public function completeWork($planningId)
   {
     $planning = ApWorkOrderPlanning::with(['worker', 'workOrder'])->find($planningId);
 
-    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
-    $this->validateWorkHours('completar');
+    // VALIDACIÓN REMOVIDA: Horario laboral (00:00 a 23:59)
+    // Razón: El técnico puede completar en cualquier momento
+    // $this->validateWorkHours('completar');
 
-    if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
-      throw new Exception('No se puede completar un trabajo con fecha planificada pasada');
-    }
+    // VALIDACIÓN REMOVIDA: No ser de fecha pasada
+    // Razón: El técnico puede completar trabajos de días anteriores
+    // if ($planning->planned_start_datetime && $planning->planned_start_datetime->startOfDay()->lt(now()->startOfDay())) {
+    //   throw new Exception('No se puede completar un trabajo con fecha planificada pasada');
+    // }
 
     $userId = auth()->id();
     $user = User::find($userId);
@@ -314,26 +325,32 @@ class WorkOrderPlanningSessionService
 
   /**
    * Validar hora de entrada y salida
+   *
+   * MÉTODO DEPRECATED: Ya no se utiliza después de la liberalización de validaciones.
+   * Se mantiene comentado para documentación histórica.
+   *
+   * Anteriormente validaba que las acciones del técnico estuvieran dentro del horario laboral.
+   * Ahora el técnico tiene libertad total para iniciar/pausar/continuar/completar en cualquier momento.
    */
-  private function validateWorkHours(string $event): void
-  {
-    // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
-    $now = now();
-    $workStartTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_START_TIME);
-    $workEndTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_END_TIME);
-
-    if ($now->lessThan($workStartTime)) {
-      throw new Exception(
-        'No puede ' . $event . ' el trabajo antes de la hora de entrada (' . ApWorkOrderPlanning::WORK_START_TIME . '). ' .
-        'Hora actual: ' . $now->format('H:i')
-      );
-    }
-
-    if ($now->greaterThan($workEndTime)) {
-      throw new Exception(
-        'No puede ' . $event . ' el trabajo después de la hora de salida (' . ApWorkOrderPlanning::WORK_END_TIME . '). ' .
-        'Hora actual: ' . $now->format('H:i')
-      );
-    }
-  }
+  // private function validateWorkHours(string $event): void
+  // {
+  //   // Validar que el inicio esté dentro del horario laboral (00:00 a 23:59)
+  //   $now = now();
+  //   $workStartTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_START_TIME);
+  //   $workEndTime = $now->copy()->setTimeFromTimeString(ApWorkOrderPlanning::WORK_END_TIME);
+  //
+  //   if ($now->lessThan($workStartTime)) {
+  //     throw new Exception(
+  //       'No puede ' . $event . ' el trabajo antes de la hora de entrada (' . ApWorkOrderPlanning::WORK_START_TIME . '). ' .
+  //       'Hora actual: ' . $now->format('H:i')
+  //     );
+  //   }
+  //
+  //   if ($now->greaterThan($workEndTime)) {
+  //     throw new Exception(
+  //       'No puede ' . $event . ' el trabajo después de la hora de salida (' . ApWorkOrderPlanning::WORK_END_TIME . '). ' .
+  //       'Hora actual: ' . $now->format('H:i')
+  //     );
+  //   }
+  // }
 }

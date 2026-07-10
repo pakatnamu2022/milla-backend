@@ -115,13 +115,18 @@ class ApWorkOrderPlanning extends Model
 
   /**
    * Inicia una nueva sesión de trabajo
+   *
+   * NOTA: El técnico tiene libertad total para iniciar trabajos en cualquier momento,
+   * sin restricciones de horario programado ni trabajos activos simultáneos.
+   * Lo importante es registrar la duración real para auditoría.
    */
   public function startSession(?string $notes = null): ApWorkOrderPlanningSession
   {
-    // Verificar si ya hay una sesión activa
-    if ($this->activeSession()) {
-      throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de iniciar una nueva.');
-    }
+    // VALIDACIÓN REMOVIDA: Anteriormente se validaba que no hubiera sesión activa
+    // Razón: El técnico puede tener múltiples trabajos activos simultáneamente
+    // if ($this->activeSession()) {
+    //   throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de iniciar una nueva.');
+    // }
 
     $workOrder = $this->workOrder;
     $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
@@ -163,13 +168,17 @@ class ApWorkOrderPlanning extends Model
 
   /**
    * Continúa un trabajo con sesiones pausadas
+   *
+   * NOTA: El técnico puede continuar cualquier trabajo en cualquier momento,
+   * incluso si tiene otros trabajos activos simultáneamente.
    */
   public function continueSession(?string $notes = null): ApWorkOrderPlanningSession
   {
-    // Verificar si ya hay una sesión activa
-    if ($this->activeSession()) {
-      throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de continuar.');
-    }
+    // VALIDACIÓN REMOVIDA: Anteriormente se validaba que no hubiera sesión activa
+    // Razón: El técnico puede tener múltiples trabajos activos simultáneamente
+    // if ($this->activeSession()) {
+    //   throw new \Exception('Ya existe una sesión activa. Debe finalizarla antes de continuar.');
+    // }
 
     // Verificar que el trabajo esté en progreso (no 'planned' ni 'completed')
     if (!in_array($this->status, ['in_progress', 'planned'])) {
