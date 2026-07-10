@@ -128,6 +128,10 @@ class ApDeliveryChecklistService
       throw new Exception('El checklist debe tener al menos un ítem antes de confirmarlo');
     }
 
+    if ($checklist->items()->where('is_confirmed', true)->count() === 0) {
+      throw new Exception('Debe confirmar al menos un ítem del checklist antes de finalizar');
+    }
+
     $checklist->update([
       'status' => ApDeliveryChecklist::STATUS_CONFIRMED,
       'confirmed_at' => now(),
