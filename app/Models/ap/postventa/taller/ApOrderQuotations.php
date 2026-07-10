@@ -668,6 +668,66 @@ class ApOrderQuotations extends Model
   }
 
   /**
+   * Obtiene el total gravada (sin IGV) de los anticipos activos
+   * Usa directamente los totales gravados almacenados en los documentos electrónicos
+   * para evitar problemas de redondeo por divisiones
+   *
+   * @return float
+   */
+  public function getTotalGravadaFromAdvances(): float
+  {
+    $totalGravada = 0;
+    $activeAdvances = $this->getActiveAdvances();
+
+    foreach ($activeAdvances as $advance) {
+      $advanceGravada = $this->getTotalGravadaForAdvance($advance);
+      $totalGravada += $advanceGravada;
+    }
+
+    return (float)$totalGravada;
+  }
+
+  /**
+   * Total gravada (sin IGV) de un anticipo puntual
+   * Considera notas de crédito y débito sobre el anticipo
+   *
+   * @param ElectronicDocument $advance
+   * @return float
+   */
+  private function getTotalGravadaForAdvance(ElectronicDocument $advance): float
+  {
+    $totalGravada = $advance->total_gravada ?? 0;
+
+    // Restar total gravada de notas de crédito sobre este anticipo
+    $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->whereNotIn('sunat_concept_credit_note_type_id', [
+        SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+        SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+      ])
+      ->get();
+
+    foreach ($creditNotesOnAdvance as $creditNote) {
+      $totalGravada -= ($creditNote->total_gravada ?? 0);
+    }
+
+    // Sumar total gravada de notas de débito sobre este anticipo
+    $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->get();
+
+    foreach ($debitNotesOnAdvance as $debitNote) {
+      $totalGravada += ($debitNote->total_gravada ?? 0);
+    }
+
+    return (float)$totalGravada;
+  }
+
+  /**
    * Get all documents organized in a tree structure with cancelled and active documents.
    * Active documents include their credit/debit note modifications.
    *
@@ -874,9 +934,10 @@ class ApOrderQuotations extends Model
       $totalIgv += $item['igv'];
     }
 
-    // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
+    // total_anticipo es informativo (lo ya cobrado en anticipos sin IGV), por eso se mantiene
     // positivo aunque su línea en items_invoice esté en negativo.
-    $totalAnticipo = $this->getNetAmountFromAdvances();
+    // Usamos directamente los totales gravados almacenados para evitar problemas de redondeo
+    $totalAnticipo = $this->getTotalGravadaFromAdvances();
 
     // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
     // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
