@@ -13,6 +13,7 @@ class ApVehicleDeliveryResource extends JsonResource
     return [
       'id'                      => $this->id,
       'vehicle_id'              => $this->vehicle_id,
+      'vehicle'                 => VehiclesResource::make($this->vehicle),
       'vin'                     => $this->vehicle->vin,
       'scheduled_delivery_date' => $this->scheduled_delivery_date,
       'wash_date'               => $this->wash_date,
