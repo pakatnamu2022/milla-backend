@@ -844,6 +844,66 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Obtiene el subtotal (sin IGV) de los anticipos activos
+   * Usa directamente los subtotales almacenados en los documentos electrónicos
+   * para evitar problemas de redondeo por divisiones
+   *
+   * @return float
+   */
+  public function getSubtotalFromAdvances(): float
+  {
+    $totalSubtotal = 0;
+    $activeAdvances = $this->getActiveAdvances();
+
+    foreach ($activeAdvances as $advance) {
+      $advanceSubtotal = $this->getSubtotalForAdvance($advance);
+      $totalSubtotal += $advanceSubtotal;
+    }
+
+    return (float)$totalSubtotal;
+  }
+
+  /**
+   * Subtotal (sin IGV) de un anticipo puntual
+   * Considera notas de crédito y débito sobre el anticipo
+   *
+   * @param ElectronicDocument $advance
+   * @return float
+   */
+  private function getSubtotalForAdvance(ElectronicDocument $advance): float
+  {
+    $subtotal = $advance->total_gravada ?? 0;
+
+    // Restar subtotales de notas de crédito sobre este anticipo
+    $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->whereNotIn('sunat_concept_credit_note_type_id', [
+        SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+        SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+      ])
+      ->get();
+
+    foreach ($creditNotesOnAdvance as $creditNote) {
+      $subtotal -= ($creditNote->total_gravada ?? 0);
+    }
+
+    // Sumar subtotales de notas de débito sobre este anticipo
+    $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->get();
+
+    foreach ($debitNotesOnAdvance as $debitNote) {
+      $subtotal += ($debitNote->total_gravada ?? 0);
+    }
+
+    return (float)$subtotal;
+  }
+
+  /**
    * Valida que el nuevo final_amount no sea menor al monto ya pagado en anticipos
    * Se usa antes de permitir ediciones que reduzcan el monto de la OT
    *
@@ -1237,7 +1297,8 @@ class ApWorkOrder extends Model
 
     // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
     // positivo aunque su línea en items_invoice esté en negativo.
-    $totalAnticipo = $this->getNetAmountFromAdvances();
+    // Usamos directamente los subtotales almacenados para evitar problemas de redondeo
+    $totalAnticipo = $this->getSubtotalFromAdvances();
 
     // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
     // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
@@ -1458,7 +1519,8 @@ class ApWorkOrder extends Model
     float $discountPercentage,
     float $netAmount,
     float $taxAmount
-  ): array {
+  ): array
+  {
     $subtotal = round($netAmount, 2);
     $igv = round($taxAmount, 2);
     $total = round($subtotal + $igv, 2);

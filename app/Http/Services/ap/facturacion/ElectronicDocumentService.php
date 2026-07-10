@@ -2892,9 +2892,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function applyDetractionForQuotation(array &$data, Company $company): float
   {
-    // Para quotation, no hay una entidad total específica en este contexto
-    // Solo retornar 0, la detracción se calculará sobre el monto del documento
-    return 0;
+    $quotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+    if (!$quotation) {
+      return 0;
+    }
+
+    $entityTotal = (float)$quotation->total_amount;
+
+    /**
+     * Calcular sunat_concept_transaction_type_id para order_quotation
+     * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
+     */
+    $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
+
+    // Determinar el concepto base según el tipo de documento
+    if ($isAdvancePayment) {
+      // Es un anticipo
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    } else {
+      // Es venta interna final
+      // Verificar si la cotización tiene anticipos activos (válidos, no anulados)
+      $hasActiveAdvances = $quotation->getActiveAdvances()->count() > 0;
+
+      if ($hasActiveAdvances) {
+        // Si tiene anticipos activos, usar concepto de anticipos
+        $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+      } else {
+        // Si no tiene anticipos, usar concepto de venta interna normal
+        $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+      }
+    }
+
+    // Sobrescribir el valor enviado por el frontend
+    $data['sunat_concept_transaction_type_id'] = $transactionConceptId;
+
+    return $entityTotal;
   }
 
   /**
@@ -2927,7 +2960,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
     } else {
       // Es venta interna final
-      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+      // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
+      $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
+
+      if ($hasActiveAdvances) {
+        // Si tiene anticipos activos, usar concepto de anticipos
+        $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+      } else {
+        // Si no tiene anticipos, usar concepto de venta interna normal
+        $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
+      }
     }
 
     // Si el monto total de la work_order supera o iguala el monto de detracción,
@@ -2985,7 +3027,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
         }
       }
-    } else if (isset($data['detraccion']) && $data['detraccion']) {
+    } elseif (isset($data['order_quotation_id']) && $data['order_quotation_id'] && (int)$data['area_id'] === ApMasters::AREA_TALLER) {
+      // Para cotizaciones de taller, solo establecer el sunat_concept_transaction_type_id
+      // No hay detracción para cotizaciones de taller
+      $this->applyDetractionForQuotation($data, $company);
+    } elseif (isset($data['detraccion']) && $data['detraccion']) {
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
@@ -3967,6 +4013,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       $emissionCarbon = Carbon::parse($emissionDate);
 
+      // Verificar si la cotización tiene anticipos activos (válidos, no anulados)
+      $hasActiveAdvances = ElectronicDocument::where('purchase_request_quote_id', $quote->id)
+        ->where('is_advance_payment', 1)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      // Si tiene anticipos activos, usar concepto de anticipos (36), sino usar venta interna normal (33)
+      $transactionTypeId = $hasActiveAdvances
+        ? SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS
+        : SunatConcepts::ID_VENTA_INTERNA;
+
       $documentData = [
         'sunat_concept_document_type_id'    => $data['sunat_concept_document_type_id'],
         'series_id'                         => $seriesRecord->id,
@@ -3974,7 +4033,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'numero'                            => $data['numero'],
         'full_number'                       => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
         'is_advance_payment'                => 0,
-        'sunat_concept_transaction_type_id' => SunatConcepts::ID_VENTA_INTERNA,
+        'sunat_concept_transaction_type_id' => $transactionTypeId,
 
         'area_id'                   => $data['area_id'],
         'purchase_request_quote_id' => $quote->id,
