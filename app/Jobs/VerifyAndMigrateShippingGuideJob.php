@@ -161,6 +161,19 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       throw new Exception("La guía de remisión del área COMERCIAL debe tener un vehicle_movement_id válido. ShippingGuide ID: {$shippingGuide->id}");
     }
 
+    // Guías de compra solo migran después de ser recepcionadas
+    if (
+      $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA
+      && !$shippingGuide->is_received
+    ) {
+      Log::info('Guía de compra aún no recepcionada, se omite la migración', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'transfer_reason_id' => $shippingGuide->transfer_reason_id,
+        'is_received'        => $shippingGuide->is_received,
+      ]);
+      return;
+    }
+
     if ($shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
       $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
