@@ -72,7 +72,9 @@ class ElectronicDocumentItem extends BaseModel
 
   public function setDescuentoUnitarioAttribute($value)
   {
-    $this->attributes['descuento_unitario'] = round((float)$value, 2);
+    // Truncar a 3 decimales (no redondear)
+    // Ejemplo: 76.4766666 -> 76.476 (NO 76.477)
+    $this->attributes['descuento_unitario'] = floor((float)$value * 1000) / 1000;
   }
 
   public function setSubtotalAttribute($value)
