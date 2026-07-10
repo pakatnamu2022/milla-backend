@@ -714,6 +714,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId, $isAdvancePayment);
         }
 
+        // Guardar items existentes antes de eliminarlos para hacer match por codigo
+        $existingItems = $document->items->keyBy('codigo');
+
+        // Rellenar dyn_code desde items existentes si falta
+        foreach ($data['items'] as &$newItem) {
+          // Si el nuevo item no tiene dyn_code pero tiene codigo
+          if (empty($newItem['dyn_code']) && !empty($newItem['codigo'])) {
+            // Buscar el item existente con el mismo codigo
+            $existingItem = $existingItems->get($newItem['codigo']);
+            if ($existingItem && $existingItem->dyn_code) {
+              $newItem['dyn_code'] = $existingItem->dyn_code;
+            }
+          }
+        }
+
         // Eliminar items existentes
         $document->items()->delete();
 
