@@ -113,15 +113,28 @@ class PurchaseRequestQuote extends Model
    */
   public function getIsPaidAttribute(): bool
   {
-    $total = $this->electronicDocuments()
+    $baseQuery = fn($q) => $q
       ->where('aceptada_por_sunat', 1)
       ->where(function ($query) {
         $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
           ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
       })
       ->where('anulado', 0)
-      ->whereNull('deleted_at')
+      ->whereNull('deleted_at');
+
+    $hasFinalDocument = $this->electronicDocuments()
+      ->tap($baseQuery)
+      ->where('is_advance_payment', 0)
+      ->exists();
+
+    if (!$hasFinalDocument) {
+      return false;
+    }
+
+    $total = $this->electronicDocuments()
+      ->tap($baseQuery)
       ->sum('total');
+
     return $this->sale_price == $total;
   }
 
