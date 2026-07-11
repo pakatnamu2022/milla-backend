@@ -70,6 +70,18 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
+  public function availableSlots(Request $request)
+  {
+    try {
+      $request->validate([
+        'date' => 'required|date_format:Y-m-d',
+      ]);
+      return $this->success($this->service->availableSlots($request->input('date')));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   /**
    * Lista vehículos de stock inicial en estado VENDIDO NO ENTREGADO sin entrega registrada
    */

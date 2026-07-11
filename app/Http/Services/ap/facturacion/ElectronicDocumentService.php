@@ -480,6 +480,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $document->update([
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
+
+        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        if (($data['is_advance_payment'] ?? 1) == 0) {
+          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+        }
       }
 
       // ================================================================
@@ -4163,6 +4168,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total'                             => $totalInput,
         'anticipo_regularizacion'           => 0,
       ]);
+
+      $vehicle->update(['is_paid' => true]);
 
       DB::commit();
 
