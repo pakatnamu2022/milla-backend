@@ -90,6 +90,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $user = auth()->user();
         $data['advisor_id'] = $user->partner_id;
         $data['wash_date'] = now();
+        $data['real_wash_date'] = now();
+        $data['status_wash'] = 'completed';
         $isExtraordinary = !empty($data['is_extraordinary']);
 
         if (!$data['advisor_id']) {
@@ -103,10 +105,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           if ($existingDelivery) {
             throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
           }
-        }
-
-        if (isset($data['wash_date']) && $data['wash_date'] > $data['scheduled_delivery_date']) {
-          throw new Exception('La fecha de lavado no puede ser mayor a la fecha de entrega programada');
         }
 
         // Obtener el documento electrónico y cliente usando el método centralizado
