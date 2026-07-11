@@ -44,7 +44,7 @@ class ElectronicDocumentItem extends BaseModel
     'valor_unitario' => 'decimal:2',
     'precio_unitario' => 'decimal:2',
     'descuento' => 'decimal:2',
-    'descuento_unitario' => 'decimal:2',
+    'descuento_unitario' => 'decimal:3',
     'subtotal' => 'decimal:2',
     'igv' => 'decimal:2',
     'total' => 'decimal:2',
@@ -72,7 +72,9 @@ class ElectronicDocumentItem extends BaseModel
 
   public function setDescuentoUnitarioAttribute($value)
   {
-    $this->attributes['descuento_unitario'] = round((float)$value, 2);
+    // Truncar a 3 decimales (no redondear)
+    // Ejemplo: 76.4766666 -> 76.476 (NO 76.477)
+    $this->attributes['descuento_unitario'] = floor((float)$value * 1000) / 1000;
   }
 
   public function setSubtotalAttribute($value)

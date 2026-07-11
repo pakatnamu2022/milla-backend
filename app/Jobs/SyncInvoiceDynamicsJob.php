@@ -370,18 +370,18 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         ? $purchaseOrder->reception->reception_date->format('d/m/Y')
         : 'N/A',
       'shipping_guide_number' => $purchaseOrder->reception?->shipping_guide_number ?? 'N/A',
-      'warehouse_name' => $purchaseOrder->reception?->warehouse?->name ?? 'N/A',
+      'warehouse_name' => $purchaseOrder->reception?->warehouse?->dyn_code ?? 'N/A',
 
       // Detalle de repuestos recepcionados
       'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
-        return [
-          'product_code' => $detail->product?->code ?? 'N/A',
-          'product_name' => $detail->product?->name ?? 'N/A',
-          'quantity_received' => $detail->quantity_received,
-          'observed_quantity' => $detail->observed_quantity,
-          'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
-        ];
-      })->all() ?? [],
+          return [
+            'product_code' => $detail->product?->code ?? 'N/A',
+            'product_name' => $detail->product?->name ?? 'N/A',
+            'quantity_received' => $detail->quantity_received,
+            'observed_quantity' => $detail->observed_quantity,
+            'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
+          ];
+        })->all() ?? [],
 
       // URL del frontend
       'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',

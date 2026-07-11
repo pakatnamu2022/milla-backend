@@ -79,6 +79,8 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
+use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TotpController;
@@ -179,6 +181,8 @@ use App\Http\Controllers\tp\comercial\DriverController;
 use App\Http\Controllers\tp\comercial\DriverLocationConfigurationController;
 use App\Http\Controllers\tp\comercial\DriverLocationController;
 use App\Http\Controllers\tp\comercial\DriverStatusLogController;
+use App\Http\Controllers\tp\configuracionComercial\TipoVehiculoController;
+use App\Http\Controllers\tp\configuracionComercial\VehiculoController;
 use Illuminate\Support\Facades\Route;
 
 // Vehicle Delivery - public approval endpoint (no auth required)
@@ -261,6 +265,29 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
 
     });
+
+    Route::group(['prefix' => 'vehicle-type'], function () {
+    Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy'
+        ]);
+        Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
+    });
+    Route::group(['prefix' => 'vehicle'], function () {
+    Route::apiResource('control-vehicle', VehiculoController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy'
+        ]);
+        Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
+        Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
+    });
+    
     Route::group(['prefix' => 'freight'], function () {
       Route::apiResource('control-freight', OpFreightController::class)->only([
         'index',
@@ -281,7 +308,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
     Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
     Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
-    
+    Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
     Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
@@ -1514,6 +1541,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
+      Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -1582,6 +1610,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      // Reports - Reportes de Taller
+      Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+
+      // Reports - Reportes de Inventario
+      Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
 
       // Work Order Items - Ítems de Órdenes de Trabajo
       Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([

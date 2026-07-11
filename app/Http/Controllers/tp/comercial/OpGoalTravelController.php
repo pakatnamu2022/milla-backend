@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\tp\comercial\StoreOpGoalTravelRequest;
 use App\Http\Requests\tp\comercial\UpdateOpGoalTravelRequest;
 use App\Http\Services\tp\comercial\OpGoalTravelService;
+use App\Http\Services\tp\comercial\PrediccionCumplimientoService;
 use App\Models\tp\comercial\OpGoalTravel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -207,8 +208,50 @@ class OpGoalTravelController extends Controller
             $fechaFin = $request->input('fecha_fin');
             $data = $this->service->getAnalisisEstrategico($fechaInicio, $fechaFin);
             return response()->json($data);
-        } catch (Throwable $th) {
-            return $this->error($th->getMessage());
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'tendencia' => [],
+                'top_crecimiento' => [],
+                'top_decrecimiento' => [],
+                'clientes_nuevos' => [],
+                'clientes_inactivos' => [],
+                'proyeccion' => [
+                    'acumulado' => 0,
+                    'promedio_diario' => 0,
+                    'proyeccion' => 0,
+                    'meta' => 0,
+                    'cumplimiento' => 0,
+                    'dias_transcurridos' => 0,
+                    'dias_totales' => 0,
+                    'periodo' => ''
+                ],
+                'distribucion' => []
+            ], 200);
+        }
+    }
+
+    public function predecirCumplimiento(Request $request)
+    {
+        $request->validate([
+            'meses_historicos' => 'required|integer|min:3|max:36',
+            'factor_confianza' => 'sometimes|numeric|min:0.8|max:1.2'
+        ]);
+        
+        try {
+            $service = new PrediccionCumplimientoService();
+            $resultado = $service->predecirCumplimiento(
+                $request->input('meses_historicos', 12),
+                $request->input('factor_confianza', 1.0)
+            );
+            
+            return response()->json($resultado);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar predicción: ' . $e->getMessage()
+            ], 500);
         }
     }
 

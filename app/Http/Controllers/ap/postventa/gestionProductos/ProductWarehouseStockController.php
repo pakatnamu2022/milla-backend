@@ -182,4 +182,28 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Get reserved stock report
+   * Shows which work orders have reserved stock and who reserved them
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getReservedStockReport(Request $request): JsonResponse
+  {
+    try {
+      // Validate request
+      $request->validate([
+        'warehouse_id' => 'nullable|integer|exists:warehouse,id',
+        'product_id' => 'nullable|integer|exists:products,id',
+      ]);
+
+      $result = $this->service->getReservedStockReport($request);
+
+      return response()->json($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

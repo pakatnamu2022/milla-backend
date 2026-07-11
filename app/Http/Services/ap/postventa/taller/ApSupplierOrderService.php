@@ -680,11 +680,8 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Este pedido ya ha sido aprobado.');
       }
 
-      // Obtener usuarios con cargo de Jefe y Gerente de Postventa
-      $managerPositionIds = array_merge(
-        Position::AFTER_SALES_COORDINATOR,
-        Position::POSITION_GERENTE_PV_IDS
-      );
+      // Obtener usuarios con cargo de Coordinadora de Postventa
+      $managerPositionIds = Position::AFTER_SALES_COORDINATOR;
 
       $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
         $query->whereIn('cargo_id', $managerPositionIds)
@@ -695,7 +692,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         ->get();
 
       if ($managers->isEmpty()) {
-        throw new Exception('No se encontraron jefes o gerentes de postventa para enviar la notificación.');
+        throw new Exception('No se encontraron coordinadoras de postventa para enviar la notificación.');
       }
 
       // Preparar datos para el correo
@@ -741,21 +738,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       $subject = 'Solicitud de Aprobación de Orden de Compra - ' . $supplierOrder->order_number;
 
-      // Enviar correo a cada jefe y gerente
+      // Enviar correo a cada coordinadora
       foreach ($managers as $manager) {
         $managerEmail = $manager->person?->email2;
 
         if ($managerEmail) {
           try {
-            $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
-
             $this->emailService->queue([
               'to' => $managerEmail,
               'subject' => $subject,
               'template' => 'emails.supplier-order-approval-notification',
               'data' => array_merge($emailData, [
-                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
-                'recipient_role' => $isGerente ? 'Gerente de Postventa' : 'Jefe de Postventa',
+                'recipient_name' => $manager->person->nombre_completo ?? 'Coordinadora de Postventa',
+                'recipient_role' => 'Coordinadora de Postventa',
               ]),
             ]);
           } catch (Exception $e) {
@@ -765,7 +760,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       }
 
       return response()->json([
-        'message' => 'Notificación enviada correctamente a jefatura y gerencia para aprobación del pedido.',
+        'message' => 'Notificación enviada correctamente a coordinadora de postventa para aprobación del pedido.',
       ]);
     });
   }
