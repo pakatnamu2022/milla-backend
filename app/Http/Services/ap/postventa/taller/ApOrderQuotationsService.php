@@ -513,6 +513,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Si cambió el tipo de moneda, recalcular los detalles con el nuevo tipo de cambio
       if ($currencyChanged) {
         $this->handleCurrencyChange($quotation, $oldCurrencyId, $newCurrencyId);
+
+        // Recalcular totales de cabecera (subtotal/tax_amount/total_amount) a partir
+        // de los details ya recalculados, igual que en changeCurrency().
+        $quotation->load('details');
+        $quotation->calculateTotals();
+        $quotation->save();
       }
 
       // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
