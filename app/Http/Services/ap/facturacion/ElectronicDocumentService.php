@@ -2833,15 +2833,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar que no exista ya una factura final para esta cotización
+    // (solo aplica si NO es anticipo y NO es nota de crédito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $existingFinalInvoice = $quotation->getFinalInvoice();
+      $isNotaCredito = isset($data['sunat_concept_document_type_id'])
+        && $data['sunat_concept_document_type_id'] == ElectronicDocument::TYPE_NOTA_CREDITO;
 
-      if ($existingFinalInvoice) {
-        throw new Exception(
-          'Ya existe una factura final generada para esta cotización de repuesto (N° ' .
-          $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
-          '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
-        );
+      if (!$isNotaCredito) {
+        $existingFinalInvoice = $quotation->getFinalInvoice();
+
+        if ($existingFinalInvoice) {
+          throw new Exception(
+            'Ya existe una factura final generada para esta cotización de repuesto (N° ' .
+            $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+            '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+          );
+        }
       }
     }
 
@@ -2910,15 +2916,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar que no exista ya una factura final para esta orden de trabajo
+    // (solo aplica si NO es anticipo y NO es nota de crédito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $existingFinalInvoice = $workOrder->getFinalInvoice();
+      $isNotaCredito = isset($data['sunat_concept_document_type_id'])
+        && $data['sunat_concept_document_type_id'] == ElectronicDocument::TYPE_NOTA_CREDITO;
 
-      if ($existingFinalInvoice) {
-        throw new Exception(
-          'Ya existe una factura final generada para esta orden de trabajo (N° ' .
-          $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
-          '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
-        );
+      if (!$isNotaCredito) {
+        $existingFinalInvoice = $workOrder->getFinalInvoice();
+
+        if ($existingFinalInvoice) {
+          throw new Exception(
+            'Ya existe una factura final generada para esta orden de trabajo (N° ' .
+            $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+            '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+          );
+        }
       }
     }
 
