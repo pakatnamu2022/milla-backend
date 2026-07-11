@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Collection;
 
 class InventoryOutputReportService
@@ -46,7 +47,7 @@ class InventoryOutputReportService
         $q->whereHas('advancesWorkOrder', function ($docQuery) {
           $docQuery->where('is_advance_payment', false)
             ->where('aceptada_por_sunat', true)
-            ->whereIn('sunat_concept_document_type_id', [1, 2]); // FACTURA o BOLETA
+            ->whereIn('sunat_concept_document_type_id', [SunatConcepts::ID_FACTURA_ELECTRONICA, SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA]); // FACTURA o BOLETA
         });
       });
 
@@ -82,7 +83,7 @@ class InventoryOutputReportService
         $q->whereHas('advancesOrderQuotation', function ($docQuery) {
           $docQuery->where('is_advance_payment', false)
             ->where('aceptada_por_sunat', true)
-            ->whereIn('sunat_concept_document_type_id', [1, 2]); // FACTURA o BOLETA
+            ->whereIn('sunat_concept_document_type_id', [SunatConcepts::ID_FACTURA_ELECTRONICA, SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA]); // FACTURA o BOLETA
         });
       });
 
