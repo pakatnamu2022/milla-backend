@@ -2833,12 +2833,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar que no exista ya una factura final para esta cotización
-    // (solo aplica si NO es anticipo y NO es nota de crédito)
+    // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCredito = isset($data['sunat_concept_document_type_id'])
-        && $data['sunat_concept_document_type_id'] == ElectronicDocument::TYPE_NOTA_CREDITO;
+      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+        && in_array($data['sunat_concept_document_type_id'], [
+          ElectronicDocument::TYPE_NOTA_CREDITO,
+          ElectronicDocument::TYPE_NOTA_DEBITO
+        ]);
 
-      if (!$isNotaCredito) {
+      if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $quotation->getFinalInvoice();
 
         if ($existingFinalInvoice) {
@@ -2916,12 +2919,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar que no exista ya una factura final para esta orden de trabajo
-    // (solo aplica si NO es anticipo y NO es nota de crédito)
+    // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCredito = isset($data['sunat_concept_document_type_id'])
-        && $data['sunat_concept_document_type_id'] == ElectronicDocument::TYPE_NOTA_CREDITO;
+      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+        && in_array($data['sunat_concept_document_type_id'], [
+          ElectronicDocument::TYPE_NOTA_CREDITO,
+          ElectronicDocument::TYPE_NOTA_DEBITO
+        ]);
 
-      if (!$isNotaCredito) {
+      if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $workOrder->getFinalInvoice();
 
         if ($existingFinalInvoice) {
