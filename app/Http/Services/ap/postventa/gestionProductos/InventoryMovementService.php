@@ -1305,6 +1305,17 @@ class InventoryMovementService extends BaseService
     return InventoryMovementResource::collection($movements);
   }
 
+  /**
+   * Crear salida de inventario por venta de cotización
+   *
+   * Procesa todos los productos de la cotización y genera salida según supply_type:
+   * - STOCK: sale de stock reservado (validación contra quantity total)
+   * - LOCAL/CENTRAL/IMPORTACION: sale de stock disponible (validación contra available_quantity)
+   *
+   * @param int $quotationId
+   * @return InventoryMovement
+   * @throws Exception
+   */
   public function createSaleFromQuotation(int $quotationId): InventoryMovement
   {
     DB::beginTransaction();
@@ -1339,6 +1350,10 @@ class InventoryMovementService extends BaseService
       }
 
       // Validate stock availability for all products
+      // Nota: la validación difiere según supply_type:
+      // - STOCK: se compara contra `quantity` (stock físico) porque ya fue reservado al crear la cotización
+      // - Otros (LOCAL, CENTRAL, IMPORTACION): se compara contra `available_quantity` (stock libre)
+      //   porque estos nunca se reservaron
       foreach ($productDetails as $detail) {
         $stock = $this->stockService->getStock($detail->product_id, $warehouse->id);
 
@@ -1348,11 +1363,23 @@ class InventoryMovementService extends BaseService
           );
         }
 
-        if ($stock->available_quantity < $detail->quantity) {
-          throw new Exception(
-            "Stock insuficiente para producto '{$detail->product->name}'. " .
-            "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
-          );
+        // Validación según supply_type
+        if ($detail->supply_type === ApOrderQuotations::STOCK) {
+          // Para STOCK: validar contra stock físico total (ya está reservado)
+          if ($stock->quantity < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente para producto '{$detail->product->name}'. " .
+              "Stock físico: {$stock->quantity}, Requerido: {$detail->quantity}"
+            );
+          }
+        } else {
+          // Para otros tipos: validar contra stock disponible (nunca se reservó)
+          if ($stock->available_quantity < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente para producto '{$detail->product->name}'. " .
+              "Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
+            );
+          }
         }
       }
 
