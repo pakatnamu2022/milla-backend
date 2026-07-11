@@ -31,14 +31,23 @@ class ApVehicleDelivery extends Model
     'ap_class_article_id',
     'client_id',
     'is_accounted',
+    'is_extraordinary',
+    'extraordinary_approved',
+    'extraordinary_approved_at',
+    'extraordinary_sent_by',
+    'extraordinary_token',
+    'rescheduled_by',
   ];
 
   protected $casts = [
-    'scheduled_delivery_date' => 'datetime',
-    'real_delivery_date'      => 'datetime',
-    'wash_date'               => 'datetime',
-    'real_wash_date'          => 'datetime',
-    'is_accounted'            => 'boolean',
+    'scheduled_delivery_date'   => 'datetime',
+    'real_delivery_date'        => 'datetime',
+    'wash_date'                 => 'datetime',
+    'real_wash_date'            => 'datetime',
+    'is_accounted'              => 'boolean',
+    'is_extraordinary'          => 'boolean',
+    'extraordinary_approved'    => 'boolean',
+    'extraordinary_approved_at' => 'datetime',
   ];
 
   const WEEKDAY_SLOTS = ['09:00', '10:00', '11:00', '12:00', '15:00', '16:00', '17:00'];
@@ -103,6 +112,16 @@ class ApVehicleDelivery extends Model
   public function client()
   {
     return $this->belongsTo(BusinessPartners::class, 'client_id');
+  }
+
+  public function extraordinarySentBy()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'extraordinary_sent_by');
+  }
+
+  public function rescheduledBy()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'rescheduled_by');
   }
 
   public function deliveryChecklist()
