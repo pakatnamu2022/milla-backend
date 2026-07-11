@@ -88,7 +88,8 @@ class Position extends BaseModel
   const array HEAD_ACCOUNTING = [44, 288];
   const array WAREHOUSE_ASSISTANT = [57, 87, 129, 233, 251, 309];
   const array WAREHOUSE_MANAGER = [56, 86, 248];
-  const array WORKSHOP_COORDINATOR = [68,78,98,140];
+  const array WORKSHOP_COORDINATOR = [68, 78, 98, 140];
+  const array TICS_ANALYST = [273];
 
   public function setNameAttribute($value)
   {

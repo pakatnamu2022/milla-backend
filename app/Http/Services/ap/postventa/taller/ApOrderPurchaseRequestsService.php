@@ -677,8 +677,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
       $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+      $isTicsAnalyst = in_array($positionId, Position::TICS_ANALYST, true);
 
-      if (!($isAfterSalesCoordinator || $isGerente)) {
+      if (!($isAfterSalesCoordinator || $isGerente || $isTicsAnalyst)) {
         throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar esta solicitud de compra.');
       }
 
