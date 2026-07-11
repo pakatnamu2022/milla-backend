@@ -55,6 +55,10 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             ? Sede::where('shop_id', $sede->shop_id)->pluck('id')
             : collect(array_filter([$requestedSedeId]));
 
+          if ($this->boolean('is_extraordinary')) {
+            return;
+          }
+
           $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $deliveryDate->format('Y-m-d H:i:s'))
             ->whereIn('sede_id', $sedeIdsDelShop)
             ->whereNull('deleted_at')
@@ -64,6 +68,10 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             $fail("El horario $requestedTime del " . $deliveryDate->format('d/m/Y') . " ya está ocupado en este shop. Elija otro horario.");
           }
         },
+      ],
+      'is_extraordinary' => [
+        'sometimes',
+        'boolean',
       ],
       'ap_class_article_id' => [
         'required',
