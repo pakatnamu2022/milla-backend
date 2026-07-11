@@ -181,6 +181,8 @@ use App\Http\Controllers\tp\comercial\DriverController;
 use App\Http\Controllers\tp\comercial\DriverLocationConfigurationController;
 use App\Http\Controllers\tp\comercial\DriverLocationController;
 use App\Http\Controllers\tp\comercial\DriverStatusLogController;
+use App\Http\Controllers\tp\configuracionComercial\TipoVehiculoController;
+use App\Http\Controllers\tp\configuracionComercial\VehiculoController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -259,6 +261,29 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
 
     });
+
+    Route::group(['prefix' => 'vehicle-type'], function () {
+    Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy'
+        ]);
+        Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
+    });
+    Route::group(['prefix' => 'vehicle'], function () {
+    Route::apiResource('control-vehicle', VehiculoController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy'
+        ]);
+        Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
+        Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
+    });
+    
     Route::group(['prefix' => 'freight'], function () {
       Route::apiResource('control-freight', OpFreightController::class)->only([
         'index',
@@ -279,7 +304,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
     Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
     Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
-    
+    Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
     Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
@@ -561,6 +586,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);
+      Route::get('sede/my-shops', [SedeController::class, 'myShops']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
