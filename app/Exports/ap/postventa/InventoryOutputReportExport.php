@@ -77,7 +77,7 @@ class InventoryOutputReportExport implements
         ],
         'fill' => [
           'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-          'startColor' => ['rgb' => '28A745'],
+          'startColor' => ['rgb' => '4472C4'],
         ],
         'alignment' => [
           'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,

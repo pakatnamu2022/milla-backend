@@ -40,7 +40,7 @@ class InventoryOutputReportService
       ->with([
         'workOrder.sede',
         'workOrder.invoiceTo.documentType',
-        'product',
+        'product.warehouseStocks',
       ])
       ->whereHas('workOrder', function ($q) {
         // Solo OTs que tienen factura final
@@ -74,7 +74,7 @@ class InventoryOutputReportService
         'orderQuotation.sede',
         'orderQuotation.invoiceTo.documentType',
         'orderQuotation.client.documentType',
-        'product',
+        'product.warehouseStocks',
       ])
       ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
       ->whereNotNull('product_id')
@@ -117,6 +117,13 @@ class InventoryOutputReportService
 
     $invoiceTo = $workOrder->invoiceTo;
 
+    // Calcular margen de ganancia
+    $margen = $this->calculateProfitMargin(
+      $part->unit_price ?? 0,
+      $part->product,
+      $part->warehouse_id
+    );
+
     return [
       'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('Y-m-d') : '',
       'codigo_afs' => '', // En blanco
@@ -124,7 +131,7 @@ class InventoryOutputReportService
       'codigo_producto' => $part->product?->code ?? '',
       'numero' => number_format($part->quantity_used ?? 0, 2, '.', ''),
       'pvp' => number_format($part->unit_price ?? 0, 2, '.', ''),
-      'margen' => '', // En blanco de momento
+      'margen' => $margen,
       'area' => 'TALLER',
       'documento' => $invoiceTo?->num_doc ?? '',
       'nombre_cliente' => $invoiceTo?->full_name ?? '',
@@ -152,6 +159,14 @@ class InventoryOutputReportService
     // Priorizar invoiceTo, si no existe usar client
     $customer = $quotation->invoiceTo ?? $quotation->client;
 
+    // Calcular margen de ganancia
+    // Para repuestos, usar output_generation_warehouse si existe
+    $margen = $this->calculateProfitMargin(
+      $detail->unit_price ?? 0,
+      $detail->product,
+      $quotation->output_generation_warehouse
+    );
+
     return [
       'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('Y-m-d') : '',
       'codigo_afs' => '', // En blanco
@@ -159,7 +174,7 @@ class InventoryOutputReportService
       'codigo_producto' => $detail->product?->code ?? '',
       'numero' => number_format($detail->quantity ?? 0, 2, '.', ''),
       'pvp' => number_format($detail->unit_price ?? 0, 2, '.', ''),
-      'margen' => '', // En blanco de momento
+      'margen' => $margen,
       'area' => 'REPUESTOS',
       'documento' => $customer?->num_doc ?? '',
       'nombre_cliente' => $customer?->full_name ?? '',
@@ -214,5 +229,39 @@ class InventoryOutputReportService
           break;
       }
     }
+  }
+
+  /**
+   * Calcula el margen de ganancia basado en el PVP y el cost_price del almacén
+   *
+   * Margen (%) = ((PVP - Costo) / PVP) * 100
+   *
+   * @param float $unitPrice Precio de venta unitario (PVP)
+   * @param object|null $product Producto con la relación warehouseStocks cargada
+   * @param int|null $warehouseId ID del almacén
+   * @return string Margen formateado como porcentaje o vacío si no se puede calcular
+   */
+  private function calculateProfitMargin(float $unitPrice, ?object $product, ?int $warehouseId): string
+  {
+    // Si no hay producto o warehouse_id, retornar vacío
+    if (!$product || !$warehouseId || $unitPrice <= 0) {
+      return '';
+    }
+
+    // Buscar el stock del producto en el almacén especificado
+    $warehouseStock = $product->warehouseStocks?->firstWhere('warehouse_id', $warehouseId);
+
+    // Si no existe stock para ese almacén o no tiene cost_price, retornar vacío
+    if (!$warehouseStock || !$warehouseStock->cost_price || $warehouseStock->cost_price <= 0) {
+      return '';
+    }
+
+    $costPrice = (float) $warehouseStock->cost_price;
+
+    // Calcular margen: ((PVP - Costo) / PVP) * 100
+    $margin = (($unitPrice - $costPrice) / $unitPrice) * 100;
+
+    // Formatear el margen con 2 decimales y agregar el símbolo %
+    return number_format($margin, 2, '.', '') . '%';
   }
 }

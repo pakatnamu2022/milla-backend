@@ -392,22 +392,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
         ]);
-
-        // Reservar stock solo si es tipo STOCK
-        if (isset($detail['supply_type']) && $detail['supply_type'] === 'STOCK') {
-          $stock = ProductWarehouseStock::where('product_id', $detail['product_id'])
-            ->where('warehouse_id', $warehouseId)
-            ->first();
-
-          if ($stock) {
-            $reserveSuccess = $stock->reserveStock($detail['quantity']);
-            if (!$reserveSuccess) {
-              throw new Exception(
-                "Producto ({$detail['description']}): No se pudo reservar el stock. Stock insuficiente."
-              );
-            }
-          }
-        }
       }
 
       // Recalculate totals using centralized method in model
@@ -657,19 +641,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // previsualización, el precio quedaría dividido dos veces.
       $oldDetailsByProduct = $quotation->details->keyBy('product_id');
 
-      // Liberar stock de los detalles que son tipo STOCK antes de eliminarlos
-      foreach ($quotation->details as $oldDetail) {
-        if ($oldDetail->supply_type === 'STOCK' && $oldDetail->product_id && $warehouseId) {
-          $stock = ProductWarehouseStock::where('product_id', $oldDetail->product_id)
-            ->where('warehouse_id', $warehouseId)
-            ->first();
-
-          if ($stock) {
-            $stock->releaseReservedStock($oldDetail->quantity);
-          }
-        }
-      }
-
       // Delete existing details
       $quotation->details()->delete();
 
@@ -717,22 +688,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
         ]);
-
-        // Reservar stock para los nuevos detalles que son tipo STOCK
-        if (isset($detail['supply_type']) && $detail['supply_type'] === 'STOCK' && $warehouseId) {
-          $stock = ProductWarehouseStock::where('product_id', $detail['product_id'])
-            ->where('warehouse_id', $warehouseId)
-            ->first();
-
-          if ($stock) {
-            $reserveSuccess = $stock->reserveStock($detail['quantity']);
-            if (!$reserveSuccess) {
-              throw new Exception(
-                "Producto ({$detail['description']}): No se pudo reservar el stock. Stock insuficiente."
-              );
-            }
-          }
-        }
       }
 
       // Reload details relation to ensure fresh data for calculations
@@ -787,49 +742,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     }
 
     DB::transaction(function () use ($quotation) {
-      // Obtener almacén para liberar stock
-      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
-
-      // Liberar stock de los detalles que son tipo STOCK antes de eliminar
-      foreach ($quotation->details as $detail) {
-        if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
-          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
-            ->where('warehouse_id', $warehouseId)
-            ->first();
-
-          if ($stock) {
-            $stock->releaseReservedStock($detail->quantity);
-          }
-        }
-      }
-
       $parentQuotation = $quotation->parent_quotation_id
         ? ApOrderQuotations::find($quotation->parent_quotation_id)
         : null;
 
       $quotation->delete();
 
-      // Si esta era la última cotización segmentada, devolver la reserva al padre y reabrirlo
+      // Si esta era la última cotización segmentada, reabrir el padre
       if ($parentQuotation && $parentQuotation->segmentedQuotations()->count() === 0) {
-        $parentWarehouseId = Warehouse::getPhysicalWarehouseForPostsale($parentQuotation->sede_id)?->id;
-
-        foreach ($parentQuotation->details as $detail) {
-          if ($detail->supply_type === 'STOCK' && $detail->product_id && $parentWarehouseId) {
-            $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
-              ->where('warehouse_id', $parentWarehouseId)
-              ->first();
-
-            if ($stock) {
-              $reserveSuccess = $stock->reserveStock($detail->quantity);
-              if (!$reserveSuccess) {
-                throw new Exception(
-                  "Producto ({$detail->description}): No se pudo devolver la reserva de stock al padre. Stock insuficiente."
-                );
-              }
-            }
-          }
-        }
-
         $parentQuotation->update(['status' => ApOrderQuotations::STATUS_APERTURADO]);
       }
     });
@@ -1212,6 +1132,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       if (isset($data['customer_signature'])) {
         $this->processCustomerSignature($quotation, $data['customer_signature']);
       }
+
+      // Reservar stock para productos de tipo STOCK
+      $this->reserveStockForQuotation($quotation);
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
@@ -1908,9 +1831,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 6. Crear una cotización por cada grupo de supply_type
       $segmentedQuotations = [];
 
-      // Obtener almacén para liberar/reservar stock de los items tipo STOCK
-      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id)?->id;
-
       foreach ($detailsBySupplyType as $supplyType => $details) {
         // 6.1. Preparar datos para la nueva cotización
         $newQuotationData = $originalQuotation->toArray();
@@ -1982,18 +1902,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
           // Crear el nuevo detalle asociado a la nueva cotización
           $newQuotation->details()->create($newDetailData);
-
-          // Trasladar la cantidad reservada del detalle original a la nueva cotización segmentada
-          if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
-            $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
-              ->where('warehouse_id', $warehouseId)
-              ->first();
-
-            if ($stock) {
-              $stock->releaseReservedStock($detail->quantity);
-              $stock->reserveStock($detail->quantity);
-            }
-          }
         }
 
         // 6.7. Calcular los totales de la nueva cotización
@@ -2336,5 +2244,53 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
     });
+  }
+
+  /**
+   * Reserva stock para los productos de tipo STOCK de una cotización
+   *
+   * @param ApOrderQuotations $quotation
+   * @return void
+   * @throws Exception
+   */
+  public function reserveStockForQuotation(ApOrderQuotations $quotation): void
+  {
+    // Obtener el almacén físico de la sede de la cotización
+    $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+    if (!$warehouseId) {
+      throw new Exception('No se encontró un almacén físico asociado a esta sede para reservar el stock.');
+    }
+
+    // Cargar los detalles si no están cargados
+    if (!$quotation->relationLoaded('details')) {
+      $quotation->load('details');
+    }
+
+    // Filtrar solo los productos con supply_type = 'STOCK'
+    $stockDetails = $quotation->details->where('supply_type', ApOrderQuotations::STOCK);
+
+    foreach ($stockDetails as $detail) {
+      if (!$detail->product_id) {
+        continue;
+      }
+
+      $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+        ->where('warehouse_id', $warehouseId)
+        ->first();
+
+      if (!$stock) {
+        throw new Exception(
+          "Producto ({$detail->description}): No se encontró registro de stock en el almacén."
+        );
+      }
+
+      $reserveSuccess = $stock->reserveStock($detail->quantity);
+      if (!$reserveSuccess) {
+        throw new Exception(
+          "Producto ({$detail->description}): No se pudo reservar el stock. Stock insuficiente disponible."
+        );
+      }
+    }
   }
 }
