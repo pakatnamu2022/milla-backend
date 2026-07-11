@@ -40,7 +40,35 @@ class AccountReceivableResource extends JsonResource
       'branch'            => $this->branch,
       'observations'      => $this->observations,
       'collection_date'   => $this->collection_date?->format('Y-m-d'),
-      'synced_at'         => $this->synced_at?->format('Y-m-d H:i:s'),
+      'synced_at'              => $this->synced_at?->format('Y-m-d H:i:s'),
+      'electronic_document_id' => $this->electronic_document_id,
+      'area_id'                => $this->area_id,
+      'electronic_document'    => $this->whenLoaded('electronicDocument', fn() => $this->electronicDocument ? [
+        'id'                   => $this->electronicDocument->id,
+        'full_number'          => $this->electronicDocument->full_number,
+        'status'               => $this->electronicDocument->status,
+        'fecha_de_emision'     => $this->electronicDocument->fecha_de_emision?->format('Y-m-d'),
+        'fecha_de_vencimiento' => $this->electronicDocument->fecha_de_vencimiento?->format('Y-m-d'),
+        'total'                => (float)$this->electronicDocument->total,
+        'enlace_del_pdf'       => $this->electronicDocument->enlace_del_pdf,
+        'aceptada_por_sunat'   => $this->electronicDocument->aceptada_por_sunat,
+        'anulado'              => $this->electronicDocument->anulado,
+        'items'                => $this->electronicDocument->relationLoaded('items')
+          ? $this->electronicDocument->items->map(fn($item) => [
+              'descripcion'     => $item->descripcion,
+              'cantidad'        => (float)$item->cantidad,
+              'precio_unitario' => (float)$item->precio_unitario,
+              'total'           => (float)$item->total,
+            ])->values()
+          : [],
+        'installments'         => $this->electronicDocument->relationLoaded('installments')
+          ? $this->electronicDocument->installments->map(fn($inst) => [
+              'cuota'         => $inst->cuota,
+              'fecha_de_pago' => $inst->fecha_de_pago?->format('Y-m-d'),
+              'importe'       => (float)$inst->importe,
+            ])->values()
+          : [],
+      ] : null),
       'comments_count'    => $this->whenCounted('comments'),
       'comments'          => AccountReceivableCommentResource::collection($this->whenLoaded('comments')),
       'created_at'        => $this->created_at?->format('Y-m-d H:i:s'),
