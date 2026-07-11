@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\Reports;
 
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\gp\maestroGeneral\SunatConcepts;
@@ -40,6 +41,8 @@ class InventoryOutputReportService
       ->with([
         'workOrder.sede',
         'workOrder.invoiceTo.documentType',
+        'workOrder.typeCurrency',
+        'workOrder.exchangeRate',
         'product.warehouseStocks',
       ])
       ->whereHas('workOrder', function ($q) {
@@ -74,6 +77,8 @@ class InventoryOutputReportService
         'orderQuotation.sede',
         'orderQuotation.invoiceTo.documentType',
         'orderQuotation.client.documentType',
+        'orderQuotation.typeCurrency',
+        'orderQuotation.exchangeRate',
         'product.warehouseStocks',
       ])
       ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
@@ -116,21 +121,22 @@ class InventoryOutputReportService
     }
 
     $invoiceTo = $workOrder->invoiceTo;
+    $exchangeRate = $workOrder->getExchangeRateToUsd();
 
-    // Calcular margen de ganancia
-    $margen = $this->calculateProfitMargin(
-      $part->unit_price ?? 0,
-      $part->product,
-      $part->warehouse_id
-    );
+    // PVP: unit_price ya está sin IGV (tax_amount se calcula aparte sobre net_amount),
+    // se convierte a dólares con el tipo de cambio de la OT/última factura
+    $pvpUsd = ((float)($part->unit_price ?? 0)) / $exchangeRate;
+
+    // Margen = diferencia entre PVP y costo, ambos en dólares
+    $margen = $this->calculateProfitMargin($pvpUsd, $part->product, $part->warehouse_id, $exchangeRate);
 
     return [
       'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('Y-m-d') : '',
-      'codigo_afs' => '', // En blanco
+      'codigo_afs' => $workOrder->sede?->code_afs ?? '',
       'concesionario' => $workOrder->sede?->abreviatura ?? '',
       'codigo_producto' => $part->product?->code ?? '',
       'numero' => number_format($part->quantity_used ?? 0, 2, '.', ''),
-      'pvp' => number_format($part->unit_price ?? 0, 2, '.', ''),
+      'pvp' => number_format($pvpUsd, 2, '.', ''),
       'margen' => $margen,
       'area' => 'TALLER',
       'documento' => $invoiceTo?->num_doc ?? '',
@@ -158,22 +164,25 @@ class InventoryOutputReportService
 
     // Priorizar invoiceTo, si no existe usar client
     $customer = $quotation->invoiceTo ?? $quotation->client;
+    $exchangeRate = $quotation->getExchangeRateToUsd();
 
-    // Calcular margen de ganancia
-    // Para repuestos, usar output_generation_warehouse si existe
-    $margen = $this->calculateProfitMargin(
-      $detail->unit_price ?? 0,
-      $detail->product,
-      $quotation->output_generation_warehouse
-    );
+    // PVP: unit_price ya está sin IGV (tax_amount se calcula aparte sobre net_amount),
+    // se convierte a dólares con el tipo de cambio de la cotización/última factura
+    $pvpUsd = ((float)($detail->unit_price ?? 0)) / $exchangeRate;
+
+    // Margen = diferencia entre PVP y costo, ambos en dólares.
+    // El almacén físico de posventa de la sede es el que tiene el cost_price real
+    // (output_generation_warehouse es un flag booleano, no un ID de almacén)
+    $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+    $margen = $this->calculateProfitMargin($pvpUsd, $detail->product, $warehouseId, $exchangeRate);
 
     return [
       'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('Y-m-d') : '',
-      'codigo_afs' => '', // En blanco
+      'codigo_afs' => $quotation->sede?->code_afs ?? '',
       'concesionario' => $quotation->sede?->abreviatura ?? '',
       'codigo_producto' => $detail->product?->code ?? '',
       'numero' => number_format($detail->quantity ?? 0, 2, '.', ''),
-      'pvp' => number_format($detail->unit_price ?? 0, 2, '.', ''),
+      'pvp' => number_format($pvpUsd, 2, '.', ''),
       'margen' => $margen,
       'area' => 'REPUESTOS',
       'documento' => $customer?->num_doc ?? '',
@@ -232,19 +241,22 @@ class InventoryOutputReportService
   }
 
   /**
-   * Calcula el margen de ganancia basado en el PVP y el cost_price del almacén
+   * Calcula el margen de ganancia: la diferencia (no el porcentaje) entre el PVP
+   * en dólares y el cost_price del almacén, también convertido a dólares con el
+   * mismo tipo de cambio usado para el PVP.
    *
-   * Margen (%) = ((PVP - Costo) / PVP) * 100
+   * Margen = PVP(USD) - Costo(USD)
    *
-   * @param float $unitPrice Precio de venta unitario (PVP)
+   * @param float $pvpUsd Precio de venta unitario (PVP) ya en dólares
    * @param object|null $product Producto con la relación warehouseStocks cargada
    * @param int|null $warehouseId ID del almacén
-   * @return string Margen formateado como porcentaje o vacío si no se puede calcular
+   * @param float $exchangeRate Tipo de cambio usado para convertir el costo a dólares
+   * @return string Margen formateado con 2 decimales o vacío si no se puede calcular
    */
-  private function calculateProfitMargin(float $unitPrice, ?object $product, ?int $warehouseId): string
+  private function calculateProfitMargin(float $pvpUsd, ?object $product, ?int $warehouseId, float $exchangeRate): string
   {
     // Si no hay producto o warehouse_id, retornar vacío
-    if (!$product || !$warehouseId || $unitPrice <= 0) {
+    if (!$product || !$warehouseId || $pvpUsd <= 0) {
       return '';
     }
 
@@ -256,12 +268,11 @@ class InventoryOutputReportService
       return '';
     }
 
-    $costPrice = (float) $warehouseStock->cost_price;
+    $costPriceUsd = ((float)$warehouseStock->cost_price) / $exchangeRate;
 
-    // Calcular margen: ((PVP - Costo) / PVP) * 100
-    $margin = (($unitPrice - $costPrice) / $unitPrice) * 100;
+    // Margen: diferencia simple entre PVP y costo, ambos en dólares
+    $margin = $pvpUsd - $costPriceUsd;
 
-    // Formatear el margen con 2 decimales y agregar el símbolo %
-    return number_format($margin, 2, '.', '') . '%';
+    return number_format($margin, 2, '.', '');
   }
 }
