@@ -46,13 +46,14 @@ class ApVehicleDelivery extends Model
 
   const filters = [
     'search'                  => ['vehicle.vin', 'advisor.nombre_completo'],
-    'vehicle_id',
+    'vehicle_id'              => '=',
     'scheduled_delivery_date' => 'date_between',
     'real_delivery_date'      => 'date_between',
-    'advisor_id',
-    'sede_id',
-    'status_delivery',
-    'status_wash',
+    'advisor_id'              => '=',
+    'sede_id'                 => '=',
+    'sede.shop_id'            => '=',
+    'status_delivery'         => '=',
+    'status_wash'             => '=',
     'has_vehicle_delivery'    => 'accessor_bool',
   ];
 

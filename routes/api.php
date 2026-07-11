@@ -586,6 +586,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);
+      Route::get('sede/my-shops', [SedeController::class, 'myShops']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
