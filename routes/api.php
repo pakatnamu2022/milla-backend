@@ -181,6 +181,10 @@ use App\Http\Controllers\tp\comercial\DriverLocationController;
 use App\Http\Controllers\tp\comercial\DriverStatusLogController;
 use Illuminate\Support\Facades\Route;
 
+// Vehicle Delivery - public approval endpoint (no auth required)
+Route::get('vehiclesDelivery/extraordinary/{token}/approve', [ApVehicleDeliveryController::class, 'approveExtraordinary'])
+  ->name('vehiclesDelivery.extraordinary.approve');
+
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
 Route::post('/reset-password-token', [AuthController::class, 'resetPasswordByToken'])->name('resetPasswordByToken');
@@ -1396,6 +1400,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles Delivery - Horarios disponibles
       Route::get('vehiclesDelivery/available-slots', [ApVehicleDeliveryController::class, 'availableSlots']);
+
+      // Vehicles Delivery - Reprogramar
+      Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
