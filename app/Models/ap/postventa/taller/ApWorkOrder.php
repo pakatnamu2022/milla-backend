@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Http\Traits\HasExchangeRateToUsd;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -26,7 +27,7 @@ use Illuminate\Support\Str;
 
 class ApWorkOrder extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, HasExchangeRateToUsd;
 
   protected $table = 'ap_work_orders';
 
@@ -477,6 +478,14 @@ class ApWorkOrder extends Model
   public function advancesWorkOrder(): HasMany
   {
     return $this->hasMany(ElectronicDocument::class, 'work_order_id');
+  }
+
+  /**
+   * @see HasExchangeRateToUsd
+   */
+  public function exchangeRateDocuments(): HasMany
+  {
+    return $this->advancesWorkOrder();
   }
 
   public function discountRequests()
