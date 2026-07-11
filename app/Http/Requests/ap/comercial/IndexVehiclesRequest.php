@@ -47,6 +47,7 @@ class IndexVehiclesRequest extends IndexRequest
       'is_received'                    => 'nullable|boolean',
       'has_delivery_guide'             => 'nullable|boolean',
       'has_vehicle_delivery'           => 'nullable|boolean',
+      'vehicleMovements$new_status_id' => 'nullable|integer|exists:ap_vehicle_status,id',
     ];
   }
 

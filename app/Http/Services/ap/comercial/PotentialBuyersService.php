@@ -52,8 +52,11 @@ class PotentialBuyersService extends BaseService
     }
 
     $query = PotentialBuyers::where('use', PotentialBuyers::CREATED)
-      ->where(function ($q) use ($workerIdToUse, $canViewExternal) {
+      ->where(function ($q) use ($workerId, $workerIdToUse, $canViewExternal) {
         $q->where('worker_id', $workerIdToUse);
+        if ($workerIdToUse !== $workerId) {
+          $q->orWhere('worker_id', $workerId);
+        }
         if ($canViewExternal) {
           $q->orWhere('type', PotentialBuyers::EXTERNO);
         }

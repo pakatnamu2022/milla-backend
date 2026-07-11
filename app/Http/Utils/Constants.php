@@ -21,6 +21,7 @@ class Constants
   public const int VAT_TAX = 18; // IGV
   public const int TICS_AREA_ID = 11;
   public const int TICS_ROL_ID = 98;
+  public const int JAC_ID = 135;
 
   public const int SALE_COORDINATOR_CATEGORY_ID = 14; // Categoría Coordinador de Ventas
 
