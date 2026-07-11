@@ -2073,7 +2073,7 @@ class ProductWarehouseStockService extends BaseService
           // Only quotations that haven't been invoiced yet
           ->where(function ($q) {
             $q->where('q.has_invoice_generated', false)
-              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_DESCARTADO,  ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
+              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
               ->orWhereNull('q.has_invoice_generated');
           })
           ->select([
