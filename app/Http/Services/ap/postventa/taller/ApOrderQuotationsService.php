@@ -566,6 +566,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
       }
 
+      if ($quotation->status === ApOrderQuotations::STATUS_SEGMENTADA) {
+        throw new Exception('No se puede actualizar una cotización que ha sido segmentada.');
+      }
+
       if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
         throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
       }
@@ -783,7 +787,35 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         }
       }
 
+      $parentQuotation = $quotation->parent_quotation_id
+        ? ApOrderQuotations::find($quotation->parent_quotation_id)
+        : null;
+
       $quotation->delete();
+
+      // Si esta era la última cotización segmentada, devolver la reserva al padre y reabrirlo
+      if ($parentQuotation && $parentQuotation->segmentedQuotations()->count() === 0) {
+        $parentWarehouseId = Warehouse::getPhysicalWarehouseForPostsale($parentQuotation->sede_id)?->id;
+
+        foreach ($parentQuotation->details as $detail) {
+          if ($detail->supply_type === 'STOCK' && $detail->product_id && $parentWarehouseId) {
+            $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+              ->where('warehouse_id', $parentWarehouseId)
+              ->first();
+
+            if ($stock) {
+              $reserveSuccess = $stock->reserveStock($detail->quantity);
+              if (!$reserveSuccess) {
+                throw new Exception(
+                  "Producto ({$detail->description}): No se pudo devolver la reserva de stock al padre. Stock insuficiente."
+                );
+              }
+            }
+          }
+        }
+
+        $parentQuotation->update(['status' => ApOrderQuotations::STATUS_APERTURADO]);
+      }
     });
 
     return response()->json(['message' => 'Cotización eliminada correctamente']);
@@ -1154,6 +1186,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
         throw new Exception('Esta cotización ya ha sido confirmada previamente.');
+      }
+
+      if ($quotation->segmentedQuotations()->count() > 0) {
+        throw new Exception('Esta cotización no se puede confirmar porque ha sido segmentada en otras cotizaciones.');
       }
 
       // Procesar firma del cliente si existe
@@ -1856,6 +1892,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 6. Crear una cotización por cada grupo de supply_type
       $segmentedQuotations = [];
 
+      // Obtener almacén para liberar/reservar stock de los items tipo STOCK
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id)?->id;
+
       foreach ($detailsBySupplyType as $supplyType => $details) {
         // 6.1. Preparar datos para la nueva cotización
         $newQuotationData = $originalQuotation->toArray();
@@ -1927,6 +1966,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
           // Crear el nuevo detalle asociado a la nueva cotización
           $newQuotation->details()->create($newDetailData);
+
+          // Trasladar la cantidad reservada del detalle original a la nueva cotización segmentada
+          if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+            $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+              ->where('warehouse_id', $warehouseId)
+              ->first();
+
+            if ($stock) {
+              $stock->releaseReservedStock($detail->quantity);
+              $stock->reserveStock($detail->quantity);
+            }
+          }
         }
 
         // 6.7. Calcular los totales de la nueva cotización
@@ -1936,6 +1987,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         // 6.8. Agregar a la lista de cotizaciones segmentadas
         $segmentedQuotations[] = $newQuotation;
       }
+
+      // 6.9. Marcar la cotización original como Segmentada (borrador, se excluye de la reportería)
+      $originalQuotation->update(['status' => ApOrderQuotations::STATUS_SEGMENTADA]);
 
       // 7. Cargar relaciones y retornar
       $quotationsWithRelations = ApOrderQuotations::whereIn('id', collect($segmentedQuotations)->pluck('id'))

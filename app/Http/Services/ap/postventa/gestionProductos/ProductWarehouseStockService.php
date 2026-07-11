@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResour
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\RecalculateProductCostJob;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
@@ -2035,6 +2036,7 @@ class ProductWarehouseStockService extends BaseService
           // Only include work orders that haven't generated warehouse output yet
           ->where(function ($q) {
             $q->where('wo.output_generation_warehouse', false)
+              ->whereNotIn('status.id', [ApMasters::CANCELED_WORK_ORDER_ID, ApMasters::CLOSED_WORK_ORDER_ID])
               ->orWhereNull('wo.output_generation_warehouse');
           })
           ->select([
@@ -2071,6 +2073,7 @@ class ProductWarehouseStockService extends BaseService
           // Only quotations that haven't been invoiced yet
           ->where(function ($q) {
             $q->where('q.has_invoice_generated', false)
+              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_DESCARTADO,  ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
               ->orWhereNull('q.has_invoice_generated');
           })
           ->select([
