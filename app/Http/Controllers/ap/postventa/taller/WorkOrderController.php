@@ -70,6 +70,13 @@ class WorkOrderController extends Controller
       // Validar el vehículo si está presente en la actualización
       if (isset($data['vehicle_id'])) {
         $this->validateVehicleForWorkOrder($data['vehicle_id']);
+
+        // Obtener los datos del vehículo para actualizar plate y vin
+        $vehicle = Vehicles::find($data['vehicle_id']);
+        if ($vehicle) {
+          $data['vehicle_plate'] = $vehicle->plate;
+          $data['vehicle_vin'] = $vehicle->vin;
+        }
       }
 
       $data['id'] = $id;
