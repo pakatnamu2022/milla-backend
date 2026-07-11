@@ -120,6 +120,7 @@ class ApOrderQuotations extends Model
   const STATUS_APERTURADO = 'Aperturado';
   const STATUS_POR_FACTURAR = 'Por Facturar';
   const STATUS_FACTURADO = 'Facturado';
+  const STATUS_SEGMENTADA = 'Segmentada';
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';

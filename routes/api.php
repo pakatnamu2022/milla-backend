@@ -79,6 +79,8 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
+use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TotpController;
@@ -1575,6 +1577,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      // Reports - Reportes de Taller
+      Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+
+      // Reports - Reportes de Inventario
+      Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
 
       // Work Order Items - Ítems de Órdenes de Trabajo
       Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
