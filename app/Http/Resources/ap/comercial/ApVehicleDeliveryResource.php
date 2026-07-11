@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\ap\comercial;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,6 +33,7 @@ class ApVehicleDeliveryResource extends JsonResource
       'shipping_guide'          => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),
+      'created_at'              => $this->created_at,
     ];
   }
 }
