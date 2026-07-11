@@ -176,8 +176,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           $date,
           TypeCurrency::PEN_ID,
           TypeCurrency::USD_ID,
-          ExchangeRate::TYPE_VENTA,
-          true // Preferir el rate más bajo (conveniente para comprar)
+          ExchangeRate::TYPE_VENTA
         );
 
         if (!$optimalExchangeRate) {
@@ -247,8 +246,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           $date,
           TypeCurrency::PEN_ID,
           TypeCurrency::USD_ID,
-          ExchangeRate::TYPE_VENTA,
-          true // Preferir el rate más bajo (conveniente para comprar)
+          ExchangeRate::TYPE_VENTA
         );
 
         if (!$exchangeRate) {
@@ -462,8 +460,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           $date,
           TypeCurrency::PEN_ID,
           TypeCurrency::USD_ID,
-          ExchangeRate::TYPE_VENTA,
-          true // Preferir el rate más bajo (conveniente para comprar)
+          ExchangeRate::TYPE_VENTA
         );
 
         if (!$optimalExchangeRate) {
@@ -554,7 +551,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           TypeCurrency::PEN_ID,
           TypeCurrency::USD_ID,
           ExchangeRate::TYPE_VENTA,
-          true // Preferir el rate más bajo (conveniente para comprar)
         );
 
         if (!$exchangeRate) {
@@ -647,6 +643,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Obtener almacén para liberar stock
       $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id'])?->id;
 
+      // Capturar los detalles originales (moneda anterior) antes de eliminarlos.
+      // Se usan como base real para la reconversión de moneda: el unit_price que
+      // manda el frontend en 'details' es solo una previsualización (ya dividida/
+      // multiplicada por el tipo de cambio del cliente), y el backend recién aquí
+      // determina el tipo de cambio definitivo. Si se reconvirtiera ese valor de
+      // previsualización, el precio quedaría dividido dos veces.
+      $oldDetailsByProduct = $quotation->details->keyBy('product_id');
+
       // Liberar stock de los detalles que son tipo STOCK antes de eliminarlos
       foreach ($quotation->details as $oldDetail) {
         if ($oldDetail->supply_type === 'STOCK' && $oldDetail->product_id && $warehouseId) {
@@ -673,10 +677,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Create new details
       foreach ($data['details'] as $detail) {
-        // Si cambió la moneda, convertir el precio unitario
         $unitPrice = (float)$detail['unit_price'];
+
+        // Si cambió la moneda, ignorar el unit_price de previsualización que envía
+        // el frontend y reconvertir desde el precio original (moneda anterior) de
+        // ese mismo producto, aplicando el factor una única vez.
         if ($currencyChanged) {
-          $unitPrice = $unitPrice * $conversionFactor;
+          $oldDetail = $oldDetailsByProduct->get($detail['product_id']);
+          $unitPrice = $oldDetail
+            ? (float)$oldDetail->unit_price * $conversionFactor
+            : $unitPrice;
         }
 
         // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
@@ -2121,7 +2131,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           TypeCurrency::PEN_ID,
           TypeCurrency::USD_ID,
           ExchangeRate::TYPE_VENTA,
-          true // Preferir el rate más bajo (conveniente para comprar)
         );
 
         if (!$optimalExchangeRate) {
