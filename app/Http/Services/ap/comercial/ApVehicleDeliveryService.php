@@ -601,7 +601,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  public function availableSlots(string $date): array
+  public function availableSlots(string $date, ?int $shopId = null): array
   {
     $day = Carbon::parse($date);
     $dayOfWeek = $day->dayOfWeek;
@@ -614,9 +614,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ? ApVehicleDelivery::SATURDAY_SLOTS
       : ApVehicleDelivery::WEEKDAY_SLOTS;
 
-    $takenDatetimes = ApVehicleDelivery::whereDate('scheduled_delivery_date', $date)
-      ->whereNull('deleted_at')
-      ->pluck('scheduled_delivery_date')
+    $takenQuery = ApVehicleDelivery::whereDate('scheduled_delivery_date', $date)
+      ->whereNull('deleted_at');
+
+    if ($shopId !== null) {
+      $takenQuery->whereHas('sede', fn($q) => $q->where('shop_id', $shopId));
+    }
+
+    $takenDatetimes = $takenQuery->pluck('scheduled_delivery_date')
       ->map(fn($dt) => Carbon::parse($dt)->format('H:i'))
       ->toArray();
 

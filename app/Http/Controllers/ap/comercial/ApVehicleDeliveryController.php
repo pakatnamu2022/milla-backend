@@ -74,9 +74,10 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       $request->validate([
-        'date' => 'required|date_format:Y-m-d',
+        'date'    => 'required|date_format:Y-m-d',
+        'shop_id' => 'nullable|integer',
       ]);
-      return $this->success($this->service->availableSlots($request->input('date')));
+      return $this->success($this->service->availableSlots($request->input('date'), $request->input('shop_id')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
