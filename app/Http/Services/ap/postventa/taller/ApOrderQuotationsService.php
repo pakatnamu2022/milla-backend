@@ -171,13 +171,24 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Solo validar y guardar el tipo de cambio si la moneda es USD
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+          true // Preferir el rate más bajo (conveniente para comprar)
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $data['exchange_rate'] = $exchangeRate->rate;
+
+        $data['exchange_rate_id'] = $optimalExchangeRate->id;
+        $data['exchange_rate'] = $optimalExchangeRate->rate;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate_id'] = null;
         $data['exchange_rate'] = null;
       }
 
@@ -231,9 +242,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Solo obtener y validar el tipo de cambio si la moneda es USD
       $exchangeRate = null;
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $exchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+          true // Preferir el rate más bajo (conveniente para comprar)
+        );
+
         if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
       }
 
@@ -342,6 +361,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'tax_amount' => 0,
         'total_amount' => 0,
         'validity_days' => $validation_days,
+        'exchange_rate_id' => $exchangeRate ? $exchangeRate->id : null,
         'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'currency_id' => $data['currency_id'],
         'collection_date' => $data['collection_date'] ?? null,
@@ -374,6 +394,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
         ]);
+
+        // Reservar stock solo si es tipo STOCK
+        if (isset($detail['supply_type']) && $detail['supply_type'] === 'STOCK') {
+          $stock = ProductWarehouseStock::where('product_id', $detail['product_id'])
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $reserveSuccess = $stock->reserveStock($detail['quantity']);
+            if (!$reserveSuccess) {
+              throw new Exception(
+                "Producto ({$detail['description']}): No se pudo reservar el stock. Stock insuficiente."
+              );
+            }
+          }
+        }
       }
 
       // Recalculate totals using centralized method in model
@@ -421,12 +457,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Solo validar y guardar el tipo de cambio si la moneda es USD
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+          true // Preferir el rate más bajo (conveniente para comprar)
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $data['exchange_rate'] = $exchangeRate->rate;
-        $data['exchange_rate_id'] = $exchangeRate->id;
+
+        $data['exchange_rate'] = $optimalExchangeRate->rate;
+        $data['exchange_rate_id'] = $optimalExchangeRate->id;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
         $data['exchange_rate'] = null;
@@ -495,12 +540,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $vehicleId = $data['vehicle_id'] ?? null;
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
+      // Detectar si cambió el tipo de moneda
+      $oldCurrencyId = $quotation->currency_id;
+      $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
+      $currencyChanged = $oldCurrencyId !== null && $newCurrencyId !== null && $oldCurrencyId != $newCurrencyId;
+
       // Solo obtener y validar el tipo de cambio si la moneda es USD
       $exchangeRate = null;
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $exchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+          true // Preferir el rate más bajo (conveniente para comprar)
+        );
+
         if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
       }
 
@@ -577,19 +635,50 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
+        'exchange_rate_id' => $exchangeRate ? $exchangeRate->id : null,
         'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'collection_date' => $data['collection_date'] ?? null,
       ]);
 
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id'])?->id;
+
+      // Liberar stock de los detalles que son tipo STOCK antes de eliminarlos
+      foreach ($quotation->details as $oldDetail) {
+        if ($oldDetail->supply_type === 'STOCK' && $oldDetail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $oldDetail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($oldDetail->quantity);
+          }
+        }
+      }
+
       // Delete existing details
       $quotation->details()->delete();
 
+      // Si cambió la moneda, calcular el factor de conversión para los precios
+      $conversionFactor = 1;
+      if ($currencyChanged) {
+        // Refresh para obtener el exchange_rate actualizado
+        $quotation->refresh();
+        $conversionFactor = $this->getConversionFactor($quotation, $oldCurrencyId, $newCurrencyId);
+      }
+
       // Create new details
       foreach ($data['details'] as $detail) {
+        // Si cambió la moneda, convertir el precio unitario
+        $unitPrice = (float)$detail['unit_price'];
+        if ($currencyChanged) {
+          $unitPrice = $unitPrice * $conversionFactor;
+        }
+
         // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
         // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
-        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -608,6 +697,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
         ]);
+
+        // Reservar stock para los nuevos detalles que son tipo STOCK
+        if (isset($detail['supply_type']) && $detail['supply_type'] === 'STOCK' && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail['product_id'])
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $reserveSuccess = $stock->reserveStock($detail['quantity']);
+            if (!$reserveSuccess) {
+              throw new Exception(
+                "Producto ({$detail['description']}): No se pudo reservar el stock. Stock insuficiente."
+              );
+            }
+          }
+        }
       }
 
       // Reload details relation to ensure fresh data for calculations
@@ -662,6 +767,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     }
 
     DB::transaction(function () use ($quotation) {
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+      // Liberar stock de los detalles que son tipo STOCK antes de eliminar
+      foreach ($quotation->details as $detail) {
+        if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($detail->quantity);
+          }
+        }
+      }
+
       $quotation->delete();
     });
 
@@ -679,6 +800,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if ($quotation->discarded_at) {
         throw new Exception('Esta cotización ya ha sido descartada previamente.');
+      }
+
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+      // Liberar stock de los detalles que son tipo STOCK antes de descartar
+      foreach ($quotation->details as $detail) {
+        if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($detail->quantity);
+          }
+        }
       }
 
       // Preparar los datos de descarte
@@ -1919,16 +2056,26 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('La moneda seleccionada es la misma que la actual');
       }
 
-      $date = Carbon::now()->format('Y-m-d');
+      // Obtener la fecha de la cotización para comparar tipos de cambio
+      $quotationDate = Carbon::parse($quotation->quotation_date)->format('Y-m-d');
 
-      // Obtener el tipo de cambio si la nueva moneda es USD
+      // Obtener el tipo de cambio óptimo si la nueva moneda es USD
       if ($newCurrencyId == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $quotationDate,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+          true // Preferir el rate más bajo (conveniente para comprar)
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $quotation->exchange_rate = $exchangeRate->rate;
-        $quotation->exchange_rate_id = $exchangeRate->id;
+
+        $quotation->exchange_rate = $optimalExchangeRate->rate;
+        $quotation->exchange_rate_id = $optimalExchangeRate->id;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
         $quotation->exchange_rate = null;

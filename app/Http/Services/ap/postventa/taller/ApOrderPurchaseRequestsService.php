@@ -820,11 +820,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $positionId = (int)($user->person?->position?->id ?? 0);
 
-      $isJefe = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS, true);
+      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
       $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
 
-      if (!($isJefe || $isGerente)) {
-        throw new Exception('Solo Jefe o Gerente de Postventa pueden cancelar esta solicitud de compra.');
+      if (!($isAfterSalesCoordinator || $isGerente)) {
+        throw new Exception('Solo Coordinadora de Postventa o Gerente pueden cancelar esta solicitud de compra.');
       }
 
       $purchaseRequest->update([
@@ -862,9 +862,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $sedeId = $warehouse->sede_id;
 
-      // Obtener usuarios con cargo de Gerente de Postventa y Jefe de Almacén
+      // Obtener usuarios con cargo de Coordinadora de Postventa y Jefe de Almacén
       $managerPositionIds = array_merge(
-        Position::POSITION_GERENTE_PV_IDS,
+        Position::AFTER_SALES_COORDINATOR,
         Position::WAREHOUSE_MANAGER
       );
 
@@ -881,7 +881,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         ->get();
 
       if ($managers->isEmpty()) {
-        throw new Exception('No se encontraron gerentes de postventa o jefes de almacén para enviar la notificación.');
+        throw new Exception('No se encontraron coordinadoras de postventa o jefes de almacén para enviar la notificación.');
       }
 
       // Preparar datos para el correo
@@ -923,12 +923,12 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
         if ($managerEmail) {
           try {
-            $isGerente = in_array($manager->person->cargo_id, Position::POSITION_GERENTE_PV_IDS);
+            $isCoordinadora = in_array($manager->person->cargo_id, Position::AFTER_SALES_COORDINATOR);
             $isJefeAlmacen = in_array($manager->person->cargo_id, Position::WAREHOUSE_MANAGER);
 
             $role = 'Jefatura';
-            if ($isGerente) {
-              $role = 'Gerente de Postventa';
+            if ($isCoordinadora) {
+              $role = 'Coordinadora de Postventa';
             } elseif ($isJefeAlmacen) {
               $role = 'Jefe de Almacén';
             }
