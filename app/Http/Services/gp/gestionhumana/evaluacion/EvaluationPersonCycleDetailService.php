@@ -234,15 +234,17 @@ class EvaluationPersonCycleDetailService extends BaseService
         $detail->delete();
       }
 
-      // 6. Obtener los objetivos de la categoría jerárquica
-      $objectives = $hierarchicalCategory->objectives()->get();
-      if ($objectives->isEmpty()) {
+      // 6. Obtener los objetivos de la categoría jerárquica (solo en ciclos de objetivos)
+      $isObjectivesCycle = $cycle->typeEvaluation == 0;
+      $objectives = $isObjectivesCycle ? $hierarchicalCategory->objectives()->get() : collect();
+
+      if ($isObjectivesCycle && $objectives->isEmpty()) {
         throw new Exception('La categoría jerárquica ' . $hierarchicalCategory->name . ' no tiene objetivos asignados.');
       }
 
       $regeneratedDetails = collect();
 
-      // 7. Para cada objetivo, crear el personCycleDetail
+      // 7. Para cada objetivo, crear el personCycleDetail (solo en ciclos de objetivos)
       foreach ($objectives as $objective) {
         // Verificar si la persona tiene un EvaluationCategoryObjectiveDetail activo con peso > 0
         $categoryObjective = EvaluationCategoryObjectiveDetail::where('objective_id', $objective->id)
