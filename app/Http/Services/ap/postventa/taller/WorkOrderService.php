@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
@@ -14,6 +15,7 @@ use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -23,6 +25,8 @@ use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
@@ -40,15 +44,22 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   protected WorkOrderLabourService $labourService;
   protected DigitalFileService $digitalFileService;
   protected ExportService $exportService;
+  protected InventoryMovementService $inventoryMovementService;
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
 
-  public function __construct(WorkOrderLabourService $labourService, DigitalFileService $digitalFileService, ExportService $exportService)
+  public function __construct(
+    WorkOrderLabourService   $labourService,
+    DigitalFileService       $digitalFileService,
+    ExportService            $exportService,
+    InventoryMovementService $inventoryMovementService
+  )
   {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
+    $this->inventoryMovementService = $inventoryMovementService;
   }
 
   public function list(Request $request)
@@ -1008,6 +1019,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
       ]);
 
+      // Generar ajuste de salida de inventario si la OT tiene repuestos
+      $this->processInventoryAdjustmentForInternalNote($workOrder, $internalNote);
+
       DB::commit();
 
       return response()->json([
@@ -1765,6 +1779,79 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // Actualizar la orden de trabajo con la URL de la firma
     $workOrder->signature_delivery_url = $digitalFile->url;
     $workOrder->save();
+  }
+
+  /**
+   * Procesa el ajuste de inventario por salida al generar una nota interna.
+   * Libera el stock reservado y crea un movimiento de tipo ADJUSTMENT_OUT para los repuestos utilizados en la OT.
+   *
+   * @param ApWorkOrder $workOrder
+   * @param ApInternalNote $internalNote
+   * @return void
+   * @throws Exception
+   */
+  private function processInventoryAdjustmentForInternalNote(ApWorkOrder $workOrder, ApInternalNote $internalNote): void
+  {
+    // Verificar si ya se procesó el ajuste de inventario
+    if ($workOrder->output_generation_warehouse) {
+      return; // Ya se procesó, salir
+    }
+
+    // Obtener solo los repuestos que tienen product_id (excluir mano de obra/servicios)
+    $productParts = $workOrder->parts->filter(function ($part) {
+      return $part->product_id !== null;
+    });
+
+    if ($productParts->isEmpty()) {
+      return; // No hay repuestos para procesar
+    }
+
+    // Obtener el almacén físico de la sede de la orden de trabajo
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', true)
+      ->where('status', true)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró almacén físico activo para la sede de la orden de trabajo');
+    }
+
+    // PASO 1: Liberar las reservas de stock de cada repuesto
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
+
+      if ($stock) {
+        // Liberar la cantidad reservada
+        $stock->releaseReservedStock($part->quantity_used);
+      }
+    }
+
+    // PASO 2: Crear el ajuste de salida (esto reducirá el stock real)
+    $movementData = [
+      'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
+      'warehouse_id' => $warehouse->id,
+      'notes' => "Ajuste de salida por generación de Nota Interna {$internalNote->number} - OT {$workOrder->correlative}",
+      'movement_date' => now(),
+    ];
+
+    // Preparar detalles (uno por cada repuesto)
+    $details = [];
+    foreach ($productParts as $part) {
+      $details[] = [
+        'product_id' => $part->product_id,
+        'quantity' => $part->quantity_used,
+        'unit_cost' => $part->unit_price,
+        'notes' => "Consumo NI {$internalNote->number} - {$part->product->name}",
+      ];
+    }
+
+    // Crear el ajuste usando el servicio de inventario
+    $this->inventoryMovementService->createAdjustment($movementData, $details);
+
+    // Marcar como procesado para evitar duplicados
+    $workOrder->update(['output_generation_warehouse' => true]);
   }
 
   public function updateItems(mixed $data)
