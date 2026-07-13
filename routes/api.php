@@ -79,6 +79,10 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
+use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
+use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
+use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TotpController;
@@ -182,6 +186,10 @@ use App\Http\Controllers\tp\comercial\DriverStatusLogController;
 use App\Http\Controllers\tp\configuracionComercial\TipoVehiculoController;
 use App\Http\Controllers\tp\configuracionComercial\VehiculoController;
 use Illuminate\Support\Facades\Route;
+
+// Vehicle Delivery - public approval endpoint (no auth required)
+Route::get('vehiclesDelivery/extraordinary/{token}/approve', [ApVehicleDeliveryController::class, 'approveExtraordinary'])
+  ->name('vehiclesDelivery.extraordinary.approve');
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
@@ -585,6 +593,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
       Route::get('sede/my', [SedeController::class, 'mySedes']);
+      Route::get('sede/my-shops', [SedeController::class, 'myShops']);
       Route::apiResource('sede', SedeController::class)->only([
         'index',
         'show',
@@ -1422,6 +1431,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicles Delivery - Horarios disponibles
       Route::get('vehiclesDelivery/available-slots', [ApVehicleDeliveryController::class, 'availableSlots']);
 
+      // Vehicles Delivery - Reprogramar
+      Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
+
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
@@ -1601,6 +1613,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      // Reports - Reportes de Taller
+      Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
+      Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
+
+      // Reports - Reportes de Inventario
+      Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
 
       // Work Order Items - Ítems de Órdenes de Trabajo
       Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([

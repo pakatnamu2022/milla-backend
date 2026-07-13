@@ -24,9 +24,9 @@ class ApMasters extends Model
   ];
 
   const filters = [
-    'search'                  => ['code', 'description', 'type'],
-    'type'                    => 'in_or_equal',
-    'status'                  => '=',
+    'search' => ['code', 'description', 'type'],
+    'type' => 'in_or_equal',
+    'status' => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
 
@@ -36,6 +36,9 @@ class ApMasters extends Model
     'status',
     'type',
   ];
+  // CATEGORIA_PRODUCTO
+  const int LUBRICANTE_ID = 902;
+
   //COLOR OTROS
   const int COLOR_OTHERS_ID = 1003;
 

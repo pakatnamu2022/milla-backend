@@ -25,13 +25,14 @@ class AttendanceSync extends Model
   ];
 
   const filters = [
-    'search'    => ['emp_code', 'full_name', 'person.nombre_completo'],
-    'emp_code'  => '=',
-    'person_id' => '=',
-    'mark_type' => '=',
-    'date'      => '=',
-    'date_from' => 'scope',
-    'date_to'   => 'scope',
+    'search'         => ['emp_code', 'full_name', 'person.nombre_completo'],
+    'emp_code'       => '=',
+    'person_id'      => '=',
+    'mark_type'      => '=',
+    'date'           => '=',
+    'date_from'      => 'scope',
+    'date_to'        => 'scope',
+    'person.sede_id' => '='
   ];
 
   const sorts = [
@@ -44,7 +45,7 @@ class AttendanceSync extends Model
   ];
 
   protected $casts = [
-    'date'     => 'date',
+    'date'      => 'date',
     'synced_at' => 'datetime',
   ];
 

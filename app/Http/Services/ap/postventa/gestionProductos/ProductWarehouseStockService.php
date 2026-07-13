@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResour
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Jobs\RecalculateProductCostJob;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
@@ -13,6 +14,7 @@ use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Http\Request;
@@ -739,6 +741,26 @@ class ProductWarehouseStockService extends BaseService
 
       $destinationStock->quantity += $quantityReceived;
       $destinationStock->last_movement_date = now();
+
+      // Copy costs from origin warehouse to destination warehouse
+      // Only if ALL costs in destination are 0 (to avoid overwriting existing costs)
+      if ($originStock) {
+        $allCostsAreZero = (
+          ($destinationStock->cost_price ?? 0) == 0 &&
+          ($destinationStock->average_cost ?? 0) == 0 &&
+          ($destinationStock->sale_price ?? 0) == 0 &&
+          ($destinationStock->sale_price_min ?? 0) == 0
+        );
+
+        if ($allCostsAreZero) {
+          $destinationStock->cost_price = $originStock->cost_price;
+          $destinationStock->average_cost = $originStock->average_cost;
+          $destinationStock->sale_price = $originStock->sale_price;
+          $destinationStock->sale_price_min = $originStock->sale_price_min;
+          $destinationStock->currency_id = $originStock->currency_id;
+        }
+      }
+
       $destinationStock->updateAvailableQuantity();
 
       DB::commit();
@@ -1986,7 +2008,7 @@ class ProductWarehouseStockService extends BaseService
   }
 
   /**
-   * Get reserved stock report showing which work orders have reserved stock
+   * Get reserved stock report showing which work orders and quotations have reserved stock
    * and who reserved them, grouped by warehouse
    *
    * @param Request $request
@@ -2002,7 +2024,7 @@ class ProductWarehouseStockService extends BaseService
       // Build base query for products with reserved stock
       $query = ProductWarehouseStock::with([
         'product:id,name,code,dyn_code',
-        'warehouse:id,dyn_code'
+        'warehouse:id,dyn_code,sede_id'
       ])
         ->where('reserved_quantity', '>', 0);
 
@@ -2026,6 +2048,7 @@ class ProductWarehouseStockService extends BaseService
           ->join('ap_work_orders as wo', 'wop.work_order_id', '=', 'wo.id')
           ->join('usr_users as u', 'wop.registered_by', '=', 'u.id')
           ->leftJoin('config_sede as s', 'wo.sede_id', '=', 's.id')
+          ->leftJoin('ap_masters as status', 'wo.status_id', '=', 'status.id')
           ->where('wop.product_id', $stock->product_id)
           ->where('wop.warehouse_id', $stock->warehouse_id)
           ->whereNull('wop.deleted_at')
@@ -2033,12 +2056,14 @@ class ProductWarehouseStockService extends BaseService
           // Only include work orders that haven't generated warehouse output yet
           ->where(function ($q) {
             $q->where('wo.output_generation_warehouse', false)
+              ->whereNotIn('status.id', [ApMasters::CANCELED_WORK_ORDER_ID, ApMasters::CLOSED_WORK_ORDER_ID])
               ->orWhereNull('wo.output_generation_warehouse');
           })
           ->select([
             'wo.id as work_order_id',
             'wo.correlative as work_order_correlative',
             'wo.status_id',
+            'status.description as status_description',
             'wop.quantity_used',
             'wop.created_at as reserved_at',
             'u.id as user_id',
@@ -2048,7 +2073,44 @@ class ProductWarehouseStockService extends BaseService
           ->orderBy('wop.created_at', 'desc')
           ->get();
 
-        if ($workOrderParts->isNotEmpty()) {
+        // Get all quotation details that are reserving this product in this warehouse
+        // Only quotations that haven't been invoiced yet (has_invoice_generated = false or NULL)
+        // Only details with supply_type = 'STOCK'
+        $quotationDetails = DB::table('ap_order_quotation_details as qd')
+          ->join('ap_order_quotations as q', 'qd.order_quotation_id', '=', 'q.id')
+          ->join('usr_users as u', 'q.created_by', '=', 'u.id')
+          ->leftJoin('config_sede as s', 'q.sede_id', '=', 's.id')
+          ->leftJoin('warehouse as w', function ($join) use ($stock) {
+            // Join with warehouse table to get the physical warehouse for postventa
+            $join->on('w.sede_id', '=', 'q.sede_id')
+              ->where('w.id', '=', $stock->warehouse_id);
+          })
+          ->where('qd.product_id', $stock->product_id)
+          ->where('qd.supply_type', 'STOCK')
+          ->where('w.id', $stock->warehouse_id) // Ensure the warehouse matches
+          ->whereNull('qd.deleted_at')
+          ->whereNull('q.deleted_at')
+          // Only quotations that haven't been invoiced yet
+          ->where(function ($q) {
+            $q->where('q.has_invoice_generated', false)
+              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
+              ->orWhereNull('q.has_invoice_generated');
+          })
+          ->select([
+            'q.id as quotation_id',
+            'q.quotation_number',
+            'q.status',
+            'qd.quantity',
+            'qd.created_at as reserved_at',
+            'u.id as user_id',
+            'u.name as user_name',
+            's.abreviatura as sede_name'
+          ])
+          ->orderBy('qd.created_at', 'desc')
+          ->get();
+
+        // Only add to report if there are reservations (OT or quotations)
+        if ($workOrderParts->isNotEmpty() || $quotationDetails->isNotEmpty()) {
           $report[] = [
             'product_id' => $stock->product_id,
             'product_code' => $stock->product->code,
@@ -2059,15 +2121,29 @@ class ProductWarehouseStockService extends BaseService
             'total_reserved_quantity' => $stock->reserved_quantity,
             'physical_stock' => $stock->quantity,
             'available_quantity' => $stock->available_quantity,
-            'reservations' => $workOrderParts->map(function ($part) {
+            'reservations_ot' => $workOrderParts->map(function ($part) {
               return [
                 'work_order_id' => $part->work_order_id,
                 'work_order_correlative' => $part->work_order_correlative,
+                'work_order_status_id' => $part->status_id,
+                'work_order_status' => $part->status_description,
                 'sede_name' => $part->sede_name,
                 'quantity_reserved' => $part->quantity_used,
                 'reserved_at' => $part->reserved_at,
                 'reserved_by_user_id' => $part->user_id,
                 'reserved_by_user_name' => $part->user_name,
+              ];
+            })->toArray(),
+            'reservations_rp' => $quotationDetails->map(function ($detail) {
+              return [
+                'quotation_id' => $detail->quotation_id,
+                'quotation_number' => $detail->quotation_number,
+                'quotation_status' => $detail->status,
+                'sede_name' => $detail->sede_name,
+                'quantity_reserved' => $detail->quantity,
+                'reserved_at' => $detail->reserved_at,
+                'reserved_by_user_id' => $detail->user_id,
+                'reserved_by_user_name' => $detail->user_name,
               ];
             })->toArray()
           ];
@@ -2080,7 +2156,8 @@ class ProductWarehouseStockService extends BaseService
         'summary' => [
           'total_products_with_reservations' => count($report),
           'total_reserved_quantity' => $stocksWithReservations->sum('reserved_quantity'),
-          'total_work_orders' => collect($report)->sum(fn($item) => count($item['reservations']))
+          'total_work_orders' => collect($report)->sum(fn($item) => count($item['reservations_ot'])),
+          'total_quotations' => collect($report)->sum(fn($item) => count($item['reservations_rp']))
         ]
       ];
     } catch (Exception $e) {

@@ -3,6 +3,7 @@
 namespace App\Models\dp\comercial;
 
 use App\Http\Traits\Reportable;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,7 @@ class AccountReceivable extends BaseModel
     'amount_pen'        => 'Importe PEN (S/)',
     'balance_pen'       => 'Saldo PEN (S/)',
     'collection_date'   => 'Fecha Cobro',
+    'area_id'           => 'Area ID',
     'last_comment'      => 'Último Comentario',
   ];
 
@@ -74,6 +76,8 @@ class AccountReceivable extends BaseModel
     'amount_pen',
     'balance_pen',
     'synced_at',
+    'electronic_document_id',
+    'area_id',
   ];
 
   protected $casts = [
@@ -100,6 +104,7 @@ class AccountReceivable extends BaseModel
     'document_date'     => 'date_between',
     'document_due_date' => 'date_between',
     'due_year'          => 'in_or_equal',
+    'area_id'           => 'in_or_equal',
   ];
 
   const sorts = [
@@ -123,5 +128,10 @@ class AccountReceivable extends BaseModel
   public function comments(): HasMany
   {
     return $this->hasMany(AccountReceivableComment::class, 'accounts_receivable_id')->latest();
+  }
+
+  public function electronicDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
   }
 }

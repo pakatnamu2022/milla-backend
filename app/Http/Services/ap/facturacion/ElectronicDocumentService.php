@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
@@ -913,6 +914,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
         if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
+          $this->revertVehicleStatusOnCancellation($document);
           $document->markAsCancelled();
         }
       }
@@ -959,6 +961,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Marcar como cancelado
       $document->markAsLocalCancelled($reason);
+
+      // Revertir estado del vehículo si es documento de venta comercial
+      $this->revertVehicleStatusOnCancellation($document);
 
       // Revertir estados e inventario si es factura final de cotizacion de repuestos
       // Solo para facturas finales (is_advance_payment = 0) que tienen order_quotation_id
@@ -1911,6 +1916,39 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Revert vehicle to its best pre-sale inventory state when a SUNAT invoice is cancelled.
+   * Only acts if the document is linked to a vehicle (ap_vehicle_movement_id set).
+   * Idempotent: the caller must ensure this is only called before markAsCancelled().
+   */
+  private function revertVehicleStatusOnCancellation(ElectronicDocument $document): void
+  {
+    if (!$document->ap_vehicle_movement_id) {
+      return;
+    }
+
+    $saleMovement = VehicleMovement::find($document->ap_vehicle_movement_id);
+    if (!$saleMovement) {
+      return;
+    }
+
+    $vehicle = Vehicles::find($saleMovement->ap_vehicle_id);
+    if (!$vehicle) {
+      return;
+    }
+
+    try {
+      $vehicleMovementService = app(VehicleMovementService::class);
+      $vehicleMovementService->storeInvoiceCancellationRevertMovement($vehicle, $saleMovement);
+    } catch (Exception $e) {
+      Log::error('Error al revertir estado de vehículo por anulación de factura', [
+        'document_id'          => $document->id,
+        'ap_vehicle_movement_id' => $document->ap_vehicle_movement_id,
+        'error'                => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
    * Create vehicle movement when electronic document is created
    * @param int $vehicleId
    * @param ElectronicDocument $document
@@ -2832,6 +2870,28 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 
+    // Validar que no exista ya una factura final para esta cotización
+    // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+        && in_array($data['sunat_concept_document_type_id'], [
+          ElectronicDocument::TYPE_NOTA_CREDITO,
+          ElectronicDocument::TYPE_NOTA_DEBITO
+        ]);
+
+      if (!$isNotaCreditoDebito) {
+        $existingFinalInvoice = $quotation->getFinalInvoice();
+
+        if ($existingFinalInvoice) {
+          throw new Exception(
+            'Ya existe una factura final generada para esta cotización de repuesto (N° ' .
+            $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+            '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+          );
+        }
+      }
+    }
+
     // Validar stock de productos si no es un anticipo
     $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
 
@@ -2889,14 +2949,40 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    // Cargar la orden de trabajo con sus relaciones necesarias
+    $workOrder = ApWorkOrder::with('advancesWorkOrder')->find($data['work_order_id']);
+
+    if (!$workOrder) {
+      throw new Exception('No se encontró la orden de trabajo especificada.');
+    }
+
+    // Validar que no exista ya una factura final para esta orden de trabajo
+    // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+        && in_array($data['sunat_concept_document_type_id'], [
+          ElectronicDocument::TYPE_NOTA_CREDITO,
+          ElectronicDocument::TYPE_NOTA_DEBITO
+        ]);
+
+      if (!$isNotaCreditoDebito) {
+        $existingFinalInvoice = $workOrder->getFinalInvoice();
+
+        if ($existingFinalInvoice) {
+          throw new Exception(
+            'Ya existe una factura final generada para esta orden de trabajo (N° ' .
+            $existingFinalInvoice->serie . '-' . $existingFinalInvoice->numero .
+            '). No se puede generar más de una factura final a menos que la anterior haya sido anulada o tenga una nota de crédito válida.'
+          );
+        }
+      }
+    }
+
     // Validar reglas de negocio de la orden de trabajo
     $this->validateWorkOrderInvoice($data);
 
     // Validar stock reservado para repuestos de la OT
-    $workOrder = ApWorkOrder::find($data['work_order_id']);
-    if ($workOrder) {
-      $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
-    }
+    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
   }
 
   // ========================================================================

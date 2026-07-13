@@ -32,6 +32,15 @@ class SedeController extends Controller
     }
   }
 
+  public function myShops(Request $request)
+  {
+    try {
+      return $this->success($this->service->getMyShops($request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function availableLocationsShop(IndexSedeRequest $request)
   {
     return $this->service->getAvailableLocationsShop(request());

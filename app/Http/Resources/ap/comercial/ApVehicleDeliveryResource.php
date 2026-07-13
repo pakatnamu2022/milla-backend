@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\ap\comercial;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,11 +28,17 @@ class ApVehicleDeliveryResource extends JsonResource
       'aceptada_por_sunat'      => $this->ShippingGuide->aceptada_por_sunat ?? false,
       'sent_at'                 => $this->ShippingGuide->sent_at ?? null,
       'status_dynamic'          => $this->ShippingGuide->status_dynamic ?? null,
-      'is_accounted'            => $this->is_accounted,
-      'checklist_status'        => $this->checklist_status,
+      'is_accounted'              => $this->is_accounted,
+      'is_extraordinary'          => $this->is_extraordinary,
+      'extraordinary_approved'    => $this->extraordinary_approved,
+      'extraordinary_approved_at' => $this->extraordinary_approved_at,
+      'extraordinary_sent_by'     => $this->extraordinary_sent_by,
+      'rescheduled_by'            => $this->rescheduled_by,
+      'checklist_status'          => $this->checklist_status,
       'shipping_guide'          => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),
+      'created_at'              => $this->created_at,
     ];
   }
 }

@@ -456,11 +456,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $dataArray['address'] = $purchaseRequestQuote->opportunity->client->direction ?? null;
     $dataArray['email'] = $purchaseRequestQuote->opportunity->client->email ?? null;
     $dataArray['phone'] = $purchaseRequestQuote->opportunity->client->phone ?? null;
-    $dataArray['class'] = $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
-    $dataArray['brand'] = $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
-    $dataArray['ap_model_vn'] = $purchaseRequestQuote->apModelsVn->version ?? null;
-    $dataArray['engine_number'] = $purchaseRequestQuote->vehiclePurchaseOrders->engine_number ?? null;
-    $dataArray['vin'] = $purchaseRequestQuote->vehiclePurchaseOrders->vin ?? null;
+    $dataArray['class'] = $purchaseRequestQuote->vehicle?->model?->classArticle->description ?? $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
+    $dataArray['brand'] = $purchaseRequestQuote->vehicle?->model?->family->brand->name ?? $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
+    $dataArray['ap_model_vn'] = $purchaseRequestQuote->vehicle?->model?->version ?? $purchaseRequestQuote->apModelsVn->version ?? null;
+    $dataArray['engine_number'] = $purchaseRequestQuote->vehicle?->engine_number ?? null;
+    $dataArray['vin'] = $purchaseRequestQuote->vehicle?->vin ?? null;
     $vehicle = $purchaseRequestQuote->vehicle;
     $dataArray['model_year'] = ($vehicle && $vehicle->year)
       ? $vehicle->year

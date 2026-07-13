@@ -2,8 +2,10 @@
 
 namespace App\Http\Services\gp\maestroGeneral;
 
+use App\Http\Resources\ap\ApMastersResource;
 use App\Http\Resources\gp\maestroGeneral\SedeResource;
 use App\Http\Services\BaseService;
+use App\Models\ap\ApMasters;
 use App\Models\gp\maestroGeneral\Sede;
 use Exception;
 use Illuminate\Http\Request;
@@ -26,17 +28,33 @@ class SedeService extends BaseService
   public function getMySedes(Request $request)
   {
     $user = $request->user();
-    $company = $request->company;
     $has_workshop = $request->has_workshop;
-    $sedes = $user->sedes->where('empresa_id', $company)
-      ->where('status', 1)
-      ->whereNotNull('shop_id');
+    $sedes = $user->sedes->where('status', 1)->whereNotNull('shop_id');
+
+    if ($request->has('company')) {
+      $sedes = $sedes->where('empresa_id', $request->company);
+    }
 
     if ($request->has('has_workshop')) {
       $sedes = $sedes->where('has_workshop', $has_workshop);
     }
 
     return SedeResource::collection($sedes);
+  }
+
+  public function getMyShops(Request $request)
+  {
+    $user = $request->user();
+    $sedes = $user->sedes->where('status', 1)->whereNotNull('shop_id');
+
+    if ($request->has('company')) {
+      $sedes = $sedes->where('empresa_id', $request->company);
+    }
+
+    $shopIds = $sedes->pluck('shop_id')->unique()->values();
+    $shops = ApMasters::whereIn('id', $shopIds)->get();
+
+    return ApMastersResource::collection($shops);
   }
 
   public function getAvailableLocationsShop(Request $request)

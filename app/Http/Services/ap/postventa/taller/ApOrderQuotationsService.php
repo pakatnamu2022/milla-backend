@@ -171,13 +171,23 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Solo validar y guardar el tipo de cambio si la moneda es USD
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $data['exchange_rate'] = $exchangeRate->rate;
+
+        $data['exchange_rate_id'] = $optimalExchangeRate->id;
+        $data['exchange_rate'] = $optimalExchangeRate->rate;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
+        $data['exchange_rate_id'] = null;
         $data['exchange_rate'] = null;
       }
 
@@ -231,9 +241,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Solo obtener y validar el tipo de cambio si la moneda es USD
       $exchangeRate = null;
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $exchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA
+        );
+
         if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
       }
 
@@ -342,6 +359,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'tax_amount' => 0,
         'total_amount' => 0,
         'validity_days' => $validation_days,
+        'exchange_rate_id' => $exchangeRate ? $exchangeRate->id : null,
         'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'currency_id' => $data['currency_id'],
         'collection_date' => $data['collection_date'] ?? null,
@@ -421,12 +439,20 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Solo validar y guardar el tipo de cambio si la moneda es USD
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $data['exchange_rate'] = $exchangeRate->rate;
-        $data['exchange_rate_id'] = $exchangeRate->id;
+
+        $data['exchange_rate'] = $optimalExchangeRate->rate;
+        $data['exchange_rate_id'] = $optimalExchangeRate->id;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
         $data['exchange_rate'] = null;
@@ -471,6 +497,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Si cambió el tipo de moneda, recalcular los detalles con el nuevo tipo de cambio
       if ($currencyChanged) {
         $this->handleCurrencyChange($quotation, $oldCurrencyId, $newCurrencyId);
+
+        // Recalcular totales de cabecera (subtotal/tax_amount/total_amount) a partir
+        // de los details ya recalculados, igual que en changeCurrency().
+        $quotation->load('details');
+        $quotation->calculateTotals();
+        $quotation->save();
       }
 
       // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
@@ -495,17 +527,33 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $vehicleId = $data['vehicle_id'] ?? null;
       $date = Carbon::parse($data['quotation_date'])->format('Y-m-d');
 
+      // Detectar si cambió el tipo de moneda
+      $oldCurrencyId = $quotation->currency_id;
+      $newCurrencyId = $data['currency_id'] ?? $oldCurrencyId;
+      $currencyChanged = $oldCurrencyId !== null && $newCurrencyId !== null && $oldCurrencyId != $newCurrencyId;
+
       // Solo obtener y validar el tipo de cambio si la moneda es USD
       $exchangeRate = null;
       if (isset($data['currency_id']) && $data['currency_id'] == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $exchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $date,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+        );
+
         if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
       }
 
       if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
         throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
+      }
+
+      if ($quotation->status === ApOrderQuotations::STATUS_SEGMENTADA) {
+        throw new Exception('No se puede actualizar una cotización que ha sido segmentada.');
       }
 
       if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
@@ -577,19 +625,51 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'observations' => $data['observations'] ?? null,
         'validity_days' => $validation_days,
         'currency_id' => $data['currency_id'],
+        'exchange_rate_id' => $exchangeRate ? $exchangeRate->id : null,
         'exchange_rate' => $exchangeRate ? $exchangeRate->rate : null,
         'collection_date' => $data['collection_date'] ?? null,
       ]);
 
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($data['sede_id'])?->id;
+
+      // Capturar los detalles originales (moneda anterior) antes de eliminarlos.
+      // Se usan como base real para la reconversión de moneda: el unit_price que
+      // manda el frontend en 'details' es solo una previsualización (ya dividida/
+      // multiplicada por el tipo de cambio del cliente), y el backend recién aquí
+      // determina el tipo de cambio definitivo. Si se reconvirtiera ese valor de
+      // previsualización, el precio quedaría dividido dos veces.
+      $oldDetailsByProduct = $quotation->details->keyBy('product_id');
+
       // Delete existing details
       $quotation->details()->delete();
 
+      // Si cambió la moneda, calcular el factor de conversión para los precios
+      $conversionFactor = 1;
+      if ($currencyChanged) {
+        // Refresh para obtener el exchange_rate actualizado
+        $quotation->refresh();
+        $conversionFactor = $this->getConversionFactor($quotation, $oldCurrencyId, $newCurrencyId);
+      }
+
       // Create new details
       foreach ($data['details'] as $detail) {
+        $unitPrice = (float)$detail['unit_price'];
+
+        // Si cambió la moneda, ignorar el unit_price de previsualización que envía
+        // el frontend y reconvertir desde el precio original (moneda anterior) de
+        // ese mismo producto, aplicando el factor una única vez.
+        if ($currencyChanged) {
+          $oldDetail = $oldDetailsByProduct->get($detail['product_id']);
+          $unitPrice = $oldDetail
+            ? (float)$oldDetail->unit_price * $conversionFactor
+            : $unitPrice;
+        }
+
         // unit_price + total_cost/net_amount/tax_amount: única fuente de verdad
         // compartida con ApOrderQuotationDetailsService.
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
-        $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
+        $result = PriceRounding::calculateLine($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
 
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
@@ -662,7 +742,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     }
 
     DB::transaction(function () use ($quotation) {
+      $parentQuotation = $quotation->parent_quotation_id
+        ? ApOrderQuotations::find($quotation->parent_quotation_id)
+        : null;
+
       $quotation->delete();
+
+      // Si esta era la última cotización segmentada, reabrir el padre
+      if ($parentQuotation && $parentQuotation->segmentedQuotations()->count() === 0) {
+        $parentQuotation->update(['status' => ApOrderQuotations::STATUS_APERTURADO]);
+      }
     });
 
     return response()->json(['message' => 'Cotización eliminada correctamente']);
@@ -679,6 +768,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       if ($quotation->discarded_at) {
         throw new Exception('Esta cotización ya ha sido descartada previamente.');
+      }
+
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+      // Liberar stock de los detalles que son tipo STOCK antes de descartar
+      foreach ($quotation->details as $detail) {
+        if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($detail->quantity);
+          }
+        }
       }
 
       // Preparar los datos de descarte
@@ -718,7 +823,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'vehicle.color',
       'vehicle.customer.district',
       'createdBy',
-      'details.product'
+      'details.product',
+      'typeCurrency'
     ])->find($id);
 
     if (!$quotation) {
@@ -844,6 +950,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['tax_amount'] = $igv_amount;
     $data['total_amount'] = $total_amount;
     $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
+    $data['currency_symbol'] = $quotation->typeCurrency ? $quotation->typeCurrency->symbol : 'S/';
+    $data['currency_name'] = $quotation->typeCurrency ? $quotation->typeCurrency->name : 'SOLES';
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;
@@ -1019,10 +1127,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización ya ha sido confirmada previamente.');
       }
 
+      if ($quotation->segmentedQuotations()->count() > 0) {
+        throw new Exception('Esta cotización no se puede confirmar porque ha sido segmentada en otras cotizaciones.');
+      }
+
       // Procesar firma del cliente si existe
       if (isset($data['customer_signature'])) {
         $this->processCustomerSignature($quotation, $data['customer_signature']);
       }
+
+      // Reservar stock para productos de tipo STOCK
+      $this->reserveStockForQuotation($quotation);
 
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
@@ -1090,14 +1205,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'managerApprovalBy',
       ]);
 
-      $this->sendQuotationApprovalEvidenceEmail(
-        $quotation,
-        $data,
-        $user,
-        Position::POSITION_JEFE_TALLER_PVT_IDS,
-        'Jefe de Taller',
-        'Taller'
-      );
+//      $this->sendQuotationApprovalEvidenceEmail(
+//        $quotation,
+//        $data,
+//        $user,
+//        Position::POSITION_JEFE_TALLER_PVT_IDS,
+//        'Jefe de Taller',
+//        'Taller'
+//      );
 
       return new ApOrderQuotationsResource($quotation);
     });
@@ -1236,14 +1351,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'managerApprovalBy',
       ]);
 
-      $this->sendQuotationApprovalEvidenceEmail(
-        $quotation,
-        $data,
-        $user,
-        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
-        'Jefe de Repuesto',
-        'Repuestos'
-      );
+//      $this->sendQuotationApprovalEvidenceEmail(
+//        $quotation,
+//        $data,
+//        $user,
+//        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
+//        'Jefe de Repuesto',
+//        'Repuestos'
+//      );
 
       return new ApOrderQuotationsResource($quotation);
     });
@@ -1379,15 +1494,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       foreach ($chiefUsers as $chief) {
         if ($chief->person && $chief->person->email2) {
           try {
-            $this->emailService->queue([
-              'to' => $chief->person->email2,
-              'subject' => $subject,
-              'template' => 'emails.quotation-notification',
-              'data' => array_merge($emailData, [
-                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
-                'recipient_role' => 'Jefe de Taller',
-              ]),
-            ]);
+//            $this->emailService->queue([
+//              'to' => $chief->person->email2,
+//              'subject' => $subject,
+//              'template' => 'emails.quotation-notification',
+//              'data' => array_merge($emailData, [
+//                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
+//                'recipient_role' => 'Jefe de Taller',
+//              ]),
+//            ]);
             $emailsSentCount++;
           } catch (Exception $e) {
             \Log::error('Error al enviar correo al Jefe de Taller: ' . $e->getMessage());
@@ -1800,6 +1915,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $segmentedQuotations[] = $newQuotation;
       }
 
+      // 6.9. Marcar la cotización original como Segmentada (borrador, se excluye de la reportería)
+      $originalQuotation->update(['status' => ApOrderQuotations::STATUS_SEGMENTADA]);
+
       // 7. Cargar relaciones y retornar
       $quotationsWithRelations = ApOrderQuotations::whereIn('id', collect($segmentedQuotations)->pluck('id'))
         ->with([
@@ -1919,16 +2037,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('La moneda seleccionada es la misma que la actual');
       }
 
-      $date = Carbon::now()->format('Y-m-d');
+      // Obtener la fecha de la cotización para comparar tipos de cambio
+      $quotationDate = Carbon::parse($quotation->quotation_date)->format('Y-m-d');
 
-      // Obtener el tipo de cambio si la nueva moneda es USD
+      // Obtener el tipo de cambio óptimo si la nueva moneda es USD
       if ($newCurrencyId == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', $date)->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+        // Obtener el tipo de cambio óptimo entre la fecha de cotización y la fecha actual
+        $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+          $quotationDate,
+          TypeCurrency::PEN_ID,
+          TypeCurrency::USD_ID,
+          ExchangeRate::TYPE_VENTA,
+        );
+
+        if (!$optimalExchangeRate) {
+          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
         }
-        $quotation->exchange_rate = $exchangeRate->rate;
-        $quotation->exchange_rate_id = $exchangeRate->id;
+
+        $quotation->exchange_rate = $optimalExchangeRate->rate;
+        $quotation->exchange_rate_id = $optimalExchangeRate->id;
       } else {
         // Si es PEN u otra moneda, el tipo de cambio es null
         $quotation->exchange_rate = null;
@@ -2120,5 +2247,53 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
     });
+  }
+
+  /**
+   * Reserva stock para los productos de tipo STOCK de una cotización
+   *
+   * @param ApOrderQuotations $quotation
+   * @return void
+   * @throws Exception
+   */
+  public function reserveStockForQuotation(ApOrderQuotations $quotation): void
+  {
+    // Obtener el almacén físico de la sede de la cotización
+    $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+    if (!$warehouseId) {
+      throw new Exception('No se encontró un almacén físico asociado a esta sede para reservar el stock.');
+    }
+
+    // Cargar los detalles si no están cargados
+    if (!$quotation->relationLoaded('details')) {
+      $quotation->load('details');
+    }
+
+    // Filtrar solo los productos con supply_type = 'STOCK'
+    $stockDetails = $quotation->details->where('supply_type', ApOrderQuotations::STOCK);
+
+    foreach ($stockDetails as $detail) {
+      if (!$detail->product_id) {
+        continue;
+      }
+
+      $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+        ->where('warehouse_id', $warehouseId)
+        ->first();
+
+      if (!$stock) {
+        throw new Exception(
+          "Producto ({$detail->description}): No se encontró registro de stock en el almacén."
+        );
+      }
+
+      $reserveSuccess = $stock->reserveStock($detail->quantity);
+      if (!$reserveSuccess) {
+        throw new Exception(
+          "Producto ({$detail->description}): No se pudo reservar el stock. Stock insuficiente disponible."
+        );
+      }
+    }
   }
 }

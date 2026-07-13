@@ -119,6 +119,10 @@ return [
 
   'tics' => ['mesadeayuda@grupopakatnamu.com'],
 
+  'delivery' => [
+    'extraordinary_approval' => env('DELIVERY_EXTRAORDINARY_APPROVAL_EMAIL', ''),
+  ],
+
   'recipients' => [
     'purchase_quote' => [
       'piura_jaen'        => ['john.timana@derco.pe'],

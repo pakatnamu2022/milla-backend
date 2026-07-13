@@ -19,7 +19,8 @@ class SyncAccountsReceivableJob implements ShouldQueue
   public int $timeout = 300;
 
   private const COMPANY_CONNECTION_MAP = [
-    'deposito' => 'dbdp2',
+    'deposito'    => 'dbdp2',
+    'automotores' => 'dbtp3',
   ];
 
   public function __construct(
@@ -112,6 +113,17 @@ class SyncAccountsReceivableJob implements ShouldQueue
       ->where('synced_at', '<', $batchAt)
       ->where('overdue_status', '!=', 'PAGADO')
       ->update(['overdue_status' => 'PAGADO', 'updated_at' => $batchAt]);
+
+    if ($company === 'automotores') {
+      DB::statement("
+        UPDATE accounts_receivable ar
+        INNER JOIN ap_billing_electronic_documents ed
+          ON ar.document_number = ed.full_number AND ed.deleted_at IS NULL
+        SET ar.electronic_document_id = ed.id,
+            ar.area_id = ed.area_id
+        WHERE ar.company = 'automotores'
+      ");
+    }
 
     Cache::forget(AccountsReceivableService::filterTreeCacheKey($company));
     Cache::forget(AccountsReceivableService::dashboardCacheKey($company));

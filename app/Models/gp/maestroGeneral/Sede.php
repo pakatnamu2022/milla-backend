@@ -45,6 +45,7 @@ class Sede extends BaseModel
     'district_id',
     'status',
     'has_workshop',
+    'code_afs',
   ];
 
   const filters = [

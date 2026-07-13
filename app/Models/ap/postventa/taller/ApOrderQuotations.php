@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\postventa\taller;
 
+use App\Http\Traits\HasExchangeRateToUsd;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -26,7 +27,7 @@ use Illuminate\Support\Str;
 
 class ApOrderQuotations extends Model
 {
-  use softDeletes;
+  use softDeletes, HasExchangeRateToUsd;
 
   protected $table = 'ap_order_quotations';
 
@@ -120,6 +121,7 @@ class ApOrderQuotations extends Model
   const STATUS_APERTURADO = 'Aperturado';
   const STATUS_POR_FACTURAR = 'Por Facturar';
   const STATUS_FACTURADO = 'Facturado';
+  const STATUS_SEGMENTADA = 'Segmentada';
 
   // SUPPLY TYPE CONSTANTS
   const STOCK = 'STOCK';
@@ -221,6 +223,14 @@ class ApOrderQuotations extends Model
   public function advancesOrderQuotation(): HasMany
   {
     return $this->hasMany(ElectronicDocument::class, 'order_quotation_id');
+  }
+
+  /**
+   * @see HasExchangeRateToUsd
+   */
+  public function exchangeRateDocuments(): HasMany
+  {
+    return $this->advancesOrderQuotation();
   }
 
   public function discardReason(): BelongsTo

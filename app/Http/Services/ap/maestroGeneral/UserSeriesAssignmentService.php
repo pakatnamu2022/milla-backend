@@ -83,6 +83,11 @@ class UserSeriesAssignmentService extends BaseService
       $query->where('assign_sales_series.sede_id', $sedeId);
     }
 
+    // Filtrar por prefijo de serie (ej: 'F' para facturas, 'B' para boletas)
+    if ($seriesPrefix = $request->query('series_prefix')) {
+      $query->where('assign_sales_series.series', 'like', strtoupper($seriesPrefix) . '%');
+    }
+
     $series = $query->get();
 
     return response()->json(AssignSalesSeriesResource::collection($series));

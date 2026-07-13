@@ -7,6 +7,7 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\EmailService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
@@ -29,6 +30,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Exception;
 
 class ApVehicleDeliveryService extends BaseService implements BaseServiceInterface
@@ -36,16 +38,19 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   protected NubefactShippingGuideApiService $nubefactService;
   protected VehicleMovementService $vehicleMovementService;
   protected VehiclesService $vehiclesService;
+  protected EmailService $emailService;
 
   public function __construct(
     NubefactShippingGuideApiService $nubefactService,
     VehicleMovementService          $vehicleMovementService,
-    VehiclesService                 $vehiclesService
+    VehiclesService                 $vehiclesService,
+    EmailService                    $emailService
   )
   {
     $this->nubefactService = $nubefactService;
     $this->vehicleMovementService = $vehicleMovementService;
     $this->vehiclesService = $vehiclesService;
+    $this->emailService = $emailService;
   }
 
   public function list(Request $request)
@@ -85,25 +90,32 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $user = auth()->user();
         $data['advisor_id'] = $user->partner_id;
         $data['wash_date'] = now();
+        $data['real_wash_date'] = now();
+        $data['status_wash'] = 'completed';
+        $isExtraordinary = !empty($data['is_extraordinary']);
 
         if (!$data['advisor_id']) {
           throw new Exception('El asesor no está asociado a un socio válido');
         }
 
-        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
-          ->where('scheduled_delivery_date', $data['scheduled_delivery_date'])
-          ->first();
-        if ($existingDelivery) {
-          throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
-        }
-
-        if (isset($data['wash_date']) && $data['wash_date'] > $data['scheduled_delivery_date']) {
-          throw new Exception('La fecha de lavado no puede ser mayor a la fecha de entrega programada');
+        if (!$isExtraordinary) {
+          $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
+            ->where('scheduled_delivery_date', $data['scheduled_delivery_date'])
+            ->first();
+          if ($existingDelivery) {
+            throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
+          }
         }
 
         // Obtener el documento electrónico y cliente usando el método centralizado
         $documentData = Vehicles::getElectronicDocumentWithClient($data['vehicle_id']);
         $data['client_id'] = $documentData->client->id;
+
+        if ($isExtraordinary) {
+          $data['extraordinary_approved'] = null;
+          $data['extraordinary_sent_by'] = auth()->id();
+          $data['extraordinary_token'] = Str::random(64);
+        }
 
         $vehicleDelivery = ApVehicleDelivery::create($data);
         $vehicle = Vehicles::find($data['vehicle_id']);
@@ -115,6 +127,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // creamos el movimiento de vehículo asociado
         $vehicleMovement = $this->vehicleMovementService->storeScheduleDeliveryVehicleMovement($vehicle);
         $vehicleDelivery->update(['vehicle_movement_id' => $vehicleMovement->id]);
+
+        if ($isExtraordinary) {
+          $this->sendExtraordinaryApprovalEmail($vehicleDelivery->fresh()->load(['vehicle', 'client', 'sede']));
+        }
 
         return new ApVehicleDeliveryResource($vehicleDelivery);
       });
@@ -601,7 +617,92 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
   }
 
-  public function availableSlots(string $date): array
+  public function reschedule(int $id, array $data): ApVehicleDeliveryResource
+  {
+    $vehicleDelivery = $this->find($id);
+
+    if ($vehicleDelivery->status_delivery === 'completed') {
+      throw new Exception('No se puede reprogramar una entrega ya completada.');
+    }
+
+    if ($vehicleDelivery->shipping_guide_id) {
+      throw new Exception('No se puede reprogramar una entrega que ya tiene guía de remisión generada.');
+    }
+
+    $newDate = Carbon::parse($data['scheduled_delivery_date']);
+    $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
+      ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
+      : collect([$vehicleDelivery->sede_id]);
+
+    $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
+      ->whereIn('sede_id', $sedeIdsDelShop)
+      ->where('id', '!=', $id)
+      ->whereNull('deleted_at')
+      ->exists();
+
+    if ($slotTaken) {
+      throw new Exception('El horario ' . $newDate->format('H:i') . ' del ' . $newDate->format('d/m/Y') . ' ya está ocupado en este shop. Elija otro horario.');
+    }
+
+    $vehicleDelivery->update([
+      'scheduled_delivery_date' => $data['scheduled_delivery_date'],
+      'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
+      'rescheduled_by'          => auth()->id(),
+    ]);
+
+    return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
+  }
+
+  public function approveExtraordinary(string $token): array
+  {
+    $delivery = ApVehicleDelivery::where('extraordinary_token', $token)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if (!$delivery) {
+      throw new Exception('Token de aprobación inválido o expirado.');
+    }
+
+    if ($delivery->extraordinary_approved === true) {
+      return ['already_approved' => true, 'delivery_id' => $delivery->id];
+    }
+
+    $delivery->update([
+      'extraordinary_approved'    => true,
+      'extraordinary_approved_at' => now(),
+    ]);
+
+    return ['already_approved' => false, 'delivery_id' => $delivery->id];
+  }
+
+  private function sendExtraordinaryApprovalEmail(ApVehicleDelivery $delivery): void
+  {
+    $approvalEmail = config('mail.delivery.extraordinary_approval');
+
+    if (empty($approvalEmail)) {
+      return;
+    }
+
+    $sentBy = \App\Models\User::find($delivery->extraordinary_sent_by);
+    $approveUrl = config('app.url') . '/api/vehiclesDelivery/extraordinary/' . $delivery->extraordinary_token . '/approve';
+
+    $this->emailService->queue([
+      'to'       => $approvalEmail,
+      'subject'  => 'Entrega extraordinaria pendiente de aprobación — ' . ($delivery->vehicle->vin ?? 'VIN no disponible'),
+      'template' => 'emails.vehicle-delivery-extraordinary-approval',
+      'data'     => [
+        'sent_by_name'   => $sentBy?->name ?? 'Usuario del sistema',
+        'client_name'    => $delivery->client?->full_name ?? '-',
+        'vehicle_vin'    => $delivery->vehicle?->vin ?? '-',
+        'scheduled_date' => Carbon::parse($delivery->scheduled_delivery_date)->format('d/m/Y H:i'),
+        'sede_name'      => $delivery->sede?->abreviatura ?? '-',
+        'observations'   => $delivery->observations,
+        'approve_url'    => $approveUrl,
+      ],
+    ]);
+  }
+
+  public function availableSlots(string $date, ?int $shopId = null): array
   {
     $day = Carbon::parse($date);
     $dayOfWeek = $day->dayOfWeek;
@@ -614,9 +715,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ? ApVehicleDelivery::SATURDAY_SLOTS
       : ApVehicleDelivery::WEEKDAY_SLOTS;
 
-    $takenDatetimes = ApVehicleDelivery::whereDate('scheduled_delivery_date', $date)
-      ->whereNull('deleted_at')
-      ->pluck('scheduled_delivery_date')
+    $takenQuery = ApVehicleDelivery::whereDate('scheduled_delivery_date', $date)
+      ->whereNull('deleted_at');
+
+    if ($shopId !== null) {
+      $takenQuery->whereHas('sede', fn($q) => $q->where('shop_id', $shopId));
+    }
+
+    $takenDatetimes = $takenQuery->pluck('scheduled_delivery_date')
       ->map(fn($dt) => Carbon::parse($dt)->format('H:i'))
       ->toArray();
 

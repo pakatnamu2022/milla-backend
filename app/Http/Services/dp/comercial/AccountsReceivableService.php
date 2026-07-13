@@ -25,11 +25,13 @@ class AccountsReceivableService extends BaseService
 //  private const GENERAL_EMAIL = 'hvaldiviezos@automotorespakatnamu.com';
 
   private const COMPANY_CONNECTION_MAP = [
-    'deposito' => 'dbdp2',
+    'deposito'    => 'dbdp2',
+    'automotores' => 'dbtp3',
   ];
 
   private const COMPANY_EMPRESA_ID_MAP = [
-    'deposito' => 2,
+    'deposito'    => 2,
+    'automotores' => 3,
   ];
 
   private const SEDE_EMAIL_MAP = [
@@ -116,6 +118,17 @@ class AccountsReceivableService extends BaseService
       ->where('overdue_status', '!=', 'PAGADO')
       ->update(['overdue_status' => 'PAGADO', 'updated_at' => $batchAt]);
 
+    if ($company === 'automotores') {
+      DB::statement("
+        UPDATE accounts_receivable ar
+        INNER JOIN ap_billing_electronic_documents ed
+          ON ar.document_number = ed.full_number AND ed.deleted_at IS NULL
+        SET ar.electronic_document_id = ed.id,
+            ar.area_id = ed.area_id
+        WHERE ar.company = 'automotores'
+      ");
+    }
+
     Cache::forget(self::filterTreeCacheKey($company));
     Cache::forget(self::dashboardCacheKey($company));
 
@@ -175,7 +188,13 @@ class AccountsReceivableService extends BaseService
 
   public function show(int $id): AccountReceivableResource
   {
-    $record = AccountReceivable::with(['sede', 'comments.user', 'comments.sede'])->findOrFail($id);
+    $record = AccountReceivable::with([
+      'sede',
+      'comments.user',
+      'comments.sede',
+      'electronicDocument.items',
+      'electronicDocument.installments',
+    ])->findOrFail($id);
 
     return new AccountReceivableResource($record);
   }
@@ -458,6 +477,7 @@ class AccountsReceivableService extends BaseService
         'amount_pen'        => (float)$r->amount_pen,
         'balance_pen'       => (float)$r->balance_pen,
         'collection_date'   => $r->collection_date?->format('d/m/Y'),
+        'area_id'           => $r->area_id,
         'last_comment'      => $lastComment,
       ];
     })->toArray();
@@ -666,12 +686,14 @@ class AccountsReceivableService extends BaseService
     $sedeIds  = !empty($filters['sede_ids'])  ? array_map('intval', (array)$filters['sede_ids'])  : null;
     $statuses = !empty($filters['statuses'])  ? (array)$filters['statuses']                       : null;
     $years    = !empty($filters['years'])     ? array_map('intval', (array)$filters['years'])     : null;
+    $areaIds  = !empty($filters['area_ids'])  ? array_map('intval', (array)$filters['area_ids'])  : null;
 
     $base = fn() => AccountReceivable::where('company', $company)
       ->whereNot('overdue_status', 'PAGADO')
       ->when($sedeIds  !== null, fn($q) => $q->whereIn('sede_id',       $sedeIds))
       ->when($statuses !== null, fn($q) => $q->whereIn('overdue_status', $statuses))
-      ->when($years    !== null, fn($q) => $q->whereIn('due_year',       $years));
+      ->when($years    !== null, fn($q) => $q->whereIn('due_year',       $years))
+      ->when($areaIds  !== null, fn($q) => $q->whereIn('area_id',        $areaIds));
 
     // KPIs
     $summary = $base()->selectRaw('

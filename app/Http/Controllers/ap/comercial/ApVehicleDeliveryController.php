@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
+use App\Http\Requests\ap\comercial\RescheduleApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryStockInicialRequest;
 use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
@@ -70,13 +71,36 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
+  public function reschedule(RescheduleApVehicleDeliveryRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->reschedule((int) $id, $request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function approveExtraordinary($token)
+  {
+    try {
+      $result = $this->service->approveExtraordinary($token);
+      $message = $result['already_approved']
+        ? 'La entrega extraordinaria ya había sido aprobada anteriormente.'
+        : 'Entrega extraordinaria aprobada correctamente.';
+      return response()->json(['success' => true, 'message' => $message, 'delivery_id' => $result['delivery_id']]);
+    } catch (\Throwable $th) {
+      return response()->json(['success' => false, 'message' => $th->getMessage()], 422);
+    }
+  }
+
   public function availableSlots(Request $request)
   {
     try {
       $request->validate([
-        'date' => 'required|date_format:Y-m-d',
+        'date'    => 'required|date_format:Y-m-d',
+        'shop_id' => 'nullable|integer',
       ]);
-      return $this->success($this->service->availableSlots($request->input('date')));
+      return $this->success($this->service->availableSlots($request->input('date'), $request->input('shop_id')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

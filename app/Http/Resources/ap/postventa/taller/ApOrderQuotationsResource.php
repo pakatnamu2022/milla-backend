@@ -112,6 +112,16 @@ class ApOrderQuotationsResource extends JsonResource
   /**
    * Check if there is sufficient stock for all products in the quotation details
    *
+   * Lógica según estado de confirmación y supply_type:
+   *
+   * CONFIRMADA:
+   *   - STOCK: valida quantity (físico) Y reserved_quantity (reservado)
+   *   - NO STOCK (LOCAL/CENTRAL/IMPORTACION): valida available_quantity (libre actual)
+   *
+   * NO CONFIRMADA:
+   *   - STOCK: valida available_quantity (para saber si se puede reservar)
+   *   - NO STOCK: valida available_quantity (libre actual)
+   *
    * @return bool
    */
   private function checkSufficientStock(): bool
@@ -125,28 +135,40 @@ class ApOrderQuotationsResource extends JsonResource
     }
 
     // Get all product details from quotation
-    $productDetails = $this->details->where('item_type', 'PRODUCT');
+    $productDetails = $this->details
+      ->where('item_type', 'PRODUCT')
+      ->where('product_id', '!=', null);
 
     // If no products, return true
     if ($productDetails->isEmpty()) {
       return true;
     }
 
+    // Determinar si la cotización ya está confirmada
+    $isConfirmed = !is_null($this->confirmed_at);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
-      // Skip if no product_id
-      if (!$detail->product_id) {
-        continue;
-      }
-
       // Get stock for this product in this warehouse
       $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
         ->where('product_id', $detail->product_id)
         ->first();
 
-      // If no stock record found or insufficient available quantity, return false
-      if (!$stock || $stock->available_quantity < $detail->quantity) {
+      if (!$stock) {
         return false;
+      }
+
+      // Validación según confirmación y supply_type
+      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+        // Cotización confirmada + STOCK: validar físico Y reservado
+        if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
+          return false;
+        }
+      } else {
+        // Cualquier otro caso: validar stock disponible (libre)
+        if ($stock->available_quantity < $detail->quantity) {
+          return false;
+        }
       }
     }
 

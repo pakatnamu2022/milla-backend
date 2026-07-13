@@ -141,6 +141,21 @@ class ProductsService extends BaseService implements BaseServiceInterface
       // Si solo se está actualizando el status, permitir la actualización sin validaciones
       $isOnlyStatusUpdate = count($data) === 2 && isset($data['id']) && isset($data['status']);
 
+      // Verificar si el producto tiene movimientos de inventario
+      // Solo aplica esta validación si NO es una actualización únicamente de status
+      if (!$isOnlyStatusUpdate) {
+        $movementDetails = InventoryMovementDetail::where('product_id', $data['id'])
+          ->with(['movement'])
+          ->get();
+
+        if ($movementDetails->isNotEmpty()) {
+          $movementCount = $movementDetails->count();
+          throw new Exception(
+            "No se puede editar el producto porque tiene {$movementCount} movimiento(s) de inventario asociado(s)."
+          );
+        }
+      }
+
       // Verificar si el producto tiene una orden de compra/factura registrada
       // Solo aplica esta validación si NO es una actualización únicamente de status
       if (!$isOnlyStatusUpdate && $product->hasPurchaseOrder()) {
