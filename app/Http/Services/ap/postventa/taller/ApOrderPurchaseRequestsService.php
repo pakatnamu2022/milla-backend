@@ -122,11 +122,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       }
 
       // Enviar notificación al encargado de almacén
-      try {
-        $this->sendPurchaseRequestNotificationEmail($purchaseRequest->id);
-      } catch (Exception $e) {
-        \Log::error('Error al enviar notificación de solicitud de compra: ' . $e->getMessage());
-      }
+//      try {
+//        $this->sendPurchaseRequestNotificationEmail($purchaseRequest->id);
+//      } catch (Exception $e) {
+//        \Log::error('Error al enviar notificación de solicitud de compra: ' . $e->getMessage());
+//      }
 
       return new ApOrderPurchaseRequestsResource($purchaseRequest->load([
         'purchaseOrder',
@@ -934,15 +934,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
               $role = 'Jefe de Almacén';
             }
 
-            $this->emailService->queue([
-              'to' => $managerEmail,
-              'subject' => $subject,
-              'template' => 'emails.purchase-request-notification',
-              'data' => array_merge($emailData, [
-                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
-                'recipient_role' => $role,
-              ]),
-            ]);
+//            $this->emailService->queue([
+//              'to' => $managerEmail,
+//              'subject' => $subject,
+//              'template' => 'emails.purchase-request-notification',
+//              'data' => array_merge($emailData, [
+//                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
+//                'recipient_role' => $role,
+//              ]),
+//            ]);
           } catch (Exception $e) {
             \Log::error("Error al enviar correo al manager (User ID: {$manager->id}): " . $e->getMessage());
           }
