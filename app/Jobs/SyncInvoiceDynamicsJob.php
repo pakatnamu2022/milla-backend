@@ -220,13 +220,13 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         /**
          * Notificar a gerencia cuando el comprobante está recepcionado
          */
-        if ($isNotVoided) {
-          try {
-            $this->notifyManagerInvoiceAccounted($purchaseOrder);
-          } catch (Throwable $e) {
-            Log::error("Error al notificar a gerencia para OC #{$purchaseOrder->id}: {$e->getMessage()}");
-          }
-        }
+//        if ($isNotVoided) {
+//          try {
+//            $this->notifyManagerInvoiceAccounted($purchaseOrder);
+//          } catch (Throwable $e) {
+//            Log::error("Error al notificar a gerencia para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+//          }
+//        }
 
         return;
       }
