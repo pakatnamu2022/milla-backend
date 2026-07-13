@@ -1107,7 +1107,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
 
     // Despachar el job para sincronizar con Dynamics
-    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
+    SyncShippingGuideDynamicsJob::dispatchSync($shippingGuide->id);
 
     return [
       'message'        => 'Job de sincronización con Dynamics despachado exitosamente',
