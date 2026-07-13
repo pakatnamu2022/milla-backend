@@ -54,7 +54,11 @@ class PurchaseRequestQuote extends Model
   ];
 
   const filters = [
-    'search'                     => ['correlative', 'apModelsVn.code', 'holder.full_name', 'holder.num_doc', 'opportunity.worker.nombre_completo', 'opportunity.client.full_name'],
+    'search'                     => [
+      'correlative', 'apModelsVn.code', 'holder.full_name',
+      'holder.num_doc', 'opportunity.worker.nombre_completo', 'opportunity.client.full_name',
+      'vehicle.vin'
+    ],
     'type_document'              => '=',
     'type_vehicle'               => '=',
     'quote_deadline'             => '=',
