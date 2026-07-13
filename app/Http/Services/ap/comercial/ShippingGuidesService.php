@@ -59,7 +59,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $user = $request->user();
 
     $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
-    $query = ShippingGuides::whereIn('sede_transmitter_id', $sedes)->orWhereIn('sede_receiver_id', $sedes);
+    $query = ShippingGuides::where(function ($q) use ($sedes) {
+      $q->whereIn('sede_transmitter_id', $sedes)->orWhereIn('sede_receiver_id', $sedes);
+    });
 
     return $this->getFilteredResults(
       $query,
