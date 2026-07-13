@@ -351,6 +351,7 @@
   <strong>Nº Propuesta {{ $quotation['area'] }} : </strong> {{ $quotation['quotation_number'] }} &nbsp;&nbsp;&nbsp;
   <strong>Fecha Emisión : </strong> {{ \Carbon\Carbon::parse($quotation['quotation_date'])->format('d/m/Y') }}
   <strong>Fecha Caducidad : </strong> {{ \Carbon\Carbon::parse($quotation['expiration_date'])->format('d/m/Y') }}
+  <strong>Moneda : </strong> {{ $quotation['currency_name'] ?? 'SOLES' }}
 </div>
 
 <!-- Sección 1: Datos de la Propuesta y Asesor -->
@@ -491,29 +492,34 @@
   <table>
     <tr>
       <td class="label-total">Total M.O.:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_labor'], 2) }}</td>
+      <td
+        class="value-total">{{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['total_labor'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Recambios:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_parts'], 2) }}</td>
+      <td
+        class="value-total">{{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['total_parts'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Dtos.:</td>
-      <td class="value-total">S/ {{ number_format($quotation['total_discounts'], 2) }}</td>
+      <td
+        class="value-total">{{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['total_discounts'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Base Propuesta:</td>
       <td class="value-total">
-        S/ {{ number_format($quotation['base_imponible'], 2) }}
+        {{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['base_imponible'], 2) }}
       </td>
     </tr>
     <tr>
       <td class="label-total">IGV 18.00%:</td>
-      <td class="value-total">S/ {{ number_format($quotation['tax_amount'], 2) }}</td>
+      <td
+        class="value-total">{{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['tax_amount'], 2) }}</td>
     </tr>
     <tr>
       <td class="label-total">Total Propuesta:</td>
-      <td class="value-total">PEN {{ number_format($quotation['total_amount'], 2) }}</td>
+      <td
+        class="value-total">{{ $quotation['currency_symbol'] ?? 'S/' }} {{ number_format($quotation['total_amount'], 2) }}</td>
     </tr>
   </table>
 </div>
@@ -534,7 +540,7 @@
   <div class="important-title">IMPORTANTE</div>
   <div class="important-content">
     <ol>
-      <li>LOS PRECIOS MOSTRADOS SON EN SOLES E INCLUYEN IGV.</li>
+      <li>LOS PRECIOS MOSTRADOS SON EN {{ $quotation['currency_name'] ?? 'SOLES' }} E INCLUYEN IGV.</li>
       <li>AQUELLOS REPUESTOS QUE SEAN MATERIA DE IMPORTACIÓN, SERÁN ENTREGADOS EN PLAZO MÍNIMO DE 90 A 120 DÍAS
         NATURALES (SUJETO A STOCK DE FÁBRICA). EL CUAL SE EMPIEZA A COMPUTAR DESDE EL DÍA SIGUIENTE DE APROBADO Y
         ABONADO (100%) POR DEL CLIENTE.
@@ -550,7 +556,7 @@
       <li>EL CLIENTE FIRMA EN SEÑAL DE CONFORMIDAD CON LO COTIZADO Y ASUME LA ACEPTACIÓN DE LAS OBSERVACIONES ACERCA DE
         DISPONIBILIDAD Y PENALIDADES. SE PRECISA QUE EN EL SIGUIENTE CASO QUE EL RECIBA EL REPUESTO SOLICITADO EN
         ALMACENES DE API (STOCK) Y EN ALMACENES LIMA, E INCURRA EN ALGUNA DEVOLUCIÓN QUE PUEDA GENERAR TRÁMITES
-        ADMINISTRATIVOS ADICIONALES, EL CLIENTE FIRMANTE ACEPTA LA CANCELACIÓN DE MÍNIMO S/25.00 O EL 15% DEL VALOR
+        ADMINISTRATIVOS ADICIONALES, EL CLIENTE FIRMANTE ACEPTA LA CANCELACIÓN DE MÍNIMO S/ 25.00 O EL 15% DEL VALOR
         TOTAL.
       </li>
       <li>
