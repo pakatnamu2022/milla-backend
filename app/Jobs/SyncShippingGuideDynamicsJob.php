@@ -222,7 +222,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       // Traslado de sede: no hay recepción; el movimiento de inventario se genera
       // directamente desde el TRANSFER_OUT una vez que Dynamics confirma la contabilización.
       if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-        if (!$isCancelled) {
+        if (!$isCancelled && $this->isIssueDateReached($shippingGuide)) {
           $transferOutMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
             ->where('reference_id', $shippingGuide->id)
             ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
@@ -253,6 +253,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           'shipping_guide_id'     => $shippingGuide->id,
           'transfer_reception_id' => $transferReception->id
         ]);
+        return;
+      }
+
+      if (!$this->isIssueDateReached($shippingGuide)) {
         return;
       }
 
@@ -315,6 +319,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       SyncAccountingEntryJob::dispatch($shippingGuide->id);
     }
 
+    if (!$this->isIssueDateReached($shippingGuide)) {
+      return;
+    }
+
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
         'status_delivery'    => 'delivered',
@@ -372,21 +380,28 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
-        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-        if ($vehicle) {
-          (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
-        }
-      } elseif (
-        $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
-        && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
-      ) {
-        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-        if ($vehicle) {
-          (new VehicleMovementService())->storeInterCompanyTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+      if ($this->isIssueDateReached($shippingGuide)) {
+        if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+          $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+          if ($vehicle) {
+            (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+          }
+        } elseif (
+          $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
+          && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+        ) {
+          $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+          if ($vehicle) {
+            (new VehicleMovementService())->storeInterCompanyTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+          }
         }
       }
     }
+  }
+
+  private function isIssueDateReached(ShippingGuides $shippingGuide): bool
+  {
+    return !$shippingGuide->issue_date || now()->startOfDay()->gte($shippingGuide->issue_date->startOfDay());
   }
 
   /**
