@@ -166,11 +166,20 @@ class ReconcileReservedStockCommand extends Command
           'warehouse_name' => $warehouseName,
           'total_rows' => 0,
           'mismatches' => 0,
+          'details' => [],
         ];
         $mismatchesByWarehouse[$stock->warehouse_id]['total_rows']++;
 
         if (abs($computed - $current) > self::EPSILON) {
           $mismatchesByWarehouse[$stock->warehouse_id]['mismatches']++;
+          $mismatchesByWarehouse[$stock->warehouse_id]['details'][] = [
+            'product_id' => $stock->product_id,
+            'product_code' => $stock->product->code ?? 'N/A',
+            'product_name' => $stock->product->name ?? 'N/A',
+            'current_reserved' => $current,
+            'computed_reserved' => $computed,
+            'difference' => $computed - $current,
+          ];
           $totalMismatches++;
         }
       }
@@ -191,6 +200,35 @@ class ReconcileReservedStockCommand extends Command
           ->map(fn($row) => [$row['warehouse_id'], $row['warehouse_name'], $row['total_rows'], $row['mismatches']])
           ->toArray()
       );
+
+      // Mostrar detalle de los primeros 10 productos por almacén
+      foreach (collect($mismatchesByWarehouse)->sortByDesc('mismatches') as $warehouseData) {
+        if ($warehouseData['mismatches'] > 0) {
+          $this->newLine();
+          $this->info("Detalle de productos a corregir en {$warehouseData['warehouse_name']} (Almacén ID: {$warehouseData['warehouse_id']}):");
+
+          $details = collect($warehouseData['details'])->take(10)->map(function ($item) {
+            return [
+              $item['product_id'],
+              substr($item['product_code'], 0, 20),
+              substr($item['product_name'], 0, 35),
+              $item['current_reserved'],
+              $item['computed_reserved'],
+              sprintf('%+.2f', $item['difference']),
+            ];
+          })->toArray();
+
+          $this->table(
+            ['Prod. ID', 'Código', 'Nombre', 'Reservado Actual', 'Reservado Calculado', 'Diferencia'],
+            $details
+          );
+
+          $remaining = $warehouseData['mismatches'] - 10;
+          if ($remaining > 0) {
+            $this->comment("... y {$remaining} producto(s) más en este almacén.");
+          }
+        }
+      }
     }
 
     if (!empty($orphans)) {

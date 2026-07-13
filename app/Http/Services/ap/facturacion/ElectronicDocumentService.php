@@ -2278,6 +2278,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Instanciar InventoryMovementService para validaciones en sistema externo
     $inventoryMovementService = app(InventoryMovementService::class);
 
+    // Determinar si la cotización ya está confirmada
+    $isConfirmed = !is_null($quotation->confirmed_at);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
       // Skip if no product_id
@@ -2290,9 +2293,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->where('product_id', $detail->product_id)
         ->first();
 
-      // If no stock record found or insufficient available quantity, throw exception
-      if (!$stock || $stock->available_quantity < $detail->quantity) {
+      // If no stock record found, throw exception
+      if (!$stock) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+
+      // Validación según confirmación y supply_type (igual lógica que checkSufficientStock en ApOrderQuotationsResource)
+      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+        // Cotización confirmada + STOCK: validar físico Y reservado
+        if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
+          throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+        }
+      } else {
+        // Cualquier otro caso: validar stock disponible (libre)
+        if ($stock->available_quantity < $detail->quantity) {
+          throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+        }
       }
 
       // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
