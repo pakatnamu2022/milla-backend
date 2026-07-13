@@ -81,6 +81,8 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
+use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
+use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TotpController;
@@ -1613,6 +1615,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Reports - Reportes de Taller
       Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
+      Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
 
       // Reports - Reportes de Inventario
       Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
