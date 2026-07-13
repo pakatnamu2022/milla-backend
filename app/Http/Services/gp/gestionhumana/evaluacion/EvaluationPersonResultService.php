@@ -83,16 +83,16 @@ class EvaluationPersonResultService extends BaseService
     foreach ($normalizedEvaluationIds as $evaluationId) {
       $evaluationName = $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}";
       $dynamicColumns[] = [
-        'key' => "evaluacion_{$evaluationId}_porcentaje",
-        'label' => "{$evaluationName} (%)",
+        'key'           => "evaluacion_{$evaluationId}_porcentaje",
+        'label'         => "{$evaluationName} (%)",
         'evaluation_id' => $evaluationId,
-        'tipo' => 'porcentaje'
+        'tipo'          => 'porcentaje'
       ];
       $dynamicColumns[] = [
-        'key' => "evaluacion_{$evaluationId}_texto",
-        'label' => "{$evaluationName} (Texto)",
+        'key'           => "evaluacion_{$evaluationId}_texto",
+        'label'         => "{$evaluationName} (Texto)",
         'evaluation_id' => $evaluationId,
-        'tipo' => 'texto'
+        'tipo'          => 'texto'
       ];
     }
 
@@ -104,10 +104,10 @@ class EvaluationPersonResultService extends BaseService
 
         $row = [
           'person_id' => $firstResult->person_id,
-          'apellido' => $apellido,
-          'nombre' => $nombre,
-          'dni' => $firstResult->dni,
-          'cargo' => $firstResult->position,
+          'apellido'  => $apellido,
+          'nombre'    => $nombre,
+          'dni'       => $firstResult->dni,
+          'cargo'     => $firstResult->position,
           'categoria' => $firstResult->hierarchical_category,
         ];
 
@@ -138,12 +138,12 @@ class EvaluationPersonResultService extends BaseService
     return [
       'evaluaciones' => $normalizedEvaluationIds->map(function ($evaluationId) use ($evaluations) {
         return [
-          'id' => $evaluationId,
+          'id'   => $evaluationId,
           'name' => $evaluations->get($evaluationId)?->name ?? "Evaluacion {$evaluationId}",
         ];
       })->values()->toArray(),
-      'columns' => array_merge($baseColumns, $dynamicColumns),
-      'data' => $rows,
+      'columns'      => array_merge($baseColumns, $dynamicColumns),
+      'data'         => $rows,
     ];
   }
 
@@ -307,15 +307,15 @@ class EvaluationPersonResultService extends BaseService
     }
 
     $teamSummary = [
-      'total_collaborators' => $totalCollaborators,
-      'completed' => $completed,
-      'in_progress' => $inProgress,
-      'not_started' => $notStarted,
+      'total_collaborators'   => $totalCollaborators,
+      'completed'             => $completed,
+      'in_progress'           => $inProgress,
+      'not_started'           => $notStarted,
       'completion_percentage' => round(($completed / $totalCollaborators) * 100, 2),
-      'progress_percentage' => round((($completed + $inProgress) / $totalCollaborators) * 100, 2),
-      'average_result' => round($teamResults->where('result', '>', 0)->avg('result'), 2),
-      'average_objectives' => round($teamResults->where('objectivesResult', '>', 0)->avg('objectivesResult'), 2),
-      'average_competences' => round($teamResults->where('competencesResult', '>', 0)->avg('competencesResult'), 2),
+      'progress_percentage'   => round((($completed + $inProgress) / $totalCollaborators) * 100, 2),
+      'average_result'        => round($teamResults->where('result', '>', 0)->avg('result'), 2),
+      'average_objectives'    => round($teamResults->where('objectivesResult', '>', 0)->avg('objectivesResult'), 2),
+      'average_competences'   => round($teamResults->where('competencesResult', '>', 0)->avg('competencesResult'), 2),
     ];
 
     // 2. LISTA DE COLABORADORES CON ESTADO (usando dashboards precalculados)
@@ -337,22 +337,22 @@ class EvaluationPersonResultService extends BaseService
       }
 
       return [
-        'id' => $result->id,
-        'person_id' => $result->person_id,
-        'name' => $result->name,
-        'dni' => $result->dni,
-        'position' => $result->position,
-        'area' => $result->area,
-        'sede' => $result->sede,
+        'id'                    => $result->id,
+        'person_id'             => $result->person_id,
+        'name'                  => $result->name,
+        'dni'                   => $result->dni,
+        'position'              => $result->position,
+        'area'                  => $result->area,
+        'sede'                  => $result->sede,
         'hierarchical_category' => $result->hierarchical_category,
-        'result' => round($result->result, 2),
-        'objectives_result' => round($result->objectivesResult, 2),
-        'competences_result' => round($result->competencesResult, 2),
-        'completion_rate' => round($completionRate, 2),
-        'is_completed' => $isCompleted,
-        'status' => $status,
-        'status_label' => $statusLabel,
-        'last_calculated_at' => $dashboard?->last_calculated_at,
+        'result'                => round($result->result, 2),
+        'objectives_result'     => round($result->objectivesResult, 2),
+        'competences_result'    => round($result->competencesResult, 2),
+        'completion_rate'       => round($completionRate, 2),
+        'is_completed'          => $isCompleted,
+        'status'                => $status,
+        'status_label'          => $statusLabel,
+        'last_calculated_at'    => $dashboard?->last_calculated_at,
       ];
     });
 
@@ -366,10 +366,10 @@ class EvaluationPersonResultService extends BaseService
       })->count();
 
       $distribution[] = [
-        'label' => $range->label,
-        'from' => $range->from,
-        'to' => $range->to,
-        'count' => $count,
+        'label'      => $range->label,
+        'from'       => $range->from,
+        'to'         => $range->to,
+        'count'      => $count,
         'percentage' => $totalCollaborators > 0 ? round(($count / $totalCollaborators) * 100, 2) : 0,
       ];
     }
@@ -382,8 +382,8 @@ class EvaluationPersonResultService extends BaseService
 
     // 6. ALERTAS Y ACCIONES PENDIENTES
     $alerts = [
-      'not_started_count' => $notStarted,
-      'overdue_count' => $teamResults->filter(function ($result) use ($evaluation, $dashboards) {
+      'not_started_count'     => $notStarted,
+      'overdue_count'         => $teamResults->filter(function ($result) use ($evaluation, $dashboards) {
         $dashboard = $dashboards->get($result->person_id);
         $isCompleted = $dashboard && $dashboard->last_calculated_at
           ? $dashboard->is_completed
@@ -392,9 +392,9 @@ class EvaluationPersonResultService extends BaseService
       })->count(),
       'low_performance_count' => $teamResults->where('result', '>', 0)
         ->where('result', '<', 70)->count(),
-      'evaluation_end_date' => $evaluation->end_date,
-      'days_remaining' => now() < $evaluation->end_date ? now()->diffInDays($evaluation->end_date) : 0,
-      'is_active' => $evaluation->status == 1,
+      'evaluation_end_date'   => $evaluation->end_date,
+      'days_remaining'        => now() < $evaluation->end_date ? now()->diffInDays($evaluation->end_date) : 0,
+      'is_active'             => $evaluation->status == 1,
     ];
 
     // 7. MÉTRICAS POR ÁREA (Si hay múltiples áreas en el equipo)
@@ -407,10 +407,10 @@ class EvaluationPersonResultService extends BaseService
       })->count();
 
       return [
-        'area' => $areaName ?? 'Sin área',
-        'total' => $areaGroup->count(),
+        'area'           => $areaName ?? 'Sin área',
+        'total'          => $areaGroup->count(),
         'average_result' => round($areaGroup->where('result', '>', 0)->avg('result'), 2),
-        'completed' => $completedCount,
+        'completed'      => $completedCount,
       ];
     })->values();
 
@@ -424,23 +424,23 @@ class EvaluationPersonResultService extends BaseService
       })->count();
 
       return [
-        'category' => $categoryName ?? 'Sin categoría',
-        'total' => $categoryGroup->count(),
+        'category'       => $categoryName ?? 'Sin categoría',
+        'total'          => $categoryGroup->count(),
         'average_result' => round($categoryGroup->where('result', '>', 0)->avg('result'), 2),
-        'completed' => $completedCount,
+        'completed'      => $completedCount,
       ];
     })->values();
 
     return [
-      'evaluation' => new EvaluationResource($evaluation),
-      'team_summary' => $teamSummary,
-      'collaborators' => $collaboratorsList,
-      'distribution' => $distribution,
-      'competence_gaps' => $competenceGaps,
+      'evaluation'          => new EvaluationResource($evaluation),
+      'team_summary'        => $teamSummary,
+      'collaborators'       => $collaboratorsList,
+      'distribution'        => $distribution,
+      'competence_gaps'     => $competenceGaps,
       'objectives_progress' => $objectivesProgress,
-      'alerts' => $alerts,
-      'area_metrics' => $areaMetrics,
-      'category_metrics' => $categoryMetrics,
+      'alerts'              => $alerts,
+      'area_metrics'        => $areaMetrics,
+      'category_metrics'    => $categoryMetrics,
     ];
   }
 
@@ -450,10 +450,10 @@ class EvaluationPersonResultService extends BaseService
   private function getStatusLabel($status)
   {
     $labels = [
-      'completado' => 'Completado',
-      'en_proceso' => 'En Proceso',
+      'completado'  => 'Completado',
+      'en_proceso'  => 'En Proceso',
       'sin_iniciar' => 'Sin Iniciar',
-      'completed' => 'Completado',
+      'completed'   => 'Completado',
       'in_progress' => 'En Progreso',
       'not_started' => 'Sin Iniciar',
     ];
@@ -527,10 +527,10 @@ class EvaluationPersonResultService extends BaseService
 
           if (!isset($competenceScores[$competenceId])) {
             $competenceScores[$competenceId] = [
-              'competence_id' => $competenceId,
+              'competence_id'   => $competenceId,
               'competence_name' => $competenceName,
-              'total_score' => 0,
-              'count' => 0,
+              'total_score'     => 0,
+              'count'           => 0,
             ];
           }
 
@@ -547,10 +547,10 @@ class EvaluationPersonResultService extends BaseService
 
           if (!isset($competenceScores[$competenceId])) {
             $competenceScores[$competenceId] = [
-              'competence_id' => $competenceId,
+              'competence_id'   => $competenceId,
               'competence_name' => $competenceName,
-              'total_score' => 0,
-              'count' => 0,
+              'total_score'     => 0,
+              'count'           => 0,
             ];
           }
 
@@ -568,13 +568,13 @@ class EvaluationPersonResultService extends BaseService
       $maxScore = $evaluation->competenceParameter->details->last()->to ?? 100;
 
       return [
-        'competence_id' => $comp['competence_id'],
-        'competence_name' => $comp['competence_name'],
-        'average_score' => $average,
-        'max_score' => $maxScore,
-        'gap_percentage' => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
+        'competence_id'     => $comp['competence_id'],
+        'competence_name'   => $comp['competence_name'],
+        'average_score'     => $average,
+        'max_score'         => $maxScore,
+        'gap_percentage'    => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
         'evaluations_count' => $comp['count'],
-        'status' => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
+        'status'            => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
       ];
     })->sortBy('average_score')->values()->toArray();
 
@@ -595,10 +595,10 @@ class EvaluationPersonResultService extends BaseService
 
         if (!isset($competenceScores[$competenceId])) {
           $competenceScores[$competenceId] = [
-            'competence_id' => $competenceId,
+            'competence_id'   => $competenceId,
             'competence_name' => $competenceName,
-            'total_score' => 0,
-            'count' => 0,
+            'total_score'     => 0,
+            'count'           => 0,
           ];
         }
 
@@ -615,13 +615,13 @@ class EvaluationPersonResultService extends BaseService
       $maxScore = $evaluation->competenceParameter->details->last()->to ?? 100;
 
       return [
-        'competence_id' => $comp['competence_id'],
-        'competence_name' => $comp['competence_name'],
-        'average_score' => $average,
-        'max_score' => $maxScore,
-        'gap_percentage' => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
+        'competence_id'     => $comp['competence_id'],
+        'competence_name'   => $comp['competence_name'],
+        'average_score'     => $average,
+        'max_score'         => $maxScore,
+        'gap_percentage'    => $maxScore > 0 ? round((($maxScore - $average) / $maxScore) * 100, 2) : 0,
         'evaluations_count' => $comp['count'],
-        'status' => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
+        'status'            => $average >= 80 ? 'strong' : ($average >= 70 ? 'adequate' : 'needs_improvement'),
       ];
     })->sortBy('average_score')->values()->toArray();
 
@@ -647,13 +647,13 @@ class EvaluationPersonResultService extends BaseService
 
         if (!isset($objectivesData[$objectiveId])) {
           $objectivesData[$objectiveId] = [
-            'objective_id' => $objectiveId,
-            'objective_name' => $objectiveName,
-            'metric' => $objective->metric->name ?? 'N/A',
-            'total_evaluations' => 0,
+            'objective_id'          => $objectiveId,
+            'objective_name'        => $objectiveName,
+            'metric'                => $objective->metric->name ?? 'N/A',
+            'total_evaluations'     => 0,
             'completed_evaluations' => 0,
-            'total_compliance' => 0,
-            'total_result' => 0,
+            'total_compliance'      => 0,
+            'total_result'          => 0,
           ];
         }
 
@@ -672,18 +672,18 @@ class EvaluationPersonResultService extends BaseService
       $completedCount = $obj['completed_evaluations'];
 
       return [
-        'objective_id' => $obj['objective_id'],
-        'objective_name' => $obj['objective_name'],
-        'metric' => $obj['metric'],
-        'total_evaluations' => $obj['total_evaluations'],
+        'objective_id'          => $obj['objective_id'],
+        'objective_name'        => $obj['objective_name'],
+        'metric'                => $obj['metric'],
+        'total_evaluations'     => $obj['total_evaluations'],
         'completed_evaluations' => $completedCount,
-        'completion_rate' => $obj['total_evaluations'] > 0 ?
+        'completion_rate'       => $obj['total_evaluations'] > 0 ?
           round(($completedCount / $obj['total_evaluations']) * 100, 2) : 0,
-        'average_compliance' => $completedCount > 0 ?
+        'average_compliance'    => $completedCount > 0 ?
           round($obj['total_compliance'] / $completedCount, 2) : 0,
-        'average_result' => $completedCount > 0 ?
+        'average_result'        => $completedCount > 0 ?
           round($obj['total_result'] / $completedCount, 2) : 0,
-        'status' => $this->getObjectiveStatus($completedCount, $obj['total_evaluations']),
+        'status'                => $this->getObjectiveStatus($completedCount, $obj['total_evaluations']),
       ];
     })->sortByDesc('average_result')->values()->toArray();
 
@@ -774,29 +774,29 @@ class EvaluationPersonResultService extends BaseService
               $evaluator = $person->evaluator ?? throw new Exception('Store Many: La persona ' . $person->nombre_completo . ' de la categoría ' . $person->position->hierarchicalCategory->name . ' no tiene un evaluador asignado.');
 
               $data = [
-                'person_id' => $person->id,
-                'evaluation_id' => $evaluation->id,
-                'objectivesPercentage' => $objectivesPercentage,
-                'competencesPercentage' => $competencesPercentage,
-                'objectivesResult' => 0,
-                'competencesResult' => 0,
-                'status' => 0,
-                'result' => 0,
-                'name' => $person->nombre_completo,
-                'dni' => $person->vat,
-                'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
-                'position' => $person->position?->name,
-                'area' => $person->position?->area?->name,
-                'sede' => $person->sede?->abreviatura,
-                'boss' => $evaluator->nombre_completo,
-                'boss_dni' => $evaluator->vat,
+                'person_id'                  => $person->id,
+                'evaluation_id'              => $evaluation->id,
+                'objectivesPercentage'       => $objectivesPercentage,
+                'competencesPercentage'      => $competencesPercentage,
+                'objectivesResult'           => 0,
+                'competencesResult'          => 0,
+                'status'                     => 0,
+                'result'                     => 0,
+                'name'                       => $person->nombre_completo,
+                'dni'                        => $person->vat,
+                'hierarchical_category'      => $person->position?->hierarchicalCategory?->name,
+                'position'                   => $person->position?->name,
+                'area'                       => $person->position?->area?->name,
+                'sede'                       => $person->sede?->abreviatura,
+                'boss'                       => $evaluator->nombre_completo,
+                'boss_dni'                   => $evaluator->vat,
                 'boss_hierarchical_category' => $evaluator->position?->hierarchicalCategory?->name ?? "-",
-                'boss_position' => $evaluator->position?->name,
-                'boss_area' => $evaluator->position?->area?->name,
-                'boss_sede' => $evaluator->sede?->abreviatura,
-                'comments' => null,
-                'hasObjectives' => $hierarchicalCategory->hasObjectives,
-                'hierarchical_category_id' => $hierarchicalCategory->id,
+                'boss_position'              => $evaluator->position?->name,
+                'boss_area'                  => $evaluator->position?->area?->name,
+                'boss_sede'                  => $evaluator->sede?->abreviatura,
+                'comments'                   => null,
+                'hasObjectives'              => $hierarchicalCategory->hasObjectives,
+                'hierarchical_category_id'   => $hierarchicalCategory->id,
               ];
               EvaluationPersonResult::create($data);
             }
@@ -900,16 +900,16 @@ class EvaluationPersonResultService extends BaseService
       // PASO 3: Regenerar EvaluationPerson desde personCycleDetail regenerado (solo ciclos de objetivos)
       foreach ($personCycleDetails as $detail) {
         $data = [
-          'person_id' => $detail->person_id,
-          'chief_id' => $detail->chief_id,
-          'chief' => $detail->chief,
+          'person_id'              => $detail->person_id,
+          'chief_id'               => $detail->chief_id,
+          'chief'                  => $detail->chief,
           'person_cycle_detail_id' => $detail->id,
-          'evaluation_id' => $evaluation->id,
-          'result' => 0,
-          'compliance' => 0,
-          'qualification' => 0,
+          'evaluation_id'          => $evaluation->id,
+          'result'                 => 0,
+          'compliance'             => 0,
+          'qualification'          => 0,
           'objective_parameter_id' => $detail->parameter_id ?? null,
-          'period_id' => $detail->period_id ?? null,
+          'period_id'              => $detail->period_id ?? null,
         ];
         EvaluationPerson::create($data);
       }
@@ -932,43 +932,43 @@ class EvaluationPersonResultService extends BaseService
       // Usar updateOrCreate para crear si no existe o actualizar si existe
       EvaluationPersonResult::updateOrCreate(
         [
-          'person_id' => $personId,
+          'person_id'     => $personId,
           'evaluation_id' => $evaluationId,
         ],
         [
-          'objectivesPercentage' => $objectivesPercentage,
-          'competencesPercentage' => $competencesPercentage,
-          'objectivesResult' => 0,
-          'competencesResult' => 0,
-          'status' => 0,
-          'result' => 0,
-          'comments' => null,
-          'name' => $person->nombre_completo,
-          'dni' => $person->vat,
-          'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
-          'position' => $person->position?->name,
-          'area' => $person->position?->area?->name,
-          'sede' => $person->sede?->abreviatura,
-          'boss' => $evaluator->nombre_completo,
-          'boss_dni' => $evaluator->vat,
+          'objectivesPercentage'       => $objectivesPercentage,
+          'competencesPercentage'      => $competencesPercentage,
+          'objectivesResult'           => 0,
+          'competencesResult'          => 0,
+          'status'                     => 0,
+          'result'                     => 0,
+          'comments'                   => null,
+          'name'                       => $person->nombre_completo,
+          'dni'                        => $person->vat,
+          'hierarchical_category'      => $person->position?->hierarchicalCategory?->name,
+          'position'                   => $person->position?->name,
+          'area'                       => $person->position?->area?->name,
+          'sede'                       => $person->sede?->abreviatura,
+          'boss'                       => $evaluator->nombre_completo,
+          'boss_dni'                   => $evaluator->vat,
           'boss_hierarchical_category' => $evaluator->position?->hierarchicalCategory?->name ?? "-",
-          'boss_position' => $evaluator->position?->name,
-          'boss_area' => $evaluator->position?->area?->name,
-          'boss_sede' => $evaluator->sede?->abreviatura,
-          'hasObjectives' => $hierarchicalCategory?->hasObjectives,
-          'hierarchical_category_id' => $hierarchicalCategory?->id,
+          'boss_position'              => $evaluator->position?->name,
+          'boss_area'                  => $evaluator->position?->area?->name,
+          'boss_sede'                  => $evaluator->sede?->abreviatura,
+          'hasObjectives'              => $hierarchicalCategory?->hasObjectives,
+          'hierarchical_category_id'   => $hierarchicalCategory?->id,
         ]
       );
 
       // PASO 6: Crear o resetear EvaluationPersonDashboard
       $dashboard = EvaluationPersonDashboard::firstOrCreate(
         [
-          'person_id' => $personId,
+          'person_id'     => $personId,
           'evaluation_id' => $evaluationId,
         ],
         [
           'completion_rate' => 0,
-          'is_completed' => false,
+          'is_completed'    => false,
           'progress_status' => 'sin_iniciar',
         ]
       );
@@ -980,8 +980,8 @@ class EvaluationPersonResultService extends BaseService
         'message' => 'Evaluación del colaborador regenerada completamente desde cero',
         'details' => [
           'cycle_details_regenerated' => $personCycleDetails->count(),
-          'objectives_regenerated' => $personCycleDetails->count(),
-          'evaluator_updated' => $evaluator->nombre_completo ?? 'N/A',
+          'objectives_regenerated'    => $personCycleDetails->count(),
+          'evaluator_updated'         => $evaluator->nombre_completo ?? 'N/A',
         ]
       ];
     });
@@ -1090,17 +1090,17 @@ class EvaluationPersonResultService extends BaseService
     }
 
     EvaluationPersonCompetenceDetail::create([
-      'evaluation_id' => $evaluacionId,
-      'evaluator_id' => $evaluador->id,
-      'person_id' => $persona->id,
-      'competence_id' => $competenciaData['competence_id'],
+      'evaluation_id'     => $evaluacionId,
+      'evaluator_id'      => $evaluador->id,
+      'person_id'         => $persona->id,
+      'competence_id'     => $competenciaData['competence_id'],
       'sub_competence_id' => $competenciaData['sub_competence_id'],
-      'person' => $persona->nombre_completo,
-      'evaluator' => $evaluador->nombre_completo,
-      'competence' => $competenciaData['competence_name'],
-      'sub_competence' => $competenciaData['sub_competence_name'],
-      'evaluatorType' => $tipoEvaluador,
-      'result' => 0
+      'person'            => $persona->nombre_completo,
+      'evaluator'         => $evaluador->nombre_completo,
+      'competence'        => $competenciaData['competence_name'],
+      'sub_competence'    => $competenciaData['sub_competence_name'],
+      'evaluatorType'     => $tipoEvaluador,
+      'result'            => 0
     ]);
   }
 
@@ -1170,18 +1170,18 @@ class EvaluationPersonResultService extends BaseService
     $isObjectivesCycle = $cycle->typeEvaluation == 0;
 
     $result = [
-      'person' => [
-        'id' => $person->id,
-        'name' => $person->nombre_completo,
-        'dni' => $person->vat,
-        'position' => $person->position?->name,
+      'person'               => [
+        'id'                    => $person->id,
+        'name'                  => $person->nombre_completo,
+        'dni'                   => $person->vat,
+        'position'              => $person->position?->name,
         'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
       ],
-      'cycle_type' => $isObjectivesCycle ? 'objetivos' : '180/360 (competencias)',
-      'validations' => [],
-      'warnings' => [],
-      'errors' => [],
-      'can_regenerate' => true,
+      'cycle_type'           => $isObjectivesCycle ? 'objetivos' : '180/360 (competencias)',
+      'validations'          => [],
+      'warnings'             => [],
+      'errors'               => [],
+      'can_regenerate'       => true,
       'what_will_be_deleted' => [],
       'what_will_be_created' => [],
     ];
@@ -1192,7 +1192,7 @@ class EvaluationPersonResultService extends BaseService
       $result['errors'][] = 'La persona no tiene una categoría jerárquica asignada';
       $result['can_regenerate'] = false;
     } else {
-      $result['validations'][] = '✓ Tiene categoría jerárquica: ' . $hierarchicalCategory->name;
+      $result['validations'][] = 'Tiene categoría jerárquica: ' . $hierarchicalCategory->name;
     }
 
     // VALIDACIÓN 2: Verificar que tiene supervisor (evaluador de competencias)
@@ -1206,7 +1206,7 @@ class EvaluationPersonResultService extends BaseService
         $result['errors'][] = "El supervisor con ID {$evaluatorId} no existe";
         $result['can_regenerate'] = false;
       } else {
-        $result['validations'][] = '✓ Tiene supervisor: ' . $evaluator->nombre_completo;
+        $result['validations'][] = 'Tiene supervisor: ' . $evaluator->nombre_completo;
       }
     }
 
@@ -1217,7 +1217,7 @@ class EvaluationPersonResultService extends BaseService
         $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
         $result['can_regenerate'] = false;
       } else {
-        $result['validations'][] = '✓ La categoría tiene ' . $objectives->count() . ' objetivo(s)';
+        $result['validations'][] = 'La categoría tiene ' . $objectives->count() . ' objetivo(s)';
 
         // VALIDACIÓN 4: Verificar que tiene EvaluationCategoryObjectiveDetail para cada objetivo
         $objectivesWithDetails = 0;
@@ -1242,7 +1242,7 @@ class EvaluationPersonResultService extends BaseService
         }
 
         if ($objectivesWithDetails > 0) {
-          $result['validations'][] = "✓ Tiene {$objectivesWithDetails} objetivo(s) con configuración personalizada (EvaluationCategoryObjectiveDetail)";
+          $result['validations'][] = "Tiene {$objectivesWithDetails} objetivo(s) con configuración personalizada (EvaluationCategoryObjectiveDetail)";
         }
 
         if (!empty($objectivesWithoutDetails)) {
@@ -1256,7 +1256,7 @@ class EvaluationPersonResultService extends BaseService
         }
       }
     } elseif ($hierarchicalCategory && !$isObjectivesCycle) {
-      $result['validations'][] = '✓ Ciclo 180/360: no se requieren objetivos para esta categoría';
+      $result['validations'][] = 'Ciclo 180/360: no se requieren objetivos para esta categoría';
     }
 
     // VALIDACIÓN 5: Competencias
@@ -1275,7 +1275,7 @@ class EvaluationPersonResultService extends BaseService
         ->count();
 
       if ($competences > 0) {
-        $result['validations'][] = "✓ Tiene {$competences} competencia(s) asignada(s)";
+        $result['validations'][] = "Tiene {$competences} competencia(s) asignada(s)";
       } elseif (!$isObjectivesCycle) {
         $result['errors'][] = 'La persona no tiene competencias asignadas. Las competencias son obligatorias en ciclos 180/360.';
         $result['can_regenerate'] = false;
@@ -1298,8 +1298,8 @@ class EvaluationPersonResultService extends BaseService
       ->count();
 
     $result['what_will_be_deleted'] = [
-      'competences' => $competencesToDelete,
-      'evaluation_persons' => $evaluationPersonToDelete,
+      'competences'          => $competencesToDelete,
+      'evaluation_persons'   => $evaluationPersonToDelete,
       'person_cycle_details' => $personCycleDetailsToDelete,
     ];
 
@@ -1357,8 +1357,8 @@ class EvaluationPersonResultService extends BaseService
 
       $result['what_will_be_created'] = [
         'person_cycle_details' => $objectivesToCreate,
-        'evaluation_persons' => $objectivesToCreate,
-        'competence_details' => $competenceEvaluationsToCreate,
+        'evaluation_persons'   => $objectivesToCreate,
+        'competence_details'   => $competenceEvaluationsToCreate,
       ];
     }
 
@@ -1411,20 +1411,20 @@ class EvaluationPersonResultService extends BaseService
 
     if ($leaderPersonIds->isEmpty()) {
       return response()->json([
-        'data' => [],
+        'data'  => [],
         'links' => [
           'first' => null,
-          'last' => null,
-          'prev' => null,
-          'next' => null,
+          'last'  => null,
+          'prev'  => null,
+          'next'  => null,
         ],
-        'meta' => [
-          'total' => 0,
-          'per_page' => 15,
+        'meta'  => [
+          'total'        => 0,
+          'per_page'     => 15,
           'current_page' => 1,
-          'last_page' => 1,
-          'from' => null,
-          'to' => null,
+          'last_page'    => 1,
+          'from'         => null,
+          'to'           => null,
         ]
       ]);
     }
@@ -1436,11 +1436,11 @@ class EvaluationPersonResultService extends BaseService
 
     // Filtros disponibles
     $filters = [
-      'search' => ['nombre_completo', 'vat'], // Buscar por nombre o DNI del líder
-      'id' => '=', // Filtrar por ID del líder
-      'vat' => '=', // Filtrar por DNI del líder
+      'search'   => ['nombre_completo', 'vat'], // Buscar por nombre o DNI del líder
+      'id'       => '=', // Filtrar por ID del líder
+      'vat'      => '=', // Filtrar por DNI del líder
       'cargo_id' => '=', // Filtrar por cargo
-      'sede_id' => '=', // Filtrar por sede
+      'sede_id'  => '=', // Filtrar por sede
     ];
 
     $sorts = [
@@ -1496,21 +1496,21 @@ class EvaluationPersonResultService extends BaseService
       }
 
       return [
-        'person_id' => $leader->id,
-        'name' => $leader->nombre_completo,
-        'dni' => $leader->vat,
-        'position' => $leader->position?->name,
-        'area' => $leader->position?->area?->name,
-        'sede' => $leader->sede?->abreviatura,
+        'person_id'             => $leader->id,
+        'name'                  => $leader->nombre_completo,
+        'dni'                   => $leader->vat,
+        'position'              => $leader->position?->name,
+        'area'                  => $leader->position?->area?->name,
+        'sede'                  => $leader->sede?->abreviatura,
         'hierarchical_category' => $leader->position?->hierarchicalCategory?->name,
         'team_evaluation_stats' => [
-          'total_team_members' => $totalMembers,
-          'completed_members' => $completedMembers,
-          'in_progress_members' => $inProgressMembers,
-          'not_started_members' => $notStartedMembers,
-          'objectives_evaluated' => $objectivesEvaluated,
-          'competences_evaluated' => $competencesEvaluated,
-          'completion_percentage' => $totalMembers > 0 ? round(($completedMembers / $totalMembers) * 100, 2) : 0,
+          'total_team_members'             => $totalMembers,
+          'completed_members'              => $completedMembers,
+          'in_progress_members'            => $inProgressMembers,
+          'not_started_members'            => $notStartedMembers,
+          'objectives_evaluated'           => $objectivesEvaluated,
+          'competences_evaluated'          => $competencesEvaluated,
+          'completion_percentage'          => $totalMembers > 0 ? round(($completedMembers / $totalMembers) * 100, 2) : 0,
           'evaluation_progress_percentage' => $totalMembers > 0 ? round(($objectivesEvaluated / $totalMembers) * 100, 2) : 0,
         ],
       ];
@@ -1550,13 +1550,13 @@ class EvaluationPersonResultService extends BaseService
 
     // Filtros disponibles
     $filters = [
-      'search' => ['name', 'dni'], // Buscar por nombre o DNI del colaborador
-      'person_id' => '=',
+      'search'                => ['name', 'dni'], // Buscar por nombre o DNI del colaborador
+      'person_id'             => '=',
       'hierarchical_category' => 'like',
-      'area' => 'like',
-      'sede' => 'like',
-      'is_completed' => 'accessor_bool', // Filtrar por completados
-      'progress_status' => 'accessor_string', // Filtrar por estado
+      'area'                  => 'like',
+      'sede'                  => 'like',
+      'is_completed'          => 'accessor_bool', // Filtrar por completados
+      'progress_status'       => 'accessor_string', // Filtrar por estado
     ];
 
     $sorts = [
@@ -1586,41 +1586,41 @@ class EvaluationPersonResultService extends BaseService
     // Mapear los miembros del equipo
     $teamMembersData = $teamMembers->map(function ($member) {
       return [
-        'id' => $member->id,
-        'person_id' => $member->person_id,
-        'name' => $member->name,
-        'dni' => $member->dni,
-        'position' => $member->position,
-        'area' => $member->area,
-        'sede' => $member->sede,
+        'id'                    => $member->id,
+        'person_id'             => $member->person_id,
+        'name'                  => $member->name,
+        'dni'                   => $member->dni,
+        'position'              => $member->position,
+        'area'                  => $member->area,
+        'sede'                  => $member->sede,
         'hierarchical_category' => $member->hierarchical_category,
-        'evaluation_results' => [
-          'objectives_result' => round($member->objectivesResult ?? 0, 2),
-          'competences_result' => round($member->competencesResult ?? 0, 2),
-          'final_result' => round($member->result ?? 0, 2),
-          'objectives_percentage' => $member->objectivesPercentage,
+        'evaluation_results'    => [
+          'objectives_result'      => round($member->objectivesResult ?? 0, 2),
+          'competences_result'     => round($member->competencesResult ?? 0, 2),
+          'final_result'           => round($member->result ?? 0, 2),
+          'objectives_percentage'  => $member->objectivesPercentage,
           'competences_percentage' => $member->competencesPercentage,
         ],
-        'evaluation_progress' => [
-          'is_completed' => $member->is_completed,
+        'evaluation_progress'   => [
+          'is_completed'          => $member->is_completed,
           'completion_percentage' => round($member->completion_percentage, 2),
-          'progress_status' => $member->progress_status,
+          'progress_status'       => $member->progress_status,
           'progress_status_label' => $this->getStatusLabel($member->progress_status),
         ],
-        'has_objectives' => $member->hasObjectives,
-        'comments' => $member->comments,
-        'last_updated' => $member->updated_at,
+        'has_objectives'        => $member->hasObjectives,
+        'comments'              => $member->comments,
+        'last_updated'          => $member->updated_at,
       ];
     });
 
     // Información del líder
     $leaderInfo = [
-      'person_id' => $leader->id,
-      'name' => $leader->nombre_completo,
-      'dni' => $leader->vat,
-      'position' => $leader->position?->name,
-      'area' => $leader->position?->area?->name,
-      'sede' => $leader->sede?->abreviatura,
+      'person_id'             => $leader->id,
+      'name'                  => $leader->nombre_completo,
+      'dni'                   => $leader->vat,
+      'position'              => $leader->position?->name,
+      'area'                  => $leader->position?->area?->name,
+      'sede'                  => $leader->sede?->abreviatura,
       'hierarchical_category' => $leader->position?->hierarchicalCategory?->name,
     ];
 

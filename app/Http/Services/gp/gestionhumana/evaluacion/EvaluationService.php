@@ -557,7 +557,7 @@ class EvaluationService extends BaseService
 
     // Validar según el modo
     if (!$needsRegeneration && $mode !== 'full_reset') {
-      $result['validations'][] = '✓ No se detectaron cambios en el ciclo';
+      $result['validations'][] = 'No se detectaron cambios en el ciclo';
       $result['warnings'][] = 'No se realizarán cambios a menos que uses force=true o mode=full_reset';
       $result['will_execute'] = false;
       $result['what_will_happen'] = 'No se realizarán cambios';
