@@ -228,6 +228,49 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Create a vehicle movement for a GR inter-company transfer (TRASLADO_SEDE) once accounted.
+   * Moves the vehicle to the ALM (is_received=true) warehouse of the receiver sede.
+   * @throws Throwable
+   */
+  public function storeInterCompanyTransferCompletedVehicleMovement(
+    Vehicles       $vehicle,
+    ShippingGuides $shippingGuide
+  ): VehicleMovement {
+    DB::beginTransaction();
+    try {
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::INTERNAL_TRANSFER,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
+        'movement_date'        => now(),
+        'observation'          => "Traslado entre empresas contabilizado: {$shippingGuide->document_number}",
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => $vehicle->ap_vehicle_status_id,
+      ]);
+
+      $receiverSedeId = $shippingGuide->sedeReceiver?->id;
+      if ($receiverSedeId) {
+        $warehouseId = Warehouse::where('sede_id', $receiverSedeId)
+          ->where('type_operation_id', $vehicle->type_operation_id)
+          ->where('article_class_id', $vehicle->model->class_id ?? null)
+          ->where('is_received', true)
+          ->where('status', true)
+          ->value('id');
+
+        if ($warehouseId) {
+          $vehicle->update(['warehouse_id' => $warehouseId]);
+        }
+      }
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
    * Create a vehicle movement when a credit note is set (vehículo devuelto)
    * @throws Exception|Throwable
    */
