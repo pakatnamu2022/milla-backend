@@ -823,7 +823,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'vehicle.color',
       'vehicle.customer.district',
       'createdBy',
-      'details.product'
+      'details.product',
+      'typeCurrency'
     ])->find($id);
 
     if (!$quotation) {
@@ -949,6 +950,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['tax_amount'] = $igv_amount;
     $data['total_amount'] = $total_amount;
     $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
+    $data['currency_symbol'] = $quotation->typeCurrency ? $quotation->typeCurrency->symbol : 'S/';
+    $data['currency_name'] = $quotation->typeCurrency ? $quotation->typeCurrency->name : 'SOLES';
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;
