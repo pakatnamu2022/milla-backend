@@ -226,7 +226,7 @@
 <!-- Número de OT y fecha -->
 <div class="work-order-info">
   <strong>Orden de Trabajo N° : </strong> {{ $workOrder['work_order_number'] }} &nbsp;&nbsp;&nbsp;
-  <strong>Fecha : </strong> {{ \Carbon\Carbon::parse($workOrder['work_order_date'])->format('d/m/Y') }} &nbsp;&nbsp;&nbsp;
+  <strong>Fecha : </strong> {{ $workOrder['work_order_date'] }} &nbsp;&nbsp;&nbsp;
   <strong>Estado : </strong> {{ $workOrder['status'] }}
 </div>
 
