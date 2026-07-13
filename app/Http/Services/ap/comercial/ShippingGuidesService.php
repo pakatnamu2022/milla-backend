@@ -22,6 +22,7 @@ use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuideAccessory;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -811,6 +812,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
         if (isset($responseData['aceptada_por_sunat']) && $responseData['aceptada_por_sunat']) {
           $guide->markAsAccepted($responseData);
+          $this->createInterCompanyTransferInProgressIfNeeded($guide->fresh());
           $message = 'Guía enviada y aceptada por SUNAT correctamente';
         } else {
           $message = 'Guía enviada a Nubefact. Use la operación de consulta para verificar si SUNAT la aceptó.';
@@ -853,6 +855,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           // CASO 1: Recién se aceptó
           DB::beginTransaction();
           $guide->markAsAccepted($responseData);
+          $this->createInterCompanyTransferInProgressIfNeeded($guide->fresh());
 
           // Si es una guía de productos de posventa, migrar a Dynamics inmediatamente
           if ($guide->area_id === ApMasters::AREA_POSVENTA) {
@@ -1216,5 +1219,39 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
       'steps'       => $steps,
     ];
+  }
+
+  private function createInterCompanyTransferInProgressIfNeeded(ShippingGuides $guide): void
+  {
+    if (
+      $guide->area_id !== ApMasters::AREA_COMERCIAL
+      || $guide->document_type !== ShippingGuides::DOCUMENT_TYPE_GR
+      || $guide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+    ) {
+      return;
+    }
+
+    $vehicle = $guide->vehicleMovement?->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    $alreadyExists = $vehicle->vehicleMovements()
+      ->where('movement_type', VehicleMovement::EN_CURSO)
+      ->where('observation', 'like', "%{$guide->document_number}%")
+      ->exists();
+
+    if ($alreadyExists) {
+      return;
+    }
+
+    try {
+      $this->vehicleMovementService->storeInterCompanyTransferInProgressVehicleMovement($vehicle, $guide);
+    } catch (\Throwable $e) {
+      \Illuminate\Support\Facades\Log::error('Error al crear movimiento EN CURSO para traslado entre empresas', [
+        'shipping_guide_id' => $guide->id,
+        'error'             => $e->getMessage(),
+      ]);
+    }
   }
 }
