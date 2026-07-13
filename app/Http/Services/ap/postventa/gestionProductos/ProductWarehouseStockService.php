@@ -741,6 +741,26 @@ class ProductWarehouseStockService extends BaseService
 
       $destinationStock->quantity += $quantityReceived;
       $destinationStock->last_movement_date = now();
+
+      // Copy costs from origin warehouse to destination warehouse
+      // Only if ALL costs in destination are 0 (to avoid overwriting existing costs)
+      if ($originStock) {
+        $allCostsAreZero = (
+          ($destinationStock->cost_price ?? 0) == 0 &&
+          ($destinationStock->average_cost ?? 0) == 0 &&
+          ($destinationStock->sale_price ?? 0) == 0 &&
+          ($destinationStock->sale_price_min ?? 0) == 0
+        );
+
+        if ($allCostsAreZero) {
+          $destinationStock->cost_price = $originStock->cost_price;
+          $destinationStock->average_cost = $originStock->average_cost;
+          $destinationStock->sale_price = $originStock->sale_price;
+          $destinationStock->sale_price_min = $originStock->sale_price_min;
+          $destinationStock->currency_id = $originStock->currency_id;
+        }
+      }
+
       $destinationStock->updateAvailableQuantity();
 
       DB::commit();
