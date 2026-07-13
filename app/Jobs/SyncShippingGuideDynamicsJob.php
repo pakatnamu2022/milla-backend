@@ -10,6 +10,7 @@ use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Jobs\SyncAccountingEntryJob;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
@@ -119,6 +120,15 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           ->orWhere(function ($q2) {
             $q2->where('status', false)
               ->where('is_annulled', false);
+          })
+          // Guías ya contabilizadas pero cuya issue_date aún no llegó cuando se procesaron:
+          // vuelven al batch hasta que la fecha se alcance y el movimiento pueda crearse.
+          ->orWhere(function ($q2) {
+            $q2->where('status', true)
+              ->where('is_accounted', true)
+              ->where('area_id', ApMasters::AREA_COMERCIAL)
+              ->whereNotIn('transfer_reason_id', [SunatConcepts::TRANSFER_REASON_VENTA])
+              ->where('issue_date', '>', now()->startOfDay());
           });
       })
       ->get();
@@ -371,6 +381,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         ]);
       }
     } else {
+      $wasAlreadyAccounted = $shippingGuide->is_accounted;
       $shippingGuide->update(['is_accounted' => $isAccounted]);
       if (!$isAccounted) {
         Log::info('La transferencia comercial aún no está contabilizada en Dynamics', [
@@ -381,21 +392,42 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       }
 
       if ($this->isIssueDateReached($shippingGuide)) {
-        if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
-          $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-          if ($vehicle) {
-            (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
-          }
-        } elseif (
-          $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
-          && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
-        ) {
-          $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-          if ($vehicle) {
-            (new VehicleMovementService())->storeInterCompanyTransferCompletedVehicleMovement($vehicle, $shippingGuide);
-          }
-        }
+        $this->createCommercialTransferVehicleMovement($shippingGuide, $wasAlreadyAccounted);
       }
+    }
+  }
+
+  /**
+   * Crea el movimiento de vehículo para una guía comercial de transferencia,
+   * evitando duplicados: si la guía ya estaba contabilizada ($wasAlreadyAccounted=true)
+   * se verifica que no exista ya un movimiento con la misma observación antes de crear uno.
+   */
+  private function createCommercialTransferVehicleMovement(ShippingGuides $shippingGuide, bool $wasAlreadyAccounted): void
+  {
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    // Si ya estaba contabilizada antes de este run (caso: issue_date futura que ahora llegó),
+    // verificar que no exista ya un movimiento creado para evitar duplicados.
+    if ($wasAlreadyAccounted) {
+      $alreadyExists = $vehicle->vehicleMovements()
+        ->where('movement_type', VehicleMovement::INTERNAL_TRANSFER)
+        ->where('observation', 'like', "%{$shippingGuide->document_number}%")
+        ->exists();
+      if ($alreadyExists) {
+        return;
+      }
+    }
+
+    if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+      (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+    } elseif (
+      $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
+      && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+    ) {
+      (new VehicleMovementService())->storeInterCompanyTransferCompletedVehicleMovement($vehicle, $shippingGuide);
     }
   }
 
