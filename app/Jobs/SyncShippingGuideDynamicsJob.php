@@ -391,6 +391,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
+      // Cuando llega issue_date → mover vehículo a ALM destino con estado INVENTARIO_VN
       if ($this->isIssueDateReached($shippingGuide)) {
         $this->createCommercialTransferVehicleMovement($shippingGuide, $wasAlreadyAccounted);
       }

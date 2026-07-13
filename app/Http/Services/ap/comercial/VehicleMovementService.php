@@ -229,7 +229,8 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
   /**
    * Create a vehicle movement for a GR inter-company transfer (TRASLADO_SEDE) once accounted.
-   * Moves the vehicle to the ALM (is_received=true) warehouse of the receiver sede.
+   * Moves the vehicle to the ALM (is_received=true) warehouse of the receiver sede
+   * and sets status to INVENTARIO_VN (arriving from EN_CURSO).
    * @throws Throwable
    */
   public function storeInterCompanyTransferCompletedVehicleMovement(
@@ -241,11 +242,11 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::INTERNAL_TRANSFER,
         'ap_vehicle_id'        => $vehicle->id,
-        'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
+        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
         'movement_date'        => now(),
         'observation'          => "Traslado entre empresas contabilizado: {$shippingGuide->document_number}",
         'previous_status_id'   => $vehicle->ap_vehicle_status_id,
-        'new_status_id'        => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
       ]);
 
       $receiverSedeId = $shippingGuide->sedeReceiver?->id;
@@ -258,9 +259,49 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
           ->value('id');
 
         if ($warehouseId) {
-          $vehicle->update(['warehouse_id' => $warehouseId]);
+          $vehicle->update([
+            'warehouse_id'        => $warehouseId,
+            'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          ]);
+        } else {
+          $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
         }
+      } else {
+        $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
       }
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Create an EN CURSO vehicle movement when a GR inter-company transfer (TRASLADO_SEDE)
+   * is first accounted in Dynamics but issue_date hasn't arrived yet.
+   * Moves the vehicle to the EXR (is_received=false) warehouse of the receiver sede
+   * so Cajamarca can already select it for billing before physical arrival.
+   * @throws Throwable
+   */
+  public function storeInterCompanyTransferInProgressVehicleMovement(
+    Vehicles       $vehicle,
+    ShippingGuides $shippingGuide
+  ): VehicleMovement {
+    DB::beginTransaction();
+    try {
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::EN_CURSO,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::EN_CURSO,
+        'movement_date'        => now(),
+        'observation'          => "Traslado entre empresas en curso: {$shippingGuide->document_number}",
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => ApVehicleStatus::EN_CURSO,
+      ]);
+
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::EN_CURSO]);
 
       DB::commit();
       return $vehicleMovement;
@@ -486,6 +527,70 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     ]);
 
     return VehicleMovement::create($vehicleMovementData);
+  }
+
+  /**
+   * Revert vehicle status when a SUNAT invoice is cancelled/annulled.
+   *
+   * Scans the vehicle's full movement history and picks the highest-priority
+   * inventory state according to ApVehicleStatus::INVENTORY_REVERT_PRIORITY.
+   * If the vehicle ever had INVENTARIO_VN it always wins over EN_CURSO, etc.
+   * Falls back to INVENTARIO_VN when nothing eligible is found.
+   *
+   * @throws Throwable
+   */
+  public function storeInvoiceCancellationRevertMovement(
+    Vehicles        $vehicle,
+    VehicleMovement $saleMovement
+  ): VehicleMovement {
+    DB::beginTransaction();
+    try {
+      $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
+
+      // Collect all inventory-eligible statuses from this vehicle's history
+      $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+        ->whereIn('new_status_id', array_keys($priorityMap))
+        ->pluck('new_status_id')
+        ->unique()
+        ->toArray();
+
+      // Include the direct pre-sale status stored on the VENTA movement
+      if ($saleMovement->previous_status_id && isset($priorityMap[$saleMovement->previous_status_id])) {
+        $historicalStatuses[] = $saleMovement->previous_status_id;
+      }
+
+      // Pick the highest-priority status
+      $bestStatusId = null;
+      $bestWeight   = -1;
+      foreach ($historicalStatuses as $statusId) {
+        $weight = $priorityMap[$statusId] ?? 0;
+        if ($weight > $bestWeight) {
+          $bestWeight   = $weight;
+          $bestStatusId = $statusId;
+        }
+      }
+
+      $targetStatusId = $bestStatusId ?? ApVehicleStatus::INVENTARIO_VN;
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => 'CANCELACION_FACTURA',
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => $targetStatusId,
+        'movement_date'        => now(),
+        'observation'          => 'Reversión por anulación de factura SUNAT',
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => $targetStatusId,
+        'created_by'           => auth()->id(),
+      ]);
+
+      $vehicle->update(['ap_vehicle_status_id' => $targetStatusId]);
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   /**

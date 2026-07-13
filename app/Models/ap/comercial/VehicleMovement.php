@@ -58,6 +58,7 @@ class VehicleMovement extends BaseModel
   const CONSIGNMENT = 'EN CONSIGNACION';
   const INVOICED = 'FACTURADO';
   const INTERNAL_TRANSFER = 'TRASLADO INTERNO';
+  const EN_CURSO = 'EN CURSO';
 
   public function vehicleStatus(): BelongsTo
   {
