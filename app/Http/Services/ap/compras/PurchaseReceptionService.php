@@ -14,6 +14,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
@@ -436,7 +437,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     }
 
     // 2. Verificar si ya existe un movimiento de inventario para esta recepción
-    $existingMovement = \App\Models\ap\postventa\gestionProductos\InventoryMovement::where('reference_type', get_class($reception))
+    $existingMovement = InventoryMovement::where('reference_type', get_class($reception))
       ->where('reference_id', $reception->id)
       ->exists();
 
@@ -500,12 +501,12 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     $this->markRequestDetailsAsReceived($purchaseOrder);
 
     // 11. Notificar usuarios si es POSTVENTA y tiene solicitudes vinculadas
-    if ($purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
-      $reception = $purchaseOrder->reception;
-      if ($reception->supplierOrder) {
-        $this->notifyRequestUsers($reception->supplierOrder);
-      }
-    }
+//    if ($purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+//      $reception = $purchaseOrder->reception;
+//      if ($reception->supplierOrder) {
+//        $this->notifyRequestUsers($reception->supplierOrder);
+//      }
+//    }
   }
 
   protected function markRequestDetailsAsReceived(PurchaseOrder $purchaseOrder): void
