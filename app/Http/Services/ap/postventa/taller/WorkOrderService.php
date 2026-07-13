@@ -1559,6 +1559,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Validación de estados
       $workOrder->ensureCanBeModified();
 
+      // Recalcular totales de la OT antes de finalizar para asegurar
+      // que los montos lleguen correctamente a caja
+      $this->performWorkOrderRecalculation($workOrder);
+
       $workOrder->update([
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
       ]);
@@ -1951,6 +1955,30 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Realiza el recálculo completo de una OT: recalcula items hijos (labours y parts)
+   * y luego los totales del padre. Método reutilizable que puede ser llamado desde
+   * cualquier contexto (con o sin transacción activa).
+   */
+  private function performWorkOrderRecalculation(ApWorkOrder $workOrder): void
+  {
+    // Cargar relaciones necesarias para el cálculo
+    $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+    // Recalcular primero los ítems hijos (mano de obra y repuestos) desde sus
+    // campos base, con el mismo redondeo en cadena a 2 decimales usado al crearlos
+    // (PriceRounding), para que total_labor_cost/total_parts_cost del padre sean
+    // siempre una suma consistente de hijos ya redondeados y no arrastren
+    // valores desalineados (ej. de una conversión de moneda o de datos antiguos).
+    $this->recalculateLabourItems($workOrder);
+    $this->recalculatePartItems($workOrder);
+    $workOrder->refresh();
+    $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
+
+    // Recalcular totales del padre a partir de los hijos ya recalculados
+    $workOrder->calculateTotals();
+  }
+
+  /**
    * Recalcula hourly_rate (si $factor != 1, ej. cambio de moneda) y
    * total_cost/net_amount/tax_amount de cada mano de obra a partir de sus campos
    * base (hourly_rate, time_spent, discount_percentage), usando la misma fuente
@@ -2015,21 +2043,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      // Cargar relaciones necesarias para el cálculo
-      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
-
-      // Recalcular primero los ítems hijos (mano de obra y repuestos) desde sus
-      // campos base, con el mismo redondeo en cadena a 2 decimales usado al crearlos
-      // (PriceRounding), para que total_labor_cost/total_parts_cost del padre sean
-      // siempre una suma consistente de hijos ya redondeados y no arrastren
-      // valores desalineados (ej. de una conversión de moneda o de datos antiguos).
-      $this->recalculateLabourItems($workOrder);
-      $this->recalculatePartItems($workOrder);
-      $workOrder->refresh();
-      $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
-
-      // Recalcular totales del padre a partir de los hijos ya recalculados
-      $workOrder->calculateTotals();
+      // Usar el método centralizado de recálculo
+      $this->performWorkOrderRecalculation($workOrder);
 
       // Recargar la orden de trabajo con todas las relaciones para mostrar
       $workOrder->load([
