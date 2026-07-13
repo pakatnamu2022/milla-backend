@@ -9,7 +9,6 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\ShippingGuides;
-use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
