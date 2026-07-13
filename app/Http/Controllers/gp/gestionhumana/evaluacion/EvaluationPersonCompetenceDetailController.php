@@ -114,4 +114,33 @@ class EvaluationPersonCompetenceDetailController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Preview de sincronización: muestra qué cambiaría sin aplicar nada.
+   * Query param opcional: person_id
+   */
+  public function previewSync(int $evaluationId, \Illuminate\Http\Request $request)
+  {
+    try {
+      $personId = $request->query('person_id') ? (int) $request->query('person_id') : null;
+      return $this->success($this->service->previewSyncCompetences($evaluationId, $personId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Sincroniza competencias con la plantilla CategoryCompetence:
+   * elimina las que ya no están en la plantilla y agrega las nuevas.
+   * Body JSON opcional: { "person_id": 123 }
+   */
+  public function syncCompetences(int $evaluationId, \Illuminate\Http\Request $request)
+  {
+    try {
+      $personId = $request->input('person_id') ? (int) $request->input('person_id') : null;
+      return $this->success($this->service->syncCompetencesForEvaluation($evaluationId, $personId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
