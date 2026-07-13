@@ -891,6 +891,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           ->name('evaluation.competences.index');
         Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
           ->name('evaluation.competences.create');
+        Route::get('/evaluation/{evaluation}/competences/sync-preview', [EvaluationPersonCompetenceDetailController::class, 'previewSync'])
+          ->name('evaluation.competences.sync-preview');
+        Route::post('/evaluation/{evaluation}/competences/sync', [EvaluationPersonCompetenceDetailController::class, 'syncCompetences'])
+          ->name('evaluation.competences.sync');
 
         // EVALUATION PERSON
         Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([

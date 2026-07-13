@@ -704,8 +704,8 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       ->where('gh_evaluation_category_competence.person_id', $persona->id)
       ->where('gh_evaluation_category_competence.active', 1)
       ->where('gh_hierarchical_category_detail.position_id', $persona->cargo_id)
-      ->where('gh_config_competencias.status_delete', 0)
-      ->where('gh_config_subcompetencias.status_delete', 0)
+      ->whereNull('gh_config_competencias.deleted_at')
+      ->whereNull('gh_config_subcompetencias.deleted_at')
       ->whereNull('gh_evaluation_category_competence.deleted_at')
       ->whereNull('gh_hierarchical_category_detail.deleted_at')
       ->select([
@@ -758,5 +758,276 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       ->where('status_deleted', 1)
       ->where('status_id', 22)
       ->get();
+  }
+
+  /**
+   * Preview de sincronización: muestra qué se eliminaría y qué se agregaría
+   * sin aplicar ningún cambio.
+   */
+  public function previewSyncCompetences(int $evaluationId, ?int $personId = null): array
+  {
+    $evaluation = Evaluation::findOrFail($evaluationId);
+
+    if (!in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+      throw new Exception('Solo se puede sincronizar evaluaciones de tipo 180° o 360°.');
+    }
+
+    $personResultsQuery = EvaluationPersonResult::where('evaluation_id', $evaluationId);
+    if ($personId) {
+      $personResultsQuery->where('person_id', $personId);
+    }
+    $personResults = $personResultsQuery->get();
+
+    if ($personResults->isEmpty()) {
+      throw new Exception('No se encontraron personas para esta evaluación.');
+    }
+
+    $preview = [
+      'evaluation_id' => $evaluationId,
+      'evaluation_name' => $evaluation->name ?? null,
+      'total_a_eliminar' => 0,
+      'total_sin_respuesta_a_eliminar' => 0,
+      'total_con_respuesta_a_eliminar' => 0,
+      'total_a_agregar' => 0,
+      'personas' => [],
+    ];
+
+    foreach ($personResults as $personResult) {
+      $persona = Worker::find($personResult->person_id);
+      if (!$persona) continue;
+
+      $templateCompetencies = $this->obtenerCompetenciasParaPersona($persona);
+      $templateKeys = collect($templateCompetencies)
+        ->mapWithKeys(fn($c) => [$c['competence_id'] . '_' . $c['sub_competence_id'] => true]);
+
+      $currentRecords = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+        ->where('person_id', $persona->id)
+        ->get();
+
+      $toDelete = [];
+      foreach ($currentRecords as $record) {
+        $key = $record->competence_id . '_' . $record->sub_competence_id;
+        if (!$templateKeys->has($key)) {
+          $toDelete[] = [
+            'id' => $record->id,
+            'competence' => $record->competence,
+            'sub_competence' => $record->sub_competence,
+            'evaluatorType' => $record->evaluatorType,
+            'result' => $record->result,
+            'tiene_respuesta' => $record->result != 0,
+          ];
+        }
+      }
+
+      $toAdd = $this->calcularRegistrosAgregar($evaluation, $persona, $templateCompetencies);
+
+      $sinRespuesta = collect($toDelete)->where('tiene_respuesta', false)->count();
+      $conRespuesta = collect($toDelete)->where('tiene_respuesta', true)->count();
+
+      $preview['total_a_eliminar'] += count($toDelete);
+      $preview['total_sin_respuesta_a_eliminar'] += $sinRespuesta;
+      $preview['total_con_respuesta_a_eliminar'] += $conRespuesta;
+      $preview['total_a_agregar'] += count($toAdd);
+
+      $preview['personas'][] = [
+        'person_id' => $persona->id,
+        'name' => $persona->nombre_completo,
+        'a_eliminar' => $toDelete,
+        'a_agregar' => $toAdd,
+      ];
+    }
+
+    return $preview;
+  }
+
+  /**
+   * Sincroniza las competencias de una evaluación con la plantilla de CategoryCompetence.
+   * Regla: si la competencia está en CategoryCompetence se mantiene/agrega,
+   * si no está se elimina (prioridad: primero sin respuesta, luego con respuesta).
+   * Luego recalcula resultados por persona.
+   */
+  public function syncCompetencesForEvaluation(int $evaluationId, ?int $personId = null): array
+  {
+    return DB::transaction(function () use ($evaluationId, $personId) {
+      $evaluation = Evaluation::findOrFail($evaluationId);
+
+      if (!in_array($evaluation->typeEvaluation, [self::EVALUACION_180, self::EVALUACION_360])) {
+        throw new Exception('Solo se puede sincronizar evaluaciones de tipo 180° o 360°.');
+      }
+
+      $personResultsQuery = EvaluationPersonResult::where('evaluation_id', $evaluationId);
+      if ($personId) {
+        $personResultsQuery->where('person_id', $personId);
+      }
+      $personResults = $personResultsQuery->get();
+
+      if ($personResults->isEmpty()) {
+        throw new Exception('No se encontraron personas para esta evaluación.');
+      }
+
+      $stats = [
+        'evaluation_id' => $evaluationId,
+        'personas_procesadas' => 0,
+        'registros_eliminados' => 0,
+        'registros_sin_respuesta_eliminados' => 0,
+        'registros_con_respuesta_eliminados' => 0,
+        'registros_agregados' => 0,
+        'personas' => [],
+      ];
+
+      foreach ($personResults as $personResult) {
+        $persona = Worker::find($personResult->person_id);
+        if (!$persona) continue;
+
+        $templateCompetencies = $this->obtenerCompetenciasParaPersona($persona);
+        $templateKeys = collect($templateCompetencies)
+          ->mapWithKeys(fn($c) => [$c['competence_id'] . '_' . $c['sub_competence_id'] => true]);
+
+        $currentRecords = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluationId)
+          ->where('person_id', $persona->id)
+          ->get();
+
+        $deletedNoResponse = 0;
+        $deletedWithResponse = 0;
+
+        // Prioridad 1: eliminar sin respuesta (result = 0) que no están en template
+        foreach ($currentRecords->where('result', 0) as $record) {
+          if (!$templateKeys->has($record->competence_id . '_' . $record->sub_competence_id)) {
+            $record->delete();
+            $deletedNoResponse++;
+          }
+        }
+
+        // Eliminar con respuesta que tampoco están en template
+        foreach ($currentRecords->where('result', '!=', 0) as $record) {
+          if (!$templateKeys->has($record->competence_id . '_' . $record->sub_competence_id)) {
+            $record->delete();
+            $deletedWithResponse++;
+          }
+        }
+
+        // Agregar registros faltantes del template
+        $added = $this->agregarCompetenciasFaltantes($evaluation, $persona, $templateCompetencies);
+
+        $deleted = $deletedNoResponse + $deletedWithResponse;
+
+        if ($deleted > 0 || $added > 0) {
+          $this->recalculatePersonResults($evaluationId, $persona->id);
+        }
+
+        $stats['personas_procesadas']++;
+        $stats['registros_eliminados'] += $deleted;
+        $stats['registros_sin_respuesta_eliminados'] += $deletedNoResponse;
+        $stats['registros_con_respuesta_eliminados'] += $deletedWithResponse;
+        $stats['registros_agregados'] += $added;
+        $stats['personas'][] = [
+          'person_id' => $persona->id,
+          'name' => $persona->nombre_completo,
+          'eliminados' => $deleted,
+          'eliminados_sin_respuesta' => $deletedNoResponse,
+          'eliminados_con_respuesta' => $deletedWithResponse,
+          'agregados' => $added,
+        ];
+      }
+
+      return $stats;
+    });
+  }
+
+  /**
+   * Calcula (sin crear) qué registros habría que agregar para una persona.
+   */
+  private function calcularRegistrosAgregar(Evaluation $evaluation, Worker $persona, array $templateCompetencies): array
+  {
+    $toAdd = [];
+
+    foreach ($templateCompetencies as $competenciaData) {
+      $existingCombos = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $persona->id)
+        ->where('competence_id', $competenciaData['competence_id'])
+        ->where('sub_competence_id', $competenciaData['sub_competence_id'])
+        ->get()
+        ->mapWithKeys(fn($r) => [$r->evaluator_id . '_' . $r->evaluatorType => true]);
+
+      foreach ($this->buildCandidates($evaluation, $persona) as $candidate) {
+        $comboKey = $candidate['evaluator_id'] . '_' . $candidate['type'];
+        if (!$existingCombos->has($comboKey)) {
+          $toAdd[] = [
+            'competence' => $competenciaData['competence_name'],
+            'sub_competence' => $competenciaData['sub_competence_name'],
+            'evaluatorType' => $candidate['type'],
+            'evaluator_id' => $candidate['evaluator_id'],
+          ];
+        }
+      }
+    }
+
+    return $toAdd;
+  }
+
+  /**
+   * Agrega los registros de competencia faltantes para una persona según el template.
+   * Solo crea los combos (competencia+subcompetencia+evaluador) que aún no existen.
+   */
+  private function agregarCompetenciasFaltantes(Evaluation $evaluation, Worker $persona, array $templateCompetencies): int
+  {
+    $added = 0;
+    $candidates = $this->buildCandidates($evaluation, $persona);
+
+    foreach ($templateCompetencies as $competenciaData) {
+      $existingCombos = EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluation->id)
+        ->where('person_id', $persona->id)
+        ->where('competence_id', $competenciaData['competence_id'])
+        ->where('sub_competence_id', $competenciaData['sub_competence_id'])
+        ->get()
+        ->mapWithKeys(fn($r) => [$r->evaluator_id . '_' . $r->evaluatorType => true]);
+
+      foreach ($candidates as $candidate) {
+        $comboKey = $candidate['evaluator_id'] . '_' . $candidate['type'];
+        if (!$existingCombos->has($comboKey)) {
+          $this->crearDetalleCompetencia(
+            $evaluation->id,
+            $persona,
+            $competenciaData,
+            $candidate['evaluator_id'],
+            $candidate['type']
+          );
+          $added++;
+        }
+      }
+    }
+
+    return $added;
+  }
+
+  /**
+   * Construye la lista de evaluadores requeridos según tipo de evaluación.
+   */
+  private function buildCandidates(Evaluation $evaluation, Worker $persona): array
+  {
+    $candidates = [];
+
+    if ($evaluation->typeEvaluation == self::EVALUACION_180) {
+      if ($persona->jefe_id) {
+        $candidates[] = ['evaluator_id' => $persona->jefe_id, 'type' => self::TIPO_EVALUADOR_JEFE];
+      }
+    } else {
+      if ($evaluation->selfEvaluation) {
+        $candidates[] = ['evaluator_id' => $persona->id, 'type' => self::TIPO_EVALUADOR_AUTOEVALUACION];
+      }
+      if ($persona->jefe_id) {
+        $candidates[] = ['evaluator_id' => $persona->jefe_id, 'type' => self::TIPO_EVALUADOR_JEFE];
+      }
+      if ($evaluation->partnersEvaluation && $persona->jefe_id) {
+        foreach ($this->obtenerCompaneros($persona) as $companero) {
+          $candidates[] = ['evaluator_id' => $companero->id, 'type' => self::TIPO_EVALUADOR_COMPANEROS];
+        }
+      }
+      foreach ($this->obtenerSubordinados($persona->id) as $subordinado) {
+        $candidates[] = ['evaluator_id' => $subordinado->id, 'type' => self::TIPO_EVALUADOR_REPORTES];
+      }
+    }
+
+    return $candidates;
   }
 }

@@ -14,7 +14,7 @@ class RescheduleApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
-        'after_or_equal:' . now()->addDay()->format('Y-m-d'),
+        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d') : now()->addDay()->format('Y-m-d')),
         function ($attribute, $value, $fail) {
           $deliveryDate = Carbon::parse($value);
           $dayOfWeek = $deliveryDate->dayOfWeek;
@@ -37,6 +37,10 @@ class RescheduleApVehicleDeliveryRequest extends StoreRequest
           }
         },
       ],
+      'is_extraordinary' => [
+        'sometimes',
+        'boolean',
+      ],
       'observations' => [
         'nullable',
         'string',
@@ -50,7 +54,9 @@ class RescheduleApVehicleDeliveryRequest extends StoreRequest
     return [
       'scheduled_delivery_date.required'        => 'La nueva fecha y hora de entrega es obligatoria.',
       'scheduled_delivery_date.date'            => 'La fecha de entrega no es válida.',
-      'scheduled_delivery_date.after_or_equal'  => 'La entrega debe reprogramarse con al menos 24 horas de anticipación.',
+      'scheduled_delivery_date.after_or_equal'  => $this->boolean('is_extraordinary')
+        ? 'La fecha de entrega no puede ser anterior a hoy.'
+        : 'La entrega debe reprogramarse con al menos 24 horas de anticipación.',
     ];
   }
 }

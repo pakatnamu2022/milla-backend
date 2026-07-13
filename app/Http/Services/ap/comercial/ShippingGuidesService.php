@@ -218,6 +218,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           ? false
           : ($data['send_dynamics'] ?? true),
         'is_consignment'         => $data['is_consignment'] ?? false,
+        'is_received'            => ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
         'aceptada_por_sunat'     => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER,
         'sent_at'                => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
         'accepted_at'            => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,

@@ -25,7 +25,7 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
-        'after_or_equal:' . now()->addDay()->format('Y-m-d'),
+        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d') : now()->addDay()->format('Y-m-d')),
         function ($attribute, $value, $fail) {
           $deliveryDate = Carbon::parse($value);
           $dayOfWeek = $deliveryDate->dayOfWeek; // 0=domingo, 6=sábado
@@ -97,7 +97,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'vehicle_id.exists' => 'El vehículo no existe.',
       'scheduled_delivery_date.required' => 'La fecha y hora de entrega programada es obligatoria.',
       'scheduled_delivery_date.date' => 'La fecha y hora de entrega programada no es válida.',
-      'scheduled_delivery_date.after_or_equal' => 'La entrega debe programarse con al menos 24 horas de anticipación.',
+      'scheduled_delivery_date.after_or_equal' => $this->boolean('is_extraordinary')
+        ? 'La fecha de entrega no puede ser anterior a hoy.'
+        : 'La entrega debe programarse con al menos 24 horas de anticipación.',
       'ap_class_article_id.required' => 'La clase de artículo es obligatoria.',
       'ap_class_article_id.integer' => 'La clase de artículo debe ser un número entero.',
       'ap_class_article_id.exists' => 'La clase de artículo no existe.',
