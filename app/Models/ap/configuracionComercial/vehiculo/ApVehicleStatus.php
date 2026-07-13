@@ -30,7 +30,7 @@ class ApVehicleStatus extends Model
     'description',
   ];
 
-  const USE_VENTAS = 'VENTAS';
+  const USE_VENTAS = 'VENTA';
   const USE_TALLER = 'TALLER';
 
   const int PEDIDO_VN = 1;

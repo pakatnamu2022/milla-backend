@@ -10,7 +10,7 @@ return new class extends Migration {
       'id'          => 10,
       'code'        => 'EN_CURSO',
       'description' => 'EN CURSO',
-      'use'         => 'VENTAS',
+      'use'         => 'VENTA',
       'color'       => '#F97316',
       'status'      => true,
       'created_at'  => now(),
