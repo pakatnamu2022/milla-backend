@@ -59,7 +59,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $user = $request->user();
 
     $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
-    $query = ShippingGuides::whereIn('sede_transmitter_id', $sedes)->orWhereIn('sede_receiver_id', $sedes);
+    $query = ShippingGuides::where(function ($q) use ($sedes) {
+      $q->whereIn('sede_transmitter_id', $sedes)->orWhereIn('sede_receiver_id', $sedes);
+    });
 
     return $this->getFilteredResults(
       $query,
@@ -211,7 +213,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'origin_address'         => $origin->address ?? '-',
         'destination_ubigeo'     => $destination->ubigeo ?? '-',
         'destination_address'    => $destination->address ?? '-',
-        'send_dynamics'          => ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_COMPRA
+        'send_dynamics'          => ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_OTROS
           ? false
           : ($data['send_dynamics'] ?? true),
         'is_consignment'         => $data['is_consignment'] ?? false,

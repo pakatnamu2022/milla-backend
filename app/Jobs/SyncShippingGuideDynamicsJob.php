@@ -9,6 +9,8 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Jobs\SyncAccountingEntryJob;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
@@ -88,7 +90,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error en SyncShippingGuideDynamicsJob', [
         'shipping_guide_id' => $this->shippingGuideId,
-        'error' => $e->getMessage()
+        'error'             => $e->getMessage()
       ]);
       throw $e;
     }
@@ -118,6 +120,15 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           ->orWhere(function ($q2) {
             $q2->where('status', false)
               ->where('is_annulled', false);
+          })
+          // Guías ya contabilizadas pero cuya issue_date aún no llegó cuando se procesaron:
+          // vuelven al batch hasta que la fecha se alcance y el movimiento pueda crearse.
+          ->orWhere(function ($q2) {
+            $q2->where('status', true)
+              ->where('is_accounted', true)
+              ->where('area_id', ApMasters::AREA_COMERCIAL)
+              ->whereNotIn('transfer_reason_id', [SunatConcepts::TRANSFER_REASON_VENTA])
+              ->where('issue_date', '>', now()->startOfDay());
           });
       })
       ->get();
@@ -132,7 +143,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       } catch (\Exception $e) {
         Log::error('Error procesando guía en lote', [
           'shipping_guide_id' => $guide->id,
-          'error' => $e->getMessage()
+          'error'             => $e->getMessage()
         ]);
         continue;
       }
@@ -172,7 +183,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if (!$result) {
         Log::warning('No se encontró resultado en Dynamics para la guía', [
           'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId,
+          'transaction_id'    => $transactionId,
         ]);
         return;
       }
@@ -182,7 +193,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if (empty($dynSeriesFromDynamics)) {
         Log::warning('El resultado de Dynamics no contiene Serie', [
           'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId
+          'transaction_id'    => $transactionId
         ]);
         return;
       }
@@ -198,7 +209,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         if (!$isAccounted) {
           Log::info('La reversión aún no está contabilizada en Dynamics', [
             'shipping_guide_id' => $shippingGuide->id,
-            'transaction_id' => $transactionId
+            'transaction_id'    => $transactionId
           ]);
           return;
         }
@@ -210,7 +221,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         if (!$isAccounted) {
           Log::info('La transferencia aún no está contabilizada en Dynamics', [
             'shipping_guide_id' => $shippingGuide->id,
-            'transaction_id' => $transactionId
+            'transaction_id'    => $transactionId
           ]);
           return;
         }
@@ -221,7 +232,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       // Traslado de sede: no hay recepción; el movimiento de inventario se genera
       // directamente desde el TRANSFER_OUT una vez que Dynamics confirma la contabilización.
       if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE) {
-        if (!$isCancelled) {
+        if (!$isCancelled && $this->isIssueDateReached($shippingGuide)) {
           $transferOutMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
             ->where('reference_id', $shippingGuide->id)
             ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
@@ -240,7 +251,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if (!$transferReception) {
         Log::warning('No se encontró la recepción de transferencia asociada', [
           'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId
+          'transaction_id'    => $transactionId
         ]);
         return;
       }
@@ -249,9 +260,13 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
       if (!$transferOutMovement) {
         Log::warning('No se encontró el movimiento de transferencia asociado', [
-          'shipping_guide_id' => $shippingGuide->id,
+          'shipping_guide_id'     => $shippingGuide->id,
           'transfer_reception_id' => $transferReception->id
         ]);
+        return;
+      }
+
+      if (!$this->isIssueDateReached($shippingGuide)) {
         return;
       }
 
@@ -266,7 +281,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
         if (!$cancellationMovement) {
           Log::warning('No se encontró el movimiento de cancelación (TRANSFER_OUT invertido)', [
-            'shipping_guide_id' => $shippingGuide->id,
+            'shipping_guide_id'     => $shippingGuide->id,
             'transfer_reception_id' => $transferReception->id
           ]);
           return;
@@ -281,7 +296,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error procesando guía de remisión en Dynamics', [
         'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage()
+        'error'             => $e->getMessage()
       ]);
       throw $e;
     }
@@ -314,9 +329,13 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       SyncAccountingEntryJob::dispatch($shippingGuide->id);
     }
 
+    if (!$this->isIssueDateReached($shippingGuide)) {
+      return;
+    }
+
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
-        'status_delivery' => 'delivered',
+        'status_delivery'    => 'delivered',
         'real_delivery_date' => now(),
       ]);
 
@@ -335,6 +354,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
    * Consulta neIvConsultarTransferenciasInventario y verifica Estado = 'CONTABILIZADO'.
    * Solo actualiza is_accounted o is_annulled; no genera movimientos de inventario
    * porque eso es responsabilidad exclusiva del área postventa.
+   * @throws \Throwable
    */
   protected function processCommercialTransferGuide(ShippingGuides $shippingGuide): void
   {
@@ -345,7 +365,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     if (!$result) {
       Log::warning('No se encontró resultado en Dynamics para la guía comercial', [
         'shipping_guide_id' => $shippingGuide->id,
-        'transaction_id' => $transactionId,
+        'transaction_id'    => $transactionId,
       ]);
       return;
     }
@@ -357,26 +377,63 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
       if (!$isAccounted) {
         Log::info('La reversión comercial aún no está contabilizada en Dynamics', [
           'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId,
+          'transaction_id'    => $transactionId,
         ]);
       }
     } else {
+      $wasAlreadyAccounted = $shippingGuide->is_accounted;
       $shippingGuide->update(['is_accounted' => $isAccounted]);
       if (!$isAccounted) {
         Log::info('La transferencia comercial aún no está contabilizada en Dynamics', [
           'shipping_guide_id' => $shippingGuide->id,
-          'transaction_id' => $transactionId,
+          'transaction_id'    => $transactionId,
         ]);
         return;
       }
 
-      if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
-        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
-        if ($vehicle) {
-          (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
-        }
+      if ($this->isIssueDateReached($shippingGuide)) {
+        $this->createCommercialTransferVehicleMovement($shippingGuide, $wasAlreadyAccounted);
       }
     }
+  }
+
+  /**
+   * Crea el movimiento de vehículo para una guía comercial de transferencia,
+   * evitando duplicados: si la guía ya estaba contabilizada ($wasAlreadyAccounted=true)
+   * se verifica que no exista ya un movimiento con la misma observación antes de crear uno.
+   */
+  private function createCommercialTransferVehicleMovement(ShippingGuides $shippingGuide, bool $wasAlreadyAccounted): void
+  {
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    // Si ya estaba contabilizada antes de este run (caso: issue_date futura que ahora llegó),
+    // verificar que no exista ya un movimiento creado para evitar duplicados.
+    if ($wasAlreadyAccounted) {
+      $alreadyExists = $vehicle->vehicleMovements()
+        ->where('movement_type', VehicleMovement::INTERNAL_TRANSFER)
+        ->where('observation', 'like', "%{$shippingGuide->document_number}%")
+        ->exists();
+      if ($alreadyExists) {
+        return;
+      }
+    }
+
+    if ($shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+      (new VehicleMovementService())->storeInternalTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+    } elseif (
+      $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
+      && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+    ) {
+      (new VehicleMovementService())->storeInterCompanyTransferCompletedVehicleMovement($vehicle, $shippingGuide);
+    }
+  }
+
+  private function isIssueDateReached(ShippingGuides $shippingGuide): bool
+  {
+    return !$shippingGuide->issue_date || now()->startOfDay()->gte($shippingGuide->issue_date->startOfDay());
   }
 
   /**
@@ -400,7 +457,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error ejecutando PA neIvConsultarTransferenciasInventario', [
         'transaction_id' => $transactionId,
-        'error' => $e->getMessage()
+        'error'          => $e->getMessage()
       ]);
       throw $e;
     }
@@ -420,7 +477,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [
         'document_number' => $documentNumber,
-        'error' => $e->getMessage()
+        'error'           => $e->getMessage()
       ]);
       throw $e;
     }
@@ -434,8 +491,8 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   {
     Log::error('SyncShippingGuideDynamicsJob falló definitivamente', [
       'shipping_guide_id' => $this->shippingGuideId,
-      'error' => $exception->getMessage(),
-      'trace' => $exception->getTraceAsString()
+      'error'             => $exception->getMessage(),
+      'trace'             => $exception->getTraceAsString()
     ]);
   }
 }
