@@ -249,16 +249,17 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
           }
         }
 
-        // Validación para LOCAL, CENTRAL, IMPORTACION: solo si la cantidad excede el stock de la sede actual
-        if (in_array($supplyType, ['LOCAL', 'CENTRAL', 'IMPORTACION'])) {
-          if ($stockInCurrentSede >= $quantity) {
-            $productName = $detail['description'] ?? "ID: {$productId}";
-            $validator->errors()->add(
-              "details.{$index}.supply_type",
-              "Repuesto '{$productName}': No puede usar tipo {$supplyType}. El producto tiene {$stockInCurrentSede} unidades en esta sede, suficientes para las {$quantity} solicitadas. Debe usar tipo STOCK."
-            );
-          }
-        }
+        // VALIDACIÓN COMENTADA: Permite al usuario elegir tipo CENTRAL/LOCAL/IMPORTACION aunque haya stock disponible
+        // El usuario puede querer pedir de central/local/importación por otras razones
+        // if (in_array($supplyType, ['LOCAL', 'CENTRAL', 'IMPORTACION'])) {
+        //   if ($stockInCurrentSede >= $quantity) {
+        //     $productName = $detail['description'] ?? "ID: {$productId}";
+        //     $validator->errors()->add(
+        //       "details.{$index}.supply_type",
+        //       "Repuesto '{$productName}': No puede usar tipo {$supplyType}. El producto tiene {$stockInCurrentSede} unidades en esta sede, suficientes para las {$quantity} solicitadas. Debe usar tipo STOCK."
+        //     );
+        //   }
+        // }
       }
     });
   }
