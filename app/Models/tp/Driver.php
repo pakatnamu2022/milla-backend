@@ -192,8 +192,6 @@ class Driver extends BaseModel
 
     public function updateStatus()
     {
-
-
         $latestLocation = DriverLocation::where('driver_id', $this->id)
             ->orderBy('reported_at', 'desc')
             ->first();
@@ -201,10 +199,6 @@ class Driver extends BaseModel
         if (!$latestLocation) {
             $newStatus = 'disconnected';
         }else{
-            // $nowTimestamp = now()->timestamp;
-            // $reportedTimestamp = $latestLocation->reported_at->timestamp;
-            // $minutesDiff = floor(($nowTimestamp - $reportedTimestamp) / 60);
-
             $reportedAt = $latestLocation->reported_at;
             $now = now();
 
@@ -236,10 +230,6 @@ class Driver extends BaseModel
                 'changed_at' => $latestLocation ? $latestLocation->reported_at : now()
             ]);
         }
-
-        Log::info("estatus", [
-            "estatus" => $newStatus
-        ]);
         return $newStatus;
     }
 

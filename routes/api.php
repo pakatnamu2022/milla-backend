@@ -303,6 +303,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
     Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
     Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
+    Route::get('control-goal/export-comparativa-clientes', [OpGoalTravelController::class, 'exportComparativaClientes'])->name('goal.export-comparativa-clientes');
     Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
