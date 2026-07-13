@@ -231,7 +231,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     });
   }
 
-
   public function assignVehicle(mixed $data): JsonResource
   {
     DB::beginTransaction();
@@ -309,7 +308,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       throw $e;
     }
   }
-
 
   public function swapVehicle(int $quoteId, int $newVehicleId): JsonResource
   {
@@ -429,7 +427,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     });
   }
 
-
+  /**
+   * Elimina un registro de PurchaseRequestQuote y sus relaciones.
+   * @param $id
+   * @return JsonResponse
+   * @throws Throwable
+   */
   public function destroy($id)
   {
     $PurchaseRequestQuote = $this->find($id);
@@ -764,6 +767,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
   }
 
+  /**
+   * Guarda los costos internos (OTROS) en la tabla PurchaseRequestQuoteOther.
+   * @param int $quoteId
+   * @param array $others
+   * @param float $salePrice
+   * @return void
+   */
   private function saveOthers(int $quoteId, array $others, float $salePrice): void
   {
     PurchaseRequestQuoteOther::where('purchase_request_quote_id', $quoteId)->delete();
@@ -781,6 +791,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
   }
 
+  /**
+   * Calcula el margen de la cotización considerando descuentos, accesorios y costos internos.
+   * @param PurchaseRequestQuote $quote
+   * @return array|int[]
+   */
   private function calculateMargin(PurchaseRequestQuote $quote): array
   {
     $vehicle = $quote->vehicle;
@@ -823,6 +838,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     ];
   }
 
+  /**
+   * Recalcula y actualiza el margen de la cotización según los descuentos, accesorios y costos internos.
+   * @param PurchaseRequestQuote $quote
+   * @return void
+   */
   private function refreshMargin(PurchaseRequestQuote $quote): void
   {
     $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.purchaseOrder']);
@@ -841,6 +861,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     return $exportService->exportFromRequest($request, PurchaseRequestQuote::class);
   }
 
+  /**
+   * Obtiene las facturas (documentos electrónicos) asociadas a una cotización de solicitud de compra
+   * @param int $purchaseRequestQuoteId
+   * @return JsonResponse
+   * @throws Exception
+   */
   public function getInvoices(int $purchaseRequestQuoteId)
   {
     $purchaseRequestQuote = $this->find($purchaseRequestQuoteId);

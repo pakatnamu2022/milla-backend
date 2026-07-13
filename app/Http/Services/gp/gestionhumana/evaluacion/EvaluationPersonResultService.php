@@ -887,15 +887,17 @@ class EvaluationPersonResultService extends BaseService
         ->where('evaluation_id', $evaluationId)
         ->delete();
 
+      $isObjectivesCycle = $cycle->typeEvaluation == 0;
+
       // PASO 2: Regenerar EvaluationPersonCycleDetail con datos actualizados usando el servicio
       // El servicio se encarga de eliminar y regenerar los personCycleDetail
       $personCycleDetails = $this->personCycleDetailService->regenerateForPerson($cycle->id, $person->id);
 
-      if ($personCycleDetails->isEmpty()) {
+      if ($personCycleDetails->isEmpty() && $isObjectivesCycle) {
         throw new Exception('No se pudieron regenerar objetivos (personCycleDetail) para esta persona. Verifica que la persona tenga objetivos asignados en su categoría jerárquica.');
       }
 
-      // PASO 3: Regenerar EvaluationPerson desde personCycleDetail regenerado
+      // PASO 3: Regenerar EvaluationPerson desde personCycleDetail regenerado (solo ciclos de objetivos)
       foreach ($personCycleDetails as $detail) {
         $data = [
           'person_id' => $detail->person_id,
@@ -1165,6 +1167,8 @@ class EvaluationPersonResultService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $person = Worker::findOrFail($personId);
 
+    $isObjectivesCycle = $cycle->typeEvaluation == 0;
+
     $result = [
       'person' => [
         'id' => $person->id,
@@ -1173,6 +1177,7 @@ class EvaluationPersonResultService extends BaseService
         'position' => $person->position?->name,
         'hierarchical_category' => $person->position?->hierarchicalCategory?->name,
       ],
+      'cycle_type' => $isObjectivesCycle ? 'objetivos' : '180/360 (competencias)',
       'validations' => [],
       'warnings' => [],
       'errors' => [],
@@ -1205,8 +1210,8 @@ class EvaluationPersonResultService extends BaseService
       }
     }
 
-    // VALIDACIÓN 3: Verificar que la categoría tiene objetivos
-    if ($hierarchicalCategory) {
+    // VALIDACIÓN 3 y 4: Objetivos (solo aplica en ciclos de objetivos)
+    if ($hierarchicalCategory && $isObjectivesCycle) {
       $objectives = $hierarchicalCategory->objectives()->get();
       if ($objectives->isEmpty()) {
         $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
@@ -1250,9 +1255,11 @@ class EvaluationPersonResultService extends BaseService
           $result['can_regenerate'] = false;
         }
       }
+    } elseif ($hierarchicalCategory && !$isObjectivesCycle) {
+      $result['validations'][] = '✓ Ciclo 180/360: no se requieren objetivos para esta categoría';
     }
 
-    // VALIDACIÓN 5: Verificar que tiene competencias (si es necesario)
+    // VALIDACIÓN 5: Competencias
     if ($hierarchicalCategory) {
       $competences = DB::table('gh_evaluation_category_competence')
         ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
@@ -1269,6 +1276,9 @@ class EvaluationPersonResultService extends BaseService
 
       if ($competences > 0) {
         $result['validations'][] = "✓ Tiene {$competences} competencia(s) asignada(s)";
+      } elseif (!$isObjectivesCycle) {
+        $result['errors'][] = 'La persona no tiene competencias asignadas. Las competencias son obligatorias en ciclos 180/360.';
+        $result['can_regenerate'] = false;
       } else {
         $result['warnings'][] = 'No tiene competencias asignadas. Se regenerarán solo objetivos.';
       }
@@ -1295,17 +1305,19 @@ class EvaluationPersonResultService extends BaseService
 
     // QUÉ SE CREARÁ (solo si puede regenerar)
     if ($result['can_regenerate'] && $hierarchicalCategory) {
-      $objectivesToCreate = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
-        ->where('person_id', $person->id)
-        ->where('active', 1)
-        ->whereHas('objective', function ($query) {
-          $query->where('active', 1);
-        })
-        ->whereNull('deleted_at')
-        ->count();
+      $objectivesToCreate = 0;
+      if ($isObjectivesCycle) {
+        $objectivesToCreate = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
+          ->where('person_id', $person->id)
+          ->where('active', 1)
+          ->whereHas('objective', function ($query) {
+            $query->where('active', 1);
+          })
+          ->whereNull('deleted_at')
+          ->count();
+      }
 
       $competencesData = $this->obtenerCompetenciasParaPersona($person);
-      $competencesToCreate = count($competencesData);
 
       // Calcular cuántas evaluaciones de competencia se crearán
       $competenceEvaluationsToCreate = 0;
