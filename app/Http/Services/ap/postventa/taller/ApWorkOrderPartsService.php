@@ -448,7 +448,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         // Si la OT está asociada a una cotización, revertimos el estado del detalle correspondiente
         $quotationDetail = ApOrderQuotationDetails::where('order_quotation_id', $workOrder->order_quotation_id)
           ->where('product_id', $workOrderPart->product_id)
-          ->where('quantity', $workOrderPart->quantity_used)
           ->first();
 
         if ($quotationDetail) {
