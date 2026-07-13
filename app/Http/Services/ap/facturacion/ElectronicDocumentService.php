@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\facturacion;
 
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
@@ -913,6 +914,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
         if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
+          $this->revertVehicleStatusOnCancellation($document);
           $document->markAsCancelled();
         }
       }
@@ -959,6 +961,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Marcar como cancelado
       $document->markAsLocalCancelled($reason);
+
+      // Revertir estado del vehículo si es documento de venta comercial
+      $this->revertVehicleStatusOnCancellation($document);
 
       // Revertir estados e inventario si es factura final de cotizacion de repuestos
       // Solo para facturas finales (is_advance_payment = 0) que tienen order_quotation_id
@@ -1907,6 +1912,39 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return $pdf;
     } catch (Exception $e) {
       throw new Exception('Error al generar el PDF: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Revert vehicle to its best pre-sale inventory state when a SUNAT invoice is cancelled.
+   * Only acts if the document is linked to a vehicle (ap_vehicle_movement_id set).
+   * Idempotent: the caller must ensure this is only called before markAsCancelled().
+   */
+  private function revertVehicleStatusOnCancellation(ElectronicDocument $document): void
+  {
+    if (!$document->ap_vehicle_movement_id) {
+      return;
+    }
+
+    $saleMovement = VehicleMovement::find($document->ap_vehicle_movement_id);
+    if (!$saleMovement) {
+      return;
+    }
+
+    $vehicle = Vehicles::find($saleMovement->ap_vehicle_id);
+    if (!$vehicle) {
+      return;
+    }
+
+    try {
+      $vehicleMovementService = app(VehicleMovementService::class);
+      $vehicleMovementService->storeInvoiceCancellationRevertMovement($vehicle, $saleMovement);
+    } catch (Exception $e) {
+      Log::error('Error al revertir estado de vehículo por anulación de factura', [
+        'document_id'          => $document->id,
+        'ap_vehicle_movement_id' => $document->ap_vehicle_movement_id,
+        'error'                => $e->getMessage(),
+      ]);
     }
   }
 

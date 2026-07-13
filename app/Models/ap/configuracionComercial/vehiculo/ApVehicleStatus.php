@@ -42,29 +42,32 @@ class ApVehicleStatus extends Model
   const int FACTURADO = 7;
   const int CONSIGNACION = 8;
   const int FACTURADO_FINAL = 9;
+  const int EN_CURSO = 10;
 
   const array STATUS = [
-    self::PEDIDO_VN => 'PEDIDO VN',
-    self::VEHICULO_EN_TRAVESIA => 'VEHICULO EN TRAVESIA',
+    self::PEDIDO_VN                  => 'PEDIDO VN',
+    self::VEHICULO_EN_TRAVESIA       => 'VEHICULO EN TRAVESIA',
     self::VEHICULO_TRANSITO_DEVUELTO => 'VEHICULO TRANSITO DEVUELTO',
-    self::VENDIDO_NO_ENTREGADO => 'VENDIDO NO ENTREGADO',
-    self::INVENTARIO_VN => 'INVENTARIO VN',
-    self::VENDIDO_ENTREGADO => 'VENDIDO ENTREGADO',
-    self::FACTURADO => 'FACTURADO',
-    self::CONSIGNACION => 'CONSIGNACION',
-    self::FACTURADO_FINAL => 'FACTURADO FINAL',
+    self::VENDIDO_NO_ENTREGADO       => 'VENDIDO NO ENTREGADO',
+    self::INVENTARIO_VN              => 'INVENTARIO VN',
+    self::VENDIDO_ENTREGADO          => 'VENDIDO ENTREGADO',
+    self::FACTURADO                  => 'FACTURADO',
+    self::CONSIGNACION               => 'CONSIGNACION',
+    self::FACTURADO_FINAL            => 'FACTURADO FINAL',
+    self::EN_CURSO                   => 'EN CURSO',
   ];
 
   const array STATUS_ID = [
-    'PEDIDO VN' => self::PEDIDO_VN,
-    'VEHICULO EN TRAVESIA' => self::VEHICULO_EN_TRAVESIA,
+    'PEDIDO VN'                  => self::PEDIDO_VN,
+    'VEHICULO EN TRAVESIA'       => self::VEHICULO_EN_TRAVESIA,
     'VEHICULO TRANSITO DEVUELTO' => self::VEHICULO_TRANSITO_DEVUELTO,
-    'VENDIDO NO ENTREGADO' => self::VENDIDO_NO_ENTREGADO,
-    'INVENTARIO VN' => self::INVENTARIO_VN,
-    'VENDIDO ENTREGADO' => self::VENDIDO_ENTREGADO,
-    'FACTURADO' => self::FACTURADO,
-    'CONSIGNACION' => self::CONSIGNACION,
-    'FACTURADO FINAL' => self::FACTURADO_FINAL,
+    'VENDIDO NO ENTREGADO'       => self::VENDIDO_NO_ENTREGADO,
+    'INVENTARIO VN'              => self::INVENTARIO_VN,
+    'VENDIDO ENTREGADO'          => self::VENDIDO_ENTREGADO,
+    'FACTURADO'                  => self::FACTURADO,
+    'CONSIGNACION'               => self::CONSIGNACION,
+    'FACTURADO FINAL'            => self::FACTURADO_FINAL,
+    'EN CURSO'                   => self::EN_CURSO,
   ];
 
   const array ALL_STATUS = [
@@ -77,6 +80,17 @@ class ApVehicleStatus extends Model
     self::FACTURADO,
     self::CONSIGNACION,
     self::FACTURADO_FINAL,
+    self::EN_CURSO,
+  ];
+
+  // Pesos para elegir el mejor estado de inventario al revertir una anulación de factura.
+  // Mayor peso = mayor prioridad. INVENTARIO_VN siempre gana sobre EN_CURSO, etc.
+  const array INVENTORY_REVERT_PRIORITY = [
+    self::INVENTARIO_VN        => 100,
+    self::EN_CURSO             => 80,
+    self::CONSIGNACION         => 70,
+    self::VEHICULO_EN_TRAVESIA => 60,
+    self::PEDIDO_VN            => 50,
   ];
 
 
