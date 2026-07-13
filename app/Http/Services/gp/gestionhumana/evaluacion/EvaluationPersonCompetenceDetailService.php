@@ -684,6 +684,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
       'competence_id' => $competenciaData['competence_id'],
       'sub_competence_id' => $competenciaData['sub_competence_id'],
       'person' => $persona->nombre_completo,
+      'evaluator' => $evaluador->nombre_completo,
       'competence' => $competenciaData['competence_name'],
       'sub_competence' => $competenciaData['sub_competence_name'],
       'evaluatorType' => $tipoEvaluador,

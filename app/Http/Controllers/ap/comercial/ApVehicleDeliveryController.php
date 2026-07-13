@@ -82,14 +82,15 @@ class ApVehicleDeliveryController extends Controller
 
   public function approveExtraordinary($token)
   {
+    $frontendBase = rtrim(config('app.frontend_url'), '/');
+
     try {
       $result = $this->service->approveExtraordinary($token);
-      $message = $result['already_approved']
-        ? 'La entrega extraordinaria ya había sido aprobada anteriormente.'
-        : 'Entrega extraordinaria aprobada correctamente.';
-      return response()->json(['success' => true, 'message' => $message, 'delivery_id' => $result['delivery_id']]);
+      $status  = $result['already_approved'] ? 'already_approved' : 'approved';
+      return redirect("{$frontendBase}/entregas-extraordinarias/confirmacion?status={$status}&id={$result['delivery_id']}");
     } catch (\Throwable $th) {
-      return response()->json(['success' => false, 'message' => $th->getMessage()], 422);
+      $message = urlencode($th->getMessage());
+      return redirect("{$frontendBase}/entregas-extraordinarias/confirmacion?status=error&message={$message}");
     }
   }
 

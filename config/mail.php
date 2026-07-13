@@ -120,7 +120,7 @@ return [
   'tics' => ['mesadeayuda@grupopakatnamu.com'],
 
   'delivery' => [
-    'extraordinary_approval' => env('DELIVERY_EXTRAORDINARY_APPROVAL_EMAIL', 'hvaldiviezos@automotorespakatnamu.com'),
+    'extraordinary_approval' => env('DELIVERY_EXTRAORDINARY_APPROVAL_EMAIL', 'eirigoins@automotorespakatnamu.com'),
   ],
 
   'recipients' => [
