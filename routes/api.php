@@ -838,6 +838,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/cycle/{cycle}/eligible-workers', [EvaluationPersonCycleDetailController::class, 'previewEligibleWorkers']);
         Route::get('/cycle/{cycle}/workers/{worker}/validate', [EvaluationPersonCycleDetailController::class, 'validateWorkerForCycle']);
         Route::post('/cycle/{cycle}/workers', [EvaluationPersonCycleDetailController::class, 'storeManyByWorker']);
+        Route::get('/cycle/{cycle}/objectives/{objective}/remove/preview', [EvaluationPersonCycleDetailController::class, 'previewRemoveObjectiveFromCycle']);
+        Route::delete('/cycle/{cycle}/objectives/{objective}/remove', [EvaluationPersonCycleDetailController::class, 'removeObjectiveFromCycle']);
         Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
         Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
 

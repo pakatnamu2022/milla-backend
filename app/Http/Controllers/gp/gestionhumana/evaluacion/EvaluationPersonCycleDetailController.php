@@ -184,4 +184,23 @@ class EvaluationPersonCycleDetailController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function previewRemoveObjectiveFromCycle(int $cycle, int $objective)
+  {
+    try {
+      return $this->success($this->service->previewRemoveObjectiveFromCycle($cycle, $objective));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function removeObjectiveFromCycle(Request $request, int $cycle, int $objective)
+  {
+    try {
+      $personIds = $request->input('person_ids');
+      return $this->success($this->service->removeObjectiveFromCycle($cycle, $objective, $personIds));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
