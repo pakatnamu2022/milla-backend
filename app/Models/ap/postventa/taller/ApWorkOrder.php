@@ -923,7 +923,9 @@ class ApWorkOrder extends Model
   {
     $paidAmount = $this->getNetAmountFromAdvances();
 
-    if ($paidAmount > 0 && $newFinalAmount < $paidAmount) {
+    // Redondear a 2 decimales para evitar problemas de precisión con floats
+    // Si son iguales o mayor, se permite; solo se rechaza si es estrictamente menor
+    if ($paidAmount > 0 && round($newFinalAmount, 2) < round($paidAmount, 2)) {
       throw new \Exception(
         "El nuevo monto total (S/. " . number_format($newFinalAmount, 2) . ") " .
         "no puede ser menor al monto ya pagado en anticipos (S/. " . number_format($paidAmount, 2) . "). " .
