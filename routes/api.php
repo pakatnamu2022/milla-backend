@@ -730,6 +730,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         //        OBJECTIVES
         Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
         Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
+        Route::get('/objective/{id}/deactivate-in-categories/preview', [EvaluationObjectiveController::class, 'previewDeactivateInCategories']);
         Route::post('/objective/{id}/deactivate-in-categories', [EvaluationObjectiveController::class, 'deactivateInCategories']);
         Route::apiResource('objective', EvaluationObjectiveController::class)->only([
           'index',
