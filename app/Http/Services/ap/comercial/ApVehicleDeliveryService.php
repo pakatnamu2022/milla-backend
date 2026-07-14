@@ -8,6 +8,7 @@ use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
+use App\Http\Services\common\ExportService;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
@@ -701,6 +702,16 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         'approve_url'    => $approveUrl,
       ],
     ]);
+  }
+
+  public function export(Request $request)
+  {
+    $request->merge([
+      'title' => $request->get('title', 'Reporte Entregas de Vehículos'),
+    ]);
+
+    $exportService = new ExportService();
+    return $exportService->exportFromRequest($request, ApVehicleDelivery::class);
   }
 
   public function availableSlots(string $date, ?int $shopId = null): array

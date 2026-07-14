@@ -1536,6 +1536,23 @@ class ApDailyDeliveryReportService
       }
     }
 
+    // Vehículos sin sede asignada (asesor sin asignación de shop en el período)
+    $sinSedeVehicles = $vehicles->filter(fn($v) => is_null($v->advisor_sede_id));
+    $sinSedeCompras = $purchaseOrders->filter(fn($p) => is_null($p->shop_id))->count();
+    $sinSedeEntregas = $sinSedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $sinSedeFacturadas = $sinSedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    if ($sinSedeFacturadas > 0 || $sinSedeEntregas > 0 || $sinSedeCompras > 0) {
+      $items[] = [
+        'name' => 'Sin Sede',
+        'level' => 'sede',
+        'compras' => $sinSedeCompras,
+        'entregas' => $sinSedeEntregas,
+        'facturadas' => $sinSedeFacturadas,
+        'reporteria_dealer_portal' => null,
+      ];
+    }
+
     return [
       'title' => $title,
       'total_compras' => $totalCompras,
@@ -1606,6 +1623,23 @@ class ApDailyDeliveryReportService
           'reporteria_dealer_portal' => null,
         ];
       }
+    }
+
+    // Vehículos sin sede asignada (asesor sin asignación de shop en el período)
+    $sinSedeVehicles = $vehicles->filter(fn($v) => is_null($v->advisor_sede_id));
+    $sinSedeCompras = $purchaseOrders->filter(fn($p) => is_null($p->shop_id))->count();
+    $sinSedeEntregas = $sinSedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $sinSedeFacturadas = $sinSedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+
+    if ($sinSedeFacturadas > 0 || $sinSedeEntregas > 0 || $sinSedeCompras > 0) {
+      $items[] = [
+        'name' => 'Sin Sede',
+        'level' => 'sede',
+        'compras' => $sinSedeCompras,
+        'entregas' => $sinSedeEntregas,
+        'facturadas' => $sinSedeFacturadas,
+        'reporteria_dealer_portal' => null,
+      ];
     }
 
     return [

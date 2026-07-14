@@ -1210,12 +1210,17 @@ class EvaluationPersonResultService extends BaseService
       }
     }
 
-    // VALIDACIÓN 3 y 4: Objetivos (solo aplica en ciclos de objetivos)
-    if ($hierarchicalCategory && $isObjectivesCycle) {
+    // VALIDACIÓN 3 y 4: Objetivos — se procesan si la categoría los tiene, sin importar el tipo de ciclo
+    if ($hierarchicalCategory) {
       $objectives = $hierarchicalCategory->objectives()->get();
+
       if ($objectives->isEmpty()) {
-        $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
-        $result['can_regenerate'] = false;
+        if ($isObjectivesCycle) {
+          $result['errors'][] = 'La categoría jerárquica "' . $hierarchicalCategory->name . '" no tiene objetivos asignados';
+          $result['can_regenerate'] = false;
+        } else {
+          $result['validations'][] = 'Ciclo 180/360: la categoría no tiene objetivos, solo se procesarán competencias';
+        }
       } else {
         $result['validations'][] = 'La categoría tiene ' . $objectives->count() . ' objetivo(s)';
 
@@ -1249,14 +1254,12 @@ class EvaluationPersonResultService extends BaseService
           $result['warnings'][] = 'Los siguientes objetivos NO tienen configuración personalizada y usarán valores por defecto: ' . implode(', ', $objectivesWithoutDetails);
         }
 
-        // Si no tiene ningún objetivo configurado, no se puede regenerar
-        if ($objectivesWithDetails === 0 && count($objectivesWithoutDetails) === $objectives->count()) {
+        // En ciclo de objetivos, si ninguno está configurado no se puede regenerar
+        if ($isObjectivesCycle && $objectivesWithDetails === 0 && count($objectivesWithoutDetails) === $objectives->count()) {
           $result['errors'][] = 'Ninguno de los objetivos tiene configuración personalizada activa para esta persona';
           $result['can_regenerate'] = false;
         }
       }
-    } elseif ($hierarchicalCategory && !$isObjectivesCycle) {
-      $result['validations'][] = 'Ciclo 180/360: no se requieren objetivos para esta categoría';
     }
 
     // VALIDACIÓN 5: Competencias
@@ -1306,7 +1309,7 @@ class EvaluationPersonResultService extends BaseService
     // QUÉ SE CREARÁ (solo si puede regenerar)
     if ($result['can_regenerate'] && $hierarchicalCategory) {
       $objectivesToCreate = 0;
-      if ($isObjectivesCycle) {
+      if ($hierarchicalCategory->objectives()->exists()) {
         $objectivesToCreate = EvaluationCategoryObjectiveDetail::where('category_id', $hierarchicalCategory->id)
           ->where('person_id', $person->id)
           ->where('active', 1)

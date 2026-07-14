@@ -1209,7 +1209,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
       throw new \Exception('No se ha registrado el tipo de cambio para el 30 de junio de 2026.');
     }
 
-    $results = ['preview' => $preview, 'created' => 0, 'errors' => 0, 'rows' => []];
+    $results = ['preview' => $preview, 'created' => 0, 'skipped' => 0, 'errors' => 0, 'rows' => []];
 
     $checklistItems = ApDeliveryReceivingChecklist::where('status', true)->get();
     $placeholderPhotoUrl = url('images/ap/body_car.png');
@@ -1253,16 +1253,33 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
 
         $existingVehicle = Vehicles::where('vin', $rawSerie)->first();
 
+        $isExistingVnNeedingPO = false;
+
         if ($existingVehicle) {
           if ($existingVehicle->type_operation_id !== ApMasters::TIPO_OPERACION_POSTVENTA) {
-            throw new Exception("El VIN \"{$rawSerie}\" ya existe y no es de postventa.");
+            // VN ya existente — verificar si le falta la orden de compra
+            if (PurchaseOrder::where('number', 'SI-' . $rawSerie)->exists()) {
+              DB::rollBack();
+              $results['skipped']++;
+              $results['rows'][] = [
+                'row'    => $row,
+                'vin'    => $rawSerie,
+                'code'   => $rawCodigo,
+                'sitio'  => $sitioUp,
+                'status' => 'ya_procesado',
+              ];
+              continue;
+            }
+            $vehicle = $existingVehicle;
+            $isExistingVnNeedingPO = true;
+          } else {
+            $existingVehicle->update([
+              'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
+              'ap_models_vn_id'      => $modelRecord->id,
+              'ap_vehicle_status_id' => $finalStatus,
+            ]);
+            $vehicle = $existingVehicle->fresh();
           }
-          $existingVehicle->update([
-            'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
-            'ap_models_vn_id'      => $modelRecord->id,
-            'ap_vehicle_status_id' => $finalStatus,
-          ]);
-          $vehicle = $existingVehicle->fresh();
         } else {
           $vehicle = Vehicles::create([
             'vin'                  => $rawSerie,
@@ -1275,27 +1292,30 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'ap_vehicle_status_id' => $finalStatus,
             'type_operation_id'    => ApMasters::TIPO_OPERACION_COMERCIAL,
             'status'               => true,
+            'created_at'           => $uploadDate,
           ]);
         }
 
         $movPedido = VehicleMovement::create([
-          'movement_type' => VehicleMovement::ORDERED,
-          'ap_vehicle_id' => $vehicle->id,
+          'movement_type'        => VehicleMovement::ORDERED,
+          'ap_vehicle_id'        => $vehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-          'previous_status_id' => null,
-          'new_status_id' => ApVehicleStatus::PEDIDO_VN,
-          'movement_date' => $uploadDate,
-          'observation' => 'Saldo inicial',
+          'previous_status_id'   => null,
+          'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
+          'movement_date'        => $uploadDate,
+          'observation'          => 'Saldo inicial',
+          'created_at'           => $uploadDate,
         ]);
 
         VehicleMovement::create([
-          'movement_type' => VehicleMovement::IN_TRANSIT,
-          'ap_vehicle_id' => $vehicle->id,
+          'movement_type'        => VehicleMovement::IN_TRANSIT,
+          'ap_vehicle_id'        => $vehicle->id,
           'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'previous_status_id' => ApVehicleStatus::PEDIDO_VN,
-          'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          'movement_date' => $uploadDate,
-          'observation' => 'Saldo inicial - tránsito',
+          'previous_status_id'   => ApVehicleStatus::PEDIDO_VN,
+          'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          'movement_date'        => $uploadDate,
+          'observation'          => 'Saldo inicial - tránsito',
+          'created_at'           => $uploadDate,
         ]);
 
         $shippingGuide = null;
@@ -1308,6 +1328,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
             'movement_date'        => $uploadDate,
             'observation'          => 'Saldo inicial - ingreso a inventario',
+            'created_at'           => $uploadDate,
           ]);
 
           $automotoresEstablishment = $automotoresEstablishments[$warehouse?->sede_id] ?? $automotoresFallbackEstablishment;
@@ -1349,6 +1370,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'notes'                  => 'Saldo inicial importado desde Excel',
             'note_received'          => 'SALDO INICIAL',
             'created_by'             => auth()->id(),
+            'created_at'             => $uploadDate,
           ]);
 
           foreach ($checklistItems as $item) {
@@ -1356,6 +1378,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
               'receiving_id'      => $item->id,
               'shipping_guide_id' => $shippingGuide->id,
               'kilometers'        => 0,
+              'created_at'        => $uploadDate,
             ]);
           }
 
@@ -1367,6 +1390,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'photo_right_url'      => $placeholderPhotoUrl,
             'general_observations' => 'SALDO INICIAL',
             'inspected_by'         => auth()->id(),
+            'created_at'           => $uploadDate,
           ]);
         }
 
@@ -1398,17 +1422,19 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'invoice_sync_attempts'     => 1,
           'status'                    => true,
           'notes'                     => 'Saldo inicial importado desde Excel',
+          'created_at'                => $uploadDate,
         ]);
 
         PurchaseOrderItem::create([
           'purchase_order_id' => $po->id,
-          'is_vehicle' => true,
-          'description' => $modelRecord->version,
-          'unit_price' => $rawUPrice,
-          'quantity' => $rawQty,
+          'is_vehicle'        => true,
+          'description'       => $modelRecord->version,
+          'unit_price'        => $rawUPrice,
+          'quantity'          => $rawQty,
           'quantity_received' => $rawQty,
-          'quantity_pending' => 0,
-          'total' => $rawTotal,
+          'quantity_pending'  => 0,
+          'total'             => $rawTotal,
+          'created_at'        => $uploadDate,
         ]);
 
         $movements = ['ORDERED', 'IN_TRANSIT'];

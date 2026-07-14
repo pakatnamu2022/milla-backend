@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Reportable;
 use App\Models\ap\comercial\ApDeliveryChecklist;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApVehicleDelivery extends Model
 {
-  use softDeletes;
+  use SoftDeletes, Reportable;
 
   protected $table = 'ap_vehicle_delivery';
 
@@ -140,5 +141,145 @@ class ApVehicleDelivery extends Model
       && self::where('vehicle_id', $this->vehicle_id)
         ->whereNull('deleted_at')
         ->exists();
+  }
+
+  protected $reportColumns = [
+    'vehicle.purchaseRequestQuote.holder.documentType.description'      => [
+      'label'     => 'TIPO DOC. TITULAR',
+      'formatter' => null,
+    ],
+    'vehicle.purchaseRequestQuote.holder.num_doc'                       => [
+      'label'     => 'NRO. DOC. TITULAR',
+      'formatter' => null,
+    ],
+    'vehicle.purchaseRequestQuote.holder.full_name'                     => [
+      'label'     => 'TITULAR COTIZACIÓN',
+      'formatter' => null,
+    ],
+    'vehicle.purchaseRequestQuote.opportunity.client.full_name'         => [
+      'label'     => 'CLIENTE OPORTUNIDAD',
+      'formatter' => null,
+    ],
+    'vehicle.model.family.brand.name'                                   => [
+      'label'     => 'MARCA',
+      'formatter' => null,
+    ],
+    'vehicle.model.family.description'                                  => [
+      'label'     => 'MODELO',
+      'formatter' => null,
+    ],
+    'vehicle.model.version'                                             => [
+      'label'     => 'VERSIÓN',
+      'formatter' => null,
+    ],
+    'vehicle.vin'                                                       => [
+      'label'     => 'VIN',
+      'formatter' => null,
+    ],
+    'vehicle.plate'                                                     => [
+      'label'     => 'PLACA',
+      'formatter' => null,
+    ],
+    'vehicle.color.description'                                         => [
+      'label'     => 'COLOR',
+      'formatter' => null,
+    ],
+    'sede.abreviatura'                                                  => [
+      'label'     => 'SEDE',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.full_number'                      => [
+      'label'     => 'NRO. FACTURA',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.fecha_de_emision'                 => [
+      'label'     => 'FECHA FACTURACIÓN',
+      'formatter' => 'date',
+    ],
+    'vehicle.electronicDocumentParent.total'                            => [
+      'label'     => 'TOTAL FACTURA',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.identityDocumentType.description' => [
+      'label'     => 'TIPO DOC. CLIENTE',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.cliente_numero_de_documento'      => [
+      'label'     => 'NRO. DOC. CLIENTE',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.cliente_denominacion'             => [
+      'label'     => 'NOMBRE CLIENTE',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.cliente_email'                    => [
+      'label'     => 'EMAIL CLIENTE',
+      'formatter' => null,
+    ],
+    'vehicle.electronicDocumentParent.client_phone'                     => [
+      'label'     => 'TELÉFONO CLIENTE',
+      'formatter' => null,
+    ],
+    'vehicle.purchaseRequestQuote.opportunity.worker.nombre_completo'   => [
+      'label'     => 'ASESOR VENTA',
+      'formatter' => null,
+    ],
+    'advisor.nombre_completo'                                           => [
+      'label'     => 'ASESOR ENTREGA',
+      'formatter' => null,
+    ],
+    'scheduled_delivery_date'                                           => [
+      'label'     => 'FECHA PROG. ENTREGA',
+      'formatter' => 'date',
+    ],
+    'real_delivery_date'                                                => [
+      'label'     => 'FECHA ENTREGA REAL',
+      'formatter' => 'date',
+    ],
+    'status_delivery'                                                   => [
+      'label'     => 'ESTADO ENTREGA',
+      'formatter' => null,
+    ],
+    'status_wash'                                                       => [
+      'label'     => 'ESTADO LAVADO',
+      'formatter' => null,
+    ],
+    'is_extraordinary'                                                  => [
+      'label'     => 'EXTRAORDINARIA',
+      'formatter' => 'boolean',
+    ],
+    'observations'                                                      => [
+      'label'     => 'OBSERVACIONES',
+      'formatter' => null,
+    ],
+  ];
+
+  protected $reportRelations = [
+    'vehicle.purchaseRequestQuote.holder',
+    'vehicle.purchaseRequestQuote.opportunity.client',
+    'vehicle.purchaseRequestQuote.opportunity.worker',
+    'vehicle.model.family.brand',
+    'vehicle.color',
+    'vehicle.electronicDocumentParent.identityDocumentType',
+    'advisor',
+    'sede',
+  ];
+
+  protected $reportStyles = [
+    'headerBold'            => true,
+    'headerFontSize'        => 11,
+    'headerFontColor'       => 'FFFFFF',
+    'headerBackgroundColor' => '1565C0',
+    'bodyFontSize'          => 10,
+  ];
+
+  public function generateReportSummary($data): array
+  {
+    return [
+      'Total Entregas'  => $data->count(),
+      'Completadas'     => $data->where('status_delivery', 'completed')->count(),
+      'Pendientes'      => $data->where('status_delivery', 'pending')->count(),
+      'Extraordinarias' => $data->where('is_extraordinary', true)->count(),
+    ];
   }
 }
