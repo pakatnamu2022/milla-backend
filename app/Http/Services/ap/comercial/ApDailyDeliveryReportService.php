@@ -942,6 +942,14 @@ class ApDailyDeliveryReportService
       'children' => [],
     ];
 
+    // Filtrar conteos de asesor solo a vehículos de los grupos de marcas de este gerente
+    // (excluir camiones) para evitar cruce con vehículos de otros grupos
+    $groupFilteredVehicles = $allVehicles->filter(function ($v) use ($brandGroupIds, $camionTypeId) {
+      return in_array($v->brand_group_id, $brandGroupIds)
+        && ($camionTypeId === 0 || $v->type_class_id != $camionTypeId);
+    });
+    $groupAdvisorCounts = $this->calculateAdvisorCounts($groupFilteredVehicles, $invoicedQuoteIds);
+
     // Identificar todos los jefes
     $allBossIds = $bossToWorkers->keys();
 
@@ -953,7 +961,7 @@ class ApDailyDeliveryReportService
       }
 
       // Construir nodo de jefe considerando TODOS los grupos del gerente
-      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts);
+      $jefeNode = $this->buildJefeNodeForMultipleGroups($jefeId, $brandGroupIds, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $groupAdvisorCounts);
 
       if ($jefeNode && !empty($jefeNode['children'])) {
         $managerNode['children'][] = $jefeNode;
@@ -1073,9 +1081,12 @@ class ApDailyDeliveryReportService
       $workerGroups = $advisorBrandGroups[$workerId] ?? [];
       $workerBrands = $advisorBrands[$workerId] ?? [];
 
-      // Incluir asesores que tienen marcas de CUALQUIERA de estos grupos O que no tienen marcas asignadas
+      // Incluir asesores que: tienen marcas de este grupo, no tienen marcas asignadas,
+      // O tienen vehículos reales en este grupo (cruza de grupo)
       $hasAnyGroup = !empty(array_intersect($brandGroupIds, $workerGroups));
-      if ($hasAnyGroup || empty($workerGroups)) {
+      $hasCountsInGroup = (($advisorCounts[$workerId]['facturadas'] ?? 0) > 0)
+        || (($advisorCounts[$workerId]['entregas'] ?? 0) > 0);
+      if ($hasAnyGroup || empty($workerGroups) || $hasCountsInGroup) {
         $asesor = Worker::find($workerId);
         if (!$asesor) {
           continue;
