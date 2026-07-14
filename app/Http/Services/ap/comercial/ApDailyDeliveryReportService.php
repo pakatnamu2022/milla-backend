@@ -407,13 +407,16 @@ class ApDailyDeliveryReportService
     // Agrupar gerentes por commercial_manager_id (para unificar si maneja múltiples grupos)
     $managersByPerson = $commercialManagers->groupBy('commercial_manager_id');
 
+    // IDs de workers asignados en el mes (para detectar huérfanos)
+    $assignedWorkerIds = $assignments->pluck('worker_id')->filter()->unique()->toArray();
+
     // Construir un nodo por cada gerente único
     foreach ($managersByPerson as $managerId => $managerAssignments) {
       // Obtener todos los grupos que maneja este gerente
       $brandGroupIds = $managerAssignments->pluck('brand_group_id')->toArray();
       $brandGroupNames = $managerAssignments->pluck('brandGroup.description')->filter()->unique()->implode(', ');
 
-      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId);
+      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId, $assignedWorkerIds, $camionTypeId);
       if ($node) {
         $tree[] = $node;
       }
@@ -425,10 +428,11 @@ class ApDailyDeliveryReportService
       $tree[] = $node;
     }
 
-    // Nodo SIN ASESOR: vehículos sin advisor_id O con advisor no en estructura de asignaciones del mes
-    $assignedWorkerIds = $assignments->pluck('worker_id')->filter()->unique()->toArray();
+    // Nodo SIN ASESOR top-level: solo vehículos huérfanos cuyo grupo no está gestionado por ningún gerente
+    $allManagedBrandGroupIds = $commercialManagers->pluck('brand_group_id')->unique()->toArray();
     $sinAsesorVehicles = $vehicles->filter(
-      fn($v) => is_null($v->advisor_id) || !in_array($v->advisor_id, $assignedWorkerIds)
+      fn($v) => (is_null($v->advisor_id) || !in_array($v->advisor_id, $assignedWorkerIds))
+        && !in_array($v->brand_group_id, $allManagedBrandGroupIds)
     );
     if ($sinAsesorVehicles->isNotEmpty()) {
       $tradicGroupIds = ApMasters::where('type', 'GRUPO_MARCAS')
@@ -844,7 +848,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye nodo de gerente que maneja múltiples grupos de marcas
    */
-  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null): ?array
+  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null, ?array $assignedWorkerIds = null, int $camionTypeId = 0): ?array
   {
     $manager = Worker::find($managerId);
 
@@ -884,6 +888,30 @@ class ApDailyDeliveryReportService
         $managerNode['children'][] = $jefeNode;
         $managerNode['entregas'] += $jefeNode['entregas'];
         $managerNode['facturadas'] += $jefeNode['facturadas'];
+      }
+    }
+
+    // Agregar "Sin asesor" para vehículos huérfanos de este grupo (no camiones)
+    if ($assignedWorkerIds !== null) {
+      $orphanVehicles = $allVehicles->filter(function ($v) use ($brandGroupIds, $assignedWorkerIds, $camionTypeId) {
+        return in_array($v->brand_group_id, $brandGroupIds)
+          && ($camionTypeId === 0 || $v->type_class_id != $camionTypeId)
+          && (is_null($v->advisor_id) || !in_array($v->advisor_id, $assignedWorkerIds));
+      });
+
+      if ($orphanVehicles->isNotEmpty()) {
+        $orphanEntregas = $orphanVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+        $orphanFacturadas = $orphanVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+        $managerNode['children'][] = [
+          'id' => null,
+          'name' => 'Sin asesor',
+          'level' => 'sin_asesor',
+          'entregas' => $orphanEntregas,
+          'facturadas' => $orphanFacturadas,
+          'reporteria_dealer_portal' => null,
+        ];
+        $managerNode['entregas'] += $orphanEntregas;
+        $managerNode['facturadas'] += $orphanFacturadas;
       }
     }
 
