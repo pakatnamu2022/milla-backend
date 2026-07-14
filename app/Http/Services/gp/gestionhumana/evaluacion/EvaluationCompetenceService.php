@@ -4,7 +4,9 @@ namespace App\Http\Services\gp\gestionhumana\evaluacion;
 
 use App\Http\Resources\gp\gestionhumana\evaluacion\EvaluationCompetenceResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCompetence;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationSubCompetence;
 use Exception;
 use Illuminate\Http\Request;
@@ -78,35 +80,43 @@ class EvaluationCompetenceService extends BaseService
       $evaluationCompetence = $this->find($data['id']);
       $evaluationCompetence->update($data);
 
-      // Update sub-competences
       $subCompetences = $data['subCompetences'] ?? [];
+
+      // IDs que deben permanecer
+      $incomingIds = collect($subCompetences)->pluck('id')->filter()->values()->toArray();
+
+      // Eliminar las subcompetencias que ya no están en el payload (efecto dominó)
+      $toDelete = EvaluationSubCompetence::where('competencia_id', $evaluationCompetence->id)
+        ->whereNotIn('id', $incomingIds)
+        ->get();
+
+      foreach ($toDelete as $sub) {
+        EvaluationPersonCompetenceDetail::where('sub_competence_id', $sub->id)->delete();
+        $sub->delete();
+      }
+
+      // Actualizar o crear subcompetencias
       foreach ($subCompetences as $subData) {
+        $subFields = [
+          'nombre'    => $subData['nombre'] ?? null,
+          'definicion' => $subData['definicion'] ?? null,
+          'level1'    => $subData['level1'] ?? null,
+          'level2'    => $subData['level2'] ?? null,
+          'level3'    => $subData['level3'] ?? null,
+          'level4'    => $subData['level4'] ?? null,
+          'level5'    => $subData['level5'] ?? null,
+        ];
+
         if (isset($subData['id'])) {
-          // Update existing sub-competence
           $subCompetence = EvaluationSubCompetence::find($subData['id']);
           if ($subCompetence) {
-            $subCompetence->update([
-              'nombre' => $subData['nombre'] ?? null,
-              'definicion' => $subData['definicion'] ?? null,
-              'level1' => $subData['level1'] ?? null,
-              'level2' => $subData['level2'] ?? null,
-              'level3' => $subData['level3'] ?? null,
-              'level4' => $subData['level4'] ?? null,
-              'level5' => $subData['level5'] ?? null,
-            ]);
+            $subCompetence->update($subFields);
           }
         } else {
-          // Create new sub-competence
-          EvaluationSubCompetence::create([
-            'competencia_id' => $evaluationCompetence->id,
-            'nombre' => $subData['nombre'] ?? null,
-            'definicion' => $subData['definicion'] ?? null,
-            'level1' => $subData['level1'] ?? null,
-            'level2' => $subData['level2'] ?? null,
-            'level3' => $subData['level3'] ?? null,
-            'level4' => $subData['level4'] ?? null,
-            'level5' => $subData['level5'] ?? null,
-          ]);
+          EvaluationSubCompetence::create(array_merge(
+            ['competencia_id' => $evaluationCompetence->id],
+            $subFields
+          ));
         }
       }
 
@@ -122,10 +132,20 @@ class EvaluationCompetenceService extends BaseService
   public function destroy($id)
   {
     $evaluationCompetence = $this->find($id);
-    $evaluationCompetence->delete();
 
-    // Also mark related sub-competences as deleted
+    // Cascade: eliminar person competence details por cada subcompetencia
+    $subIds = EvaluationSubCompetence::where('competencia_id', $id)->pluck('id')->toArray();
+    if (!empty($subIds)) {
+      EvaluationPersonCompetenceDetail::whereIn('sub_competence_id', $subIds)->delete();
+    }
+
+    // Cascade: eliminar asignaciones de categoría
+    EvaluationCategoryCompetenceDetail::where('competence_id', $id)->delete();
+
+    // Cascade: eliminar subcompetencias
     EvaluationSubCompetence::where('competencia_id', $id)->delete();
+
+    $evaluationCompetence->delete();
 
     return response()->json(['message' => 'Competencia de evaluación eliminada correctamente']);
   }
