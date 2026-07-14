@@ -634,26 +634,26 @@ class OpGoalTravelService extends BaseService
                         ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month]);
 
                 $vehiculos = DB::select("
-                    SELECT 
-                        v.id as vehiculo_id,
-                        v.placa as vehiculo,
-                        COUNT(od.id) as total_viajes,
-                        COALESCE(SUM(od.produccion), 0) as produccion_real,
-                        ? as meta_vehiculo,
-                        COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
-                    FROM op_vehiculo v
-                    INNER JOIN op_despacho od ON od.tracto_id = v.id 
-                        AND od.estado <> 10 
-                        AND YEAR(od.fecha_viaje) = ?
-                        AND MONTH(od.fecha_viaje) = ?
-                        AND {$condicionCargaVehiculos}
-                    WHERE v.sede_id = 1 
-                        AND v.tipo_vehiculo_id = 1 
-                        AND v.status_deleted = 1 
-                        AND v.tercero = 0
-                    GROUP BY v.id, v.placa
-                    ORDER BY produccion_real DESC
-            ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
+                        SELECT 
+                            v.id as vehiculo_id,
+                            v.placa as vehiculo,
+                            COUNT(od.id) as total_viajes,
+                            COALESCE(SUM(od.produccion), 0) as produccion_real,
+                            ? as meta_vehiculo,
+                            COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
+                        FROM op_vehiculo v
+                        INNER JOIN op_despacho od ON od.tracto_id = v.id 
+                            AND od.estado <> 10 
+                            AND YEAR(od.fecha_viaje) = ?
+                            AND MONTH(od.fecha_viaje) = ?
+                            AND {$condicionCargaVehiculos}
+                        WHERE v.sede_id = 1 
+                            AND v.tipo_vehiculo_id = 1 
+                            AND v.status_deleted = 1 
+                            AND v.tercero = 0
+                        GROUP BY v.id, v.placa
+                        ORDER BY produccion_real DESC
+                ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
 
                 $resumen = DB::selectOne("
                 SELECT 
