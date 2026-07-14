@@ -2,13 +2,14 @@
 
 namespace App\Models\gp\gestionhumana\evaluacion;
 
+use App\Http\Traits\Auditable;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EvaluationCompetence extends BaseModel
 {
-  use SoftDeletes;
+  use SoftDeletes, Auditable;
 
   protected $table = 'gh_config_competencias';
 
@@ -21,7 +22,7 @@ class EvaluationCompetence extends BaseModel
   ];
 
   const sorts = [
-    'id' => 'id',
+    'id'     => 'id',
     'nombre' => 'nombre',
   ];
 
