@@ -42,8 +42,16 @@ class ApDailyDeliveryReportService
     // Paso 4: Calcular conteos por asesor (se usa en múltiples lugares)
     $advisorCounts = $this->calculateAdvisorCounts($vehiclesWithDelivery, $invoicedQuoteIds);
 
-    // Paso 5: Construir desglose por asesores
-    $advisors = $this->buildAdvisorBreakdownFromCounts($advisorCounts);
+    // Paso 5: Construir desglose por asesores (jefes se excluyen por nombre; sus vehículos van a "Sin asesor")
+    $jefeBossIds = ApAssignmentLeadership::where('year', $year)
+      ->where('month', $month)
+      ->where('status', 1)
+      ->pluck('boss_id')
+      ->filter()
+      ->unique()
+      ->toArray();
+    $advisorCountsForAdvisors = $this->moveBossCountsToSinAsesor($advisorCounts, $jefeBossIds);
+    $advisors = $this->buildAdvisorBreakdownFromCounts($advisorCountsForAdvisors);
 
     // Paso 6: Construir árbol jerárquico
     $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $advisorCounts);
@@ -283,6 +291,29 @@ class ApDailyDeliveryReportService
     return $advisorStats;
   }
 
+  protected function moveBossCountsToSinAsesor(array $advisorCounts, array $bossIds): array
+  {
+    $sinAsesorEntregas = $advisorCounts['sin_asesor']['entregas'] ?? 0;
+    $sinAsesorFacturadas = $advisorCounts['sin_asesor']['facturadas'] ?? 0;
+
+    foreach ($bossIds as $bossId) {
+      if (isset($advisorCounts[$bossId])) {
+        $sinAsesorEntregas += $advisorCounts[$bossId]['entregas'];
+        $sinAsesorFacturadas += $advisorCounts[$bossId]['facturadas'];
+        unset($advisorCounts[$bossId]);
+      }
+    }
+
+    if ($sinAsesorEntregas > 0 || $sinAsesorFacturadas > 0) {
+      $advisorCounts['sin_asesor'] = [
+        'entregas'   => $sinAsesorEntregas,
+        'facturadas' => $sinAsesorFacturadas,
+      ];
+    }
+
+    return $advisorCounts;
+  }
+
   /**
    * Construye el desglose por asesores (método legacy, no usar)
    * Las entregas y facturaciones son independientes
@@ -392,17 +423,49 @@ class ApDailyDeliveryReportService
     // Árbol dinámico: agrupar por gerente (no por grupo de marcas)
     $tree = [];
 
-    // Identificar al jefe de CAMIONES primero para excluirlo de los gerentes
+    // Paso 1: Detectar jefe CAMIONES — el jefe cuyos workers tienen vehículos de tipo camión.
+    // Se busca en TODOS los jefes (no solo los sin marcas), porque sus workers pueden tener
+    // marcas asignadas pero operar vehículos camión.
+    $camionAdvisorIds = $vehiclesCamiones->pluck('advisor_id')->filter()->unique()->toArray();
     $camionesJefeId = null;
-    $allBossIds = $assignments->pluck('boss_id')->unique();
-    $allWorkerIds = $assignments->pluck('worker_id')->unique();
-    $topBossIds = $allBossIds->diff($allWorkerIds);
-    if ($topBossIds->isEmpty()) {
-      $topBossIds = $allBossIds->take(1);
-    } else {
-      $topBossIds = $topBossIds->take(1);
+
+    foreach ($bossToWorkers->keys() as $jefeId) {
+      $workers = $bossToWorkers->get($jefeId);
+      if ($workers) {
+        foreach ($workers as $workerAssignment) {
+          if (in_array($workerAssignment->worker_id, $camionAdvisorIds)) {
+            $camionesJefeId = $jefeId;
+            break 2;
+          }
+        }
+      }
     }
-    $camionesJefeId = $topBossIds->first();
+
+    // Paso 2: Detectar jefes "otros independientes" — jefes cuyos workers NO tienen marcas asignadas
+    // y que no son el jefe de CAMIONES.
+    $otherIndependentJefeIds = [];
+    foreach ($bossToWorkers->keys() as $jefeId) {
+      if ($jefeId === $camionesJefeId) {
+        continue;
+      }
+      $workers = $bossToWorkers->get($jefeId);
+      $hasAnyBrandedWorker = false;
+      foreach ($workers as $workerAssignment) {
+        if (!empty($advisorBrandGroups[$workerAssignment->worker_id])) {
+          $hasAnyBrandedWorker = true;
+          break;
+        }
+      }
+      if (!$hasAnyBrandedWorker) {
+        $otherIndependentJefeIds[] = $jefeId;
+      }
+    }
+
+    // Todos los jefes que NO deben aparecer dentro de un nodo de gerente
+    $excludedFromGerenteIds = array_filter(array_merge(
+      $camionesJefeId !== null ? [$camionesJefeId] : [],
+      $otherIndependentJefeIds
+    ));
 
     // Agrupar gerentes por commercial_manager_id (para unificar si maneja múltiples grupos)
     $managersByPerson = $commercialManagers->groupBy('commercial_manager_id');
@@ -410,22 +473,30 @@ class ApDailyDeliveryReportService
     // IDs de workers asignados en el mes (para detectar huérfanos)
     $assignedWorkerIds = $assignments->pluck('worker_id')->filter()->unique()->toArray();
 
-    // Construir un nodo por cada gerente único
     foreach ($managersByPerson as $managerId => $managerAssignments) {
-      // Obtener todos los grupos que maneja este gerente
       $brandGroupIds = $managerAssignments->pluck('brand_group_id')->toArray();
       $brandGroupNames = $managerAssignments->pluck('brandGroup.description')->filter()->unique()->implode(', ');
 
-      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $camionesJefeId, $assignedWorkerIds, $camionTypeId);
+      $node = $this->buildGerenteNodeMultiGroup($managerId, $brandGroupIds, $brandGroupNames, $bossToWorkers, $advisorBrandGroups, $advisorBrands, $advisorCounts, 'VEHICULOS NUEVO', $vehicleTypeId, $vehicles, $invoicedQuoteIds, $excludedFromGerenteIds, $assignedWorkerIds, $camionTypeId);
       if ($node) {
         $tree[] = $node;
       }
     }
 
-    // ÚLTIMO NODO: Jefe CAMIONES (directo, sin gerente) - siempre mostrar
-    $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds, $advisorBrands, $advisorCounts);
-    if ($node) {
-      $tree[] = $node;
+    // Nodo CAMIONES (jefe directo, sin gerente)
+    if ($camionesJefeId) {
+      $node = $this->buildCamionesNode($year, $month, $vehiclesCamiones, $invoicedQuoteIds, $advisorBrands, $advisorCounts, $camionesJefeId);
+      if ($node) {
+        $tree[] = $node;
+      }
+    }
+
+    // Nodos para jefes independientes no-CAMIONES (sin marcas en sus asesores)
+    foreach ($otherIndependentJefeIds as $jefeId) {
+      $node = $this->buildIndependentJefeNode($jefeId, $bossToWorkers, $advisorBrands, $advisorCounts);
+      if ($node) {
+        $tree[] = $node;
+      }
     }
 
     // Nodo SIN ASESOR top-level: solo vehículos huérfanos cuyo grupo no está gestionado por ningún gerente
@@ -848,7 +919,7 @@ class ApDailyDeliveryReportService
   /**
    * Construye nodo de gerente que maneja múltiples grupos de marcas
    */
-  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, ?int $camionesJefeId = null, ?array $assignedWorkerIds = null, int $camionTypeId = 0): ?array
+  protected function buildGerenteNodeMultiGroup(int $managerId, array $brandGroupIds, string $brandGroupNames, Collection $bossToWorkers, array $advisorBrandGroups, array $advisorBrands, array $advisorCounts, string $className, int $vehicleTypeId, Collection $allVehicles, Collection $invoicedQuoteIds, array $excludedJefeIds = [], ?array $assignedWorkerIds = null, int $camionTypeId = 0): ?array
   {
     $manager = Worker::find($managerId);
 
@@ -876,8 +947,8 @@ class ApDailyDeliveryReportService
 
     // Encontrar jefes que manejan cualquiera de estos grupos de marcas
     foreach ($allBossIds as $jefeId) {
-      // Excluir al jefe de CAMIONES
-      if ($camionesJefeId && $jefeId == $camionesJefeId) {
+      // Excluir jefes top-level (camiones y otros independientes)
+      if (in_array($jefeId, $excludedJefeIds)) {
         continue;
       }
 
@@ -1091,7 +1162,7 @@ class ApDailyDeliveryReportService
    * Construye nodo para camiones (jefe directo sin gerente)
    * Siempre retorna un nodo, incluso si no hay entregas
    */
-  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorBrands, array $advisorCounts): ?array
+  protected function buildCamionesNode(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, array $advisorBrands, array $advisorCounts, ?int $specificBossId = null): ?array
   {
     // Obtener asignaciones de liderazgo
     $assignments = ApAssignmentLeadership::where('year', $year)
@@ -1114,11 +1185,13 @@ class ApDailyDeliveryReportService
     $allWorkerIds = $assignments->pluck('worker_id')->unique();
     $topBossIds = $allBossIds->diff($allWorkerIds);
 
-    // Si no hay jefes principales, usar el primer boss_id disponible
-    if ($topBossIds->isEmpty()) {
+    // Usar el jefe específico si se proporcionó, si no auto-detectar el primero
+    if ($specificBossId !== null) {
+      $topBossIds = collect([$specificBossId]);
+    } elseif ($topBossIds->isEmpty()) {
       $topBossIds = $allBossIds->take(1);
     } else {
-      $topBossIds = $topBossIds->take(1); // Solo el primer jefe principal
+      $topBossIds = $topBossIds->take(1);
     }
 
     foreach ($topBossIds as $bossId) {
@@ -1173,6 +1246,56 @@ class ApDailyDeliveryReportService
     }
 
     return null;
+  }
+
+  protected function buildIndependentJefeNode(int $jefeId, Collection $bossToWorkers, array $advisorBrands, array $advisorCounts): ?array
+  {
+    $jefe = Worker::find($jefeId);
+    if (!$jefe) {
+      return null;
+    }
+
+    $jefeNode = [
+      'id' => $jefeId,
+      'name' => $jefe->nombre_completo,
+      'level' => 'jefe',
+      'entregas' => 0,
+      'facturadas' => 0,
+      'reporteria_dealer_portal' => null,
+      'children' => [],
+    ];
+
+    $workers = $bossToWorkers->get($jefeId);
+    if (!$workers) {
+      return null;
+    }
+
+    foreach ($workers as $assignment) {
+      $workerId = $assignment->worker_id;
+      $worker = Worker::find($workerId);
+      if (!$worker) {
+        continue;
+      }
+
+      $workerEntregas = $advisorCounts[$workerId]['entregas'] ?? 0;
+      $workerFacturadas = $advisorCounts[$workerId]['facturadas'] ?? 0;
+      $workerBrands = $advisorBrands[$workerId] ?? [];
+
+      $jefeNode['children'][] = [
+        'id' => $workerId,
+        'name' => $worker->nombre_completo,
+        'level' => 'asesor',
+        'brands' => !empty($workerBrands) ? $workerBrands : null,
+        'entregas' => $workerEntregas,
+        'facturadas' => $workerFacturadas,
+        'reporteria_dealer_portal' => null,
+      ];
+
+      $jefeNode['entregas'] += $workerEntregas;
+      $jefeNode['facturadas'] += $workerFacturadas;
+    }
+
+    return empty($jefeNode['children']) ? null : $jefeNode;
   }
 
   /**

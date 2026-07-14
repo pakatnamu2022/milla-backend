@@ -43,6 +43,9 @@ jobs:
             echo "🧹 Limpiando imágenes viejas..."
             docker image prune -af
 
+            echo "🧹 Limpiando build cache antiguo..."
+            docker builder prune -af --filter "until=168h"
+
             echo "📦 Installing dependencies..."
             docker compose exec -T app git config --global --add safe.directory /var/www/html
             docker compose exec -T app composer install --no-dev --optimize-autoloader
