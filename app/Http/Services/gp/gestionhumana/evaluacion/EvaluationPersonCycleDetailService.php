@@ -1687,4 +1687,121 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     return $chiefs;
   }
+
+  public function previewRemoveObjectiveFromCycle(int $cycleId, int $objectiveId): array
+  {
+    $details = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('objective_id', $objectiveId)
+      ->whereNull('deleted_at')
+      ->with(['person' => fn($q) => $q->select('id', 'nombre_completo')])
+      ->get();
+
+    if ($details->isEmpty()) {
+      throw new Exception('El objetivo no existe en este ciclo');
+    }
+
+    $persons = [];
+
+    foreach ($details->groupBy('person_id') as $personId => $personDetails) {
+      $detail = $personDetails->first();
+
+      $remainingObjectives = EvaluationPersonCycleDetail::where('person_id', $personId)
+        ->where('cycle_id', $cycleId)
+        ->where('objective_id', '!=', $objectiveId)
+        ->whereNull('deleted_at')
+        ->count();
+
+      $persons[] = [
+        'person_id'          => $personId,
+        'person_name'        => optional($detail->person)->nombre_completo,
+        'category_id'        => $detail->category_id,
+        'category'           => $detail->category,
+        'remaining_objectives_after_removal' => $remainingObjectives,
+        'will_be_removed_from_cycle' => $remainingObjectives === 0,
+      ];
+    }
+
+    return [
+      'cycle_id'        => $cycleId,
+      'objective_id'    => $objectiveId,
+      'total_affected'  => count($persons),
+      'persons'         => $persons,
+    ];
+  }
+
+  public function removeObjectiveFromCycle(int $cycleId, int $objectiveId, ?array $personIds = null): array
+  {
+    $query = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+      ->where('objective_id', $objectiveId)
+      ->whereNull('deleted_at');
+
+    if (!empty($personIds)) {
+      $query->whereIn('person_id', $personIds);
+    }
+
+    $details = $query->get();
+
+    if ($details->isEmpty()) {
+      throw new Exception('El objetivo no existe en este ciclo para las personas indicadas');
+    }
+
+    $affectedPersonIds = [];
+    $clones = [];
+
+    DB::transaction(function () use ($details, $cycleId, $objectiveId, &$affectedPersonIds, &$clones) {
+      $byPerson = $details->groupBy('person_id');
+
+      foreach ($byPerson as $personId => $personDetails) {
+        $remainingCount = EvaluationPersonCycleDetail::where('person_id', $personId)
+          ->where('cycle_id', $cycleId)
+          ->where('objective_id', '!=', $objectiveId)
+          ->whereNull('deleted_at')
+          ->count();
+
+        foreach ($personDetails as $detail) {
+          $clones[] = $detail->replicate();
+
+          if ($remainingCount === 0) {
+            $this->cleanupAssociatedEvaluationsForPerson($personId, collect([$detail]));
+          } else {
+            $this->cleanupSingleDetailEvaluation($detail);
+          }
+        }
+
+        $affectedPersonIds[] = $personId;
+      }
+
+      $deleteQuery = EvaluationPersonCycleDetail::where('cycle_id', $cycleId)
+        ->where('objective_id', $objectiveId)
+        ->whereIn('person_id', $affectedPersonIds)
+        ->whereNull('deleted_at');
+
+      $deleteQuery->delete();
+
+      foreach ($clones as $clone) {
+        $hasRemaining = EvaluationPersonCycleDetail::where('person_id', $clone->person_id)
+          ->where('cycle_id', $cycleId)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        if ($hasRemaining) {
+          $this->recalculateWeights(null, $clone);
+        }
+      }
+    });
+
+    $evaluations = Evaluation::where('cycle_id', $cycleId)->get();
+    foreach ($evaluations as $evaluation) {
+      foreach ($affectedPersonIds as $personId) {
+        $this->evaluationPersonService->recalculatePersonResults($evaluation->id, $personId);
+      }
+    }
+
+    return [
+      'message'          => 'Objetivo eliminado del ciclo correctamente',
+      'cycle_id'         => $cycleId,
+      'objective_id'     => $objectiveId,
+      'affected_persons' => count($affectedPersonIds),
+    ];
+  }
 }
