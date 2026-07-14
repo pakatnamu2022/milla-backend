@@ -3169,27 +3169,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      */
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
 
-    // Determinar el concepto base según el tipo de documento
-    if ($isAdvancePayment) {
-      // Es un anticipo
-      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA
+    // Aplica detracción TANTO a anticipos como a facturas finales
+    if ($entityTotal >= $detractionAmount && $detractionAmount > 0
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     } else {
-      // Es venta interna final
-      // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
-      $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
-
-      if ($hasActiveAdvances) {
-        // Si tiene anticipos activos, SIEMPRE usar concepto de anticipos (sin importar el monto)
+      // Lógica actual cuando el monto de la OT es menor al límite de detracción
+      // Determinar el concepto base según el tipo de documento
+      if ($isAdvancePayment) {
+        // Es un anticipo
         $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
       } else {
-        // Si NO tiene anticipos, evaluar detracción solo para FACTURAS
-        // Si el monto total de la work_order supera o iguala el monto de detracción,
-        // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
-        if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-          && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
-          $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+        // Es venta interna final
+        // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
+        $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
+
+        if ($hasActiveAdvances) {
+          // Si tiene anticipos activos, usar concepto de anticipos
+          $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
         } else {
-          // Si no aplica detracción, usar concepto de venta interna normal
+          // Si no tiene anticipos, usar concepto de venta interna normal
           $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
         }
       }
