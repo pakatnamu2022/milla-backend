@@ -489,8 +489,6 @@ class OpGoalTravelService extends BaseService
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
-                        AND rp.sede_id = 1
-                        AND rp.b_cliente = 1
                         {$filtrosFecha}
                         ", $params);
 
