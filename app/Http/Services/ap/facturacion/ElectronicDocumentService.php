@@ -2432,13 +2432,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    *
    * @param ApWorkOrder $workOrder
    * @param int $is_advance_payment
+   * @param bool $is_nota_credito_debito
    * @return void
    * @throws Exception
    */
-  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0): void
+  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0, bool $is_nota_credito_debito = false): void
   {
     // Si es un anticipo, no validamos stock
     if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Si es una nota de crédito o débito, no validamos stock
+    if ($is_nota_credito_debito) {
       return;
     }
 
@@ -3058,15 +3064,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se encontró la orden de trabajo especificada.');
     }
 
+    // Determinar si es nota de crédito o débito
+    $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+      && in_array($data['sunat_concept_document_type_id'], [
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        ElectronicDocument::TYPE_NOTA_DEBITO
+      ]);
+
     // Validar que no exista ya una factura final para esta orden de trabajo
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
-        && in_array($data['sunat_concept_document_type_id'], [
-          ElectronicDocument::TYPE_NOTA_CREDITO,
-          ElectronicDocument::TYPE_NOTA_DEBITO
-        ]);
-
       if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $workOrder->getFinalInvoice();
 
@@ -3084,7 +3091,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $this->validateWorkOrderInvoice($data);
 
     // Validar stock reservado para repuestos de la OT
-    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
+    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0, $isNotaCreditoDebito);
   }
 
   // ========================================================================
@@ -3162,27 +3169,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      */
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
 
-    // Determinar el concepto base según el tipo de documento
-    if ($isAdvancePayment) {
-      // Es un anticipo
-      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA
+    // Aplica detracción TANTO a anticipos como a facturas finales
+    if ($entityTotal >= $detractionAmount && $detractionAmount > 0
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     } else {
-      // Es venta interna final
-      // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
-      $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
-
-      if ($hasActiveAdvances) {
-        // Si tiene anticipos activos, SIEMPRE usar concepto de anticipos (sin importar el monto)
+      // Lógica actual cuando el monto de la OT es menor al límite de detracción
+      // Determinar el concepto base según el tipo de documento
+      if ($isAdvancePayment) {
+        // Es un anticipo
         $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
       } else {
-        // Si NO tiene anticipos, evaluar detracción solo para FACTURAS
-        // Si el monto total de la work_order supera o iguala el monto de detracción,
-        // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
-        if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-          && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
-          $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+        // Es venta interna final
+        // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
+        $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
+
+        if ($hasActiveAdvances) {
+          // Si tiene anticipos activos, usar concepto de anticipos
+          $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
         } else {
-          // Si no aplica detracción, usar concepto de venta interna normal
+          // Si no tiene anticipos, usar concepto de venta interna normal
           $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
         }
       }
