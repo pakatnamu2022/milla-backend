@@ -50,6 +50,7 @@ class ApOrderQuotations extends Model
     'notes',
     'created_by',
     'is_take',
+    'is_take_ot',
     'is_requested_by_management',
     'emails_sent_count',
     'area_id',
@@ -93,6 +94,7 @@ class ApOrderQuotations extends Model
     'sede_id' => '=',
     'supply_type' => 'in',
     'has_invoice_generated' => '=',
+    'is_take_ot' => '='
   ];
 
   const sorts = [
@@ -110,6 +112,7 @@ class ApOrderQuotations extends Model
     'discarded_at' => 'datetime',
     'has_invoice_generated' => 'boolean',
     'is_fully_paid' => 'boolean',
+    'is_take_ot' => 'boolean',
     'is_requested_by_management' => 'boolean',
     'confirmation_token_expires_at' => 'datetime',
     'confirmed_at' => 'datetime',

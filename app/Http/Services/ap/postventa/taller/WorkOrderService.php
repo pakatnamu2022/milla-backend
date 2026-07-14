@@ -287,7 +287,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('La cotización no tiene un "TITULAR" asociado al vehiculo');
         }
 
-        if ($quotation->is_take) {
+        if ($quotation->is_take_ot) {
           throw new Exception('La cotización ya está tomada por otra orden de trabajo');
         }
 
@@ -308,7 +308,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
 
         if ($quotation) {
-          $quotation->update(['is_take' => 1]);
+          $quotation->update(['is_take_ot' => 1]);
         }
       } else {
         // Si NO hay cotización asociada, usar el tipo de cambio del día actual
@@ -418,6 +418,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $appointmentPlanning = AppointmentPlanning::find($workOrder->appointment_planning_id);
       if ($appointmentPlanning) {
         $appointmentPlanning->update(['is_taken' => false]);
+      }
+    }
+
+    // Liberar la cotización asociada si existe
+    if ($workOrder->order_quotation_id !== null) {
+      $quotation = ApOrderQuotations::find($workOrder->order_quotation_id);
+      if ($quotation) {
+        $quotation->update(['is_take_ot' => 0]);
+
+        // Regresar todos los items del detalle de la cotización a status 'pending'
+        $quotation->details()->update([
+          'status' => ApOrderQuotationDetails::STATUS_PENDING
+        ]);
       }
     }
 
@@ -598,7 +611,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Marcar la cotización como no tomada para que esté disponible
       if ($quotation) {
         $quotation->update([
-          'is_take' => 0
+          'is_take_ot' => 0
         ]);
 
         // Regresar todos los items del detalle de la cotización a status 'pending'
