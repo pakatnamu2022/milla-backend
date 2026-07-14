@@ -33,6 +33,7 @@ class DailyDeliveryReportExport implements WithMultipleSheets
       new DailyDeliveryReportHierarchySheet($this->reportData),
       new DailyDeliveryReportBrandsSheet($this->reportData),
       new AvancePorSedeSheet($this->reportData),
+      new DailyDeliveryReportPurchasesSheet($this->reportData),
     ];
   }
 }
@@ -688,6 +689,205 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
         }
 
         // Colapsar grupos por defecto
+        $sheet->setShowSummaryBelow(false);
+      },
+    ];
+  }
+}
+
+// Hoja 6: Reporte de Compras (por Marca y por Sede)
+class DailyDeliveryReportPurchasesSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle, WithEvents
+{
+  protected $reportData;
+  protected $flattenedData = [];
+
+  public function __construct(array $reportData)
+  {
+    $this->reportData = $reportData;
+    $this->flattenPurchasesReport();
+  }
+
+  protected function flattenPurchasesReport()
+  {
+    $purchases = $this->reportData['purchases_report'] ?? [];
+
+    // Sección: POR MARCA
+    $this->flattenedData[] = [
+      'name' => 'POR MARCA',
+      'level' => 'section_header',
+      'compras' => '',
+    ];
+
+    foreach ($purchases['by_brand'] ?? [] as $brand) {
+      $this->flattenedData[] = [
+        'name' => $brand['brand_name'],
+        'level' => 'brand',
+        'compras' => $brand['total_compras'],
+      ];
+
+      foreach ($brand['sedes'] as $sede) {
+        $this->flattenedData[] = [
+          'name' => '  ' . $sede['sede_name'],
+          'level' => 'brand_sede',
+          'compras' => $sede['compras'],
+        ];
+      }
+    }
+
+    // Separador entre secciones
+    $this->flattenedData[] = [
+      'name' => '',
+      'level' => 'separator',
+      'compras' => '',
+    ];
+
+    // Sección: POR SEDE
+    $this->flattenedData[] = [
+      'name' => 'POR SEDE',
+      'level' => 'section_header',
+      'compras' => '',
+    ];
+
+    foreach ($purchases['by_sede'] ?? [] as $sede) {
+      $this->flattenedData[] = [
+        'name' => $sede['sede_name'],
+        'level' => 'sede',
+        'compras' => $sede['total_compras'],
+      ];
+
+      foreach ($sede['brands'] as $brand) {
+        $this->flattenedData[] = [
+          'name' => '  ' . $brand['brand_name'],
+          'level' => 'sede_brand',
+          'compras' => $brand['compras'],
+        ];
+      }
+    }
+  }
+
+  public function collection()
+  {
+    return collect($this->flattenedData)->map(fn($row) => [
+      $row['name'],
+      $row['compras'],
+    ]);
+  }
+
+  public function headings(): array
+  {
+    return [
+      ['REPORTE DE COMPRAS'],
+      ['Período: ' . $this->reportData['fecha_inicio'] . ' al ' . $this->reportData['fecha_fin']],
+      [],
+      ['Descripción', 'Compras'],
+    ];
+  }
+
+  public function styles(Worksheet $sheet)
+  {
+    $lastRow = count($this->flattenedData) + 4;
+
+    $styles = [
+      1 => [
+        'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2E5090']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+      ],
+      2 => [
+        'font' => ['italic' => true, 'size' => 10],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+      ],
+      4 => [
+        'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+      ],
+    ];
+
+    for ($row = 5; $row <= $lastRow; $row++) {
+      $level = $this->flattenedData[$row - 5]['level'] ?? '';
+
+      if ($level === 'section_header') {
+        $styles[$row] = [
+          'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+          'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2E5090']],
+        ];
+      } elseif ($level === 'brand' || $level === 'sede') {
+        $styles[$row] = [
+          'font' => ['bold' => true],
+          'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9E1F2']],
+        ];
+      }
+    }
+
+    return $styles;
+  }
+
+  public function title(): string
+  {
+    return 'Compras';
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        $sheet = $event->sheet->getDelegate();
+
+        $sheet->mergeCells('A1:B1');
+        $sheet->mergeCells('A2:B2');
+
+        $sheet->getRowDimension(1)->setRowHeight(30);
+        $sheet->getRowDimension(4)->setRowHeight(25);
+
+        $lastRow = $sheet->getHighestRow();
+
+        $sheet->getStyle('A4:B' . $lastRow)->applyFromArray([
+          'borders' => [
+            'allBorders' => [
+              'borderStyle' => Border::BORDER_THIN,
+              'color' => ['rgb' => 'D4D4D4'],
+            ],
+          ],
+        ]);
+
+        $sheet->getStyle('B5:B' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->freezePane('A5');
+        $sheet->getColumnDimension('A')->setWidth(45);
+
+        // Agrupar detalles bajo su padre con outline level 1
+        $parentRow = null;
+        $detailStartRow = null;
+
+        for ($row = 5; $row <= $lastRow; $row++) {
+          $dataIndex = $row - 5;
+          if (!isset($this->flattenedData[$dataIndex])) break;
+
+          $level = $this->flattenedData[$dataIndex]['level'];
+
+          $isParent = in_array($level, ['brand', 'sede']);
+          $isDetail = in_array($level, ['brand_sede', 'sede_brand']);
+          $isBreak = in_array($level, ['section_header', 'separator']);
+
+          if ($isParent || $isBreak) {
+            if ($parentRow !== null && $detailStartRow !== null) {
+              for ($i = $detailStartRow; $i <= $row - 1; $i++) {
+                $sheet->getRowDimension($i)->setOutlineLevel(1);
+              }
+            }
+            $parentRow = $isParent ? $row : null;
+            $detailStartRow = null;
+          } elseif ($isDetail && $detailStartRow === null) {
+            $detailStartRow = $row;
+          }
+        }
+
+        if ($parentRow !== null && $detailStartRow !== null) {
+          for ($i = $detailStartRow; $i <= $lastRow; $i++) {
+            $sheet->getRowDimension($i)->setOutlineLevel(1);
+          }
+        }
+
         $sheet->setShowSummaryBelow(false);
       },
     ];
