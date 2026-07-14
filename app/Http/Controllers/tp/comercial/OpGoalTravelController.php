@@ -255,4 +255,35 @@ class OpGoalTravelController extends Controller
         }
     }
 
+    // OpGoalTravelController.php - Agregar este método
+
+public function exportComparativaClientes(Request $request)
+{
+    try {
+        $year1 = $request->input('year1', date('Y'));
+        $month1 = $request->input('month1', date('m'));
+        $year2 = $request->input('year2', null);
+        $month2 = $request->input('month2', null);
+
+        // Validar fechas
+        $fecha1 = \Carbon\Carbon::create($year1, $month1, 1);
+        if ($fecha1->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El período principal no puede ser una fecha futura.'
+            ], 400);
+        }
+
+        return $this->service->exportComparativaClientes(
+            (int)$year1,
+            (int)$month1,
+            $year2 !== null ? (int)$year2 : null,
+            $month2 !== null ? (int)$month2 : null
+        );
+
+    } catch (Throwable $th) {
+        return $this->error($th->getMessage());
+    }
+}
+
 }

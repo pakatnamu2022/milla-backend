@@ -90,10 +90,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Resetear el log a pending para que el job lo reintente limpiamente
       $log->update([
-        'status'         => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        'error_message'  => null,
+        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'error_message' => null,
         'proceso_estado' => 0,
-        'attempts'       => 0,
+        'attempts' => 0,
       ]);
 
       $resetActions[] = "Log reseteado a pending: {$log->step}";
@@ -105,7 +105,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return [
       'message' => "Job de sincronización despachado para el documento {$documentoId}",
-      'resets'  => $resetActions,
+      'resets' => $resetActions,
     ];
   }
 
@@ -126,16 +126,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $this->dispatchMigration($doc->id);
 
         $dispatched[] = [
-          'id'               => $doc->id,
-          'number'           => $doc->full_number,
+          'id' => $doc->id,
+          'number' => $doc->full_number,
           'migration_status' => $doc->migration_status,
-          'reason'           => $reason,
+          'reason' => $reason,
         ];
       });
 
     return [
       'total_dispatched' => count($dispatched),
-      'dispatched'       => $dispatched,
+      'dispatched' => $dispatched,
     ];
   }
 
@@ -143,9 +143,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     if ($logs->isEmpty()) {
       return [
-        'type'        => 'no_logs',
+        'type' => 'no_logs',
         'description' => 'Sin logs de migración — despacho inicial',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
@@ -153,9 +153,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     if ($nonCompleted->isEmpty()) {
       return [
-        'type'        => 'retry',
+        'type' => 'retry',
         'description' => 'Todos los pasos tienen logs — reintentando migración',
-        'steps'       => [],
+        'steps' => [],
       ];
     }
 
@@ -163,19 +163,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $hasPending = $nonCompleted->contains('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING);
 
     $steps = $nonCompleted->map(fn($log) => [
-      'step'            => $log->step,
-      'status'          => $log->status,
-      'attempts'        => $log->attempts,
-      'error'           => $log->error_message,
+      'step' => $log->step,
+      'status' => $log->status,
+      'attempts' => $log->attempts,
+      'error' => $log->error_message,
       'last_attempt_at' => $log->last_attempt_at?->format('Y-m-d H:i:s'),
     ])->values()->toArray();
 
     return [
-      'type'        => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
+      'type' => $hasFailed ? 'failed_steps' : ($hasPending ? 'pending_steps' : 'in_progress_steps'),
       'description' => $hasFailed
         ? 'Tiene pasos fallidos pendientes de reintento'
         : ($hasPending ? 'Tiene pasos pendientes de ejecutar' : 'Tiene pasos en progreso'),
-      'steps'       => $steps,
+      'steps' => $steps,
     ];
   }
 
@@ -421,8 +421,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
-        'created_by'       => auth()->id(),
-        'status'           => ElectronicDocument::STATUS_DRAFT,
+        'created_by' => auth()->id(),
+        'status' => ElectronicDocument::STATUS_DRAFT,
       ]);
 
 //      throw new Exception(json_encode($data));
@@ -863,9 +863,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return response()->json([
-        'success'        => true,
-        'message'        => 'Documento procesado correctamente',
-        'data'           => new ElectronicDocumentResource($document->fresh()),
+        'success' => true,
+        'message' => 'Documento procesado correctamente',
+        'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
@@ -927,8 +927,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return response()->json([
-        'success'        => true,
-        'message'        => 'Estado consultado correctamente',
+        'success' => true,
+        'message' => 'Estado consultado correctamente',
         'sunat_response' => $nubefactData
       ]);
     } catch (Exception $e) {
@@ -965,26 +965,112 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Revertir estado del vehículo si es documento de venta comercial
       $this->revertVehicleStatusOnCancellation($document);
 
-      // Revertir estados e inventario si es factura final de cotizacion de repuestos
-      // Solo para facturas finales (is_advance_payment = 0) que tienen order_quotation_id
-      if ($document->order_quotation_id && $document->is_advance_payment == 0) {
-        $reversalService = app(ApOrderQuotationsReversalService::class);
-        $reversalService->reverseQuotationStatus($document->order_quotation_id, $document);
+      // Consultar Dynamics para determinar si está anulado y contabilizado
+      $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->table('SOP30200')
+        ->where('SOPNUMBE', $document->full_number)
+        ->first();
+
+      $isAnnulledInDynamics = false;
+      $isAccountedInDynamics = false;
+
+      if ($sopRecord) {
+        $isAnnulledInDynamics = $sopRecord->VOIDSTTS == "1";
+
+        // Verificar si está contabilizado consultando RM20101
+        $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
+          ->table('RM20101')
+          ->where('DOCNUMBR', $document->full_number)
+          ->whereNot('RMDTYPAL', '9')
+          ->first();
+
+        if ($rmRecord) {
+          // Si existe en RM20101, está contabilizado
+          $isAccountedInDynamics = true;
+
+          // Si no estaba marcado como anulado en SOP30200, verificar en RM20101
+          if (!$isAnnulledInDynamics) {
+            $isAnnulledInDynamics = $rmRecord->VOIDSTTS == "1";
+          }
+        }
       }
 
-      // Revertir estados e inventario si es factura final de orden de trabajo
-      // Solo para facturas finales (is_advance_payment = 0) que tienen work_order_id
-      if ($document->work_order_id && $document->is_advance_payment == 0) {
-        $reversalService = app(ApWorkOrderReversalService::class);
-        $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+      // CASO 1: ANULADO + CONTABILIZADO → NO descuentas nada
+      if ($isAnnulledInDynamics && $isAccountedInDynamics) {
+        Log::info('Documento anulado y contabilizado en Dynamics - No se revierte inventario', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+        ]);
+      } // CASO 2: ANULADO + NO CONTABILIZADO → Generar SALIDA + INGRESO (2 movimientos)
+      else if ($isAnnulledInDynamics && !$isAccountedInDynamics) {
+        // Solo para facturas finales
+        if ($document->is_advance_payment == 0) {
+          $inventoryMovementService = app(InventoryMovementService::class);
+
+          // Cotizaciones: Generar salida por venta + reversión
+          if ($document->order_quotation_id) {
+            try {
+              // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
+              $saleMovement = $inventoryMovementService->createSaleFromQuotation($document->order_quotation_id);
+              $saleMovement->update(['electronic_document_id' => $document->id]);
+
+              // 2. INGRESO: Reversión por anulación
+              $reversalService = app(ApOrderQuotationsReversalService::class);
+              $reversalService->reverseQuotationStatus($document->order_quotation_id, $document);
+
+            } catch (Exception $e) {
+              Log::error('Error al procesar anulación de cotización no contabilizada', [
+                'document_id' => $document->id,
+                'quotation_id' => $document->order_quotation_id,
+                'error' => $e->getMessage(),
+              ]);
+              throw $e;
+            }
+          }
+
+          // Órdenes de trabajo: Generar salida por venta + reversión
+          if ($document->work_order_id) {
+            try {
+              // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
+              $saleMovement = $inventoryMovementService->createSaleFromWorkOrder($document->work_order_id);
+              $saleMovement->update(['electronic_document_id' => $document->id]);
+
+              // 2. INGRESO: Reversión por anulación
+              $reversalService = app(ApWorkOrderReversalService::class);
+              $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+
+            } catch (Exception $e) {
+              Log::error('Error al procesar anulación de OT no contabilizada', [
+                'document_id' => $document->id,
+                'work_order_id' => $document->work_order_id,
+                'error' => $e->getMessage(),
+              ]);
+              throw $e;
+            }
+          }
+        }
+      } // CASO 3: NO ANULADO → Error de seguridad, no debería llegar aquí
+      else {
+        Log::error('Intento de anulación de documento NO anulado en Dynamics', [
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_annulled_dynamics' => $isAnnulledInDynamics,
+          'is_accounted_dynamics' => $isAccountedInDynamics,
+        ]);
+
+        throw new Exception(
+          'No se puede anular un documento que no está anulado en Dynamics. ' .
+          'Documento: ' . $document->full_number . '. ' .
+          'Verifique el estado en Dynamics antes de intentar la anulación.'
+        );
       }
 
       DB::commit();
 
       return response()->json([
-        'success'        => true,
-        'message'        => 'Documento anulado correctamente en SUNAT',
-        'data'           => new ElectronicDocumentResource($document->fresh()),
+        'success' => true,
+        'message' => 'Documento anulado correctamente en SUNAT',
+        'data' => new ElectronicDocumentResource($document->fresh()),
         'sunat_response' => $response
       ]);
     } catch (Exception $e) {
@@ -1049,16 +1135,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   private function calculateTotalsFromItemsNotes(array $items): array
   {
     $totals = [
-      'total_gravada'      => 0,
-      'total_inafecta'     => 0,
-      'total_exonerada'    => 0,
-      'total_igv'          => 0,
-      'total_gratuita'     => 0,
-      'total_descuento'    => 0,
-      'total_anticipo'     => 0,
+      'total_gravada' => 0,
+      'total_inafecta' => 0,
+      'total_exonerada' => 0,
+      'total_igv' => 0,
+      'total_gratuita' => 0,
+      'total_descuento' => 0,
+      'total_anticipo' => 0,
       'total_otros_cargos' => 0,
-      'total_isc'          => 0,
-      'total'              => 0,
+      'total_isc' => 0,
+      'total' => 0,
     ];
 
     foreach ($items as $item) {
@@ -1208,21 +1294,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $netPriceUnit = round($scaledTotal / $cantidad, 10);
 
       return [
-        'account_plan_id'           => $item->account_plan_id,
-        'unidad_de_medida'          => $item->unidad_de_medida,
-        'unidad_medida_dyn'         => $item->unidad_medida_dyn,
-        'codigo'                    => $item->codigo,
-        'dyn_code'                  => $item->dyn_code,
-        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
-        'descripcion'               => $item->descripcion,
-        'cantidad'                  => $item->cantidad,
-        'valor_unitario'            => $netValueUnit,
-        'precio_unitario'           => $netPriceUnit,
-        'descuento'                 => 0,
-        'subtotal'                  => $scaledSubtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'unidad_medida_dyn' => $item->unidad_medida_dyn,
+        'codigo' => $item->codigo,
+        'dyn_code' => $item->dyn_code,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
+        'subtotal' => $scaledSubtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                       => $scaledIgv,
-        'total'                     => $scaledTotal,
+        'igv' => $scaledIgv,
+        'total' => $scaledTotal,
       ];
     })->values()->toArray();
   }
@@ -1247,21 +1333,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $netPriceUnit = round((float)$item->total / $cantidad, 10);
 
       return [
-        'account_plan_id'           => $item->account_plan_id,
-        'unidad_de_medida'          => $item->unidad_de_medida,
-        'unidad_medida_dyn'         => $item->unidad_medida_dyn,
-        'codigo'                    => $item->codigo,
-        'dyn_code'                  => $item->dyn_code,
-        'codigo_producto_sunat'     => $item->codigo_producto_sunat,
-        'descripcion'               => $item->descripcion,
-        'cantidad'                  => $item->cantidad,
-        'valor_unitario'            => $netValueUnit,
-        'precio_unitario'           => $netPriceUnit,
-        'descuento'                 => 0,
-        'subtotal'                  => $item->subtotal,
+        'account_plan_id' => $item->account_plan_id,
+        'unidad_de_medida' => $item->unidad_de_medida,
+        'unidad_medida_dyn' => $item->unidad_medida_dyn,
+        'codigo' => $item->codigo,
+        'dyn_code' => $item->dyn_code,
+        'codigo_producto_sunat' => $item->codigo_producto_sunat,
+        'descripcion' => $item->descripcion,
+        'cantidad' => $item->cantidad,
+        'valor_unitario' => $netValueUnit,
+        'precio_unitario' => $netPriceUnit,
+        'descuento' => 0,
+        'subtotal' => $item->subtotal,
         'sunat_concept_igv_type_id' => $item->sunat_concept_igv_type_id,
-        'igv'                       => $item->igv,
-        'total'                     => $item->total,
+        'igv' => $item->igv,
+        'total' => $item->total,
       ];
     })->values()->toArray();
   }
@@ -1290,20 +1376,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return [[
-      'account_plan_id'           => $data['account_plan_id'],
-      'unidad_de_medida'          => 'NIU',
-      'codigo'                    => null,
-      'dyn_code'                  => null,
-      'codigo_producto_sunat'     => null,
-      'descripcion'               => 'Descuento global',
-      'cantidad'                  => 1,
-      'valor_unitario'            => $subtotal,
-      'precio_unitario'           => $discountAmount,
-      'descuento'                 => null,
-      'subtotal'                  => $subtotal,
+      'account_plan_id' => $data['account_plan_id'],
+      'unidad_de_medida' => 'NIU',
+      'codigo' => null,
+      'dyn_code' => null,
+      'codigo_producto_sunat' => null,
+      'descripcion' => 'Descuento global',
+      'cantidad' => 1,
+      'valor_unitario' => $subtotal,
+      'precio_unitario' => $discountAmount,
+      'descuento' => null,
+      'subtotal' => $subtotal,
       'sunat_concept_igv_type_id' => $igvTypeId,
-      'igv'                       => $igv,
-      'total'                     => $discountAmount,
+      'igv' => $igv,
+      'total' => $discountAmount,
     ]];
   }
 
@@ -1375,19 +1461,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de crédito
       $creditNoteData = array_merge($data, [
-        'sunat_concept_document_type_id'   => ElectronicDocument::TYPE_NOTA_CREDITO,
-        'documento_que_se_modifica_tipo'   => $originalDocument->documentType->code_nubefact,
-        'documento_que_se_modifica_serie'  => $originalDocument->serie,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_CREDITO,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
-        'original_document_id'             => $originalDocumentId,
-        'area_id'                          => $originalDocument->area_id,
-        'origin_entity_type'               => $originalDocument->origin_entity_type,
-        'origin_entity_id'                 => $originalDocument->origin_entity_id,
-        'purchase_request_quote_id'        => $originalDocument->purchase_request_quote_id ?? null,
-        'order_quotation_id'               => $originalDocument->order_quotation_id ?? null,
-        'work_order_id'                    => $originalDocument->work_order_id ?? null,
-        'consolidation_type'               => $originalDocument->consolidation_type,
-        'is_advance_payment'               => $originalDocument->is_advance_payment,
+        'original_document_id' => $originalDocumentId,
+        'area_id' => $originalDocument->area_id,
+        'origin_entity_type' => $originalDocument->origin_entity_type,
+        'origin_entity_id' => $originalDocument->origin_entity_id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
+        'order_quotation_id' => $originalDocument->order_quotation_id ?? null,
+        'work_order_id' => $originalDocument->work_order_id ?? null,
+        'consolidation_type' => $originalDocument->consolidation_type,
+        'is_advance_payment' => $originalDocument->is_advance_payment,
       ]);
 
       // Crear la nota de crédito
@@ -1452,21 +1538,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos de la nota de débito
       $debitNoteData = array_merge($data, [
-        'sunat_concept_document_type_id'    => ElectronicDocument::TYPE_NOTA_DEBITO,
+        'sunat_concept_document_type_id' => ElectronicDocument::TYPE_NOTA_DEBITO,
         'enviar_automaticamente_a_la_sunat' => false,
         'enviar_automaticamente_al_cliente' => false,
-        'documento_que_se_modifica_tipo'    => $originalDocument->documentType->code_nubefact,
-        'documento_que_se_modifica_serie'   => $originalDocument->serie,
-        'documento_que_se_modifica_numero'  => $originalDocument->numero,
-        'original_document_id'              => $originalDocumentId,
-        'area_id'                           => $originalDocument->area_id,
-        'origin_entity_type'                => $originalDocument->origin_entity_type,
-        'origin_entity_id'                  => $originalDocument->origin_entity_id,
-        'purchase_request_quote_id'         => $originalDocument->purchase_request_quote_id ?? null,
-        'order_quotation_id'                => $originalDocument->order_quotation_id ?? null,
-        'work_order_id'                     => $originalDocument->work_order_id ?? null,
-        'consolidation_type'                => $originalDocument->consolidation_type,
-        'is_advance_payment'                => $originalDocument->is_advance_payment,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
+        'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $originalDocumentId,
+        'area_id' => $originalDocument->area_id,
+        'origin_entity_type' => $originalDocument->origin_entity_type,
+        'origin_entity_id' => $originalDocument->origin_entity_id,
+        'purchase_request_quote_id' => $originalDocument->purchase_request_quote_id ?? null,
+        'order_quotation_id' => $originalDocument->order_quotation_id ?? null,
+        'work_order_id' => $originalDocument->work_order_id ?? null,
+        'consolidation_type' => $originalDocument->consolidation_type,
+        'is_advance_payment' => $originalDocument->is_advance_payment,
       ]);
 
       // Validar límite razonable para notas de débito (200% del original)
@@ -1583,10 +1669,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Preparar datos para actualización
       $updateData = array_merge($data, [
-        'documento_que_se_modifica_tipo'   => $originalDocument->documentType->code_nubefact,
-        'documento_que_se_modifica_serie'  => $originalDocument->serie,
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
         'documento_que_se_modifica_numero' => $originalDocument->numero,
-        'original_document_id'             => $creditNote->original_document_id,
+        'original_document_id' => $creditNote->original_document_id,
       ]);
 
       // No permitir cambiar estos campos
@@ -1674,10 +1760,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $updateData = array_merge($data, [
         'enviar_automaticamente_a_la_sunat' => false,
         'enviar_automaticamente_al_cliente' => false,
-        'documento_que_se_modifica_tipo'    => $originalDocument->documentType->code_nubefact,
-        'documento_que_se_modifica_serie'   => $originalDocument->serie,
-        'documento_que_se_modifica_numero'  => $originalDocument->numero,
-        'original_document_id'              => $data['original_document_id'],
+        'documento_que_se_modifica_tipo' => $originalDocument->documentType->code_nubefact,
+        'documento_que_se_modifica_serie' => $originalDocument->serie,
+        'documento_que_se_modifica_numero' => $originalDocument->numero,
+        'original_document_id' => $data['original_document_id'],
       ]);
 
       // No permitir cambiar estos campos
@@ -1727,7 +1813,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       return response()->json([
         'success' => true,
-        'data'    => ElectronicDocumentResource::collection($documents)
+        'data' => ElectronicDocumentResource::collection($documents)
       ]);
     } catch (Exception $e) {
       throw new Exception('Error al obtener documentos: ' . $e->getMessage());
@@ -1740,12 +1826,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   public function calculateTotalsFromItems(array $items): array
   {
     $totals = [
-      'total_gravada'   => 0,
+      'total_gravada' => 0,
       'total_exonerada' => 0,
-      'total_inafecta'  => 0,
-      'total_gratuita'  => 0,
-      'total_igv'       => 0,
-      'total'           => 0,
+      'total_inafecta' => 0,
+      'total_gratuita' => 0,
+      'total_igv' => 0,
+      'total' => 0,
     ];
 
     foreach ($items as $item) {
@@ -1798,9 +1884,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     return [
       'total_anticipo' => round($totalAnticipos, 2),
-      'total_gravada'  => round($totalGravada, 2),
-      'total_igv'      => round($totalIgv, 2),
-      'total'          => round($totalFinal, 2),
+      'total_gravada' => round($totalGravada, 2),
+      'total_igv' => round($totalIgv, 2),
+      'total' => round($totalFinal, 2),
     ];
   }
 
@@ -1818,18 +1904,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $igv = round($vehiclePrice - $valorUnitario, 2);
 
     $items[] = [
-      'unidad_de_medida'          => 'NIU',
-      'codigo'                    => $additionalData['codigo'] ?? 'VEH-001',
-      'descripcion'               => $additionalData['descripcion'] ?? "Vehículo {$vehicle->model->commercial_brand->name} {$vehicle->model->model} {$vehicle->model->year} - VIN: {$vehicle->vin}",
-      'cantidad'                  => 1,
-      'valor_unitario'            => $valorUnitario,
-      'precio_unitario'           => $vehiclePrice,
-      'descuento'                 => 0,
-      'subtotal'                  => $valorUnitario,
+      'unidad_de_medida' => 'NIU',
+      'codigo' => $additionalData['codigo'] ?? 'VEH-001',
+      'descripcion' => $additionalData['descripcion'] ?? "Vehículo {$vehicle->model->commercial_brand->name} {$vehicle->model->model} {$vehicle->model->year} - VIN: {$vehicle->vin}",
+      'cantidad' => 1,
+      'valor_unitario' => $valorUnitario,
+      'precio_unitario' => $vehiclePrice,
+      'descuento' => 0,
+      'subtotal' => $valorUnitario,
       'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
-      'igv'                       => $igv,
-      'total'                     => $vehiclePrice,
-      'anticipo_regularizacion'   => false,
+      'igv' => $igv,
+      'total' => $vehiclePrice,
+      'anticipo_regularizacion' => false,
     ];
 
     // Items 2-N: Anticipos (negativos)
@@ -1839,19 +1925,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $anticipoIgv = round(-($anticipoTotal - abs($anticipoValorUnitario)), 2);
 
       $items[] = [
-        'unidad_de_medida'          => 'ZZ',
-        'codigo'                    => "ANT-{$anticipo->serie}-{$anticipo->numero}",
-        'descripcion'               => "Anticipo {$anticipo->serie}-{$anticipo->numero}",
-        'cantidad'                  => 1,
-        'valor_unitario'            => $anticipoValorUnitario,
-        'precio_unitario'           => -$anticipoTotal,
-        'descuento'                 => 0,
-        'subtotal'                  => $anticipoValorUnitario,
+        'unidad_de_medida' => 'ZZ',
+        'codigo' => "ANT-{$anticipo->serie}-{$anticipo->numero}",
+        'descripcion' => "Anticipo {$anticipo->serie}-{$anticipo->numero}",
+        'cantidad' => 1,
+        'valor_unitario' => $anticipoValorUnitario,
+        'precio_unitario' => -$anticipoTotal,
+        'descuento' => 0,
+        'subtotal' => $anticipoValorUnitario,
         'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_ANTICIPO_GRAVADO, // Tipo 1
-        'igv'                       => $anticipoIgv,
-        'total'                     => -$anticipoTotal,
-        'anticipo_regularizacion'   => true,
-        'anticipo_documento_serie'  => $anticipo->serie,
+        'igv' => $anticipoIgv,
+        'total' => -$anticipoTotal,
+        'anticipo_regularizacion' => true,
+        'anticipo_documento_serie' => $anticipo->serie,
         'anticipo_documento_numero' => $anticipo->numero,
       ];
     }
@@ -1879,16 +1965,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Cargar items con sus relaciones
       $dataArray['items_collection'] = $document->items->map(function ($item) {
         return [
-          'codigo'               => $item->codigo,
-          'descripcion'          => $item->descripcion,
-          'unidad_de_medida'     => $item->unidad_de_medida,
-          'cantidad'             => $item->cantidad,
-          'valor_unitario'       => $item->valor_unitario,
-          'precio_unitario'      => $item->precio_unitario,
-          'descuento'            => $item->descuento,
-          'subtotal'             => $item->subtotal,
-          'igv'                  => $item->igv,
-          'total'                => $item->total,
+          'codigo' => $item->codigo,
+          'descripcion' => $item->descripcion,
+          'unidad_de_medida' => $item->unidad_de_medida,
+          'cantidad' => $item->cantidad,
+          'valor_unitario' => $item->valor_unitario,
+          'precio_unitario' => $item->precio_unitario,
+          'descuento' => $item->descuento,
+          'subtotal' => $item->subtotal,
+          'igv' => $item->igv,
+          'total' => $item->total,
           'igv_type_description' => $item->igvType->description ?? '',
         ];
       })->toArray();
@@ -1900,10 +1986,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Configurar PDF
       $pdf->setOptions([
-        'defaultFont'          => 'Arial',
+        'defaultFont' => 'Arial',
         'isHtml5ParserEnabled' => true,
-        'isRemoteEnabled'      => false,
-        'dpi'                  => 96,
+        'isRemoteEnabled' => false,
+        'dpi' => 96,
       ]);
 
       // Tamaño A4
@@ -1941,9 +2027,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $vehicleMovementService->storeInvoiceCancellationRevertMovement($vehicle, $saleMovement);
     } catch (Exception $e) {
       Log::error('Error al revertir estado de vehículo por anulación de factura', [
-        'document_id'          => $document->id,
+        'document_id' => $document->id,
         'ap_vehicle_movement_id' => $document->ap_vehicle_movement_id,
-        'error'                => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -1970,14 +2056,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Crear el movimiento de vehículo
       $vehicleMovement = VehicleMovement::create([
-        'movement_type'        => 'VENTA',
-        'ap_vehicle_id'        => $vehicleId,
+        'movement_type' => 'VENTA',
+        'ap_vehicle_id' => $vehicleId,
         'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
-        'movement_date'        => now(),
-        'observation'          => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
-        'previous_status_id'   => $previousStatusId,
-        'new_status_id'        => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
-        'created_by'           => auth()->id(),
+        'movement_date' => now(),
+        'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
+        'previous_status_id' => $previousStatusId,
+        'new_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
+        'created_by' => auth()->id(),
       ]);
 
       // Actualizar el estado del vehículo
@@ -2106,9 +2192,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $this->dispatchJobWithDeduplication($id);
 
     return [
-      'success'         => true,
-      'message'         => 'Sincronización con Dynamics iniciada correctamente',
-      'document_id'     => $id,
+      'success' => true,
+      'message' => 'Sincronización con Dynamics iniciada correctamente',
+      'document_id' => $id,
       'document_number' => $document->document_number,
     ];
   }
@@ -2134,14 +2220,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ->get()
       ->map(function ($log) {
         return [
-          'step'            => $log->step,
-          'table_name'      => $log->table_name,
-          'status'          => $log->status,
-          'proceso_estado'  => $log->proceso_estado,
-          'error_message'   => $log->error_message,
-          'attempts'        => $log->attempts,
+          'step' => $log->step,
+          'table_name' => $log->table_name,
+          'status' => $log->status,
+          'proceso_estado' => $log->proceso_estado,
+          'error_message' => $log->error_message,
+          'attempts' => $log->attempts,
           'last_attempt_at' => $log->last_attempt_at,
-          'completed_at'    => $log->completed_at,
+          'completed_at' => $log->completed_at,
         ];
       });
 
@@ -2185,10 +2271,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         if ($dynamicsRecord) {
           $dynamicsStatus = [
-            'found'                 => true,
-            'proceso_estado'        => $dynamicsRecord->ProcesoEstado,
-            'proceso_error'         => $dynamicsRecord->ProcesoError,
-            'fecha_proceso'         => $dynamicsRecord->FechaProceso,
+            'found' => true,
+            'proceso_estado' => $dynamicsRecord->ProcesoEstado,
+            'proceso_error' => $dynamicsRecord->ProcesoError,
+            'fecha_proceso' => $dynamicsRecord->FechaProceso,
             'processed_by_dynamics' => $dynamicsRecord->ProcesoEstado === 1,
           ];
         }
@@ -2201,10 +2287,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     return [
-      'document_id'     => $id,
+      'document_id' => $id,
       'document_number' => $document->document_number,
-      'overall_status'  => $overallStatus,
-      'sync_steps'      => $logs,
+      'overall_status' => $overallStatus,
+      'sync_steps' => $logs,
       'dynamics_status' => $dynamicsStatus,
     ];
   }
@@ -2245,7 +2331,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     } catch (Exception $e) {
       Log::error('Error updating quotation invoice status', [
         'quotation_id' => $quotationId,
-        'error'        => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
       // No lanzar excepción para evitar que falle la creación del documento
     }
@@ -2278,6 +2364,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Instanciar InventoryMovementService para validaciones en sistema externo
     $inventoryMovementService = app(InventoryMovementService::class);
 
+    // Determinar si la cotización ya está confirmada
+    $isConfirmed = !is_null($quotation->confirmed_at);
+
     // Check stock for each product
     foreach ($productDetails as $detail) {
       // Skip if no product_id
@@ -2290,9 +2379,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ->where('product_id', $detail->product_id)
         ->first();
 
-      // If no stock record found or insufficient available quantity, throw exception
-      if (!$stock || $stock->available_quantity < $detail->quantity) {
+      // If no stock record found, throw exception
+      if (!$stock) {
         throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+      }
+
+      // Validación según confirmación y supply_type (igual lógica que checkSufficientStock en ApOrderQuotationsResource)
+      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+        // Cotización confirmada + STOCK: validar físico Y reservado
+        if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
+          throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+        }
+      } else {
+        // Cualquier otro caso: validar stock disponible (libre)
+        if ($stock->available_quantity < $detail->quantity) {
+          throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
+        }
       }
 
       // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
@@ -2652,7 +2754,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     } catch (Exception $e) {
       Log::error('Error updating work order invoice status', [
         'work_order_id' => $workOrderId,
-        'error'         => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -3250,12 +3352,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $total += (float)$workOrder->final_amount;
 
         $workOrdersData[] = [
-          'work_order_id'        => $workOrder->id,
-          'correlative'          => $workOrder->correlative,
+          'work_order_id' => $workOrder->id,
+          'correlative' => $workOrder->correlative,
           'internal_note_number' => $note->number,
-          'subtotal'             => $workOrder->subtotal,
-          'tax_amount'           => $workOrder->tax_amount,
-          'final_amount'         => $workOrder->final_amount,
+          'subtotal' => $workOrder->subtotal,
+          'tax_amount' => $workOrder->tax_amount,
+          'final_amount' => $workOrder->final_amount,
         ];
 
         // actualizamos el estado de has_invoice_generated del ApWorkOrder
@@ -3320,36 +3422,36 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // 11. Prepare invoice data
       $invoiceData = [
-        'sunat_concept_document_type_id'          => $data['sunat_concept_document_type_id'],
-        'serie'                                   => $data['serie'],
-        'series_id'                               => $data['series_id'],
-        'numero'                                  => $nextNumberData['number'],
-        'full_number'                             => "{$data['serie']}-{$nextNumberData['number']}",
-        'consolidation_type'                      => ElectronicDocument::CONSOLIDATION_MASSIVE,
-        'client_id'                               => $clientId,
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'serie' => $data['serie'],
+        'series_id' => $data['series_id'],
+        'numero' => $nextNumberData['number'],
+        'full_number' => "{$data['serie']}-{$nextNumberData['number']}",
+        'consolidation_type' => ElectronicDocument::CONSOLIDATION_MASSIVE,
+        'client_id' => $clientId,
         'sunat_concept_identity_document_type_id' => $documentType->id,
-        'cliente_numero_de_documento'             => $client->num_doc,
-        'cliente_denominacion'                    => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
-        'cliente_direccion'                       => $client->direction,
-        'cliente_email'                           => $client->email,
-        'fecha_de_emision'                        => $emissionDate,
-        'fecha_de_vencimiento'                    => $data['fecha_de_vencimiento'] ?? null,
-        'sunat_concept_currency_id'               => $data['sunat_concept_currency_id'],
-        'tipo_de_cambio'                          => $exchangeRate->rate,
-        'exchange_rate_id'                        => $exchangeRate->id,
-        'porcentaje_de_igv'                       => $client->taxClassType->igv,
-        'total_gravada'                           => round($subtotal, 2),
-        'total_igv'                               => round($taxAmount, 2),
-        'total'                                   => round($total, 2),
-        'internal_note'                           => $data['internal_note'] ?? '',
-        'observaciones'                           => $data['observaciones'] ?? '',
-        'enviar_automaticamente_a_la_sunat'       => false,
-        'enviar_automaticamente_al_cliente'       => false,
-        'created_by'                              => auth()->id(),
-        'sunat_concept_transaction_type_id'       => $data['sunat_concept_transaction_type_id'] ?? null,
-        'area_id'                                 => ApMasters::AREA_TALLER,
-        'orden_compra_servicio_url'               => $data['orden_compra_servicio_url'] ?? null,
-        'orden_compra_servicio'                   => $data['orden_compra_servicio'] ?? null,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
+        'fecha_de_emision' => $emissionDate,
+        'fecha_de_vencimiento' => $data['fecha_de_vencimiento'] ?? null,
+        'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
+        'total_gravada' => round($subtotal, 2),
+        'total_igv' => round($taxAmount, 2),
+        'total' => round($total, 2),
+        'internal_note' => $data['internal_note'] ?? '',
+        'observaciones' => $data['observaciones'] ?? '',
+        'enviar_automaticamente_a_la_sunat' => false,
+        'enviar_automaticamente_al_cliente' => false,
+        'created_by' => auth()->id(),
+        'sunat_concept_transaction_type_id' => $data['sunat_concept_transaction_type_id'] ?? null,
+        'area_id' => ApMasters::AREA_TALLER,
+        'orden_compra_servicio_url' => $data['orden_compra_servicio_url'] ?? null,
+        'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
       ];
 
       // 11. Apply detraction logic for consolidated work orders
@@ -3394,9 +3496,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'descuento_unitario' => $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
           'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
-          'igv'                       => round((float)$item['igv'], 2),
-          'total'                     => round((float)$item['total'], 2),
-          'account_plan_id'           => $item['account_plan_id'] ?? null,
+          'igv' => round((float)$item['igv'], 2),
+          'total' => round((float)$item['total'], 2),
+          'account_plan_id' => $item['account_plan_id'] ?? null,
         ]);
       }
 
@@ -3411,13 +3513,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return [
-        'invoice'     => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
+        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
         'work_orders' => $workOrdersData,
-        'message'     => 'Factura consolidada creada exitosamente',
-        'totals'      => [
-          'subtotal'          => round($subtotal, 2),
-          'tax_amount'        => round($taxAmount, 2),
-          'total'             => round($total, 2),
+        'message' => 'Factura consolidada creada exitosamente',
+        'totals' => [
+          'subtotal' => round($subtotal, 2),
+          'tax_amount' => round($taxAmount, 2),
+          'total' => round($total, 2),
           'work_orders_count' => $internalNotes->count(),
         ],
       ];
@@ -3490,7 +3592,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 6. Revert internal notes to pending status
       foreach ($internalNotes as $note) {
         $note->update([
-          'status'      => ApInternalNote::STATUS_PENDING,
+          'status' => ApInternalNote::STATUS_PENDING,
           'closed_date' => null,
         ]);
 
@@ -3515,15 +3617,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return [
-        'success'              => true,
-        'message'              => 'Factura consolidada cancelada exitosamente',
-        'invoice_id'           => $invoiceId,
-        'invoice_number'       => $invoice->full_number,
+        'success' => true,
+        'message' => 'Factura consolidada cancelada exitosamente',
+        'invoice_id' => $invoiceId,
+        'invoice_number' => $invoice->full_number,
         'internal_notes_count' => $internalNotes->count(),
-        'work_orders_freed'    => count($workOrderIds),
-        'details'              => [
+        'work_orders_freed' => count($workOrderIds),
+        'details' => [
           'internal_notes_returned_to_pending' => $internalNotes->pluck('number')->toArray(),
-          'work_orders_freed'                  => $workOrderIds,
+          'work_orders_freed' => $workOrderIds,
         ],
       ];
 
@@ -3558,42 +3660,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Prepare internal notes with work orders data
     $internalNotesData = $invoice->internalNotes->map(function ($note) {
       return [
-        'id'           => $note->id,
-        'number'       => $note->number,
-        'status'       => $note->status,
+        'id' => $note->id,
+        'number' => $note->number,
+        'status' => $note->status,
         'created_date' => $note->created_date?->format('Y-m-d'),
-        'closed_date'  => $note->closed_date?->format('Y-m-d'),
-        'work_order'   => $note->workOrder ? [
-          'id'           => $note->workOrder->id,
-          'correlative'  => $note->workOrder->correlative,
-          'invoice_to'   => $note->workOrder->invoice_to,
-          'client_name'  => $note->workOrder->invoiceTo?->razon_social,
-          'currency_id'  => $note->workOrder->currency_id,
-          'currency'     => $note->workOrder->typeCurrency?->name,
-          'subtotal'     => $note->workOrder->subtotal,
-          'tax_amount'   => $note->workOrder->tax_amount,
+        'closed_date' => $note->closed_date?->format('Y-m-d'),
+        'work_order' => $note->workOrder ? [
+          'id' => $note->workOrder->id,
+          'correlative' => $note->workOrder->correlative,
+          'invoice_to' => $note->workOrder->invoice_to,
+          'client_name' => $note->workOrder->invoiceTo?->razon_social,
+          'currency_id' => $note->workOrder->currency_id,
+          'currency' => $note->workOrder->typeCurrency?->name,
+          'subtotal' => $note->workOrder->subtotal,
+          'tax_amount' => $note->workOrder->tax_amount,
           'final_amount' => $note->workOrder->final_amount,
-          'status'       => $note->workOrder->status,
-          'labours'      => $note->workOrder->labours->map(function ($labour) {
+          'status' => $note->workOrder->status,
+          'labours' => $note->workOrder->labours->map(function ($labour) {
             return [
-              'id'                  => $labour->id,
-              'description'         => $labour->description,
-              'time_spent_decimal'  => $labour->time_spent_decimal,
-              'hourly_rate'         => $labour->hourly_rate,
+              'id' => $labour->id,
+              'description' => $labour->description,
+              'time_spent_decimal' => $labour->time_spent_decimal,
+              'hourly_rate' => $labour->hourly_rate,
               'discount_percentage' => $labour->discount_percentage,
-              'total_cost'          => $labour->total_cost,
-              'net_amount'          => $labour->net_amount,
+              'total_cost' => $labour->total_cost,
+              'net_amount' => $labour->net_amount,
             ];
           }),
-          'parts'        => $note->workOrder->parts->map(function ($labour) {
+          'parts' => $note->workOrder->parts->map(function ($labour) {
             return [
-              'id'                  => $labour->id,
-              'product_name'        => $labour->product->name,
-              'quantity_used'       => $labour->quantity_used,
-              'unit_price'          => $labour->unit_price,
+              'id' => $labour->id,
+              'product_name' => $labour->product->name,
+              'quantity_used' => $labour->quantity_used,
+              'unit_price' => $labour->unit_price,
               'discount_percentage' => $labour->discount_percentage,
-              'total_cost'          => $labour->total_cost,
-              'net_amount'          => $labour->net_amount,
+              'total_cost' => $labour->total_cost,
+              'net_amount' => $labour->net_amount,
             ];
           })
         ] : null,
@@ -3601,27 +3703,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     });
 
     return [
-      'invoice'        => [
-        'id'                 => $invoice->id,
-        'full_number'        => $invoice->full_number,
-        'serie'              => $invoice->serie,
-        'numero'             => $invoice->numero,
-        'document_type'      => $invoice->documentType?->description,
-        'client_name'        => $invoice->cliente_denominacion,
-        'client_document'    => $invoice->cliente_numero_de_documento,
-        'emission_date'      => $invoice->fecha_de_emision?->format('Y-m-d'),
-        'due_date'           => $invoice->fecha_de_vencimiento?->format('Y-m-d'),
-        'currency'           => $invoice->currency?->description,
-        'symbol_currency'    => $invoice->currency?->symbol,
-        'total'              => $invoice->total,
-        'status'             => $invoice->status,
+      'invoice' => [
+        'id' => $invoice->id,
+        'full_number' => $invoice->full_number,
+        'serie' => $invoice->serie,
+        'numero' => $invoice->numero,
+        'document_type' => $invoice->documentType?->description,
+        'client_name' => $invoice->cliente_denominacion,
+        'client_document' => $invoice->cliente_numero_de_documento,
+        'emission_date' => $invoice->fecha_de_emision?->format('Y-m-d'),
+        'due_date' => $invoice->fecha_de_vencimiento?->format('Y-m-d'),
+        'currency' => $invoice->currency?->description,
+        'symbol_currency' => $invoice->currency?->symbol,
+        'total' => $invoice->total,
+        'status' => $invoice->status,
         'consolidation_type' => $invoice->consolidation_type,
       ],
       'internal_notes' => $internalNotesData,
-      'summary'        => [
+      'summary' => [
         'total_internal_notes' => $internalNotesData->count(),
-        'total_work_orders'    => $internalNotesData->count(),
-        'total_amount'         => $invoice->total,
+        'total_work_orders' => $internalNotesData->count(),
+        'total_amount' => $invoice->total,
       ],
     ];
   }
@@ -3715,62 +3817,62 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $documentData = [
         // Datos del documento
-        'sunat_concept_document_type_id'          => $data['sunat_concept_document_type_id'],
-        'serie'                                   => strtoupper($data['serie']), // Convertir a mayúsculas
-        'series_id'                               => $series->id,
-        'numero'                                  => $data['numero'],
-        'full_number'                             => strtoupper($data['serie']) . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
-        'is_advance_payment'                      => 1, // SIEMPRE 1 PARA ANTICIPOS
-        'sunat_concept_transaction_type_id'       => $transactionTypeAnticipo->id,
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'serie' => strtoupper($data['serie']), // Convertir a mayúsculas
+        'series_id' => $series->id,
+        'numero' => $data['numero'],
+        'full_number' => strtoupper($data['serie']) . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'is_advance_payment' => 1, // SIEMPRE 1 PARA ANTICIPOS
+        'sunat_concept_transaction_type_id' => $transactionTypeAnticipo->id,
 
         // Origen
-        'area_id'                                 => $data['area_id'],
-        'origin_entity_type'                      => $data['origin_entity_type'] ?? null,
-        'origin_entity_id'                        => $data['origin_entity_id'] ?? null,
-        'order_quotation_id'                      => $data['order_quotation_id'] ?? null,
-        'work_order_id'                           => $data['work_order_id'] ?? null,
+        'area_id' => $data['area_id'],
+        'origin_entity_type' => $data['origin_entity_type'] ?? null,
+        'origin_entity_id' => $data['origin_entity_id'] ?? null,
+        'order_quotation_id' => $data['order_quotation_id'] ?? null,
+        'work_order_id' => $data['work_order_id'] ?? null,
 
         // Datos del cliente
-        'client_id'                               => $client->id,
+        'client_id' => $client->id,
         'sunat_concept_identity_document_type_id' => $documentType->id,
-        'cliente_numero_de_documento'             => $client->num_doc,
-        'cliente_denominacion'                    => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
-        'cliente_direccion'                       => $client->direction,
-        'cliente_email'                           => $client->email,
-        'cliente_email_1'                         => $data['cliente_email_1'] ?? null,
-        'cliente_email_2'                         => $data['cliente_email_2'] ?? null,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
+        'cliente_email_1' => $data['cliente_email_1'] ?? null,
+        'cliente_email_2' => $data['cliente_email_2'] ?? null,
 
         // Fechas
-        'fecha_de_emision'                        => $emissionDate,
-        'fecha_de_vencimiento'                    => $data['fecha_de_vencimiento'] ?? null,
+        'fecha_de_emision' => $emissionDate,
+        'fecha_de_vencimiento' => $data['fecha_de_vencimiento'] ?? null,
 
         // Moneda y tipo de cambio
-        'sunat_concept_currency_id'               => $data['sunat_concept_currency_id'],
-        'tipo_de_cambio'                          => $exchangeRate->rate,
-        'exchange_rate_id'                        => $exchangeRate->id,
-        'porcentaje_de_igv'                       => $client->taxClassType->igv,
+        'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
 
         // Totales
-        'total_gravada'                           => $data['total_gravada'] ?? 0,
-        'total_inafecta'                          => $data['total_inafecta'] ?? 0,
-        'total_exonerada'                         => $data['total_exonerada'] ?? 0,
-        'total_igv'                               => $data['total_igv'] ?? 0,
-        'total'                                   => $data['total'],
+        'total_gravada' => $data['total_gravada'] ?? 0,
+        'total_inafecta' => $data['total_inafecta'] ?? 0,
+        'total_exonerada' => $data['total_exonerada'] ?? 0,
+        'total_igv' => $data['total_igv'] ?? 0,
+        'total' => $data['total'],
 
         // Campos opcionales
-        'observaciones'                           => $data['observaciones'] ?? null,
-        'condiciones_de_pago'                     => $data['condiciones_de_pago'] ?? null,
-        'medio_de_pago'                           => $data['medio_de_pago'] ?? null,
-        'bank_id'                                 => $data['bank_id'] ?? null,
-        'operation_number'                        => $data['operation_number'] ?? null,
-        'orden_compra_servicio'                   => $data['orden_compra_servicio'] ?? null,
+        'observaciones' => $data['observaciones'] ?? null,
+        'condiciones_de_pago' => $data['condiciones_de_pago'] ?? null,
+        'medio_de_pago' => $data['medio_de_pago'] ?? null,
+        'bank_id' => $data['bank_id'] ?? null,
+        'operation_number' => $data['operation_number'] ?? null,
+        'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
 
         // ESTADO Y METADATA - YA MARCADO COMO ACEPTADO
-        'status'                                  => ElectronicDocument::STATUS_ACCEPTED, // Aceptado
-        'aceptada_por_sunat'                      => 1, // Ya aceptada por SUNAT
-        'migration_status'                        => 'completed', // Migración completada
-        'enviado_a_sunat_el'                      => now(), // Fecha de envío a SUNAT
-        'created_by'                              => auth()->id(),
+        'status' => ElectronicDocument::STATUS_ACCEPTED, // Aceptado
+        'aceptada_por_sunat' => 1, // Ya aceptada por SUNAT
+        'migration_status' => 'completed', // Migración completada
+        'enviado_a_sunat_el' => now(), // Fecha de envío a SUNAT
+        'created_by' => auth()->id(),
       ];
 
       // Validar que el total sea mayor a 0
@@ -3836,10 +3938,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Mapeo sunat_concept_document_type_id → ap_masters type_receipt_id
       $docTypeToReceiptMap = [
-        AssignSalesSeries::FACTURA_NUBEFACT      => AssignSalesSeries::FACTURA,
-        AssignSalesSeries::BOLETA_NUBEFACT       => AssignSalesSeries::BOLETA,
+        AssignSalesSeries::FACTURA_NUBEFACT => AssignSalesSeries::FACTURA,
+        AssignSalesSeries::BOLETA_NUBEFACT => AssignSalesSeries::BOLETA,
         AssignSalesSeries::NOTA_CREDITO_NUBEFACT => AssignSalesSeries::NOTA_CREDITO,
-        AssignSalesSeries::NOTA_DEBITO_NUBEFACT  => AssignSalesSeries::NOTA_DEBITO,
+        AssignSalesSeries::NOTA_DEBITO_NUBEFACT => AssignSalesSeries::NOTA_DEBITO,
       ];
       $typeReceiptId = $docTypeToReceiptMap[$data['sunat_concept_document_type_id']] ?? null;
       if (!$typeReceiptId) {
@@ -3857,13 +3959,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       if (!$seriesRecord) {
         $seriesRecord = AssignSalesSeries::create([
-          'series'            => $data['serie'],
+          'series' => $data['serie'],
           'correlative_start' => 1,
-          'type'              => AssignSalesSeries::SALE,
-          'type_receipt_id'   => $typeReceiptId,
+          'type' => AssignSalesSeries::SALE,
+          'type_receipt_id' => $typeReceiptId,
           'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-          'sede_id'           => $quote->sede_id,
-          'status'            => false,
+          'sede_id' => $quote->sede_id,
+          'status' => false,
         ]);
       }
 
@@ -3907,51 +4009,51 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $emissionCarbon = Carbon::parse($emissionDate);
 
       $documentData = [
-        'sunat_concept_document_type_id'    => $data['sunat_concept_document_type_id'],
-        'series_id'                         => $seriesRecord->id,
-        'serie'                             => $data['serie'],
-        'numero'                            => $data['numero'],
-        'full_number'                       => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
-        'is_advance_payment'                => 1,
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'series_id' => $seriesRecord->id,
+        'serie' => $data['serie'],
+        'numero' => $data['numero'],
+        'full_number' => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'is_advance_payment' => 1,
         'sunat_concept_transaction_type_id' => SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS,
 
-        'area_id'                   => $data['area_id'],
+        'area_id' => $data['area_id'],
         'purchase_request_quote_id' => $data['purchase_request_quote_id'],
 
-        'client_id'                               => $client->id,
+        'client_id' => $client->id,
         'sunat_concept_identity_document_type_id' => $documentType->id,
-        'cliente_numero_de_documento'             => $client->num_doc,
-        'cliente_denominacion'                    => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
-        'cliente_direccion'                       => $client->direction,
-        'cliente_email'                           => $client->email,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
 
         'fecha_de_emision' => $emissionDate,
 
         'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
-        'tipo_de_cambio'            => $exchangeRate->rate,
-        'exchange_rate_id'          => $exchangeRate->id,
-        'porcentaje_de_igv'         => $client->taxClassType->igv,
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
 
-        'total_gravada'   => $totalGravada,
-        'total_inafecta'  => 0,
+        'total_gravada' => $totalGravada,
+        'total_inafecta' => 0,
         'total_exonerada' => 0,
-        'total_igv'       => $totalIgv,
-        'total'           => $totalInput,
+        'total_igv' => $totalIgv,
+        'total' => $totalInput,
 
-        'observaciones'       => $observaciones,
+        'observaciones' => $observaciones,
         'condiciones_de_pago' => 'CONTADO',
 
         // Documento histórico externo: ya enviado, aceptado, migrado y contabilizado
-        'status'              => ElectronicDocument::STATUS_ACCEPTED,
-        'aceptada_por_sunat'  => 1,
-        'migration_status'    => 'completed',
-        'is_accounted'        => 1,
-        'sent_at'             => $emissionCarbon,
-        'accepted_at'         => $emissionCarbon,
-        'migrated_at'         => $emissionCarbon,
+        'status' => ElectronicDocument::STATUS_ACCEPTED,
+        'aceptada_por_sunat' => 1,
+        'migration_status' => 'completed',
+        'is_accounted' => 1,
+        'sent_at' => $emissionCarbon,
+        'accepted_at' => $emissionCarbon,
+        'migrated_at' => $emissionCarbon,
 
         // Marca para bloquear futuros intentos de migrar o enviar
-        'internal_note'       => 'REGISTRO_EXTERNO',
+        'internal_note' => 'REGISTRO_EXTERNO',
 
         'created_by' => auth()->id(),
       ];
@@ -3967,22 +4069,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       ElectronicDocumentItem::create([
         'ap_billing_electronic_document_id' => $document->id,
-        'account_plan_id'                   => 2,
-        'line_number'                       => 1,
-        'codigo'                            => '1533',
-        'descripcion'                       => 'ANTICIPO DE CLIENTE',
-        'unidad_de_medida'                  => 'ZZ',
-        'unidad_medida_dyn'                 => 'UND',
-        'cantidad'                          => 1,
-        'valor_unitario'                    => $totalGravada,
-        'precio_unitario'                   => $totalInput,
-        'descuento'                         => 0,
-        'descuento_unitario'                => 0,
-        'subtotal'                          => $totalGravada,
-        'sunat_concept_igv_type_id'         => 49,
-        'igv'                               => $totalIgv,
-        'total'                             => $totalInput,
-        'anticipo_regularizacion'           => 0,
+        'account_plan_id' => 2,
+        'line_number' => 1,
+        'codigo' => '1533',
+        'descripcion' => 'ANTICIPO DE CLIENTE',
+        'unidad_de_medida' => 'ZZ',
+        'unidad_medida_dyn' => 'UND',
+        'cantidad' => 1,
+        'valor_unitario' => $totalGravada,
+        'precio_unitario' => $totalInput,
+        'descuento' => 0,
+        'descuento_unitario' => 0,
+        'subtotal' => $totalGravada,
+        'sunat_concept_igv_type_id' => 49,
+        'igv' => $totalIgv,
+        'total' => $totalInput,
+        'anticipo_regularizacion' => 0,
       ]);
 
       DB::commit();
@@ -4020,10 +4122,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       $docTypeToReceiptMap = [
-        AssignSalesSeries::FACTURA_NUBEFACT      => AssignSalesSeries::FACTURA,
-        AssignSalesSeries::BOLETA_NUBEFACT       => AssignSalesSeries::BOLETA,
+        AssignSalesSeries::FACTURA_NUBEFACT => AssignSalesSeries::FACTURA,
+        AssignSalesSeries::BOLETA_NUBEFACT => AssignSalesSeries::BOLETA,
         AssignSalesSeries::NOTA_CREDITO_NUBEFACT => AssignSalesSeries::NOTA_CREDITO,
-        AssignSalesSeries::NOTA_DEBITO_NUBEFACT  => AssignSalesSeries::NOTA_DEBITO,
+        AssignSalesSeries::NOTA_DEBITO_NUBEFACT => AssignSalesSeries::NOTA_DEBITO,
       ];
       $typeReceiptId = $docTypeToReceiptMap[$data['sunat_concept_document_type_id']] ?? null;
       if (!$typeReceiptId) {
@@ -4036,13 +4138,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       if (!$seriesRecord) {
         $seriesRecord = AssignSalesSeries::create([
-          'series'            => $data['serie'],
+          'series' => $data['serie'],
           'correlative_start' => 1,
-          'type'              => AssignSalesSeries::SALE,
-          'type_receipt_id'   => $typeReceiptId,
+          'type' => AssignSalesSeries::SALE,
+          'type_receipt_id' => $typeReceiptId,
           'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
-          'sede_id'           => $data['sede_id'],
-          'status'            => false,
+          'sede_id' => $data['sede_id'],
+          'status' => false,
         ]);
       }
 
@@ -4068,23 +4170,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         $correlative = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
 
         $quote = PurchaseRequestQuote::create([
-          'correlative'          => $correlative,
-          'type_document'        => 'SOLICITUD_COMPRA',
-          'opportunity_id'       => null,
-          'holder_id'            => $data['client_id'],
-          'ap_vehicle_id'        => $vehicle->id,
-          'ap_models_vn_id'      => $vehicle->ap_models_vn_id,
-          'vehicle_color_id'     => $vehicle->vehicle_color_id,
-          'type_currency_id'     => $data['type_currency_id'],
+          'correlative' => $correlative,
+          'type_document' => 'SOLICITUD_COMPRA',
+          'opportunity_id' => null,
+          'holder_id' => $data['client_id'],
+          'ap_vehicle_id' => $vehicle->id,
+          'ap_models_vn_id' => $vehicle->ap_models_vn_id,
+          'vehicle_color_id' => $vehicle->vehicle_color_id,
+          'type_currency_id' => $data['type_currency_id'],
           'doc_type_currency_id' => $data['doc_type_currency_id'],
-          'exchange_rate_id'     => $exchangeRateForQuote->id,
-          'base_selling_price'   => round((float)$data['total'], 2),
-          'sale_price'           => round((float)$data['total'], 2),
-          'doc_sale_price'       => round((float)$data['total'], 2),
-          'warranty_years'       => 1,
-          'warranty_km'          => 1,
-          'is_approved'          => 1,
-          'sede_id'              => $data['sede_id'],
+          'exchange_rate_id' => $exchangeRateForQuote->id,
+          'base_selling_price' => round((float)$data['total'], 2),
+          'sale_price' => round((float)$data['total'], 2),
+          'doc_sale_price' => round((float)$data['total'], 2),
+          'warranty_years' => 1,
+          'warranty_km' => 1,
+          'is_approved' => 1,
+          'sede_id' => $data['sede_id'],
         ]);
       }
 
@@ -4132,49 +4234,49 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         : SunatConcepts::ID_VENTA_INTERNA;
 
       $documentData = [
-        'sunat_concept_document_type_id'    => $data['sunat_concept_document_type_id'],
-        'series_id'                         => $seriesRecord->id,
-        'serie'                             => $data['serie'],
-        'numero'                            => $data['numero'],
-        'full_number'                       => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
-        'is_advance_payment'                => 0,
+        'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
+        'series_id' => $seriesRecord->id,
+        'serie' => $data['serie'],
+        'numero' => $data['numero'],
+        'full_number' => $data['serie'] . '-' . str_pad($data['numero'], 8, '0', STR_PAD_LEFT),
+        'is_advance_payment' => 0,
         'sunat_concept_transaction_type_id' => $transactionTypeId,
 
-        'area_id'                   => $data['area_id'],
+        'area_id' => $data['area_id'],
         'purchase_request_quote_id' => $quote->id,
 
-        'client_id'                               => $client->id,
+        'client_id' => $client->id,
         'sunat_concept_identity_document_type_id' => $documentType->id,
-        'cliente_numero_de_documento'             => $client->num_doc,
-        'cliente_denominacion'                    => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
-        'cliente_direccion'                       => $client->direction,
-        'cliente_email'                           => $client->email,
+        'cliente_numero_de_documento' => $client->num_doc,
+        'cliente_denominacion' => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+        'cliente_direccion' => $client->direction,
+        'cliente_email' => $client->email,
 
         'fecha_de_emision' => $emissionDate,
 
         'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
-        'tipo_de_cambio'            => $exchangeRate->rate,
-        'exchange_rate_id'          => $exchangeRate->id,
-        'porcentaje_de_igv'         => $client->taxClassType->igv,
+        'tipo_de_cambio' => $exchangeRate->rate,
+        'exchange_rate_id' => $exchangeRate->id,
+        'porcentaje_de_igv' => $client->taxClassType->igv,
 
-        'total_gravada'   => $totalGravada,
-        'total_inafecta'  => 0,
+        'total_gravada' => $totalGravada,
+        'total_inafecta' => 0,
         'total_exonerada' => 0,
-        'total_igv'       => $totalIgv,
-        'total'           => $totalInput,
+        'total_igv' => $totalIgv,
+        'total' => $totalInput,
 
-        'observaciones'       => '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]',
+        'observaciones' => '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]',
         'condiciones_de_pago' => 'CONTADO',
 
-        'status'             => ElectronicDocument::STATUS_ACCEPTED,
+        'status' => ElectronicDocument::STATUS_ACCEPTED,
         'aceptada_por_sunat' => 1,
-        'anulado'            => 0,
-        'is_annulled'        => 0,
-        'migration_status'   => 'completed',
-        'is_accounted'       => 1,
-        'sent_at'            => $emissionCarbon,
-        'accepted_at'        => $emissionCarbon,
-        'migrated_at'        => $emissionCarbon,
+        'anulado' => 0,
+        'is_annulled' => 0,
+        'migration_status' => 'completed',
+        'is_accounted' => 1,
+        'sent_at' => $emissionCarbon,
+        'accepted_at' => $emissionCarbon,
+        'migrated_at' => $emissionCarbon,
 
         'internal_note' => 'REGISTRO_EXTERNO',
 
@@ -4208,21 +4310,21 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // ================================================================
       ElectronicDocumentItem::create([
         'ap_billing_electronic_document_id' => $document->id,
-        'account_plan_id'                   => 2,
-        'line_number'                       => 1,
-        'codigo'                            => 'VENTA',
-        'descripcion'                       => $data['descripcion'],
-        'unidad_de_medida'                  => 'ZZ',
-        'cantidad'                          => 1,
-        'valor_unitario'                    => $totalGravada,
-        'precio_unitario'                   => $totalInput,
-        'descuento'                         => 0,
-        'descuento_unitario'                => 0,
-        'subtotal'                          => $totalGravada,
-        'sunat_concept_igv_type_id'         => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
-        'igv'                               => $totalIgv,
-        'total'                             => $totalInput,
-        'anticipo_regularizacion'           => 0,
+        'account_plan_id' => 2,
+        'line_number' => 1,
+        'codigo' => 'VENTA',
+        'descripcion' => $data['descripcion'],
+        'unidad_de_medida' => 'ZZ',
+        'cantidad' => 1,
+        'valor_unitario' => $totalGravada,
+        'precio_unitario' => $totalInput,
+        'descuento' => 0,
+        'descuento_unitario' => 0,
+        'subtotal' => $totalGravada,
+        'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+        'igv' => $totalIgv,
+        'total' => $totalInput,
+        'anticipo_regularizacion' => 0,
       ]);
 
       $vehicle->update(['is_paid' => true]);

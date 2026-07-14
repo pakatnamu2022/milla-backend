@@ -80,10 +80,10 @@ class TallerReportService
       'detalle' => $firstItem?->description ?? '',
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'nombre_tecnico' => $technicians,
-      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
-      'hora_apertura_ot' => $workOrder->created_at ? $workOrder->created_at->format('H:i:s') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d') : '',
-      'hora_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('H:i:s') : '',
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'hora_apertura_ot' => $workOrder->created_at ? $workOrder->created_at->format('H:i') : '',
+      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+      'hora_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('H:i') : '',
       'precio_mano_obra' => number_format($prices['mano_obra'], 2, '.', ''),
       'precio_repuesto' => number_format($prices['repuestos'], 2, '.', ''),
       'precio_lubricantes' => number_format($prices['lubricantes'], 2, '.', ''),
@@ -141,7 +141,7 @@ class TallerReportService
    */
   private function calculatePricesInDollars(ApWorkOrder $workOrder): array
   {
-    $exchangeRate = $this->getExchangeRate($workOrder);
+    $exchangeRate = $workOrder->getExchangeRateToUsd();
 
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
@@ -172,33 +172,6 @@ class TallerReportService
       'lubricantes' => $lubricantsCostUSD,
       'total' => $totalUSD,
     ];
-  }
-
-  /**
-   * Obtiene el tipo de cambio para convertir a dólares
-   *
-   * @param ApWorkOrder $workOrder
-   * @return float
-   */
-  private function getExchangeRate(ApWorkOrder $workOrder): float
-  {
-    // Si la moneda es dólares (USD), el tipo de cambio es 1
-    if ($workOrder->typeCurrency && $workOrder->typeCurrency->code === 'USD') {
-      return 1.0;
-    }
-
-    // Si tiene un exchange rate asociado, usarlo
-    if ($workOrder->exchange_rate) {
-      return (float) $workOrder->exchange_rate;
-    }
-
-    // Si tiene relación con exchangeRate, usar su valor
-    if ($workOrder->exchangeRate && $workOrder->exchangeRate->sale_price) {
-      return (float) $workOrder->exchangeRate->sale_price;
-    }
-
-    // Valor por defecto (PEN a USD aproximado)
-    return 3.75;
   }
 
   /**
@@ -234,12 +207,8 @@ class TallerReportService
         case 'like':
           $query->where($column, 'like', '%' . $value . '%');
           break;
-        case 'date_between':
-          if (is_array($value) && count($value) === 2) {
-            $query->whereBetween($column, [$value[0], $value[1]]);
-          }
-          break;
         case 'between':
+        case 'date_between':
           if (is_array($value) && count($value) === 2) {
             $query->whereBetween($column, [$value[0], $value[1]]);
           }

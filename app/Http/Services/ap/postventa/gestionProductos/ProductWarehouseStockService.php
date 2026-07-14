@@ -741,6 +741,26 @@ class ProductWarehouseStockService extends BaseService
 
       $destinationStock->quantity += $quantityReceived;
       $destinationStock->last_movement_date = now();
+
+      // Copy costs from origin warehouse to destination warehouse
+      // Only if ALL costs in destination are 0 (to avoid overwriting existing costs)
+      if ($originStock) {
+        $allCostsAreZero = (
+          ($destinationStock->cost_price ?? 0) == 0 &&
+          ($destinationStock->average_cost ?? 0) == 0 &&
+          ($destinationStock->sale_price ?? 0) == 0 &&
+          ($destinationStock->sale_price_min ?? 0) == 0
+        );
+
+        if ($allCostsAreZero) {
+          $destinationStock->cost_price = $originStock->cost_price;
+          $destinationStock->average_cost = $originStock->average_cost;
+          $destinationStock->sale_price = $originStock->sale_price;
+          $destinationStock->sale_price_min = $originStock->sale_price_min;
+          $destinationStock->currency_id = $originStock->currency_id;
+        }
+      }
+
       $destinationStock->updateAvailableQuantity();
 
       DB::commit();
@@ -2073,7 +2093,7 @@ class ProductWarehouseStockService extends BaseService
           // Only quotations that haven't been invoiced yet
           ->where(function ($q) {
             $q->where('q.has_invoice_generated', false)
-              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_DESCARTADO,  ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
+              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
               ->orWhereNull('q.has_invoice_generated');
           })
           ->select([

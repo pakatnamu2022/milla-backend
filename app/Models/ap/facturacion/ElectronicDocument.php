@@ -17,6 +17,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
+use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Exception;
@@ -348,6 +349,11 @@ class ElectronicDocument extends BaseModel
   public function currency(): BelongsTo
   {
     return $this->belongsTo(SunatConcepts::class, 'sunat_concept_currency_id');
+  }
+
+  public function exchangeRate(): BelongsTo
+  {
+    return $this->belongsTo(ExchangeRate::class, 'exchange_rate_id');
   }
 
   public function detractionType(): BelongsTo

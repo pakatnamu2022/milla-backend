@@ -122,11 +122,11 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       }
 
       // Enviar notificación al encargado de almacén
-      try {
-        $this->sendPurchaseRequestNotificationEmail($purchaseRequest->id);
-      } catch (Exception $e) {
-        \Log::error('Error al enviar notificación de solicitud de compra: ' . $e->getMessage());
-      }
+//      try {
+//        $this->sendPurchaseRequestNotificationEmail($purchaseRequest->id);
+//      } catch (Exception $e) {
+//        \Log::error('Error al enviar notificación de solicitud de compra: ' . $e->getMessage());
+//      }
 
       return new ApOrderPurchaseRequestsResource($purchaseRequest->load([
         'purchaseOrder',
@@ -677,8 +677,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
       $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+      $isTicsAnalyst = in_array($positionId, Position::TICS_ANALYST, true);
 
-      if (!($isAfterSalesCoordinator || $isGerente)) {
+      if (!($isAfterSalesCoordinator || $isGerente || $isTicsAnalyst)) {
         throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar esta solicitud de compra.');
       }
 
@@ -933,15 +934,15 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
               $role = 'Jefe de Almacén';
             }
 
-            $this->emailService->queue([
-              'to' => $managerEmail,
-              'subject' => $subject,
-              'template' => 'emails.purchase-request-notification',
-              'data' => array_merge($emailData, [
-                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
-                'recipient_role' => $role,
-              ]),
-            ]);
+//            $this->emailService->queue([
+//              'to' => $managerEmail,
+//              'subject' => $subject,
+//              'template' => 'emails.purchase-request-notification',
+//              'data' => array_merge($emailData, [
+//                'recipient_name' => $manager->person->nombre_completo ?? 'Jefatura',
+//                'recipient_role' => $role,
+//              ]),
+//            ]);
           } catch (Exception $e) {
             \Log::error("Error al enviar correo al manager (User ID: {$manager->id}): " . $e->getMessage());
           }

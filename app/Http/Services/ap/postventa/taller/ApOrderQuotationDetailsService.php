@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\taller;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationDetailsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Utils\Constants;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -212,8 +213,11 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     $apOrderQuotationDetails = $this->find($id);
     $quotationId = $apOrderQuotationDetails->order_quotation_id;
 
-    // Validate if quotation is already associated with a work order
-    $this->validateQuotationNotAssociatedWithWorkOrder($quotationId);
+    // Validar restricciones de antigüedad (15 días)
+    $this->validateQuotationAge($quotationId);
+
+    // Validar que el monto proyectado no sea menor al pagado en anticipos si hay OT asociada
+    $this->validateMinimumAmountIfWorkOrderHasAdvances($quotationId, $apOrderQuotationDetails);
 
     DB::transaction(function () use ($apOrderQuotationDetails, $quotationId) {
       $apOrderQuotationDetails->delete();
@@ -330,6 +334,62 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Recalculate and save work order totals
       $workOrder->calculateTotals();
       $workOrder->save();
+    }
+  }
+
+  /**
+   * Valida restricciones de antigüedad de la cotización (15 días)
+   *
+   * @param int $quotationId
+   * @return void
+   * @throws Exception
+   */
+  private function validateQuotationAge(int $quotationId): void
+  {
+    $quotation = ApOrderQuotations::find($quotationId);
+
+    if ($quotation->area_id === ApMasters::AREA_TALLER && !$quotation->is_take) {
+      $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
+      $today = Carbon::now()->startOfDay();
+
+      // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+      if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
+        throw new Exception('No se puede eliminar el detalle porque la cotización tiene más de 15 días desde su fecha.');
+      }
+    }
+  }
+
+  /**
+   * Valida que el monto proyectado de la OT no sea menor al pagado en anticipos
+   * Similar a la lógica de ApWorkOrderPartsService::destroy
+   *
+   * @param int $quotationId
+   * @param ApOrderQuotationDetails $quotationDetail
+   * @return void
+   * @throws Exception
+   */
+  private function validateMinimumAmountIfWorkOrderHasAdvances(int $quotationId, ApOrderQuotationDetails $quotationDetail): void
+  {
+    // Buscar si hay una OT asociada con anticipos
+    $workOrder = ApWorkOrder::where('order_quotation_id', $quotationId)
+      ->whereHas('advancesWorkOrder')
+      ->first();
+
+    if ($workOrder) {
+      // Validar que el nuevo monto no sea menor al monto pagado en anticipos
+      $workOrder->refresh();
+      $currentTotals = $workOrder->getTotalsArray();
+
+      // Calcular el monto del detalle de cotización con IGV incluido
+      // (usar la misma lógica que ApWorkOrder::getTotalsArray)
+      $itemNetAmount = $quotationDetail->net_amount;
+      $itemWithTax = $itemNetAmount * (1 + Constants::VAT_TAX / 100);
+
+      // Proyectar el nuevo total (total_amount incluye IGV)
+      $projectedFinalAmount = $currentTotals['total_amount'] - $itemWithTax;
+
+      // Validar usando el método del modelo ApWorkOrder
+      $workOrder->validateMinimumAmount($projectedFinalAmount);
     }
   }
 }

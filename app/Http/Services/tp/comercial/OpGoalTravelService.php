@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Throwable;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Illuminate\Support\Facades\Cache;
 
 class OpGoalTravelService extends BaseService
@@ -233,29 +237,54 @@ class OpGoalTravelService extends BaseService
         }
 
         $cacheKey = "comparativa_{$year1}_{$month1}_{$year2}_{$month2}";
-        return Cache::remember($cacheKey, 3600, function () use ($year1, $month1, $year2, $month2) {
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($year1, $month1, $year2, $month2) {
             try {
 
                 //validar fechas
-                $fecha1 = \Carbon\Carbon::create($year1, $month1, 1);
-                $fecha2 = \Carbon\Carbon::create($year2, $month2, 1);
+                $fecha1 = Carbon::create($year1, $month1, 1);
+                $fecha2 = Carbon::create($year2, $month2, 1);
 
                 if ($fecha1->isFuture() || $fecha2->isFuture()) {
                     throw new Exception("No se pueden comparar períodos futuros.");
                 }
-
+                $productosVacios = [109];
+                $productosVaciosStr = implode(',', $productosVacios);
+                $condicionCarga = "
+                (
+                    od.produccion > 0
+                    OR (rp.b_cliente = 1)
+                    OR EXISTS (
+                        SELECT 1
+                        FROM op_despacho_item odi
+                        LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                        WHERE odi.despacho_id = od.id
+                          AND odi.idproducto IS NOT NULL
+                          AND odi.idproducto NOT IN ($productosVaciosStr)
+                          AND odi.idproducto != 0
+                          AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM op_despacho_item odi2
+                        WHERE odi2.despacho_id = od.id
+                          AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                    )
+                )
+            ";
 
                 $datos1 = DB::select("
-                SELECT 
-                    rp.id as cliente_id,
-                    rp.nombre_completo as cliente,
-                    COUNT(od.id) as total_viajes,
-                    SUM(od.produccion) as total_produccion
+                    SELECT 
+                        rp.id as cliente_id,
+                        rp.nombre_completo as cliente,
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as total_produccion
                     FROM op_despacho od
                     INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
                     WHERE od.estado <> 10
+                        AND rp.sede_id = 1   -- solo clientes de nuestra sede
                         AND YEAR(od.fecha_viaje) = ?
                         AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCarga}   -- solo viajes con carga real
                     GROUP BY od.idcliente
                     ORDER BY total_viajes DESC
                 ", [$year1, $month1]);
@@ -269,8 +298,10 @@ class OpGoalTravelService extends BaseService
                     FROM op_despacho od
                     INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
                     WHERE od.estado <> 10
+                        AND rp.sede_id = 1
                         AND YEAR(od.fecha_viaje) = ?
                         AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCarga}
                     GROUP BY od.idcliente
                     ORDER BY total_viajes DESC
                 ", [$year2, $month2]);
@@ -278,13 +309,23 @@ class OpGoalTravelService extends BaseService
                 $total1 = DB::selectOne("
                     SELECT COUNT(od.id) as total_viajes, SUM(od.produccion) as total_produccion
                     FROM op_despacho od
-                    WHERE od.estado <> 10 AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                    WHERE od.estado <> 10
+                        AND rp.sede_id = 1
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCarga}
                 ", [$year1, $month1]);
 
                 $total2 = DB::selectOne("
                     SELECT COUNT(od.id) as total_viajes, SUM(od.produccion) as total_produccion
                     FROM op_despacho od
-                    WHERE od.estado <> 10 AND YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                    WHERE od.estado <> 10
+                        AND rp.sede_id = 1
+                        AND YEAR(od.fecha_viaje) = ?
+                        AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCarga}
                 ", [$year2, $month2]);
 
                 $clientes = [];
@@ -431,11 +472,12 @@ class OpGoalTravelService extends BaseService
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
+                        AND rp.sede_id = 1
+                        AND rp.b_cliente = 1
                         {$filtrosFecha}
                     GROUP BY od.idcliente
                     HAVING COUNT(od.id) > 0
                     ORDER BY total_viajes DESC
-                    LIMIT 500
                     ", $params);
 
                 $totalGeneral = DB::selectOne("
@@ -447,6 +489,8 @@ class OpGoalTravelService extends BaseService
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
+                        AND rp.sede_id = 1
+                        AND rp.b_cliente = 1
                         {$filtrosFecha}
                         ", $params);
 
@@ -489,6 +533,85 @@ class OpGoalTravelService extends BaseService
                         'resumen' => null
                     ];
                 }
+                $productosVacios = [109];
+                $productosVaciosStr = implode(',', $productosVacios);
+
+                $condicionCargaConductores = "
+                    (
+                        od.produccion > 0
+                        OR (rp.b_cliente = 1)
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi
+                            LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                            WHERE odi.despacho_id = od.id
+                            AND odi.idproducto IS NOT NULL
+                            AND odi.idproducto NOT IN ($productosVaciosStr)
+                            AND odi.idproducto != 0
+                            AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi2
+                            WHERE odi2.despacho_id = od.id
+                            AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                        )
+                    )
+                ";
+
+                $condicionCargaVehiculos = "
+                    (
+                        od.produccion > 0
+                        OR EXISTS (
+                            SELECT 1
+                            FROM rrhh_persona rp_cliente
+                            INNER JOIN op_despacho od_cliente ON od_cliente.idcliente = rp_cliente.id
+                            WHERE od_cliente.id = od.id
+                            AND rp_cliente.b_cliente = 1
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi
+                            LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                            WHERE odi.despacho_id = od.id
+                            AND odi.idproducto IS NOT NULL
+                            AND odi.idproducto NOT IN ($productosVaciosStr)
+                            AND odi.idproducto != 0
+                            AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi2
+                            WHERE odi2.despacho_id = od.id
+                            AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                        )
+                    )
+                ";
+
+                $condicionCargaResumen = "
+                    (
+                        od.produccion > 0
+                        OR (rp.b_cliente = 1)
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi
+                            LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                            WHERE odi.despacho_id = od.id
+                            AND odi.idproducto IS NOT NULL
+                            AND odi.idproducto NOT IN ($productosVaciosStr)
+                            AND odi.idproducto != 0
+                            AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi2
+                            WHERE odi2.despacho_id = od.id
+                            AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                        )
+                    )
+                ";
+
+
                 $conductores = DB::select("
                             SELECT 
                                 rp.id as conductor_id,
@@ -499,9 +622,15 @@ class OpGoalTravelService extends BaseService
                                 ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
                             FROM op_despacho od
                             INNER JOIN rrhh_persona rp ON rp.id = od.conductor_id
-                            WHERE od.estado <> 10
-                                AND YEAR(od.fecha_viaje) = ?
-                                AND MONTH(od.fecha_viaje) = ?
+                            WHERE od.estado <> 10 
+                                    AND rp.status_deleted = 1 
+                                    AND rp.b_empleado = 1 
+                                    AND rp.status_id = 22 
+                                    AND rp.cargo_id in (11,12)
+                                    AND rp.sede_id = 1
+                                    AND YEAR(od.fecha_viaje) = ?
+                                    AND MONTH(od.fecha_viaje) = ?
+                                    AND {$condicionCargaConductores}
                             GROUP BY od.conductor_id
                             ORDER BY produccion_real DESC
                         ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month]);
@@ -516,26 +645,35 @@ class OpGoalTravelService extends BaseService
                                 ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
                             FROM op_despacho od
                             INNER JOIN op_vehiculo v ON v.id = od.tracto_id
-                            WHERE od.estado <> 10
-                                AND YEAR(od.fecha_viaje) = ?
-                                AND MONTH(od.fecha_viaje) = ?
+                            WHERE od.estado <> 10 
+                                  AND v.sede_id = 1 
+                                  AND v.tipo_vehiculo_id = 1 
+                                  AND v.status_deleted = 1 
+                                  AND v.tercero = 0
+                                  AND YEAR(od.fecha_viaje) = ?
+                                  AND MONTH(od.fecha_viaje) = ?
+                                  AND {$condicionCargaVehiculos}
                             GROUP BY od.tracto_id
                             ORDER BY produccion_real DESC
                         ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
 
                 $resumen = DB::selectOne("
-                        SELECT 
-                            COUNT(DISTINCT od.conductor_id) as conductores_activos,
-                            COUNT(DISTINCT od.tracto_id) as vehiculos_activos,
-                            COUNT(od.id) as total_viajes,
-                            SUM(od.produccion) as produccion_total,
-                            ? as meta_total,
-                            ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
-                        FROM op_despacho od
-                        WHERE od.estado <> 10
-                            AND YEAR(od.fecha_viaje) = ?
-                            AND MONTH(od.fecha_viaje) = ?
-                    ", [$goal->total, $goal->total, $year, $month]);
+                    SELECT 
+                        COUNT(DISTINCT od.conductor_id) as conductores_activos,
+                        COUNT(DISTINCT od.tracto_id) as vehiculos_activos,
+                        COUNT(od.id) as total_viajes,
+                        SUM(od.produccion) as produccion_total,
+                        ? as meta_total,
+                        ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
+                    FROM op_despacho od
+                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                WHERE od.estado <> 10
+                    AND rp.sede_id = 1
+                    AND rp.b_cliente = 1
+                    AND YEAR(od.fecha_viaje) = ?
+                    AND MONTH(od.fecha_viaje) = ?
+                    AND {$condicionCargaResumen}
+            ", [$goal->total, $goal->total, $year, $month]);
 
                 return [
                     'meta' => [
@@ -590,58 +728,72 @@ class OpGoalTravelService extends BaseService
         $cacheKey = "ranking_{$periodo}_{$year}_{$month}_{$limit}";
         return Cache::remember($cacheKey, 300, function () use ($periodo, $limit, $year, $month) {
             try {
+                $startOfWeek = null;
+                $endOfWeek = null;
+                $periodoLabel = "{$year}-" . str_pad($month, 2, '0', STR_PAD_LEFT);
                 if ($periodo === 'week') {
-                    // Para semana: usamos la semana del año/mes especificado
-                    $dateCondition = "YEARWEEK(od.fecha_viaje) = YEARWEEK('{$year}-{$month}-01')";
+                    $fechaInicio = Carbon::create($year, $month, 1);
+                    $startOfWeek = $fechaInicio->copy()->startOfWeek();
+                    $endOfWeek = $fechaInicio->copy()->endOfWeek();
+
+                    $dateCondition = "od.fecha_viaje BETWEEN '{$startOfWeek->toDateString()}' AND '{$endOfWeek->toDateString()}'";
+                    $periodoLabel = "Semana {$startOfWeek->weekOfYear} - {$year}";
                 } else {
-                    // Para mes: año y mes específicos
                     $dateCondition = "YEAR(od.fecha_viaje) = {$year} AND MONTH(od.fecha_viaje) = {$month}";
                 }
                 $ranking = DB::select("
-                SELECT 
-                    rp.id as conductor_id,
-                    rp.nombre_completo as conductor,
-                    COUNT(od.id) as total_viajes,
-                    COALESCE(SUM(od.produccion), 0) as produccion_total,
-                    COALESCE(AVG(od.produccion), 0) as promedio_por_viaje,
-                    COUNT(DISTINCT od.tracto_id) as vehiculos_usados,
-                    MIN(od.fecha_viaje) as primer_viaje,
-                    MAX(od.fecha_viaje) as ultimo_viaje
-                FROM rrhh_persona rp
-                LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
-                    AND od.estado = 9
-                    AND {$dateCondition}
-                WHERE rp.b_empleado = 1 
-                    AND rp.status_id = 22 
-                    AND rp.status_deleted = 1
-                GROUP BY rp.id, rp.nombre_completo
-                HAVING COUNT(od.id) > 0
-                ORDER BY produccion_total DESC
-                LIMIT ?
-            ", [$limit]);
+                    SELECT 
+                        rp.id as conductor_id,
+                        rp.nombre_completo as conductor,
+                        COUNT(od.id) as total_viajes,
+                        COALESCE(SUM(od.produccion), 0) as produccion_total,
+                        COALESCE(AVG(od.produccion), 0) as promedio_por_viaje,
+                        COUNT(DISTINCT od.tracto_id) as vehiculos_usados,
+                        MIN(od.fecha_viaje) as primer_viaje,
+                        MAX(od.fecha_viaje) as ultimo_viaje
+                    FROM rrhh_persona rp
+                    LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
+                        AND od.estado <> 10
+                        AND {$dateCondition}
+                    WHERE rp.b_empleado = 1 
+                        AND rp.status_id = 22 
+                        AND rp.status_deleted = 1
+                        AND rp.sede_id = 1
+                        AND rp.cargo_id in (11,12)
+                    GROUP BY rp.id, rp.nombre_completo
+                    ORDER BY produccion_total DESC
+                    LIMIT ?
+                ", [$limit]);
 
                 $result = [];
+                $position = 1;
+
+
                 foreach ($ranking as $index => $item) {
                     $medal = '';
-                    if ($index === 0) $medal = '🥇';
-                    else if ($index === 1) $medal = '🥈';
-                    else if ($index === 2) $medal = '🥉';
+                    if ((float)$item->produccion_total > 0) {
+                        if ($index === 0) $medal = '🥇';
+                        else if ($index === 1) $medal = '🥈';
+                        else if ($index === 2) $medal = '🥉';
+                    }
 
                     $result[] = [
-                        'position' => $index + 1,
+                        'position' => $position++,
                         'medal' => $medal,
                         'conductor_id' => (int) $item->conductor_id,
-                        'conductor' => $item->conductor,
+                        'conductor' => $item->conductor ?? 'Sin conductor',
                         'total_viajes' => (int) $item->total_viajes,
                         'produccion_total' => (float) $item->produccion_total,
                         'promedio_por_viaje' => (float) $item->promedio_por_viaje,
                         'vehiculos_usados' => (int) $item->vehiculos_usados,
-                        'periodo' => "{$year}-{$month}",
+                        'periodo' => $periodoLabel,
+                        'primer_viaje' => $item->primer_viaje ?? null,
+                        'ultimo_viaje' => $item->ultimo_viaje ?? null,
                     ];
                 }
 
                 return $result;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Error en getRanking: ' . $e->getMessage());
                 throw $e;
             }
@@ -670,6 +822,61 @@ class OpGoalTravelService extends BaseService
                     ];
                 }
 
+                $productosVacios = [109];
+                $productosVaciosStr = implode(',', $productosVacios);
+
+                $condicionCargaConductores = "
+                    (
+                        od.produccion > 0
+                        OR (rp.b_cliente = 1)
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi
+                            LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                            WHERE odi.despacho_id = od.id
+                            AND odi.idproducto IS NOT NULL
+                            AND odi.idproducto NOT IN ($productosVaciosStr)
+                            AND odi.idproducto != 0
+                            AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi2
+                            WHERE odi2.despacho_id = od.id
+                            AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                        )
+                    )
+                ";
+
+                 $condicionCargaVehiculos = "
+                    (
+                        od.produccion > 0
+                        OR EXISTS (
+                            SELECT 1
+                            FROM rrhh_persona rp_cliente
+                            INNER JOIN op_despacho od_cliente ON od_cliente.idcliente = rp_cliente.id
+                            WHERE od_cliente.id = od.id
+                            AND rp_cliente.b_cliente = 1
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi
+                            LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                            WHERE odi.despacho_id = od.id
+                            AND odi.idproducto IS NOT NULL
+                            AND odi.idproducto NOT IN ($productosVaciosStr)
+                            AND odi.idproducto != 0
+                            AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM op_despacho_item odi2
+                            WHERE odi2.despacho_id = od.id
+                            AND (odi2.precio_unit > 0 OR odi2.total > 0)
+                        )
+                    )
+                ";
+
                 // Conductores por debajo del umbral
                 $conductores = DB::select("
                     SELECT 
@@ -681,14 +888,18 @@ class OpGoalTravelService extends BaseService
                         COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
                     FROM rrhh_persona rp
                     LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
-                        AND od.estado = 9
+                        AND od.estado <> 10 
                         AND YEAR(od.fecha_viaje) = ?
                         AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCargaConductores} 
                     WHERE rp.b_empleado = 1 
                         AND rp.status_id = 22 
+                        AND rp.cargo_id in (11,12)
                         AND rp.status_deleted = 1
+                        AND rp.sede_id = 1 
                     GROUP BY rp.id, rp.nombre_completo
-                    HAVING porcentaje < ? AND porcentaje > 0
+                    HAVING porcentaje < ?  -- Ya no excluimos porcentaje = 0
+                    ORDER BY porcentaje ASC
                 ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month, $threshold]);
 
                 // Vehículos por debajo del umbral
@@ -702,15 +913,18 @@ class OpGoalTravelService extends BaseService
                         COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
                     FROM op_vehiculo v
                     LEFT JOIN op_despacho od ON od.tracto_id = v.id 
-                        AND od.estado = 9
+                        AND od.estado <> 10  -- MISMA CONDICIÓN que conductores
                         AND YEAR(od.fecha_viaje) = ?
                         AND MONTH(od.fecha_viaje) = ?
+                        AND {$condicionCargaVehiculos}  -- Solo viajes con carga real
                     WHERE v.tipo_vehiculo_id = 1 
                         AND v.status_deleted = 1 
                         AND v.vehiculo_status = 1
                         AND v.tercero = 0
+                        AND v.sede_id = 1  -- Agregar filtro de sede
                     GROUP BY v.id, v.placa
-                    HAVING porcentaje < ? AND porcentaje > 0
+                    HAVING porcentaje < ?  -- Ya no excluimos porcentaje = 0
+                    ORDER BY porcentaje ASC
                 ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month, $threshold]);
 
                 return [
@@ -764,13 +978,6 @@ class OpGoalTravelService extends BaseService
         return true;
     }
 
-    /**
-     * Obtiene datos para el análisis estratégico
-     * - Tendencia últimos 6 meses
-     * - Top clientes (crecimiento/decrecimiento)
-     * - Proyección de cierre del mes actual
-     * - Distribución por cliente
-     */
     public function getAnalisisEstrategico(?string $fechaInicio = null, ?string $fechaFin = null): array
     {
         $fechas = $this->prepareAndValidateFechas($fechaInicio, $fechaFin);
@@ -852,6 +1059,7 @@ class OpGoalTravelService extends BaseService
         //calcular distribución Pareto
         $distribucion = $this->calculateParetoOptimizado($fechas);
 
+
         return [
             'tendencia' => $tendencia,
             'top_crecimiento' => array_slice($clientesData['crecimiento'], 0, self::TOP_LIMIT),
@@ -904,160 +1112,6 @@ class OpGoalTravelService extends BaseService
             'dias_transcurridos' => $diasTranscurridos,
             'dias_totales' => $diasTotales,
             'periodo' => self::MESES[$month] . ' ' . $year,
-        ];
-    }
-
-    private function getClientesDataOptimizada(array $fechas): array
-    {
-        $mesActual = $fechas['month_fin'];
-        $anioActual = $fechas['year_fin'];
-
-        // Obtener mes anterior dentro del rango
-        $mesAnteriorData = $this->getMesAnteriorEnRango($fechas);
-        $mesAnterior = $mesAnteriorData['month'];
-        $anioAnterior = $mesAnteriorData['year'];
-
-        // Una sola consulta para obtener todos los datos
-        $clientesData = DB::select("
-            SELECT 
-                rp.id as cliente_id,
-                rp.nombre_completo as cliente,
-                COALESCE(SUM(CASE 
-                    WHEN YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ? 
-                    THEN od.produccion 
-                    ELSE 0 
-                END), 0) as produccion_actual,
-                COALESCE(SUM(CASE 
-                    WHEN YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ? 
-                    THEN od.produccion 
-                    ELSE 0 
-                END), 0) as produccion_anterior
-            FROM op_despacho od
-            INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
-            WHERE od.estado <> 10
-                AND (
-                    (YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?)
-                    OR (YEAR(od.fecha_viaje) = ? AND MONTH(od.fecha_viaje) = ?)
-                )
-            GROUP BY rp.id, rp.nombre_completo
-        ", [
-            $anioActual,
-            $mesActual,
-            $anioAnterior,
-            $mesAnterior,
-            $anioActual,
-            $mesActual,
-            $anioAnterior,
-            $mesAnterior
-        ]);
-
-        return $this->processClientesData($clientesData);
-    }
-
-    private function getMesAnteriorEnRango(array $fechas): array
-    {
-        $mesAnterior = $fechas['fin']->copy()->subMonth();
-
-        if ($mesAnterior->lt($fechas['inicio'])) {
-            return [
-                'year' => $fechas['year_inicio'],
-                'month' => $fechas['month_inicio']
-            ];
-        }
-
-        return [
-            'year' => $mesAnterior->year,
-            'month' => $mesAnterior->month
-        ];
-    }
-    private function processClientesData(array $clientesData): array
-    {
-        $clientesActual = [];
-        $clientesAnterior = [];
-        $mapaAnterior = [];
-        $clientesActualIds = [];
-        $clientesAnteriorIds = [];
-
-        foreach ($clientesData as $item) {
-            $actual = (float) $item->produccion_actual;
-            $anterior = (float) $item->produccion_anterior;
-
-            if ($actual > 0) {
-                $clientesActual[] = $item;
-                $clientesActualIds[] = $item->cliente_id;
-            }
-
-            if ($anterior > 0) {
-                $clientesAnterior[] = $item;
-                $clientesAnteriorIds[] = $item->cliente_id;
-                $mapaAnterior[$item->cliente_id] = $anterior;
-            }
-        }
-
-        // Clientes nuevos e inactivos
-        $nuevos = [];
-        $inactivos = [];
-
-        foreach ($clientesActual as $item) {
-            if (!in_array($item->cliente_id, $clientesAnteriorIds)) {
-                $nuevos[] = [
-                    'cliente_id' => (int) $item->cliente_id,
-                    'cliente' => $item->cliente,
-                    'produccion' => (float) $item->produccion_actual,
-                ];
-            }
-        }
-
-        foreach ($clientesAnterior as $item) {
-            if (!in_array($item->cliente_id, $clientesActualIds)) {
-                $inactivos[] = [
-                    'cliente_id' => (int) $item->cliente_id,
-                    'cliente' => $item->cliente,
-                    'produccion' => (float) $item->produccion_anterior,
-                ];
-            }
-        }
-
-        // Ordenar
-        usort($nuevos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
-        usort($inactivos, fn($a, $b) => $b['produccion'] <=> $a['produccion']);
-
-        // Crecimiento y decrecimiento
-        $crecimiento = [];
-        $decrecimiento = [];
-
-        foreach ($clientesActual as $item) {
-            $actual = (float) $item->produccion_actual;
-            $anterior = $mapaAnterior[$item->cliente_id] ?? 0;
-            $diferencia = $actual - $anterior;
-            $variacion = $anterior > 0
-                ? round(($diferencia / $anterior) * 100, 2)
-                : ($actual > 0 ? 100 : 0);
-
-            $data = [
-                'cliente_id' => (int) $item->cliente_id,
-                'cliente' => $item->cliente,
-                'actual' => $actual,
-                'anterior' => $anterior,
-                'diferencia' => $diferencia,
-                'variacion' => $variacion,
-            ];
-
-            if ($diferencia > 0) {
-                $crecimiento[] = $data;
-            } elseif ($diferencia < 0) {
-                $decrecimiento[] = $data;
-            }
-        }
-
-        usort($crecimiento, fn($a, $b) => $b['diferencia'] <=> $a['diferencia']);
-        usort($decrecimiento, fn($a, $b) => $a['diferencia'] <=> $b['diferencia']);
-
-        return [
-            'nuevos' => $nuevos,
-            'inactivos' => $inactivos,
-            'crecimiento' => $crecimiento,
-            'decrecimiento' => $decrecimiento,
         ];
     }
 
@@ -1176,9 +1230,6 @@ class OpGoalTravelService extends BaseService
         return $result;
     }
 
-    /**
-     * Obtiene análisis estratégico con predicción IA
-     */
     public function getAnalisisEstrategicoConPrediccion(
         ?string $fechaInicio = null,
         ?string $fechaFin = null,
@@ -1208,5 +1259,934 @@ class OpGoalTravelService extends BaseService
         }
 
         return $analisis;
+    }
+
+    private function getClientesDataOptimizada(array $fechas): array
+    {
+        // Período actual (todo el rango seleccionado)
+        $inicioActual = $fechas['inicio_str'];
+        $finActual = $fechas['fin_str'];
+        $inicioCarbon = Carbon::parse($inicioActual);
+        $finCarbon = Carbon::parse($finActual);
+
+        // Período anterior (mismo rango, año anterior)
+        $anteriorInicio = $inicioCarbon->copy()->subYear()->toDateString();
+        $anteriorFin = $finCarbon->copy()->subYear()->toDateString();
+        // 1. Obtener datos agregados por cliente para ambos períodos
+        $clientesData = DB::select("
+        SELECT 
+            rp.id as cliente_id,
+            rp.nombre_completo as cliente,
+            rp.vat as ruc,
+            -- Período actual
+            COALESCE(SUM(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.produccion 
+                ELSE 0 
+            END), 0) as produccion_actual,
+            COALESCE(COUNT(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.id 
+            END), 0) as viajes_actual,
+            COALESCE(AVG(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.produccion 
+            END), 0) as promedio_viaje_actual,
+            -- Período anterior
+            COALESCE(SUM(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.produccion 
+                ELSE 0 
+            END), 0) as produccion_anterior,
+            COALESCE(COUNT(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.id 
+            END), 0) as viajes_anterior,
+            COALESCE(AVG(CASE 
+                WHEN DATE(od.fecha_viaje) BETWEEN ? AND ? 
+                THEN od.produccion 
+            END), 0) as promedio_viaje_anterior
+        FROM op_despacho od
+        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+        WHERE od.estado <> 10
+            AND (
+                DATE(od.fecha_viaje) BETWEEN ? AND ?
+                OR DATE(od.fecha_viaje) BETWEEN ? AND ?
+            )
+        GROUP BY rp.id, rp.nombre_completo, rp.vat
+    ", [
+            $inicioActual,
+            $finActual,
+            $inicioActual,
+            $finActual,
+            $inicioActual,
+            $finActual,
+            $anteriorInicio,
+            $anteriorFin,
+            $anteriorInicio,
+            $anteriorFin,
+            $anteriorInicio,
+            $anteriorFin,
+            $inicioActual,
+            $finActual,
+            $anteriorInicio,
+            $anteriorFin
+        ]);
+
+        // 2. Obtener datos mensuales por cliente (para tendencias)
+        $datosMensuales = $this->getClientesMensuales($fechas);
+
+        // 3. Procesar y enriquecer los datos
+        return $this->processClientesDataAvanzado($clientesData, $datosMensuales, $fechas);
+    }
+
+    /**
+     * Obtiene la producción mensual de cada cliente en el período
+     */
+    private function getClientesMensuales(array $fechas): array
+    {
+        $inicio = $fechas['inicio_str'];
+        $fin = $fechas['fin_str'];
+
+        $resultados = DB::select("
+        SELECT 
+            rp.id as cliente_id,
+            rp.nombre_completo as cliente,
+            YEAR(od.fecha_viaje) as year,
+            MONTH(od.fecha_viaje) as month,
+            COALESCE(SUM(od.produccion), 0) as produccion,
+            COUNT(od.id) as viajes
+        FROM op_despacho od
+        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+        WHERE od.estado <> 10
+            AND DATE(od.fecha_viaje) BETWEEN ? AND ?
+        GROUP BY rp.id, rp.nombre_completo, YEAR(od.fecha_viaje), MONTH(od.fecha_viaje)
+        ORDER BY YEAR(od.fecha_viaje), MONTH(od.fecha_viaje)
+    ", [$inicio, $fin]);
+
+        $data = [];
+        foreach ($resultados as $item) {
+            $key = "{$item->cliente_id}";
+            if (!isset($data[$key])) {
+                $data[$key] = [
+                    'cliente_id' => $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'mensual' => []
+                ];
+            }
+            $data[$key]['mensual'][] = [
+                'periodo' => self::MESES[$item->month] . ' ' . $item->year,
+                'year' => $item->year,
+                'month' => $item->month,
+                'produccion' => (float) $item->produccion,
+                'viajes' => (int) $item->viajes
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Procesa datos de clientes con análisis avanzado
+     */
+    private function processClientesDataAvanzado(array $clientesData, array $datosMensuales, array $fechas): array
+    {
+        $resultados = [
+            'crecimiento' => [],
+            'decrecimiento' => [],
+            'nuevos' => [],
+            'inactivos' => [],
+            'top_meses_decrecimiento' => [],
+            'resumen' => [
+                'total_clientes_actual' => 0,
+                'total_clientes_anterior' => 0,
+                'clientes_con_crecimiento' => 0,
+                'clientes_con_decrecimiento' => 0,
+                'clientes_nuevos' => 0,
+                'clientes_inactivos' => 0,
+                'total_produccion_actual' => 0,
+                'total_produccion_anterior' => 0,
+                'variacion_total' => 0,
+                'porcentaje_variacion' => 0,
+                'periodo_actual' => '',
+                'periodo_anterior' => '',
+                'mejor_mes' => null,
+                'peor_mes' => null,
+            ]
+        ];
+
+        $clientesActual = [];
+        $clientesAnterior = [];
+        $clientesActualIds = [];
+        $clientesAnteriorIds = [];
+        $totalActual = 0;
+        $totalAnterior = 0;
+        $todosMeses = [];
+
+        foreach ($clientesData as $item) {
+            $actual = (float) $item->produccion_actual;
+            $anterior = (float) $item->produccion_anterior;
+            $viajesActual = (int) $item->viajes_actual;
+            $viajesAnterior = (int) $item->viajes_anterior;
+
+            if ($actual > 0 || $anterior > 0) {
+                $datosMensualesCliente = $datosMensuales[$item->cliente_id]['mensual'] ?? [];
+                $tendencia = $this->calcularTendencia($datosMensualesCliente);
+                $categoria = $this->categorizarCliente($actual, $anterior);
+                $variacion = $anterior > 0
+                    ? round((($actual - $anterior) / $anterior) * 100, 2)
+                    : ($actual > 0 ? 100 : 0);
+
+                // Recolectar meses para análisis de decrecimiento
+                foreach ($datosMensualesCliente as $mes) {
+                    $key = $mes['periodo'];
+                    if (!isset($todosMeses[$key])) {
+                        $todosMeses[$key] = [
+                            'periodo' => $mes['periodo'],
+                            'year' => $mes['year'],
+                            'month' => $mes['month'],
+                            'decrementos' => 0,
+                            'clientes_afectados' => []
+                        ];
+                    }
+                }
+
+                $clienteInfo = [
+                    'cliente_id' => (int) $item->cliente_id,
+                    'cliente' => $item->cliente,
+                    'ruc' => $item->ruc ?? null,
+                    'telefono' => $item->telefono ?? null,
+                    'correo' => $item->correo ?? null,
+                    // CAMPOS PARA EL FRONTEND (NOMBRES ORIGINALES)
+                    'actual' => $actual,
+                    'anterior' => $anterior,
+                    'variacion' => $variacion,
+                    'diferencia' => $actual - $anterior,
+                    // CAMPOS ADICIONALES
+                    'produccion_actual' => $actual,
+                    'produccion_anterior' => $anterior,
+                    'viajes_actual' => $viajesActual,
+                    'viajes_anterior' => $viajesAnterior,
+                    'promedio_viaje_actual' => (float) $item->promedio_viaje_actual,
+                    'promedio_viaje_anterior' => (float) $item->promedio_viaje_anterior,
+                    'variacion_produccion' => $actual - $anterior,
+                    'variacion_viajes' => $viajesActual - $viajesAnterior,
+                    'porcentaje_variacion' => $variacion,
+                    'mensual' => $datosMensualesCliente,
+                    'tendencia' => $tendencia,
+                    'categoria' => $categoria,
+                    'mes_maximo' => $tendencia['mes_maximo'] ?? null,
+                    'mes_minimo' => $tendencia['mes_minimo'] ?? null,
+                ];
+
+                if ($actual > 0) {
+                    $clientesActual[] = $clienteInfo;
+                    $clientesActualIds[] = $item->cliente_id;
+                    $totalActual += $actual;
+                }
+
+                if ($anterior > 0) {
+                    $clientesAnterior[] = $clienteInfo;
+                    $clientesAnteriorIds[] = $item->cliente_id;
+                    $totalAnterior += $anterior;
+                }
+            }
+        }
+
+        // Clasificar clientes
+        foreach ($clientesActual as $cliente) {
+            if (!in_array($cliente['cliente_id'], $clientesAnteriorIds)) {
+                // Para nuevos clientes, mantener compatibilidad
+                $cliente['produccion'] = $cliente['produccion_actual'];
+                $cliente['produccion_anterior'] = 0;
+                $resultados['nuevos'][] = $cliente;
+            } else {
+                $variacion = $cliente['variacion_produccion'];
+                if ($variacion > 0) {
+                    $resultados['crecimiento'][] = $cliente;
+                } elseif ($variacion < 0) {
+                    $resultados['decrecimiento'][] = $cliente;
+
+                    // Analizar en qué mes tuvo más decrecimiento
+                    $meses = $cliente['mensual'] ?? [];
+                    for ($i = 1; $i < count($meses); $i++) {
+                        $decremento = $meses[$i]['produccion'] - $meses[$i - 1]['produccion'];
+                        if ($decremento < 0) {
+                            $key = $meses[$i]['periodo'];
+                            if (isset($todosMeses[$key])) {
+                                $todosMeses[$key]['decrementos'] += abs($decremento);
+                                $todosMeses[$key]['clientes_afectados'][] = $cliente['cliente'];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($clientesAnterior as $cliente) {
+            if (!in_array($cliente['cliente_id'], $clientesActualIds)) {
+                // Para clientes inactivos, mantener compatibilidad
+                $cliente['produccion'] = $cliente['produccion_anterior'];
+                $cliente['produccion_actual'] = 0;
+                $resultados['inactivos'][] = $cliente;
+            }
+        }
+
+        // Ordenar
+        usort($resultados['crecimiento'], fn($a, $b) => $b['variacion_produccion'] <=> $a['variacion_produccion']);
+        usort($resultados['decrecimiento'], fn($a, $b) => $a['variacion_produccion'] <=> $b['variacion_produccion']);
+        usort($resultados['nuevos'], fn($a, $b) => $b['produccion_actual'] <=> $a['produccion_actual']);
+        usort($resultados['inactivos'], fn($a, $b) => $b['produccion_anterior'] <=> $a['produccion_anterior']);
+
+        // Top meses con más decrecimiento
+        $topMesesDecrecimiento = array_filter($todosMeses, fn($mes) => $mes['decrementos'] > 0);
+        usort($topMesesDecrecimiento, fn($a, $b) => $b['decrementos'] <=> $a['decrementos']);
+        $resultados['top_meses_decrecimiento'] = array_slice($topMesesDecrecimiento, 0, 5);
+
+        // Calcular mejor y peor mes
+        $todosLosMeses = [];
+        foreach ($datosMensuales as $cliente) {
+            foreach ($cliente['mensual'] as $mes) {
+                $key = $mes['periodo'];
+                if (!isset($todosLosMeses[$key])) {
+                    $todosLosMeses[$key] = ['periodo' => $mes['periodo'], 'total' => 0];
+                }
+                $todosLosMeses[$key]['total'] += $mes['produccion'];
+            }
+        }
+        $mejorMes = !empty($todosLosMeses) ? array_reduce($todosLosMeses, fn($max, $item) => (!$max || $item['total'] > $max['total']) ? $item : $max) : null;
+        $peorMes = !empty($todosLosMeses) ? array_reduce($todosLosMeses, fn($min, $item) => (!$min || $item['total'] < $min['total']) ? $item : $min) : null;
+
+        // Resumen
+        $periodoActual = Carbon::parse($fechas['inicio_str'])->format('M Y') . ' - ' . Carbon::parse($fechas['fin_str'])->format('M Y');
+        $periodoAnterior = Carbon::parse($fechas['inicio_str'])->subYear()->format('M Y') . ' - ' . Carbon::parse($fechas['fin_str'])->subYear()->format('M Y');
+        $variacionTotal = $totalActual - $totalAnterior;
+        $porcentajeVariacion = $totalAnterior > 0 ? round(($variacionTotal / $totalAnterior) * 100, 2) : 0;
+
+        $resultados['resumen'] = [
+            'total_clientes_actual' => count($clientesActual),
+            'total_clientes_anterior' => count($clientesAnterior),
+            'clientes_con_crecimiento' => count($resultados['crecimiento']),
+            'clientes_con_decrecimiento' => count($resultados['decrecimiento']),
+            'clientes_nuevos' => count($resultados['nuevos']),
+            'clientes_inactivos' => count($resultados['inactivos']),
+            'total_produccion_actual' => $totalActual,
+            'total_produccion_anterior' => $totalAnterior,
+            'variacion_total' => $variacionTotal,
+            'porcentaje_variacion' => $porcentajeVariacion,
+            'periodo_actual' => $periodoActual,
+            'periodo_anterior' => $periodoAnterior,
+            'mejor_mes' => $mejorMes ? ['periodo' => $mejorMes['periodo'], 'total' => $mejorMes['total']] : null,
+            'peor_mes' => $peorMes ? ['periodo' => $peorMes['periodo'], 'total' => $peorMes['total']] : null,
+        ];
+
+        return $resultados;
+    }
+    /**
+     * Calcula la tendencia de un cliente basado en sus datos mensuales
+     */
+    private function calcularTendencia(array $datosMensuales): array
+    {
+        if (count($datosMensuales) < 2) {
+            return [
+                'tipo' => 'insuficiente',
+                'descripcion' => 'Datos insuficientes',
+                'cambios_positivos' => 0,
+                'cambios_negativos' => 0,
+                'variacion_total_periodo' => 0,
+                'porcentaje_total' => 0,
+                'mes_maximo' => null,
+                'mes_minimo' => null,
+            ];
+        }
+
+        $valores = array_column($datosMensuales, 'produccion');
+        $cambios = [];
+
+        for ($i = 1; $i < count($valores); $i++) {
+            $cambios[] = $valores[$i] - $valores[$i - 1];
+        }
+
+        $positivos = count(array_filter($cambios, fn($v) => $v > 0));
+        $negativos = count(array_filter($cambios, fn($v) => $v < 0));
+
+        if ($positivos > $negativos * 1.5) {
+            $tipo = 'creciente_fuerte';
+            $descripcion = '🚀 Crecimiento acelerado';
+        } elseif ($positivos > $negativos) {
+            $tipo = 'creciente';
+            $descripcion = '📈 Tendencia al alza';
+        } elseif ($negativos > $positivos * 1.5) {
+            $tipo = 'decreciente_fuerte';
+            $descripcion = '⚠️ Caída pronunciada';
+        } elseif ($negativos > $positivos) {
+            $tipo = 'decreciente';
+            $descripcion = '📉 Tendencia a la baja';
+        } else {
+            $tipo = 'estable';
+            $descripcion = '➖ Estable';
+        }
+
+        $ultimoMes = end($datosMensuales);
+        $primerMes = reset($datosMensuales);
+
+        return [
+            'tipo' => $tipo,
+            'descripcion' => $descripcion,
+            'cambios_positivos' => $positivos,
+            'cambios_negativos' => $negativos,
+            'variacion_total_periodo' => $ultimoMes['produccion'] - $primerMes['produccion'],
+            'porcentaje_total' => $primerMes['produccion'] > 0
+                ? round((($ultimoMes['produccion'] - $primerMes['produccion']) / $primerMes['produccion']) * 100, 2)
+                : 0,
+            'mes_maximo' => array_reduce($datosMensuales, function ($max, $item) {
+                return (!$max || $item['produccion'] > $max['produccion']) ? $item : $max;
+            }, null),
+            'mes_minimo' => array_reduce($datosMensuales, function ($min, $item) {
+                return (!$min || $item['produccion'] < $min['produccion']) ? $item : $min;
+            }, null),
+        ];
+    }
+
+    /**
+     * Categoriza al cliente según su comportamiento
+     */
+    private function categorizarCliente(float $actual, float $anterior): string
+    {
+        if ($actual > 0 && $anterior == 0) return 'nuevo';
+        if ($actual == 0 && $anterior > 0) return 'inactivo';
+
+        if ($anterior == 0) return 'nuevo';
+
+        $variacion = ($actual - $anterior) / $anterior;
+
+        if ($variacion > 0.3) return 'alto_crecimiento';
+        if ($variacion > 0.1) return 'crecimiento';
+        if ($variacion > -0.1) return 'estable';
+        if ($variacion > -0.3) return 'decrecimiento';
+        return 'alto_decrecimiento';
+    }
+
+
+
+    public function exportComparativaClientes(int $year1, int $month1, ?int $year2 = null, ?int $month2 = null)
+    {
+        if ($year2 === null || $month2 === null) {
+            $year2 = $year1;
+            $month2 = $month1 - 1;
+            if ($month2 == 0) {
+                $month2 = 12;
+                $year2 = $year1 - 1;
+            }
+        }
+
+        // Obtener los mismos datos que en getComparativaMensual
+        $fecha1 = Carbon::create($year1, $month1, 1);
+        $fecha2 = Carbon::create($year2, $month2, 1);
+
+        $productosVacios = [109];
+        $productosVaciosStr = implode(',', $productosVacios);
+
+        $condicionCarga = "
+        (
+            od.produccion > 0
+            OR (rp.b_cliente = 1)
+            OR EXISTS (
+                SELECT 1
+                FROM op_despacho_item odi
+                LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+                WHERE odi.despacho_id = od.id
+                  AND odi.idproducto IS NOT NULL
+                  AND odi.idproducto NOT IN ($productosVaciosStr)
+                  AND odi.idproducto != 0
+                  AND (odi.precio_unit > 0 OR odi.total > 0 OR COALESCE(fps.descripcion, '') NOT LIKE '%VACIO%')
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM op_despacho_item odi2
+                WHERE odi2.despacho_id = od.id
+                  AND (odi2.precio_unit > 0 OR odi2.total > 0)
+            )
+        )
+    ";
+
+        // Obtener datos detallados de clientes para el período 1 (actual)
+        $datosDetallados1 = DB::select("
+        SELECT 
+            rp.id as cliente_id,
+            rp.nombre_completo as cliente,
+            rp.vat as ruc,
+            od.id as viaje_id,
+            CONCAT('TPV', LPAD(od.id, 8, '0')) as codigo_viaje,
+            od.fecha_viaje,
+            od.produccion,
+            od.condiciones,
+            od.nliquidacion,
+            v.placa as tracto,
+            v2.placa as carreta,
+            CONCAT(rp_conductor.nombre_completo) as conductor,
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(fps.descripcion, ' (', odi.cantidad, ' und)') SEPARATOR ', ')
+             FROM op_despacho_item odi
+             LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+             WHERE odi.despacho_id = od.id
+            ) as productos,
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(rco.descripcion, ' - ', rci.descripcion) SEPARATOR ', ')
+             FROM op_despacho_item odi
+             LEFT JOIN fac_ciudades_sales rci ON rci.id = odi.iddestino
+             LEFT JOIN fac_ciudades_sales rco ON rco.id = odi.idorigen
+             WHERE odi.despacho_id = od.id
+            ) as ruta
+        FROM op_despacho od
+        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+        LEFT JOIN op_vehiculo v ON v.id = od.tracto_id
+        LEFT JOIN op_vehiculo v2 ON v2.id = od.carreta_id
+        LEFT JOIN rrhh_persona rp_conductor ON rp_conductor.id = od.conductor_id
+        WHERE od.estado <> 10
+            AND rp.sede_id = 1
+            AND YEAR(od.fecha_viaje) = ?
+            AND MONTH(od.fecha_viaje) = ?
+            AND {$condicionCarga}
+        ORDER BY rp.nombre_completo, od.fecha_viaje DESC
+    ", [$year1, $month1]);
+
+        // Obtener datos detallados de clientes para el período 2 (anterior)
+        $datosDetallados2 = DB::select("
+        SELECT 
+            rp.id as cliente_id,
+            rp.nombre_completo as cliente,
+            rp.vat as ruc,
+            od.id as viaje_id,
+            CONCAT('TPV', LPAD(od.id, 8, '0')) as codigo_viaje,
+            od.fecha_viaje,
+            od.produccion,
+            od.condiciones,
+            od.nliquidacion,
+            v.placa as tracto,
+            v2.placa as carreta,
+            CONCAT(rp_conductor.nombre_completo) as conductor,
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(fps.descripcion, ' (', odi.cantidad, ' und)') SEPARATOR ', ')
+             FROM op_despacho_item odi
+             LEFT JOIN fac_producto_sales fps ON fps.id = odi.idproducto
+             WHERE odi.despacho_id = od.id
+            ) as productos,
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(rco.descripcion, ' - ', rci.descripcion) SEPARATOR ', ')
+             FROM op_despacho_item odi
+             LEFT JOIN fac_ciudades_sales rci ON rci.id = odi.iddestino
+             LEFT JOIN fac_ciudades_sales rco ON rco.id = odi.idorigen
+             WHERE odi.despacho_id = od.id
+            ) as ruta
+        FROM op_despacho od
+        INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+        LEFT JOIN op_vehiculo v ON v.id = od.tracto_id
+        LEFT JOIN op_vehiculo v2 ON v2.id = od.carreta_id
+        LEFT JOIN rrhh_persona rp_conductor ON rp_conductor.id = od.conductor_id
+        WHERE od.estado <> 10
+            AND rp.sede_id = 1
+            AND YEAR(od.fecha_viaje) = ?
+            AND MONTH(od.fecha_viaje) = ?
+            AND {$condicionCarga}
+        ORDER BY rp.nombre_completo, od.fecha_viaje DESC
+    ", [$year2, $month2]);
+
+        // Obtener resumen por cliente para ambos períodos
+        $totalViajes1 = count($datosDetallados1);
+        $totalProd1 = array_sum(array_column($datosDetallados1, 'produccion'));
+        $totalViajes2 = count($datosDetallados2);
+        $totalProd2 = array_sum(array_column($datosDetallados2, 'produccion'));
+
+        // 2. Obtener datos resumidos por cliente para ambos períodos
+        $clientesMap = [];
+
+        // Procesar datos actuales
+        foreach ($datosDetallados1 as $item) {
+            $id = $item->cliente_id;
+            if (!isset($clientesMap[$id])) {
+                $clientesMap[$id] = [
+                    'cliente' => $item->cliente,
+                    'viajes1' => 0,
+                    'prod1' => 0,
+                    'viajes2' => 0,
+                    'prod2' => 0
+                ];
+            }
+            $clientesMap[$id]['viajes1']++;
+            $clientesMap[$id]['prod1'] += (float) $item->produccion;
+        }
+
+        // Procesar datos anteriores
+        foreach ($datosDetallados2 as $item) {
+            $id = $item->cliente_id;
+            if (!isset($clientesMap[$id])) {
+                $clientesMap[$id] = [
+                    'cliente' => $item->cliente,
+                    'viajes1' => 0,
+                    'prod1' => 0,
+                    'viajes2' => 0,
+                    'prod2' => 0
+                ];
+            }
+            $clientesMap[$id]['viajes2']++;
+            $clientesMap[$id]['prod2'] += (float) $item->produccion;
+        }
+
+        // 3. Construir arrays para la hoja de comparativa
+        $clientes = [];
+        $viajes1 = [];
+        $viajes2 = [];
+        $produccion1 = [];
+        $produccion2 = [];
+
+        foreach ($clientesMap as $id => $data) {
+            $clientes[] = $data['cliente'];
+            $viajes1[] = $data['viajes1'];
+            $viajes2[] = $data['viajes2'];
+            $produccion1[] = $data['prod1'];
+            $produccion2[] = $data['prod2'];
+        }
+
+        // Ordenar por viajes actuales descendente
+        array_multisort($viajes1, SORT_DESC, $clientes, $viajes2, $produccion1, $produccion2);
+
+        // Calcular participaciones
+        $participacion1 = [];
+        $participacion2 = [];
+        foreach ($produccion1 as $prod) {
+            $participacion1[] = $totalProd1 > 0 ? round(($prod / $totalProd1) * 100, 2) : 0;
+        }
+        foreach ($produccion2 as $prod) {
+            $participacion2[] = $totalProd2 > 0 ? round(($prod / $totalProd2) * 100, 2) : 0;
+        }
+
+        // 4. Construir el resumen para la hoja de comparativa
+        $resumenComparativa = [
+            'clientes' => $clientes,
+            'viajes_actual' => $viajes1,
+            'viajes_anterior' => $viajes2,
+            'produccion_actual' => $produccion1,
+            'produccion_anterior' => $produccion2,
+            'participacion_actual' => $participacion1,
+            'participacion_anterior' => $participacion2,
+            'resumen' => [
+                'actual' => [
+                    'viajes' => $totalViajes1,
+                    'produccion' => $totalProd1,
+                    'label' => self::MESES[$month1] . ' ' . $year1,
+                ],
+                'anterior' => [
+                    'viajes' => $totalViajes2,
+                    'produccion' => $totalProd2,
+                    'label' => self::MESES[$month2] . ' ' . $year2,
+                ]
+            ]
+        ];
+
+
+
+        // Generar Excel
+        $spreadsheet = new Spreadsheet();
+
+        // Hoja 1: Resumen General
+        $this->crearHojaResumen($spreadsheet, $resumenComparativa, $year1, $month1, $year2, $month2);
+
+        // Hoja 2: Detalle de Viajes - Período Actual
+        $this->crearHojaDetalleViajes($spreadsheet, $datosDetallados1, $year1, $month1, 'Actual');
+
+        // Hoja 3: Detalle de Viajes - Período Anterior
+        $this->crearHojaDetalleViajes($spreadsheet, $datosDetallados2, $year2, $month2, 'Anterior');
+
+        // Hoja 4: Comparativa por Cliente
+        $this->crearHojaComparativaCliente($spreadsheet, $resumenComparativa);
+
+        // Configurar el writer y descargar
+        $writer = new Xlsx($spreadsheet);
+
+        $filename = 'Comparativa_Clientes_' . $year1 . '-' . str_pad($month1, 2, '0', STR_PAD_LEFT) .
+            '_vs_' . $year2 . '-' . str_pad($month2, 2, '0', STR_PAD_LEFT) . '.xlsx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'export_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    private function crearHojaResumen($spreadsheet, $resumen, $year1, $month1, $year2, $month2)
+    {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Resumen');
+
+        // Título
+        $sheet->setCellValue('A1', 'COMPARATIVA MENSUAL DE PRODUCCIÓN POR CLIENTE');
+        $sheet->mergeCells('A1:E1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Subtítulo
+        $periodo1 = self::MESES[$month1] . ' ' . $year1;
+        $periodo2 = self::MESES[$month2] . ' ' . $year2;
+        $sheet->setCellValue('A2', 'Comparando: ' . $periodo1 . ' vs ' . $periodo2);
+        $sheet->mergeCells('A2:E2');
+        $sheet->getStyle('A2')->getFont()->setItalic(true);
+
+        // Fila vacía
+        $sheet->setCellValue('A4', '');
+
+        // Encabezados
+        $sheet->setCellValue('A4', 'Cliente');
+        $sheet->setCellValue('B4', 'Viajes ' . $periodo1);
+        $sheet->setCellValue('C4', 'Producción ' . $periodo1);
+        $sheet->setCellValue('D4', 'Viajes ' . $periodo2);
+        $sheet->setCellValue('E4', 'Producción ' . $periodo2);
+        $sheet->setCellValue('F4', 'Variación Viajes');
+        $sheet->setCellValue('G4', 'Variación Producción');
+
+        // Estilo de encabezados
+        $sheet->getStyle('A4:G4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:G4')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('4472C4');
+        $sheet->getStyle('A4:G4')->getFont()->getColor()->setRGB('FFFFFF');
+
+        // Datos
+        $row = 5;
+        $totalActual = 0;
+        $totalAnterior = 0;
+
+        foreach ($resumen['clientes'] as $index => $cliente) {
+            $sheet->setCellValue('A' . $row, $cliente);
+            $sheet->setCellValue('B' . $row, $resumen['viajes_actual'][$index] ?? 0);
+            $sheet->setCellValue('C' . $row, $resumen['produccion_actual'][$index] ?? 0);
+            $sheet->setCellValue('D' . $row, $resumen['viajes_anterior'][$index] ?? 0);
+            $sheet->setCellValue('E' . $row, $resumen['produccion_anterior'][$index] ?? 0);
+
+            $varViajes = ($resumen['viajes_actual'][$index] ?? 0) - ($resumen['viajes_anterior'][$index] ?? 0);
+            $varProd = ($resumen['produccion_actual'][$index] ?? 0) - ($resumen['produccion_anterior'][$index] ?? 0);
+
+            $sheet->setCellValue('F' . $row, $varViajes);
+            $sheet->setCellValue('G' . $row, $varProd);
+
+            // Color según variación
+            if ($varProd > 0) {
+                $sheet->getStyle('G' . $row)->getFont()->getColor()->setRGB('00B050');
+            } elseif ($varProd < 0) {
+                $sheet->getStyle('G' . $row)->getFont()->getColor()->setRGB('FF0000');
+            }
+
+            $totalActual += $resumen['produccion_actual'][$index] ?? 0;
+            $totalAnterior += $resumen['produccion_anterior'][$index] ?? 0;
+            $row++;
+        }
+
+        // Fila de totales
+        $sheet->setCellValue('A' . $row, 'TOTAL');
+        $sheet->setCellValue('B' . $row, array_sum($resumen['viajes_actual']));
+        $sheet->setCellValue('C' . $row, $totalActual);
+        $sheet->setCellValue('D' . $row, array_sum($resumen['viajes_anterior']));
+        $sheet->setCellValue('E' . $row, $totalAnterior);
+        $sheet->setCellValue('F' . $row, array_sum($resumen['viajes_actual']) - array_sum($resumen['viajes_anterior']));
+        $sheet->setCellValue('G' . $row, $totalActual - $totalAnterior);
+
+        $sheet->getStyle('A' . $row . ':G' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row . ':G' . $row)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('E7E6E6');
+
+        // Ajustar columnas
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+    }
+
+    private function crearHojaDetalleViajes($spreadsheet, $datos, $year, $month, $periodo)
+    {
+        // Crear nueva hoja
+        $sheet = $spreadsheet->createSheet();
+        $hojaNombre = 'Detalle Viajes ' . $periodo;
+        $sheet->setTitle($hojaNombre);
+
+        $rowIndex = 1;
+
+        // Título
+        $sheet->setCellValue('A' . $rowIndex, 'DETALLE DE VIAJES - PERÍODO ' . strtoupper($periodo));
+        $sheet->mergeCells('A' . $rowIndex . ':K' . $rowIndex);
+        $sheet->getStyle('A' . $rowIndex)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $rowIndex)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $rowIndex++;
+
+        // Período
+        $sheet->setCellValue('A' . $rowIndex, 'Período: ' . self::MESES[$month] . ' ' . $year);
+        $sheet->mergeCells('A' . $rowIndex . ':K' . $rowIndex);
+        $sheet->getStyle('A' . $rowIndex)->getFont()->setItalic(true);
+        $rowIndex += 2;
+
+        // Encabezados
+        $headers = [
+            'Cliente',
+            'RUC',
+            'Código Viaje',
+            'Fecha',
+            'Producción',
+            'Conductor',
+            'Tracto',
+            'Carreta',
+            'Productos',
+            'Ruta',
+            'N° Liquidación'
+        ];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $rowIndex, $header);
+            $col++;
+        }
+
+        $sheet->getStyle('A' . $rowIndex . ':K' . $rowIndex)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $rowIndex . ':K' . $rowIndex)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('4472C4');
+        $sheet->getStyle('A' . $rowIndex . ':K' . $rowIndex)->getFont()->getColor()->setRGB('FFFFFF');
+        $rowIndex++;
+
+        // Datos
+        foreach ($datos as $item) {
+            $sheet->setCellValue('A' . $rowIndex, $item->cliente);
+            $sheet->setCellValue('B' . $rowIndex, $item->ruc ?? '');
+            $sheet->setCellValue('C' . $rowIndex, $item->codigo_viaje);
+            $sheet->setCellValue('D' . $rowIndex, $item->fecha_viaje);
+            $sheet->setCellValue('E' . $rowIndex, (float)$item->produccion);
+            $sheet->setCellValue('F' . $rowIndex, $item->conductor ?? '');
+            $sheet->setCellValue('G' . $rowIndex, $item->tracto ?? '');
+            $sheet->setCellValue('H' . $rowIndex, $item->carreta ?? '');
+            $sheet->setCellValue('I' . $rowIndex, $item->productos ?? '');
+            $sheet->setCellValue('J' . $rowIndex, $item->ruta ?? '');
+            $sheet->setCellValue('K' . $rowIndex, $item->nliquidacion ?? '');
+            $rowIndex++;
+        }
+
+        // Formato de números para producción
+        $sheet->getStyle('E5:E' . ($rowIndex - 1))
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00');
+
+        // Ajustar columnas
+        foreach (range('A', 'K') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+    }
+
+    private function crearHojaComparativaCliente($spreadsheet, $resumen)
+    {
+        // Crear nueva hoja
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Comparativa Clientes');
+
+        $rowIndex = 1;
+
+        // Título
+        $sheet->setCellValue('A' . $rowIndex, 'COMPARATIVA POR CLIENTE (DETALLADO)');
+        $sheet->mergeCells('A' . $rowIndex . ':H' . $rowIndex);
+        $sheet->getStyle('A' . $rowIndex)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $rowIndex)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $rowIndex += 2;
+
+        // Encabezados
+        $headers = [
+            'Cliente',
+            'Viajes Actual',
+            'Producción Actual',
+            'Participación Actual (%)',
+            'Viajes Anterior',
+            'Producción Anterior',
+            'Participación Anterior (%)',
+            'Variación Viajes',
+            'Variación Producción'
+        ];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $rowIndex, $header);
+            $col++;
+        }
+
+        $sheet->getStyle('A' . $rowIndex . ':I' . $rowIndex)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $rowIndex . ':I' . $rowIndex)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('4472C4');
+        $sheet->getStyle('A' . $rowIndex . ':I' . $rowIndex)->getFont()->getColor()->setRGB('FFFFFF');
+        $rowIndex++;
+
+        // Datos
+        $totalActual = array_sum($resumen['produccion_actual']);
+        $totalAnterior = array_sum($resumen['produccion_anterior']);
+
+        foreach ($resumen['clientes'] as $index => $cliente) {
+            $viajesActual = $resumen['viajes_actual'][$index] ?? 0;
+            $prodActual = $resumen['produccion_actual'][$index] ?? 0;
+            $pctActual = $totalActual > 0 ? round(($prodActual / $totalActual) * 100, 2) : 0;
+
+            $viajesAnterior = $resumen['viajes_anterior'][$index] ?? 0;
+            $prodAnterior = $resumen['produccion_anterior'][$index] ?? 0;
+            $pctAnterior = $totalAnterior > 0 ? round(($prodAnterior / $totalAnterior) * 100, 2) : 0;
+
+            $sheet->setCellValue('A' . $rowIndex, $cliente);
+            $sheet->setCellValue('B' . $rowIndex, $viajesActual);
+            $sheet->setCellValue('C' . $rowIndex, $prodActual);
+            $sheet->setCellValue('D' . $rowIndex, $pctActual);
+            $sheet->setCellValue('E' . $rowIndex, $viajesAnterior);
+            $sheet->setCellValue('F' . $rowIndex, $prodAnterior);
+            $sheet->setCellValue('G' . $rowIndex, $pctAnterior);
+
+            $sheet->setCellValue('H' . $rowIndex, $viajesActual - $viajesAnterior);
+            $varProd = $prodActual - $prodAnterior;
+            $sheet->setCellValue('I' . $rowIndex, $varProd);
+
+            // Color según variación de producción
+            if ($varProd > 0) {
+                $sheet->getStyle('I' . $rowIndex)->getFont()->getColor()->setRGB('00B050');
+            } elseif ($varProd < 0) {
+                $sheet->getStyle('I' . $rowIndex)->getFont()->getColor()->setRGB('FF0000');
+            }
+
+            $rowIndex++;
+        }
+
+        // Fila de totales
+        $sheet->setCellValue('A' . $rowIndex, 'TOTAL');
+        $sheet->setCellValue('B' . $rowIndex, array_sum($resumen['viajes_actual']));
+        $sheet->setCellValue('C' . $rowIndex, $totalActual);
+        $sheet->setCellValue('D' . $rowIndex, 100);
+        $sheet->setCellValue('E' . $rowIndex, array_sum($resumen['viajes_anterior']));
+        $sheet->setCellValue('F' . $rowIndex, $totalAnterior);
+        $sheet->setCellValue('G' . $rowIndex, 100);
+        $sheet->setCellValue('H' . $rowIndex, array_sum($resumen['viajes_actual']) - array_sum($resumen['viajes_anterior']));
+        $sheet->setCellValue('I' . $rowIndex, $totalActual - $totalAnterior);
+
+        $sheet->getStyle('A' . $rowIndex . ':I' . $rowIndex)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $rowIndex . ':I' . $rowIndex)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('E7E6E6');
+
+        // Formato de moneda para producción
+        $sheet->getStyle('C5:C' . ($rowIndex - 1))
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00');
+        $sheet->getStyle('F5:F' . ($rowIndex - 1))
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00');
+        $sheet->getStyle('I5:I' . $rowIndex)
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00');
+
+        // Formato de porcentaje
+        $sheet->getStyle('D5:D' . ($rowIndex - 1))
+            ->getNumberFormat()
+            ->setFormatCode('0.00%');
+        $sheet->getStyle('G5:G' . ($rowIndex - 1))
+            ->getNumberFormat()
+            ->setFormatCode('0.00%');
+
+        // Ajustar columnas
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
     }
 }

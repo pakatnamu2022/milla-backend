@@ -823,7 +823,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'vehicle.color',
       'vehicle.customer.district',
       'createdBy',
-      'details.product'
+      'details.product',
+      'typeCurrency'
     ])->find($id);
 
     if (!$quotation) {
@@ -949,6 +950,8 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $data['tax_amount'] = $igv_amount;
     $data['total_amount'] = $total_amount;
     $data['area'] = $quotation->area ? $quotation->area->description : 'N/A';
+    $data['currency_symbol'] = $quotation->typeCurrency ? $quotation->typeCurrency->symbol : 'S/';
+    $data['currency_name'] = $quotation->typeCurrency ? $quotation->typeCurrency->name : 'SOLES';
 
     // Convertir firma del cliente a base64 si existe
     $customerSignature = null;
@@ -1202,14 +1205,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'managerApprovalBy',
       ]);
 
-      $this->sendQuotationApprovalEvidenceEmail(
-        $quotation,
-        $data,
-        $user,
-        Position::POSITION_JEFE_TALLER_PVT_IDS,
-        'Jefe de Taller',
-        'Taller'
-      );
+//      $this->sendQuotationApprovalEvidenceEmail(
+//        $quotation,
+//        $data,
+//        $user,
+//        Position::POSITION_JEFE_TALLER_PVT_IDS,
+//        'Jefe de Taller',
+//        'Taller'
+//      );
 
       return new ApOrderQuotationsResource($quotation);
     });
@@ -1348,14 +1351,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'managerApprovalBy',
       ]);
 
-      $this->sendQuotationApprovalEvidenceEmail(
-        $quotation,
-        $data,
-        $user,
-        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
-        'Jefe de Repuesto',
-        'Repuestos'
-      );
+//      $this->sendQuotationApprovalEvidenceEmail(
+//        $quotation,
+//        $data,
+//        $user,
+//        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
+//        'Jefe de Repuesto',
+//        'Repuestos'
+//      );
 
       return new ApOrderQuotationsResource($quotation);
     });
@@ -1491,15 +1494,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       foreach ($chiefUsers as $chief) {
         if ($chief->person && $chief->person->email2) {
           try {
-            $this->emailService->queue([
-              'to' => $chief->person->email2,
-              'subject' => $subject,
-              'template' => 'emails.quotation-notification',
-              'data' => array_merge($emailData, [
-                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
-                'recipient_role' => 'Jefe de Taller',
-              ]),
-            ]);
+//            $this->emailService->queue([
+//              'to' => $chief->person->email2,
+//              'subject' => $subject,
+//              'template' => 'emails.quotation-notification',
+//              'data' => array_merge($emailData, [
+//                'recipient_name' => $chief->person->nombre_completo ?? 'Jefe de Taller',
+//                'recipient_role' => 'Jefe de Taller',
+//              ]),
+//            ]);
             $emailsSentCount++;
           } catch (Exception $e) {
             \Log::error('Error al enviar correo al Jefe de Taller: ' . $e->getMessage());
