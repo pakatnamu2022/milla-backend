@@ -21,11 +21,13 @@ class WorkOrderReportExport implements
 {
   protected Collection $data;
   protected string $title;
+  protected bool $amountsInSoles;
 
-  public function __construct(Collection $data, string $title = 'Reporte Órdenes de Trabajo')
+  public function __construct(Collection $data, string $title = 'Reporte Órdenes de Trabajo', bool $amountsInSoles = false)
   {
     $this->data = $data;
     $this->title = $title;
+    $this->amountsInSoles = $amountsInSoles;
   }
 
   public function collection()
@@ -35,6 +37,8 @@ class WorkOrderReportExport implements
 
   public function headings(): array
   {
+    $currency = $this->amountsInSoles ? 'S/' : '$';
+
     return [
       'TIPO DE DOCUMENTO',
       'NÚMERO DE DOCUMENTO',
@@ -59,12 +63,12 @@ class WorkOrderReportExport implements
       'HORA APERTURA OT',
       'FECHA DE CIERRE OT',
       'HORA DE CIERRE OT',
-      'PRECIO M. OBRA ($)',
-      'PRECIO REPUESTO ($)',
-      'PRECIO LUBRICANTES ($)',
-      'PRECIO TRABAJO EXTERNO ($)',
-      'PRECIO INSUMO ($)',
-      'PRECIO TOTAL ($)',
+      "PRECIO M. OBRA ({$currency})",
+      "PRECIO REPUESTO ({$currency})",
+      "PRECIO LUBRICANTES ({$currency})",
+      "PRECIO TRABAJO EXTERNO ({$currency})",
+      "PRECIO INSUMO ({$currency})",
+      "PRECIO TOTAL ({$currency})",
       'AUTORIZACION DE DATOS PERSONALES',
     ];
   }

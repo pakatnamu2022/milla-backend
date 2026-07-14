@@ -39,20 +39,24 @@ class TallerReportController extends Controller
       'is_invoiced' => 'nullable|boolean',
       'currency_id' => 'nullable|integer',
       'vehicle_plate' => 'nullable|string',
+      'amounts_in_soles' => 'nullable|boolean',
     ]);
 
     // Construir filtros
     $filters = $this->buildFilters($validated);
 
+    // Determinar si los montos deben estar en soles
+    $amountsInSoles = $validated['amounts_in_soles'] ?? false;
+
     // Obtener datos del reporte
-    $data = $this->service->getWorkOrdersReport($filters);
+    $data = $this->service->getWorkOrdersReport($filters, $amountsInSoles);
 
     // Generar nombre del archivo
     $filename = 'reporte_ordenes_trabajo_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
     // Exportar a Excel
     return Excel::download(
-      new WorkOrderReportExport($data, 'Reporte de Órdenes de Trabajo'),
+      new WorkOrderReportExport($data, 'Reporte de Órdenes de Trabajo', $amountsInSoles),
       $filename
     );
   }
