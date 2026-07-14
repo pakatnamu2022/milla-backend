@@ -3168,11 +3168,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
      */
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
+    $documentTotal = (float)($data['total'] ?? 0);
 
-    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA
+    // CASO ESPECIAL: Si es factura final con monto = 0 (todo cubierto con anticipos)
+    // Siempre usar ID_VENTA_INTERNA_ANTICIPOS
+    if (!$isAdvancePayment && $documentTotal == 0) {
+      $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    }
+    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA Y el total del documento > 0
     // Aplica detracción TANTO a anticipos como a facturas finales
-    if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+    elseif ($entityTotal >= $detractionAmount && $detractionAmount > 0
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA
+      && $documentTotal > 0) {
       $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     } else {
       // Lógica actual cuando el monto de la OT es menor al límite de detracción
