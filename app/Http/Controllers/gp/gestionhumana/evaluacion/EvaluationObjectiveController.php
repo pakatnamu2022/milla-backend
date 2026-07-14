@@ -95,4 +95,13 @@ class EvaluationObjectiveController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function previewDeactivateInCategories($id)
+  {
+    try {
+      return $this->success($this->service->previewDeactivateInCategories((int)$id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
