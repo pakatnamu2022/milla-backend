@@ -1344,10 +1344,10 @@ class ApDailyDeliveryReportService
     // Obtener asignaciones de sedes de los asesores
     $advisorSedeAssignments = $this->getAdvisorSedeAssignments($year, $month);
 
-    // Mapear cada vehículo a la sede de su asesor
-    $vehicles = $vehicles->map(function ($v) use ($advisorSedeAssignments) {
-      $v->advisor_sede_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? null;
-      $v->advisor_sede_name = $advisorSedeAssignments[$v->advisor_id]['sede_name'] ?? 'Sin Sede';
+    // Mapear cada vehículo a la sede de su asesor; si el asesor no tiene asignación, usar la sede de la solicitud
+    $vehicles = $vehicles->map(function ($v) use ($advisorSedeAssignments, $sedeToShopMap) {
+      $v->advisor_sede_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? ($sedeToShopMap[$v->sede_id] ?? null);
+      $v->advisor_sede_name = $advisorSedeAssignments[$v->advisor_id]['sede_name'] ?? ($v->sede_name ?? 'Sin Sede');
       return $v;
     });
 
@@ -1536,23 +1536,6 @@ class ApDailyDeliveryReportService
       }
     }
 
-    // Vehículos sin sede asignada (asesor sin asignación de shop en el período)
-    $sinSedeVehicles = $vehicles->filter(fn($v) => is_null($v->advisor_sede_id));
-    $sinSedeCompras = $purchaseOrders->filter(fn($p) => is_null($p->shop_id))->count();
-    $sinSedeEntregas = $sinSedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-    $sinSedeFacturadas = $sinSedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
-
-    if ($sinSedeFacturadas > 0 || $sinSedeEntregas > 0 || $sinSedeCompras > 0) {
-      $items[] = [
-        'name' => 'Sin Sede',
-        'level' => 'sede',
-        'compras' => $sinSedeCompras,
-        'entregas' => $sinSedeEntregas,
-        'facturadas' => $sinSedeFacturadas,
-        'reporteria_dealer_portal' => null,
-      ];
-    }
-
     return [
       'title' => $title,
       'total_compras' => $totalCompras,
@@ -1623,23 +1606,6 @@ class ApDailyDeliveryReportService
           'reporteria_dealer_portal' => null,
         ];
       }
-    }
-
-    // Vehículos sin sede asignada (asesor sin asignación de shop en el período)
-    $sinSedeVehicles = $vehicles->filter(fn($v) => is_null($v->advisor_sede_id));
-    $sinSedeCompras = $purchaseOrders->filter(fn($p) => is_null($p->shop_id))->count();
-    $sinSedeEntregas = $sinSedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-    $sinSedeFacturadas = $sinSedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
-
-    if ($sinSedeFacturadas > 0 || $sinSedeEntregas > 0 || $sinSedeCompras > 0) {
-      $items[] = [
-        'name' => 'Sin Sede',
-        'level' => 'sede',
-        'compras' => $sinSedeCompras,
-        'entregas' => $sinSedeEntregas,
-        'facturadas' => $sinSedeFacturadas,
-        'reporteria_dealer_portal' => null,
-      ];
     }
 
     return [
