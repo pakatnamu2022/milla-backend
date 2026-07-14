@@ -175,13 +175,18 @@ class SyncInventoryAdjustmentsDynamicsJob implements ShouldQueue
       $numDocUser = $firstLine->Usuario;
       $existUser = Worker::where('vat', $numDocUser)->first();
 
+      // Siempre guardar el Motivo en las notas
+      $notes = $firstLine->Motivo;
+
       if ($existUser) {
         if ($existUser->user) {
           $userId = $existUser->user->id;
         } else {
+          // Usuario existe pero no tiene cuenta de usuario
           $notes = $firstLine->Motivo;
         }
       } else {
+        // Usuario no encontrado, agregar su número de documento a las notas
         $notes = $firstLine->Motivo . ' Usuario: ' . $numDocUser;
       }
 
