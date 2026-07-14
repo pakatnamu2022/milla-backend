@@ -132,6 +132,25 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return $translations[$status] ?? $status;
   }
 
+  private function validateSalePrice(array $data, ApWorkOrder $workOrder): void
+  {
+    // Solo validar si la OT está en SOLES
+    // Si la OT está en dólares, no validar porque el precio viene en dólares
+    // y la conversión interna a soles ya se maneja en calculatePricesAndTotals
+    if ($workOrder->currency_id !== TypeCurrency::PEN_ID) {
+      return; // Salir sin validar si no es en soles
+    }
+
+    // Validamos el precio de venta al público no esté por debajo de lo establecido
+    $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
+      ->where('warehouse_id', $data['warehouse_id'])
+      ->value('sale_price');
+
+    if ($sale_price && $data['unit_price'] < $sale_price) {
+      throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
+    }
+  }
+
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
@@ -158,15 +177,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Este producto ya ha sido agregado a la orden de trabajo');
       }
 
-      //validamos el precio de venta al público no este por debajo de lo establecido
-      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
-        ->where('warehouse_id', $data['warehouse_id'])
-        ->value('sale_price');
-
-      if ($sale_price && $data['unit_price'] < $sale_price) {
-        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
-      }
-
       // Set registered_by
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
@@ -178,6 +188,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
+
+      // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados)
+      $this->validateSalePrice($data, $workOrder);
 
       // Validar que exista stock disponible para reservar
       $stock = ProductWarehouseStock::where('product_id', $data['product_id'])

@@ -59,6 +59,17 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       $this->handleQuotationDetail($data['quotation_detail_id'] ?? null);
 
+      // Aplicar conversión de moneda SOLO si NO viene de cotización
+      if (!isset($data['quotation_detail_id'])) {
+        // Viene ingresado manualmente
+        if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+          // Si la OT está en dólares, convertir de soles a dólares dividiendo por el tipo de cambio
+          $data['hourly_rate'] = floatval($data['hourly_rate']) / floatval($workOrder->exchange_rate);
+        }
+        // Si la OT está en soles, dejar el valor tal cual
+      }
+      // Si viene de cotización (quotation_detail_id), dejar el valor tal cual
+
       $factor = $this->getCurrencyConversionFactor($workOrder);
       $data['hourly_rate'] = $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
       $data['time_spent'] = $timeSpentDecimal;

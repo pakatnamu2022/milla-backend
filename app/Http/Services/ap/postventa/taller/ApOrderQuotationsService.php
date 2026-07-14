@@ -191,10 +191,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['exchange_rate'] = null;
       }
 
-//      if ($vehicle->customer_id === null) {
-//        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-//      }
-
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
       }

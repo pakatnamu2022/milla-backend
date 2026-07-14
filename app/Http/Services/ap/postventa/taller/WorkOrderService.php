@@ -274,30 +274,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         unset($data['items']);
       }
 
-      // Solo validar y guardar el tipo de cambio si la moneda es USD
-      $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
-      if ($currencyId == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-        }
-        $data['exchange_rate'] = $exchangeRate->rate;
-        $data['exchange_rate_id'] = $exchangeRate->id;
-      } else {
-        // Si es PEN u otra moneda, el tipo de cambio es null
-        $data['exchange_rate'] = null;
-        $data['exchange_rate_id'] = null;
-      }
-
-      // Update work order
-      $workOrder->update($data);
-
-      // Si cambió el tipo de moneda, recalcular labours y parts
-      if ($currencyChanged) {
-        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
-      }
-
-      // Si existe $data['order_quotation_id']
+      // Si existe $data['order_quotation_id'], procesar la asociación de la cotización primero
       if (isset($data['order_quotation_id'])) {
         $quotation = ApOrderQuotations::find($data['order_quotation_id']);
         $vehicle = Vehicles::find($workOrder->vehicle_id);
@@ -320,11 +297,46 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('La moneda de la OT y la cotización deben ser iguales');
         }
 
+        // Cuando se asocia una cotización en USD, tomar el tipo de cambio de la cotización
+        if ($workOrderCurrencyId == TypeCurrency::USD_ID) {
+          $data['exchange_rate'] = $quotation->exchange_rate;
+          $data['exchange_rate_id'] = $quotation->exchange_rate_id;
+        } else {
+          // Si es PEN u otra moneda, el tipo de cambio es null
+          $data['exchange_rate'] = null;
+          $data['exchange_rate_id'] = null;
+        }
+
         if ($quotation) {
           $quotation->update(['is_take' => 1]);
         }
+      } else {
+        // Si NO hay cotización asociada, usar el tipo de cambio del día actual
+        $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
+        if ($currencyId == TypeCurrency::USD_ID) {
+          $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+          if (!$exchangeRate) {
+            throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          }
+          $data['exchange_rate'] = $exchangeRate->rate;
+          $data['exchange_rate_id'] = $exchangeRate->id;
+        } else {
+          // Si es PEN u otra moneda, el tipo de cambio es null
+          $data['exchange_rate'] = null;
+          $data['exchange_rate_id'] = null;
+        }
+      }
 
-        // Cargar relaciones necesarias para el cálculo
+      // Update work order
+      $workOrder->update($data);
+
+      // Si cambió el tipo de moneda, recalcular labours y parts
+      if ($currencyChanged) {
+        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+      }
+
+      // Cargar relaciones necesarias para el cálculo si se asoció una cotización
+      if (isset($data['order_quotation_id'])) {
         $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
       }
 
