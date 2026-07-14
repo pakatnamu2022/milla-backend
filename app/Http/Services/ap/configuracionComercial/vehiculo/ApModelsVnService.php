@@ -1199,6 +1199,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
     // Clave compuesta dyn_code|article_class_id para distinguir bodegas del mismo sitio por categoría de vehículo
     $warehouseMap = Warehouse::whereNull('deleted_at')
       ->where('status', true)
+      ->whereHas('sede', fn($q) => $q->where('status', 1))
       ->get()
       ->keyBy(fn($w) => mb_strtoupper(trim($w->dyn_code ?? '')) . '|' . ($w->article_class_id ?? ''));
 
