@@ -94,6 +94,15 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function availableSlots(Request $request)
   {
     try {
