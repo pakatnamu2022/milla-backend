@@ -425,8 +425,11 @@ class ApDailyDeliveryReportService
       $tree[] = $node;
     }
 
-    // Nodo SIN ASESOR: vehículos sin advisor_id, agrupados por naturaleza
-    $sinAsesorVehicles = $vehicles->filter(fn($v) => is_null($v->advisor_id));
+    // Nodo SIN ASESOR: vehículos sin advisor_id O con advisor no en estructura de asignaciones del mes
+    $assignedWorkerIds = $assignments->pluck('worker_id')->filter()->unique()->toArray();
+    $sinAsesorVehicles = $vehicles->filter(
+      fn($v) => is_null($v->advisor_id) || !in_array($v->advisor_id, $assignedWorkerIds)
+    );
     if ($sinAsesorVehicles->isNotEmpty()) {
       $tradicGroupIds = ApMasters::where('type', 'GRUPO_MARCAS')
         ->whereIn('description', ['TRADICIONAL', 'INCHCAPE'])
