@@ -206,9 +206,6 @@ class ApDailyDeliveryReportService
       ->where('description', 'CHINA')
       ->value('id');
 
-    // Solo vehículos con asesor asignado (coherente con la jerarquía)
-    $assignedVehicles = $vehicles->filter(fn($v) => !is_null($v->advisor_id));
-
     $calc = function (Collection $group) use ($invoicedQuoteIds): array {
       return [
         'entregas'                 => $group->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
@@ -217,15 +214,15 @@ class ApDailyDeliveryReportService
       ];
     };
 
-    $tradicionales = $assignedVehicles->filter(
+    $tradicionales = $vehicles->filter(
       fn($v) => $v->type_class_id != $camionTypeId && in_array($v->brand_group_id, $tradicionalInchcapeIds)
     );
 
-    $chinas = $assignedVehicles->filter(
+    $chinas = $vehicles->filter(
       fn($v) => $v->type_class_id != $camionTypeId && $v->brand_group_id == $chinaGroupId
     );
 
-    $camiones = $assignedVehicles->filter(
+    $camiones = $vehicles->filter(
       fn($v) => $v->type_class_id == $camionTypeId
     );
 
