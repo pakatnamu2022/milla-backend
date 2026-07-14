@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
@@ -54,7 +55,6 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       $quotation = ApOrderQuotations::findOrFail($data['order_quotation_id']);
       $sedeId = $quotation->sede_id;
-      $vehicleId = $quotation->vehicle_id;
 
       // Only validate price for products, not for labor
       if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
@@ -82,6 +82,13 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
           throw new Exception(
             "Producto ({$data['description']}): {$validation['message']}"
           );
+        }
+      }
+
+      // Si es MANO DE OBRA y la cotización está en dólares, convertir el precio de soles a dólares
+      if (isset($data['item_type']) && $data['item_type'] === 'LABOR') {
+        if ($quotation->currency_id === TypeCurrency::USD_ID) {
+          $data['unit_price'] = $data['unit_price'] / $quotation->exchange_rate;
         }
       }
 
