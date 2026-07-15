@@ -24,6 +24,7 @@ class InvoicingReportService
       ->with([
         'workOrder.sede',
         'workOrder.advisor',
+        'workOrder.status',
         'workOrder.vehicle.model.family.brand',
         'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
@@ -88,6 +89,7 @@ class InvoicingReportService
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'estado' => $workOrder->status?->description ?? '',
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
       'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
