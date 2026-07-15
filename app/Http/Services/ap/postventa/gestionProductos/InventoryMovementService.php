@@ -1429,6 +1429,16 @@ class InventoryMovementService extends BaseService
       // Update ApOrderQuotations output_generation_warehouse
       $quotation->update(['output_generation_warehouse' => true]);
 
+      // Liberar la reserva hecha al confirmar la cotización para los ítems de tipo STOCK:
+      // esa cantidad ya se está consumiendo como venta real, no debe seguir contando como "reservada".
+      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
+      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      foreach ($productDetails as $detail) {
+        if ($detail->supply_type === ApOrderQuotations::STOCK) {
+          $this->stockService->releaseReservedStock($detail->product_id, $warehouse->id, $detail->quantity);
+        }
+      }
+
       // Update stock automatically
       $this->stockService->updateStockFromMovement($movement->fresh('details'));
 

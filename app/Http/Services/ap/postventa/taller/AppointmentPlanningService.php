@@ -46,8 +46,12 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
   {
     if (auth()->check()) {
       $data['created_by'] = auth()->user()->id;
+    }
+
+    if (empty($data['advisor_id'])) {
       $data['advisor_id'] = auth()->user()->person?->id;
     }
+
     $vehicle = isset($data['ap_vehicle_id']) ? Vehicles::find($data['ap_vehicle_id']) : null;
 
     if ($vehicle === null) {
@@ -73,6 +77,10 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     if ($appointmentPlanning->is_taken) {
       throw new Exception('La cita ya ha sido tomada y no puede ser modificada');
+    }
+
+    if (empty($data['advisor_id'])) {
+      unset($data['advisor_id']);
     }
 
     $vehicle = isset($data['ap_vehicle_id']) ? Vehicles::find($data['ap_vehicle_id']) : null;
