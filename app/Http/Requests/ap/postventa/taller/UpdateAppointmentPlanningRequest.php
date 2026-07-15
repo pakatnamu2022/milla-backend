@@ -75,6 +75,11 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'advisor_id' => [
+        'nullable',
+        'integer',
+        'exists:rrhh_persona,id',
+      ],
     ];
   }
 
@@ -117,6 +122,9 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
 
       'sede_id.integer' => 'El campo sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'advisor_id.integer' => 'El campo asesor debe ser un entero.',
+      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
     ];
   }
 

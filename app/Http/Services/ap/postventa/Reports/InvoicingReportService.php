@@ -23,8 +23,9 @@ class InvoicingReportService
     $queryDocuments = ElectronicDocument::query()
       ->with([
         'workOrder.sede',
+        'workOrder.advisor',
         'workOrder.vehicle.model.family.brand',
-        'workOrder.items',
+        'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
       ])
       ->whereNotNull('work_order_id')
@@ -86,22 +87,26 @@ class InvoicingReportService
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+      'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+      'modelo_vehiculo' => $workOrder->vehicle?->model?->family?->description ?? '',
+      'trabajo_realizado' => $firstItem?->description ?? '',
+      'operario' => $technicians,
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
       'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
+      'tipo' => $document->is_advance_payment ? 'ANTICIPO' : 'FACTURA',
       'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
       'cliente' => $document->cliente_denominacion ?? '',
       'total_mano_obra' => number_format($workOrder->total_labor_cost ?? 0, 2, '.', ''),
       'total_repuestos' => number_format($workOrder->total_parts_cost ?? 0, 2, '.', ''),
       'descuento_porcentaje' => number_format($workOrder->discount_percentage ?? 0, 2, '.', ''),
       'descuento_monto' => number_format($workOrder->discount_amount ?? 0, 2, '.', ''),
-      'trabajo_realizado' => $firstItem?->description ?? '',
-      'operario' => $technicians,
       'monto_sin_igv' => number_format($document->total_gravada ?? 0, 2, '.', ''),
       'igv' => number_format($document->total_igv ?? 0, 2, '.', ''),
       'total' => number_format($document->total ?? 0, 2, '.', ''),
-      'tipo' => $document->is_advance_payment ? 'ANTICIPO' : 'FACTURA',
-      'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
       'work_order_id' => $workOrder->id,
       'document_id' => $document->id,
     ];
