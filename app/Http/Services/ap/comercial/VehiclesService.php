@@ -293,19 +293,34 @@ class VehiclesService extends BaseService implements BaseServiceInterface
    */
   public function listWithCosts(Request $request)
   {
+    $isEditing    = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
+    $excludeQuoteId = $request->get('purchase_request_quote_id');
+
+    $allowedStatuses = [
+      ApVehicleStatus::INVENTARIO_VN,
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ApVehicleStatus::EN_CURSO,
+    ];
+
     $query = Vehicles::with([
       'model',
       'color',
       'engineType',
       'vehicleStatus',
       'warehousePhysical',
-      'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
+      'purchaseOrders.items'
     ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->whereIn('ap_vehicle_status_id', [
-        ApVehicleStatus::INVENTARIO_VN,
-        ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        ApVehicleStatus::EN_CURSO
-      ]);
+      ->where(function ($q) use ($allowedStatuses, $isEditing) {
+        $q->whereIn('ap_vehicle_status_id', $allowedStatuses);
+        // Al editar, también incluir vehículos con anticipos pero no totalmente pagados
+        // (ej. status FACTURADO por anticipos, is_paid=false)
+        if ($isEditing) {
+          $q->orWhere(function ($sub) {
+            $sub->where('is_paid', false)
+              ->whereHas('purchaseRequestQuote');
+          });
+        }
+      });
 
     // Aplicar filtros si existen
     if ($request->has('search') && $request->search) {
@@ -336,8 +351,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       });
     }
 
-    $isEditing = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
-    $excludeQuoteId = $request->get('purchase_request_quote_id');
     if (!$isEditing) {
       $query->where(function ($q) use ($excludeQuoteId) {
         $q->whereDoesntHave('purchaseRequestQuote');
@@ -349,7 +362,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       });
     } else {
       if ($excludeQuoteId) {
-        $quoteHasDocuments = ElectronicDocument::where('purchase_request_quote_id', $excludeQuoteId)->exists();
+        // Solo documentos reales (no anticipos) indican que la venta ya está comprometida
+        $quoteHasDocuments = ElectronicDocument::where('purchase_request_quote_id', $excludeQuoteId)
+          ->where('is_advance_payment', false)
+          ->where('anulado', false)
+          ->exists();
         if ($quoteHasDocuments) {
           $query->whereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
             $subQ->where('id', $excludeQuoteId);
