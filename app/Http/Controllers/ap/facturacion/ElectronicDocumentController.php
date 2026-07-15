@@ -106,7 +106,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Documento electrónico actualizado correctamente',
-        'data'    => $document
+        'data' => $document
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -204,7 +204,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Nota de crédito creada correctamente',
-        'data'    => $creditNote
+        'data' => $creditNote
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -224,7 +224,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Nota de crédito actualizada correctamente',
-        'data'    => $creditNote
+        'data' => $creditNote
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -245,7 +245,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Nota de débito creada correctamente',
-        'data'    => $debitNote
+        'data' => $debitNote
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -265,7 +265,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Nota de débito actualizada correctamente',
-        'data'    => $debitNote
+        'data' => $debitNote
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -398,15 +398,15 @@ class ElectronicDocumentController extends Controller
 
       return response()->json([
         'electronic_document' => [
-          'id'               => $electronicDocument->id,
-          'full_number'      => $electronicDocument->full_number,
-          'serie'            => $electronicDocument->serie,
-          'numero'           => $electronicDocument->numero,
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'serie' => $electronicDocument->serie,
+          'numero' => $electronicDocument->numero,
           'migration_status' => $electronicDocument->migration_status,
-          'migrated_at'      => $electronicDocument->migrated_at,
-          'created_at'       => $electronicDocument->created_at->format('Y-m-d H:i:s'),
+          'migrated_at' => $electronicDocument->migrated_at,
+          'created_at' => $electronicDocument->created_at->format('Y-m-d H:i:s'),
         ],
-        'logs'                => VehiclePurchaseOrderMigrationLogResource::collection($logs),
+        'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -439,51 +439,51 @@ class ElectronicDocumentController extends Controller
 
         // Evento de creación
         $events[] = [
-          'timestamp'   => $log->created_at->format('Y-m-d H:i:s'),
-          'event'       => 'created',
+          'timestamp' => $log->created_at->format('Y-m-d H:i:s'),
+          'event' => 'created',
           'description' => "Paso '{$log->step}' creado",
-          'status'      => 'pending',
+          'status' => 'pending',
         ];
 
         // Eventos de intentos
         if ($log->last_attempt_at) {
           $events[] = [
-            'timestamp'   => $log->last_attempt_at->format('Y-m-d H:i:s'),
-            'event'       => 'attempt',
+            'timestamp' => $log->last_attempt_at->format('Y-m-d H:i:s'),
+            'event' => 'attempt',
             'description' => "Intento #{$log->attempts} de sincronización",
-            'status'      => $log->status,
-            'error'       => $log->error_message,
+            'status' => $log->status,
+            'error' => $log->error_message,
           ];
         }
 
         // Evento de completado
         if ($log->completed_at) {
           $events[] = [
-            'timestamp'      => $log->completed_at->format('Y-m-d H:i:s'),
-            'event'          => 'completed',
-            'description'    => "Paso completado exitosamente",
-            'status'         => 'completed',
+            'timestamp' => $log->completed_at->format('Y-m-d H:i:s'),
+            'event' => 'completed',
+            'description' => "Paso completado exitosamente",
+            'status' => 'completed',
             'proceso_estado' => $log->proceso_estado,
           ];
         }
 
         return [
-          'step'      => $log->step,
+          'step' => $log->step,
           'step_name' => (new VehiclePurchaseOrderMigrationLogResource($log))->step_name,
-          'events'    => $events,
+          'events' => $events,
         ];
       });
 
       return response()->json([
         'electronic_document' => [
-          'id'               => $electronicDocument->id,
-          'full_number'      => $electronicDocument->full_number,
-          'serie'            => $electronicDocument->serie,
-          'numero'           => $electronicDocument->numero,
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'serie' => $electronicDocument->serie,
+          'numero' => $electronicDocument->numero,
           'migration_status' => $electronicDocument->migration_status,
-          'migrated_at'      => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
+          'migrated_at' => $electronicDocument->migrated_at?->format('Y-m-d H:i:s'),
         ],
-        'timeline'            => $timeline,
+        'timeline' => $timeline,
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -509,10 +509,10 @@ class ElectronicDocumentController extends Controller
     SyncAccountingStatusJob::dispatchSync($id);
     $document->refresh();
     return $this->success([
-      'id'           => $document->id,
-      'full_number'  => $document->full_number,
+      'id' => $document->id,
+      'full_number' => $document->full_number,
       'is_accounted' => $document->is_accounted,
-      'is_annulled'  => $document->is_annulled,
+      'is_annulled' => $document->is_annulled,
     ]);
   }
 
@@ -554,8 +554,8 @@ class ElectronicDocumentController extends Controller
       });
 
       return $this->success([
-        'data'    => $reportData,
-        'total'   => $reportData->count(),
+        'data' => $reportData,
+        'total' => $reportData->count(),
         'columns' => array_values(array_map(fn($col) => $col['label'], $columns)),
       ]);
     } catch (Exception $e) {
@@ -629,7 +629,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Anticipo regularizado correctamente',
-        'data'    => $document
+        'data' => $document
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -650,7 +650,7 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Anticipo histórico registrado correctamente',
-        'data'    => $document,
+        'data' => $document,
       ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
@@ -665,8 +665,20 @@ class ElectronicDocumentController extends Controller
       return $this->success([
         'success' => true,
         'message' => 'Venta final histórica registrada correctamente',
-        'data'    => $document,
+        'data' => $document,
       ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Store a newly created electronic document for historical final sale with advance
+   */
+  public function registerHistoricalFinalSaleWithAdvance(StoreElectronicDocumentRequest $request): JsonResponse
+  {
+    try {
+      return $this->success($this->service->storeHistoricalFinalSaleWithAdvance($request->validated()));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

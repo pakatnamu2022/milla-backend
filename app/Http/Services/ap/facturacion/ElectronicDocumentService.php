@@ -503,6 +503,207 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
+  /**
+   * Create a new electronic document for historical final sale with advance
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function storeHistoricalFinalSaleWithAdvance(mixed $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // ================================================================
+      // 1. PREPARACIÓN INICIAL (común para todos)
+      // ================================================================
+
+      /**
+       * Validar y calcular el siguiente número correlativo
+       */
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
+      $data['numero'] = $nextNumberData['number'];
+
+      /**
+       * Validar que la serie sea correcta
+       */
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      /**
+       * Obtener la tasa de cambio y datos del cliente
+       */
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      $client = BusinessPartners::find($data['client_id']);
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+      $data['cliente_numero_de_documento'] = $client->num_doc;
+      $data['cliente_denominacion'] = $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : '');
+      $data['cliente_direccion'] = $client->direction;
+      $data['cliente_email'] = $client->email;
+      $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      $data['client_id'] = $client->id;
+      $data['tipo_de_cambio'] = $exchangeRate->rate;
+
+      // ================================================================
+      // 2. VALIDACIONES POR TIPO DE ENTIDAD
+      // ================================================================
+
+      $this->validateAndEnrichForQuotation($data);
+      $this->validateAndEnrichForWorkOrder($data);
+
+      // ================================================================
+      // 3. VALIDACIONES COMUNES
+      // ================================================================
+
+      /**
+       * Validar que un anticipo no sea por 0 soles
+       */
+      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+        $total = (float)($data['total'] ?? 0);
+        if ($total <= 0) {
+          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
+        }
+      }
+
+      /**
+       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
+       */
+      $this->validateInternalSaleTotal($data);
+
+      // ================================================================
+      // 4. APLICAR LÓGICA DE DETRACCIONES
+      // ================================================================
+      $this->applyDetractionLogic($data);
+
+      // ================================================================
+      // 4.5. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
+      // ================================================================
+      // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
+      // ================================================================
+
+      /**
+       * Crear el documento principal
+       */
+
+      $data = array_merge($data, [
+        'exchange_rate_id' => $exchangeRate->id,
+        'created_by' => auth()->id(),
+        'status' => ElectronicDocument::STATUS_DRAFT,
+      ]);
+
+//      throw new Exception(json_encode($data));
+      $document = ElectronicDocument::create($data);
+
+      /**
+       * Crear los items
+       */
+      if (isset($data['items']) && is_array($data['items'])) {
+        // Determinar si es un anticipo para pasar al método de enriquecimiento
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+
+        // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
+        // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
+        if (!empty($data['order_quotation_id'])) {
+          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id'], $isAdvancePayment);
+        } elseif (!empty($data['work_order_id'])) {
+          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id'], $isAdvancePayment);
+        }
+
+        $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
+        foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
+          $itemData['line_number'] = $index + 1;
+          $document->items()->create($itemData);
+        }
+      }
+
+      /**
+       * Crear guías de remisión si existen
+       */
+      if (isset($data['guias']) && is_array($data['guias'])) {
+        foreach ($data['guias'] as $guiaData) {
+          $document->guides()->create($guiaData);
+        }
+      }
+
+      /**
+       * Crear cuotas si es venta al crédito
+       */
+      if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        foreach ($data['venta_al_credito'] as $cuotaData) {
+          $document->installments()->create($cuotaData);
+        }
+      }
+
+      /**
+       * Crear movimiento de vehículo si viene ap_vehicle_id
+       */
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+
+        // Actualizar el documento con el ID del movimiento
+        $document->update([
+          'ap_vehicle_movement_id' => $vehicleMovement->id
+        ]);
+
+        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        if (($data['is_advance_payment'] ?? 1) == 0) {
+          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+        }
+      }
+
+      // ================================================================
+      // 6. POST-PROCESAMIENTO POR ENTIDAD
+      // ================================================================
+
+      $this->afterCreateForQuotation($document, $data);
+      $this->afterCreateForWorkOrder($document, $data);
+
+      DB::commit();
+      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
+    } catch (Throwable $e) {
+      DB::rollBack();
+      throw new Exception('Error al crear el documento electrónico: ' . $e->getMessage());
+    }
+  }
+
   public function update(mixed $data): ElectronicDocumentResource
   {
     $id = $data['id'];

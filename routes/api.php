@@ -270,27 +270,27 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'vehicle-type'], function () {
-    Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
-            'index',
-            'show',
-            'store',
-            'update',
-            'destroy'
-        ]);
-        Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
+      Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
     });
     Route::group(['prefix' => 'vehicle'], function () {
-    Route::apiResource('control-vehicle', VehiculoController::class)->only([
-            'index',
-            'show',
-            'store',
-            'update',
-            'destroy'
-        ]);
-        Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
-        Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
+      Route::apiResource('control-vehicle', VehiculoController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
+      Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
     });
-    
+
     Route::group(['prefix' => 'freight'], function () {
       Route::apiResource('control-freight', OpFreightController::class)->only([
         'index',
@@ -304,16 +304,16 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     });
 
     Route::group(['prefix' => 'goal'], function () {
-    Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
-    Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
-    Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
-    Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
-    Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
-    Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
-    Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
-    Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
-    Route::get('control-goal/export-comparativa-clientes', [OpGoalTravelController::class, 'exportComparativaClientes'])->name('goal.export-comparativa-clientes');
-    Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+      Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+      Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+      Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+      Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+      Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+      Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+      Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
+      Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
+      Route::get('control-goal/export-comparativa-clientes', [OpGoalTravelController::class, 'exportComparativaClientes'])->name('goal.export-comparativa-clientes');
+      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
         'index',
         'show',
         'store',
@@ -1869,6 +1869,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
       Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
+
+      //Registrar venta final histórica (factura con anticipo para OTs) con anticipo histórico
+      Route::post('electronic-documents/register-historical-final-sale-with-advance', [ElectronicDocumentController::class, 'registerHistoricalFinalSaleWithAdvance']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
