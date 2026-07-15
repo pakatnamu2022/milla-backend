@@ -14,13 +14,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class InvoicingReportExport implements WithMultipleSheets
 {
-  protected Collection $data;
+  protected Collection $finalDocuments;
+  protected Collection $advanceDocuments;
   protected array $summary;
   protected string $title;
 
-  public function __construct(Collection $data, array $summary, string $title = 'Reporte de Facturación OT')
+  public function __construct(Collection $finalDocuments, Collection $advanceDocuments, array $summary, string $title = 'Reporte de Facturación OT')
   {
-    $this->data = $data;
+    $this->finalDocuments = $finalDocuments;
+    $this->advanceDocuments = $advanceDocuments;
     $this->summary = $summary;
     $this->title = $title;
   }
@@ -31,7 +33,8 @@ class InvoicingReportExport implements WithMultipleSheets
   public function sheets(): array
   {
     $sheets = [
-      new InvoicingReportMainSheet($this->data, 'Facturación OT'),
+      new InvoicingReportMainSheet($this->finalDocuments, 'Comprobantes Finales'),
+      new InvoicingReportMainSheet($this->advanceDocuments, 'Comprobantes Anticipos'),
     ];
 
     // Solo agregar hoja de resumen si hay datos
@@ -84,7 +87,6 @@ class InvoicingReportMainSheet implements
       'SERIE',
       'NÚMERO',
       'FECHA COMPROBANTE',
-      'TIPO',
       'NUM DOC',
       'CLIENTE',
       'TOTAL M.O',
@@ -95,6 +97,7 @@ class InvoicingReportMainSheet implements
       'IGV',
       'TOTAL',
       'MONEDA',
+      'MONEDA ORIGINAL',
     ];
   }
 
@@ -114,7 +117,6 @@ class InvoicingReportMainSheet implements
       $row['serie_comprobante'],
       $row['numero_comprobante'],
       $row['fecha_comprobante'],
-      $row['tipo'],
       $row['num_doc_cliente'],
       $row['cliente'],
       $row['total_mano_obra'],
@@ -125,6 +127,7 @@ class InvoicingReportMainSheet implements
       $row['igv'],
       $row['total'],
       $row['moneda'],
+      $row['moneda_original'],
     ];
   }
 
@@ -223,7 +226,7 @@ class InvoicingReportSummarySheet implements
         ],
         'fill' => [
           'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-          'startColor' => ['rgb' => '28A745'],
+          'startColor' => ['rgb' => '4472C4'],
         ],
         'alignment' => [
           'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
