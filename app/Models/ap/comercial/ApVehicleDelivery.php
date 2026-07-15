@@ -147,16 +147,16 @@ class ApVehicleDelivery extends Model
 
   protected $reportColumns = [
     'vehicle.purchaseRequestQuote.holder.documentType.description' => [
-      'label'     => 'TIPO DOCUMENTO',
-      'formatter' => null,
+      'label'    => 'TIPO DOCUMENTO',
+      'fallback' => 'client.documentType.description',
     ],
     'vehicle.purchaseRequestQuote.holder.num_doc'                  => [
-      'label'     => 'NÚMERO DOCUMENTO',
-      'formatter' => null,
+      'label'    => 'NÚMERO DOCUMENTO',
+      'fallback' => 'client.num_doc',
     ],
     'vehicle.purchaseRequestQuote.holder.full_name'                => [
-      'label'     => 'TITULAR COTIZACIÓN',
-      'formatter' => null,
+      'label'    => 'TITULAR COTIZACIÓN',
+      'fallback' => 'client.full_name',
     ],
     'vehicle.model.family.brand.name'                              => [
       'label'     => 'MARCA',
@@ -213,7 +213,7 @@ class ApVehicleDelivery extends Model
   ];
 
   protected $reportRelations = [
-    'vehicle.purchaseRequestQuote.holder',
+    'vehicle.purchaseRequestQuote.holder.documentType',
     'vehicle.purchaseRequestQuote.opportunity.client',
     'vehicle.purchaseRequestQuote.opportunity.worker',
     'vehicle.model.family.brand',
@@ -221,6 +221,7 @@ class ApVehicleDelivery extends Model
     'vehicle.electronicDocumentParent.identityDocumentType',
     'advisor',
     'sede',
+    'client.documentType',
   ];
 
   protected $reportStyles = [

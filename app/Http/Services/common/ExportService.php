@@ -162,8 +162,8 @@ class ExportService
               continue;
             }
           } // Si el parámetro existe en el request
-          elseif ($request->filled($filterKey)) {
-            $value = $request->get($filterKey);
+          elseif ($request->filled(str_replace('.', '$', $filterKey))) {
+            $value = $request->get(str_replace('.', '$', $filterKey));
 
             // Determinar el operador basado en el tipo de filtro
             if ($filterOperator === 'between') {

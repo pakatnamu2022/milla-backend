@@ -29,6 +29,15 @@ trait Reportable
     $operator = $filter['operator'] ?? '=';
     $value = $filter['value'];
 
+    if (str_contains($column, '.')) {
+      $parts = explode('.', $column);
+      $relation = implode('.', array_slice($parts, 0, -1));
+      $field = end($parts);
+      return $query->whereHas($relation, function ($q) use ($field, $operator, $value) {
+        $this->applyReportFilter($q, ['column' => $field, 'operator' => $operator, 'value' => $value]);
+      });
+    }
+
     switch (strtolower($operator)) {
       case 'like':
         return $query->where($column, 'LIKE', "%{$value}%");
