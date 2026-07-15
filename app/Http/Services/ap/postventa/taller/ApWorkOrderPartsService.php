@@ -237,7 +237,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se pudo reservar el stock. Stock insuficiente.');
       }
 
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return new ApWorkOrderPartsResource($workOrderPart->load([
         'workOrder',
@@ -393,7 +393,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Update work order part
       $workOrderPart->update($data);
-      $workOrderPart->workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       // Reload relations
       $workOrderPart->load([
@@ -471,7 +471,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Eliminar el repuesto
       $workOrderPart->delete();
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return response()->json(['message' => 'Repuesto eliminado correctamente y stock devuelto al almacén']);
     });
@@ -610,7 +610,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $detail->save();
       }
 
-      ApWorkOrder::find($workOrderId)->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return [
         'message' => 'Repuestos agregados correctamente desde la cotización',

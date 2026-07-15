@@ -75,7 +75,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       $data['time_spent'] = $timeSpentDecimal;
 
       $workOrderLabour = WorkOrderLabour::create($data);
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });
@@ -159,7 +159,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       }
 
       $workOrderLabour->update($data);
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return new WorkOrderLabourResource($workOrderLabour->load(['worker', 'workOrder']));
     });
@@ -216,7 +216,7 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       }
 
       $workOrderLabour->delete();
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
     });
 
     return response()->json(['message' => 'Mano de obra eliminada correctamente']);
