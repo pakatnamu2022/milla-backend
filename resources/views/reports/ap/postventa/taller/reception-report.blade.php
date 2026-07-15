@@ -564,7 +564,7 @@
   </tr>
   <tr>
     <td class="label-cell">Tipo OT:</td>
-    <td>{{ $items->first()?->typePlanning?->description ?? 'N/A' }}</td>
+    <td>{{ $items->first()?->typeOperation?->description ?? 'N/A' }}</td>
     <td class="label-cell">Sucursal:</td>
     <td>{{ $sede ? $sede->abreviatura : 'N/A' }}</td>
   </tr>
