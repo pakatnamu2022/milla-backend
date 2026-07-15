@@ -36,6 +36,8 @@ class MesonInvoicingReportExport implements
   public function headings(): array
   {
     return [
+      'SEDE',
+      'NÚMERO COTIZACIÓN',
       'TIPO COMPROBANTE',
       'FECHA EMISIÓN',
       'SERIE',
@@ -43,7 +45,7 @@ class MesonInvoicingReportExport implements
       'CÓDIGO ARTÍCULO',
       'NOMBRE ARTÍCULO',
       'CANTIDAD',
-      'PRECIO UNITARIO',
+      'PVP',
       'DESCUENTO %',
       'NETO',
       'COSTO',
@@ -52,14 +54,16 @@ class MesonInvoicingReportExport implements
       'COMISIÓN',
       'CLIENTE',
       'NÚMERO DOCUMENTO',
-      'SEDE',
-      'NÚMERO COTIZACIÓN',
+      'MONEDA',
+      'MONEDA ORIGINAL',
     ];
   }
 
   public function map($row): array
   {
     return [
+      $row['sede'],
+      $row['numero_cotizacion'],
       $row['tipo_comprobante'],
       $row['fecha_emision'],
       $row['serie_comprobante'],
@@ -67,7 +71,7 @@ class MesonInvoicingReportExport implements
       $row['codigo_articulo'],
       $row['nombre_articulo'],
       $row['cantidad'],
-      $row['precio_unitario'],
+      $row['pvp'],
       $row['descuento_porcentaje'],
       $row['neto'],
       $row['costo'],
@@ -76,8 +80,8 @@ class MesonInvoicingReportExport implements
       $row['comision'],
       $row['cliente'],
       $row['numero_documento_cliente'],
-      $row['sede'],
-      $row['numero_cotizacion'],
+      $row['moneda'],
+      $row['moneda_original'],
     ];
   }
 

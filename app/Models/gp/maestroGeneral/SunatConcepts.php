@@ -113,6 +113,10 @@ class SunatConcepts extends Model
   //IDs tipos de documento
   const TYPE_DOCUMENT_RUC = 4;
 
+  //Ids Moneda
+  const CURRENCY_PEN = 86;
+  const CURRENCY_USD = 87;
+
   public function documentType()
   {
     return $this->belongsTo(ApMasters::class, 'tribute_code');

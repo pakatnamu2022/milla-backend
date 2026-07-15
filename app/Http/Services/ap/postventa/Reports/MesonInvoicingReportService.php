@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\Reports;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Collection;
 
 class MesonInvoicingReportService
@@ -23,6 +24,7 @@ class MesonInvoicingReportService
         'orderQuotation.sede',
         'orderQuotation.invoiceTo',
         'orderQuotation.details.product',
+        'exchangeRate',
       ])
       ->whereNotNull('order_quotation_id')
       ->where('aceptada_por_sunat', true)
@@ -80,6 +82,14 @@ class MesonInvoicingReportService
       ? 'FACTURA'
       : 'BOLETA';
 
+    // Determinar moneda original y tasa de cambio
+    $currencyId = $document->sunat_concept_currency_id;
+    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
+    $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
+
+    // Moneda original del comprobante
+    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
+
     // Obtener el costo del producto desde ProductWarehouseStock
     $costPrice = 0;
     if ($warehouse && $detail->product_id) {
@@ -90,19 +100,24 @@ class MesonInvoicingReportService
       $costPrice = $stock ? (float)$stock->cost_price : 0;
     }
 
+    // PVP (Precio de Venta al Público) = Precio Unitario - Convertir a soles
+    $pvp = (float)$detail->unit_price * $exchangeRate;
+
     // Calcular costo total
     $costoTotal = $costPrice * (float)$detail->quantity;
 
-    // Neto del item
-    $neto = (float)$detail->net_amount;
+    // Neto del item - Convertir a soles
+    $neto = (float)$detail->net_amount * $exchangeRate;
 
-    // Beneficio = Neto - Costo Total
-    $beneficio = $neto - $costoTotal;
+    // Beneficio = PVP - Costo
+    $beneficio = $pvp - $costPrice;
 
-    // % Beneficio = (Beneficio / Neto) * 100 (evitar división por cero)
-    $porcentajeBeneficio = $neto > 0 ? ($beneficio / $neto) * 100 : 0;
+    // % Beneficio = (Beneficio / PVP) * 100 (evitar división por cero)
+    $porcentajeBeneficio = $pvp > 0 ? ($beneficio / $pvp) * 100 : 0;
 
     return [
+      'sede' => $quotation->sede?->abreviatura ?? '',
+      'numero_cotizacion' => $quotation->quotation_number ?? '',
       'tipo_comprobante' => $tipoComprobante,
       'fecha_emision' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'serie_comprobante' => $document->serie ?? '',
@@ -110,7 +125,7 @@ class MesonInvoicingReportService
       'codigo_articulo' => $detail->product?->code ?? '',
       'nombre_articulo' => $detail->product?->name ?? '',
       'cantidad' => number_format($detail->quantity, 2, '.', ''),
-      'precio_unitario' => number_format($detail->unit_price, 2, '.', ''),
+      'pvp' => number_format($pvp, 2, '.', ''),
       'descuento_porcentaje' => number_format($detail->discount_percentage, 2, '.', ''),
       'neto' => number_format($neto, 2, '.', ''),
       'costo' => number_format($costPrice, 2, '.', ''),
@@ -120,8 +135,8 @@ class MesonInvoicingReportService
       'comision' => '0.00',
       'cliente' => $quotation->invoiceTo?->full_name ?? '',
       'numero_documento_cliente' => $quotation->invoiceTo?->num_doc ?? '',
-      'sede' => $quotation->sede?->abreviatura ?? '',
-      'numero_cotizacion' => $quotation->quotation_number ?? '',
+      'moneda' => 'PEN',
+      'moneda_original' => $monedaOriginal,
       'document_id' => $document->id,
       'quotation_id' => $quotation->id,
       'detail_id' => $detail->id,

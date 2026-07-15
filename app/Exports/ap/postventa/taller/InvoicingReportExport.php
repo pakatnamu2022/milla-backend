@@ -97,6 +97,7 @@ class InvoicingReportMainSheet implements
       'IGV',
       'TOTAL',
       'MONEDA',
+      'MONEDA ORIGINAL',
     ];
   }
 
@@ -126,6 +127,7 @@ class InvoicingReportMainSheet implements
       $row['igv'],
       $row['total'],
       $row['moneda'],
+      $row['moneda_original'],
     ];
   }
 
