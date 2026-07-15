@@ -75,6 +75,8 @@ class ApVehicleDelivery extends Model
     'real_delivery_date',
   ];
 
+  const string STATUS_DELIVERED = 'delivered';
+
   public function setObservationsAttribute($value)
   {
     $this->attributes['observations'] = strtoupper($value);
@@ -144,118 +146,74 @@ class ApVehicleDelivery extends Model
   }
 
   protected $reportColumns = [
-    'vehicle.purchaseRequestQuote.holder.documentType.description'      => [
-      'label'     => 'TIPO DOC. TITULAR',
-      'formatter' => null,
+    'vehicle.purchaseRequestQuote.holder.documentType.description' => [
+      'label'    => 'TIPO DOCUMENTO',
+      'fallback' => 'client.documentType.description',
     ],
-    'vehicle.purchaseRequestQuote.holder.num_doc'                       => [
-      'label'     => 'NRO. DOC. TITULAR',
-      'formatter' => null,
+    'vehicle.purchaseRequestQuote.holder.num_doc'                  => [
+      'label'    => 'NÚMERO DOCUMENTO',
+      'fallback' => 'client.num_doc',
     ],
-    'vehicle.purchaseRequestQuote.holder.full_name'                     => [
-      'label'     => 'TITULAR COTIZACIÓN',
-      'formatter' => null,
+    'vehicle.purchaseRequestQuote.holder.full_name'                => [
+      'label'    => 'TITULAR COTIZACIÓN',
+      'fallback' => 'client.full_name',
     ],
-    'vehicle.purchaseRequestQuote.opportunity.client.full_name'         => [
-      'label'     => 'CLIENTE OPORTUNIDAD',
-      'formatter' => null,
-    ],
-    'vehicle.model.family.brand.name'                                   => [
+    'vehicle.model.family.brand.name'                              => [
       'label'     => 'MARCA',
       'formatter' => null,
     ],
-    'vehicle.model.family.description'                                  => [
+    'vehicle.model.family.description'                             => [
       'label'     => 'MODELO',
       'formatter' => null,
     ],
-    'vehicle.model.version'                                             => [
+    'vehicle.model.version'                                        => [
       'label'     => 'VERSIÓN',
       'formatter' => null,
     ],
-    'vehicle.vin'                                                       => [
+    'vehicle.vin'                                                  => [
       'label'     => 'VIN',
       'formatter' => null,
     ],
-    'vehicle.plate'                                                     => [
-      'label'     => 'PLACA',
-      'formatter' => null,
+    'vehicle.plate'                                                => [
+      'label'   => 'PLACA',
+      'default' => 'S/P',
     ],
-    'vehicle.color.description'                                         => [
+    'vehicle.color.description'                                    => [
       'label'     => 'COLOR',
       'formatter' => null,
     ],
-    'sede.abreviatura'                                                  => [
+    'sede.abreviatura'                                             => [
       'label'     => 'SEDE',
       'formatter' => null,
     ],
-    'vehicle.electronicDocumentParent.full_number'                      => [
-      'label'     => 'NRO. FACTURA',
-      'formatter' => null,
-    ],
-    'vehicle.electronicDocumentParent.fecha_de_emision'                 => [
+    'vehicle.electronicDocumentParent.fecha_de_emision'            => [
       'label'     => 'FECHA FACTURACIÓN',
       'formatter' => 'date',
     ],
-    'vehicle.electronicDocumentParent.total'                            => [
-      'label'     => 'TOTAL FACTURA',
-      'formatter' => null,
+    'vehicle.electronicDocumentParent.cliente_email'               => [
+      'label'    => 'EMAIL CLIENTE',
+      'fallback' => 'client.email',
     ],
-    'vehicle.electronicDocumentParent.identityDocumentType.description' => [
-      'label'     => 'TIPO DOC. CLIENTE',
-      'formatter' => null,
+    'vehicle.electronicDocumentParent.client_phone'                => [
+      'label'    => 'TELÉFONO CLIENTE',
+      'fallback' => 'client.phone',
     ],
-    'vehicle.electronicDocumentParent.cliente_numero_de_documento'      => [
-      'label'     => 'NRO. DOC. CLIENTE',
-      'formatter' => null,
-    ],
-    'vehicle.electronicDocumentParent.cliente_denominacion'             => [
-      'label'     => 'NOMBRE CLIENTE',
-      'formatter' => null,
-    ],
-    'vehicle.electronicDocumentParent.cliente_email'                    => [
-      'label'     => 'EMAIL CLIENTE',
-      'formatter' => null,
-    ],
-    'vehicle.electronicDocumentParent.client_phone'                     => [
-      'label'     => 'TELÉFONO CLIENTE',
-      'formatter' => null,
-    ],
-    'vehicle.purchaseRequestQuote.opportunity.worker.nombre_completo'   => [
-      'label'     => 'ASESOR VENTA',
-      'formatter' => null,
-    ],
-    'advisor.nombre_completo'                                           => [
+    'advisor.nombre_completo'                                      => [
       'label'     => 'ASESOR ENTREGA',
       'formatter' => null,
     ],
-    'scheduled_delivery_date'                                           => [
-      'label'     => 'FECHA PROG. ENTREGA',
+    'real_delivery_date'                                           => [
+      'label'     => 'FECHA ENTREGA',
       'formatter' => 'date',
     ],
-    'real_delivery_date'                                                => [
-      'label'     => 'FECHA ENTREGA REAL',
-      'formatter' => 'date',
-    ],
-    'status_delivery'                                                   => [
-      'label'     => 'ESTADO ENTREGA',
-      'formatter' => null,
-    ],
-    'status_wash'                                                       => [
-      'label'     => 'ESTADO LAVADO',
-      'formatter' => null,
-    ],
-    'is_extraordinary'                                                  => [
-      'label'     => 'EXTRAORDINARIA',
-      'formatter' => 'boolean',
-    ],
-    'observations'                                                      => [
-      'label'     => 'OBSERVACIONES',
-      'formatter' => null,
+    'cliente_autorizo_datos'                                       => [
+      'label' => 'CLIENTE AUTORIZO DATOS',
+      'value' => 'SI',
     ],
   ];
 
   protected $reportRelations = [
-    'vehicle.purchaseRequestQuote.holder',
+    'vehicle.purchaseRequestQuote.holder.documentType',
     'vehicle.purchaseRequestQuote.opportunity.client',
     'vehicle.purchaseRequestQuote.opportunity.worker',
     'vehicle.model.family.brand',
@@ -263,6 +221,7 @@ class ApVehicleDelivery extends Model
     'vehicle.electronicDocumentParent.identityDocumentType',
     'advisor',
     'sede',
+    'client.documentType',
   ];
 
   protected $reportStyles = [
