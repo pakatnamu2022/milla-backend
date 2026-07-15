@@ -117,6 +117,28 @@ class ApVehicleDeliveryController extends Controller
   }
 
   /**
+   * Diagnostica por qué no se puede generar la entrega de un VIN.
+   */
+  public function diagnoseVin(Request $request)
+  {
+    try {
+      $request->validate([
+        'vin'     => 'required|string',
+        'sede_id' => 'nullable|integer',
+      ]);
+
+      $result = $this->service->diagnoseVin(
+        $request->input('vin'),
+        $request->integer('sede_id') ?: null
+      );
+
+      return $this->success($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Lista vehículos de stock inicial en estado VENDIDO NO ENTREGADO sin entrega registrada
    */
   public function vehiclesStockInicial(Request $request)

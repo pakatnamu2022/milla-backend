@@ -18,12 +18,14 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\UserSeriesAssignment;
 use App\Models\gp\gestionsistema\UserSede;
@@ -675,6 +677,320 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     ]);
 
     return ['already_approved' => false, 'delivery_id' => $delivery->id];
+  }
+
+  /**
+   * Diagnostica por qué no se puede generar una entrega para un VIN dado.
+   * Retorna una lista ordenada de pasos/verificaciones con su estado.
+   */
+  public function diagnoseVin(string $vin, ?int $sedeId = null): array
+  {
+    $checks = [];
+    $canGenerate = true;
+
+    // ── 1. VIN existe ────────────────────────────────────────────────────────
+    $vehicle = Vehicles::with([
+      'vehicleStatus',
+      'warehouse.sede',
+      'warehousePhysical',
+      'vehicleMovements.shippingGuides.receivingChecklists',
+      'purchaseOrders',
+    ])->where('vin', $vin)->first();
+
+    if (!$vehicle) {
+      return [
+        'can_generate_delivery' => false,
+        'vehicle'               => null,
+        'checks'                => [[
+          'step'    => 'VIN en el sistema',
+          'status'  => 'fail',
+          'message' => "El VIN «{$vin}» no existe en el sistema.",
+          'action'  => 'Verifica que el VIN esté correctamente escrito o regístralo primero.',
+        ]],
+      ];
+    }
+
+    $vehicleInfo = [
+      'id'        => $vehicle->id,
+      'vin'       => $vehicle->vin,
+      'status'    => $vehicle->vehicleStatus?->description ?? '—',
+      'warehouse' => $vehicle->warehouse?->description ?? '—',
+      'sede'      => $vehicle->warehouse?->sede?->abreviatura ?? '—',
+    ];
+
+    // ── 2. Ya tiene entrega registrada ───────────────────────────────────────
+    $existingDelivery = ApVehicleDelivery::where('vehicle_id', $vehicle->id)
+      ->whereNull('deleted_at')
+      ->first();
+
+    if ($existingDelivery) {
+      $statusLabel = $existingDelivery->status_delivery === ApVehicleDelivery::STATUS_DELIVERED
+        ? 'completada'
+        : 'pendiente';
+      $checks[] = [
+        'step'    => 'Entrega existente',
+        'status'  => 'fail',
+        'message' => "El vehículo ya tiene una entrega {$statusLabel} registrada (ID: {$existingDelivery->id}).",
+        'action'  => $existingDelivery->status_delivery === ApVehicleDelivery::STATUS_DELIVERED
+          ? 'El vehículo ya fue entregado. No se puede generar una nueva entrega.'
+          : 'Existe una entrega pendiente. Completa o elimina la entrega existente antes de crear una nueva.',
+      ];
+      $canGenerate = false;
+    } else {
+      $checks[] = [
+        'step'    => 'Entrega existente',
+        'status'  => 'pass',
+        'message' => 'El vehículo no tiene una entrega activa registrada.',
+        'action'  => null,
+      ];
+    }
+
+    // ── 3. Estado del vehículo ───────────────────────────────────────────────
+    $statusId = $vehicle->ap_vehicle_status_id;
+
+    $allowedStatuses = [
+      ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+      ApVehicleStatus::FACTURADO,
+      ApVehicleStatus::FACTURADO_FINAL,
+    ];
+
+    $transitStatuses = [
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
+    ];
+
+    if (in_array($statusId, $transitStatuses)) {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'fail',
+        'message' => "El vehículo está en estado «{$vehicle->vehicleStatus->description}»: aún no ha sido recibido en almacén.",
+        'action'  => 'Debe registrarse la recepción del vehículo (checklist de recepción) antes de generar la entrega.',
+      ];
+      $canGenerate = false;
+    } elseif ($statusId === ApVehicleStatus::PEDIDO_VN) {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'fail',
+        'message' => 'El vehículo está en estado «Pedido VN»: todavía no ha salido del proveedor.',
+        'action'  => 'Espera a que el proveedor despache el vehículo y se registre el movimiento de tránsito.',
+      ];
+      $canGenerate = false;
+    } elseif ($statusId === ApVehicleStatus::VENDIDO_ENTREGADO) {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'fail',
+        'message' => 'El vehículo ya fue entregado (estado «Vendido Entregado»).',
+        'action'  => 'Este vehículo ya completó su ciclo de entrega.',
+      ];
+      $canGenerate = false;
+    } elseif ($statusId === ApVehicleStatus::CONSIGNACION) {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'fail',
+        'message' => 'El vehículo está en consignación.',
+        'action'  => 'Resuelve el proceso de consignación antes de generar una entrega normal.',
+      ];
+      $canGenerate = false;
+    } elseif (in_array($statusId, $allowedStatuses) || $statusId === ApVehicleStatus::INVENTARIO_VN) {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'pass',
+        'message' => "El vehículo está en estado «{$vehicle->vehicleStatus->description}», apto para entrega.",
+        'action'  => null,
+      ];
+    } else {
+      $checks[] = [
+        'step'    => 'Estado del vehículo',
+        'status'  => 'warning',
+        'message' => "El vehículo está en estado «{$vehicle->vehicleStatus->description}».",
+        'action'  => 'Verifica que este estado permita generar una entrega.',
+      ];
+    }
+
+    // ── 4. Guía de compra y recepción ────────────────────────────────────────
+    // Buscamos la guía de remisión de compra (la que tiene checklist de recepción)
+    $receptionGuide = $vehicle->vehicleMovements()
+      ->with(['shippingGuides' => function ($q) {
+        $q->whereHas('receivingChecklists')->orderByDesc('id');
+      }])
+      ->get()
+      ->flatMap(fn($m) => $m->shippingGuides)
+      ->first();
+
+    if (!$receptionGuide) {
+      // Buscar si hay alguna guía de tránsito sin recepción
+      $transitGuide = $vehicle->vehicleMovements()
+        ->where('movement_type', VehicleMovement::IN_TRANSIT)
+        ->with('shippingGuides')
+        ->get()
+        ->flatMap(fn($m) => $m->shippingGuides)
+        ->first();
+
+      if ($transitGuide) {
+        $checks[] = [
+          'step'    => 'Recepción en almacén',
+          'status'  => 'fail',
+          'message' => "El vehículo tiene guía de tránsito (N° {$transitGuide->document_number}) pero aún no se ha registrado la recepción en almacén.",
+          'action'  => 'Completa el checklist de recepción del vehículo para registrar su ingreso al almacén.',
+        ];
+        $canGenerate = false;
+      } else {
+        // Es posible que sea stock inicial o que no haya guía de proveedor
+        $checks[] = [
+          'step'    => 'Recepción en almacén',
+          'status'  => 'warning',
+          'message' => 'No se encontró una guía de recepción registrada para este vehículo.',
+          'action'  => 'Si es un vehículo de stock inicial (prefijo SI-), usa el flujo especial de entrega de stock inicial.',
+        ];
+      }
+    } elseif (!$receptionGuide->is_accounted) {
+      $checks[] = [
+        'step'    => 'Recepción en almacén',
+        'status'  => 'fail',
+        'message' => "La guía de recepción (N° {$receptionGuide->document_number}) existe pero aún no está contabilizada.",
+        'action'  => 'Contabiliza la guía de remisión de compra en el módulo de contabilidad antes de generar la entrega.',
+      ];
+      $canGenerate = false;
+    } else {
+      $checks[] = [
+        'step'    => 'Recepción en almacén',
+        'status'  => 'pass',
+        'message' => "Recepción registrada y contabilizada (guía N° {$receptionGuide->document_number}).",
+        'action'  => null,
+      ];
+    }
+
+    // ── 5. Almacén de la sede seleccionada ───────────────────────────────────
+    if ($sedeId) {
+      $vehicleSedeId = $vehicle->warehouse?->sede_id;
+      $sede = Sede::find($sedeId);
+      $sedeLabel = $sede?->abreviatura ?? "ID {$sedeId}";
+
+      if ($vehicleSedeId !== $sedeId) {
+        $vehicleSedeLabel = $vehicle->warehouse?->sede?->abreviatura ?? 'desconocida';
+        $checks[] = [
+          'step'    => 'Almacén de la sede',
+          'status'  => 'fail',
+          'message' => "El vehículo está en el almacén de la sede «{$vehicleSedeLabel}», no en la sede «{$sedeLabel}».",
+          'action'  => "Transfiere el vehículo al almacén de la sede «{$sedeLabel}» antes de generar la entrega, o selecciona la sede correcta.",
+        ];
+        $canGenerate = false;
+      } else {
+        $checks[] = [
+          'step'    => 'Almacén de la sede',
+          'status'  => 'pass',
+          'message' => "El vehículo está en el almacén de la sede «{$sedeLabel}».",
+          'action'  => null,
+        ];
+      }
+    }
+
+    // ── 6. Stock inicial (orden de compra con prefijo SI-) ───────────────────
+    $purchaseOrder = $vehicle->purchaseOrders()->orderByDesc('id')->first();
+    $isStockInicial = $purchaseOrder && str_contains($purchaseOrder->number ?? '', 'SI-');
+
+    if ($isStockInicial) {
+      // Si ya tiene un movimiento con estado FACTURADO_FINAL, fue procesado en el sistema → flujo normal
+      $hasFacturadoFinal = $vehicle->vehicleMovements()
+        ->where('ap_vehicle_status_id', ApVehicleStatus::FACTURADO_FINAL)
+        ->exists();
+
+      if ($hasFacturadoFinal) {
+        $checks[] = [
+          'step'    => 'Stock inicial',
+          'status'  => 'pass',
+          'message' => "El vehículo es de stock inicial (OC: {$purchaseOrder->number}) y ya fue facturado en el sistema. Sigue el flujo normal de entrega.",
+          'action'  => null,
+        ];
+      } elseif ($statusId !== ApVehicleStatus::VENDIDO_NO_ENTREGADO) {
+        $checks[] = [
+          'step'    => 'Stock inicial',
+          'status'  => 'fail',
+          'message' => "El vehículo pertenece a stock inicial (OC: {$purchaseOrder->number}) pero no está en estado «Vendido No Entregado».",
+          'action'  => 'Para vehículos de stock inicial, contacta al área de TIC\'s enviando un correo con el VIN y el número de orden de compra para regularizar el estado.',
+        ];
+        $canGenerate = false;
+      } elseif ($receptionGuide && $receptionGuide->is_accounted) {
+        // Recepción completa pero sin FACTURADO_FINAL → TIC's debe procesar la entrega
+        $checks[] = [
+          'step'    => 'Stock inicial',
+          'status'  => 'fail',
+          'message' => "El vehículo es de stock inicial (OC: {$purchaseOrder->number}) y debe ser programado por TIC's.",
+          'action'  => 'Envía un correo a dordinolac@grupopakatnamu.com con el DNI del cliente ya creado, el VIN, la fecha y la hora de programación para que TIC\'s registre la entrega.',
+        ];
+        $canGenerate = false;
+      } else {
+        $checks[] = [
+          'step'    => 'Stock inicial',
+          'status'  => 'pass',
+          'message' => "El vehículo es de stock inicial (OC: {$purchaseOrder->number}). Completa primero la recepción en almacén.",
+          'action'  => null,
+        ];
+      }
+    } else {
+      $checks[] = [
+        'step'    => 'Stock inicial',
+        'status'  => 'pass',
+        'message' => 'El vehículo no es de stock inicial; sigue el flujo normal de entrega.',
+        'action'  => null,
+      ];
+    }
+
+    // ── 7. Factura electrónica ───────────────────────────────────────────────
+    if (!$isStockInicial) {
+      $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($q) use ($vehicle) {
+        $q->where('ap_vehicle_id', $vehicle->id);
+      })
+        ->where('aceptada_por_sunat', true)
+        ->where(function ($q) {
+          $q->where('anulado', false)->orWhereNull('anulado');
+        })
+        ->whereNotNull('client_id')
+        ->whereNotNull('purchase_request_quote_id')
+        ->orderByDesc('fecha_de_emision')
+        ->first();
+
+      if (!$electronicDocument) {
+        $checks[] = [
+          'step'    => 'Factura electrónica',
+          'status'  => 'fail',
+          'message' => 'No se encontró una factura electrónica aceptada por SUNAT asociada al vehículo.',
+          'action'  => 'Emite y registra la factura electrónica del vehículo en el sistema antes de generar la entrega.',
+        ];
+        $canGenerate = false;
+      } else {
+        $checks[] = [
+          'step'    => 'Factura electrónica',
+          'status'  => 'pass',
+          'message' => "Factura N° {$electronicDocument->full_number} aceptada por SUNAT.",
+          'action'  => null,
+        ];
+      }
+    }
+
+    // ── 8. Pago del vehículo ─────────────────────────────────────────────────
+    if (!$vehicle->is_paid) {
+      $checks[] = [
+        'step'    => 'Pago del vehículo',
+        'status'  => 'fail',
+        'message' => 'El vehículo no está marcado como completamente pagado.',
+        'action'  => 'Registra el pago completo del vehículo (campo is_paid) antes de generar la guía de remisión de entrega.',
+      ];
+      $canGenerate = false;
+    } else {
+      $checks[] = [
+        'step'    => 'Pago del vehículo',
+        'status'  => 'pass',
+        'message' => 'El vehículo está completamente pagado.',
+        'action'  => null,
+      ];
+    }
+
+    return [
+      'can_generate_delivery' => $canGenerate,
+      'vehicle'               => $vehicleInfo,
+      'checks'                => $checks,
+    ];
   }
 
   private function sendExtraordinaryApprovalEmail(ApVehicleDelivery $delivery): void
