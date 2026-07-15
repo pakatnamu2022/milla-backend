@@ -119,16 +119,12 @@ class ReconcileReservedStockCommand extends Command
       ->where('qd.supply_type', 'STOCK')
       ->whereNull('qd.deleted_at')
       ->whereNull('q.deleted_at')
-      ->where(function ($q2) {
-        $q2->where('q.has_invoice_generated', false)
-          ->whereNotIn('q.status', [
-            ApOrderQuotations::STATUS_APERTURADO,
-            ApOrderQuotations::STATUS_DESCARTADO,
-            ApOrderQuotations::STATUS_SEGMENTADA,
-            ApOrderQuotations::STATUS_FACTURADO,
-          ])
-          ->orWhereNull('q.has_invoice_generated');
-      })
+      ->whereNotIn('q.status', [
+        ApOrderQuotations::STATUS_APERTURADO,
+        ApOrderQuotations::STATUS_DESCARTADO,
+        ApOrderQuotations::STATUS_SEGMENTADA,
+        ApOrderQuotations::STATUS_FACTURADO,
+      ])
       ->select('qd.product_id', 'w.id as warehouse_id', DB::raw('SUM(qd.quantity) as total'))
       ->groupBy('qd.product_id', 'w.id');
 

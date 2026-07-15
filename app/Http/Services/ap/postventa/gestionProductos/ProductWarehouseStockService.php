@@ -2074,7 +2074,7 @@ class ProductWarehouseStockService extends BaseService
           ->get();
 
         // Get all quotation details that are reserving this product in this warehouse
-        // Only quotations that haven't been invoiced yet (has_invoice_generated = false or NULL)
+        // Only quotations that are not in excluded statuses
         // Only details with supply_type = 'STOCK'
         $quotationDetails = DB::table('ap_order_quotation_details as qd')
           ->join('ap_order_quotations as q', 'qd.order_quotation_id', '=', 'q.id')
@@ -2086,16 +2086,12 @@ class ProductWarehouseStockService extends BaseService
               ->where('w.id', '=', $stock->warehouse_id);
           })
           ->where('qd.product_id', $stock->product_id)
-          ->where('qd.supply_type', 'STOCK')
+          ->where('qd.supply_type', ApOrderQuotations::STOCK)
           ->where('w.id', $stock->warehouse_id) // Ensure the warehouse matches
           ->whereNull('qd.deleted_at')
           ->whereNull('q.deleted_at')
-          // Only quotations that haven't been invoiced yet
-          ->where(function ($q) {
-            $q->where('q.has_invoice_generated', false)
-              ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
-              ->orWhereNull('q.has_invoice_generated');
-          })
+          // Only quotations that are not in excluded statuses
+          ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
           ->select([
             'q.id as quotation_id',
             'q.quotation_number',
