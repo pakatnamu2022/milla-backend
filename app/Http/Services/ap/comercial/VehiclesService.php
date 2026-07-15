@@ -293,19 +293,36 @@ class VehiclesService extends BaseService implements BaseServiceInterface
    */
   public function listWithCosts(Request $request)
   {
+    $isEditing    = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
+    $excludeQuoteId = $request->get('purchase_request_quote_id');
+
+    $allowedStatuses = [
+      ApVehicleStatus::INVENTARIO_VN,
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ApVehicleStatus::EN_CURSO,
+    ];
+
     $query = Vehicles::with([
       'model',
       'color',
       'engineType',
       'vehicleStatus',
       'warehousePhysical',
-      'purchaseOrders.items' // Cambiado: ahora usa la relación correcta hasManyThrough
+      'purchaseOrders.items'
     ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->whereIn('ap_vehicle_status_id', [
-        ApVehicleStatus::INVENTARIO_VN,
-        ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        ApVehicleStatus::EN_CURSO
-      ]);
+      ->where(function ($q) use ($allowedStatuses, $isEditing, $excludeQuoteId) {
+        $q->whereIn('ap_vehicle_status_id', $allowedStatuses);
+        // Al editar, también incluir el vehículo de la cotización aunque tenga otro
+        // status (ej. FACTURADO por anticipos) siempre que no esté totalmente pagado
+        if ($isEditing && $excludeQuoteId) {
+          $q->orWhere(function ($sub) use ($excludeQuoteId) {
+            $sub->where('is_paid', false)
+              ->whereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
+                $subQ->where('id', $excludeQuoteId);
+              });
+          });
+        }
+      });
 
     // Aplicar filtros si existen
     if ($request->has('search') && $request->search) {
@@ -336,8 +353,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       });
     }
 
-    $isEditing = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
-    $excludeQuoteId = $request->get('purchase_request_quote_id');
     if (!$isEditing) {
       $query->where(function ($q) use ($excludeQuoteId) {
         $q->whereDoesntHave('purchaseRequestQuote');
