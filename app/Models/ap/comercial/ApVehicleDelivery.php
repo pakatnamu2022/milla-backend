@@ -75,6 +75,8 @@ class ApVehicleDelivery extends Model
     'real_delivery_date',
   ];
 
+  const string STATUS_DELIVERED = 'delivered';
+
   public function setObservationsAttribute($value)
   {
     $this->attributes['observations'] = strtoupper($value);
