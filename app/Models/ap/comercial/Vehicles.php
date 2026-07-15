@@ -295,7 +295,7 @@ class Vehicles extends BaseModel
     $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($query) use ($vehicleId) {
       $query->where('ap_vehicle_id', $vehicleId);
     })
-      ->where('aceptada_por_sunat', true)
+//      ->where('aceptada_por_sunat', true)
       ->where(function ($q) {
         $q->where('anulado', false)->orWhereNull('anulado');
       })
