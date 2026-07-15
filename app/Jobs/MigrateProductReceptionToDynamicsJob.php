@@ -521,7 +521,7 @@ class MigrateProductReceptionToDynamicsJob implements ShouldQueue
           'Linea' => $lineNumber,
           'ArticuloId' => $product->dyn_code ?? throw new Exception("El producto {$product->code} no tiene dyn_code"),
           'Motivo' => '',
-          'UnidadMedidaId' => 'UND',
+          'UnidadMedidaId' => $product->unitMeasurement->dyn_code ?? 'UND',
           'Cantidad' => $quantity,
           'AlmacenId_Ini' => $almacenIdIni,
           'AlmacenId_Fin' => $almacenIdFin,
