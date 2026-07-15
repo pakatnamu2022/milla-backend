@@ -191,12 +191,12 @@ class ApVehicleDelivery extends Model
       'formatter' => 'date',
     ],
     'vehicle.electronicDocumentParent.cliente_email'               => [
-      'label'     => 'EMAIL CLIENTE',
-      'formatter' => null,
+      'label'    => 'EMAIL CLIENTE',
+      'fallback' => 'client.email',
     ],
     'vehicle.electronicDocumentParent.client_phone'                => [
-      'label'     => 'TELÉFONO CLIENTE',
-      'formatter' => null,
+      'label'    => 'TELÉFONO CLIENTE',
+      'fallback' => 'client.phone',
     ],
     'advisor.nombre_completo'                                      => [
       'label'     => 'ASESOR ENTREGA',
