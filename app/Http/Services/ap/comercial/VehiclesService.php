@@ -310,16 +310,14 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'warehousePhysical',
       'purchaseOrders.items'
     ])->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
-      ->where(function ($q) use ($allowedStatuses, $isEditing, $excludeQuoteId) {
+      ->where(function ($q) use ($allowedStatuses, $isEditing) {
         $q->whereIn('ap_vehicle_status_id', $allowedStatuses);
-        // Al editar, también incluir el vehículo de la cotización aunque tenga otro
-        // status (ej. FACTURADO por anticipos) siempre que no esté totalmente pagado
-        if ($isEditing && $excludeQuoteId) {
-          $q->orWhere(function ($sub) use ($excludeQuoteId) {
+        // Al editar, también incluir vehículos con anticipos pero no totalmente pagados
+        // (ej. status FACTURADO por anticipos, is_paid=false)
+        if ($isEditing) {
+          $q->orWhere(function ($sub) {
             $sub->where('is_paid', false)
-              ->whereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
-                $subQ->where('id', $excludeQuoteId);
-              });
+              ->whereHas('purchaseRequestQuote');
           });
         }
       });
