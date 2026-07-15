@@ -204,7 +204,10 @@ class ApVehicleDelivery extends Model
       'label'     => 'FECHA ENTREGA',
       'formatter' => 'date',
     ],
-    
+    'cliente_autorizo_datos'                                       => [
+      'label' => 'CLIENTE AUTORIZO DATOS',
+      'value' => 'SI',
+    ],
   ];
 
   protected $reportRelations = [

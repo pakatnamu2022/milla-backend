@@ -55,6 +55,11 @@ class GeneralExport implements
     $mapped = [];
     foreach ($this->columns as $key => $column) {
       // Si hay un accessor definido, usarlo
+      if (is_array($column) && isset($column['value'])) {
+        $mapped[] = $column['value'];
+        continue;
+      }
+
       if (is_array($column) && isset($column['accessor'])) {
         $accessor = $column['accessor'];
         // Llamar al accessor del modelo si existe
