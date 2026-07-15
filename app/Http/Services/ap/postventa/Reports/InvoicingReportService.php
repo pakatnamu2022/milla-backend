@@ -101,11 +101,15 @@ class InvoicingReportService
     // Obtener el primer item de la OT para el trabajo realizado
     $firstItem = $workOrder->items->first();
 
+    // Verificar si ya tiene factura final emitida
+    $finalInvoice = $workOrder->getFinalInvoice();
+    $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
+
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
-      'estado' => $workOrder->status?->description ?? '',
+      'estado' => $estado,
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
       'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
