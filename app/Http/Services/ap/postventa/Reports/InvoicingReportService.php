@@ -28,6 +28,7 @@ class InvoicingReportService
         'workOrder.vehicle.model.family.brand',
         'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
+        'currency',
       ])
       ->whereNotNull('work_order_id')
       ->where('aceptada_por_sunat', true);
@@ -109,6 +110,7 @@ class InvoicingReportService
       'monto_sin_igv' => number_format($document->total_gravada ?? 0, 2, '.', ''),
       'igv' => number_format($document->total_igv ?? 0, 2, '.', ''),
       'total' => number_format($document->total ?? 0, 2, '.', ''),
+      'moneda' => $document->currency?->iso_code ?? '',
       'work_order_id' => $workOrder->id,
       'document_id' => $document->id,
     ];

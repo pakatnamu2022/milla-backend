@@ -94,6 +94,7 @@ class InvoicingReportMainSheet implements
       'MONTO SIN IGV',
       'IGV',
       'TOTAL',
+      'MONEDA',
     ];
   }
 
@@ -123,6 +124,7 @@ class InvoicingReportMainSheet implements
       $row['monto_sin_igv'],
       $row['igv'],
       $row['total'],
+      $row['moneda'],
     ];
   }
 
