@@ -67,7 +67,9 @@ class GeneralExport implements
         $value = is_array($row) ? ($row[$key] ?? '') : data_get($row, $key, '');
       }
 
-      if (is_array($column) && isset($column['formatter'])) {
+      if (is_array($column) && (is_null($value) || $value === '') && isset($column['default'])) {
+        $value = $column['default'];
+      } elseif (is_array($column) && isset($column['formatter'])) {
         $value = $this->formatValue($value, $column['formatter']);
       }
 
