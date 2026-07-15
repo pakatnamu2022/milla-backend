@@ -38,10 +38,24 @@ class InvoicingReportService
 
     $documents = $queryDocuments->get();
 
-    // Transformar documentos para el reporte
-    $reportData = $documents->map(function ($document) {
-      return $this->transformDocumentForReport($document, $document->workOrder);
+    // Separar documentos finales de anticipos
+    $finalDocuments = $documents->filter(function ($document) {
+      return !$document->is_advance_payment;
     });
+
+    $advanceDocuments = $documents->filter(function ($document) {
+      return $document->is_advance_payment;
+    });
+
+    // Transformar documentos finales para el reporte (Primera página)
+    $reportDataFinal = $finalDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
+
+    // Transformar documentos de anticipos para el reporte (Segunda página)
+    $reportDataAdvances = $advanceDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
 
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
@@ -62,11 +76,12 @@ class InvoicingReportService
 
     $workOrders = $queryWorkOrders->get();
 
-    // Generar tabla resumen de OTs pendientes de pago
+    // Generar tabla resumen de OTs pendientes de pago (Tercera página)
     $summary = $this->generatePaymentSummary($workOrders);
 
     return [
-      'data' => $reportData,
+      'final_documents' => $reportDataFinal,
+      'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
     ];
   }
@@ -100,7 +115,6 @@ class InvoicingReportService
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
       'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
-      'tipo' => $document->is_advance_payment ? 'ANTICIPO' : 'FACTURA',
       'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
       'cliente' => $document->cliente_denominacion ?? '',
       'total_mano_obra' => number_format($workOrder->total_labor_cost ?? 0, 2, '.', ''),
@@ -154,8 +168,15 @@ class InvoicingReportService
       // Obtener factura final usando el método del modelo
       $finalInvoice = $workOrder->getFinalInvoice();
 
-      // Calcular total de la OT
-      $totalOt = $finalInvoice ? (float)$finalInvoice->total : 0;
+      // Solo incluir OTs que:
+      // 1. Tienen anticipos activos
+      // 2. NO tienen factura final (aunque el estado sea diferente de CLOSED)
+      if ($activeAdvances->isEmpty() || $finalInvoice !== null) {
+        continue;
+      }
+
+      // Calcular total de la OT desde el campo final_amount (ya que no hay factura final)
+      $totalOt = (float)($workOrder->final_amount ?? 0);
 
       // Calcular total neto de anticipos (considerando NC y ND)
       $totalAnticiposNeto = 0;
@@ -177,7 +198,7 @@ class InvoicingReportService
       $deuda = $totalOt - $totalAnticiposNeto;
 
       // Solo incluir OTs con deuda pendiente
-      if ($deuda > 0 && ($totalOt > 0 || $totalAnticiposNeto > 0)) {
+      if ($deuda > 0 && $totalOt > 0) {
         // Construir la lista de series y números con sus montos
         $seriesNumeros = collect($advanceDetails)
           ->map(function ($detail) {
@@ -189,7 +210,7 @@ class InvoicingReportService
         $summary[] = [
           'taller' => $workOrder->sede?->abreviatura ?? '',
           'numero_ot' => $workOrder->correlative ?? '',
-          'cliente' => $finalInvoice?->cliente_denominacion ?? $activeAdvances->first()?->cliente_denominacion ?? '',
+          'cliente' => $activeAdvances->first()?->cliente_denominacion ?? '',
           'num_anticipos' => $activeAdvances->count(),
           'series_numeros' => $seriesNumeros,
           'total_anticipos' => number_format($totalAnticiposNeto, 2, '.', ''),

@@ -47,7 +47,8 @@ class InvoicingReportController extends Controller
     // Exportar a Excel
     return Excel::download(
       new InvoicingReportExport(
-        $reportData['data'],
+        $reportData['final_documents'],
+        $reportData['advance_documents'],
         $reportData['summary'],
         'Reporte de Facturación OT'
       ),
