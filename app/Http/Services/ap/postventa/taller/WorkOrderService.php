@@ -330,11 +330,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Update work order
       $workOrder->update($data);
 
-      // Si cambió el tipo de moneda, recalcular labours y parts
-      if ($currencyChanged) {
-        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
-      }
-
       // Cargar relaciones necesarias para el cálculo si se asoció una cotización
       if (isset($data['order_quotation_id'])) {
         $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
@@ -361,8 +356,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Recalcular totales SIEMPRE (detecta automáticamente si tiene cotización o cambio de moneda)
-      $workOrder->calculateTotals();
+      // Recalcular totales según el escenario:
+      // - Si cambió moneda: handleCurrencyChange recalcula items con factor y luego suma
+      // - Si NO cambió moneda: performWorkOrderRecalculation recalcula items con factor=1.0 y luego suma
+      if ($currencyChanged) {
+        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+      } else {
+        $this->performWorkOrderRecalculation($workOrder);
+      }
 
       // Reload relations
       $workOrder->load([
@@ -534,6 +535,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // única fuente de verdad para refrescar hijos de la OT (con o sin cambio de moneda).
     $this->recalculateLabourItems($workOrder, $factor);
     $this->recalculatePartItems($workOrder, $factor);
+
+    // Refrescar modelo y recalcular totales del padre
+    $workOrder->refresh();
+    $workOrder->calculateTotals();
   }
 
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
@@ -1984,7 +1989,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    * y luego los totales del padre. Método reutilizable que puede ser llamado desde
    * cualquier contexto (con o sin transacción activa).
    */
-  private function performWorkOrderRecalculation(ApWorkOrder $workOrder): void
+  public function performWorkOrderRecalculation(ApWorkOrder $workOrder): void
   {
     // Cargar relaciones necesarias para el cálculo
     $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
