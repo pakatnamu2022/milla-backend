@@ -1431,6 +1431,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
       Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
 
+      // Vehicles Delivery - Diagnóstico de VIN
+      Route::get('vehiclesDelivery/diagnose-vin', [ApVehicleDeliveryController::class, 'diagnoseVin']);
+
       // Vehicles Delivery - Export
       Route::get('vehiclesDelivery/export', [ApVehicleDeliveryController::class, 'export']);
 
