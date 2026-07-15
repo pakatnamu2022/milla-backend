@@ -349,7 +349,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       });
     } else {
       if ($excludeQuoteId) {
-        $quoteHasDocuments = ElectronicDocument::where('purchase_request_quote_id', $excludeQuoteId)->exists();
+        // Solo documentos reales (no anticipos) indican que la venta ya está comprometida
+        $quoteHasDocuments = ElectronicDocument::where('purchase_request_quote_id', $excludeQuoteId)
+          ->where('is_advance_payment', false)
+          ->where('anulado', false)
+          ->exists();
         if ($quoteHasDocuments) {
           $query->whereHas('purchaseRequestQuote', function ($subQ) use ($excludeQuoteId) {
             $subQ->where('id', $excludeQuoteId);
