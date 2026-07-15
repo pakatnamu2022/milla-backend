@@ -72,6 +72,10 @@ class GeneralExport implements
         $value = is_array($row) ? ($row[$key] ?? '') : data_get($row, $key, '');
       }
 
+      if (is_array($column) && (is_null($value) || $value === '') && isset($column['fallback'])) {
+        $value = is_object($row) ? data_get($row, $column['fallback'], '') : ($row[$column['fallback']] ?? '');
+      }
+
       if (is_array($column) && (is_null($value) || $value === '') && isset($column['default'])) {
         $value = $column['default'];
       } elseif (is_array($column) && isset($column['formatter'])) {
