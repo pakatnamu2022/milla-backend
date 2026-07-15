@@ -212,6 +212,11 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('Entrega de Vehículo no encontrada');
         }
 
+        // Validar que la guía se genere el mismo día de la entrega programada
+        if (!$record->scheduled_date || !now()->isSameDay(\Carbon\Carbon::parse($record->scheduled_date))) {
+          throw new Exception('La guía de remisión solo puede generarse el día de la entrega programada (' . \Carbon\Carbon::parse($record->scheduled_date)->format('d/m/Y') . ')');
+        }
+
         // Verificar si ya existe una guía de remisión
         $existingShippingGuide = null;
         if ($record->shipping_guide_id) {
