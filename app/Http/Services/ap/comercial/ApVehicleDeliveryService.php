@@ -1028,8 +1028,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function export(Request $request)
   {
     $request->merge([
-      'title'           => $request->get('title', 'Reporte Entregas de Vehículos'),
-      'status_delivery' => ApVehicleDelivery::STATUS_DELIVERED,
+      'title' => $request->get('title', 'Reporte Entregas de Vehículos'),
     ]);
 
     $exportService = new ExportService();
