@@ -76,6 +76,7 @@ class ApVehicleDelivery extends Model
   ];
 
   const string STATUS_DELIVERED = 'delivered';
+  const string STATUS_PENDING = 'pending';
 
   public function setObservationsAttribute($value)
   {
