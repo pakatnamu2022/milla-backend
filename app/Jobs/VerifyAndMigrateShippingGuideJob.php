@@ -98,6 +98,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
       VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
+      ->where('send_dynamics', true)
       ->where(function ($q) {
         $q->where('aceptada_por_sunat', true)
           ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
@@ -149,6 +150,14 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
         'shipping_guide_id' => $shippingGuide->id,
         'area_id'           => $shippingGuide->area_id,
         'expected_area_id'  => ApMasters::AREA_COMERCIAL,
+      ]);
+      return;
+    }
+
+    if (!$shippingGuide->send_dynamics) {
+      Log::info('Guía de remisión con send_dynamics=false, se omite la migración a Dynamics', [
+        'shipping_guide_id'   => $shippingGuide->id,
+        'transfer_reason_id'  => $shippingGuide->transfer_reason_id,
       ]);
       return;
     }
