@@ -12,6 +12,7 @@ use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -134,20 +135,46 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
   private function validateSalePrice(array $data, ApWorkOrder $workOrder): void
   {
-    // Solo validar si la OT está en SOLES
-    // Si la OT está en dólares, no validar porque el precio viene en dólares
-    // y la conversión interna a soles ya se maneja en calculatePricesAndTotals
-    if ($workOrder->currency_id !== TypeCurrency::PEN_ID) {
-      return; // Salir sin validar si no es en soles
+    // Si no viene warehouse_id, obtenerlo del almacén físico de postventa de la sede
+    if (!isset($data['warehouse_id']) || !$data['warehouse_id']) {
+      $physicalWarehouse = Warehouse::getPhysicalWarehouseForPostsale($workOrder->sede_id);
+
+      if (!$physicalWarehouse) {
+        throw new Exception('No se encontró almacén físico de postventa para la sede de la orden de trabajo');
+      }
+
+      $warehouseId = $physicalWarehouse->id;
+    } else {
+      $warehouseId = $data['warehouse_id'];
     }
 
     // Validamos el precio de venta al público no esté por debajo de lo establecido
     $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
-      ->where('warehouse_id', $data['warehouse_id'])
+      ->where('warehouse_id', $warehouseId)
       ->value('sale_price');
 
-    if ($sale_price && $data['unit_price'] < $sale_price) {
-      throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
+    if (!$sale_price) {
+      return; // No hay precio de venta registrado, no validar
+    }
+
+    $priceToCompare = $sale_price;
+
+    // Si la OT está en dólares, convertir el sale_price (soles) a dólares
+    if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+      // El sale_price está en soles, necesitamos convertirlo a dólares
+      if ($workOrder->exchange_rate && $workOrder->exchange_rate > 0) {
+        $priceToCompare = $sale_price / $workOrder->exchange_rate;
+      } else {
+        // Si no hay tipo de cambio, no podemos validar correctamente
+        throw new Exception('No se puede validar el precio: la orden de trabajo en dólares no tiene tipo de cambio registrado');
+      }
+    }
+
+    // Comparar el unit_price con el precio mínimo (ya en la moneda correcta)
+    if ($data['unit_price'] < $priceToCompare) {
+      $currencySymbol = $workOrder->currency_id === TypeCurrency::USD_ID ? 'USD' : 'PEN';
+      $formattedPrice = number_format($priceToCompare, 2);
+      throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$formattedPrice} {$currencySymbol}) para este producto en el almacén seleccionado");
     }
   }
 
