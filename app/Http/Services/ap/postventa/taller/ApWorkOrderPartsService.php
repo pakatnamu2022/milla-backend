@@ -276,15 +276,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
       }
 
-      //validamos el precio de venta al público no este por debajo de lo establecido
-      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'] ?? $oldProductId)
-        ->where('warehouse_id', $data['warehouse_id'] ?? $oldWarehouseId)
-        ->value('sale_price');
-
-      if ($sale_price && $data['unit_price'] < $sale_price) {
-        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
-      }
-
       // Determinar los valores finales
       $newProductId = $data['product_id'] ?? $oldProductId;
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
@@ -371,6 +362,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $data['net_amount'] = $recalcData['net_amount'];
         $data['tax_amount'] = $recalcData['tax_amount'];
         $data['unit_price'] = $recalcData['unit_price'];
+
+        // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados y considerar moneda)
+        $this->validateSalePrice($recalcData, $workOrder);
 
         // Validar que el nuevo monto no sea menor al monto pagado en anticipos
         $workOrder->refresh();

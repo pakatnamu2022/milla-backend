@@ -76,6 +76,7 @@ class InvoicingReportMainSheet implements
     return [
       'TALLER',
       'NÚMERO OT',
+      'PLACA',
       'FECHA APERTURA OT',
       'ESTADO',
       'ASESOR',
@@ -106,6 +107,7 @@ class InvoicingReportMainSheet implements
     return [
       $row['taller'],
       $row['numero_ot'],
+      $row['placa_vehiculo'],
       $row['fecha_apertura_ot'],
       $row['estado'],
       $row['asesor_servicio'],

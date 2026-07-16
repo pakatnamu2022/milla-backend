@@ -126,6 +126,7 @@ class InvoicingReportService
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
+      'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'estado' => $estado,
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
