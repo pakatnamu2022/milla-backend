@@ -180,6 +180,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 6. Crear la guía de remisión
+      $isOtros = ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_OTROS;
+
       $documentData = [
         'document_type'          => $data['document_type'],
         'type_voucher_id'        => $typeVoucherId,
@@ -214,11 +216,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'origin_address'         => $origin->address ?? '-',
         'destination_ubigeo'     => $destination->ubigeo ?? '-',
         'destination_address'    => $destination->address ?? '-',
-        'send_dynamics'          => ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_OTROS
-          ? false
-          : ($data['send_dynamics'] ?? true),
+        'send_dynamics'          => $isOtros ? false : ($data['send_dynamics'] ?? true),
+        'migration_status'       => $isOtros ? VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED : VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'status_dynamic'         => $isOtros,
+        'is_accounted'           => $isOtros,
         'is_consignment'         => $data['is_consignment'] ?? false,
-        'is_received'            => ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
+        'is_received'            => $isOtros || ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE,
         'aceptada_por_sunat'     => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER,
         'sent_at'                => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
         'accepted_at'            => $data['issuer_type'] === ShippingGuides::ISSUER_TYPE_SUPPLIER ? now() : null,
