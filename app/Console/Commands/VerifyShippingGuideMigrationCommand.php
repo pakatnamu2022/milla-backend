@@ -75,6 +75,7 @@ class VerifyShippingGuideMigrationCommand extends Command
         VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
         VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
       ])
+        ->where('send_dynamics', true)
         ->where('aceptada_por_sunat', true)
         ->where(function ($q) {
           // Guías de compra (transfer_reason_id = 15) solo migran después de ser recepcionadas
