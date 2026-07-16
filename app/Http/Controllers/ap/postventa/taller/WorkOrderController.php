@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\ChangeAdvisorWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\StoreDeductibleWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
@@ -327,6 +328,24 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->success($this->service->recalculateTotals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeDeductible(StoreDeductibleWorkOrderRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeDeductible($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function deleteDeductible($id)
+  {
+    try {
+      return $this->success($this->service->deleteDeductible($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

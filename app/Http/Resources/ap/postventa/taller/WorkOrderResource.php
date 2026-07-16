@@ -52,6 +52,8 @@ class WorkOrderResource extends JsonResource
       'discount_amount' => (float)$this->discount_amount,
       'tax_amount' => (float)$this->tax_amount,
       'final_amount' => (float)$this->final_amount,
+      'deductible_amount' => (float)$this->deductible_amount,
+      'deductible_id' => $this->whenLoaded('deductibles', fn() => $this->deductibles->first()?->id),
       'is_invoiced' => (bool)$this->is_invoiced,
       'is_guarantee' => (bool)$this->is_guarantee,
       'is_recall' => (bool)$this->is_recall,

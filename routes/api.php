@@ -1617,6 +1617,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+      Route::post('workOrders/deductible', [WorkOrderController::class, 'storeDeductible']);
+      Route::delete('workOrders/deductible/{id}', [WorkOrderController::class, 'deleteDeductible']);
       Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
 

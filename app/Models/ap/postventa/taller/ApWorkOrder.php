@@ -67,6 +67,7 @@ class ApWorkOrder extends Model
     'discount_amount',
     'tax_amount',
     'final_amount',
+    'deductible_amount',
     'is_invoiced',
     'is_guarantee',
     'is_recall',
@@ -105,6 +106,7 @@ class ApWorkOrder extends Model
     'discount_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
     'final_amount' => 'decimal:2',
+    'deductible_amount' => 'decimal:2',
     'allow_remove_associated_quote' => 'boolean',
     'allow_editing_inspection' => 'boolean',
     'post_service_follow_up' => 'array',
@@ -292,6 +294,11 @@ class ApWorkOrder extends Model
   public function discardedBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'discarded_by');
+  }
+
+  public function deductibles(): HasMany
+  {
+    return $this->hasMany(ApDeductibleWorkOrder::class, 'work_order_id');
   }
 
   // Helper methods
@@ -1353,6 +1360,16 @@ class ApWorkOrder extends Model
 
     foreach ($this->getActiveAdvances() as $advance) {
       $items[] = $this->buildAdvanceInvoiceItem($advance);
+    }
+
+    // Si hay deducible, agregar el texto a la descripción del último item
+    if ($this->deductible_amount > 0 && count($items) > 0) {
+      $firstDeductible = $this->deductibles->first();
+      if ($firstDeductible && $firstDeductible->electronicDocument) {
+        $lastIndex = count($items) - 1;
+        $items[$lastIndex]['descripcion'] .= "\nPLACA: " . $this->vehicle_plate .
+          " - DSCTO POR PAGO DE DEDUCIBLE - Doc: " . $firstDeductible->electronicDocument->full_number;
+      }
     }
 
     return $items;

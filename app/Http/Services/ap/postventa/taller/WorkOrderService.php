@@ -34,6 +34,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -238,7 +239,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $workOrder = $this->find($id);
-    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder');
+    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder', 'deductibles');
     $additionalData['includeCostManHours'] = true;
     return (new WorkOrderResource($workOrder))->additional($additionalData);
   }
@@ -2088,6 +2089,128 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $additionalData['includeCostManHours'] = true;
 
       return (new WorkOrderResource($workOrder))->additional($additionalData);
+    });
+  }
+
+  /**
+   * Almacena un deducible para una orden de trabajo
+   * - Relaciona un comprobante electrónico con la orden de trabajo
+   * - Guarda el registro en ap_deductible_work_order
+   * - Actualiza el campo deductible_amount en ap_work_orders (sumando el total del comprobante)
+   * - Valida que la orden no esté cerrada/finalizada/anulada
+   */
+  public function storeDeductible(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['work_order_id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que la orden no esté cerrada, finalizada o anulada
+      $forbiddenStatuses = [
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::FINISHED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ];
+
+      if (in_array($workOrder->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede agregar un deducible a una orden de trabajo cerrada, finalizada o anulada');
+      }
+
+      // Obtener el comprobante electrónico
+      $electronicDocument = \App\Models\ap\facturacion\ElectronicDocument::find($data['electronic_document_id']);
+
+      if (!$electronicDocument) {
+        throw new Exception('Comprobante electrónico no encontrado');
+      }
+
+      // Validar que la moneda de la orden de trabajo coincida con la moneda del comprobante
+      $workOrderCurrencyId = $workOrder->currency_id;
+      $documentCurrencyId = $electronicDocument->sunat_concept_currency_id;
+
+      // Traducir moneda del comprobante a sistema de TypeCurrency
+      $documentCurrencyInWorkOrderSystem = null;
+      if ($documentCurrencyId == SunatConcepts::CURRENCY_PEN) {
+        $documentCurrencyInWorkOrderSystem = TypeCurrency::PEN_ID;
+      } elseif ($documentCurrencyId == SunatConcepts::CURRENCY_USD) {
+        $documentCurrencyInWorkOrderSystem = TypeCurrency::USD_ID;
+      }
+
+      if ($workOrderCurrencyId !== $documentCurrencyInWorkOrderSystem) {
+        $workOrderCurrencyName = $workOrderCurrencyId == TypeCurrency::PEN_ID ? 'PEN' : 'USD';
+        $documentCurrencyName = $documentCurrencyId == SunatConcepts::CURRENCY_PEN ? 'PEN' : 'USD';
+        throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la orden de trabajo ({$workOrderCurrencyName})");
+      }
+
+      // Crear el registro del deducible
+      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::create([
+        'work_order_id' => $data['work_order_id'],
+        'electronic_document_id' => $data['electronic_document_id'],
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el campo deductible_amount en ap_work_orders (sumando el total del comprobante)
+      $currentDeductibleAmount = $workOrder->deductible_amount ?? 0;
+      $newDeductibleAmount = $currentDeductibleAmount + $electronicDocument->total;
+
+      $workOrder->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Recargar la orden de trabajo con los deducibles y su comprobante electrónico
+      $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Elimina un deducible de una orden de trabajo
+   * - Valida que la orden pueda ser modificada
+   * - Resta el monto del comprobante del deductible_amount
+   * - Elimina el registro usando soft delete
+   */
+  public function deleteDeductible(int $deductibleId)
+  {
+    return DB::transaction(function () use ($deductibleId) {
+      // Buscar el deducible con sus relaciones
+      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::with('electronicDocument')
+        ->find($deductibleId);
+
+      if (!$deductible) {
+        throw new Exception('Deducible no encontrado');
+      }
+
+      // Validar que la orden de trabajo pueda ser modificada
+      $workOrder = $this->find($deductible->work_order_id);
+
+      $forbiddenStatuses = [
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::FINISHED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ];
+
+      if (in_array($workOrder->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede eliminar un deducible de una orden de trabajo cerrada, finalizada o anulada');
+      }
+
+      // Restar el monto del comprobante del deductible_amount
+      $currentDeductibleAmount = $workOrder->deductible_amount ?? 0;
+      $newDeductibleAmount = max(0, $currentDeductibleAmount - $deductible->electronicDocument->total);
+
+      $workOrder->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Eliminar el deducible (soft delete)
+      $deductible->delete();
+
+      // Recargar la orden de trabajo con los deducibles activos
+      $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new WorkOrderResource($workOrder);
     });
   }
 }
