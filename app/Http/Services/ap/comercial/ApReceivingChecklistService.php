@@ -30,8 +30,8 @@ use Illuminate\Support\Facades\Log;
 
 class ApReceivingChecklistService extends BaseService
 {
-  private const PATH_RECEPTIONS = 'ap/commercial/receptions';
-  private const PATH_DAMAGES = 'ap/commercial/receptions/damages';
+  private const PATH_RECEPTIONS = 'ap/commercial/receptions/';
+  private const PATH_DAMAGES = 'ap/commercial/receptions/damages/';
 
   public function __construct(protected DigitalFileService $digitalFileService)
   {
@@ -281,6 +281,7 @@ class ApReceivingChecklistService extends BaseService
         || isset($data['photo_back'])
         || isset($data['photo_left'])
         || isset($data['photo_right'])
+        || isset($data['photo_vin'])
         || isset($data['general_observations'])
         || !empty($data['damages']);
 
@@ -294,6 +295,7 @@ class ApReceivingChecklistService extends BaseService
           $inspection->update(['general_observations' => $data['general_observations']]);
         }
 
+        $inspection->load('shippingGuide.vehicleMovement.vehicle');
         $this->processVehiclePhotos($inspection, $data);
 
         if (!empty($data['damages'])) {
@@ -485,6 +487,7 @@ class ApReceivingChecklistService extends BaseService
           'photo_back_url'  => 'Foto_Trasera.jpg',
           'photo_left_url'  => 'Foto_Izquierda.jpg',
           'photo_right_url' => 'Foto_Derecha.jpg',
+          'photo_vin_url'   => 'Foto_VIN.jpg',
         ];
 
         foreach ($photoMap as $field => $fileName) {
@@ -537,16 +540,25 @@ class ApReceivingChecklistService extends BaseService
 
   private function processVehiclePhotos(ApReceivingInspection $inspection, array $data): void
   {
-    $photoTypes = ['photo_front', 'photo_back', 'photo_left', 'photo_right'];
+    $photoLabels = [
+      'photo_front' => 'FRONTAL',
+      'photo_back'  => 'TRASERA',
+      'photo_left'  => 'IZQUIERDA',
+      'photo_right' => 'DERECHA',
+      'photo_vin'   => 'VIN',
+    ];
+
+    $vin = $inspection->shippingGuide?->vehicleMovement?->vehicle?->vin ?? 'SIN_VIN';
     $updates = [];
 
-    foreach ($photoTypes as $photoType) {
+    foreach ($photoLabels as $photoType => $label) {
       if (isset($data[$photoType]) && $data[$photoType] instanceof UploadedFile) {
         $digitalFile = $this->digitalFileService->store(
           $data[$photoType],
           self::PATH_RECEPTIONS,
           'public',
-          $inspection->getTable()
+          $inspection->getTable(),
+          "{$vin}_{$label}"
         );
         $updates["{$photoType}_url"] = $digitalFile->url;
       }

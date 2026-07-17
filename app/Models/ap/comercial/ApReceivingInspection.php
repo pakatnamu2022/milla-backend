@@ -20,6 +20,7 @@ class ApReceivingInspection extends Model
         'photo_back_url',
         'photo_left_url',
         'photo_right_url',
+        'photo_vin_url',
         'general_observations',
         'inspected_by',
     ];
