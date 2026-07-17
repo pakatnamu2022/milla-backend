@@ -1880,19 +1880,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
     }
 
-    // PASO 1: Liberar las reservas de stock de cada repuesto
+    // PASO 1: PRIMERO liberar las reservas de stock (esto aumenta el available_quantity)
     foreach ($productParts as $part) {
       $stock = ProductWarehouseStock::where('product_id', $part->product_id)
         ->where('warehouse_id', $part->warehouse_id)
         ->first();
 
       if ($stock) {
-        // Liberar la cantidad reservada
+        // Liberar la cantidad reservada (esto pasa el stock de reservado a disponible)
         $stock->releaseReservedStock($part->quantity_used);
       }
     }
 
-    // PASO 2: Crear el ajuste de salida (esto reducirá el stock real)
+    // PASO 2: DESPUÉS crear el ajuste de salida (ahora el available_quantity ya incluye lo que estaba reservado)
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
