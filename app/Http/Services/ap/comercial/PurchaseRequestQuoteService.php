@@ -786,6 +786,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'description'               => $item['description'],
         'type'                      => $item['type'],
         'value'                     => $item['value'],
+        'is_locked'                 => (bool)($item['is_locked'] ?? false),
         'amount'                    => $amount,
       ]);
     }
@@ -822,14 +823,34 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         : $paidAccTotal += (float)$acc->total;
     }
 
-    $clientRevenue = $salePrice - $discountTotal + $paidAccTotal;
-    $totalIncome = $clientRevenue + $bonusTotal;
-    $vehicleCosts = $billedCost + $giftTotal;
-    $netDiff = ($totalIncome - $vehicleCosts) / 1.18;
-    $othersTotal = (float)$quote->others->sum('amount');
+    // Separar "otros" en costos extra (bruto) y flete/inmat (neto)
+    $extraCostsTotal = 0.0;
+    $fleteRows = [];
+    foreach ($quote->others as $other) {
+      if ($other->is_locked) {
+        $fleteRows[] = $other;
+      } else {
+        $extraCostsTotal += (float)$other->amount;
+      }
+    }
 
-    $realMarginAmount = $netDiff - $othersTotal;
+    $clientRevenue = $salePrice - $discountTotal + $paidAccTotal;
+    $totalIncome   = $clientRevenue + $bonusTotal;
+    $vehicleCosts  = $billedCost + $giftTotal + $extraCostsTotal;
+
+    $grossDiff    = $totalIncome - $vehicleCosts;
+    $netDiff      = $grossDiff / 1.18;
     $netSalePrice = $salePrice / 1.18;
+
+    // Flete e inmat se restan a nivel neto
+    $othersNetTotal = 0.0;
+    foreach ($fleteRows as $flete) {
+      $othersNetTotal += $flete->type === 'PORCENTAJE'
+        ? ((float)$flete->value / 100) * $netSalePrice
+        : (float)$flete->value;
+    }
+
+    $realMarginAmount = $netDiff - $othersNetTotal;
     $realMarginPct = $netSalePrice > 0 ? ($realMarginAmount / $netSalePrice) * 100 : 0;
 
     return [

@@ -17,7 +17,12 @@ class PurchaseRequestQuoteOther extends Model
         'description',
         'type',
         'value',
+        'is_locked',
         'amount',
+    ];
+
+    protected $casts = [
+        'is_locked' => 'boolean',
     ];
 
     public function purchaseRequestQuote(): BelongsTo

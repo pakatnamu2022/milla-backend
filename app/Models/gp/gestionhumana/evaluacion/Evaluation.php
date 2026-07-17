@@ -768,43 +768,96 @@ class Evaluation extends Model
             })
             ->count();
         } else {
-          // Evaluación 180° o 360°: completado = todas las competencias con resultado > 0
-          // Y todos los objetivos evaluados (o sin objetivos). Igual que el accessor PHP.
+          // Evaluación 180° o 360°: completado cuando para cada grupo (sub_competence_id, evaluatorType)
+          // activo existe al menos UNA fila con result > 0. Espeja la lógica del accessor PHP.
           $completedParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
             ->whereNull('epr.deleted_at')
-            // Todas las competencias con resultado > 0 (ninguna con 0)
+            // No existe ningún grupo (sub_competence, evaluatorType) activo donde TODAS las filas activas son result=0
             ->whereNotExists(function ($query) {
               $query->select(\DB::raw(1))
-                ->from('gh_evaluation_person_competence_detail as epcd')
-                ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
-                ->whereRaw('epcd.person_id = epr.person_id')
-                ->where('epcd.result', 0);
+                ->from('gh_evaluation_person_competence_detail as epcd1')
+                ->whereRaw('epcd1.evaluation_id = epr.evaluation_id')
+                ->whereRaw('epcd1.person_id = epr.person_id')
+                ->whereNull('epcd1.deleted_at')
+                ->whereNotExists(function ($q2) {
+                  $q2->select(\DB::raw(1))
+                    ->from('gh_evaluation_person_competence_detail as epcd2')
+                    ->whereRaw('epcd2.evaluation_id = epcd1.evaluation_id')
+                    ->whereRaw('epcd2.person_id = epcd1.person_id')
+                    ->whereRaw('epcd2.sub_competence_id = epcd1.sub_competence_id')
+                    ->whereRaw('epcd2.evaluatorType = epcd1.evaluatorType')
+                    ->whereNull('epcd2.deleted_at')
+                    ->where('epcd2.result', '>', 0);
+                });
             })
-            // Al menos una competencia existe
+            // Al menos una competencia activa existe
             ->whereExists(function ($query) {
               $query->select(\DB::raw(1))
                 ->from('gh_evaluation_person_competence_detail as epcd')
                 ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
-                ->whereRaw('epcd.person_id = epr.person_id');
+                ->whereRaw('epcd.person_id = epr.person_id')
+                ->whereNull('epcd.deleted_at');
             })
-            // Sin objetivos pendientes (pasa trivialmente si no tiene objetivos)
-            ->whereNotExists(function ($query) {
-              $query->select(\DB::raw(1))
-                ->from('gh_evaluation_person as ep')
-                ->whereRaw('ep.evaluation_id = epr.evaluation_id')
-                ->whereRaw('ep.person_id = epr.person_id')
-                ->where('ep.wasEvaluated', 0)
-                ->whereNull('ep.deleted_at');
+            // Si tiene objetivos, no debe haber ninguno sin evaluar
+            ->where(function ($q) {
+              $q->where('epr.hasObjectives', 0)
+                ->orWhereNotExists(function ($query) {
+                  $query->select(\DB::raw(1))
+                    ->from('gh_evaluation_person as ep')
+                    ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                    ->whereRaw('ep.person_id = epr.person_id')
+                    ->where('ep.wasEvaluated', 0)
+                    ->whereNull('ep.deleted_at');
+                });
             })
             ->count();
 
-          // En progreso: tiene ALGÚN avance (algún objetivo evaluado O alguna competencia con resultado > 0)
-          // pero todavía le falta algo (alguna competencia = 0 O algún objetivo sin evaluar)
+          // En progreso: no completado Y tiene algún avance (algún objetivo evaluado O alguna competencia activa > 0)
           $inProgressParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
             ->whereNull('epr.deleted_at')
-            // Tiene algún avance
+            // NOT completed: tiene algún (sub,type) activo sin result>0 O algún objetivo pendiente O sin competencias activas
+            ->where(function ($q) {
+              $q->whereExists(function ($query) {
+                // Existe grupo (sub,type) activo donde ninguna fila activa tiene result>0
+                $query->select(\DB::raw(1))
+                  ->from('gh_evaluation_person_competence_detail as epcd1')
+                  ->whereRaw('epcd1.evaluation_id = epr.evaluation_id')
+                  ->whereRaw('epcd1.person_id = epr.person_id')
+                  ->whereNull('epcd1.deleted_at')
+                  ->whereNotExists(function ($q2) {
+                    $q2->select(\DB::raw(1))
+                      ->from('gh_evaluation_person_competence_detail as epcd2')
+                      ->whereRaw('epcd2.evaluation_id = epcd1.evaluation_id')
+                      ->whereRaw('epcd2.person_id = epcd1.person_id')
+                      ->whereRaw('epcd2.sub_competence_id = epcd1.sub_competence_id')
+                      ->whereRaw('epcd2.evaluatorType = epcd1.evaluatorType')
+                      ->whereNull('epcd2.deleted_at')
+                      ->where('epcd2.result', '>', 0);
+                  });
+              })
+              ->orWhere(function ($q2) {
+                $q2->where('epr.hasObjectives', 1)
+                  ->whereExists(function ($query) {
+                    $query->select(\DB::raw(1))
+                      ->from('gh_evaluation_person as ep')
+                      ->whereRaw('ep.evaluation_id = epr.evaluation_id')
+                      ->whereRaw('ep.person_id = epr.person_id')
+                      ->where('ep.wasEvaluated', 0)
+                      ->whereNull('ep.deleted_at');
+                  });
+              })
+              // Sin competencias activas (sección competencias = 0% → incompleta)
+              ->orWhereNotExists(function ($query) {
+                $query->select(\DB::raw(1))
+                  ->from('gh_evaluation_person_competence_detail as epcd')
+                  ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
+                  ->whereRaw('epcd.person_id = epr.person_id')
+                  ->whereNull('epcd.deleted_at');
+              });
+            })
+            // Tiene ALGÚN avance (algún objetivo evaluado O alguna competencia activa result>0)
             ->where(function ($q) {
               $q->whereExists(function ($query) {
                 $query->select(\DB::raw(1))
@@ -818,24 +871,8 @@ class Evaluation extends Model
                   ->from('gh_evaluation_person_competence_detail as epcd')
                   ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
                   ->whereRaw('epcd.person_id = epr.person_id')
+                  ->whereNull('epcd.deleted_at')
                   ->where('epcd.result', '>', 0);
-              });
-            })
-            // Tiene algo pendiente
-            ->where(function ($q) {
-              $q->whereExists(function ($query) {
-                $query->select(\DB::raw(1))
-                  ->from('gh_evaluation_person_competence_detail as epcd')
-                  ->whereRaw('epcd.evaluation_id = epr.evaluation_id')
-                  ->whereRaw('epcd.person_id = epr.person_id')
-                  ->where('epcd.result', 0);
-              })->orWhereExists(function ($query) {
-                $query->select(\DB::raw(1))
-                  ->from('gh_evaluation_person as ep')
-                  ->whereRaw('ep.evaluation_id = epr.evaluation_id')
-                  ->whereRaw('ep.person_id = epr.person_id')
-                  ->where('ep.wasEvaluated', 0)
-                  ->whereNull('ep.deleted_at');
               });
             })
             ->count();
