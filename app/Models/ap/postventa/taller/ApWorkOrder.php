@@ -1577,6 +1577,7 @@ class ApWorkOrder extends Model
       'sede',
       'status',
       'items.typePlanning',
+      'items.typeOperation',
       'creator',
       'typeCurrency',
       'invoiceTo'
@@ -1622,6 +1623,9 @@ class ApWorkOrder extends Model
     $workOrders = $query->get();
 
     return $workOrders->map(function ($workOrder) {
+      // Obtener el primer item no eliminado
+      $firstItem = $workOrder->items->first();
+
       return [
         'id' => $workOrder->id,
         'correlativo' => $workOrder->correlative,
@@ -1630,6 +1634,9 @@ class ApWorkOrder extends Model
         'estado' => $workOrder->status ? $workOrder->status->description : '',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
+        'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
+        'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
+        'descripcion_item' => $firstItem ? $firstItem->description : '',
         'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
         'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
         'fecha_entrega_real' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d H:i:s') : '',
@@ -1661,6 +1668,9 @@ class ApWorkOrder extends Model
       'estado' => 'Estado',
       'asesor' => 'Asesor',
       'sede' => 'Sede',
+      'tipo_planificacion' => 'Tipo de Planificación',
+      'operacion' => 'Operación',
+      'descripcion_item' => 'Descripción',
       'fecha_apertura' => 'Fecha Apertura',
       'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
       'fecha_entrega_real' => 'Fecha Entrega Real',
