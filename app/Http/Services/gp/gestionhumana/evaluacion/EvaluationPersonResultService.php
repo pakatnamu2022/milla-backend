@@ -1113,7 +1113,10 @@ class EvaluationPersonResultService extends BaseService
       ->join('gh_config_competencias', 'gh_evaluation_category_competence.competence_id', '=', 'gh_config_competencias.id')
       ->join('gh_config_subcompetencias', 'gh_config_competencias.id', '=', 'gh_config_subcompetencias.competencia_id')
       ->join('gh_hierarchical_category_detail', 'gh_evaluation_category_competence.category_id', '=', 'gh_hierarchical_category_detail.hierarchical_category_id')
-      ->where('gh_evaluation_category_competence.person_id', $persona->id)
+      ->where(function ($q) use ($persona) {
+        $q->whereNull('gh_evaluation_category_competence.person_id')
+          ->orWhere('gh_evaluation_category_competence.person_id', $persona->id);
+      })
       ->where('gh_evaluation_category_competence.active', 1)
       ->where('gh_hierarchical_category_detail.position_id', $persona->cargo_id)
       ->whereNull('gh_config_competencias.deleted_at')
@@ -1126,6 +1129,7 @@ class EvaluationPersonResultService extends BaseService
         'gh_config_subcompetencias.id as sub_competence_id',
         'gh_config_subcompetencias.nombre as sub_competence_name'
       ])
+      ->distinct()
       ->get()
       ->toArray();
 
