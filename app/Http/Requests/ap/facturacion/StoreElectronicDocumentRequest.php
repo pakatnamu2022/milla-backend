@@ -360,7 +360,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'venta_al_credito' => 'nullable|array',
       'venta_al_credito.*.cuota' => 'required|integer|min:1',
       'venta_al_credito.*.fecha_de_pago' => 'required|date',
-      'venta_al_credito.*.importe' => 'required|numeric|min:0',
+      'venta_al_credito.*.importe' => 'required|numeric|min:0.01',
     ];
   }
 
@@ -459,6 +459,30 @@ class StoreElectronicDocumentRequest extends StoreRequest
             'sunat_concept_debit_note_type_id',
             'Debe especificar el tipo de nota de débito'
           );
+        }
+      }
+
+      // Validar cuotas de venta al crédito
+      if ($this->input('medio_de_pago') === 'credito') {
+        $cuotas = $this->input('venta_al_credito', []);
+        if (empty($cuotas)) {
+          $validator->errors()->add(
+            'venta_al_credito',
+            'Debe especificar las cuotas para una venta al crédito'
+          );
+        } else {
+          $totalCuotas = collect($cuotas)->sum(fn($c) => (float)($c['importe'] ?? 0));
+          $totalDocumento = (float)$this->input('total', 0);
+          if (round($totalCuotas, 2) !== round($totalDocumento, 2)) {
+            $validator->errors()->add(
+              'venta_al_credito',
+              sprintf(
+                'La suma de las cuotas (%.2f) debe ser igual al total del documento (%.2f)',
+                $totalCuotas,
+                $totalDocumento
+              )
+            );
+          }
         }
       }
 

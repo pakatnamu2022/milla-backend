@@ -1,7 +1,7 @@
 {{-- resources/views/emails/evaluation-results-available.blade.php --}}
-@extends('emails.layouts.evaluation')
+@extends('emails.layouts.main')
 
-@push('ev_styles')
+@push('styles')
   <style>
     @media only screen and (max-width: 600px) {
       .ev-feat {
@@ -28,6 +28,8 @@
 @endsection
 
 @section('content')
+<tr>
+<td>
 
   {{-- Greeting --}}
   <p style="margin:0 0 8px 0;
@@ -133,4 +135,6 @@
   </p>
 
   <div style="height:8px;font-size:0;"></div>
+</td>
+</tr>
 @endsection

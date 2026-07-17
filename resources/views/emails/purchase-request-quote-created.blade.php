@@ -1,189 +1,434 @@
-@extends('emails.layouts.base')
+@extends('emails.layouts.main')
+
+@section('email_subject'){{ $title ?? 'Cotización de Vehículo' }}@endsection
+@section('title', 'Nueva cotización generada.')
+@section('subtitle')N° {{ $quote_number }}@endsection
 
 @section('content')
-  @php $font = "Inter,Arial,Helvetica,sans-serif"; @endphp
+  @php $font = "system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"; @endphp
 
-  {{-- Vigencia (si aplica) --}}
-  @if($quote_deadline)
-    <p style="margin:0 0 20px 0;font:400 13px/1.5 {{ $font }};color:#374151;">
-      Vigencia del documento: <strong style="color:#111827;">{{ $quote_deadline }}</strong>
-    </p>
-  @endif
+  {{-- Intro neutral --}}
+  <tr>
+    <td style="padding:0 0 24px 0;">
+      <p style="margin:0;font-family:{{ $font }};font-size:14px;line-height:1.7;color:#6b7280;">
+        Se ha generado la siguiente cotización. Revisa los datos a continuación.
+      </p>
+    </td>
+  </tr>
 
-  {{-- Titular y Asesor --}}
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="margin-bottom:24px;">
-    <tr>
-      <td width="50%" style="vertical-align:top;padding-right:12px;">
-        <p style="margin:0 0 5px 0;font:700 11px/1 {{ $font }};color:#374151;letter-spacing:1px;text-transform:uppercase;">
-          Titular
-        </p>
-        <p style="margin:0;font:400 13px/1.8 {{ $font }};color:#111827;">
-          <strong style="font-weight:700;">{{ $holder_name }}</strong><br>
-          @if($holder_doc)
-            <span style="color:#374151;">Doc:</span> {{ $holder_doc }}<br>
-          @endif
-          @if($holder_phone)
-            <span style="color:#374151;">Tel:</span> {{ $holder_phone }}<br>
-          @endif
-          @if($holder_email)
-            <span style="color:#374151;">Email:</span> {{ $holder_email }}
-          @endif
-        </p>
-      </td>
-      <td width="50%" style="vertical-align:top;padding-left:12px;border-left:2px solid #e5e7eb;">
-        <p style="margin:0 0 5px 0;font:700 11px/1 {{ $font }};color:#374151;letter-spacing:1px;text-transform:uppercase;">
-          Asesor Comercial
-        </p>
-        <p style="margin:0;font:400 13px/1.8 {{ $font }};color:#111827;">
-          <strong style="font-weight:700;">{{ $advisor_name }}</strong><br>
-          @if($sede)
-            <span style="color:#374151;">Sede:</span> {{ $sede }}
-          @endif
-        </p>
-      </td>
-    </tr>
-  </table>
+  {{-- ── COTIZACIÓN ── --}}
+  <tr>
+    <td>
+      <p style="margin:0 0 4px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                letter-spacing:0.8px;text-transform:uppercase;color:#aeaeb2;">Cotización</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
 
-  {{-- Vehículo --}}
-  <p style="margin:0 0 8px 0;font:700 11px/1 {{ $font }};color:#374151;letter-spacing:1px;text-transform:uppercase;">
-    Vehículo
-  </p>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="margin-bottom:28px;">
-    <tr>
-      <td style="font:400 13px/1.9 {{ $font }};color:#374151;width:130px;vertical-align:top;">Marca / Modelo</td>
-      <td style="font:600 13px/1.9 {{ $font }};color:#111827;vertical-align:top;">{{ $brand }} {{ $model }}</td>
-    </tr>
-    @if($color)
-      <tr>
-        <td style="font:400 13px/1.9 {{ $font }};color:#374151;">Color</td>
-        <td style="font:600 13px/1.9 {{ $font }};color:#111827;">{{ $color }}</td>
-      </tr>
-    @endif
-    @if($model_year)
-      <tr>
-        <td style="font:400 13px/1.9 {{ $font }};color:#374151;">Año modelo</td>
-        <td style="font:600 13px/1.9 {{ $font }};color:#111827;">{{ $model_year }}</td>
-      </tr>
-    @endif
-    <tr>
-      <td style="font:400 13px/1.9 {{ $font }};color:#374151;">Garantía</td>
-      <td style="font:600 13px/1.9 {{ $font }};color:#111827;">
-        {{ $warranty_years }} año(s) / {{ number_format($warranty_km, 0, '.', ',') }} km
-      </td>
-    </tr>
-  </table>
-
-  {{-- Sección de precios --}}
-  <p style="margin:0 0 8px 0;font:700 11px/1 {{ $font }};color:#374151;letter-spacing:1px;text-transform:uppercase;">
-    Detalle de precio
-  </p>
-
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-         style="border:1px solid #d1d5db;border-radius:10px;overflow:hidden;margin-bottom:24px;">
-
-    {{-- Precio base --}}
-    <tr style="background:#f9fafb;">
-      <td style="padding:12px 16px;font:400 13px/1.5 {{ $font }};color:#374151;border-bottom:1px dotted #d1d5db;">
-        Precio base
-      </td>
-      <td align="right" style="padding:12px 16px;font:500 13px/1.5 'Courier New',Courier,monospace;color:#111827;border-bottom:1px dotted #d1d5db;white-space:nowrap;">
-        {{ $currency }} {{ number_format($base_selling_price, 2) }}
-      </td>
-    </tr>
-
-    {{-- Descuentos --}}
-    @if(count($discounts) > 0)
-      @foreach($discounts as $discount)
+        {{-- N° Cotización --}}
         <tr>
-          <td style="padding:9px 16px 9px 30px;font:400 12px/1.5 {{ $font }};color:#374151;border-bottom:1px dotted #e5e7eb;">
-            {{ $discount['description'] }}
-            <span style="font-size:11px;color:#6b7280;margin-left:4px;">{{ $discount['type'] }}</span>
-          </td>
-          <td align="right"
-              style="padding:9px 16px;font:500 12px/1.5 'Courier New',Courier,monospace;border-bottom:1px dotted #e5e7eb;white-space:nowrap;
-              {{ $discount['is_negative'] ? 'color:#b91c1c;' : 'color:#15803d;' }}">
-            {{ $discount['is_negative'] ? '−' : '+' }}&nbsp;{{ $currency }} {{ number_format($discount['precio_unitario'], 2) }}
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/hash.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $quote_number }}</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Número de cotización</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
-      @endforeach
-    @endif
 
-    {{-- Accesorios --}}
-    @if(count($accessories) > 0)
-      @foreach($accessories as $acc)
+        {{-- Vigencia --}}
+        @if($quote_deadline)
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/calendar.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $quote_deadline }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Vigencia</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+        {{-- Asesor --}}
         <tr>
-          <td style="padding:9px 16px 9px 30px;font:400 12px/1.5 {{ $font }};color:#374151;border-bottom:1px dotted #e5e7eb;">
-            {{ $acc['description'] }}
-            <span style="font-size:11px;color:#6b7280;margin-left:4px;">× {{ $acc['quantity'] }}</span>
-          </td>
-          <td align="right" style="padding:9px 16px;font:500 12px/1.5 'Courier New',Courier,monospace;color:#15803d;border-bottom:1px dotted #e5e7eb;white-space:nowrap;">
-            +&nbsp;{{ $acc['type_currency_code'] }} {{ number_format($acc['total'], 2) }}
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/briefcase.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $advisor_name }}{{ $sede ? ' · ' . $sede : '' }}</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Asesor comercial</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
-      @endforeach
-    @endif
 
-    {{-- Precio de venta --}}
-    <tr style="background:#f9fafb;">
-      <td style="padding:12px 16px;font:500 13px/1.5 {{ $font }};color:#111827;border-top:1px solid #d1d5db;border-bottom:1px dotted #d1d5db;">
-        Precio de venta
-      </td>
-      <td align="right" style="padding:12px 16px;font:600 13px/1.5 'Courier New',Courier,monospace;color:#111827;border-top:1px solid #d1d5db;border-bottom:1px dotted #d1d5db;white-space:nowrap;">
-        {{ $currency }} {{ number_format($sale_price, 2) }}
-      </td>
-    </tr>
+      </table>
+    </td>
+  </tr>
 
-    {{-- Cuota inicial --}}
-    @if($down_payment)
-      <tr>
-        <td style="padding:12px 16px;font:400 13px/1.5 {{ $font }};color:#374151;border-bottom:1px dotted #d1d5db;">
-          Cuota inicial
-        </td>
-        <td align="right" style="padding:12px 16px;font:500 13px/1.5 'Courier New',Courier,monospace;color:#111827;border-bottom:1px dotted #d1d5db;white-space:nowrap;">
-          {{ $currency }} {{ number_format($down_payment, 2) }}
-        </td>
-      </tr>
-    @endif
+  {{-- Separador --}}
+  <tr>
+    <td style="padding:12px 0;">
+      <div style="height:1px;background:#f0f0f2;font-size:0;line-height:0;">&nbsp;</div>
+    </td>
+  </tr>
 
-    {{-- Equivalente moneda doc --}}
-    @if($doc_currency && $doc_currency !== $currency && $doc_sale_price)
-      <tr>
-        <td style="padding:9px 16px;font:400 12px/1.5 {{ $font }};color:#6b7280;border-bottom:1px dotted #e5e7eb;">
-          Equivalente en {{ $doc_currency }}
-        </td>
-        <td align="right" style="padding:9px 16px;font:400 12px/1.5 'Courier New',Courier,monospace;color:#6b7280;border-bottom:1px dotted #e5e7eb;white-space:nowrap;">
-          {{ $doc_currency }} {{ number_format($doc_sale_price, 2) }}
-        </td>
-      </tr>
-    @endif
+  {{-- ── TITULAR ── --}}
+  <tr>
+    <td>
+      <p style="margin:0 0 4px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                letter-spacing:0.8px;text-transform:uppercase;color:#aeaeb2;">Titular</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
 
-    {{-- TOTAL --}}
+        {{-- Nombre --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/user.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $holder_name }}</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Nombre completo</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Documento --}}
+        @if(!empty($holder_doc))
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/id-card.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $holder_doc }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Documento</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+        {{-- Teléfono --}}
+        @if(!empty($holder_phone))
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/phone.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $holder_phone }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Teléfono</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+        {{-- Email --}}
+        @if(!empty($holder_email))
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/mail.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $holder_email }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Email</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+      </table>
+    </td>
+  </tr>
+
+  {{-- Separador --}}
+  <tr>
+    <td style="padding:12px 0;">
+      <div style="height:1px;background:#f0f0f2;font-size:0;line-height:0;">&nbsp;</div>
+    </td>
+  </tr>
+
+  {{-- ── VEHÍCULO ── --}}
+  <tr>
+    <td>
+      <p style="margin:0 0 4px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                letter-spacing:0.8px;text-transform:uppercase;color:#aeaeb2;">Vehículo</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+
+        {{-- Marca --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/car.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $brand }}</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Marca</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Modelo --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/tag.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $model }}</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Modelo</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{-- Año de modelo --}}
+        @if($model_year)
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/calendar-days.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $model_year }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Año de modelo</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+        {{-- Color --}}
+        @if($color)
+          <tr>
+            <td style="padding:14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                    <img src="https://api.iconify.design/lucide/palette.svg?color=%23111111&width=28&height=28" alt=""
+                         width="28" height="28"
+                         style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:top;">
+                    <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $color }}</p>
+                    <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Color</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        @endif
+
+        {{-- Garantía --}}
+        <tr>
+          <td style="padding:14px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/shield-check.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:{{ $font }};font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $warranty_years }} año(s) / {{ number_format($warranty_km, 0, '.', ',') }} km</p>
+                  <p style="margin:0;font-family:{{ $font }};font-size:12px;color:#6b7280;line-height:1.4;">Garantía</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+
+  {{-- Separador --}}
+  <tr>
+    <td style="padding:12px 0;">
+      <div style="height:1px;background:#f0f0f2;font-size:0;line-height:0;">&nbsp;</div>
+    </td>
+  </tr>
+
+  {{-- ── DETALLE DE PRECIO ── --}}
+  <tr>
+    <td>
+      <p style="margin:0 0 16px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                letter-spacing:0.8px;text-transform:uppercase;color:#aeaeb2;">
+        Detalle de precio
+      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+
+        {{-- Precio base --}}
+        <tr>
+          <td style="padding:9px 0;font-family:{{ $font }};font-size:13px;color:#6b7280;">
+            Precio base
+          </td>
+          <td align="right" style="padding:9px 0;font-family:{{ $font }};
+                     font-size:13px;font-weight:500;color:#111111;white-space:nowrap;">
+            {{ $currency }} {{ number_format($base_selling_price, 2) }}
+          </td>
+        </tr>
+
+        {{-- Descuentos --}}
+        @foreach($discounts as $discount)
+          <tr>
+            <td style="padding:7px 0 7px 16px;font-family:{{ $font }};font-size:12px;color:#6b7280;">
+              {{ $discount['description'] }}
+              <span style="font-size:11px;color:#aeaeb2;margin-left:4px;">{{ $discount['type'] }}</span>
+            </td>
+            <td align="right" style="padding:7px 0;font-family:{{ $font }};
+                       font-size:12px;font-weight:500;white-space:nowrap;
+                       color:{{ $discount['is_negative'] ? '#d93025' : '#1a7f37' }};">
+              {{ $discount['is_negative'] ? '−' : '+' }}&nbsp;{{ $currency }} {{ number_format($discount['precio_unitario'], 2) }}
+            </td>
+          </tr>
+        @endforeach
+
+        {{-- Accesorios --}}
+        @foreach($accessories as $acc)
+          <tr>
+            <td style="padding:7px 0 7px 16px;font-family:{{ $font }};font-size:12px;color:#6b7280;">
+              {{ $acc['description'] }}
+              <span style="font-size:11px;color:#aeaeb2;margin-left:4px;">× {{ $acc['quantity'] }}</span>
+            </td>
+            <td align="right" style="padding:7px 0;font-family:{{ $font }};
+                       font-size:12px;font-weight:500;color:#1a7f37;white-space:nowrap;">
+              +&nbsp;{{ $acc['type_currency_code'] }} {{ number_format($acc['total'], 2) }}
+            </td>
+          </tr>
+        @endforeach
+
+      </table>
+    </td>
+  </tr>
+
+  {{-- ── TOTAL destacado ── --}}
+  <tr>
+    <td style="padding:16px 0 0 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="background:#eef1fb;border-radius:14px;">
+        <tr>
+          <td style="padding:22px 24px;">
+
+            {{-- Label --}}
+            <p style="margin:0 0 6px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                      text-transform:uppercase;letter-spacing:0.8px;color:#6b87cb;">
+              Precio de venta
+            </p>
+
+            {{-- Monto principal --}}
+            <p style="margin:0;font-family:{{ $font }};font-size:30px;font-weight:700;
+                      color:#01237e;line-height:1.1;letter-spacing:-0.5px;">
+              {{ $currency }} {{ number_format($sale_price, 2) }}
+            </p>
+
+            {{-- Cuota inicial --}}
+            @if($down_payment)
+              <p style="margin:10px 0 0 0;font-family:{{ $font }};font-size:13px;
+                        color:#4a5c99;font-weight:500;">
+                Cuota inicial:
+                <span style="font-weight:600;color:#01237e;">{{ $currency }} {{ number_format($down_payment, 2) }}</span>
+              </p>
+            @endif
+
+            {{-- Equivalente en otra moneda --}}
+            @if($doc_currency && $doc_currency !== $currency && $doc_sale_price)
+              <p style="margin:4px 0 0 0;font-family:{{ $font }};font-size:12px;color:#8a9cc7;">
+                Equivalente: {{ $doc_currency }} {{ number_format($doc_sale_price, 2) }}
+              </p>
+            @endif
+
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  {{-- Observaciones --}}
+  @if(!empty($comment))
     <tr>
-      <td style="padding:15px 16px;font:700 14px/1.5 {{ $font }};color:#01237E;background:#e8eeff;border-top:2px solid #c7d2fe;">
-        TOTAL
-      </td>
-      <td align="right" style="padding:15px 16px;font:700 16px/1.5 'Courier New',Courier,monospace;color:#01237E;background:#e8eeff;border-top:2px solid #c7d2fe;white-space:nowrap;">
-        {{ $currency }} {{ number_format($sale_price, 2) }}
+      <td style="padding:20px 0 0 0;">
+        <p style="margin:0 0 6px 0;font-family:{{ $font }};font-size:11px;font-weight:600;
+                  letter-spacing:0.8px;text-transform:uppercase;color:#aeaeb2;">
+          Observaciones
+        </p>
+        <p style="margin:0;font-family:{{ $font }};font-size:13px;line-height:1.7;color:#3a3a3c;">
+          {{ $comment }}
+        </p>
       </td>
     </tr>
-
-  </table>
-
-  {{-- Comentario --}}
-  @if($comment)
-    <p style="margin:0 0 6px 0;font:700 11px/1 {{ $font }};color:#374151;letter-spacing:1px;text-transform:uppercase;">
-      Observaciones
-    </p>
-    <p style="margin:0 0 24px 0;font:400 13px/1.7 {{ $font }};color:#374151;border-left:3px solid #d1d5db;padding-left:12px;">
-      {{ $comment }}
-    </p>
   @endif
 
   {{-- Nota final --}}
-  <p style="margin:0;font:400 11px/1.7 {{ $font }};color:#6b7280;">
-    Este documento fue generado automáticamente el {{ $quote_date }}.<br>
-    Los precios son referenciales y están sujetos a disponibilidad.
-  </p>
+  <tr>
+    <td style="padding:28px 0 0 0;">
+      <p style="margin:0;font-family:{{ $font }};font-size:12px;line-height:1.6;color:#aeaeb2;text-align:center;">
+        Generado el {{ $quote_date }}. Los precios son referenciales y están sujetos a disponibilidad.
+      </p>
+    </td>
+  </tr>
+
+  <tr><td style="height:8px;font-size:0;"></td></tr>
 @endsection
