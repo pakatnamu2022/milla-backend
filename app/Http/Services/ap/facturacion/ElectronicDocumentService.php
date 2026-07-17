@@ -527,7 +527,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     DB::beginTransaction();
     try {
       // ================================================================
-      // 1. PREPARACIÓN INICIAL (común para todos)
+      // 1. PREPARACIÓN INICIAL
       // ================================================================
 
       /**
@@ -573,38 +573,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['tipo_de_cambio'] = $exchangeRate->rate;
 
       // ================================================================
-      // 2. VALIDACIONES POR TIPO DE ENTIDAD
+      // 2. APLICAR LÓGICA DE DETRACCIONES PARA VENTA HISTÓRICA CON ANTICIPO
       // ================================================================
-
-      $this->validateAndEnrichForQuotation($data);
-      $this->validateAndEnrichForWorkOrder($data);
+      $this->applyDetractionForHistoricalSaleWithAdvance($data);
 
       // ================================================================
-      // 3. VALIDACIONES COMUNES
-      // ================================================================
-
-      /**
-       * Validar que un anticipo no sea por 0 soles
-       */
-      if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
-        $total = (float)($data['total'] ?? 0);
-        if ($total <= 0) {
-          throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
-        }
-      }
-
-      /**
-       * Validar que para venta interna (is_advance_payment = 0) la suma de anticipos + monto factura = total entidad
-       */
-      $this->validateInternalSaleTotal($data);
-
-      // ================================================================
-      // 4. APLICAR LÓGICA DE DETRACCIONES
-      // ================================================================
-      $this->applyDetractionLogic($data);
-
-      // ================================================================
-      // 4.5. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // 3. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
       // ================================================================
 
       /**
@@ -627,7 +601,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // ================================================================
-      // 5. CREACIÓN DEL DOCUMENTO Y RELACIONES
+      // 4. CREACIÓN DEL DOCUMENTO Y RELACIONES
       // ================================================================
 
       /**
@@ -647,18 +621,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * Crear los items
        */
       if (isset($data['items']) && is_array($data['items'])) {
-        // Determinar si es un anticipo para pasar al método de enriquecimiento
-        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
-
-        // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
-        // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
-        if (!empty($data['order_quotation_id'])) {
-          $this->enrichItemsCodigoFromQuotation($data['items'], (int)$data['order_quotation_id'], $isAdvancePayment);
-        } elseif (!empty($data['work_order_id'])) {
-          $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$data['work_order_id'], $isAdvancePayment);
-        }
-
+        // Ordenar items: primero anticipos, luego items normales
         $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
+
         foreach ($data['items'] as $index => $itemData) {
           $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
           $descuento = (float)($itemData['descuento'] ?? 0);
@@ -679,9 +644,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       /**
        * Crear cuotas si es venta al crédito
+       *
+       * IMPORTANTE: Si hay detracción, restar el monto de detracción del importe de las cuotas,
+       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
+       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $hasDetraction = !$isAdvancePayment && !empty($data['detraccion']);
+        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+
         foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($hasDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
           $document->installments()->create($cuotaData);
         }
       }
@@ -702,13 +678,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
         }
       }
-
-      // ================================================================
-      // 6. POST-PROCESAMIENTO POR ENTIDAD
-      // ================================================================
-
-      $this->afterCreateForQuotation($document, $data);
-      $this->afterCreateForWorkOrder($document, $data);
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
@@ -3484,6 +3453,76 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // La detracción se calcula sobre el total del documento actual
         $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
       }
+    }
+  }
+
+  /**
+   * Aplicar lógica de detracciones para ventas históricas con anticipo
+   * Este método es específico para storeHistoricalFinalSaleWithAdvance
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function applyDetractionForHistoricalSaleWithAdvance(array &$data): void
+  {
+    // ================================================================
+    // 1. VALIDAR QUE VENGA AL MENOS UN ANTICIPO
+    // ================================================================
+
+    $hasAnticipo = false;
+    if (isset($data['items']) && is_array($data['items'])) {
+      foreach ($data['items'] as $item) {
+        if (isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] == true) {
+          $hasAnticipo = true;
+          break;
+        }
+      }
+    }
+
+    if (!$hasAnticipo) {
+      throw new Exception('Debe enviar al menos un ítem con anticipo_regularizacion = true. Este método está orientado para facturas con anticipos.');
+    }
+
+    // ================================================================
+    // 2. OBTENER VALORES Y CONFIGURACIÓN
+    // ================================================================
+
+    $company = Company::find(Company::COMPANY_AP_ID);
+    if (!$company) {
+      throw new Exception('No se pudo obtener la configuración de la empresa.');
+    }
+
+    $totalAnticipo = (float)($data['total_anticipo'] ?? 0);
+    $total = (float)($data['total'] ?? 0);
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+    $sumaTotal = $totalAnticipo + $total;
+
+    // ================================================================
+    // 3. APLICAR LÓGICA DE DETRACCIÓN
+    // ================================================================
+
+    // Si la suma del anticipo + total >= detraction_amount (700), aplicar detracción
+    if ($sumaTotal >= $detractionAmount && $detractionAmount > 0) {
+      $data['detraccion'] = true;
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION; // 129
+      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION; // 105
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual (no sobre el anticipo)
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
+    } else {
+      // Si no pasa el umbral, NO aplicar detracción
+      $data['detraccion'] = false;
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS; // 36
+      $data['sunat_concept_detraction_type_id'] = null;
+      $data['detraccion_porcentaje'] = null;
+      $data['detraccion_total'] = null;
     }
   }
 
