@@ -694,13 +694,19 @@ class Evaluation extends Model
   public function fallbackCalculateProgressStats(bool $dispatchJob = true): array
   {
     // Primero intentar obtener datos de los dashboards pre-calculados (SQL directo)
-    $dashboardStats = DB::table('evaluation_person_dashboards')
-      ->where('evaluation_id', $this->id)
-      ->whereNotNull('last_calculated_at')
+    // JOIN con gh_evaluation_person_result para excluir registros soft-deleted
+    $dashboardStats = DB::table('evaluation_person_dashboards as epd')
+      ->join('gh_evaluation_person_result as epr', function ($join) {
+        $join->on('epr.evaluation_id', '=', 'epd.evaluation_id')
+          ->on('epr.person_id', '=', 'epd.person_id')
+          ->whereNull('epr.deleted_at');
+      })
+      ->where('epd.evaluation_id', $this->id)
+      ->whereNotNull('epd.last_calculated_at')
       ->selectRaw('
         COUNT(*) as total,
-        SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN completion_rate > 0 AND is_completed = 0 THEN 1 ELSE 0 END) as in_progress
+        SUM(CASE WHEN epd.is_completed = 1 THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN epd.completion_rate > 0 AND epd.is_completed = 0 THEN 1 ELSE 0 END) as in_progress
       ')
       ->first();
 
@@ -722,6 +728,7 @@ class Evaluation extends Model
           // Evaluación de objetivos: completado si todos los objetivos están evaluados
           $completedParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
+            ->whereNull('epr.deleted_at')
             ->whereNotExists(function ($query) {
               $query->select(\DB::raw(1))
                 ->from('gh_evaluation_person as ep')
@@ -742,6 +749,7 @@ class Evaluation extends Model
           // En progreso: tiene al menos un objetivo evaluado pero no todos
           $inProgressParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
+            ->whereNull('epr.deleted_at')
             ->whereExists(function ($query) {
               $query->select(\DB::raw(1))
                 ->from('gh_evaluation_person as ep')
@@ -764,6 +772,7 @@ class Evaluation extends Model
           // Y todos los objetivos evaluados (o sin objetivos). Igual que el accessor PHP.
           $completedParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
+            ->whereNull('epr.deleted_at')
             // Todas las competencias con resultado > 0 (ninguna con 0)
             ->whereNotExists(function ($query) {
               $query->select(\DB::raw(1))
@@ -794,6 +803,7 @@ class Evaluation extends Model
           // pero todavía le falta algo (alguna competencia = 0 O algún objetivo sin evaluar)
           $inProgressParticipants = \DB::table('gh_evaluation_person_result as epr')
             ->where('epr.evaluation_id', $this->id)
+            ->whereNull('epr.deleted_at')
             // Tiene algún avance
             ->where(function ($q) {
               $q->whereExists(function ($query) {
