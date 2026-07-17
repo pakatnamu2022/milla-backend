@@ -382,7 +382,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'venta_al_credito' => 'nullable|array',
       'venta_al_credito.*.cuota' => 'required_with:venta_al_credito|integer|min:1',
       'venta_al_credito.*.fecha_de_pago' => 'required_with:venta_al_credito|date',
-      'venta_al_credito.*.importe' => 'required_with:venta_al_credito|numeric|min:0',
+      'venta_al_credito.*.importe' => 'required_with:venta_al_credito|numeric|min:0.01',
     ];
   }
 
@@ -648,6 +648,31 @@ class UpdateElectronicDocumentRequest extends StoreRequest
                 )
               );
             }
+          }
+        }
+      }
+
+      // Validar cuotas de venta al crédito
+      $medioDepago = $this->input('medio_de_pago') ?? $document?->medio_de_pago;
+      if ($medioDepago === 'credito' && $this->has('venta_al_credito')) {
+        $cuotas = $this->input('venta_al_credito', []);
+        if (empty($cuotas)) {
+          $validator->errors()->add(
+            'venta_al_credito',
+            'Debe especificar las cuotas para una venta al crédito'
+          );
+        } else {
+          $totalCuotas = collect($cuotas)->sum(fn($c) => (float)($c['importe'] ?? 0));
+          $totalDocumento = (float)($this->input('total') ?? $document?->total ?? 0);
+          if (round($totalCuotas, 2) !== round($totalDocumento, 2)) {
+            $validator->errors()->add(
+              'venta_al_credito',
+              sprintf(
+                'La suma de las cuotas (%.2f) debe ser igual al total del documento (%.2f)',
+                $totalCuotas,
+                $totalDocumento
+              )
+            );
           }
         }
       }

@@ -1,5 +1,5 @@
 {{-- resources/views/emails/evaluation-closed.blade.php --}}
-@extends('emails.layouts.evaluation')
+@extends('emails.layouts.main')
 
 @section('email_subject')
   Evaluación de Desempeño Finalizada — Resumen
@@ -12,6 +12,8 @@
 @endsection
 
 @section('content')
+<tr>
+<td>
 
   {{-- Greeting --}}
   <p style="margin:0 0 28px 0;
@@ -293,4 +295,6 @@
   @endisset
 
   <div style="height:8px;font-size:0;"></div>
+</td>
+</tr>
 @endsection

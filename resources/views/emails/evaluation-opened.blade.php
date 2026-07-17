@@ -1,5 +1,5 @@
 {{-- resources/views/emails/evaluation-opened.blade.php --}}
-@extends('emails.layouts.evaluation')
+@extends('emails.layouts.main')
 
 @section('email_subject')
   Nueva Evaluación de Guerreros Habilitada
@@ -12,6 +12,8 @@
 @endsection
 
 @section('content')
+<tr>
+<td>
   @php
     $shown = array_slice($team_members ?? [], 0, 4);
     $extra = max(0, count($team_members ?? []) - 4);
@@ -205,4 +207,6 @@
   @endisset
 
   <div style="height:8px;font-size:0;"></div>
+</td>
+</tr>
 @endsection
