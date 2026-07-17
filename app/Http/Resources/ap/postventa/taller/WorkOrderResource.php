@@ -52,6 +52,21 @@ class WorkOrderResource extends JsonResource
       'discount_amount' => (float)$this->discount_amount,
       'tax_amount' => (float)$this->tax_amount,
       'final_amount' => (float)$this->final_amount,
+      'deductible_amount' => (float)$this->deductible_amount,
+      'deductible' => $this->whenLoaded('deductibles', function () {
+        $document = $this->deductibles->first()?->electronicDocument;
+
+        if (!$document) {
+          return null;
+        }
+
+        return [
+          'id' => $this->deductibles->first()?->id,
+          'full_number' => $document->full_number,
+          'cliente_denominacion' => $document->cliente_denominacion,
+          'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
+        ];
+      }),
       'is_invoiced' => (bool)$this->is_invoiced,
       'is_guarantee' => (bool)$this->is_guarantee,
       'is_recall' => (bool)$this->is_recall,
