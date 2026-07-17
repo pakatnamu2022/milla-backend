@@ -3814,10 +3814,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // 14. Attach internal notes to invoice
+      // 14. Create installments if credit sale
+      /**
+       * Crear cuotas si es venta al crédito
+       *
+       * Para facturas consolidadas con detracción, el frontend no conoce el monto
+       * de la detracción (se calcula en el backend) y envía las cuotas con el
+       * importe bruto del comprobante. Se le descuenta la detracción para que la
+       * cuota refleje lo que realmente se cobrará al cliente (el monto de la
+       * detracción lo deposita el cliente directamente al Banco de la Nación).
+       */
+      if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $hasDetraction = !empty($invoiceData['detraccion']);
+        $detractionTotal = (float)($invoiceData['detraccion_total'] ?? 0);
+
+        foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($hasDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
+          $invoice->installments()->create($cuotaData);
+        }
+      }
+
+      // 15. Attach internal notes to invoice
       $invoice->internalNotes()->attach($data['internal_note_ids']);
 
-      // 15. Mark internal notes as invoiced
+      // 16. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
       }
@@ -3825,7 +3847,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return [
-        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
+        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items', 'installments')),
         'work_orders' => $workOrdersData,
         'message' => 'Factura consolidada creada exitosamente',
         'totals' => [
