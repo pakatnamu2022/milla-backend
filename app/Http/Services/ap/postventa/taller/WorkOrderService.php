@@ -49,14 +49,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
+  private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
     WorkOrderLabourService   $labourService,
     DigitalFileService       $digitalFileService,
     ExportService            $exportService,
     InventoryMovementService $inventoryMovementService
-  )
-  {
+  ) {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
@@ -1575,14 +1575,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         if (count($partsNotFullyDelivered) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
-            implode('; ', $partsNotFullyDelivered)
+              implode('; ', $partsNotFullyDelivered)
           );
         }
 
         if (count($partsNotReceivedByTechnician) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido confirmados como recibidos por el técnico: ' .
-            implode('; ', $partsNotReceivedByTechnician)
+              implode('; ', $partsNotReceivedByTechnician)
           );
         }
       }
@@ -2212,5 +2212,52 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  /**
+   * Sube documentos (PDF) y los asocia a una orden de trabajo en gp_digital_files.
+   * Máximo 3 archivos por solicitud.
+   *
+   * @param int $id ID de la orden de trabajo
+   * @param array $files Archivos subidos (UploadedFile[])
+   */
+  public function uploadDocuments(int $id, array $files)
+  {
+    $workOrder = $this->find($id);
+
+    if (count($files) > 3) {
+      throw new Exception('Solo se pueden adjuntar hasta 3 archivos por solicitud');
+    }
+
+    return DB::transaction(function () use ($workOrder, $files) {
+      $uploadedFiles = [];
+
+      foreach ($files as $file) {
+        $uploadedFiles[] = $this->digitalFileService->storeFromContent(
+          file_get_contents($file->getRealPath()),
+          $file->getClientOriginalName(),
+          self::FILE_PATH_DOCUMENTS,
+          'public',
+          $file->getClientMimeType(),
+          $workOrder->getTable(),
+          $workOrder->id
+        );
+      }
+
+      return $uploadedFiles;
+    });
+  }
+
+  /**
+   * Lista los documentos asociados a una orden de trabajo.
+   */
+  public function listDocuments(int $id)
+  {
+    $workOrder = $this->find($id);
+
+    return \App\Models\gp\gestionsistema\DigitalFile::where('model', $workOrder->getTable())
+      ->where('id_model', $workOrder->id)
+      ->orderByDesc('id')
+      ->get();
   }
 }
