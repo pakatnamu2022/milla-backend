@@ -7,6 +7,8 @@ use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\gp\maestroGeneral\Sede;
+use Carbon\Carbon;
 
 class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
 {
@@ -51,6 +53,43 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
+        function ($attribute, $value, $fail) {
+          $deliveryDate = Carbon::parse($value);
+          $dayOfWeek = $deliveryDate->dayOfWeek;
+
+          if ($dayOfWeek === Carbon::SUNDAY) {
+            $fail('No se programan entregas los domingos.');
+            return;
+          }
+
+          $allowedSlots = $dayOfWeek === Carbon::SATURDAY
+            ? ApVehicleDelivery::SATURDAY_SLOTS
+            : ApVehicleDelivery::WEEKDAY_SLOTS;
+
+          $requestedTime = $deliveryDate->format('H:i');
+
+          if (!in_array($requestedTime, $allowedSlots, true)) {
+            $slotsLabel = implode(', ', $allowedSlots);
+            $dayLabel = $dayOfWeek === Carbon::SATURDAY ? 'sábado' : 'día de semana';
+            $fail("El horario '$requestedTime' no está disponible para un $dayLabel. Horarios permitidos: $slotsLabel.");
+            return;
+          }
+
+          $requestedSedeId = $this->input('sede_id');
+          $sede = $requestedSedeId ? Sede::find($requestedSedeId) : null;
+          $sedeIdsDelShop = $sede && $sede->shop_id
+            ? Sede::where('shop_id', $sede->shop_id)->pluck('id')
+            : collect(array_filter([$requestedSedeId]));
+
+          $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $deliveryDate->format('Y-m-d H:i:s'))
+            ->whereIn('sede_id', $sedeIdsDelShop)
+            ->whereNull('deleted_at')
+            ->exists();
+
+          if ($slotTaken) {
+            $fail("El horario $requestedTime del " . $deliveryDate->format('d/m/Y') . " ya está ocupado en este shop. Elija otro horario.");
+          }
+        },
       ],
       'sede_id' => [
         'required',
