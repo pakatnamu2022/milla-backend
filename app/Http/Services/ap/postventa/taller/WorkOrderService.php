@@ -1850,6 +1850,35 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     if (!$warehouse) {
       throw new Exception('No se encontró almacén físico activo para la sede de la orden de trabajo');
     }
+    // PASO 0: Validar que hay suficiente stock reservado para todos los repuestos
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
+
+      // Validar que existe el registro de stock
+      if (!$stock) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
+        );
+      }
+
+      // Validar que hay suficiente stock reservado
+      if ($stock->reserved_quantity < $part->quantity_used) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "Stock reservado insuficiente para el producto {$productInfo}. " .
+          "Stock reservado: {$stock->reserved_quantity}, Cantidad utilizada: {$part->quantity_used}"
+        );
+      }
+    }
 
     // PASO 1: Liberar las reservas de stock de cada repuesto
     foreach ($productParts as $part) {
