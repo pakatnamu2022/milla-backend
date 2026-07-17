@@ -136,8 +136,7 @@ class ProductWarehouseStockService extends BaseService
     int   $productId,
     int   $warehouseId,
     float $quantity
-  ): ProductWarehouseStock
-  {
+  ): ProductWarehouseStock {
     DB::beginTransaction();
     try {
       // Find or create stock record
@@ -656,7 +655,7 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity < $detail->quantity) {
           throw new Exception(
             "Stock insuficiente para producto ID {$detail->product_id}. " .
-            "Stock: {$stock->quantity}, Solicitado: {$detail->quantity}"
+              "Stock: {$stock->quantity}, Solicitado: {$detail->quantity}"
           );
         }
 
@@ -695,8 +694,7 @@ class ProductWarehouseStockService extends BaseService
     int   $warehouseOriginId,
     int   $warehouseDestinationId,
     float $quantityReceived
-  ): array
-  {
+  ): array {
     DB::beginTransaction();
     try {
       // Remove from in_transit in origin warehouse
@@ -713,7 +711,7 @@ class ProductWarehouseStockService extends BaseService
       if ($originStock->quantity_in_transit < $quantityReceived) {
         throw new Exception(
           "Stock en tránsito insuficiente para producto ID {$productId}. " .
-          "En tránsito: {$originStock->quantity_in_transit}, Recibido: {$quantityReceived}"
+            "En tránsito: {$originStock->quantity_in_transit}, Recibido: {$quantityReceived}"
         );
       }
 
@@ -1080,8 +1078,7 @@ class ProductWarehouseStockService extends BaseService
     float $quantity,
     float $unitCostToReverse,
     bool  $fromPendingCreditNote = true
-  ): ProductWarehouseStock
-  {
+  ): ProductWarehouseStock {
     DB::beginTransaction();
     try {
       // Step 1: Find stock record
@@ -1095,9 +1092,9 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity_pending_credit_note < $quantity) {
           throw new Exception(
             "Cantidad pendiente de nota de crédito insuficiente. " .
-            "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
-            "Pendiente NC: {$stock->quantity_pending_credit_note}, Cantidad NC: {$quantity}. " .
-            "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics o ajustar manualmente el stock."
+              "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
+              "Pendiente NC: {$stock->quantity_pending_credit_note}, Cantidad NC: {$quantity}. " .
+              "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics o ajustar manualmente el stock."
           );
         }
       } else {
@@ -1105,9 +1102,9 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity < $quantity) {
           throw new Exception(
             "Stock insuficiente para procesar nota de crédito. " .
-            "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
-            "Stock actual: {$stock->quantity}, Cantidad NC: {$quantity}. " .
-            "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics."
+              "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
+              "Stock actual: {$stock->quantity}, Cantidad NC: {$quantity}. " .
+              "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics."
           );
         }
       }
@@ -1354,9 +1351,11 @@ class ProductWarehouseStockService extends BaseService
         $quantityForAverageCost = $quantity; // Default: use same quantity
 
         // For PURCHASE_RECEPTION: check if we should use quantity_received for average cost
-        if ($movement->movement_type === InventoryMovement::TYPE_PURCHASE_RECEPTION &&
+        if (
+          $movement->movement_type === InventoryMovement::TYPE_PURCHASE_RECEPTION &&
           self::USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST === true &&
-          $movement->reference instanceof PurchaseReception) {
+          $movement->reference instanceof PurchaseReception
+        ) {
 
           // Get the PurchaseReceptionDetail for this product
           $receptionDetail = PurchaseReceptionDetail::where('purchase_reception_id', $movement->reference->id)
@@ -1820,8 +1819,7 @@ class ProductWarehouseStockService extends BaseService
     int                   $productId,
     int                   $warehouseId,
     \DateTime|string|null $fromDate = null
-  ): array
-  {
+  ): array {
     DB::beginTransaction();
     try {
       // Convertir $fromDate a Carbon si viene como string
@@ -2088,6 +2086,9 @@ class ProductWarehouseStockService extends BaseService
           ->where('qd.product_id', $stock->product_id)
           ->where('qd.supply_type', ApOrderQuotations::STOCK)
           ->where('w.id', $stock->warehouse_id) // Ensure the warehouse matches
+          // Las cotizaciones de Taller nunca reservan stock al confirmarse; su reserva
+          // real vive en ap_work_order_parts una vez cargada a la OT (ver work order parts join arriba)
+          ->where('q.area_id', '!=', ApMasters::AREA_TALLER)
           ->whereNull('qd.deleted_at')
           ->whereNull('q.deleted_at')
           // Only quotations that are not in excluded statuses
