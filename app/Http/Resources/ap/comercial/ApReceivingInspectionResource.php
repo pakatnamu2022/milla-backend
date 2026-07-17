@@ -16,6 +16,7 @@ class ApReceivingInspectionResource extends JsonResource
             'photo_back_url'       => $this->photo_back_url,
             'photo_left_url'       => $this->photo_left_url,
             'photo_right_url'      => $this->photo_right_url,
+            'photo_vin_url'        => $this->photo_vin_url,
             'general_observations' => $this->general_observations,
             'inspected_by'         => $this->inspected_by,
             'inspected_by_name'    => $this->inspectedBy?->name,

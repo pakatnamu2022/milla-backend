@@ -43,13 +43,17 @@ class DigitalFileService extends BaseService
     return $file;
   }
 
-  public function store($file, string $path = '/gp/images/test/', string $type = 'public', $model = null)
+  public function store($file, string $path = '/gp/images/test/', string $type = 'public', $model = null, ?string $customName = null)
   {
     if ($model === null) {
       $model = (new DigitalFile())->getTable();
     }
 
-    $fileName = $path . time() . '_' . $file->getClientOriginalName();
+    $baseName = $customName
+      ? $customName . '.' . $file->getClientOriginalExtension()
+      : $file->getClientOriginalName();
+
+    $fileName = $path . time() . '_' . $baseName;
 
     $data['name'] = $fileName;
     $data['model'] = $model;
