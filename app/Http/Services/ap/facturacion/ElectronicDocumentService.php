@@ -3733,6 +3733,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // 11. Prepare invoice data
+      // Determinar condiciones de pago:
+      // 1. Si el frontend lo envía, respetarlo
+      // 2. Si no, calcularlo automáticamente: si hay cuotas → CREDITO, si no → CONTADO
+      $hasInstallments = isset($data['venta_al_credito']) && is_array($data['venta_al_credito']) && !empty($data['venta_al_credito']);
+      $condicionesDePago = $data['condiciones_de_pago'] ?? ($hasInstallments ? 'CREDITO' : 'CONTADO');
+
       $invoiceData = [
         'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
         'serie' => $data['serie'],
@@ -3755,6 +3761,14 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total_gravada' => round($subtotal, 2),
         'total_igv' => round($taxAmount, 2),
         'total' => round($total, 2),
+        'condiciones_de_pago' => $condicionesDePago,
+        'medio_de_pago' => $data['medio_de_pago'] ?? null,
+        'bank_id' => $data['bank_id'] ?? null,
+        'operation_number' => $data['operation_number'] ?? null,
+        'financing_type' => $data['financing_type'] ?? null,
+        'placa_vehiculo' => $data['placa_vehiculo'] ?? null,
+        'codigo_unico' => $data['codigo_unico'] ?? null,
+        'card_last4' => $data['card_last4'] ?? null,
         'internal_note' => $data['internal_note'] ?? '',
         'observaciones' => $data['observaciones'] ?? '',
         'enviar_automaticamente_a_la_sunat' => false,
