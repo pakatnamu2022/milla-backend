@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\ExportVehiclesBillingRequest;
 use App\Http\Requests\ap\comercial\ExportVehiclesDeliveryRequest;
+use App\Http\Requests\ap\comercial\ExportVehiclesInventoryRequest;
 use App\Http\Requests\ap\comercial\ExportVehiclesRequest;
-use App\Http\Requests\ap\comercial\ExportVehiclesSalesRequest;
 use App\Http\Requests\ap\comercial\IndexVehiclesRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesReplacementRequest;
 use App\Http\Requests\ap\comercial\StoreVehiclesRequest;
@@ -37,10 +38,10 @@ class VehiclesController extends Controller
     }
   }
 
-  public function exportSales(ExportVehiclesSalesRequest $request)
+  public function exportBilling(ExportVehiclesBillingRequest $request)
   {
     try {
-      return $this->service->exportSales($request);
+      return $this->service->exportBilling($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -50,6 +51,15 @@ class VehiclesController extends Controller
   {
     try {
       return $this->service->exportDelivery($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function exportInventory(ExportVehiclesInventoryRequest $request)
+  {
+    try {
+      return $this->service->exportInventory($request);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

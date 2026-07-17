@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\comercial;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
+use App\Exports\GeneralExport;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
@@ -42,10 +43,103 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $exportService->exportFromRequest($request, Vehicles::class);
   }
 
-  public function exportSales(Request $request)
+  public function exportBilling(Request $request)
   {
-    $exportService = new ExportService();
-    return $exportService->exportFromRequest($request, Vehicles::class);
+    $query = ElectronicDocument::with([
+      'purchaseRequestQuote.sede',
+      'purchaseRequestQuote.holder.typePerson',
+      'purchaseRequestQuote.opportunity.worker',
+      'purchaseRequestQuote.vehicle.model.family.brand',
+      'purchaseRequestQuote.vehicle.color',
+      'receivableAccounts',
+      'bank',
+    ])
+      ->whereNotNull('purchase_request_quote_id')
+      ->whereIn('sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA,
+      ])
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true);
+
+    if ($request->filled('fecha_de_emision')) {
+      $dates = $request->get('fecha_de_emision');
+      if (is_array($dates) && count($dates) === 2) {
+        $query->whereDate('fecha_de_emision', '>=', $dates[0])
+          ->whereDate('fecha_de_emision', '<=', $dates[1]);
+      }
+    }
+
+    if ($request->filled('sede_id')) {
+      $sedeId = $request->get('sede_id');
+      $query->whereHas('purchaseRequestQuote', function ($q) use ($sedeId) {
+        $q->where('sede_id', $sedeId);
+      });
+    }
+
+    $documents = $query->orderBy('fecha_de_emision', 'desc')->get();
+
+    $columns = [
+      'solicitud'         => 'SOLICITUD',
+      'sede'              => 'SEDE',
+      'tipo_persona'      => 'TIPO DE PERSONA',
+      'dni'               => 'DNI',
+      'cliente'           => 'CLIENTE',
+      'asesor'            => 'ASESOR',
+      'marca'             => 'MARCA',
+      'modelo'            => 'MODELO',
+      'vin'               => 'VIN',
+      'color'             => 'COLOR',
+      'numero_documento'  => 'NUMERO DE DOCUMENTO',
+      'fecha_factura'     => 'FECHA FACTURA',
+      'pct_beneficio'     => '% BENEFICIO',
+      'beneficio'         => 'BENEFICIO',
+      'total_factura'     => 'TOTAL FACTURA',
+      'pendiente'         => 'PENDIENTE',
+      'fecha_cancelacion' => 'FECHA DE CANCELACION',
+      'ref_cancelacion'   => 'REF CANCELACION',
+      'forma_pago'        => 'FORMA DE PAGO',
+      'banco'             => 'BANCO',
+    ];
+
+    $rows = $documents->map(function ($doc) {
+      $prq = $doc->purchaseRequestQuote;
+      $receivable = $doc->receivableAccounts->first();
+
+      return [
+        'solicitud'         => $prq?->correlative,
+        'sede'              => $prq?->sede?->abreviatura,
+        'tipo_persona'      => $prq?->holder?->typePerson?->description,
+        'dni'               => $prq?->holder?->num_doc,
+        'cliente'           => $prq?->holder?->full_name,
+        'asesor'            => $prq?->opportunity?->worker?->nombre_completo,
+        'marca'             => $prq?->vehicle?->model?->family?->brand?->name,
+        'modelo'            => $prq?->vehicle?->model?->version,
+        'vin'               => $prq?->vehicle?->vin,
+        'color'             => $prq?->vehicle?->color?->description,
+        'numero_documento'  => $doc->full_number,
+        'fecha_factura'     => $doc->fecha_de_emision?->format('d/m/Y'),
+        'pct_beneficio'     => $prq?->margin_pct,
+        'beneficio'         => $prq?->margin_amount,
+        'total_factura'     => $doc->total,
+        'pendiente'         => $doc->receivableAccounts->isNotEmpty()
+          ? $doc->receivableAccounts->sum('balance')
+          : null,
+        'fecha_cancelacion' => $receivable?->collection_date?->format('d/m/Y'),
+        'ref_cancelacion'   => $receivable?->document_number,
+        'forma_pago'        => $doc->condiciones_de_pago,
+        'banco'             => $doc->bank?->description,
+      ];
+    });
+
+    $title = $request->get('title', 'Reporte de Facturación Comercial');
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    return \Maatwebsite\Excel\Facades\Excel::download(
+      new GeneralExport($rows, $columns, $title),
+      $filename
+    );
   }
 
   public function exportDelivery(Request $request)
@@ -71,6 +165,96 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $exportService = new ExportService();
     return $exportService->exportFromRequest($request, Vehicles::class);
+  }
+
+  public function exportInventory(Request $request)
+  {
+    $statusIds = [
+      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ApVehicleStatus::EN_CURSO,
+      ApVehicleStatus::INVENTARIO_VN,
+    ];
+
+    $query = Vehicles::with([
+      'model.family.brand',
+      'model.fuelType',
+      'color',
+      'vehicleStatus',
+      'warehouse.sede',
+      'purchaseOrder',
+    ])->whereIn('ap_vehicle_status_id', $statusIds);
+
+    if ($request->filled('emission_date')) {
+      $dates = $request->get('emission_date');
+      if (is_array($dates) && count($dates) === 2) {
+        $query->whereHas('purchaseOrder', function ($q) use ($dates) {
+          $q->whereDate('emission_date', '>=', $dates[0])
+            ->whereDate('emission_date', '<=', $dates[1]);
+        });
+      }
+    }
+
+    if ($request->filled('sede_id')) {
+      $sedeId = $request->get('sede_id');
+      $query->whereHas('warehouse', function ($q) use ($sedeId) {
+        $q->where('sede_id', $sedeId);
+      });
+    }
+
+    $vehicles = $query->orderBy('ap_vehicle_status_id')->get();
+
+    $columns = [
+      'fecha_emision'   => 'FECHA EMISION',
+      'importe_inicial' => 'IMPORTE INICIAL',
+      'numero_factura'  => 'NUMERO FACTURA',
+      'marca'           => 'MARCA VEHICULO',
+      'modelo'          => 'MODELO VEHICULO',
+      'color'           => 'COLOR VEHICULO',
+      'anio_modelo'     => 'AÑO MODELO',
+      'combustible'     => 'TIPO COMBUSTIBLE',
+      'vin'             => 'VIN',
+      'serie_motor'     => 'SERIE MOTOR',
+      'sede'            => 'SEDE',
+      'almacen'         => 'ALMACEN',
+      'estado'          => 'ESTADO',
+      'dias_vencidos'   => 'DIAS VENCIDOS',
+    ];
+
+    $rows = $vehicles->map(function ($vehicle) {
+      $po = $vehicle->purchaseOrder;
+      $emissionDate = $po?->emission_date;
+      $diasVencidos = $emissionDate ? (int) $emissionDate->diffInDays(now()) : null;
+
+      $invoiceNumber = null;
+      if ($po?->invoice_series || $po?->invoice_number) {
+        $invoiceNumber = trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-');
+      }
+
+      return [
+        'fecha_emision'   => $emissionDate?->format('d/m/Y'),
+        'importe_inicial' => $po?->total,
+        'numero_factura'  => $invoiceNumber,
+        'marca'           => $vehicle->model?->family?->brand?->name,
+        'modelo'          => $vehicle->model?->version,
+        'color'           => $vehicle->color?->description,
+        'anio_modelo'     => $vehicle->model?->model_year,
+        'combustible'     => $vehicle->model?->fuelType?->description,
+        'vin'             => $vehicle->vin,
+        'serie_motor'     => $vehicle->engine_number,
+        'sede'            => $vehicle->warehouse?->sede?->abreviatura,
+        'almacen'         => $vehicle->warehouse?->description,
+        'estado'          => $vehicle->vehicleStatus?->description,
+        'dias_vencidos'   => $diasVencidos,
+      ];
+    });
+
+    $title = $request->get('title', 'Reporte de Inventario de Vehículos');
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    return \Maatwebsite\Excel\Facades\Excel::download(
+      new GeneralExport($rows, $columns, $title),
+      $filename
+    );
   }
 
   public function list(Request $request)
