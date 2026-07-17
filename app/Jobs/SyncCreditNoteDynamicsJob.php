@@ -6,6 +6,7 @@ use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\CreditNoteSyncLog;
 use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\compras\SupplierCreditNoteDetail;
@@ -120,56 +121,82 @@ class SyncCreditNoteDynamicsJob implements ShouldQueue
         // Proceso POSTVENTA (separado)
         $results = $this->consultStoredProcedure($purchaseOrder->number, 'all');
 
-        // Consultar información de factura para determinar si está anulada
-        $invoiceResult = $this->consultInvoiceStoredProcedure($purchaseOrder->number);
-
-        $isInvoiceVoided = false;
-
-        if ($invoiceResult) {
-          $newInvoice = trim($invoiceResult->NroDocProvDocumento ?? '');
-          $newReceipt = trim($invoiceResult->NumeroDocumento ?? '');
-          $isInvoiceVoided = ($newInvoice === $newReceipt);
+        // Verificar el DocumentoTipo para determinar el flujo
+        $documentoTipo = null;
+        if (!empty($results) && isset($results[0]->DocumentoTipo)) {
+          $documentoTipo = (int)$results[0]->DocumentoTipo;
         }
 
-        // VALIDACIÓN: Solo validar cantidades si la factura NO está anulada
-        if (!$isInvoiceVoided) {
+        // CASO ESPECIAL: DocumentoTipo = 4 (Anulación antes de recepción en Dynamics)
+        if ($documentoTipo === 4) {
+          // Solo anular la recepción, NO generar movimientos de inventario
           $reception = $purchaseOrder->reception;
 
-          if (!$reception) {
-            \Log::error("VALIDACIÓN ERROR: No se encontró recepción para OC #{$purchaseOrder->number}");
-          } else {
+          if ($reception) {
+            $reception->update(['status' => PurchaseReception::ANNULLED]);
+          }
 
-            foreach ($results as $item) {
-              $dynCode = trim($item->ArticuloId ?? '');
-              $itemCantidadEnviada = (float)($item->ItemCantidadEnviada ?? 0);
+          // Actualizar credit_note_dynamics con el número del documento
+          if (!empty($results) && isset($results[0]->DocumentoNumero)) {
+            $creditNoteNumber = trim($results[0]->DocumentoNumero);
+            $purchaseOrder->update(['credit_note_dynamics' => $creditNoteNumber]);
+          }
 
-              // Buscar el producto por dyn_code
-              $product = Products::where('dyn_code', $dynCode)->first();
+          $status = 'success';
+          $errorMessage = 'Recepción anulada (sin movimiento de inventario - DocumentoTipo 4)';
+        } else {
+          // CASO NORMAL: DocumentoTipo = 5 o diferente (Lógica actual completa)
+          // Consultar información de factura para determinar si está anulada
+          $invoiceResult = $this->consultInvoiceStoredProcedure($purchaseOrder->number);
 
-              if (!$product) {
-                \Log::error("VALIDACIÓN ERROR: Producto no encontrado con dyn_code: {$dynCode}");
-                continue;
-              }
+          $isInvoiceVoided = false;
 
-              // Buscar el detalle de recepción para este producto
-              $receptionDetail = $reception->details()->where('product_id', $product->id)->first();
+          if ($invoiceResult) {
+            $newInvoice = trim($invoiceResult->NroDocProvDocumento ?? '');
+            $newReceipt = trim($invoiceResult->NumeroDocumento ?? '');
+            $isInvoiceVoided = ($newInvoice === $newReceipt);
+          }
 
-              if (!$receptionDetail) {
-                \Log::error("VALIDACIÓN ERROR: No se encontró detalle de recepción para producto ID {$product->id} (dyn_code: {$dynCode})");
-                continue;
-              }
+          // VALIDACIÓN: Solo validar cantidades si la factura NO está anulada
+          if (!$isInvoiceVoided) {
+            $reception = $purchaseOrder->reception;
 
-              // Comparar observed_quantity con ItemCantidadEnviada
-              $observedQuantity = (float)$receptionDetail->observed_quantity;
+            if (!$reception) {
+              \Log::error("VALIDACIÓN ERROR: No se encontró recepción para OC #{$purchaseOrder->number}");
+            } else {
 
-              if ($observedQuantity !== $itemCantidadEnviada) {
-                \Log::error("VALIDACIÓN ERROR: Producto {$dynCode} - Cantidad enviada: {$itemCantidadEnviada} != Cantidad observada: {$observedQuantity}");
+              foreach ($results as $item) {
+                $dynCode = trim($item->ArticuloId ?? '');
+                $itemCantidadEnviada = (float)($item->ItemCantidadEnviada ?? 0);
+
+                // Buscar el producto por dyn_code
+                $product = Products::where('dyn_code', $dynCode)->first();
+
+                if (!$product) {
+                  \Log::error("VALIDACIÓN ERROR: Producto no encontrado con dyn_code: {$dynCode}");
+                  continue;
+                }
+
+                // Buscar el detalle de recepción para este producto
+                $receptionDetail = $reception->details()->where('product_id', $product->id)->first();
+
+                if (!$receptionDetail) {
+                  \Log::error("VALIDACIÓN ERROR: No se encontró detalle de recepción para producto ID {$product->id} (dyn_code: {$dynCode})");
+                  continue;
+                }
+
+                // Comparar observed_quantity con ItemCantidadEnviada
+                $observedQuantity = (float)$receptionDetail->observed_quantity;
+
+                if ($observedQuantity !== $itemCantidadEnviada) {
+                  \Log::error("VALIDACIÓN ERROR: Producto {$dynCode} - Cantidad enviada: {$itemCantidadEnviada} != Cantidad observada: {$observedQuantity}");
+                }
               }
             }
           }
-        }
 
-        [$status, $creditNoteNumber, $errorMessage] = $this->processPostventaCreditNote($purchaseOrder, $results, $isInvoiceVoided);
+          [$status, $creditNoteNumber, $errorMessage] = $this->processPostventaCreditNote($purchaseOrder, $results, $isInvoiceVoided);
+        }
       } else {
         $errorMessage = "La orden de compra #{$purchaseOrderId} tiene un tipo de operación no válido";
         throw new \Exception($errorMessage);

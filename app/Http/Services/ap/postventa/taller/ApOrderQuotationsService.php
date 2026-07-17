@@ -2316,8 +2316,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         continue;
       }
 
+      // lockForUpdate: sin esto, dos confirmaciones concurrentes sobre el mismo
+      // producto/almacén podrían leer el mismo available_quantity antes de que
+      // cualquiera guarde, pasar ambas la validación y dejar reserved_quantity
+      // por encima del stock físico (available_quantity negativo).
       $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
         ->where('warehouse_id', $warehouseId)
+        ->lockForUpdate()
         ->first();
 
       if (!$stock) {

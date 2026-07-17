@@ -230,8 +230,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $this->validateSalePrice($data, $workOrder);
 
       // Validar que exista stock disponible para reservar
+      // lockForUpdate: evita que dos altas concurrentes del mismo producto/almacén
+      // lean el mismo available_quantity antes de guardar y sobre-reserven.
       $stock = ProductWarehouseStock::where('product_id', $data['product_id'])
         ->where('warehouse_id', $data['warehouse_id'])
+        ->lockForUpdate()
         ->first();
 
       if (!$stock) {
@@ -326,19 +329,27 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Si cambió el producto, almacén o cantidad, ajustar el stock
       if ($newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity) {
-        // Liberar el stock antiguo
+        $sameStockRow = $newProductId == $oldProductId && $newWarehouseId == $oldWarehouseId;
+
+        // lockForUpdate: evita que una edición concurrente del mismo producto/almacén
+        // lea un available_quantity obsoleto entre liberar lo viejo y reservar lo nuevo.
         $oldStock = ProductWarehouseStock::where('product_id', $oldProductId)
           ->where('warehouse_id', $oldWarehouseId)
+          ->lockForUpdate()
           ->first();
 
         if ($oldStock) {
           $oldStock->releaseReservedStock($oldQuantity);
         }
 
-        // Reservar el nuevo stock
-        $newStock = ProductWarehouseStock::where('product_id', $newProductId)
-          ->where('warehouse_id', $newWarehouseId)
-          ->first();
+        // Si es la misma fila (solo cambió la cantidad), reusar el objeto ya bloqueado
+        // y refrescado en vez de re-consultarlo.
+        $newStock = $sameStockRow
+          ? $oldStock
+          : ProductWarehouseStock::where('product_id', $newProductId)
+            ->where('warehouse_id', $newWarehouseId)
+            ->lockForUpdate()
+            ->first();
 
         if (!$newStock) {
           throw new Exception('No se encontró registro de stock para el nuevo producto/almacén');
@@ -587,8 +598,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
 
         // Validar que exista stock disponible para reservar
+        // lockForUpdate: evita sobre-reservar si otra transacción concurrente
+        // reserva el mismo producto/almacén al mismo tiempo.
         $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
           ->where('warehouse_id', $warehouseId)
+          ->lockForUpdate()
           ->first();
 
         if (!$stock) {
