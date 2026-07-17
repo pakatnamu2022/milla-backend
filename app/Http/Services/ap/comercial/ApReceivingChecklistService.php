@@ -290,6 +290,7 @@ class ApReceivingChecklistService extends BaseService
           ['shipping_guide_id' => $data['shipping_guide_id']],
           ['inspected_by' => auth()->id()]
         );
+        $inspection->load('shippingGuide');
 
         if (isset($data['general_observations'])) {
           $inspection->update(['general_observations' => $data['general_observations']]);
