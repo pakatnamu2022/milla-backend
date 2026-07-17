@@ -98,11 +98,11 @@ class ApReceivingChecklistService extends BaseService
 
         foreach ($consignmentAccessories as $accessory) {
           $accessories[] = [
-            'id' => $accessory->id,
-            'description' => $accessory->description,
-            'quantity' => $accessory->quantity,
-            'unit_price' => null,
-            'total' => null,
+            'id'               => $accessory->id,
+            'description'      => $accessory->description,
+            'quantity'         => $accessory->quantity,
+            'unit_price'       => null,
+            'total'            => null,
             'unit_measurement' => $accessory->unitMeasurement?->description ?? 'UND',
           ];
         }
@@ -118,11 +118,11 @@ class ApReceivingChecklistService extends BaseService
 
             foreach ($accessoryItems as $item) {
               $accessories[] = [
-                'id' => $item->id,
-                'description' => $item->description,
-                'quantity' => $item->quantity,
-                'unit_price' => $item->unit_price,
-                'total' => $item->total,
+                'id'               => $item->id,
+                'description'      => $item->description,
+                'quantity'         => $item->quantity,
+                'unit_price'       => $item->unit_price,
+                'total'            => $item->total,
                 'unit_measurement' => $item->unitMeasurement?->abbreviation ?? 'UND',
               ];
             }
@@ -140,7 +140,7 @@ class ApReceivingChecklistService extends BaseService
       // Enriquecer accesorios con estado de recepción
       $accessories = array_map(function ($acc) use ($accessoryStatuses) {
         $status = isset($acc['id']) ? $accessoryStatuses->get($acc['id']) : null;
-        $acc['received'] = $status ? (bool) $status->received : null;
+        $acc['received'] = $status ? (bool)$status->received : null;
         $acc['work_order_id'] = $status?->work_order_id;
         $acc['is_installed'] = $status?->is_installed ?? null;
         return $acc;
@@ -156,11 +156,11 @@ class ApReceivingChecklistService extends BaseService
           foreach ($quote->accessories as $detail) {
             if ($detail->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
               $posventaAccessories[] = [
-                'id' => $detail->id,
+                'id'                    => $detail->id,
                 'approved_accessory_id' => $detail->approved_accessory_id,
-                'description' => $detail->approvedAccessory->description ?? 'N/A',
-                'quantity' => $detail->quantity,
-                'price' => $detail->price,
+                'description'           => $detail->approvedAccessory->description ?? 'N/A',
+                'quantity'              => $detail->quantity,
+                'price'                 => $detail->price,
               ];
             }
           }
@@ -174,12 +174,12 @@ class ApReceivingChecklistService extends BaseService
         ->exists() : false;
 
       return response()->json([
-        'data' => ApReceivingChecklistResource::collection($checklists),
-        'note_received' => $shippingGuide->note_received,
-        'accessories' => $accessories,
-        'posventa_accessories' => $posventaAccessories,
+        'data'                     => ApReceivingChecklistResource::collection($checklists),
+        'note_received'            => $shippingGuide->note_received,
+        'accessories'              => $accessories,
+        'posventa_accessories'     => $posventaAccessories,
         'has_open_inst_work_order' => $hasOpenInstWorkOrder,
-        'inspection' => $inspection ? new ApReceivingInspectionResource($inspection) : null,
+        'inspection'               => $inspection ? new ApReceivingInspectionResource($inspection) : null,
       ]);
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
@@ -248,9 +248,9 @@ class ApReceivingChecklistService extends BaseService
         }
 
         ApReceivingChecklist::create([
-          'receiving_id' => $receivingId,
+          'receiving_id'      => $receivingId,
           'shipping_guide_id' => $data['shipping_guide_id'],
-          'kilometers' => $data['kilometers'],
+          'kilometers'        => $data['kilometers'],
         ]);
       }
 
@@ -262,9 +262,9 @@ class ApReceivingChecklistService extends BaseService
 
       // Siempre marcar como recibido
       $shippingGuide->update([
-        'is_received' => true,
+        'is_received'   => true,
         'note_received' => $data['note'] ?? null,
-        'received_by' => auth()->id(),
+        'received_by'   => auth()->id(),
         'received_date' => now(),
       ]);
 
@@ -310,14 +310,14 @@ class ApReceivingChecklistService extends BaseService
 
         foreach ($data['accessories'] as $accessory) {
           ApReceivingAccessoryStatus::create([
-            'shipping_guide_id' => $data['shipping_guide_id'],
+            'shipping_guide_id'      => $data['shipping_guide_id'],
             'purchase_order_item_id' => $accessory['purchase_order_item_id'] ?? null,
-            'description' => $accessory['description'],
-            'quantity' => $accessory['quantity'] ?? 1,
-            'received' => (bool) $accessory['received'],
+            'description'            => $accessory['description'],
+            'quantity'               => $accessory['quantity'] ?? 1,
+            'received'               => (bool)$accessory['received'],
           ]);
 
-          if (!(bool) $accessory['received']) {
+          if (!(bool)$accessory['received']) {
             $needsInstallationWO = true;
           }
         }
@@ -358,9 +358,9 @@ class ApReceivingChecklistService extends BaseService
             }
           } catch (Exception $e) {
             Log::warning('No se pudo generar OT de instalación de accesorios', [
-              'vehicle_id' => $vehicle->id,
+              'vehicle_id'        => $vehicle->id,
               'shipping_guide_id' => $shippingGuide->id,
-              'error' => $e->getMessage(),
+              'error'             => $e->getMessage(),
             ]);
           }
         }
@@ -382,13 +382,13 @@ class ApReceivingChecklistService extends BaseService
       } catch (Exception $e) {
         Log::error('Error al enviar correo de recepción de vehículo', [
           'shipping_guide_id' => $shippingGuide->id,
-          'error' => $e->getMessage(),
+          'error'             => $e->getMessage(),
         ]);
       }
 
       return response()->json([
-        'data' => $updatedRecords,
-        'note_received' => $shippingGuide->note_received,
+        'data'                       => $updatedRecords,
+        'note_received'              => $shippingGuide->note_received,
         'installation_work_order_id' => $generatedWorkOrderId,
       ]);
     } catch (Exception $e) {
@@ -463,7 +463,7 @@ class ApReceivingChecklistService extends BaseService
         $quantity = $item->resource->quantity ?? 1;
 
         return [
-          'name' => $description,
+          'name'     => $description,
           'quantity' => $quantity,
         ];
       })->toArray();
@@ -501,7 +501,7 @@ class ApReceivingChecklistService extends BaseService
 
       $emailService->queue([
         'to'          => array_filter($emailsTo),
-        'cc'          => $emailsCC,
+//        'cc'          => $emailsCC,
         'subject'     => 'Recepción de Vehículo — VIN ' . ($vehicle->vin ?? 'N/A'),
         'template'    => 'emails.vehicle-reception',
         'attachments' => $attachments,
@@ -529,7 +529,7 @@ class ApReceivingChecklistService extends BaseService
     } catch (Exception $e) {
       Log::error('Error al preparar o enviar correo de recepción de vehículo', [
         'shipping_guide_id' => $shippingGuide->id,
-        'error' => $e->getMessage(),
+        'error'             => $e->getMessage(),
       ]);
       throw $e;
     }

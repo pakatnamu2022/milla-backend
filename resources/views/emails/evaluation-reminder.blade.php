@@ -1,7 +1,7 @@
 {{-- resources/views/emails/evaluation-reminder.blade.php --}}
-@extends('emails.layouts.evaluation')
+@extends('emails.layouts.main')
 
-@push('ev_styles')
+@push('styles')
   <style>
     @media only screen and (max-width: 600px) {
 
@@ -23,6 +23,8 @@
 @endsection
 
 @section('content')
+<tr>
+<td>
   @php
     $pending  = (int)($pending_count ?? 0);
     $total    = max(1, (int)($total_count ?? 1));
@@ -199,4 +201,6 @@
   @endisset
 
   <div style="height:8px;font-size:0;"></div>
+</td>
+</tr>
 @endsection

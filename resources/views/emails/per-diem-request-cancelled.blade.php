@@ -1,4 +1,4 @@
-@extends('emails.layouts.per-diem')
+@extends('emails.layouts.main')
 
 @section('title', 'Solicitud cancelada.')
 

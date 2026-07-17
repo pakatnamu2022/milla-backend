@@ -114,7 +114,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     if ($purchaseOrder->migrated_at?->lt(now()->subHour())) {
       $purchaseOrder->updateQuietly([
         'invoice_sync_attempted_at' => now(),
-        'invoice_sync_attempts' => $purchaseOrder->invoice_sync_attempts + 1,
+        'invoice_sync_attempts'     => $purchaseOrder->invoice_sync_attempts + 1,
       ]);
     }
 
@@ -143,11 +143,11 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
 
         // Actualizar la factura y cambiar el estado a 'updated_with_nc'
         $purchaseOrder->update([
-          'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt,
-          'invoice_date_dyn' => $invoiceDate,
-          'migration_status' => 'updated_with_nc',
-          'status' => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)),
+          'invoice_dynamics'      => $newInvoice,
+          'receipt_dynamics'      => $newReceipt,
+          'invoice_date_dyn'      => $invoiceDate,
+          'migration_status'      => 'updated_with_nc',
+          'status'                => (!empty($purchaseOrder->invoice_dynamics) && !($newInvoice == $newReceipt)),
           'invoice_sync_attempts' => 0,
         ]);
 
@@ -167,9 +167,9 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
        */
       if (empty($purchaseOrder->invoice_dynamics)) {
         $purchaseOrder->update([
-          'invoice_dynamics' => $newInvoice,
-          'receipt_dynamics' => $newReceipt,
-          'invoice_date_dyn' => $invoiceDate,
+          'invoice_dynamics'      => $newInvoice,
+          'receipt_dynamics'      => $newReceipt,
+          'invoice_date_dyn'      => $invoiceDate,
           'invoice_sync_attempts' => 0,
         ]);
 
@@ -188,7 +188,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           try {
             $quoteService = new PurchaseRequestQuoteService();
             $quoteService->assignVehicle([
-              'id' => $purchaseOrder->quotation_id,
+              'id'            => $purchaseOrder->quotation_id,
               'ap_vehicle_id' => $purchaseOrder->vehicle->id,
             ]);
           } catch (Throwable $e) {
@@ -260,7 +260,7 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
           try {
             $quoteService = new PurchaseRequestQuoteService();
             $quoteService->assignVehicle([
-              'id' => $purchaseOrder->quotation_id,
+              'id'            => $purchaseOrder->quotation_id,
               'ap_vehicle_id' => $vehicle->id,
             ]);
           } catch (Throwable $e) {
@@ -340,51 +340,51 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
     // Preparar datos para el correo
     $emailData = [
       'purchase_order_number' => $purchaseOrder->number,
-      'invoice_dynamics' => $purchaseOrder->invoice_dynamics,
-      'receipt_dynamics' => $purchaseOrder->receipt_dynamics,
-      'invoice_date' => $purchaseOrder->invoice_date_dyn
+      'invoice_dynamics'      => $purchaseOrder->invoice_dynamics,
+      'receipt_dynamics'      => $purchaseOrder->receipt_dynamics,
+      'invoice_date'          => $purchaseOrder->invoice_date_dyn
         ? $purchaseOrder->invoice_date_dyn->format('d/m/Y')
         : 'N/A',
-      'emission_date' => $purchaseOrder->emission_date
+      'emission_date'         => $purchaseOrder->emission_date
         ? $purchaseOrder->emission_date->format('d/m/Y')
         : 'N/A',
 
       // Datos de la sede
-      'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
+      'sede_name'             => $purchaseOrder->sede?->abreviatura ?? 'N/A',
 
       // Datos del proveedor
-      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
-      'supplier_ruc' => $purchaseOrder->supplier?->num_doc ?? 'N/A',
+      'supplier_name'         => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'supplier_ruc'          => $purchaseOrder->supplier?->num_doc ?? 'N/A',
 
       // Datos del vehículo (si existe)
-      'vehicle_plate' => $purchaseOrder->vehicle?->plate ?? 'N/A',
-      'vehicle_vin' => $purchaseOrder->vehicle?->vin ?? 'N/A',
+      'vehicle_plate'         => $purchaseOrder->vehicle?->plate ?? 'N/A',
+      'vehicle_vin'           => $purchaseOrder->vehicle?->vin ?? 'N/A',
 
       // Totales
-      'currency_symbol' => $purchaseOrder->currency?->symbol ?? '',
-      'total' => number_format($purchaseOrder->total, 2),
+      'currency_symbol'       => $purchaseOrder->currency?->symbol ?? '',
+      'total'                 => number_format($purchaseOrder->total, 2),
 
       // Datos de la recepción
-      'reception_number' => $purchaseOrder->reception?->reception_number ?? 'N/A',
-      'reception_date' => $purchaseOrder->reception?->reception_date
+      'reception_number'      => $purchaseOrder->reception?->reception_number ?? 'N/A',
+      'reception_date'        => $purchaseOrder->reception?->reception_date
         ? $purchaseOrder->reception->reception_date->format('d/m/Y')
         : 'N/A',
       'shipping_guide_number' => $purchaseOrder->reception?->shipping_guide_number ?? 'N/A',
-      'warehouse_name' => $purchaseOrder->reception?->warehouse?->dyn_code ?? 'N/A',
+      'warehouse_name'        => $purchaseOrder->reception?->warehouse?->dyn_code ?? 'N/A',
 
       // Detalle de repuestos recepcionados
-      'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
+      'reception_items'       => $purchaseOrder->reception?->details->map(function ($detail) {
           return [
-            'product_code' => $detail->product?->code ?? 'N/A',
-            'product_name' => $detail->product?->name ?? 'N/A',
+            'product_code'      => $detail->product?->code ?? 'N/A',
+            'product_name'      => $detail->product?->name ?? 'N/A',
             'quantity_received' => $detail->quantity_received,
             'observed_quantity' => $detail->observed_quantity,
-            'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
+            'reception_type'    => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
           ];
         })->all() ?? [],
 
       // URL del frontend
-      'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
+      'button_url'            => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
     ];
 
     $subject = 'Comprobante Recepcionado - OC ' . $purchaseOrder->number;
@@ -397,10 +397,10 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       if ($managerEmail) {
         try {
           $emailService->queue([
-            'to' => $managerEmail,
-            'subject' => $subject,
+            'to'       => $managerEmail,
+            'subject'  => $subject,
             'template' => 'emails.invoice-accounted-notification',
-            'data' => array_merge($emailData, [
+            'data'     => array_merge($emailData, [
               'recipient_name' => $manager->person->nombre_completo ?? 'Gerente',
               'recipient_role' => 'Gerente de Postventa',
             ]),
