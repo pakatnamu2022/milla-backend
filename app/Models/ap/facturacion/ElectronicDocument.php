@@ -17,6 +17,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
+use App\Models\dp\comercial\AccountReceivable;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
@@ -411,6 +412,11 @@ class ElectronicDocument extends BaseModel
   public function logs(): HasMany
   {
     return $this->hasMany(NubefactLog::class, 'ap_billing_electronic_document_id');
+  }
+
+  public function receivableAccounts(): HasMany
+  {
+    return $this->hasMany(AccountReceivable::class, 'electronic_document_id');
   }
 
   public function migrationLogs(): HasMany

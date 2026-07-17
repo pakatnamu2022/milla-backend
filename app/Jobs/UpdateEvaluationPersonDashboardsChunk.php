@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\gp\gestionhumana\evaluacion\Evaluation;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonCompetenceDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDashboard;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonResult;
 use Carbon\Carbon;
@@ -49,17 +50,32 @@ class UpdateEvaluationPersonDashboardsChunk implements ShouldQueue
       return;
     }
 
-    // Obtener solo los personResults de este chunk con eager loading
+    // Precargar competenceDetails manualmente para evitar el bug de eager loading:
+    // la relación usa ->where('evaluation_id', $this->evaluation_id) que durante eager
+    // loading resuelve $this como instancia temporal sin atributos → evaluation_id = null.
+    $competenceDetailsByPerson = EvaluationPersonCompetenceDetail::where('evaluation_id', $this->evaluationId)
+      ->whereIn('person_id', $this->personIds)
+      ->get()
+      ->groupBy('person_id');
+
+    // Obtener solo los personResults de este chunk con eager loading (sin competenceDetails)
     $personResults = EvaluationPersonResult::where('evaluation_id', $this->evaluationId)
       ->whereIn('person_id', $this->personIds)
       ->with([
         'details',
-        'competenceDetails',
         'person.position.hierarchicalCategory',
         'person.subordinates',
         'evaluation'
       ])
       ->get();
+
+    // Inyectar competenceDetails precargados correctamente en cada personResult
+    foreach ($personResults as $personResult) {
+      $personResult->setRelation(
+        'competenceDetails',
+        $competenceDetailsByPerson->get($personResult->person_id, collect())
+      );
+    }
 
     foreach ($personResults as $personResult) {
       try {
