@@ -127,7 +127,15 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
               ->where('is_accounted', true)
               ->where('area_id', ApMasters::AREA_COMERCIAL)
               ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE)
-              ->where('issue_date', '<=', now()->startOfDay());
+              ->where('issue_date', '<=', now()->startOfDay())
+              ->where(function ($q3) {
+                // GUIA_INTERNA no requiere recepción; GUIA_REMISION sí
+                $q3->where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)
+                  ->orWhere(function ($q4) {
+                    $q4->where('document_type', ShippingGuides::DOCUMENT_TYPE_GR)
+                      ->where('is_received', true);
+                  });
+              });
           });
       })
       ->get();
