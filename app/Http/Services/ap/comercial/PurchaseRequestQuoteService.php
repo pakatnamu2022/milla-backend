@@ -282,15 +282,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         ->whereNull('deleted_at')
         ->exists();
 
-      $isInTransit = $vehicle->vehicleMovements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-        ->whereNull('deleted_at')
-        ->exists();
-
       if ($isInInventory) {
         $movementService->storeInventoryVehicleMovement($vehicle->id);
-      } elseif ($isInTransit) {
-        $movementService->storeInTransitVehicleMovement($purchaseRequestQuote->id);
       }
 
       DB::commit();

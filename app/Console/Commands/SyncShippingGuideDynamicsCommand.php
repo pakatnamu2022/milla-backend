@@ -96,7 +96,7 @@ class SyncShippingGuideDynamicsCommand extends Command
               ->where('is_accounted', true)
               ->where('area_id', \App\Models\ap\ApMasters::AREA_COMERCIAL)
               ->whereNotIn('transfer_reason_id', [\App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_VENTA])
-              ->where('issue_date', '>', now()->startOfDay());
+              ->where('issue_date', '>=', now()->startOfDay());
           });
       })
       ->orderBy('id')
