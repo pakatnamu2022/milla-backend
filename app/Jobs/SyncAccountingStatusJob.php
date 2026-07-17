@@ -216,7 +216,6 @@ class SyncAccountingStatusJob implements ShouldQueue
           'delivery_document_number' => $quotation->client->num_doc,
         ]);
       }
-
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,
@@ -278,7 +277,6 @@ class SyncAccountingStatusJob implements ShouldQueue
         'status_id'                   => ApMasters::CLOSED_WORK_ORDER_ID,
         'output_generation_warehouse' => true,
       ]);
-
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para orden de trabajo', [
         'work_order_id' => $workOrderId,
