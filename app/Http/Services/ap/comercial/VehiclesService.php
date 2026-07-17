@@ -81,26 +81,25 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $documents = $query->orderBy('fecha_de_emision', 'desc')->get();
 
     $columns = [
-      'solicitud'         => 'SOLICITUD',
-      'sede'              => 'SEDE',
-      'tipo_persona'      => 'TIPO DE PERSONA',
-      'dni'               => 'DNI',
-      'cliente'           => 'CLIENTE',
-      'asesor'            => 'ASESOR',
-      'marca'             => 'MARCA',
-      'modelo'            => 'MODELO',
-      'vin'               => 'VIN',
-      'color'             => 'COLOR',
-      'numero_documento'  => 'NUMERO DE DOCUMENTO',
-      'fecha_factura'     => 'FECHA FACTURA',
-      'pct_beneficio'     => '% BENEFICIO',
-      'beneficio'         => 'BENEFICIO',
-      'total_factura'     => 'TOTAL FACTURA',
-      'pendiente'         => 'PENDIENTE',
-      'fecha_cancelacion' => 'FECHA DE CANCELACION',
-      'ref_cancelacion'   => 'REF CANCELACION',
-      'forma_pago'        => 'FORMA DE PAGO',
-      'banco'             => 'BANCO',
+      'solicitud'        => 'SOLICITUD',
+      'sede'             => 'SEDE',
+      'tipo_persona'     => 'TIPO DE PERSONA',
+      'dni'              => 'DNI',
+      'cliente'          => 'CLIENTE',
+      'asesor'           => 'ASESOR',
+      'marca'            => 'MARCA',
+      'modelo'           => 'MODELO',
+      'vin'              => 'VIN',
+      'color'            => 'COLOR',
+      'numero_documento' => 'NUMERO DE DOCUMENTO',
+      'fecha_factura'    => 'FECHA FACTURA',
+      'pct_beneficio'    => '% BENEFICIO',
+      'beneficio'        => 'BENEFICIO',
+      'total_factura'    => 'TOTAL FACTURA',
+      'pendiente'        => 'PENDIENTE',
+      'ref_cancelacion'  => 'REF CANCELACION',
+      'forma_pago'       => 'FORMA DE PAGO',
+      'banco'            => 'BANCO',
     ];
 
     $rows = $documents->map(function ($doc) {
@@ -108,28 +107,27 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $receivable = $doc->receivableAccounts->first();
 
       return [
-        'solicitud'         => $prq?->correlative,
-        'sede'              => $prq?->sede?->abreviatura,
-        'tipo_persona'      => $prq?->holder?->typePerson?->description,
-        'dni'               => $prq?->holder?->num_doc,
-        'cliente'           => $prq?->holder?->full_name,
-        'asesor'            => $prq?->opportunity?->worker?->nombre_completo,
-        'marca'             => $prq?->vehicle?->model?->family?->brand?->name,
-        'modelo'            => $prq?->vehicle?->model?->version,
-        'vin'               => $prq?->vehicle?->vin,
-        'color'             => $prq?->vehicle?->color?->description,
-        'numero_documento'  => $doc->full_number,
-        'fecha_factura'     => $doc->fecha_de_emision?->format('d/m/Y'),
-        'pct_beneficio'     => $prq?->margin_pct,
-        'beneficio'         => $prq?->margin_amount,
-        'total_factura'     => $doc->total,
-        'pendiente'         => $doc->receivableAccounts->isNotEmpty()
+        'solicitud'        => $prq?->correlative,
+        'sede'             => $prq?->sede?->abreviatura,
+        'tipo_persona'     => $prq?->holder?->typePerson?->description,
+        'dni'              => $prq?->holder?->num_doc,
+        'cliente'          => $prq?->holder?->full_name,
+        'asesor'           => $prq?->opportunity?->worker?->nombre_completo,
+        'marca'            => $prq?->vehicle?->model?->family?->brand?->name,
+        'modelo'           => $prq?->vehicle?->model?->version,
+        'vin'              => $prq?->vehicle?->vin,
+        'color'            => $prq?->vehicle?->color?->description,
+        'numero_documento' => $doc->full_number,
+        'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
+        'pct_beneficio'    => $prq?->margin_pct,
+        'beneficio'        => $prq?->margin_amount,
+        'total_factura'    => $doc->total,
+        'pendiente'        => $doc->receivableAccounts->isNotEmpty()
           ? $doc->receivableAccounts->sum('balance')
           : null,
-        'fecha_cancelacion' => $receivable?->collection_date?->format('d/m/Y'),
-        'ref_cancelacion'   => $receivable?->document_number,
-        'forma_pago'        => $doc->condiciones_de_pago,
-        'banco'             => $doc->bank?->description,
+        'ref_cancelacion'  => $receivable?->document_number,
+        'forma_pago'       => $doc->condiciones_de_pago,
+        'banco'            => $doc->bank?->description,
       ];
     });
 
@@ -169,12 +167,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
   public function exportInventory(Request $request)
   {
-    $statusIds = [
-      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-      ApVehicleStatus::EN_CURSO,
-      ApVehicleStatus::INVENTARIO_VN,
-    ];
-
     $query = Vehicles::with([
       'model.family.brand',
       'model.fuelType',
@@ -182,7 +174,14 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicleStatus',
       'warehouse.sede',
       'purchaseOrder',
-    ])->whereIn('ap_vehicle_status_id', $statusIds);
+    ])
+      ->whereHas('vehicleMovements', function ($q) {
+        $q->whereIn('ap_vehicle_status_id', [
+          ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          ApVehicleStatus::INVENTARIO_VN,
+        ]);
+      })
+      ->where('ap_vehicle_status_id', '!=', ApVehicleStatus::VENDIDO_ENTREGADO);
 
     if ($request->filled('emission_date')) {
       $dates = $request->get('emission_date');
@@ -223,7 +222,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $rows = $vehicles->map(function ($vehicle) {
       $po = $vehicle->purchaseOrder;
       $emissionDate = $po?->emission_date;
-      $diasVencidos = $emissionDate ? (int) $emissionDate->diffInDays(now()) : null;
+      $diasVencidos = $emissionDate ? (int)$emissionDate->diffInDays(now()) : null;
 
       $invoiceNumber = null;
       if ($po?->invoice_series || $po?->invoice_number) {
@@ -477,7 +476,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
    */
   public function listWithCosts(Request $request)
   {
-    $isEditing    = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
+    $isEditing = filter_var($request->get('is_editing', false), FILTER_VALIDATE_BOOLEAN);
     $excludeQuoteId = $request->get('purchase_request_quote_id');
 
     $allowedStatuses = [
