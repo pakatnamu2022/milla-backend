@@ -3179,15 +3179,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 
+    $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+      && in_array($data['sunat_concept_document_type_id'], [
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        ElectronicDocument::TYPE_NOTA_DEBITO
+      ]);
+
     // Validar que no exista ya una factura final para esta cotización
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
-        && in_array($data['sunat_concept_document_type_id'], [
-          ElectronicDocument::TYPE_NOTA_CREDITO,
-          ElectronicDocument::TYPE_NOTA_DEBITO
-        ]);
-
       if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $quotation->getFinalInvoice();
 
@@ -3204,8 +3204,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Validar stock de productos si no es un anticipo
     $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
 
-    // Validar suma de anticipos si es anticipo
-    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+    // Validar suma de anticipos si es anticipo (no aplica a notas de crédito/débito,
+    // ya que estas ajustan/anulan anticipos existentes, no registran uno nuevo)
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1 && !$isNotaCreditoDebito) {
       $total = (float)($data['total'] ?? 0);
 
       // Get active advances using centralized logic from model
