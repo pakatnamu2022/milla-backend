@@ -257,16 +257,17 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         throw new Exception('No hay un vehículo asignado a esta cotización.');
       }
 
-      $electronicDocuments = $vehicle->electronicDocuments()
+      $finalDocuments = $vehicle->electronicDocuments()
         ->where('status', ElectronicDocument::STATUS_ACCEPTED)
         ->where('aceptada_por_sunat', 1)
         ->where('anulado', 0)
+        ->where('is_advance_payment', false)
         ->whereNull('ap_billing_electronic_documents.deleted_at');
 
-      if ($electronicDocuments->exists()) {
-        throw new Exception('No se puede desasignar el vehículo porque tiene documentos electrónicos aceptados asociados.'
-          . $electronicDocuments->get()->pluck('serie', 'numero')->map(function ($serie, $numero) {
-            return " {$serie}-{$numero} ";
+      if ($finalDocuments->exists()) {
+        throw new Exception('No se puede desasignar el vehículo porque tiene facturas finales aceptadas asociadas: '
+          . $finalDocuments->get()->map(function ($doc) {
+            return "{$doc->serie}-{$doc->numero}";
           })->implode(', '));
       }
 
@@ -281,22 +282,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         ->whereNull('deleted_at')
         ->exists();
 
-      $isInTransit = $vehicle->vehicleMovements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
-        ->whereNull('deleted_at')
-        ->exists();
-
       if ($isInInventory) {
-        // Registrar movimiento de regreso a inventario
         $movementService->storeInventoryVehicleMovement($vehicle->id);
-      } elseif ($isInTransit) {
-        $movementService->storeInTransitVehicleMovement($purchaseRequestQuote->id);
       }
-
-      $purchaseRequestQuote->desactivate();
-      $opportunity = $purchaseRequestQuote->opportunity;
-      $opportunityService = new OpportunityService();
-      $opportunityService->close($opportunity->id, 'Cierre automático al desasignar vehículo de cotización de solicitud de compra.');
 
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);

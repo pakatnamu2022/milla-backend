@@ -81,10 +81,24 @@ class SyncShippingGuideDynamicsCommand extends Command
   protected function syncAllShippingGuides(): int
   {
 
-    // Obtener guías que no tienen dyn_series sincronizado
-    $shippingGuides = ShippingGuides::where('is_accounted', 0)
-      ->whereNotNull('document_number')
-      ->where('status', true)
+    $shippingGuides = ShippingGuides::whereNotNull('document_number')
+      ->where(function ($q) {
+        $q->where(function ($q2) {
+          $q2->where('status', true)
+            ->where('is_accounted', false);
+        })
+          ->orWhere(function ($q2) {
+            $q2->where('status', false)
+              ->where('is_annulled', false);
+          })
+          ->orWhere(function ($q2) {
+            $q2->where('status', true)
+              ->where('is_accounted', true)
+              ->where('area_id', \App\Models\ap\ApMasters::AREA_COMERCIAL)
+              ->whereNotIn('transfer_reason_id', [\App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_VENTA])
+              ->where('issue_date', '>=', now()->startOfDay());
+          });
+      })
       ->orderBy('id')
       ->get();
 

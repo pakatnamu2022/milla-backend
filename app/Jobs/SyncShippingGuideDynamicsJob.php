@@ -127,7 +127,7 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
               ->where('is_accounted', true)
               ->where('area_id', ApMasters::AREA_COMERCIAL)
               ->whereNotIn('transfer_reason_id', [SunatConcepts::TRANSFER_REASON_VENTA])
-              ->where('issue_date', '>', now()->startOfDay());
+              ->where('issue_date', '>=', now()->startOfDay());
           });
       })
       ->get();

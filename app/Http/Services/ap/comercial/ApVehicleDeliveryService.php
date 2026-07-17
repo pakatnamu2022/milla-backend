@@ -217,66 +217,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('La guía de remisión solo puede generarse el día de la entrega programada (' . \Carbon\Carbon::parse($record->scheduled_delivery_date)->format('d/m/Y') . ')');
         }
 
-        // Verificar si ya existe una guía de remisión
-        $existingShippingGuide = null;
+        // Verificar si ya existe una guía de remisión activa
         if ($record->shipping_guide_id) {
           $existingShippingGuide = ShippingGuides::where('id', $record->shipping_guide_id)->whereNull('cancelled_at')->first();
-        }
-
-        // Si existe una guía, solo actualizar los campos permitidos
-        if ($existingShippingGuide) {
-          // Validar que la guía no haya sido enviada a SUNAT
-          if ($existingShippingGuide->is_sunat_registered) {
-            throw new Exception('No se puede modificar una guía que ya fue enviada a SUNAT');
+          if ($existingShippingGuide) {
+            throw new Exception('Esta entrega ya tiene una guía de remisión asociada. No se puede generar otra.');
           }
-
-          // Validar que la guía no esté anulada
-          if ($existingShippingGuide->cancelled_at) {
-            throw new Exception('No se puede modificar una guía anulada');
-          }
-
-          // Actualizar solo los campos permitidos
-          $updateData = [];
-
-          if (isset($data['driver_doc'])) {
-            $updateData['driver_doc'] = $data['driver_doc'];
-            // Si cambia el documento del conductor, buscar la transportista
-            $transportCompanyId = BusinessPartners::where('num_doc', $data['driver_doc'])
-              ->first()->id ?? null;
-            $updateData['transport_company_id'] = $transportCompanyId;
-          }
-
-          if (isset($data['license'])) {
-            $updateData['license'] = $data['license'];
-          }
-
-          if (isset($data['plate'])) {
-            $updateData['plate'] = $data['plate'];
-          }
-
-          if (isset($data['driver_name'])) {
-            $updateData['driver_name'] = $data['driver_name'];
-          }
-
-          if (isset($data['enviar_sunat'])) {
-            $updateData['requires_sunat'] = $data['enviar_sunat'];
-          }
-
-          if (isset($data['transfer_modality_id'])) {
-            $updateData['transfer_modality_id'] = $data['transfer_modality_id'];
-          }
-
-          if (isset($data['carrier_ruc'])) {
-            $updateData['ruc_transport'] = $data['carrier_ruc'];
-          }
-
-          if (isset($data['company_name_transport'])) {
-            $updateData['company_name_transport'] = $data['company_name_transport'];
-          }
-
-          $existingShippingGuide->update($updateData);
-
-          return new ShippingGuidesResource($existingShippingGuide->fresh());
         }
 
         // Validar que exista un checklist de entrega confirmado antes de generar la guía
