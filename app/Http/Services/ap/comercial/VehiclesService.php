@@ -167,12 +167,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
   public function exportInventory(Request $request)
   {
-    $statusIds = [
-      ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-      ApVehicleStatus::EN_CURSO,
-      ApVehicleStatus::INVENTARIO_VN,
-    ];
-
     $query = Vehicles::with([
       'model.family.brand',
       'model.fuelType',
@@ -180,7 +174,14 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicleStatus',
       'warehouse.sede',
       'purchaseOrder',
-    ])->whereIn('ap_vehicle_status_id', $statusIds);
+    ])
+      ->whereHas('vehicleMovements', function ($q) {
+        $q->whereIn('ap_vehicle_status_id', [
+          ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+          ApVehicleStatus::INVENTARIO_VN,
+        ]);
+      })
+      ->where('ap_vehicle_status_id', '!=', ApVehicleStatus::VENDIDO_ENTREGADO);
 
     if ($request->filled('emission_date')) {
       $dates = $request->get('emission_date');
