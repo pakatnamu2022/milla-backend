@@ -96,7 +96,15 @@ class SyncShippingGuideDynamicsCommand extends Command
               ->where('is_accounted', true)
               ->where('area_id', \App\Models\ap\ApMasters::AREA_COMERCIAL)
               ->where('transfer_reason_id', \App\Models\gp\maestroGeneral\SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE)
-              ->where('issue_date', '<=', now()->startOfDay());
+              ->where('issue_date', '<=', now()->startOfDay())
+              ->where(function ($q3) {
+                // GUIA_INTERNA no requiere recepción; GUIA_REMISION sí
+                $q3->where('document_type', \App\Models\ap\comercial\ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)
+                  ->orWhere(function ($q4) {
+                    $q4->where('document_type', \App\Models\ap\comercial\ShippingGuides::DOCUMENT_TYPE_GR)
+                      ->where('is_received', true);
+                  });
+              });
           });
       })
       ->orderBy('id')
