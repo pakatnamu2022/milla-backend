@@ -464,9 +464,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       /**
        * Crear cuotas si es venta al crédito
+       *
+       * Solo aplica a factura final (un anticipo nunca va al crédito). Para órdenes
+       * de trabajo con detracción, el frontend no conoce el monto de la detracción
+       * (se calcula en el backend en applyDetractionLogic) y siempre envía una única
+       * cuota con el importe bruto del comprobante. Se le descuenta la detracción
+       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
+       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $isWorkOrderWithDetraction = !$isAdvancePayment && !empty($data['work_order_id']) && !empty($data['detraccion']);
+        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+
         foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($isWorkOrderWithDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
           $document->installments()->create($cuotaData);
         }
       }
