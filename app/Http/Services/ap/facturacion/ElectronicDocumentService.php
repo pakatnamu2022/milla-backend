@@ -3765,7 +3765,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'medio_de_pago' => $data['medio_de_pago'] ?? null,
         'bank_id' => $data['bank_id'] ?? null,
         'operation_number' => $data['operation_number'] ?? null,
-        'financing_type' => $data['financing_type'] ?? null,
         'placa_vehiculo' => $data['placa_vehiculo'] ?? null,
         'codigo_unico' => $data['codigo_unico'] ?? null,
         'card_last4' => $data['card_last4'] ?? null,
