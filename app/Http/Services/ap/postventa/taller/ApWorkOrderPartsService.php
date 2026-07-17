@@ -8,7 +8,6 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
-use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -18,6 +17,7 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -135,6 +135,16 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
   private function validateSalePrice(array $data, ApWorkOrder $workOrder): void
   {
+    // Si la OT es de garantía Derco o recall, no se valida el precio de venta
+    $firstItemTypePlanningId = $workOrder->items()->first()?->type_planning_id;
+
+    if (in_array($firstItemTypePlanningId, [
+      TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+      TypePlanningWorkOrder::TYPE_PLANNING_RECALL_ID,
+    ])) {
+      return;
+    }
+
     // Si no viene warehouse_id, obtenerlo del almacén físico de postventa de la sede
     if (!isset($data['warehouse_id']) || !$data['warehouse_id']) {
       $physicalWarehouse = Warehouse::getPhysicalWarehouseForPostsale($workOrder->sede_id);
@@ -243,7 +253,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($availableQuantityExternal < $data['quantity_used']) {
         throw new Exception(
           "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
-          "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
         );
       }
 
@@ -349,7 +359,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($availableQuantityExternal < $data['quantity_used']) {
           throw new Exception(
             "Stock insuficiente en sistema dynamics para el repuesto: {$newStock->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
           );
         }
 
@@ -599,7 +609,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($availableQuantityExternal < $detail->quantity) {
           throw new Exception(
             "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
           );
         }
 
@@ -660,7 +670,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($newTotalAssigned > $workOrderPart->quantity_used) {
         throw new Exception(
           "La cantidad a asignar excede la cantidad disponible. Disponible: " . ($workOrderPart->quantity_used - $totalAssigned) .
-          ", Solicitado: {$deliveredQuantity}"
+            ", Solicitado: {$deliveredQuantity}"
         );
       }
 
@@ -868,9 +878,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       }
 
       // Validar que no haya sido confirmado por el técnico
-//      if ($delivery->is_received) {
-//        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
-//      }
+      //      if ($delivery->is_received) {
+      //        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
+      //      }
 
       // Obtener el repuesto asociado
       $workOrderPart = $delivery->workOrderPart;
@@ -951,7 +961,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
           $createdDeliveries[] = $delivery->load(['deliveredToUser', 'deliveredByUser']);
           $updatedParts[] = new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']));
-
         } catch (\Throwable $th) {
           $errors[] = "Error al asignar repuesto ID {$workOrderPartId}: " . $th->getMessage();
         }
