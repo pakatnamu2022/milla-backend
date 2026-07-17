@@ -573,12 +573,39 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['tipo_de_cambio'] = $exchangeRate->rate;
 
       // ================================================================
-      // 2. APLICAR LÓGICA DE DETRACCIONES PARA VENTA HISTÓRICA CON ANTICIPO
+      // 2. RECALCULAR TOTAL IGV DE LA CABECERA
+      // ================================================================
+
+      /**
+       * El total_igv de la cabecera se calcula como:
+       * (Suma de IGV de items normales) - (Suma de IGV de items anticipo)
+       */
+      if (isset($data['items']) && is_array($data['items'])) {
+        $igvItemsNormales = 0;
+        $igvItemsAnticipos = 0;
+
+        foreach ($data['items'] as $item) {
+          $igvItem = (float)($item['igv'] ?? 0);
+          $esAnticipo = isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] == true;
+
+          if ($esAnticipo) {
+            $igvItemsAnticipos += $igvItem;
+          } else {
+            $igvItemsNormales += $igvItem;
+          }
+        }
+
+        // Calcular el total_igv de la cabecera
+        $data['total_igv'] = $igvItemsNormales - $igvItemsAnticipos;
+      }
+
+      // ================================================================
+      // 3. APLICAR LÓGICA DE DETRACCIONES PARA VENTA HISTÓRICA CON ANTICIPO
       // ================================================================
       $this->applyDetractionForHistoricalSaleWithAdvance($data);
 
       // ================================================================
-      // 3. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // 4. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
       // ================================================================
 
       /**
@@ -629,6 +656,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $descuento = (float)($itemData['descuento'] ?? 0);
           $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
           $itemData['line_number'] = $index + 1;
+
+          // Setear campos específicos según si es anticipo o no
+          $esAnticipo = isset($itemData['anticipo_regularizacion']) && $itemData['anticipo_regularizacion'] == true;
+
+          if ($esAnticipo) {
+            // Si es anticipo
+            $itemData['unidad_de_medida'] = 'ZZ';
+            $itemData['unidad_medida_dyn'] = 'UND';
+          } else {
+            // Si NO es anticipo
+            $itemData['unidad_de_medida'] = 'ZZ';
+            $itemData['unidad_medida_dyn'] = 'UNS';
+            $itemData['codigo'] = 'V0000011';
+            $itemData['dyn_code'] = 'V0000011';
+          }
+
           $document->items()->create($itemData);
         }
       }
