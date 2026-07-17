@@ -1086,7 +1086,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
 
     if ($shippingGuide->is_accounted && $shippingGuide->status) {
-      throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
+      $isEligibleComercialTransfer = $shippingGuide->area_id === ApMasters::AREA_COMERCIAL
+        && $shippingGuide->transfer_reason_id !== null
+        && $shippingGuide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_VENTA;
+
+      if (!$isEligibleComercialTransfer) {
+        throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
+      }
     }
 
     if ($shippingGuide->is_accounted && $shippingGuide->is_annulled) {
