@@ -181,7 +181,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
           ApVehicleStatus::INVENTARIO_VN,
         ]);
       })
-      ->where('ap_vehicle_status_id', '!=', ApVehicleStatus::VENDIDO_ENTREGADO);
+      ->whereNotIn('ap_vehicle_status_id', [
+        ApVehicleStatus::VENDIDO_NO_ENTREGADO,
+        ApVehicleStatus::VENDIDO_ENTREGADO,
+        ApVehicleStatus::FACTURADO,
+        ApVehicleStatus::FACTURADO_FINAL,
+      ]);
 
     if ($request->filled('emission_date')) {
       $dates = $request->get('emission_date');
