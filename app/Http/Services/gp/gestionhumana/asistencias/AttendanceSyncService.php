@@ -23,6 +23,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceSyncService extends BaseService
 {
+  private const LATE_TOLERANCE_MINUTES = 5;
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
@@ -380,7 +381,7 @@ class AttendanceSyncService extends BaseService
           !$marks['checkIn'] => 'Sin marcación',
           !$marks['checkOut'] => 'Sin salida registrada',
           Carbon::createFromFormat('H:i:s', $marks['checkIn'])->gt(
-            Carbon::createFromFormat('H:i:s', $row->schedule_checkin)->addMinutes(15)
+            Carbon::createFromFormat('H:i:s', $row->schedule_checkin)->addMinutes(self::LATE_TOLERANCE_MINUTES)
           ) => 'Tardanza',
           default => 'Asistió',
         },
@@ -698,7 +699,7 @@ class AttendanceSyncService extends BaseService
         $q->where('rc.name', 'not like', '%AGENTE DE SEGURIDAD%')
           ->orWhereIn('ps.code', $workingCodes);
       })
-      ->whereRaw("a.time > ADDTIME({$effectiveCheckin}, '00:15:00')")
+      ->whereRaw("a.time > ADDTIME({$effectiveCheckin}, SEC_TO_TIME(" . (self::LATE_TOLERANCE_MINUTES * 60) . "))")
       ->select(
         DB::raw("COALESCE(p.vat, '') AS dni"),
         DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
