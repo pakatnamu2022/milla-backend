@@ -33,7 +33,6 @@ class InvoicingReportService
         'exchangeRate',
       ])
       ->whereNotNull('work_order_id')
-      ->where('aceptada_por_sunat', true)
       ->where('anulado', false);
 
     // Aplicar filtros de documentos

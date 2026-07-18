@@ -14,9 +14,12 @@ class Constants
 
   public const int WORKER_ACTIVE = 22;
 
+// TIPO_DOCUMENTO
   public const int TYPE_DOCUMENT_RUC_ID = 810; // RUC
-
   public const int TYPE_DOCUMENT_DNI_ID = 809; // DNI
+  //TIPO_PERSONA
+  public const int  TYPE_NATURAL_PERSON_ID = 704;
+  public const int  TYPE_LEGAL_PERSON_ID = 705;
 
   public const int VAT_TAX = 18; // IGV
   public const int TICS_AREA_ID = 11;
