@@ -905,6 +905,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // ================================================================
+      // APLICAR LÓGICA DE DETRACCIONES
+      // ================================================================
+
+      // Preparar datos para la lógica de detracción (combinar documento existente con datos nuevos)
+      $detractionData = array_merge($document->toArray(), $data);
+      $this->applyDetractionLogic($detractionData);
+
+      // Actualizar $data con los campos calculados de detracción
+      if (isset($detractionData['detraccion'])) {
+        $data['detraccion'] = $detractionData['detraccion'];
+      }
+      if (isset($detractionData['sunat_concept_transaction_type_id'])) {
+        $data['sunat_concept_transaction_type_id'] = $detractionData['sunat_concept_transaction_type_id'];
+      }
+      if (isset($detractionData['sunat_concept_detraction_type_id'])) {
+        $data['sunat_concept_detraction_type_id'] = $detractionData['sunat_concept_detraction_type_id'];
+      }
+      if (isset($detractionData['detraccion_porcentaje'])) {
+        $data['detraccion_porcentaje'] = $detractionData['detraccion_porcentaje'];
+      }
+      if (isset($detractionData['detraccion_total'])) {
+        $data['detraccion_total'] = $detractionData['detraccion_total'];
+      }
+
+      // ================================================================
       // PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
       // ================================================================
 
@@ -985,9 +1010,33 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Actualizar cuotas si se proporcionan
+      /**
+       * Para órdenes de trabajo con detracción, el frontend no conoce el monto de la detracción
+       * (se calcula en el backend en applyDetractionLogic) y siempre envía una única
+       * cuota con el importe bruto del comprobante. Se le descuenta la detracción
+       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
+       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
+       */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         $document->installments()->delete();
+
+        $isAdvancePayment = isset($data['is_advance_payment'])
+          ? $data['is_advance_payment']
+          : $document->is_advance_payment;
+        $effectiveWorkOrderId = isset($data['work_order_id'])
+          ? $data['work_order_id']
+          : $document->work_order_id;
+        $detraccion = isset($data['detraccion'])
+          ? $data['detraccion']
+          : $document->detraccion;
+
+        $isWorkOrderWithDetraction = !$isAdvancePayment && !empty($effectiveWorkOrderId) && !empty($detraccion);
+        $detractionTotal = (float)($data['detraccion_total'] ?? $document->detraccion_total ?? 0);
+
         foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($isWorkOrderWithDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
           $document->installments()->create($cuotaData);
         }
       }
