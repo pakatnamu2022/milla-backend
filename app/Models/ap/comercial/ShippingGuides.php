@@ -146,6 +146,7 @@ class ShippingGuides extends BaseModel
     'send_dynamics'        => '=',
     'is_consignment'       => '=',
     'is_associated'        => 'scope',
+    'migration_status'     => 'in_or_equal'
   ];
 
   const sorts = [
