@@ -6,7 +6,9 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -20,6 +22,9 @@ class InvoicingReportService
    */
   public function getInvoicingReport(array $filters = []): array
   {
+    // Obtener sedes del usuario autenticado
+    $userSedeIds = $this->getUserSedeIds();
+
     // Para la hoja principal: Consultar TODOS los documentos electrónicos sin filtrar por estado de OT
     $queryDocuments = ElectronicDocument::query()
       ->with([
@@ -34,6 +39,13 @@ class InvoicingReportService
       ])
       ->whereNotNull('work_order_id')
       ->where('anulado', false);
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryDocuments->whereHas('workOrder', function ($q) use ($userSedeIds) {
+        $q->whereIn('sede_id', $userSedeIds);
+      });
+    }
 
     // Aplicar filtros de documentos
     $this->applyDocumentFilters($queryDocuments, $filters);
@@ -79,6 +91,11 @@ class InvoicingReportService
         ApMasters::CLOSED_WORK_ORDER_ID,
         ApMasters::CANCELED_WORK_ORDER_ID,
       ]);
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryWorkOrders->whereIn('sede_id', $userSedeIds);
+    }
 
     // Aplicar filtros de workorders
     $this->applyWorkOrderFilters($queryWorkOrders, $filters);
@@ -409,5 +426,24 @@ class InvoicingReportService
           break;
       }
     }
+  }
+
+  /**
+   * Obtiene los IDs de las sedes asociadas al usuario autenticado
+   *
+   * @return array
+   */
+  private function getUserSedeIds(): array
+  {
+    $user = Auth::user();
+
+    if (!$user) {
+      return [];
+    }
+
+    return UserSede::where('user_id', $user->id)
+      ->where('status', true)
+      ->pluck('sede_id')
+      ->toArray();
   }
 }
