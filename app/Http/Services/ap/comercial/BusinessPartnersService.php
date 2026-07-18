@@ -316,7 +316,10 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
           $lastAction->result === false &&
           $lastAction->datetime->diffInDays(now()) >= 5
         ) {
-          $opportunity->update(['opportunity_status_id' => Opportunity::CLOSED_ID]);
+          $opportunity->update(
+            ['opportunity_status_id' => Opportunity::CLOSED_ID,
+             'comment'               => 'Oportunidad cerrada automáticamente por falta de seguimiento después de 5 días']
+          );
         }
       }
 
@@ -399,9 +402,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       DB::commit();
 
       return [
-        'message' => 'Los establecimientos se están reprocesando',
+        'message'             => 'Los establecimientos se están reprocesando',
         'business_partner_id' => $businessPartner->id,
-        'status' => 'pending'
+        'status'              => 'pending'
       ];
     } catch (Exception $e) {
       DB::rollBack();

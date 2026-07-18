@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Http\Traits\Auditable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Opportunity extends Model
 {
-  use SoftDeletes;
+  use SoftDeletes, Auditable;
 
   protected $table = 'ap_opportunity';
 
@@ -29,17 +30,17 @@ class Opportunity extends Model
   ];
 
   const filters = [
-    'search' => ['client.full_name', 'client.num_doc', 'family.description', 'client.phone'],
-    'worker_id' => '=',
-    'client_id' => '=',
-    'family_id' => '=',
-    'opportunity_type_id' => '=',
-    'client_status_id' => '=',
-    'opportunity_status_id' => '=',
-    'has_purchase_request_quote' => 'accessor_bool',
+    'search'                      => ['client.full_name', 'client.num_doc', 'family.description', 'client.phone'],
+    'worker_id'                   => '=',
+    'client_id'                   => '=',
+    'family_id'                   => '=',
+    'opportunity_type_id'         => '=',
+    'client_status_id'            => '=',
+    'opportunity_status_id'       => '=',
+    'has_purchase_request_quote'  => 'accessor_bool',
     'opportunityType.description' => '=',
-    'date_from' => 'scope',
-    'date_to' => 'scope',
+    'date_from'                   => 'scope',
+    'date_to'                     => 'scope',
   ];
 
   const sorts = [
