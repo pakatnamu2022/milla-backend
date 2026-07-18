@@ -8,15 +8,16 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Utils\Constants;
-use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\taller\ApWorkOrderPartDelivery;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -132,6 +133,61 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     return $translations[$status] ?? $status;
   }
 
+  private function validateSalePrice(array $data, ApWorkOrder $workOrder): void
+  {
+    // Si la OT es de garantía Derco o recall, no se valida el precio de venta
+    $firstItemTypePlanningId = $workOrder->items()->first()?->type_planning_id;
+
+    if (in_array($firstItemTypePlanningId, [
+      TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+      TypePlanningWorkOrder::TYPE_PLANNING_RECALL_ID,
+    ])) {
+      return;
+    }
+
+    // Si no viene warehouse_id, obtenerlo del almacén físico de postventa de la sede
+    if (!isset($data['warehouse_id']) || !$data['warehouse_id']) {
+      $physicalWarehouse = Warehouse::getPhysicalWarehouseForPostsale($workOrder->sede_id);
+
+      if (!$physicalWarehouse) {
+        throw new Exception('No se encontró almacén físico de postventa para la sede de la orden de trabajo');
+      }
+
+      $warehouseId = $physicalWarehouse->id;
+    } else {
+      $warehouseId = $data['warehouse_id'];
+    }
+
+    // Validamos el precio de venta al público no esté por debajo de lo establecido
+    $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
+      ->where('warehouse_id', $warehouseId)
+      ->value('sale_price');
+
+    if (!$sale_price) {
+      return; // No hay precio de venta registrado, no validar
+    }
+
+    $priceToCompare = $sale_price;
+
+    // Si la OT está en dólares, convertir el sale_price (soles) a dólares
+    if ($workOrder->currency_id === TypeCurrency::USD_ID) {
+      // El sale_price está en soles, necesitamos convertirlo a dólares
+      if ($workOrder->exchange_rate && $workOrder->exchange_rate > 0) {
+        $priceToCompare = $sale_price / $workOrder->exchange_rate;
+      } else {
+        // Si no hay tipo de cambio, no podemos validar correctamente
+        throw new Exception('No se puede validar el precio: la orden de trabajo en dólares no tiene tipo de cambio registrado');
+      }
+    }
+
+    // Comparar el unit_price con el precio mínimo (ya en la moneda correcta)
+    if ($data['unit_price'] < $priceToCompare) {
+      $currencySymbol = $workOrder->currency_id === TypeCurrency::USD_ID ? 'USD' : 'PEN';
+      $formattedPrice = number_format($priceToCompare, 2);
+      throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$formattedPrice} {$currencySymbol}) para este producto en el almacén seleccionado");
+    }
+  }
+
   public function store(mixed $data)
   {
     return DB::transaction(function () use ($data) {
@@ -158,15 +214,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('Este producto ya ha sido agregado a la orden de trabajo');
       }
 
-      //validamos el precio de venta al público no este por debajo de lo establecido
-      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
-        ->where('warehouse_id', $data['warehouse_id'])
-        ->value('sale_price');
-
-      if ($sale_price && $data['unit_price'] < $sale_price) {
-        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
-      }
-
       // Set registered_by
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
@@ -179,9 +226,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
 
+      // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados)
+      $this->validateSalePrice($data, $workOrder);
+
       // Validar que exista stock disponible para reservar
+      // lockForUpdate: evita que dos altas concurrentes del mismo producto/almacén
+      // lean el mismo available_quantity antes de guardar y sobre-reserven.
       $stock = ProductWarehouseStock::where('product_id', $data['product_id'])
         ->where('warehouse_id', $data['warehouse_id'])
+        ->lockForUpdate()
         ->first();
 
       if (!$stock) {
@@ -203,7 +256,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($availableQuantityExternal < $data['quantity_used']) {
         throw new Exception(
           "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
-          "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
         );
       }
 
@@ -224,7 +277,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se pudo reservar el stock. Stock insuficiente.');
       }
 
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return new ApWorkOrderPartsResource($workOrderPart->load([
         'workOrder',
@@ -263,15 +316,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
       }
 
-      //validamos el precio de venta al público no este por debajo de lo establecido
-      $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'] ?? $oldProductId)
-        ->where('warehouse_id', $data['warehouse_id'] ?? $oldWarehouseId)
-        ->value('sale_price');
-
-      if ($sale_price && $data['unit_price'] < $sale_price) {
-        throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$sale_price}) para este producto en el almacén seleccionado");
-      }
-
       // Determinar los valores finales
       $newProductId = $data['product_id'] ?? $oldProductId;
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
@@ -285,19 +329,27 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Si cambió el producto, almacén o cantidad, ajustar el stock
       if ($newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity) {
-        // Liberar el stock antiguo
+        $sameStockRow = $newProductId == $oldProductId && $newWarehouseId == $oldWarehouseId;
+
+        // lockForUpdate: evita que una edición concurrente del mismo producto/almacén
+        // lea un available_quantity obsoleto entre liberar lo viejo y reservar lo nuevo.
         $oldStock = ProductWarehouseStock::where('product_id', $oldProductId)
           ->where('warehouse_id', $oldWarehouseId)
+          ->lockForUpdate()
           ->first();
 
         if ($oldStock) {
           $oldStock->releaseReservedStock($oldQuantity);
         }
 
-        // Reservar el nuevo stock
-        $newStock = ProductWarehouseStock::where('product_id', $newProductId)
-          ->where('warehouse_id', $newWarehouseId)
-          ->first();
+        // Si es la misma fila (solo cambió la cantidad), reusar el objeto ya bloqueado
+        // y refrescado en vez de re-consultarlo.
+        $newStock = $sameStockRow
+          ? $oldStock
+          : ProductWarehouseStock::where('product_id', $newProductId)
+            ->where('warehouse_id', $newWarehouseId)
+            ->lockForUpdate()
+            ->first();
 
         if (!$newStock) {
           throw new Exception('No se encontró registro de stock para el nuevo producto/almacén');
@@ -318,7 +370,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($availableQuantityExternal < $data['quantity_used']) {
           throw new Exception(
             "Stock insuficiente en sistema dynamics para el repuesto: {$newStock->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
           );
         }
 
@@ -359,6 +411,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $data['tax_amount'] = $recalcData['tax_amount'];
         $data['unit_price'] = $recalcData['unit_price'];
 
+        // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados y considerar moneda)
+        $this->validateSalePrice($recalcData, $workOrder);
+
         // Validar que el nuevo monto no sea menor al monto pagado en anticipos
         $workOrder->refresh();
         $currentTotals = $workOrder->getTotalsArray();
@@ -380,7 +435,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Update work order part
       $workOrderPart->update($data);
-      $workOrderPart->workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       // Reload relations
       $workOrderPart->load([
@@ -458,7 +513,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       // Eliminar el repuesto
       $workOrderPart->delete();
-      $workOrder->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return response()->json(['message' => 'Repuesto eliminado correctamente y stock devuelto al almacén']);
     });
@@ -543,8 +598,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         }
 
         // Validar que exista stock disponible para reservar
+        // lockForUpdate: evita sobre-reservar si otra transacción concurrente
+        // reserva el mismo producto/almacén al mismo tiempo.
         $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
           ->where('warehouse_id', $warehouseId)
+          ->lockForUpdate()
           ->first();
 
         if (!$stock) {
@@ -565,7 +623,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if ($availableQuantityExternal < $detail->quantity) {
           throw new Exception(
             "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
           );
         }
 
@@ -597,7 +655,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $detail->save();
       }
 
-      ApWorkOrder::find($workOrderId)->calculateTotals();
+      app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
 
       return [
         'message' => 'Repuestos agregados correctamente desde la cotización',
@@ -626,7 +684,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($newTotalAssigned > $workOrderPart->quantity_used) {
         throw new Exception(
           "La cantidad a asignar excede la cantidad disponible. Disponible: " . ($workOrderPart->quantity_used - $totalAssigned) .
-          ", Solicitado: {$deliveredQuantity}"
+            ", Solicitado: {$deliveredQuantity}"
         );
       }
 
@@ -834,9 +892,9 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       }
 
       // Validar que no haya sido confirmado por el técnico
-//      if ($delivery->is_received) {
-//        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
-//      }
+      //      if ($delivery->is_received) {
+      //        throw new Exception('No se puede desasignar el repuesto porque ya ha sido confirmado por el técnico');
+      //      }
 
       // Obtener el repuesto asociado
       $workOrderPart = $delivery->workOrderPart;
@@ -917,7 +975,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
           $createdDeliveries[] = $delivery->load(['deliveredToUser', 'deliveredByUser']);
           $updatedParts[] = new ApWorkOrderPartsResource($workOrderPart->load(['workOrder', 'product', 'warehouse', 'deliveries']));
-
         } catch (\Throwable $th) {
           $errors[] = "Error al asignar repuesto ID {$workOrderPartId}: " . $th->getMessage();
         }

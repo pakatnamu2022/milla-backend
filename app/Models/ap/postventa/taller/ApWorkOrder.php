@@ -67,6 +67,7 @@ class ApWorkOrder extends Model
     'discount_amount',
     'tax_amount',
     'final_amount',
+    'deductible_amount',
     'is_invoiced',
     'is_guarantee',
     'is_recall',
@@ -105,6 +106,7 @@ class ApWorkOrder extends Model
     'discount_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
     'final_amount' => 'decimal:2',
+    'deductible_amount' => 'decimal:2',
     'allow_remove_associated_quote' => 'boolean',
     'allow_editing_inspection' => 'boolean',
     'post_service_follow_up' => 'array',
@@ -292,6 +294,11 @@ class ApWorkOrder extends Model
   public function discardedBy(): BelongsTo
   {
     return $this->belongsTo(User::class, 'discarded_by');
+  }
+
+  public function deductibles(): HasMany
+  {
+    return $this->hasMany(ApDeductibleWorkOrder::class, 'work_order_id');
   }
 
   // Helper methods
@@ -923,7 +930,9 @@ class ApWorkOrder extends Model
   {
     $paidAmount = $this->getNetAmountFromAdvances();
 
-    if ($paidAmount > 0 && $newFinalAmount < $paidAmount) {
+    // Redondear a 2 decimales para evitar problemas de precisión con floats
+    // Si son iguales o mayor, se permite; solo se rechaza si es estrictamente menor
+    if ($paidAmount > 0 && round($newFinalAmount, 2) < round($paidAmount, 2)) {
       throw new \Exception(
         "El nuevo monto total (S/. " . number_format($newFinalAmount, 2) . ") " .
         "no puede ser menor al monto ya pagado en anticipos (S/. " . number_format($paidAmount, 2) . "). " .
@@ -1353,6 +1362,16 @@ class ApWorkOrder extends Model
       $items[] = $this->buildAdvanceInvoiceItem($advance);
     }
 
+    // Si hay deducible, agregar el texto a la descripción del último item
+    if ($this->deductible_amount > 0 && count($items) > 0) {
+      $firstDeductible = $this->deductibles->first();
+      if ($firstDeductible && $firstDeductible->electronicDocument) {
+        $lastIndex = count($items) - 1;
+        $items[$lastIndex]['descripcion'] .= "\nPLACA: " . $this->vehicle_plate .
+          " - DSCTO POR PAGO DE DEDUCIBLE - Doc: " . $firstDeductible->electronicDocument->full_number;
+      }
+    }
+
     return $items;
   }
 
@@ -1558,6 +1577,7 @@ class ApWorkOrder extends Model
       'sede',
       'status',
       'items.typePlanning',
+      'items.typeOperation',
       'creator',
       'typeCurrency',
       'invoiceTo'
@@ -1603,6 +1623,9 @@ class ApWorkOrder extends Model
     $workOrders = $query->get();
 
     return $workOrders->map(function ($workOrder) {
+      // Obtener el primer item no eliminado
+      $firstItem = $workOrder->items->first();
+
       return [
         'id' => $workOrder->id,
         'correlativo' => $workOrder->correlative,
@@ -1611,6 +1634,9 @@ class ApWorkOrder extends Model
         'estado' => $workOrder->status ? $workOrder->status->description : '',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
+        'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
+        'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
+        'descripcion_item' => $firstItem ? $firstItem->description : '',
         'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
         'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
         'fecha_entrega_real' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d H:i:s') : '',
@@ -1642,6 +1668,9 @@ class ApWorkOrder extends Model
       'estado' => 'Estado',
       'asesor' => 'Asesor',
       'sede' => 'Sede',
+      'tipo_planificacion' => 'Tipo de Planificación',
+      'operacion' => 'Operación',
+      'descripcion_item' => 'Descripción',
       'fecha_apertura' => 'Fecha Apertura',
       'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
       'fecha_entrega_real' => 'Fecha Entrega Real',

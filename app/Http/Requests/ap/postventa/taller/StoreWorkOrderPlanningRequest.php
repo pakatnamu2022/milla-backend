@@ -22,7 +22,6 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
       'description' => [
         'required',
         'string',
-        'max:255',
       ],
       'estimated_hours' => [
         'required',
@@ -56,7 +55,6 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
       'worker_id.exists' => 'El trabajador no existe.',
 
       'description.required' => 'La descripción es obligatoria.',
-      'description.max' => 'La descripción no debe exceder 255 caracteres.',
 
       'estimated_hours.required' => 'Las horas estimadas son obligatorias.',
       'estimated_hours.numeric' => 'Las horas estimadas deben ser un número.',

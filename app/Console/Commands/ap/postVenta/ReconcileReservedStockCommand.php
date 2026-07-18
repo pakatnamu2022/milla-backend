@@ -117,18 +117,19 @@ class ReconcileReservedStockCommand extends Command
           ->where('w.status', 1);
       })
       ->where('qd.supply_type', 'STOCK')
+      // Las cotizaciones de Taller nunca reservan stock al confirmarse (ver
+      // ApOrderQuotationsService::reserveStockForQuotation): su reserva real nace
+      // en ap_work_order_parts cuando los repuestos se cargan a la OT, y esa ya
+      // la cubre $otQuery. Incluirlas aquí también duplicaría la reserva esperada.
+      ->where('q.area_id', '!=', ApMasters::AREA_TALLER)
       ->whereNull('qd.deleted_at')
       ->whereNull('q.deleted_at')
-      ->where(function ($q2) {
-        $q2->where('q.has_invoice_generated', false)
-          ->whereNotIn('q.status', [
-            ApOrderQuotations::STATUS_APERTURADO,
-            ApOrderQuotations::STATUS_DESCARTADO,
-            ApOrderQuotations::STATUS_SEGMENTADA,
-            ApOrderQuotations::STATUS_FACTURADO,
-          ])
-          ->orWhereNull('q.has_invoice_generated');
-      })
+      ->whereNotIn('q.status', [
+        ApOrderQuotations::STATUS_APERTURADO,
+        ApOrderQuotations::STATUS_DESCARTADO,
+        ApOrderQuotations::STATUS_SEGMENTADA,
+        ApOrderQuotations::STATUS_FACTURADO,
+      ])
       ->select('qd.product_id', 'w.id as warehouse_id', DB::raw('SUM(qd.quantity) as total'))
       ->groupBy('qd.product_id', 'w.id');
 

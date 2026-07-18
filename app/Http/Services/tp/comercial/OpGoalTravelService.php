@@ -489,8 +489,6 @@ class OpGoalTravelService extends BaseService
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
                         AND od.id NOT IN (" . implode(',', $viajesExcluir) . ")
-                        AND rp.sede_id = 1
-                        AND rp.b_cliente = 1
                         {$filtrosFecha}
                         ", $params);
 
@@ -591,7 +589,7 @@ class OpGoalTravelService extends BaseService
                 $condicionCargaResumen = "
                     (
                         od.produccion > 0
-                        OR (rp.b_cliente = 1)
+                        OR (rp_cliente.b_cliente = 1)
                         OR EXISTS (
                             SELECT 1
                             FROM op_despacho_item odi
@@ -636,45 +634,63 @@ class OpGoalTravelService extends BaseService
                         ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month]);
 
                 $vehiculos = DB::select("
-                            SELECT 
-                                v.id as vehiculo_id,
-                                v.placa as vehiculo,
-                                COUNT(od.id) as total_viajes,
-                                SUM(od.produccion) as produccion_real,
-                                ? as meta_vehiculo,
-                                ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
-                            FROM op_despacho od
-                            INNER JOIN op_vehiculo v ON v.id = od.tracto_id
-                            WHERE od.estado <> 10 
-                                  AND v.sede_id = 1 
-                                  AND v.tipo_vehiculo_id = 1 
-                                  AND v.status_deleted = 1 
-                                  AND v.tercero = 0
-                                  AND YEAR(od.fecha_viaje) = ?
-                                  AND MONTH(od.fecha_viaje) = ?
-                                  AND {$condicionCargaVehiculos}
-                            GROUP BY od.tracto_id
-                            ORDER BY produccion_real DESC
-                        ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
+                        SELECT 
+                            v.id as vehiculo_id,
+                            v.placa as vehiculo,
+                            COUNT(od.id) as total_viajes,
+                            COALESCE(SUM(od.produccion), 0) as produccion_real,
+                            ? as meta_vehiculo,
+                            COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
+                        FROM op_vehiculo v
+                        INNER JOIN op_despacho od ON od.tracto_id = v.id 
+                            AND od.estado <> 10 
+                            AND YEAR(od.fecha_viaje) = ?
+                            AND MONTH(od.fecha_viaje) = ?
+                            AND {$condicionCargaVehiculos}
+                        WHERE v.sede_id = 1 
+                            AND v.tipo_vehiculo_id = 1 
+                            AND v.status_deleted = 1 
+                            AND v.tercero = 0
+                        GROUP BY v.id, v.placa
+                        ORDER BY produccion_real DESC
+                ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
 
                 $resumen = DB::selectOne("
-                    SELECT 
-                        COUNT(DISTINCT od.conductor_id) as conductores_activos,
-                        COUNT(DISTINCT od.tracto_id) as vehiculos_activos,
-                        COUNT(od.id) as total_viajes,
-                        SUM(od.produccion) as produccion_total,
-                        ? as meta_total,
-                        ROUND((SUM(od.produccion) / ?) * 100, 2) as porcentaje_cumplimiento
-                    FROM op_despacho od
-                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                SELECT 
+                    COUNT(DISTINCT CASE 
+                        WHEN rp_conductor.id IS NOT NULL 
+                        THEN od.conductor_id 
+                        ELSE NULL 
+                    END) as conductores_activos,
+                    COUNT(DISTINCT CASE 
+                        WHEN v.id IS NOT NULL 
+                        THEN od.tracto_id 
+                        ELSE NULL 
+                    END) as vehiculos_activos,
+                    COUNT(od.id) as total_viajes,
+                    COALESCE(SUM(od.produccion), 0) as produccion_total,
+                    ? as meta_total,
+                    COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
+                FROM op_despacho od
+                LEFT JOIN rrhh_persona rp_conductor ON rp_conductor.id = od.conductor_id 
+                    AND rp_conductor.status_deleted = 1 
+                    AND rp_conductor.b_empleado = 1 
+                    AND rp_conductor.status_id = 22 
+                    AND rp_conductor.cargo_id in (11,12)
+                    AND rp_conductor.sede_id = 1
+                LEFT JOIN op_vehiculo v ON v.id = od.tracto_id 
+                    AND v.sede_id = 1 
+                    AND v.tipo_vehiculo_id = 1 
+                    AND v.status_deleted = 1 
+                    AND v.tercero = 0
+                LEFT JOIN rrhh_persona rp_cliente ON rp_cliente.id = od.idcliente
                 WHERE od.estado <> 10
-                    AND rp.sede_id = 1
-                    AND rp.b_cliente = 1
+                    AND rp_cliente.sede_id = 1
+                    AND rp_cliente.b_cliente = 1
                     AND YEAR(od.fecha_viaje) = ?
                     AND MONTH(od.fecha_viaje) = ?
                     AND {$condicionCargaResumen}
             ", [$goal->total, $goal->total, $year, $month]);
-
                 return [
                     'meta' => [
                         'id' => (int) $goal->id,

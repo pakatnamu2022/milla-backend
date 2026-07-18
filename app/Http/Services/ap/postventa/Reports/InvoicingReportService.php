@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\Reports;
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Collection;
 use ReflectionClass;
 use ReflectionMethod;
@@ -23,9 +24,13 @@ class InvoicingReportService
     $queryDocuments = ElectronicDocument::query()
       ->with([
         'workOrder.sede',
+        'workOrder.advisor',
+        'workOrder.status',
         'workOrder.vehicle.model.family.brand',
-        'workOrder.items',
+        'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
+        'currency',
+        'exchangeRate',
       ])
       ->whereNotNull('work_order_id')
       ->where('aceptada_por_sunat', true);
@@ -35,10 +40,24 @@ class InvoicingReportService
 
     $documents = $queryDocuments->get();
 
-    // Transformar documentos para el reporte
-    $reportData = $documents->map(function ($document) {
-      return $this->transformDocumentForReport($document, $document->workOrder);
+    // Separar documentos finales de anticipos
+    $finalDocuments = $documents->filter(function ($document) {
+      return !$document->is_advance_payment;
     });
+
+    $advanceDocuments = $documents->filter(function ($document) {
+      return $document->is_advance_payment;
+    });
+
+    // Transformar documentos finales para el reporte (Primera página)
+    $reportDataFinal = $finalDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
+
+    // Transformar documentos de anticipos para el reporte (Segunda página)
+    $reportDataAdvances = $advanceDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
 
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
@@ -59,11 +78,12 @@ class InvoicingReportService
 
     $workOrders = $queryWorkOrders->get();
 
-    // Generar tabla resumen de OTs pendientes de pago
+    // Generar tabla resumen de OTs pendientes de pago (Tercera página)
     $summary = $this->generatePaymentSummary($workOrders);
 
     return [
-      'data' => $reportData,
+      'final_documents' => $reportDataFinal,
+      'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
     ];
   }
@@ -83,25 +103,52 @@ class InvoicingReportService
     // Obtener el primer item de la OT para el trabajo realizado
     $firstItem = $workOrder->items->first();
 
+    // Verificar si ya tiene factura final emitida
+    $finalInvoice = $workOrder->getFinalInvoice();
+    $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
+
+    // Determinar moneda original y tasa de cambio
+    $currencyId = $document->sunat_concept_currency_id;
+    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
+    $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
+
+    // Moneda original del comprobante
+    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
+
+    // Convertir montos a soles
+    $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
+    $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
+    $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
+    $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
+    $igv = ($document->total_igv ?? 0) * $exchangeRate;
+    $total = ($document->total ?? 0) * $exchangeRate;
+
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
+      'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'estado' => $estado,
+      'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+      'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+      'modelo_vehiculo' => $workOrder->vehicle?->model?->family?->description ?? '',
+      'trabajo_realizado' => $firstItem?->description ?? '',
+      'operario' => $technicians,
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
       'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
       'cliente' => $document->cliente_denominacion ?? '',
-      'total_mano_obra' => number_format($workOrder->total_labor_cost ?? 0, 2, '.', ''),
-      'total_repuestos' => number_format($workOrder->total_parts_cost ?? 0, 2, '.', ''),
+      'total_mano_obra' => number_format($totalManoObra, 2, '.', ''),
+      'total_repuestos' => number_format($totalRepuestos, 2, '.', ''),
       'descuento_porcentaje' => number_format($workOrder->discount_percentage ?? 0, 2, '.', ''),
-      'descuento_monto' => number_format($workOrder->discount_amount ?? 0, 2, '.', ''),
-      'trabajo_realizado' => $firstItem?->description ?? '',
-      'operario' => $technicians,
-      'monto_sin_igv' => number_format($document->total_gravada ?? 0, 2, '.', ''),
-      'igv' => number_format($document->total_igv ?? 0, 2, '.', ''),
-      'total' => number_format($document->total ?? 0, 2, '.', ''),
-      'tipo' => $document->is_advance_payment ? 'ANTICIPO' : 'FACTURA',
-      'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+      'descuento_monto' => number_format($descuentoMonto, 2, '.', ''),
+      'monto_sin_igv' => number_format($montoSinIgv, 2, '.', ''),
+      'igv' => number_format($igv, 2, '.', ''),
+      'total' => number_format($total, 2, '.', ''),
+      'moneda' => 'PEN',
+      'moneda_original' => $monedaOriginal,
       'work_order_id' => $workOrder->id,
       'document_id' => $document->id,
     ];
@@ -145,8 +192,15 @@ class InvoicingReportService
       // Obtener factura final usando el método del modelo
       $finalInvoice = $workOrder->getFinalInvoice();
 
-      // Calcular total de la OT
-      $totalOt = $finalInvoice ? (float)$finalInvoice->total : 0;
+      // Solo incluir OTs que:
+      // 1. Tienen anticipos activos
+      // 2. NO tienen factura final (aunque el estado sea diferente de CLOSED)
+      if ($activeAdvances->isEmpty() || $finalInvoice !== null) {
+        continue;
+      }
+
+      // Calcular total de la OT desde el campo final_amount (ya que no hay factura final)
+      $totalOt = (float)($workOrder->final_amount ?? 0);
 
       // Calcular total neto de anticipos (considerando NC y ND)
       $totalAnticiposNeto = 0;
@@ -168,7 +222,7 @@ class InvoicingReportService
       $deuda = $totalOt - $totalAnticiposNeto;
 
       // Solo incluir OTs con deuda pendiente
-      if ($deuda > 0 && ($totalOt > 0 || $totalAnticiposNeto > 0)) {
+      if ($deuda > 0 && $totalOt > 0) {
         // Construir la lista de series y números con sus montos
         $seriesNumeros = collect($advanceDetails)
           ->map(function ($detail) {
@@ -180,7 +234,7 @@ class InvoicingReportService
         $summary[] = [
           'taller' => $workOrder->sede?->abreviatura ?? '',
           'numero_ot' => $workOrder->correlative ?? '',
-          'cliente' => $finalInvoice?->cliente_denominacion ?? $activeAdvances->first()?->cliente_denominacion ?? '',
+          'cliente' => $activeAdvances->first()?->cliente_denominacion ?? '',
           'num_anticipos' => $activeAdvances->count(),
           'series_numeros' => $seriesNumeros,
           'total_anticipos' => number_format($totalAnticiposNeto, 2, '.', ''),

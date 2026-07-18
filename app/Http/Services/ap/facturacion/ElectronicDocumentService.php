@@ -464,9 +464,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       /**
        * Crear cuotas si es venta al crédito
+       *
+       * Solo aplica a factura final (un anticipo nunca va al crédito). Para órdenes
+       * de trabajo con detracción, el frontend no conoce el monto de la detracción
+       * (se calcula en el backend en applyDetractionLogic) y siempre envía una única
+       * cuota con el importe bruto del comprobante. Se le descuenta la detracción
+       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
+       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $isWorkOrderWithDetraction = !$isAdvancePayment && !empty($data['work_order_id']) && !empty($data['detraccion']);
+        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+
         foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($isWorkOrderWithDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
           $document->installments()->create($cuotaData);
         }
       }
@@ -494,6 +508,219 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       $this->afterCreateForQuotation($document, $data);
       $this->afterCreateForWorkOrder($document, $data);
+
+      DB::commit();
+      return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
+    } catch (Throwable $e) {
+      DB::rollBack();
+      throw new Exception('Error al crear el documento electrónico: ' . $e->getMessage());
+    }
+  }
+
+  /**
+   * Create a new electronic document for historical final sale with advance
+   * @throws Exception
+   * @throws Throwable
+   */
+  public function storeHistoricalFinalSaleWithAdvance(mixed $data): ElectronicDocumentResource
+  {
+    DB::beginTransaction();
+    try {
+      // ================================================================
+      // 1. PREPARACIÓN INICIAL
+      // ================================================================
+
+      /**
+       * Validar y calcular el siguiente número correlativo
+       */
+      $nextNumberData = $this->nextDocumentNumberCorrelative(
+        $data['sunat_concept_document_type_id'],
+        $data['serie']
+      );
+      $data['numero'] = $nextNumberData['number'];
+
+      /**
+       * Validar que la serie sea correcta
+       */
+      if (!ElectronicDocument::validateSerie($data['sunat_concept_document_type_id'], $data['serie'])) {
+        throw new Exception('La serie no es válida para el tipo de documento seleccionado');
+      }
+
+      /**
+       * Obtener la tasa de cambio y datos del cliente
+       */
+      $emissionDate = is_string($data['fecha_de_emision'])
+        ? $data['fecha_de_emision']
+        : Carbon::parse($data['fecha_de_emision'])->format('Y-m-d');
+
+      $exchangeRate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+      if (!$exchangeRate) {
+        throw new Exception("No se ha registrado la tasa de cambio para la fecha de emisión ({$emissionDate}).");
+      }
+
+      $client = BusinessPartners::find($data['client_id']);
+      $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+        ->where('type', SunatConcepts::TYPE_DOCUMENT)
+        ->first();
+
+      $data['sunat_concept_identity_document_type_id'] = $documentType->id;
+      $data['cliente_numero_de_documento'] = $client->num_doc;
+      $data['cliente_denominacion'] = $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : '');
+      $data['cliente_direccion'] = $client->direction;
+      $data['cliente_email'] = $client->email;
+      $data['porcentaje_de_igv'] = $client->taxClassType->igv;
+      $data['client_id'] = $client->id;
+      $data['tipo_de_cambio'] = $exchangeRate->rate;
+
+      // ================================================================
+      // 2. RECALCULAR TOTAL IGV DE LA CABECERA
+      // ================================================================
+
+      /**
+       * El total_igv de la cabecera se calcula como:
+       * (Suma de IGV de items normales) - (Suma de IGV de items anticipo)
+       */
+      if (isset($data['items']) && is_array($data['items'])) {
+        $igvItemsNormales = 0;
+        $igvItemsAnticipos = 0;
+
+        foreach ($data['items'] as $item) {
+          $igvItem = (float)($item['igv'] ?? 0);
+          $esAnticipo = isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] == true;
+
+          if ($esAnticipo) {
+            $igvItemsAnticipos += $igvItem;
+          } else {
+            $igvItemsNormales += $igvItem;
+          }
+        }
+
+        // Calcular el total_igv de la cabecera
+        $data['total_igv'] = $igvItemsNormales - $igvItemsAnticipos;
+      }
+
+      // ================================================================
+      // 3. APLICAR LÓGICA DE DETRACCIONES PARA VENTA HISTÓRICA CON ANTICIPO
+      // ================================================================
+      $this->applyDetractionForHistoricalSaleWithAdvance($data);
+
+      // ================================================================
+      // 4. PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
+      // ================================================================
+
+      /**
+       * Si el frontend envía un archivo para orden de compra de servicio,
+       * subirlo a Digital Ocean y guardar la URL
+       */
+      if (isset($data['orden_compra_servicio_file']) && $data['orden_compra_servicio_file'] instanceof UploadedFile) {
+        $file = $data['orden_compra_servicio_file'];
+        $path = '/ap/facturacion/orden-compra-servicio/';
+        $model = 'ap_billing_electronic_documents';
+
+        // Subir archivo usando DigitalFileService
+        $digitalFile = $this->digitalFileService->store($file, $path, 'public', $model);
+
+        // Guardar la URL en el campo correspondiente
+        $data['orden_compra_servicio_url'] = $digitalFile->url;
+
+        // Remover el archivo del array para no guardarlo en la BD
+        unset($data['orden_compra_servicio_file']);
+      }
+
+      // ================================================================
+      // 4. CREACIÓN DEL DOCUMENTO Y RELACIONES
+      // ================================================================
+
+      /**
+       * Crear el documento principal
+       */
+
+      $data = array_merge($data, [
+        'exchange_rate_id' => $exchangeRate->id,
+        'created_by' => auth()->id(),
+        'status' => ElectronicDocument::STATUS_DRAFT,
+      ]);
+
+//      throw new Exception(json_encode($data));
+      $document = ElectronicDocument::create($data);
+
+      /**
+       * Crear los items
+       */
+      if (isset($data['items']) && is_array($data['items'])) {
+        // Ordenar items: primero anticipos, luego items normales
+        $data['items'] = collect($data['items'])->sortBy('anticipo_regularizacion')->values()->all();
+
+        foreach ($data['items'] as $index => $itemData) {
+          $cantidad = max(1, (float)($itemData['cantidad'] ?? 1));
+          $descuento = (float)($itemData['descuento'] ?? 0);
+          $itemData['descuento_unitario'] = $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0;
+          $itemData['line_number'] = $index + 1;
+
+          // Setear campos específicos según si es anticipo o no
+          $esAnticipo = isset($itemData['anticipo_regularizacion']) && $itemData['anticipo_regularizacion'] == true;
+
+          if ($esAnticipo) {
+            // Si es anticipo
+            $itemData['unidad_de_medida'] = 'ZZ';
+            $itemData['unidad_medida_dyn'] = 'UND';
+          } else {
+            // Si NO es anticipo
+            $itemData['unidad_de_medida'] = 'ZZ';
+            $itemData['unidad_medida_dyn'] = 'UNS';
+            $itemData['codigo'] = 'V0000011';
+            $itemData['dyn_code'] = 'V0000011';
+          }
+
+          $document->items()->create($itemData);
+        }
+      }
+
+      /**
+       * Crear guías de remisión si existen
+       */
+      if (isset($data['guias']) && is_array($data['guias'])) {
+        foreach ($data['guias'] as $guiaData) {
+          $document->guides()->create($guiaData);
+        }
+      }
+
+      /**
+       * Crear cuotas si es venta al crédito
+       *
+       * IMPORTANTE: Si hay detracción, restar el monto de detracción del importe de las cuotas,
+       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
+       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
+       */
+      if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
+        $hasDetraction = !$isAdvancePayment && !empty($data['detraccion']);
+        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+
+        foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($hasDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
+          $document->installments()->create($cuotaData);
+        }
+      }
+
+      /**
+       * Crear movimiento de vehículo si viene ap_vehicle_id
+       */
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+
+        // Actualizar el documento con el ID del movimiento
+        $document->update([
+          'ap_vehicle_movement_id' => $vehicleMovement->id
+        ]);
+
+        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        if (($data['is_advance_payment'] ?? 1) == 0) {
+          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+        }
+      }
 
       DB::commit();
       return new ElectronicDocumentResource($document->load(['items', 'guides', 'installments', 'vehicleMovement']));
@@ -2432,13 +2659,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    *
    * @param ApWorkOrder $workOrder
    * @param int $is_advance_payment
+   * @param bool $is_nota_credito_debito
    * @return void
    * @throws Exception
    */
-  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0): void
+  private function validateWorkOrderStock(ApWorkOrder $workOrder, int $is_advance_payment = 0, bool $is_nota_credito_debito = false): void
   {
     // Si es un anticipo, no validamos stock
     if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Si es una nota de crédito o débito, no validamos stock
+    if ($is_nota_credito_debito) {
       return;
     }
 
@@ -2972,15 +3205,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 
+    $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+      && in_array($data['sunat_concept_document_type_id'], [
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        ElectronicDocument::TYPE_NOTA_DEBITO
+      ]);
+
     // Validar que no exista ya una factura final para esta cotización
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
-        && in_array($data['sunat_concept_document_type_id'], [
-          ElectronicDocument::TYPE_NOTA_CREDITO,
-          ElectronicDocument::TYPE_NOTA_DEBITO
-        ]);
-
       if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $quotation->getFinalInvoice();
 
@@ -2997,8 +3230,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // Validar stock de productos si no es un anticipo
     $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
 
-    // Validar suma de anticipos si es anticipo
-    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1) {
+    // Validar suma de anticipos si es anticipo (no aplica a notas de crédito/débito,
+    // ya que estas ajustan/anulan anticipos existentes, no registran uno nuevo)
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 1 && !$isNotaCreditoDebito) {
       $total = (float)($data['total'] ?? 0);
 
       // Get active advances using centralized logic from model
@@ -3058,15 +3292,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('No se encontró la orden de trabajo especificada.');
     }
 
+    // Determinar si es nota de crédito o débito
+    $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
+      && in_array($data['sunat_concept_document_type_id'], [
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        ElectronicDocument::TYPE_NOTA_DEBITO
+      ]);
+
     // Validar que no exista ya una factura final para esta orden de trabajo
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $isNotaCreditoDebito = isset($data['sunat_concept_document_type_id'])
-        && in_array($data['sunat_concept_document_type_id'], [
-          ElectronicDocument::TYPE_NOTA_CREDITO,
-          ElectronicDocument::TYPE_NOTA_DEBITO
-        ]);
-
       if (!$isNotaCreditoDebito) {
         $existingFinalInvoice = $workOrder->getFinalInvoice();
 
@@ -3084,7 +3319,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $this->validateWorkOrderInvoice($data);
 
     // Validar stock reservado para repuestos de la OT
-    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0);
+    $this->validateWorkOrderStock($workOrder, $data['is_advance_payment'] ?? 0, $isNotaCreditoDebito);
   }
 
   // ========================================================================
@@ -3161,28 +3396,35 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
      * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
      */
     $isAdvancePayment = isset($data['is_advance_payment']) && $data['is_advance_payment'];
+    $documentTotal = (float)($data['total'] ?? 0);
 
-    // Determinar el concepto base según el tipo de documento
-    if ($isAdvancePayment) {
-      // Es un anticipo
+    // CASO ESPECIAL: Si es factura final con monto = 0 (todo cubierto con anticipos)
+    // Siempre usar ID_VENTA_INTERNA_ANTICIPOS
+    if (!$isAdvancePayment && $documentTotal == 0) {
       $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
+    }
+    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA Y el total del documento > 0
+    // Aplica detracción TANTO a anticipos como a facturas finales
+    elseif ($entityTotal >= $detractionAmount && $detractionAmount > 0
+      && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA
+      && $documentTotal > 0) {
+      $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
     } else {
-      // Es venta interna final
-      // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
-      $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
-
-      if ($hasActiveAdvances) {
-        // Si tiene anticipos activos, SIEMPRE usar concepto de anticipos (sin importar el monto)
+      // Lógica actual cuando el monto de la OT es menor al límite de detracción
+      // Determinar el concepto base según el tipo de documento
+      if ($isAdvancePayment) {
+        // Es un anticipo
         $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
       } else {
-        // Si NO tiene anticipos, evaluar detracción solo para FACTURAS
-        // Si el monto total de la work_order supera o iguala el monto de detracción,
-        // aplicar ID_SUJETA_DETRACCION solo para FACTURAS (no para BOLETAS)
-        if ($entityTotal >= $detractionAmount && $detractionAmount > 0
-          && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
-          $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
+        // Es venta interna final
+        // Verificar si la orden de trabajo tiene anticipos activos (válidos, no anulados)
+        $hasActiveAdvances = $workOrder->getActiveAdvances()->count() > 0;
+
+        if ($hasActiveAdvances) {
+          // Si tiene anticipos activos, usar concepto de anticipos
+          $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
         } else {
-          // Si no aplica detracción, usar concepto de venta interna normal
+          // Si no tiene anticipos, usar concepto de venta interna normal
           $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA;
         }
       }
@@ -3254,6 +3496,76 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         // La detracción se calcula sobre el total del documento actual
         $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
       }
+    }
+  }
+
+  /**
+   * Aplicar lógica de detracciones para ventas históricas con anticipo
+   * Este método es específico para storeHistoricalFinalSaleWithAdvance
+   *
+   * @param array $data
+   * @return void
+   * @throws Exception
+   */
+  private function applyDetractionForHistoricalSaleWithAdvance(array &$data): void
+  {
+    // ================================================================
+    // 1. VALIDAR QUE VENGA AL MENOS UN ANTICIPO
+    // ================================================================
+
+    $hasAnticipo = false;
+    if (isset($data['items']) && is_array($data['items'])) {
+      foreach ($data['items'] as $item) {
+        if (isset($item['anticipo_regularizacion']) && $item['anticipo_regularizacion'] == true) {
+          $hasAnticipo = true;
+          break;
+        }
+      }
+    }
+
+    if (!$hasAnticipo) {
+      throw new Exception('Debe enviar al menos un ítem con anticipo_regularizacion = true. Este método está orientado para facturas con anticipos.');
+    }
+
+    // ================================================================
+    // 2. OBTENER VALORES Y CONFIGURACIÓN
+    // ================================================================
+
+    $company = Company::find(Company::COMPANY_AP_ID);
+    if (!$company) {
+      throw new Exception('No se pudo obtener la configuración de la empresa.');
+    }
+
+    $totalAnticipo = (float)($data['total_anticipo'] ?? 0);
+    $total = (float)($data['total'] ?? 0);
+    $detractionAmount = (float)($company->detraction_amount ?? 0);
+    $sumaTotal = $totalAnticipo + $total;
+
+    // ================================================================
+    // 3. APLICAR LÓGICA DE DETRACCIÓN
+    // ================================================================
+
+    // Si la suma del anticipo + total >= detraction_amount (700), aplicar detracción
+    if ($sumaTotal >= $detractionAmount && $detractionAmount > 0) {
+      $data['detraccion'] = true;
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION; // 129
+      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION; // 105
+
+      // Obtener el porcentaje de detracción desde GeneralMaster
+      $detractionPercentage = GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID);
+      if ($detractionPercentage) {
+        $porcentaje = (float)$detractionPercentage->value;
+        $data['detraccion_porcentaje'] = $porcentaje;
+        // La detracción se calcula sobre el total del documento actual (no sobre el anticipo)
+        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+      }
+    } else {
+      // Si no pasa el umbral, NO aplicar detracción
+      $data['detraccion'] = false;
+      $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS; // 36
+      $data['sunat_concept_detraction_type_id'] = null;
+      $data['detraccion_porcentaje'] = null;
+      $data['detraccion_total'] = null;
     }
   }
 
@@ -3421,6 +3733,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // 11. Prepare invoice data
+      // Determinar condiciones de pago:
+      // 1. Si el frontend lo envía, respetarlo
+      // 2. Si no, calcularlo automáticamente: si hay cuotas → CREDITO, si no → CONTADO
+      $hasInstallments = isset($data['venta_al_credito']) && is_array($data['venta_al_credito']) && !empty($data['venta_al_credito']);
+      $condicionesDePago = $data['condiciones_de_pago'] ?? ($hasInstallments ? 'CREDITO' : 'CONTADO');
+
       $invoiceData = [
         'sunat_concept_document_type_id' => $data['sunat_concept_document_type_id'],
         'serie' => $data['serie'],
@@ -3443,6 +3761,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total_gravada' => round($subtotal, 2),
         'total_igv' => round($taxAmount, 2),
         'total' => round($total, 2),
+        'condiciones_de_pago' => $condicionesDePago,
+        'medio_de_pago' => $data['medio_de_pago'] ?? null,
+        'bank_id' => $data['bank_id'] ?? null,
+        'operation_number' => $data['operation_number'] ?? null,
+        'placa_vehiculo' => $data['placa_vehiculo'] ?? null,
+        'codigo_unico' => $data['codigo_unico'] ?? null,
+        'card_last4' => $data['card_last4'] ?? null,
         'internal_note' => $data['internal_note'] ?? '',
         'observaciones' => $data['observaciones'] ?? '',
         'enviar_automaticamente_a_la_sunat' => false,
@@ -3502,10 +3827,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ]);
       }
 
-      // 14. Attach internal notes to invoice
+      // 14. Create installments if credit sale
+      /**
+       * Crear cuotas si es venta al crédito
+       *
+       * Para facturas consolidadas con detracción, el frontend no conoce el monto
+       * de la detracción (se calcula en el backend) y envía las cuotas con el
+       * importe bruto del comprobante. Se le descuenta la detracción para que la
+       * cuota refleje lo que realmente se cobrará al cliente (el monto de la
+       * detracción lo deposita el cliente directamente al Banco de la Nación).
+       */
+      if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
+        $hasDetraction = !empty($invoiceData['detraccion']);
+        $detractionTotal = (float)($invoiceData['detraccion_total'] ?? 0);
+
+        foreach ($data['venta_al_credito'] as $cuotaData) {
+          if ($hasDetraction && $detractionTotal > 0) {
+            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
+          }
+          $invoice->installments()->create($cuotaData);
+        }
+      }
+
+      // 15. Attach internal notes to invoice
       $invoice->internalNotes()->attach($data['internal_note_ids']);
 
-      // 15. Mark internal notes as invoiced
+      // 16. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
       }
@@ -3513,7 +3860,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::commit();
 
       return [
-        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items')),
+        'invoice' => new ElectronicDocumentResource($invoice->load('internalNotes.workOrder', 'items', 'installments')),
         'work_orders' => $workOrdersData,
         'message' => 'Factura consolidada creada exitosamente',
         'totals' => [

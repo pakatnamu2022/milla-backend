@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use Illuminate\Support\Collection;
 
@@ -12,9 +13,10 @@ class TallerReportService
    * Obtiene el reporte de Órdenes de Trabajo
    *
    * @param array $filters
+   * @param bool $amountsInSoles
    * @return Collection
    */
-  public function getWorkOrdersReport(array $filters = []): Collection
+  public function getWorkOrdersReport(array $filters = [], bool $amountsInSoles = false): Collection
   {
     $query = ApWorkOrder::query()
       ->with([
@@ -37,8 +39,8 @@ class TallerReportService
 
     $workOrders = $query->get();
 
-    return $workOrders->map(function ($workOrder) {
-      return $this->transformWorkOrderForReport($workOrder);
+    return $workOrders->map(function ($workOrder) use ($amountsInSoles) {
+      return $this->transformWorkOrderForReport($workOrder, $amountsInSoles);
     });
   }
 
@@ -46,9 +48,10 @@ class TallerReportService
    * Transforma una Orden de Trabajo en el formato del reporte
    *
    * @param ApWorkOrder $workOrder
+   * @param bool $amountsInSoles
    * @return array
    */
-  private function transformWorkOrderForReport(ApWorkOrder $workOrder): array
+  private function transformWorkOrderForReport(ApWorkOrder $workOrder, bool $amountsInSoles = false): array
   {
     $invoiceTo = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
@@ -57,8 +60,10 @@ class TallerReportService
     // Obtener técnicos únicos consolidados
     $technicians = $this->getConsolidatedTechnicians($workOrder);
 
-    // Calcular precios en dólares
-    $prices = $this->calculatePricesInDollars($workOrder);
+    // Calcular precios según la moneda solicitada
+    $prices = $amountsInSoles
+      ? $this->calculatePricesInSoles($workOrder)
+      : $this->calculatePricesInDollars($workOrder);
 
     return [
       'tipo_documento' => $invoiceTo?->documentType?->description ?? '',
@@ -141,11 +146,8 @@ class TallerReportService
    */
   private function calculatePricesInDollars(ApWorkOrder $workOrder): array
   {
-    $exchangeRate = $workOrder->getExchangeRateToUsd();
-
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
-    $labourCostUSD = $labourCost / $exchangeRate;
 
     // Precio de repuestos (sin lubricantes)
     $partsCost = $workOrder->parts
@@ -153,7 +155,6 @@ class TallerReportService
         return $part->product && $part->product->product_category_id != ApMasters::LUBRICANTE_ID;
       })
       ->sum('net_amount');
-    $partsCostUSD = $partsCost / $exchangeRate;
 
     // Precio de lubricantes
     $lubricantsCost = $workOrder->parts
@@ -161,7 +162,19 @@ class TallerReportService
         return $part->product && $part->product->product_category_id == ApMasters::LUBRICANTE_ID;
       })
       ->sum('net_amount');
-    $lubricantsCostUSD = $lubricantsCost / $exchangeRate;
+
+    // Si la OT ya está en dólares, no convertir
+    if ($workOrder->currency_id == TypeCurrency::USD_ID) {
+      $labourCostUSD = $labourCost;
+      $partsCostUSD = $partsCost;
+      $lubricantsCostUSD = $lubricantsCost;
+    } else {
+      // La OT está en soles, convertir a dólares
+      $exchangeRate = $workOrder->getExchangeRateToUsd();
+      $labourCostUSD = $labourCost / $exchangeRate;
+      $partsCostUSD = $partsCost / $exchangeRate;
+      $lubricantsCostUSD = $lubricantsCost / $exchangeRate;
+    }
 
     // Total
     $totalUSD = $labourCostUSD + $partsCostUSD + $lubricantsCostUSD;
@@ -172,6 +185,89 @@ class TallerReportService
       'lubricantes' => $lubricantsCostUSD,
       'total' => $totalUSD,
     ];
+  }
+
+  /**
+   * Calcula los precios en soles
+   *
+   * @param ApWorkOrder $workOrder
+   * @return array
+   */
+  private function calculatePricesInSoles(ApWorkOrder $workOrder): array
+  {
+    // Precio de mano de obra
+    $labourCost = $workOrder->labours->sum('net_amount');
+
+    // Precio de repuestos (sin lubricantes)
+    $partsCost = $workOrder->parts
+      ->filter(function ($part) {
+        return $part->product && $part->product->product_category_id != ApMasters::LUBRICANTE_ID;
+      })
+      ->sum('net_amount');
+
+    // Precio de lubricantes
+    $lubricantsCost = $workOrder->parts
+      ->filter(function ($part) {
+        return $part->product && $part->product->product_category_id == ApMasters::LUBRICANTE_ID;
+      })
+      ->sum('net_amount');
+
+    // Si la OT ya está en soles, no convertir
+    if ($workOrder->currency_id == TypeCurrency::PEN_ID) {
+      $labourCostPEN = $labourCost;
+      $partsCostPEN = $partsCost;
+      $lubricantsCostPEN = $lubricantsCost;
+    } else {
+      // La OT está en dólares, convertir a soles
+      // Obtener el tipo de cambio real (no el de getExchangeRateToUsd que retorna 1.0 para USD)
+      $exchangeRate = $this->getRealExchangeRate($workOrder);
+      $labourCostPEN = $labourCost * $exchangeRate;
+      $partsCostPEN = $partsCost * $exchangeRate;
+      $lubricantsCostPEN = $lubricantsCost * $exchangeRate;
+    }
+
+    // Total
+    $totalPEN = $labourCostPEN + $partsCostPEN + $lubricantsCostPEN;
+
+    return [
+      'mano_obra' => $labourCostPEN,
+      'repuestos' => $partsCostPEN,
+      'lubricantes' => $lubricantsCostPEN,
+      'total' => $totalPEN,
+    ];
+  }
+
+  /**
+   * Obtiene el tipo de cambio real de la OT, sin la validación de USD
+   * Esto permite convertir de USD a PEN correctamente
+   *
+   * @param ApWorkOrder $workOrder
+   * @return float
+   */
+  private function getRealExchangeRate(ApWorkOrder $workOrder): float
+  {
+    // Intenta obtener el tipo de cambio de la columna exchange_rate
+    if ($workOrder->exchange_rate) {
+      return (float) $workOrder->exchange_rate;
+    }
+
+    // Intenta obtener el tipo de cambio de la relación exchangeRate
+    if ($workOrder->exchangeRate && $workOrder->exchangeRate->rate) {
+      return (float) $workOrder->exchangeRate->rate;
+    }
+
+    // Intenta obtener el tipo de cambio del último documento electrónico
+    $lastDocument = $workOrder->exchangeRateDocuments()
+      ->whereNotNull('exchange_rate_id')
+      ->orderByDesc('created_at')
+      ->first();
+
+    if ($lastDocument && $lastDocument->exchangeRate && $lastDocument->exchangeRate->rate) {
+      return (float) $lastDocument->exchangeRate->rate;
+    }
+
+    // Valor por defecto si no hay ningún tipo de cambio
+    return 3.75;
   }
 
   /**

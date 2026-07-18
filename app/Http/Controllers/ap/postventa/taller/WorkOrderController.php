@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\CancelWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\ChangeAdvisorWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\IndexWorkOrderRequest;
+use App\Http\Requests\ap\postventa\taller\StoreDeductibleWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\StoreWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
+use App\Http\Requests\ap\postventa\taller\UploadWorkOrderDocumentsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
@@ -327,6 +329,43 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->success($this->service->recalculateTotals($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeDeductible(StoreDeductibleWorkOrderRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeDeductible($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function deleteDeductible($id)
+  {
+    try {
+      return $this->success($this->service->deleteDeductible($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function uploadDocuments(UploadWorkOrderDocumentsRequest $request, $id)
+  {
+    try {
+      $files = $request->file('files');
+      return $this->success($this->service->uploadDocuments((int) $id, $files));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function documents($id)
+  {
+    try {
+      return $this->success($this->service->listDocuments((int) $id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

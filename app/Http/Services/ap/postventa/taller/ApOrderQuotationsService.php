@@ -191,10 +191,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $data['exchange_rate'] = null;
       }
 
-//      if ($vehicle->customer_id === null) {
-//        throw new Exception('El vehículo debe estar asociado a un "TITULAR" para crear una cotización');
-//      }
-
       if (auth()->check()) {
         $data['created_by'] = auth()->user()->id;
       }
@@ -770,18 +766,24 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización ya ha sido descartada previamente.');
       }
 
-      // Obtener almacén para liberar stock
-      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+      // Las cotizaciones de Taller nunca reservan stock al confirmarse (ver
+      // reserveStockForQuotation), así que no hay nada que liberar aquí para ellas.
+      // Liberar de todos modos restaría reserva ajena si el mismo producto+almacén
+      // tiene reserva legítima por otra cotización de Mesón u OT.
+      if ($quotation->area_id !== ApMasters::AREA_TALLER) {
+        // Obtener almacén para liberar stock
+        $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
 
-      // Liberar stock de los detalles que son tipo STOCK antes de descartar
-      foreach ($quotation->details as $detail) {
-        if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
-          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
-            ->where('warehouse_id', $warehouseId)
-            ->first();
+        // Liberar stock de los detalles que son tipo STOCK antes de descartar
+        foreach ($quotation->details as $detail) {
+          if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+            $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+              ->where('warehouse_id', $warehouseId)
+              ->first();
 
-          if ($stock) {
-            $stock->releaseReservedStock($detail->quantity);
+            if ($stock) {
+              $stock->releaseReservedStock($detail->quantity);
+            }
           }
         }
       }
@@ -1818,6 +1820,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización ya ha sido segmentada previamente');
       }
 
+      // 2.1. Validar que no esté confirmada: confirm() ya reservó stock (reserveStockForQuotation),
+      // y segmentar duplica los detalles en cotizaciones nuevas sin heredar esa reserva,
+      // dejando reserved_quantity huérfano en product_warehouse_stock si no se bloquea aquí.
+      if ($originalQuotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+        throw new Exception('No se puede segmentar una cotización que ya fue confirmada. Solo se pueden segmentar cotizaciones en estado Aperturado.');
+      }
+
       // 3. Validar que tenga detalles
       if ($originalQuotation->details->count() === 0) {
         throw new Exception('La cotización no tiene items para segmentar');
@@ -1915,7 +1924,25 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $segmentedQuotations[] = $newQuotation;
       }
 
-      // 6.9. Marcar la cotización original como Segmentada (borrador, se excluye de la reportería)
+      // 6.9. Liberar cualquier reserva de stock de la original antes de segmentarla.
+      // Defensivo: con la validación 2.1 nunca debería haber reserva aquí (solo se llega
+      // desde APERTURADO, que nunca pasó por reserveStockForQuotation), pero se replica
+      // el mismo patrón de discard() por si esta ruta se reutiliza desde otro estado.
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id)?->id;
+
+      foreach ($originalQuotation->details as $detail) {
+        if ($detail->supply_type === ApOrderQuotations::STOCK && $detail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($detail->quantity);
+          }
+        }
+      }
+
+      // 6.10. Marcar la cotización original como Segmentada (borrador, se excluye de la reportería)
       $originalQuotation->update(['status' => ApOrderQuotations::STATUS_SEGMENTADA]);
 
       // 7. Cargar relaciones y retornar
@@ -2258,6 +2285,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
    */
   public function reserveStockForQuotation(ApOrderQuotations $quotation): void
   {
+    // Las cotizaciones de Taller no reservan stock al confirmarse: sus productos
+    // recién reservan cuando se cargan a la OT (ApWorkOrderPartsService::store /
+    // storeBulkFromQuotation). Esa cotización nunca llega a status Facturado
+    // (la factura final se asocia a la OT, no a la cotización), así que si reservara
+    // aquí, la reserva quedaría huérfana para siempre una vez la OT factura y libera
+    // su propia reserva. Solo Mesón reserva en confirm(), porque ahí sí se factura
+    // directamente la cotización (createSaleFromQuotation libera esta reserva).
+    if ($quotation->area_id === ApMasters::AREA_TALLER) {
+      return;
+    }
+
     // Obtener el almacén físico de la sede de la cotización
     $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
 
@@ -2278,8 +2316,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         continue;
       }
 
+      // lockForUpdate: sin esto, dos confirmaciones concurrentes sobre el mismo
+      // producto/almacén podrían leer el mismo available_quantity antes de que
+      // cualquiera guarde, pasar ambas la validación y dejar reserved_quantity
+      // por encima del stock físico (available_quantity negativo).
       $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
         ->where('warehouse_id', $warehouseId)
+        ->lockForUpdate()
         ->first();
 
       if (!$stock) {

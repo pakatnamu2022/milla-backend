@@ -34,6 +34,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -48,14 +49,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
+  private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
     WorkOrderLabourService   $labourService,
     DigitalFileService       $digitalFileService,
     ExportService            $exportService,
     InventoryMovementService $inventoryMovementService
-  )
-  {
+  ) {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
@@ -238,7 +239,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function show($id)
   {
     $workOrder = $this->find($id);
-    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder');
+    $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder', 'deductibles.electronicDocument');
     $additionalData['includeCostManHours'] = true;
     return (new WorkOrderResource($workOrder))->additional($additionalData);
   }
@@ -274,30 +275,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         unset($data['items']);
       }
 
-      // Solo validar y guardar el tipo de cambio si la moneda es USD
-      $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
-      if ($currencyId == TypeCurrency::USD_ID) {
-        $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
-        if (!$exchangeRate) {
-          throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
-        }
-        $data['exchange_rate'] = $exchangeRate->rate;
-        $data['exchange_rate_id'] = $exchangeRate->id;
-      } else {
-        // Si es PEN u otra moneda, el tipo de cambio es null
-        $data['exchange_rate'] = null;
-        $data['exchange_rate_id'] = null;
-      }
-
-      // Update work order
-      $workOrder->update($data);
-
-      // Si cambió el tipo de moneda, recalcular labours y parts
-      if ($currencyChanged) {
-        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
-      }
-
-      // Si existe $data['order_quotation_id']
+      // Si existe $data['order_quotation_id'], procesar la asociación de la cotización primero
       if (isset($data['order_quotation_id'])) {
         $quotation = ApOrderQuotations::find($data['order_quotation_id']);
         $vehicle = Vehicles::find($workOrder->vehicle_id);
@@ -310,7 +288,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('La cotización no tiene un "TITULAR" asociado al vehiculo');
         }
 
-        if ($quotation->is_take) {
+        if ($quotation->is_take_ot) {
           throw new Exception('La cotización ya está tomada por otra orden de trabajo');
         }
 
@@ -320,11 +298,41 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('La moneda de la OT y la cotización deben ser iguales');
         }
 
-        if ($quotation) {
-          $quotation->update(['is_take' => 1]);
+        // Cuando se asocia una cotización en USD, tomar el tipo de cambio de la cotización
+        if ($workOrderCurrencyId == TypeCurrency::USD_ID) {
+          $data['exchange_rate'] = $quotation->exchange_rate;
+          $data['exchange_rate_id'] = $quotation->exchange_rate_id;
+        } else {
+          // Si es PEN u otra moneda, el tipo de cambio es null
+          $data['exchange_rate'] = null;
+          $data['exchange_rate_id'] = null;
         }
 
-        // Cargar relaciones necesarias para el cálculo
+        if ($quotation) {
+          $quotation->update(['is_take_ot' => 1]);
+        }
+      } else {
+        // Si NO hay cotización asociada, usar el tipo de cambio del día actual
+        $currencyId = $data['currency_id'] ?? $workOrder->currency_id;
+        if ($currencyId == TypeCurrency::USD_ID) {
+          $exchangeRate = ExchangeRate::where('date', now()->format('Y-m-d'))->first();
+          if (!$exchangeRate) {
+            throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
+          }
+          $data['exchange_rate'] = $exchangeRate->rate;
+          $data['exchange_rate_id'] = $exchangeRate->id;
+        } else {
+          // Si es PEN u otra moneda, el tipo de cambio es null
+          $data['exchange_rate'] = null;
+          $data['exchange_rate_id'] = null;
+        }
+      }
+
+      // Update work order
+      $workOrder->update($data);
+
+      // Cargar relaciones necesarias para el cálculo si se asoció una cotización
+      if (isset($data['order_quotation_id'])) {
         $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
       }
 
@@ -349,8 +357,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      // Recalcular totales SIEMPRE (detecta automáticamente si tiene cotización o cambio de moneda)
-      $workOrder->calculateTotals();
+      // Recalcular totales según el escenario:
+      // - Si cambió moneda: handleCurrencyChange recalcula items con factor y luego suma
+      // - Si NO cambió moneda: performWorkOrderRecalculation recalcula items con factor=1.0 y luego suma
+      if ($currencyChanged) {
+        $this->handleCurrencyChange($workOrder, $oldCurrencyId, $newCurrencyId);
+      } else {
+        $this->performWorkOrderRecalculation($workOrder);
+      }
 
       // Reload relations
       $workOrder->load([
@@ -406,6 +420,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $appointmentPlanning = AppointmentPlanning::find($workOrder->appointment_planning_id);
       if ($appointmentPlanning) {
         $appointmentPlanning->update(['is_taken' => false]);
+      }
+    }
+
+    // Liberar la cotización asociada si existe
+    if ($workOrder->order_quotation_id !== null) {
+      $quotation = ApOrderQuotations::find($workOrder->order_quotation_id);
+      if ($quotation) {
+        $quotation->update(['is_take_ot' => 0]);
+
+        // Regresar todos los items del detalle de la cotización a status 'pending'
+        $quotation->details()->update([
+          'status' => ApOrderQuotationDetails::STATUS_PENDING
+        ]);
       }
     }
 
@@ -509,6 +536,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     // única fuente de verdad para refrescar hijos de la OT (con o sin cambio de moneda).
     $this->recalculateLabourItems($workOrder, $factor);
     $this->recalculatePartItems($workOrder, $factor);
+
+    // Refrescar modelo y recalcular totales del padre
+    $workOrder->refresh();
+    $workOrder->calculateTotals();
   }
 
   private function getConversionFactor(ApWorkOrder $workOrder, int $oldCurrencyId, int $newCurrencyId): float
@@ -586,7 +617,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Marcar la cotización como no tomada para que esté disponible
       if ($quotation) {
         $quotation->update([
-          'is_take' => 0
+          'is_take_ot' => 0
         ]);
 
         // Regresar todos los items del detalle de la cotización a status 'pending'
@@ -1544,14 +1575,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         if (count($partsNotFullyDelivered) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
-            implode('; ', $partsNotFullyDelivered)
+              implode('; ', $partsNotFullyDelivered)
           );
         }
 
         if (count($partsNotReceivedByTechnician) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido confirmados como recibidos por el técnico: ' .
-            implode('; ', $partsNotReceivedByTechnician)
+              implode('; ', $partsNotReceivedByTechnician)
           );
         }
       }
@@ -1819,20 +1850,49 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     if (!$warehouse) {
       throw new Exception('No se encontró almacén físico activo para la sede de la orden de trabajo');
     }
+    // PASO 0: Validar que hay suficiente stock reservado para todos los repuestos
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
 
-    // PASO 1: Liberar las reservas de stock de cada repuesto
+      // Validar que existe el registro de stock
+      if (!$stock) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
+        );
+      }
+
+      // Validar que hay suficiente stock reservado
+      if ($stock->reserved_quantity < $part->quantity_used) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "Stock reservado insuficiente para el producto {$productInfo}. " .
+          "Stock reservado: {$stock->reserved_quantity}, Cantidad utilizada: {$part->quantity_used}"
+        );
+      }
+    }
+
+    // PASO 1: PRIMERO liberar las reservas de stock (esto aumenta el available_quantity)
     foreach ($productParts as $part) {
       $stock = ProductWarehouseStock::where('product_id', $part->product_id)
         ->where('warehouse_id', $part->warehouse_id)
         ->first();
 
       if ($stock) {
-        // Liberar la cantidad reservada
+        // Liberar la cantidad reservada (esto pasa el stock de reservado a disponible)
         $stock->releaseReservedStock($part->quantity_used);
       }
     }
 
-    // PASO 2: Crear el ajuste de salida (esto reducirá el stock real)
+    // PASO 2: DESPUÉS crear el ajuste de salida (ahora el available_quantity ya incluye lo que estaba reservado)
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
@@ -1959,7 +2019,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    * y luego los totales del padre. Método reutilizable que puede ser llamado desde
    * cualquier contexto (con o sin transacción activa).
    */
-  private function performWorkOrderRecalculation(ApWorkOrder $workOrder): void
+  public function performWorkOrderRecalculation(ApWorkOrder $workOrder): void
   {
     // Cargar relaciones necesarias para el cálculo
     $workOrder->load(['labours', 'parts', 'orderQuotation.details']);
@@ -2059,5 +2119,174 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return (new WorkOrderResource($workOrder))->additional($additionalData);
     });
+  }
+
+  /**
+   * Almacena un deducible para una orden de trabajo
+   * - Relaciona un comprobante electrónico con la orden de trabajo
+   * - Guarda el registro en ap_deductible_work_order
+   * - Actualiza el campo deductible_amount en ap_work_orders (sumando el total del comprobante)
+   * - Valida que la orden no esté cerrada/finalizada/anulada
+   */
+  public function storeDeductible(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $workOrder = $this->find($data['work_order_id']);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Validar que la orden no esté cerrada, finalizada o anulada
+      $forbiddenStatuses = [
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::FINISHED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ];
+
+      if (in_array($workOrder->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede agregar un deducible a una orden de trabajo cerrada, finalizada o anulada');
+      }
+
+      // Obtener el comprobante electrónico
+      $electronicDocument = \App\Models\ap\facturacion\ElectronicDocument::find($data['electronic_document_id']);
+
+      if (!$electronicDocument) {
+        throw new Exception('Comprobante electrónico no encontrado');
+      }
+
+      // Validar que la moneda de la orden de trabajo coincida con la moneda del comprobante
+      $workOrderCurrencyId = $workOrder->currency_id;
+      $documentCurrencyId = $electronicDocument->sunat_concept_currency_id;
+
+      // Traducir moneda del comprobante a sistema de TypeCurrency
+      $documentCurrencyInWorkOrderSystem = null;
+      if ($documentCurrencyId == SunatConcepts::CURRENCY_PEN) {
+        $documentCurrencyInWorkOrderSystem = TypeCurrency::PEN_ID;
+      } elseif ($documentCurrencyId == SunatConcepts::CURRENCY_USD) {
+        $documentCurrencyInWorkOrderSystem = TypeCurrency::USD_ID;
+      }
+
+      if ($workOrderCurrencyId !== $documentCurrencyInWorkOrderSystem) {
+        $workOrderCurrencyName = $workOrderCurrencyId == TypeCurrency::PEN_ID ? 'PEN' : 'USD';
+        $documentCurrencyName = $documentCurrencyId == SunatConcepts::CURRENCY_PEN ? 'PEN' : 'USD';
+        throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la orden de trabajo ({$workOrderCurrencyName})");
+      }
+
+      // Crear el registro del deducible
+      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::create([
+        'work_order_id' => $data['work_order_id'],
+        'electronic_document_id' => $data['electronic_document_id'],
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el campo deductible_amount en ap_work_orders (sumando el total del comprobante)
+      $currentDeductibleAmount = $workOrder->deductible_amount ?? 0;
+      $newDeductibleAmount = $currentDeductibleAmount + $electronicDocument->total;
+
+      $workOrder->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Recargar la orden de trabajo con los deducibles y su comprobante electrónico
+      $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Elimina un deducible de una orden de trabajo
+   * - Valida que la orden pueda ser modificada
+   * - Resta el monto del comprobante del deductible_amount
+   * - Elimina el registro usando soft delete
+   */
+  public function deleteDeductible(int $deductibleId)
+  {
+    return DB::transaction(function () use ($deductibleId) {
+      // Buscar el deducible con sus relaciones
+      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::with('electronicDocument')
+        ->find($deductibleId);
+
+      if (!$deductible) {
+        throw new Exception('Deducible no encontrado');
+      }
+
+      // Validar que la orden de trabajo pueda ser modificada
+      $workOrder = $this->find($deductible->work_order_id);
+
+      $forbiddenStatuses = [
+        ApMasters::CANCELED_WORK_ORDER_ID,
+        ApMasters::FINISHED_WORK_ORDER_ID,
+        ApMasters::CLOSED_WORK_ORDER_ID,
+      ];
+
+      if (in_array($workOrder->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede eliminar un deducible de una orden de trabajo cerrada, finalizada o anulada');
+      }
+
+      // Restar el monto del comprobante del deductible_amount
+      $currentDeductibleAmount = $workOrder->deductible_amount ?? 0;
+      $newDeductibleAmount = max(0, $currentDeductibleAmount - $deductible->electronicDocument->total);
+
+      $workOrder->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Eliminar el deducible (soft delete)
+      $deductible->delete();
+
+      // Recargar la orden de trabajo con los deducibles activos
+      $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new WorkOrderResource($workOrder);
+    });
+  }
+
+  /**
+   * Sube documentos (PDF) y los asocia a una orden de trabajo en gp_digital_files.
+   * Máximo 3 archivos por solicitud.
+   *
+   * @param int $id ID de la orden de trabajo
+   * @param array $files Archivos subidos (UploadedFile[])
+   */
+  public function uploadDocuments(int $id, array $files)
+  {
+    $workOrder = $this->find($id);
+
+    if (count($files) > 3) {
+      throw new Exception('Solo se pueden adjuntar hasta 3 archivos por solicitud');
+    }
+
+    return DB::transaction(function () use ($workOrder, $files) {
+      $uploadedFiles = [];
+
+      foreach ($files as $file) {
+        $uploadedFiles[] = $this->digitalFileService->storeFromContent(
+          file_get_contents($file->getRealPath()),
+          $file->getClientOriginalName(),
+          self::FILE_PATH_DOCUMENTS,
+          'public',
+          $file->getClientMimeType(),
+          $workOrder->getTable(),
+          $workOrder->id
+        );
+      }
+
+      return $uploadedFiles;
+    });
+  }
+
+  /**
+   * Lista los documentos asociados a una orden de trabajo.
+   */
+  public function listDocuments(int $id)
+  {
+    $workOrder = $this->find($id);
+
+    return \App\Models\gp\gestionsistema\DigitalFile::where('model', $workOrder->getTable())
+      ->where('id_model', $workOrder->id)
+      ->orderByDesc('id')
+      ->get();
   }
 }

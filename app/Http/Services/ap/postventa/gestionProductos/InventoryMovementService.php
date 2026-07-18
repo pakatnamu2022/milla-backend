@@ -254,6 +254,12 @@ class InventoryMovementService extends BaseService
         // Validate product exists in warehouse
         $stock = $this->stockService->getStock($detail['product_id'], $data['warehouse_id']);
 
+        // Obtener información del producto para mensajes más amigables
+        $product = Products::find($detail['product_id']);
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$detail['product_id']}";
+
         // For outbound movements (adjustment_out), validate sufficient stock
         if (in_array($data['movement_type'], [
           InventoryMovement::TYPE_ADJUSTMENT_OUT,
@@ -261,14 +267,14 @@ class InventoryMovementService extends BaseService
           // Check if stock exists
           if (!$stock) {
             throw new Exception(
-              "No se encontró registro de stock para el producto ID {$detail['product_id']} en el almacén especificado"
+              "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
             );
           }
 
           // Validate sufficient available quantity
           if ($stock->available_quantity < $detail['quantity']) {
             throw new Exception(
-              "Stock insuficiente para producto ID {$detail['product_id']}. " .
+              "Stock insuficiente para el producto {$productInfo}. " .
               "Stock disponible: {$stock->available_quantity}, Cantidad solicitada: {$detail['quantity']}"
             );
           }
@@ -1428,6 +1434,16 @@ class InventoryMovementService extends BaseService
 
       // Update ApOrderQuotations output_generation_warehouse
       $quotation->update(['output_generation_warehouse' => true]);
+
+      // Liberar la reserva hecha al confirmar la cotización para los ítems de tipo STOCK:
+      // esa cantidad ya se está consumiendo como venta real, no debe seguir contando como "reservada".
+      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
+      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      foreach ($productDetails as $detail) {
+        if ($detail->supply_type === ApOrderQuotations::STOCK) {
+          $this->stockService->releaseReservedStock($detail->product_id, $warehouse->id, $detail->quantity);
+        }
+      }
 
       // Update stock automatically
       $this->stockService->updateStockFromMovement($movement->fresh('details'));

@@ -28,6 +28,7 @@ class AppointmentPlanningResource extends JsonResource
       'ap_vehicle_id' => $this->ap_vehicle_id,
       'vehicle' => VehiclesResource::make($this->vehicle),
       'advisor_id' => $this->advisor_id,
+      'advisor_name' => $this->advisor ? $this->advisor->nombre_completo : null,
       'plate' => $this->vehicle ? $this->vehicle->plate : null,
       'sede_id' => $this->sede_id,
       'sede_name' => $this->sede ? $this->sede->abreviatura : null,

@@ -55,6 +55,7 @@ class ApAccountingAccountPlan extends Model
   const LABOUR_ACCOUNT_MATERIAL_ID = 25;
   const AFTER_SALES_MAINTENANCE_SERVICE_ID = 29;
   const ADVANCE_PAYMENTS_ACCOUNT_ID = 2;
+  const ELECTRONIC_DOCUMENTS_REPORT_ACCOUNT_ID = 8;
 
   public function setAccountAttribute($value)
   {

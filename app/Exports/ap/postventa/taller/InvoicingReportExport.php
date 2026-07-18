@@ -14,13 +14,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class InvoicingReportExport implements WithMultipleSheets
 {
-  protected Collection $data;
+  protected Collection $finalDocuments;
+  protected Collection $advanceDocuments;
   protected array $summary;
   protected string $title;
 
-  public function __construct(Collection $data, array $summary, string $title = 'Reporte de Facturación OT')
+  public function __construct(Collection $finalDocuments, Collection $advanceDocuments, array $summary, string $title = 'Reporte de Facturación OT')
   {
-    $this->data = $data;
+    $this->finalDocuments = $finalDocuments;
+    $this->advanceDocuments = $advanceDocuments;
     $this->summary = $summary;
     $this->title = $title;
   }
@@ -31,7 +33,8 @@ class InvoicingReportExport implements WithMultipleSheets
   public function sheets(): array
   {
     $sheets = [
-      new InvoicingReportMainSheet($this->data, 'Facturación OT'),
+      new InvoicingReportMainSheet($this->finalDocuments, 'Comprobantes Finales'),
+      new InvoicingReportMainSheet($this->advanceDocuments, 'Comprobantes Anticipos'),
     ];
 
     // Solo agregar hoja de resumen si hay datos
@@ -73,6 +76,15 @@ class InvoicingReportMainSheet implements
     return [
       'TALLER',
       'NÚMERO OT',
+      'PLACA',
+      'FECHA APERTURA OT',
+      'ESTADO',
+      'ASESOR',
+      'TIPO SERVICIO',
+      'MARCA',
+      'MODELO',
+      'TRABAJO REALIZADO',
+      'OPERARIO',
       'SERIE',
       'NÚMERO',
       'FECHA COMPROBANTE',
@@ -82,13 +94,11 @@ class InvoicingReportMainSheet implements
       'TOTAL REPUESTOS',
       'DESCUENTO %',
       'DESCUENTO MONTO',
-      'TRABAJO REALIZADO',
-      'OPERARIO',
       'MONTO SIN IGV',
       'IGV',
       'TOTAL',
-      'TIPO',
-      'MARCA',
+      'MONEDA',
+      'MONEDA ORIGINAL',
     ];
   }
 
@@ -97,6 +107,15 @@ class InvoicingReportMainSheet implements
     return [
       $row['taller'],
       $row['numero_ot'],
+      $row['placa_vehiculo'],
+      $row['fecha_apertura_ot'],
+      $row['estado'],
+      $row['asesor_servicio'],
+      $row['tipo_servicio'],
+      $row['marca'],
+      $row['modelo_vehiculo'],
+      $row['trabajo_realizado'],
+      $row['operario'],
       $row['serie_comprobante'],
       $row['numero_comprobante'],
       $row['fecha_comprobante'],
@@ -106,13 +125,11 @@ class InvoicingReportMainSheet implements
       $row['total_repuestos'],
       $row['descuento_porcentaje'],
       $row['descuento_monto'],
-      $row['trabajo_realizado'],
-      $row['operario'],
       $row['monto_sin_igv'],
       $row['igv'],
       $row['total'],
-      $row['tipo'],
-      $row['marca'],
+      $row['moneda'],
+      $row['moneda_original'],
     ];
   }
 
@@ -211,7 +228,7 @@ class InvoicingReportSummarySheet implements
         ],
         'fill' => [
           'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-          'startColor' => ['rgb' => '28A745'],
+          'startColor' => ['rgb' => '4472C4'],
         ],
         'alignment' => [
           'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,

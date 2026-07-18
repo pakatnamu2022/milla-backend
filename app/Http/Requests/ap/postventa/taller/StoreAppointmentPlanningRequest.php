@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 
@@ -75,6 +76,11 @@ class StoreAppointmentPlanningRequest extends StoreRequest
         'integer',
         'exists:config_sede,id',
       ],
+      'advisor_id' => [
+        'nullable',
+        'integer',
+        'exists:rrhh_persona,id',
+      ],
     ];
   }
 
@@ -129,6 +135,9 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'sede_id.required' => 'El campo sede es obligatorio.',
       'sede_id.integer' => 'El campo sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
+
+      'advisor_id.integer' => 'El campo asesor debe ser un entero.',
+      'advisor_id.exists' => 'El asesor seleccionado no es válido.',
     ];
   }
 
@@ -157,7 +166,7 @@ class StoreAppointmentPlanningRequest extends StoreRequest
         }
 
         // Validar que no exista otra cita en esa fecha y hora para este asesor
-        $advisor_id = auth()->user()->person->id ?? null;
+        $advisor_id = $this->input('advisor_id') ?? auth()->user()->person->id ?? null;
 
         if ($advisor_id) {
           $existingAppointment = AppointmentPlanning::where('date_appointment', $dateAppointment)
@@ -166,13 +175,16 @@ class StoreAppointmentPlanningRequest extends StoreRequest
             ->exists();
 
           if ($existingAppointment) {
+            $advisor = Worker::find($advisor_id);
+            $advisorName = $advisor ? $advisor->nombre_completo : 'el asesor';
+
             $validator->errors()->add(
               'date_appointment',
-              'Ya tienes una cita programada para esta fecha y hora.'
+              "El asesor {$advisorName} ya tiene una cita programada para esta fecha y hora."
             );
             $validator->errors()->add(
               'time_appointment',
-              'Ya tienes una cita programada para esta fecha y hora.'
+              "El asesor {$advisorName} ya tiene una cita programada para esta fecha y hora."
             );
           }
         }

@@ -2,28 +2,28 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\InvoicingReportExport;
+use App\Exports\ap\postventa\meson\MesonInvoicingReportExport;
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\Reports\InvoicingReportService;
+use App\Http\Services\ap\postventa\Reports\MesonInvoicingReportService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
-class InvoicingReportController extends Controller
+class MesonInvoicingReportController extends Controller
 {
-  protected InvoicingReportService $service;
+  protected MesonInvoicingReportService $service;
 
-  public function __construct(InvoicingReportService $service)
+  public function __construct(MesonInvoicingReportService $service)
   {
     $this->service = $service;
   }
 
   /**
-   * Exporta el reporte de facturación de Órdenes de Trabajo
+   * Exporta el reporte de facturación de Cotizaciones de Mesón
    *
    * @param Request $request
    * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
    */
-  public function exportInvoicing(Request $request)
+  public function exportMesonInvoicing(Request $request)
   {
     // Validar parámetros
     $validated = $request->validate([
@@ -31,26 +31,23 @@ class InvoicingReportController extends Controller
       'fecha_emision' => 'required|array|size:2',
       'fecha_emision.*' => 'required|date',
       'document_type_id' => 'nullable|integer',
-      'is_advance_payment' => 'nullable|boolean',
-      'work_order_correlative' => 'nullable|string',
+      'quotation_number' => 'nullable|string',
     ]);
 
     // Construir filtros
     $filters = $this->buildFilters($validated);
 
     // Obtener datos del reporte
-    $reportData = $this->service->getInvoicingReport($filters);
+    $reportData = $this->service->getMesonInvoicingReport($filters);
 
     // Generar nombre del archivo
-    $filename = 'reporte_facturacion_ot_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+    $filename = 'reporte_facturacion_meson_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
     // Exportar a Excel
     return Excel::download(
-      new InvoicingReportExport(
-        $reportData['final_documents'],
-        $reportData['advance_documents'],
-        $reportData['summary'],
-        'Reporte de Facturación OT'
+      new MesonInvoicingReportExport(
+        $reportData['report_data'],
+        'Reporte de Facturación Mesón'
       ),
       $filename
     );
@@ -73,7 +70,7 @@ class InvoicingReportController extends Controller
       'value' => $validated['fecha_emision'],
     ];
 
-    // Filtro por sede de la OT
+    // Filtro por sede de la cotización
     if (isset($validated['sede_id'])) {
       $filters[] = [
         'column' => 'sede_id',
@@ -82,12 +79,21 @@ class InvoicingReportController extends Controller
       ];
     }
 
-    // Filtro por número de OT
-    if (isset($validated['work_order_correlative'])) {
+    // Filtro por tipo de documento (Factura o Boleta)
+    if (isset($validated['document_type_id'])) {
       $filters[] = [
-        'column' => 'correlative',
+        'column' => 'document_type_id',
+        'operator' => '=',
+        'value' => $validated['document_type_id'],
+      ];
+    }
+
+    // Filtro por número de cotización
+    if (isset($validated['quotation_number'])) {
+      $filters[] = [
+        'column' => 'quotation_number',
         'operator' => 'like',
-        'value' => $validated['work_order_correlative'],
+        'value' => $validated['quotation_number'],
       ];
     }
 
