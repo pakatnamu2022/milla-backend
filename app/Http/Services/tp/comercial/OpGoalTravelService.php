@@ -656,41 +656,43 @@ class OpGoalTravelService extends BaseService
                 ", [$goal->meta_vehiculo, $goal->meta_vehiculo, $year, $month]);
 
                 $resumen = DB::selectOne("
-                SELECT 
-                    COUNT(DISTINCT CASE 
-                        WHEN rp_conductor.id IS NOT NULL 
-                        THEN od.conductor_id 
-                        ELSE NULL 
-                    END) as conductores_activos,
-                    COUNT(DISTINCT CASE 
-                        WHEN v.id IS NOT NULL 
-                        THEN od.tracto_id 
-                        ELSE NULL 
-                    END) as vehiculos_activos,
-                    COUNT(od.id) as total_viajes,
-                    COALESCE(SUM(od.produccion), 0) as produccion_total,
-                    ? as meta_total,
-                    COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
-                FROM op_despacho od
-                LEFT JOIN rrhh_persona rp_conductor ON rp_conductor.id = od.conductor_id 
-                    AND rp_conductor.status_deleted = 1 
-                    AND rp_conductor.b_empleado = 1 
-                    AND rp_conductor.status_id = 22 
-                    AND rp_conductor.cargo_id in (11,12)
-                    AND rp_conductor.sede_id = 1
-                LEFT JOIN op_vehiculo v ON v.id = od.tracto_id 
-                    AND v.sede_id = 1 
-                    AND v.tipo_vehiculo_id = 1 
-                    AND v.status_deleted = 1 
-                    AND v.tercero = 0
-                LEFT JOIN rrhh_persona rp_cliente ON rp_cliente.id = od.idcliente
-                WHERE od.estado <> 10
-                    AND rp_cliente.sede_id = 1
-                    AND rp_cliente.b_cliente = 1
-                    AND YEAR(od.fecha_viaje) = ?
-                    AND MONTH(od.fecha_viaje) = ?
-                    AND {$condicionCargaResumen}
-            ", [$goal->total, $goal->total, $year, $month]);
+                        SELECT 
+                            COUNT(DISTINCT CASE 
+                                WHEN rp_conductor.id IS NOT NULL 
+                                THEN od.conductor_id 
+                                ELSE NULL 
+                            END) as conductores_activos,
+                            COUNT(DISTINCT CASE 
+                                WHEN v.id IS NOT NULL 
+                                THEN od.tracto_id 
+                                ELSE NULL 
+                            END) as vehiculos_activos,
+                            COUNT(od.id) as total_viajes,
+                            COALESCE(SUM(od.produccion), 0) as produccion_total,
+                            ? as meta_total,
+                            COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje_cumplimiento
+                        FROM op_despacho od
+                        LEFT JOIN rrhh_persona rp_conductor ON rp_conductor.id = od.conductor_id 
+                            AND rp_conductor.status_deleted = 1 
+                            AND rp_conductor.b_empleado = 1 
+                            AND rp_conductor.status_id = 22 
+                            AND rp_conductor.cargo_id in (11,12)
+                            AND rp_conductor.sede_id = 1
+                        LEFT JOIN op_vehiculo v ON v.id = od.tracto_id 
+                            AND v.sede_id = 1 
+                            AND v.tipo_vehiculo_id = 1 
+                            AND v.status_deleted = 1 
+                            AND v.tercero = 0
+                        LEFT JOIN rrhh_persona rp_cliente ON rp_cliente.id = od.idcliente
+                        WHERE od.estado <> 10
+                            AND rp_cliente.sede_id = 1
+                            AND rp_cliente.b_cliente = 1
+                            AND YEAR(od.fecha_viaje) = ?
+                            AND MONTH(od.fecha_viaje) = ?
+                            AND {$condicionCargaResumen}
+                    ", [$goal->total, $goal->total, $year, $month]);
+
+
                 return [
                     'meta' => [
                         'id' => (int) $goal->id,
@@ -824,6 +826,7 @@ class OpGoalTravelService extends BaseService
             try {
                 $year = $year ?? date('Y');
                 $month = $month ?? date('m');
+                $hoy = date('Y-m-d');
 
                 $goal = OpGoalTravel::whereYear('fecha', $year)
                     ->whereMonth('fecha', $month)
@@ -837,6 +840,22 @@ class OpGoalTravelService extends BaseService
                         'periodo' => "{$year}-{$month}"
                     ];
                 }
+                $conductoresVacaciones = DB::table('rrhh_vacaciones as rv')
+                                        ->join('rrhh_persona as rp', 'rv.empleado_id', '=', 'rp.id')
+                                        ->where('rp.sede_id', 1)
+                                        ->where('rp.status_id', 22)
+                                        ->whereIn('rp.cargo_id', [11, 12])
+                                        ->where('rv.status_deleted', 1)
+                                        ->where('rv.aprobacion_jefatura', 0)
+                                        ->where('rv.aprobacion_rrhh', 1)
+                                        ->where('rv.fecha_inicio', '<=', $hoy)
+                                        ->where('rv.fecha_fin', '>=', $hoy)
+                                        ->pluck('rp.id')
+                                        ->toArray();
+
+                    //si no hay conductores en vacaciones, usar un array vacio para el NOT IN
+                    $conductoresVacaciones = empty($conductoresVacaciones) ? [0] : $conductoresVacaciones;
+
 
                 $productosVacios = [109];
                 $productosVaciosStr = implode(',', $productosVacios);
@@ -895,27 +914,28 @@ class OpGoalTravelService extends BaseService
 
                 // Conductores por debajo del umbral
                 $conductores = DB::select("
-                    SELECT 
-                        rp.id as conductor_id,
-                        rp.nombre_completo as conductor,
-                        COUNT(od.id) as total_viajes,
-                        COALESCE(SUM(od.produccion), 0) as produccion,
-                        ? as meta,
-                        COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
-                    FROM rrhh_persona rp
-                    LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
-                        AND od.estado <> 10 
-                        AND YEAR(od.fecha_viaje) = ?
-                        AND MONTH(od.fecha_viaje) = ?
-                        AND {$condicionCargaConductores} 
-                    WHERE rp.b_empleado = 1 
-                        AND rp.status_id = 22 
-                        AND rp.cargo_id in (11,12)
-                        AND rp.status_deleted = 1
-                        AND rp.sede_id = 1 
-                    GROUP BY rp.id, rp.nombre_completo
-                    HAVING porcentaje < ?  -- Ya no excluimos porcentaje = 0
-                    ORDER BY porcentaje ASC
+                                SELECT 
+                                    rp.id as conductor_id,
+                                    rp.nombre_completo as conductor,
+                                    COUNT(od.id) as total_viajes,
+                                    COALESCE(SUM(od.produccion), 0) as produccion,
+                                    ? as meta,
+                                    COALESCE(ROUND((SUM(od.produccion) / ?) * 100, 2), 0) as porcentaje
+                                FROM rrhh_persona rp
+                                LEFT JOIN op_despacho od ON od.conductor_id = rp.id 
+                                    AND od.estado <> 10 
+                                    AND YEAR(od.fecha_viaje) = ?
+                                    AND MONTH(od.fecha_viaje) = ?
+                                    AND {$condicionCargaConductores} 
+                                WHERE rp.b_empleado = 1 
+                                    AND rp.status_id = 22 
+                                    AND rp.cargo_id in (11,12)
+                                    AND rp.status_deleted = 1
+                                    AND rp.sede_id = 1
+                                    AND rp.id NOT IN (". implode(',', $conductoresVacaciones) . ") 
+                                GROUP BY rp.id, rp.nombre_completo
+                                HAVING porcentaje < ?
+                                ORDER BY porcentaje ASC
                 ", [$goal->meta_conductor, $goal->meta_conductor, $year, $month, $threshold]);
 
                 // Vehículos por debajo del umbral
@@ -932,12 +952,12 @@ class OpGoalTravelService extends BaseService
                         AND od.estado <> 10  -- MISMA CONDICIÓN que conductores
                         AND YEAR(od.fecha_viaje) = ?
                         AND MONTH(od.fecha_viaje) = ?
-                        AND {$condicionCargaVehiculos}  -- Solo viajes con carga real
+                        AND {$condicionCargaVehiculos}
                     WHERE v.tipo_vehiculo_id = 1 
                         AND v.status_deleted = 1 
                         AND v.vehiculo_status = 1
                         AND v.tercero = 0
-                        AND v.sede_id = 1  -- Agregar filtro de sede
+                        AND v.sede_id = 1
                     GROUP BY v.id, v.placa
                     HAVING porcentaje < ?  -- Ya no excluimos porcentaje = 0
                     ORDER BY porcentaje ASC
