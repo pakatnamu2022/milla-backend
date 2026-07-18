@@ -78,6 +78,40 @@ class InvoicingReportService
       return $this->transformDocumentForReport($document, $document->workOrder);
     })->values();
 
+    // Para la cuarta página: Consultar documentos electrónicos de notas internas
+    $queryInternalNoteDocuments = ElectronicDocument::query()
+      ->with([
+        'workOrder.sede',
+        'workOrder.advisor',
+        'workOrder.status',
+        'workOrder.vehicle.model.family.brand',
+        'workOrder.items.typePlanning',
+        'workOrder.plannings.worker',
+        'currency',
+        'exchangeRate',
+        'internalNotes',
+      ])
+      ->whereHas('internalNotes')
+      ->where('anulado', false);
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryInternalNoteDocuments->whereHas('workOrder', function ($q) use ($userSedeIds) {
+        $q->whereIn('sede_id', $userSedeIds);
+      });
+    }
+
+    // Aplicar filtros de documentos
+    $this->applyDocumentFilters($queryInternalNoteDocuments, $filters);
+
+    $internalNoteDocuments = $queryInternalNoteDocuments->get();
+
+    // Transformar documentos de notas internas para el reporte (Cuarta página)
+    // Estos documentos SIEMPRE son finales (no hay anticipos)
+    $reportDataInternalNotes = $internalNoteDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
+
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
     $queryWorkOrders = ApWorkOrder::query()
@@ -109,6 +143,7 @@ class InvoicingReportService
       'final_documents' => $reportDataFinal,
       'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
+      'internal_note_documents' => $reportDataInternalNotes,
     ];
   }
 
