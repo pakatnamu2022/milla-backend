@@ -84,7 +84,20 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       // Si no existe, crear nuevo
       $businessPartner = BusinessPartners::create($data);
 
-      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID && str_starts_with($data['num_doc'], '20')) {
+      // Crear establecimiento según el tipo
+      if ($data['type'] === BusinessPartners::CLIENT && $data['type_person_id'] == Constants::TYPE_NATURAL_PERSON_ID) {
+        // Para clientes, crear establecimiento por defecto
+        $businessPartner->establishments()->create([
+          'code' => '0000',
+          'type' => 'CENTRAL',
+          'activity_economic' => $businessPartner->activityEconomic->name ?? null,
+          'address' => $businessPartner->direction ?? '-',
+          'full_address' => $businessPartner->direction ?? null,
+          'ubigeo' => $businessPartner->district->ubigeo ?? null,
+          'business_partner_id' => $businessPartner->id,
+        ]);
+      } elseif ($data['type'] === BusinessPartners::SUPPLIER && $data['type_person_id'] == Constants::TYPE_LEGAL_PERSON_ID) {
+        // Para proveedores con RUC que inicia con '20', consultar SUNAT
         ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
       }
 
@@ -123,6 +136,19 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
       $data = $this->getData($data);
       $businessPartner->update($data);
+
+      // Si es persona natural, actualizar también el establecimiento
+      if ($businessPartner->type_person_id == Constants::TYPE_NATURAL_PERSON_ID) {
+        $establishment = $businessPartner->establishments()->first();
+        if ($establishment) {
+          $establishment->update([
+            'activity_economic' => $businessPartner->activityEconomic->name ?? null,
+            'address' => $businessPartner->direction ?? '-',
+            'full_address' => $businessPartner->direction ?? null,
+            'ubigeo' => $businessPartner->district->ubigeo ?? null,
+          ]);
+        }
+      }
 
       // Solo procesar establecimientos si es RUC
       if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
