@@ -654,7 +654,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
 
       // Validar cuotas de venta al crédito
       $medioDepago = $this->input('medio_de_pago') ?? $document?->medio_de_pago;
-      if ($medioDepago === 'credito' && $this->has('venta_al_credito')) {
+      if ($medioDepago === 'credito') {
         $cuotas = $this->input('venta_al_credito', []);
         if (empty($cuotas)) {
           $validator->errors()->add(
