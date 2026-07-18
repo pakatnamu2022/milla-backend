@@ -228,8 +228,8 @@ class InvoicingReportService
       // Calcular la deuda
       $deuda = $totalOt - $totalAnticiposNeto;
 
-      // Solo incluir OTs con deuda pendiente
-      if ($deuda > 0 && $totalOt > 0) {
+      // Incluir OTs con anticipos que aún no tienen factura final (incluso si deuda = 0)
+      if ($deuda >= 0 && $totalOt > 0) {
         // Construir la lista de series y números con sus montos
         $seriesNumeros = collect($advanceDetails)
           ->map(function ($detail) {
