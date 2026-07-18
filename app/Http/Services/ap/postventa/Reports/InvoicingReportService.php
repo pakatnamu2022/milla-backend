@@ -33,7 +33,8 @@ class InvoicingReportService
         'exchangeRate',
       ])
       ->whereNotNull('work_order_id')
-      ->where('aceptada_por_sunat', true);
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false);
 
     // Aplicar filtros de documentos
     $this->applyDocumentFilters($queryDocuments, $filters);
@@ -45,8 +46,15 @@ class InvoicingReportService
       return !$document->is_advance_payment;
     });
 
+    // Solo incluir anticipos cuyas OTs ya tengan factura final generada
     $advanceDocuments = $documents->filter(function ($document) {
-      return $document->is_advance_payment;
+      if (!$document->is_advance_payment) {
+        return false;
+      }
+
+      // Verificar que la OT tenga factura final
+      $finalInvoice = $document->workOrder?->getFinalInvoice();
+      return $finalInvoice !== null;
     });
 
     // Transformar documentos finales para el reporte (Primera página)
