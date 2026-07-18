@@ -465,22 +465,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear cuotas si es venta al crédito
        *
-       * Solo aplica a factura final (un anticipo nunca va al crédito). Para órdenes
-       * de trabajo con detracción, el frontend no conoce el monto de la detracción
-       * (se calcula en el backend en applyDetractionLogic) y siempre envía una única
-       * cuota con el importe bruto del comprobante. Se le descuenta la detracción
-       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
-       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
+       * El frontend siempre envía el importe bruto del comprobante. Si hay detracción,
+       * se resta del importe de la cuota para reflejar lo que realmente se cobrará al
+       * cliente (el monto de la detracción lo deposita el cliente directamente al
+       * Banco de la Nación). Si no hay detracción, la resta es con 0 y el importe
+       * queda igual.
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
-        $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
-        $isWorkOrderWithDetraction = !$isAdvancePayment && !empty($data['work_order_id']) && !empty($data['detraccion']);
         $detractionTotal = (float)($data['detraccion_total'] ?? 0);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
-          if ($isWorkOrderWithDetraction && $detractionTotal > 0) {
-            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
-          }
+          $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
           $document->installments()->create($cuotaData);
         }
       }
@@ -1011,32 +1006,19 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Actualizar cuotas si se proporcionan
       /**
-       * Para órdenes de trabajo con detracción, el frontend no conoce el monto de la detracción
-       * (se calcula en el backend en applyDetractionLogic) y siempre envía una única
-       * cuota con el importe bruto del comprobante. Se le descuenta la detracción
-       * para que la cuota refleje lo que realmente se cobrará al cliente (el monto
-       * de la detracción lo deposita el cliente directamente al Banco de la Nación).
+       * El frontend siempre envía el importe bruto del comprobante. Si hay detracción,
+       * se resta del importe de la cuota para reflejar lo que realmente se cobrará al
+       * cliente (el monto de la detracción lo deposita el cliente directamente al
+       * Banco de la Nación). Si no hay detracción, la resta es con 0 y el importe
+       * queda igual.
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         $document->installments()->delete();
 
-        $isAdvancePayment = isset($data['is_advance_payment'])
-          ? $data['is_advance_payment']
-          : $document->is_advance_payment;
-        $effectiveWorkOrderId = isset($data['work_order_id'])
-          ? $data['work_order_id']
-          : $document->work_order_id;
-        $detraccion = isset($data['detraccion'])
-          ? $data['detraccion']
-          : $document->detraccion;
-
-        $isWorkOrderWithDetraction = !$isAdvancePayment && !empty($effectiveWorkOrderId) && !empty($detraccion);
         $detractionTotal = (float)($data['detraccion_total'] ?? $document->detraccion_total ?? 0);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
-          if ($isWorkOrderWithDetraction && $detractionTotal > 0) {
-            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
-          }
+          $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
           $document->installments()->create($cuotaData);
         }
       }
@@ -3441,6 +3423,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $detractionAmount = (float)($company->detraction_amount ?? 0);
 
     /**
+     * CONVERSIÓN DE MONEDA PARA DETRACCIÓN
+     * El detraction_amount está siempre en soles (PEN).
+     * Si la OT está en dólares (USD), debemos convertir el monto a soles
+     * usando el tipo de cambio para comparar correctamente.
+     */
+    $entityTotalInPen = $entityTotal;
+    if ((int)$workOrder->currency_id === TypeCurrency::USD_ID) {
+      $entityTotalInPen = $entityTotal * (float)$workOrder->exchange_rate;
+    }
+
+    /**
      * Calcular sunat_concept_transaction_type_id para work_order
      * Ignorar el valor enviado por el frontend y calcularlo según reglas de negocio
      */
@@ -3452,9 +3445,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     if (!$isAdvancePayment && $documentTotal == 0) {
       $transactionConceptId = SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS;
     }
-    // Si el monto total de la OT >= detractionAmount (700) Y es FACTURA Y el total del documento > 0
+    // Si el monto total de la OT (en soles) >= detractionAmount (700) Y es FACTURA Y el total del documento > 0
     // Aplica detracción TANTO a anticipos como a facturas finales
-    elseif ($entityTotal >= $detractionAmount && $detractionAmount > 0
+    elseif ($entityTotalInPen >= $detractionAmount && $detractionAmount > 0
       && (int)$data['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA
       && $documentTotal > 0) {
       $transactionConceptId = SunatConcepts::ID_SUJETA_DETRACCION;
@@ -3590,12 +3583,25 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $detractionAmount = (float)($company->detraction_amount ?? 0);
     $sumaTotal = $totalAnticipo + $total;
 
+    /**
+     * CONVERSIÓN DE MONEDA PARA DETRACCIÓN
+     * El detraction_amount está siempre en soles (PEN).
+     * Si el documento está en dólares (USD), debemos convertir los totales a soles
+     * usando el tipo de cambio para comparar correctamente.
+     */
+    $sumaTotalInPen = $sumaTotal;
+    $currencyId = (int)($data['sunat_concept_currency_id'] ?? SunatConcepts::CURRENCY_PEN);
+    if ($currencyId === SunatConcepts::CURRENCY_USD) {
+      $exchangeRate = (float)($data['tipo_de_cambio'] ?? 1);
+      $sumaTotalInPen = $sumaTotal * $exchangeRate;
+    }
+
     // ================================================================
     // 3. APLICAR LÓGICA DE DETRACCIÓN
     // ================================================================
 
-    // Si la suma del anticipo + total >= detraction_amount (700), aplicar detracción
-    if ($sumaTotal >= $detractionAmount && $detractionAmount > 0) {
+    // Si la suma del anticipo + total (en soles) >= detraction_amount (700), aplicar detracción
+    if ($sumaTotalInPen >= $detractionAmount && $detractionAmount > 0) {
       $data['detraccion'] = true;
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION; // 129
       $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION; // 105
@@ -3833,8 +3839,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($company && isset($invoiceData['total'])) {
         $detractionAmount = (float)($company->detraction_amount ?? 0);
 
-        // Solo aplicar detracción si el monto supera el límite Y el documento es FACTURA (no BOLETA)
-        if ($total >= $detractionAmount && $detractionAmount > 0 && (int)$invoiceData['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
+        /**
+         * CONVERSIÓN DE MONEDA PARA DETRACCIÓN
+         * El detraction_amount está siempre en soles (PEN).
+         * Si el documento consolidado está en dólares (USD), debemos convertir el total a soles
+         * usando el tipo de cambio para comparar correctamente.
+         */
+        $totalInPen = $total;
+        $currencyId = (int)($invoiceData['sunat_concept_currency_id'] ?? SunatConcepts::CURRENCY_PEN);
+        if ($currencyId === SunatConcepts::CURRENCY_USD) {
+          $totalInPen = $total * (float)$exchangeRate->rate;
+        }
+
+        // Solo aplicar detracción si el monto (en soles) supera el límite Y el documento es FACTURA (no BOLETA)
+        if ($totalInPen >= $detractionAmount && $detractionAmount > 0 && (int)$invoiceData['sunat_concept_document_type_id'] === SunatConcepts::ID_FACTURA_ELECTRONICA) {
           $invoiceData['detraccion'] = true;
           $invoiceData['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION;
           $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
