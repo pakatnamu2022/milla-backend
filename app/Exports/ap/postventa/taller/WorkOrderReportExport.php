@@ -9,6 +9,8 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class WorkOrderReportExport implements
@@ -17,7 +19,8 @@ class WorkOrderReportExport implements
   WithMapping,
   WithStyles,
   ShouldAutoSize,
-  WithTitle
+  WithTitle,
+  WithEvents
 {
   protected Collection $data;
   protected string $title;
@@ -128,6 +131,16 @@ class WorkOrderReportExport implements
           'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
         ],
       ],
+    ];
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        // Habilitar filtros en la fila de encabezado (columnas A-AD, 30 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:AD1');
+      },
     ];
   }
 

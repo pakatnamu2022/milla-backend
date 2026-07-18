@@ -10,6 +10,8 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class InvoicingReportExport implements WithMultipleSheets
@@ -55,7 +57,8 @@ class InvoicingReportMainSheet implements
   WithMapping,
   WithStyles,
   ShouldAutoSize,
-  WithTitle
+  WithTitle,
+  WithEvents
 {
   protected Collection $data;
   protected string $title;
@@ -155,6 +158,16 @@ class InvoicingReportMainSheet implements
     ];
   }
 
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        // Habilitar filtros en la fila de encabezado (columnas A-Y, 25 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:Y1');
+      },
+    ];
+  }
+
   public function title(): string
   {
     return $this->title;
@@ -170,7 +183,8 @@ class InvoicingReportSummarySheet implements
   WithMapping,
   WithStyles,
   ShouldAutoSize,
-  WithTitle
+  WithTitle,
+  WithEvents
 {
   protected array $summary;
   protected string $title;
@@ -259,6 +273,16 @@ class InvoicingReportSummarySheet implements
     }
 
     return $styles;
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        // Habilitar filtros en la fila de encabezado (columnas A-H, 8 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:H1');
+      },
+    ];
   }
 
   public function title(): string
