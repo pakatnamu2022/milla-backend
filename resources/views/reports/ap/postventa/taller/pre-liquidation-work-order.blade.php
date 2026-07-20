@@ -457,6 +457,53 @@
             <td
               style="border: 1px solid #000; padding: 3px 6px; text-align: right;">{{ formatNumber($totals['tax_amount']) }}</td>
           </tr>
+          @if($deductible)
+          <tr>
+            <td colspan="2" style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #fff3cd; text-align: center;">
+              DEDUCIBLE
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 2px 6px; font-size: 8px;">
+              Comprobante:
+            </td>
+            <td style="border: 1px solid #000; padding: 2px 6px; text-align: right; font-size: 8px;">
+              {{ $deductible['full_number'] }}
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 2px 6px; font-size: 8px;">
+              Fecha:
+            </td>
+            <td style="border: 1px solid #000; padding: 2px 6px; text-align: right; font-size: 8px;">
+              {{ $deductible['fecha_emision'] }}
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 2px 6px; font-size: 8px;">
+              Cliente:
+            </td>
+            <td style="border: 1px solid #000; padding: 2px 6px; text-align: right; font-size: 8px;">
+              {{ $deductible['cliente_numero_documento'] }}
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 2px 6px; font-size: 8px;">
+              Denominación:
+            </td>
+            <td style="border: 1px solid #000; padding: 2px 6px; text-align: right; font-size: 8px;">
+              {{ substr($deductible['cliente_denominacion'], 0, 20) }}{{ strlen($deductible['cliente_denominacion']) > 20 ? '...' : '' }}
+            </td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 6px; font-weight: bold; background-color: #fff3cd;">
+              Monto {{$currencySymbol}}
+            </td>
+            <td style="border: 1px solid #000; padding: 3px 6px; text-align: right; font-weight: bold; background-color: #fff3cd;">
+              {{ formatNumber($deductible['total']) }}
+            </td>
+          </tr>
+          @endif
           <tr>
             <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; background-color: #e8eef7;">
               Total {{$currencySymbol}}

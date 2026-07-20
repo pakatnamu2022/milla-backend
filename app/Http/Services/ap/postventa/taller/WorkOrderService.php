@@ -480,7 +480,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'advancesWorkOrder',
       'vehicleInspection',
       'orderQuotation.details',
-      'typeCurrency'
+      'typeCurrency',
+      'deductibles.electronicDocument'
     ]);
 
     if ($workOrder->invoice_to === null) {
@@ -504,6 +505,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalAdvances = $activeAdvances->sum('total') ?? 0;
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
+    // Obtener el primer deducible no eliminado
+    $deductible = $workOrder->deductibles->whereNull('deleted_at')->first();
+    $deductibleData = null;
+
+    if ($deductible && $deductible->electronicDocument) {
+      $doc = $deductible->electronicDocument;
+      $deductibleData = [
+        'full_number' => $doc->full_number ?? '',
+        'fecha_emision' => $doc->fecha_de_emision ? $doc->fecha_de_emision->format('d/m/Y') : '',
+        'cliente_numero_documento' => $doc->cliente_numero_de_documento ?? '',
+        'cliente_denominacion' => $doc->cliente_denominacion ?? '',
+        'total' => $doc->total ?? 0,
+      ];
+    }
+
     $data = [
       'workOrder' => $workOrder,
       'client' => $client,
@@ -511,6 +527,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'labours' => $labours,
       'parts' => $parts,
       'advances' => $activeAdvances,
+      'deductible' => $deductibleData,
       'currencySymbol' => $currencySymbol,
       'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
