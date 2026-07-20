@@ -146,6 +146,16 @@ class ApVehicleDelivery extends Model
         ->exists();
   }
 
+  public function getDateScheduledDeliveryDateAttribute(): ?string
+  {
+    return $this->scheduled_delivery_date?->format('Y-m-d');
+  }
+
+  public function getTimeScheduledDeliveryDateAttribute(): ?string
+  {
+    return $this->scheduled_delivery_date?->format('H:i');
+  }
+
   protected $reportColumns = [
     'vehicle.purchaseRequestQuote.holder.documentType.description' => [
       'label'    => 'TIPO DOCUMENTO',
@@ -203,9 +213,13 @@ class ApVehicleDelivery extends Model
       'label'     => 'ASESOR ENTREGA',
       'formatter' => null,
     ],
-    'real_delivery_date'                                           => [
+    'date_scheduled_delivery_date'                                 => [
       'label'     => 'FECHA ENTREGA',
-      'formatter' => 'date',
+      'formatter' => 'date:Y-m-d H:i',
+    ],
+    'time_scheduled_delivery_date'                                 => [
+      'label'     => 'HORA ENTREGA',
+      'formatter' => 'date:H:i',
     ],
     'cliente_autorizo_datos'                                       => [
       'label' => 'CLIENTE AUTORIZO DATOS',
