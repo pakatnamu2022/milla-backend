@@ -56,7 +56,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     DigitalFileService       $digitalFileService,
     ExportService            $exportService,
     InventoryMovementService $inventoryMovementService
-  ) {
+  )
+  {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
@@ -1575,14 +1576,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         if (count($partsNotFullyDelivered) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido entregados en su totalidad: ' .
-              implode('; ', $partsNotFullyDelivered)
+            implode('; ', $partsNotFullyDelivered)
           );
         }
 
         if (count($partsNotReceivedByTechnician) > 0) {
           throw new Exception(
             'No se puede finalizar la orden de trabajo. Los siguientes repuestos no han sido confirmados como recibidos por el técnico: ' .
-              implode('; ', $partsNotReceivedByTechnician)
+            implode('; ', $partsNotReceivedByTechnician)
           );
         }
       }
@@ -1664,10 +1665,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
-      }
-
-      if ($workOrder->is_delivery) {
-        throw new Exception('No se puede revertir una orden de trabajo que ya ha sido entregada al cliente');
       }
 
       if ($workOrder->status_id !== ApMasters::FINISHED_WORK_ORDER_ID) {
