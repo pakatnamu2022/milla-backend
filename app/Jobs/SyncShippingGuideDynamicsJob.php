@@ -55,11 +55,23 @@ use Illuminate\Support\Facades\Log;
  *   - Sin ID                             → procesa todas las guías con migration_status = completed
  *                                          que aún no están contabilizadas o anuladas.
  *
- * COLA: shipping_guide_sync | tries: 3 | timeout: 300 s
+ * COLAS:
+ *   shipping_guide_sync_comercial_venta    → COMERCIAL + VENTA
+ *   shipping_guide_sync_comercial_traslado → COMERCIAL + TRASLADO_SEDE (incluye GUIA_INTERNA)
+ *   shipping_guide_sync_comercial_compra   → COMERCIAL + COMPRA
+ *   shipping_guide_sync_postventa          → POSVENTA / TALLER / MESON (cualquier motivo)
+ *   shipping_guide_sync                    → default (COMERCIAL + CONSIGNACION / OTROS)
+ * tries: 3 | timeout: 300 s
  */
 class SyncShippingGuideDynamicsJob implements ShouldQueue
 {
   use Queueable;
+
+  const QUEUE_DEFAULT            = 'shipping_guide_sync';
+  const QUEUE_COMERCIAL_VENTA    = 'shipping_guide_sync_comercial_venta';
+  const QUEUE_COMERCIAL_TRASLADO = 'shipping_guide_sync_comercial_traslado';
+  const QUEUE_COMERCIAL_COMPRA   = 'shipping_guide_sync_comercial_compra';
+  const QUEUE_POSTVENTA          = 'shipping_guide_sync_postventa';
 
   public int $tries = 3;
   public int $timeout = 300;
@@ -68,10 +80,26 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
    * @param int|null $shippingGuideId ID de la guía a procesar; null = procesa todas las pendientes.
    */
   public function __construct(
-    public ?int $shippingGuideId = null
-  )
+    public ?int $shippingGuideId = null,
+    string $queue = self::QUEUE_DEFAULT
+  ) {
+    $this->onQueue($queue);
+  }
+
+  public static function queueFor(?ShippingGuides $guide): string
   {
-    $this->onQueue('shipping_guide_sync');
+    if (!$guide) return self::QUEUE_DEFAULT;
+
+    if ($guide->area_id !== ApMasters::AREA_COMERCIAL) {
+      return self::QUEUE_POSTVENTA;
+    }
+
+    return match ($guide->transfer_reason_id) {
+      SunatConcepts::TRANSFER_REASON_VENTA         => self::QUEUE_COMERCIAL_VENTA,
+      SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE => self::QUEUE_COMERCIAL_TRASLADO,
+      SunatConcepts::TRANSFER_REASON_COMPRA        => self::QUEUE_COMERCIAL_COMPRA,
+      default                                      => self::QUEUE_DEFAULT,
+    };
   }
 
   /**
