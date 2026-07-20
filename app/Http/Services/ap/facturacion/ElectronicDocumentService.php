@@ -3858,7 +3858,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
       ];
 
-      // 11. Apply detraction logic for consolidated work orders
+      // ================================================================
+      // 11. APLICAR LÓGICA DE DETRACCIONES
+      // ================================================================
+
+      /**
+       * Para facturas consolidadas, aplicar la lógica estándar de detracciones.
+       * Como es una factura consolidada sin work_order_id específico,
+       * usamos la lógica manual adaptada similar a applyDetractionLogic.
+       */
       $company = Company::find(Company::COMPANY_AP_ID);
       if ($company && isset($invoiceData['total'])) {
         $detractionAmount = (float)($company->detraction_amount ?? 0);
@@ -3889,6 +3897,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             // La detracción se calcula sobre el total del documento
             $invoiceData['detraccion_total'] = (float)$invoiceData['total'] * ($porcentaje / 100);
           }
+        } else {
+          // Si no aplica detracción, establecer los campos explícitamente
+          $invoiceData['detraccion'] = false;
+          $invoiceData['sunat_concept_detraction_type_id'] = null;
+          $invoiceData['detraccion_porcentaje'] = null;
+          $invoiceData['detraccion_total'] = null;
+
+          // Establecer el transaction_type apropiado
+          // Para facturas consolidadas sin detracción, usar VENTA_INTERNA
+          $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_VENTA_INTERNA;
         }
       }
 
@@ -3922,20 +3940,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear cuotas si es venta al crédito
        *
-       * Para facturas consolidadas con detracción, el frontend no conoce el monto
-       * de la detracción (se calcula en el backend) y envía las cuotas con el
-       * importe bruto del comprobante. Se le descuenta la detracción para que la
-       * cuota refleje lo que realmente se cobrará al cliente (el monto de la
-       * detracción lo deposita el cliente directamente al Banco de la Nación).
+       * El frontend siempre envía el importe bruto del comprobante. Si hay detracción,
+       * se resta del importe de la cuota para reflejar lo que realmente se cobrará al
+       * cliente (el monto de la detracción lo deposita el cliente directamente al
+       * Banco de la Nación). Si no hay detracción, la resta es con 0 y el importe
+       * queda igual.
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
-        $hasDetraction = !empty($invoiceData['detraccion']);
         $detractionTotal = (float)($invoiceData['detraccion_total'] ?? 0);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
-          if ($hasDetraction && $detractionTotal > 0) {
-            $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
-          }
+          $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
           $invoice->installments()->create($cuotaData);
         }
       }
