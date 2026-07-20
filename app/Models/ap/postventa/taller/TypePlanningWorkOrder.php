@@ -30,6 +30,7 @@ class TypePlanningWorkOrder extends Model
   const int TYPE_PLANNING_PDI_ID = 6;
   const int TYPE_PLANNING_INST_ACCESORIOS_ID = 10;
   const int TYPE_PLANNING_DERCO_WARRANTY_ID = 9;
+  const int TYPE_PLANNING_ODEBRECHT_MAINTENANCE = 13;
   const int TYPE_PLANNING_RECALL_ID = 4;
 
   // TYPES DOCUMENT
