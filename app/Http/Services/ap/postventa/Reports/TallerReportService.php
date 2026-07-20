@@ -6,6 +6,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -110,8 +111,8 @@ class TallerReportService
         $q->whereHas('typePlanning', function ($subQ) {
           $subQ->where('type_document', 'INTERNA')
             ->whereNotIn('id', [
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+              TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
             ]);
         });
       })
@@ -343,12 +344,12 @@ class TallerReportService
   {
     // Intenta obtener el tipo de cambio de la columna exchange_rate
     if ($workOrder->exchange_rate) {
-      return (float) $workOrder->exchange_rate;
+      return (float)$workOrder->exchange_rate;
     }
 
     // Intenta obtener el tipo de cambio de la relación exchangeRate
     if ($workOrder->exchangeRate && $workOrder->exchangeRate->rate) {
-      return (float) $workOrder->exchangeRate->rate;
+      return (float)$workOrder->exchangeRate->rate;
     }
 
     // Intenta obtener el tipo de cambio del último documento electrónico
@@ -358,7 +359,7 @@ class TallerReportService
       ->first();
 
     if ($lastDocument && $lastDocument->exchangeRate && $lastDocument->exchangeRate->rate) {
-      return (float) $lastDocument->exchangeRate->rate;
+      return (float)$lastDocument->exchangeRate->rate;
     }
 
     // Valor por defecto si no hay ningún tipo de cambio
