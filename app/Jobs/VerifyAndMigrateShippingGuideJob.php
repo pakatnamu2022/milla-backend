@@ -44,8 +44,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
 
-  const QUEUE_DEFAULT = 'shipping_guides';
-  const QUEUE_SALE    = 'shipping_guides_sale';
+  const QUEUE_DEFAULT            = 'shipping_guides';
+  const QUEUE_COMERCIAL_VENTA    = 'shipping_guides_comercial_venta';
+  const QUEUE_COMERCIAL_TRASLADO = 'shipping_guides_comercial_traslado';
+  const QUEUE_COMERCIAL_COMPRA   = 'shipping_guides_comercial_compra';
 
   public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
@@ -60,10 +62,14 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   public static function queueFor(?ShippingGuides $guide): string
   {
-    if ($guide && $guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {
-      return self::QUEUE_SALE;
-    }
-    return self::QUEUE_DEFAULT;
+    if (!$guide) return self::QUEUE_DEFAULT;
+
+    return match ($guide->transfer_reason_id) {
+      SunatConcepts::TRANSFER_REASON_VENTA         => self::QUEUE_COMERCIAL_VENTA,
+      SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE => self::QUEUE_COMERCIAL_TRASLADO,
+      SunatConcepts::TRANSFER_REASON_COMPRA        => self::QUEUE_COMERCIAL_COMPRA,
+      default                                      => self::QUEUE_DEFAULT,
+    };
   }
 
   /**

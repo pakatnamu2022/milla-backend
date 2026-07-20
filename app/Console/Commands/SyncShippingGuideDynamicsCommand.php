@@ -69,7 +69,7 @@ class SyncShippingGuideDynamicsCommand extends Command
 
     $this->info("Sincronizando datos de Dynamics para guía: {$shippingGuide->document_number}");
 
-    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id);
+    SyncShippingGuideDynamicsJob::dispatch($shippingGuide->id, SyncShippingGuideDynamicsJob::queueFor($shippingGuide));
 
     $this->info("Job despachado exitosamente");
     return Command::SUCCESS;
@@ -121,7 +121,7 @@ class SyncShippingGuideDynamicsCommand extends Command
     $bar->start();
 
     foreach ($shippingGuides as $guide) {
-      SyncShippingGuideDynamicsJob::dispatch($guide->id);
+      SyncShippingGuideDynamicsJob::dispatch($guide->id, SyncShippingGuideDynamicsJob::queueFor($guide));
       $bar->advance();
     }
 
