@@ -25,7 +25,7 @@ class InvoicingReportService
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
 
-    // Para la hoja principal: Consultar TODOS los documentos electrónicos sin filtrar por estado de OT
+    // Para la hoja principal: Consultar TODOS los documentos electrónicos (simple y massive)
     $queryDocuments = ElectronicDocument::query()
       ->with([
         'workOrder.sede',
@@ -34,16 +34,34 @@ class InvoicingReportService
         'workOrder.vehicle.model.family.brand',
         'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
+        'internalNotes.workOrder.sede',
+        'internalNotes.workOrder.advisor',
+        'internalNotes.workOrder.status',
+        'internalNotes.workOrder.vehicle.model.family.brand',
+        'internalNotes.workOrder.items.typePlanning',
+        'internalNotes.workOrder.plannings.worker',
         'currency',
         'exchangeRate',
       ])
-      ->whereNotNull('work_order_id')
-      ->where('anulado', false);
+      ->where('anulado', false)
+      ->where(function ($q) {
+        // Facturación SIMPLE: tiene work_order_id directo
+        $q->whereNotNull('work_order_id')
+          // Facturación MASIVA: tiene notas internas facturadas
+          ->orWhereHas('internalNotes', function ($subQ) {
+            $subQ->where('status', 'invoiced');
+          });
+      });
 
     // Filtrar por sedes del usuario
     if (!empty($userSedeIds)) {
-      $queryDocuments->whereHas('workOrder', function ($q) use ($userSedeIds) {
-        $q->whereIn('sede_id', $userSedeIds);
+      $queryDocuments->where(function ($q) use ($userSedeIds) {
+        // Sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        });
       });
     }
 
@@ -69,66 +87,29 @@ class InvoicingReportService
     });
 
     // Transformar documentos finales para el reporte (Primera página)
-    $reportDataFinal = $finalDocuments->map(function ($document) {
-      return $this->transformDocumentForReport($document, $document->workOrder);
+    $reportDataFinal = $finalDocuments->flatMap(function ($document) {
+      // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
+      if ($document->workOrder) {
+        return [$this->transformDocumentForReport($document, $document->workOrder)];
+      }
+
+      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        return $document->internalNotes->map(function ($internalNote) use ($document) {
+          if ($internalNote->workOrder) {
+            return $this->transformDocumentForReport($document, $internalNote->workOrder);
+          }
+          return null;
+        })->filter();
+      }
+
+      return []; // Sin OT, skip
     })->values();
 
     // Transformar documentos de anticipos para el reporte (Segunda página)
     $reportDataAdvances = $advanceDocuments->map(function ($document) {
       return $this->transformDocumentForReport($document, $document->workOrder);
     })->values();
-
-    // Para la cuarta página: Consultar ÓRDENES DE TRABAJO que tienen notas internas facturadas
-    $queryInternalNoteWorkOrders = ApWorkOrder::query()
-      ->with([
-        'sede',
-        'advisor',
-        'status',
-        'vehicle.model.family.brand',
-        'items.typePlanning',
-        'plannings.worker',
-        'internalNotes' => function ($q) {
-          // Solo notas internas que ya fueron facturadas
-          $q->where('status', 'invoiced')
-            ->with([
-              'electronicDocuments' => function ($subQ) {
-                $subQ->where('anulado', false)
-                  ->with(['currency', 'exchangeRate']);
-              }
-            ]);
-        }
-      ])
-      ->whereHas('internalNotes', function ($q) {
-        // Solo OTs que tengan notas internas facturadas
-        $q->where('status', 'invoiced')
-          ->whereHas('electronicDocuments', function ($subQ) {
-            $subQ->where('anulado', false);
-          });
-      });
-
-    // Filtrar por sedes del usuario
-    if (!empty($userSedeIds)) {
-      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
-    }
-
-    // Aplicar filtros de workorders (fechas, etc.) - isInternalNoteQuery = true
-    $this->applyWorkOrderFilters($queryInternalNoteWorkOrders, $filters, true);
-
-    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
-
-    // Transformar documentos de notas internas para el reporte (Cuarta página)
-    // Iterar por cada OT y sus notas internas facturadas
-    $reportDataInternalNotes = collect();
-    foreach ($internalNoteWorkOrders as $workOrder) {
-      foreach ($workOrder->internalNotes as $internalNote) {
-        foreach ($internalNote->electronicDocuments as $document) {
-          $reportDataInternalNotes->push(
-            $this->transformInternalNoteDocumentForReport($document, $workOrder)
-          );
-        }
-      }
-    }
-    $reportDataInternalNotes = $reportDataInternalNotes->values();
 
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
@@ -161,7 +142,6 @@ class InvoicingReportService
       'final_documents' => $reportDataFinal,
       'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
-      'internal_note_documents' => $reportDataInternalNotes,
     ];
   }
 
