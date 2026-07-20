@@ -263,13 +263,27 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
    * total_cost/net_amount/tax_amount: única fuente de verdad compartida con
    * repuestos y detalles de cotización. Devuelve el hourly_rate ya convertido y
    * redondeado para que el llamador decida si lo persiste (ver store()/update()).
+   *
+   * Si la descripción contiene "DEDUCIBLE", los montos se vuelven negativos
+   * (restando del total de mano de obra en lugar de sumar).
    */
   private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): float
   {
     $result = PriceRounding::calculateLine($hourlyRate, $timeSpent, $discountPercentage, $factor);
-    $data['total_cost'] = $result['total_cost'];
-    $data['net_amount'] = $result['net_amount'];
-    $data['tax_amount'] = $result['tax_amount'];
+
+    // Si la descripción contiene "DEDUCIBLE", invertir los signos para que reste del total
+    $isDeductible = isset($data['description']) &&
+                    stripos(strtoupper($data['description']), 'DEDUCIBLE') !== false;
+
+    if ($isDeductible) {
+      $data['total_cost'] = -$result['total_cost'];
+      $data['net_amount'] = -$result['net_amount'];
+      $data['tax_amount'] = -$result['tax_amount'];
+    } else {
+      $data['total_cost'] = $result['total_cost'];
+      $data['net_amount'] = $result['net_amount'];
+      $data['tax_amount'] = $result['tax_amount'];
+    }
 
     return $result['unit_price'];
   }

@@ -21,6 +21,7 @@ class ElectronicDocumentsReportService
         'items',
         'documentType',
         'currency',
+        'seriesModel.sede',
       ])
       ->where('area_id', ApMasters::AREA_POSVENTA)
       ->where('aceptada_por_sunat', true)
@@ -58,6 +59,7 @@ class ElectronicDocumentsReportService
     $moneda = $document->currency?->description ?? '';
 
     return [
+      'sede' => $document->seriesModel?->sede?->abreviatura ?? '',
       'tipo' => $tipo,
       'fecha' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'cliente' => $document->cliente_denominacion ?? '',

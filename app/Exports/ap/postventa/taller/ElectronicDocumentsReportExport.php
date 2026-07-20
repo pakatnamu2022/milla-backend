@@ -39,6 +39,7 @@ class ElectronicDocumentsReportExport implements
   public function headings(): array
   {
     return [
+      'SEDE',
       'TIPO',
       'FECHA',
       'CLIENTE',
@@ -53,6 +54,7 @@ class ElectronicDocumentsReportExport implements
   public function map($row): array
   {
     return [
+      $row['sede'],
       $row['tipo'],
       $row['fecha'],
       $row['cliente'],
@@ -90,8 +92,8 @@ class ElectronicDocumentsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-H, 8 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:H1');
+        // Habilitar filtros en la fila de encabezado (columnas A-I, 9 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:I1');
       },
     ];
   }

@@ -1343,8 +1343,13 @@ class ApWorkOrder extends Model
   {
     $items = [];
 
+    // Filtrar labours: NO incluir los que contienen "DEDUCIBLE" en su descripción
+    // ya que estos restan del total de mano de obra pero no deben aparecer como items en la factura
     foreach ($this->labours as $labour) {
-      $items[] = $this->buildLabourInvoiceItem($labour);
+      $isDeductible = stripos($labour->description ?? '', 'DEDUCIBLE') !== false;
+      if (!$isDeductible) {
+        $items[] = $this->buildLabourInvoiceItem($labour);
+      }
     }
 
     foreach ($this->parts as $part) {
