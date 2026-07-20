@@ -2057,11 +2057,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $factor
       );
 
+      // Si la descripción contiene "DEDUCIBLE", invertir los signos para que reste del total
+      $isDeductible = stripos($labour->description ?? '', 'DEDUCIBLE') !== false;
+
       $labour->update([
         'hourly_rate' => $result['unit_price'],
-        'total_cost' => $result['total_cost'],
-        'net_amount' => $result['net_amount'],
-        'tax_amount' => $result['tax_amount'],
+        'total_cost' => $isDeductible ? -$result['total_cost'] : $result['total_cost'],
+        'net_amount' => $isDeductible ? -$result['net_amount'] : $result['net_amount'],
+        'tax_amount' => $isDeductible ? -$result['tax_amount'] : $result['tax_amount'],
       ]);
     }
   }
