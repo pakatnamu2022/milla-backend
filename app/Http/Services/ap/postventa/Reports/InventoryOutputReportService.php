@@ -177,7 +177,7 @@ class InventoryOutputReportService
     $margen = $this->calculateProfitMargin($pvpUsd, $detail->product, $warehouseId, $exchangeRate);
 
     return [
-      'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('Y-m-d') : '',
+      'fecha_factura_final' => $finalInvoice->fecha_de_emision ? $finalInvoice->fecha_de_emision->format('d/m/Y') : '',
       'codigo_afs' => $quotation->sede?->code_afs ?? '',
       'concesionario' => $quotation->sede?->abreviatura ?? '',
       'codigo_producto' => $detail->product?->code ?? '',
