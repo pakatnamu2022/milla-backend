@@ -301,6 +301,11 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApDeductibleWorkOrder::class, 'work_order_id');
   }
 
+  public function internalNotes(): HasMany
+  {
+    return $this->hasMany(ApInternalNote::class, 'work_order_id');
+  }
+
   // Helper methods
   public function calculateTotals(): void
   {

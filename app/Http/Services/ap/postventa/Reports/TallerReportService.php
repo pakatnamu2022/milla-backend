@@ -300,6 +300,16 @@ class TallerReportService
             $query->where($column, $value);
           }
           break;
+        case 'closed_or_invoiced':
+          // Filtrar OTs que estén cerradas O tengan factura final emitida
+          $query->where(function ($q) use ($value) {
+            $q->where('status_id', $value)
+              ->orWhereHas('exchangeRateDocuments', function ($docQuery) {
+                $docQuery->where('is_advance_payment', false)
+                  ->where('anulado', false);
+              });
+          });
+          break;
         case 'like':
           $query->where($column, 'like', '%' . $value . '%');
           break;
