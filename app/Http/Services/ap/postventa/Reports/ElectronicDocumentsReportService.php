@@ -3,7 +3,6 @@
 namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Models\ap\ApMasters;
-use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Support\Collection;
 
@@ -19,17 +18,13 @@ class ElectronicDocumentsReportService
   {
     $query = ElectronicDocument::query()
       ->with([
-        'items' => function ($query) {
-          $query->where('account_plan_id', ApAccountingAccountPlan::ELECTRONIC_DOCUMENTS_REPORT_ACCOUNT_ID);
-        },
+        'items',
         'documentType',
         'currency',
       ])
-      ->whereHas('items', function ($query) {
-        $query->where('account_plan_id', ApAccountingAccountPlan::ELECTRONIC_DOCUMENTS_REPORT_ACCOUNT_ID);
-      })
       ->where('area_id', ApMasters::AREA_POSVENTA)
-      ->where('aceptada_por_sunat', true);
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false);
 
     // Aplicar filtros
     $this->applyFilters($query, $filters);
