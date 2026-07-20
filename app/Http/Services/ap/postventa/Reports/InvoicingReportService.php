@@ -9,6 +9,7 @@ use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -25,7 +26,7 @@ class InvoicingReportService
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
 
-    // Para la hoja principal: Consultar TODOS los documentos electrónicos sin filtrar por estado de OT
+    // Para la hoja principal: Consultar TODOS los documentos electrónicos (simple y massive)
     $queryDocuments = ElectronicDocument::query()
       ->with([
         'workOrder.sede',
@@ -34,16 +35,34 @@ class InvoicingReportService
         'workOrder.vehicle.model.family.brand',
         'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
+        'internalNotes.workOrder.sede',
+        'internalNotes.workOrder.advisor',
+        'internalNotes.workOrder.status',
+        'internalNotes.workOrder.vehicle.model.family.brand',
+        'internalNotes.workOrder.items.typePlanning',
+        'internalNotes.workOrder.plannings.worker',
         'currency',
         'exchangeRate',
       ])
-      ->whereNotNull('work_order_id')
-      ->where('anulado', false);
+      ->where('anulado', false)
+      ->where(function ($q) {
+        // Facturación SIMPLE: tiene work_order_id directo
+        $q->whereNotNull('work_order_id')
+          // Facturación MASIVA: tiene notas internas facturadas
+          ->orWhereHas('internalNotes', function ($subQ) {
+            $subQ->where('status', 'invoiced');
+          });
+      });
 
     // Filtrar por sedes del usuario
     if (!empty($userSedeIds)) {
-      $queryDocuments->whereHas('workOrder', function ($q) use ($userSedeIds) {
-        $q->whereIn('sede_id', $userSedeIds);
+      $queryDocuments->where(function ($q) use ($userSedeIds) {
+        // Sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        });
       });
     }
 
@@ -68,17 +87,7 @@ class InvoicingReportService
       return $finalInvoice !== null;
     });
 
-    // Transformar documentos finales para el reporte (Primera página)
-    $reportDataFinal = $finalDocuments->map(function ($document) {
-      return $this->transformDocumentForReport($document, $document->workOrder);
-    })->values();
-
-    // Transformar documentos de anticipos para el reporte (Segunda página)
-    $reportDataAdvances = $advanceDocuments->map(function ($document) {
-      return $this->transformDocumentForReport($document, $document->workOrder);
-    })->values();
-
-    // Para la cuarta página: Consultar ÓRDENES DE TRABAJO que tienen notas internas facturadas
+    // NUEVO: Consultar OTs cerradas con nota interna SIN factura
     $queryInternalNoteWorkOrders = ApWorkOrder::query()
       ->with([
         'sede',
@@ -87,23 +96,31 @@ class InvoicingReportService
         'vehicle.model.family.brand',
         'items.typePlanning',
         'plannings.worker',
-        'internalNotes' => function ($q) {
-          // Solo notas internas que ya fueron facturadas
-          $q->where('status', 'invoiced')
-            ->with([
-              'electronicDocuments' => function ($subQ) {
-                $subQ->where('anulado', false)
-                  ->with(['currency', 'exchangeRate']);
-              }
-            ]);
-        }
+        'internalNotes',
       ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID) // Cerradas
       ->whereHas('internalNotes', function ($q) {
-        // Solo OTs que tengan notas internas facturadas
-        $q->where('status', 'invoiced')
-          ->whereHas('electronicDocuments', function ($subQ) {
-            $subQ->where('anulado', false);
-          });
+        $q->whereNotNull('number'); // Tiene nota interna con number
+      })
+      ->whereHas('items', function ($q) {
+        $q->whereHas('typePlanning', function ($subQ) {
+          $subQ->where('type_document', 'INTERNA')
+            ->whereNotIn('id', [
+              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+            ]);
+        });
+      })
+      // NO tienen documento electrónico directo (verificar que no existe doc con este work_order_id)
+      ->whereNotExists(function ($query) {
+        $query->select(DB::raw(1))
+          ->from('ap_billing_electronic_documents')
+          ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
+          ->where('ap_billing_electronic_documents.anulado', false);
+      })
+      // NO tienen documento electrónico vía notas internas
+      ->whereDoesntHave('internalNotes', function ($q) {
+        $q->whereHas('electronicDocuments');
       });
 
     // Filtrar por sedes del usuario
@@ -111,24 +128,43 @@ class InvoicingReportService
       $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
     }
 
-    // Aplicar filtros de workorders (fechas, etc.) - isInternalNoteQuery = true
-    $this->applyWorkOrderFilters($queryInternalNoteWorkOrders, $filters, true);
+    // Aplicar filtros de fecha a la nota interna
+    $this->applyInternalNoteFilters($queryInternalNoteWorkOrders, $filters);
 
     $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
 
-    // Transformar documentos de notas internas para el reporte (Cuarta página)
-    // Iterar por cada OT y sus notas internas facturadas
-    $reportDataInternalNotes = collect();
-    foreach ($internalNoteWorkOrders as $workOrder) {
-      foreach ($workOrder->internalNotes as $internalNote) {
-        foreach ($internalNote->electronicDocuments as $document) {
-          $reportDataInternalNotes->push(
-            $this->transformInternalNoteDocumentForReport($document, $workOrder)
-          );
-        }
+    // Transformar documentos finales para el reporte (Primera página)
+    $reportDataFinal = $finalDocuments->flatMap(function ($document) {
+      // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
+      if ($document->workOrder) {
+        return [$this->transformDocumentForReport($document, $document->workOrder)];
       }
-    }
-    $reportDataInternalNotes = $reportDataInternalNotes->values();
+
+      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        return $document->internalNotes->map(function ($internalNote) use ($document) {
+          if ($internalNote->workOrder) {
+            return $this->transformDocumentForReport($document, $internalNote->workOrder);
+          }
+          return null;
+        })->filter();
+      }
+
+      return []; // Sin OT, skip
+    })->values();
+
+    // Transformar OTs con nota interna SIN factura (agregar a primera página)
+    $reportDataInternalNotes = $internalNoteWorkOrders->map(function ($workOrder) {
+      return $this->transformInternalNoteWorkOrderForReport($workOrder);
+    })->values();
+
+    // Combinar documentos finales con OTs de nota interna sin factura
+    $reportDataFinal = $reportDataFinal->concat($reportDataInternalNotes)->values();
+
+    // Transformar documentos de anticipos para el reporte (Segunda página)
+    $reportDataAdvances = $advanceDocuments->map(function ($document) {
+      return $this->transformDocumentForReport($document, $document->workOrder);
+    })->values();
 
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
@@ -161,7 +197,6 @@ class InvoicingReportService
       'final_documents' => $reportDataFinal,
       'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
-      'internal_note_documents' => $reportDataInternalNotes,
     ];
   }
 
@@ -575,6 +610,106 @@ class InvoicingReportService
                 $q->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
               });
             }
+          }
+          break;
+        case '=':
+          $query->where($column, $value);
+          break;
+        case 'like':
+          $query->where($column, 'like', '%' . $value . '%');
+          break;
+      }
+    }
+  }
+
+  /**
+   * Transforma una OT con nota interna SIN factura en el formato del reporte
+   *
+   * @param ApWorkOrder $workOrder
+   * @return array
+   */
+  private function transformInternalNoteWorkOrderForReport(ApWorkOrder $workOrder): array
+  {
+    // Obtener la nota interna (solo hay una por OT según requerimiento)
+    $internalNote = $workOrder->internalNotes->first();
+
+    // Obtener técnicos únicos consolidados
+    $technicians = $this->getConsolidatedTechnicians($workOrder);
+
+    // Obtener el primer item de la OT
+    $firstItem = $workOrder->items->first();
+
+    // Parsear serie y número de la nota interna (formato: IN-00001)
+    $noteParts = explode('-', $internalNote->number ?? '');
+    $serie = $noteParts[0] ?? 'IN';
+    $numero = $noteParts[1] ?? '00000';
+
+    // Calcular montos (basados en la OT, sin IGV porque es nota interna)
+    $totalManoObra = $workOrder->total_labor_cost ?? 0;
+    $totalRepuestos = $workOrder->total_parts_cost ?? 0;
+    $descuentoMonto = $workOrder->discount_amount ?? 0;
+    $total = $workOrder->final_amount ?? 0;
+
+    // Calcular sin IGV (asumiendo 18% IGV)
+    $montoSinIgv = $total / 1.18;
+    $igv = $total - $montoSinIgv;
+
+    return [
+      'taller' => $workOrder->sede?->abreviatura ?? '',
+      'numero_ot' => $workOrder->correlative ?? '',
+      'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'estado' => $workOrder->status?->description ?? '',
+      'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+      'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+      'modelo_vehiculo' => $workOrder->vehicle?->model?->family?->description ?? '',
+      'trabajo_realizado' => $firstItem?->description ?? '',
+      'operario' => $technicians,
+      'serie_comprobante' => $serie,
+      'numero_comprobante' => $numero,
+      'fecha_comprobante' => $internalNote->created_date ? $internalNote->created_date->format('d/m/Y') : '',
+      'num_doc_cliente' => '',
+      'cliente' => '',
+      'total_mano_obra' => number_format($totalManoObra, 2, '.', ''),
+      'total_repuestos' => number_format($totalRepuestos, 2, '.', ''),
+      'descuento_porcentaje' => number_format($workOrder->discount_percentage ?? 0, 2, '.', ''),
+      'descuento_monto' => number_format($descuentoMonto, 2, '.', ''),
+      'monto_sin_igv' => number_format($montoSinIgv, 2, '.', ''),
+      'igv' => number_format($igv, 2, '.', ''),
+      'total' => number_format($total, 2, '.', ''),
+      'moneda' => 'PEN',
+      'moneda_original' => 'PEN',
+      'work_order_id' => $workOrder->id,
+      'document_id' => null, // No tiene documento electrónico
+    ];
+  }
+
+  /**
+   * Aplica filtros a la query de OTs con nota interna sin factura
+   *
+   * @param $query
+   * @param array $filters
+   * @return void
+   */
+  private function applyInternalNoteFilters($query, array $filters): void
+  {
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      switch ($operator) {
+        case 'documentDateFilter':
+          // Filtro de fecha en created_date de la nota interna
+          if (is_array($value) && count($value) === 2) {
+            $query->whereHas('internalNotes', function ($q) use ($value) {
+              $q->whereBetween('created_date', [$value[0], $value[1]]);
+            });
           }
           break;
         case '=':
