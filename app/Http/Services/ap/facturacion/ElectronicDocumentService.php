@@ -1255,10 +1255,29 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // CASO 1: ANULADO + CONTABILIZADO → NO descuentas nada
       if ($isAnnulledInDynamics && $isAccountedInDynamics) {
-        Log::info('Documento anulado y contabilizado en Dynamics - No se revierte inventario', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-        ]);
+        // Revertir estados de cotización si existe (sin revertir inventario)
+        if ($document->order_quotation_id) {
+          $quotation = ApOrderQuotations::find($document->order_quotation_id);
+          if ($quotation) {
+            $quotation->update([
+              'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
+              'is_fully_paid' => false,
+              'output_generation_warehouse' => false,
+            ]);
+          }
+        }
+
+        // Revertir estados de orden de trabajo si existe (sin revertir inventario)
+        if ($document->work_order_id) {
+          $workOrder = ApWorkOrder::find($document->work_order_id);
+          if ($workOrder) {
+            $workOrder->update([
+              'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
+              'is_invoiced' => false,
+              'output_generation_warehouse' => false,
+            ]);
+          }
+        }
       } // CASO 2: ANULADO + NO CONTABILIZADO → Generar SALIDA + INGRESO (2 movimientos)
       else if ($isAnnulledInDynamics && !$isAccountedInDynamics) {
         // Solo para facturas finales
