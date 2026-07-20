@@ -20,7 +20,73 @@ class TallerReportService
    */
   public function getWorkOrdersReport(array $filters = [], bool $amountsInSoles = false): Collection
   {
-    $query = ApWorkOrder::query()
+    $allWorkOrders = collect();
+
+    // 1. Consultar WorkOrders que tienen documentos electrónicos (SIMPLE y MASSIVE)
+    $queryDocuments = ElectronicDocument::query()
+      ->with([
+        'workOrder.invoiceTo.documentType',
+        'workOrder.invoiceTo.typePerson',
+        'workOrder.vehicle.model.family.brand',
+        'workOrder.vehicle.model.family',
+        'workOrder.sede',
+        'workOrder.advisor',
+        'workOrder.items.typePlanning',
+        'workOrder.plannings.worker',
+        'workOrder.labours',
+        'workOrder.parts.product',
+        'workOrder.typeCurrency',
+        'workOrder.exchangeRate',
+        'workOrder.internalNotes',
+        'internalNotes.workOrder.invoiceTo.documentType',
+        'internalNotes.workOrder.invoiceTo.typePerson',
+        'internalNotes.workOrder.vehicle.model.family.brand',
+        'internalNotes.workOrder.vehicle.model.family',
+        'internalNotes.workOrder.sede',
+        'internalNotes.workOrder.advisor',
+        'internalNotes.workOrder.items.typePlanning',
+        'internalNotes.workOrder.plannings.worker',
+        'internalNotes.workOrder.labours',
+        'internalNotes.workOrder.parts.product',
+        'internalNotes.workOrder.typeCurrency',
+        'internalNotes.workOrder.exchangeRate',
+        'internalNotes.workOrder.internalNotes',
+      ])
+      ->where('anulado', false)
+      ->where('is_advance_payment', false) // Solo facturas finales, no anticipos
+      ->where(function ($q) {
+        // Facturación SIMPLE: tiene work_order_id directo
+        $q->whereNotNull('work_order_id')
+          // Facturación MASIVA: tiene notas internas facturadas
+          ->orWhereHas('internalNotes', function ($subQ) {
+            $subQ->where('status', 'invoiced');
+          });
+      });
+
+    // Aplicar filtros de documentos
+    $this->applyDocumentFilters($queryDocuments, $filters);
+
+    $documents = $queryDocuments->get();
+
+    // Extraer las WorkOrders de los documentos
+    foreach ($documents as $document) {
+      // SIMPLE: tiene work_order_id directo
+      if ($document->workOrder) {
+        $allWorkOrders->push($document->workOrder);
+      }
+
+      // MASSIVE: tiene notas internas → múltiples WorkOrders
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        foreach ($document->internalNotes as $internalNote) {
+          if ($internalNote->workOrder) {
+            $allWorkOrders->push($internalNote->workOrder);
+          }
+        }
+      }
+    }
+
+    // 2. Consultar WorkOrders cerradas con nota interna SIN factura
+    $queryInternalNoteWorkOrders = ApWorkOrder::query()
       ->with([
         'invoiceTo.documentType',
         'invoiceTo.typePerson',
@@ -35,16 +101,42 @@ class TallerReportService
         'typeCurrency',
         'exchangeRate',
         'internalNotes'
-      ]);
+      ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+      ->whereHas('internalNotes', function ($q) {
+        $q->whereNotNull('number');
+      })
+      ->whereHas('items', function ($q) {
+        $q->whereHas('typePlanning', function ($subQ) {
+          $subQ->where('type_document', 'INTERNA')
+            ->whereNotIn('id', [
+              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+            ]);
+        });
+      })
+      ->whereNotExists(function ($query) {
+        $query->select(DB::raw(1))
+          ->from('ap_billing_electronic_documents')
+          ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
+          ->where('ap_billing_electronic_documents.anulado', false);
+      })
+      ->whereDoesntHave('internalNotes', function ($q) {
+        $q->whereHas('electronicDocuments');
+      });
 
-    // Aplicar filtros
-    $this->applyFilters($query, $filters);
+    // Aplicar filtros de notas internas
+    $this->applyInternalNoteFilters($queryInternalNoteWorkOrders, $filters);
 
-    $workOrders = $query->get();
+    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
 
-    return $workOrders->map(function ($workOrder) use ($amountsInSoles) {
+    // Agregar estas OTs a la colección
+    $allWorkOrders = $allWorkOrders->concat($internalNoteWorkOrders);
+
+    // Eliminar duplicados por ID y transformar
+    return $allWorkOrders->unique('id')->map(function ($workOrder) use ($amountsInSoles) {
       return $this->transformWorkOrderForReport($workOrder, $amountsInSoles);
-    });
+    })->values();
   }
 
   /**
@@ -274,13 +366,13 @@ class TallerReportService
   }
 
   /**
-   * Aplica filtros a la query
+   * Aplica filtros a la query de ElectronicDocument
    *
    * @param $query
    * @param array $filters
    * @return void
    */
-  private function applyFilters($query, array $filters): void
+  private function applyDocumentFilters($query, array $filters): void
   {
     foreach ($filters as $filter) {
       $column = $filter['column'] ?? null;
@@ -292,145 +384,74 @@ class TallerReportService
       }
 
       switch ($operator) {
+        case 'documentDateFilter':
+          // Filtro de fecha de emisión en documentos
+          if (is_array($value) && count($value) === 2) {
+            $query->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
+          }
+          break;
+        case '=':
+          // Filtros en la tabla workOrder
+          if (in_array($column, ['sede_id'])) {
+            $query->where(function ($q) use ($column, $value) {
+              // Filtrar por sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, $value);
+              })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, $value);
+              });
+            });
+          }
+          break;
+        case 'like':
+          // Filtros like en la tabla workOrder
+          if (in_array($column, ['correlative'])) {
+            $query->where(function ($q) use ($column, $value) {
+              // Filtrar por correlativo desde workOrder (simple) o desde internalNotes->workOrder (massive)
+              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, 'like', '%' . $value . '%');
+              })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, 'like', '%' . $value . '%');
+              });
+            });
+          }
+          break;
+      }
+    }
+  }
+
+  /**
+   * Aplica filtros a la query de OTs con nota interna sin factura
+   *
+   * @param $query
+   * @param array $filters
+   * @return void
+   */
+  private function applyInternalNoteFilters($query, array $filters): void
+  {
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      switch ($operator) {
+        case 'documentDateFilter':
+          // Filtro de fecha en created_date de la nota interna
+          if (is_array($value) && count($value) === 2) {
+            $query->whereHas('internalNotes', function ($q) use ($value) {
+              $q->whereBetween('created_date', [$value[0], $value[1]]);
+            });
+          }
+          break;
         case '=':
           $query->where($column, $value);
           break;
-        case 'in':
-        case 'in_or_equal':
-          // Verificar si se está filtrando por status_id y si incluye CLOSED (893)
-          if ($column === 'status_id') {
-            $statusIds = is_array($value) ? $value : [$value];
-            $includesClosed = in_array(ApMasters::CLOSED_WORK_ORDER_ID, $statusIds);
-
-            if ($includesClosed) {
-              // Aplicar lógica expandida: SOLO incluir OTs con documentos o notas internas (igual que InvoicingReportService)
-              $query->where(function ($q) use ($statusIds) {
-                // 1. OTs que tienen documento electrónico directo NO ANTICIPO (SIMPLE)
-                $q->whereExists(function ($subQuery) {
-                  $subQuery->select(DB::raw(1))
-                    ->from('ap_billing_electronic_documents')
-                    ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-                    ->where('ap_billing_electronic_documents.anulado', false)
-                    ->where('ap_billing_electronic_documents.is_advance_payment', false);
-                })
-                // 2. OTs que tienen documento vía notas internas facturadas (MASSIVE)
-                ->orWhereHas('internalNotes', function ($notesQ) {
-                  $notesQ->where('status', 'invoiced')
-                    ->whereHas('electronicDocuments', function ($docsQ) {
-                      $docsQ->where('anulado', false)
-                        ->where('is_advance_payment', false);
-                    });
-                })
-                // 3. OTs cerradas con nota interna SIN factura (type_document = INTERNA)
-                ->orWhere(function ($subQ) {
-                  $subQ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-                    ->whereHas('internalNotes', function ($notesQ) {
-                      $notesQ->whereNotNull('number');
-                    })
-                    ->whereHas('items', function ($itemsQ) {
-                      $itemsQ->whereHas('typePlanning', function ($planningQ) {
-                        $planningQ->where('type_document', 'INTERNA')
-                          ->whereNotIn('id', [
-                            \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-                            \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
-                          ]);
-                      });
-                    })
-                    ->whereNotExists(function ($existsQ) {
-                      $existsQ->select(DB::raw(1))
-                        ->from('ap_billing_electronic_documents')
-                        ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-                        ->where('ap_billing_electronic_documents.anulado', false);
-                    })
-                    ->whereDoesntHave('internalNotes', function ($notesQ) {
-                      $notesQ->whereHas('electronicDocuments');
-                    });
-                });
-              });
-            } else {
-              // Si no incluye CLOSED, aplicar filtro normal
-              if (is_array($value)) {
-                $query->whereIn($column, $value);
-              } else {
-                $query->where($column, $value);
-              }
-            }
-          } else {
-            // Para otros campos, aplicar filtro normal
-            if (is_array($value)) {
-              $query->whereIn($column, $value);
-            } else {
-              $query->where($column, $value);
-            }
-          }
-          break;
-        case 'closed_or_invoiced':
-          // Filtrar OTs que estén cerradas O tengan factura final emitida
-          $query->where(function ($q) use ($value) {
-            $q->where('status_id', $value)
-              ->orWhereHas('exchangeRateDocuments', function ($docQuery) {
-                $docQuery->where('is_advance_payment', false)
-                  ->where('anulado', false);
-              });
-          });
-          break;
         case 'like':
           $query->where($column, 'like', '%' . $value . '%');
-          break;
-        case 'between':
-        case 'date_between':
-          if (is_array($value) && count($value) === 2) {
-            // Si el filtro es en opening_date, filtrar por fecha_de_emision de documentos o created_date de notas internas
-            if ($column === 'opening_date') {
-              $query->where(function ($q) use ($value) {
-                // 1. OTs con documento electrónico directo (SIMPLE)
-                $q->whereExists(function ($subQuery) use ($value) {
-                  $subQuery->select(DB::raw(1))
-                    ->from('ap_billing_electronic_documents')
-                    ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-                    ->where('ap_billing_electronic_documents.anulado', false)
-                    ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$value[0], $value[1]]);
-                })
-                // 2. OTs con documento vía notas internas (MASSIVE)
-                ->orWhereHas('internalNotes', function ($notesQ) use ($value) {
-                  $notesQ->where('status', 'invoiced')
-                    ->whereHas('electronicDocuments', function ($docsQ) use ($value) {
-                      $docsQ->where('anulado', false)
-                        ->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
-                    });
-                })
-                // 3. OTs cerradas con nota interna SIN factura (filtrar por created_date de nota interna)
-                ->orWhere(function ($subQ) use ($value) {
-                  $subQ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-                    ->whereHas('internalNotes', function ($notesQ) use ($value) {
-                      $notesQ->whereNotNull('number')
-                        ->whereBetween('created_date', [$value[0], $value[1]]);
-                    })
-                    ->whereHas('items', function ($itemsQ) {
-                      $itemsQ->whereHas('typePlanning', function ($planningQ) {
-                        $planningQ->where('type_document', 'INTERNA')
-                          ->whereNotIn('id', [
-                            \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-                            \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
-                          ]);
-                      });
-                    })
-                    ->whereNotExists(function ($existsQ) {
-                      $existsQ->select(DB::raw(1))
-                        ->from('ap_billing_electronic_documents')
-                        ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-                        ->where('ap_billing_electronic_documents.anulado', false);
-                    })
-                    ->whereDoesntHave('internalNotes', function ($notesQ) {
-                      $notesQ->whereHas('electronicDocuments');
-                    });
-                });
-              });
-            } else {
-              // Para otros campos, aplicar filtro normal
-              $query->whereBetween($column, [$value[0], $value[1]]);
-            }
-          }
           break;
       }
     }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\ap\postventa\Reports;
 use App\Exports\ap\postventa\taller\WorkOrderReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\TallerReportService;
-use App\Models\ap\ApMasters;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -71,25 +70,10 @@ class TallerReportController extends Controller
   {
     $filters = [];
 
-    // Filtrar solo OTs cerradas por defecto (cerradas por status_id O por tener factura final)
-    if (isset($validated['status_id'])) {
-      $filters[] = [
-        'column' => 'status_id',
-        'operator' => 'in_or_equal',
-        'value' => $validated['status_id'],
-      ];
-    } else {
-      $filters[] = [
-        'column' => 'status_id',
-        'operator' => 'closed_or_invoiced',
-        'value' => ApMasters::CLOSED_WORK_ORDER_ID,
-      ];
-    }
-
-    // Filtro requerido: rango de fechas de apertura
+    // Filtro requerido: rango de fechas de documentos
     $filters[] = [
       'column' => 'opening_date',
-      'operator' => 'date_between',
+      'operator' => 'documentDateFilter',
       'value' => $validated['opening_date'],
     ];
 
