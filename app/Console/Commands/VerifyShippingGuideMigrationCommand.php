@@ -62,7 +62,7 @@ class VerifyShippingGuideMigrationCommand extends Command
         }
       } else {
         $this->info("Despachando job de verificación para la guía: {$shippingGuide->document_number}");
-        VerifyAndMigrateShippingGuideJob::dispatch($shippingGuide->id);
+        VerifyAndMigrateShippingGuideJob::dispatch($shippingGuide->id, VerifyAndMigrateShippingGuideJob::queueFor($shippingGuide));
         $this->info("Job despachado a la cola.");
       }
 
@@ -122,7 +122,7 @@ class VerifyShippingGuideMigrationCommand extends Command
 
         foreach ($pendingGuides as $guide) {
           $this->info("Despachando job de verificación para la guía: {$guide->document_number}");
-          VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+          VerifyAndMigrateShippingGuideJob::dispatch($guide->id, VerifyAndMigrateShippingGuideJob::queueFor($guide));
           $bar->advance();
         }
 
