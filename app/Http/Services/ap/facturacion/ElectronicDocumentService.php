@@ -2595,10 +2595,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
   }
 
-  private function validateQuotationStock(ApOrderQuotations $quotation, int $is_advance_payment = 0): void
+  private function validateQuotationStock(ApOrderQuotations $quotation, int $is_advance_payment = 0, bool $is_nota_credito_debito = false): void
   {
     // Si es un anticipo, no validamos stock
     if ($is_advance_payment == 1) {
+      return;
+    }
+
+    // Si es una nota de crédito o débito, no validamos stock
+    if ($is_nota_credito_debito) {
       return;
     }
 
@@ -3259,7 +3264,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Validar stock de productos si no es un anticipo
-    $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0);
+    $this->validateQuotationStock($quotation, $data['is_advance_payment'] ?? 0, $isNotaCreditoDebito);
 
     // Validar suma de anticipos si es anticipo (no aplica a notas de crédito/débito,
     // ya que estas ajustan/anulan anticipos existentes, no registran uno nuevo)

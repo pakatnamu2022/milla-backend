@@ -71,7 +71,7 @@ class TallerReportController extends Controller
   {
     $filters = [];
 
-    // Filtrar solo OTs cerradas por defecto, a menos que se especifique otro status_id
+    // Filtrar solo OTs cerradas por defecto (cerradas por status_id O por tener factura final)
     if (isset($validated['status_id'])) {
       $filters[] = [
         'column' => 'status_id',
@@ -81,7 +81,7 @@ class TallerReportController extends Controller
     } else {
       $filters[] = [
         'column' => 'status_id',
-        'operator' => '=',
+        'operator' => 'closed_or_invoiced',
         'value' => ApMasters::CLOSED_WORK_ORDER_ID,
       ];
     }

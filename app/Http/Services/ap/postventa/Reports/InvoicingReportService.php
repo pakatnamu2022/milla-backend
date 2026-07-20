@@ -78,6 +78,58 @@ class InvoicingReportService
       return $this->transformDocumentForReport($document, $document->workOrder);
     })->values();
 
+    // Para la cuarta página: Consultar ÓRDENES DE TRABAJO que tienen notas internas facturadas
+    $queryInternalNoteWorkOrders = ApWorkOrder::query()
+      ->with([
+        'sede',
+        'advisor',
+        'status',
+        'vehicle.model.family.brand',
+        'items.typePlanning',
+        'plannings.worker',
+        'internalNotes' => function ($q) {
+          // Solo notas internas que ya fueron facturadas
+          $q->where('status', 'invoiced')
+            ->with([
+              'electronicDocuments' => function ($subQ) {
+                $subQ->where('anulado', false)
+                  ->with(['currency', 'exchangeRate']);
+              }
+            ]);
+        }
+      ])
+      ->whereHas('internalNotes', function ($q) {
+        // Solo OTs que tengan notas internas facturadas
+        $q->where('status', 'invoiced')
+          ->whereHas('electronicDocuments', function ($subQ) {
+            $subQ->where('anulado', false);
+          });
+      });
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
+    }
+
+    // Aplicar filtros de workorders (fechas, etc.) - isInternalNoteQuery = true
+    $this->applyWorkOrderFilters($queryInternalNoteWorkOrders, $filters, true);
+
+    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
+
+    // Transformar documentos de notas internas para el reporte (Cuarta página)
+    // Iterar por cada OT y sus notas internas facturadas
+    $reportDataInternalNotes = collect();
+    foreach ($internalNoteWorkOrders as $workOrder) {
+      foreach ($workOrder->internalNotes as $internalNote) {
+        foreach ($internalNote->electronicDocuments as $document) {
+          $reportDataInternalNotes->push(
+            $this->transformInternalNoteDocumentForReport($document, $workOrder)
+          );
+        }
+      }
+    }
+    $reportDataInternalNotes = $reportDataInternalNotes->values();
+
     // Para el resumen: Consultar WorkOrders que NO estén cerradas ni canceladas
     // (son las que aún no tienen factura final o no terminaron de facturar)
     $queryWorkOrders = ApWorkOrder::query()
@@ -109,6 +161,7 @@ class InvoicingReportService
       'final_documents' => $reportDataFinal,
       'advance_documents' => $reportDataAdvances,
       'summary' => $summary,
+      'internal_note_documents' => $reportDataInternalNotes,
     ];
   }
 
@@ -174,6 +227,103 @@ class InvoicingReportService
       'moneda' => 'PEN',
       'moneda_original' => $monedaOriginal,
       'work_order_id' => $workOrder->id,
+      'document_id' => $document->id,
+    ];
+  }
+
+  /**
+   * Transforma un documento electrónico con nota interna en el formato del reporte
+   *
+   * @param ElectronicDocument $document
+   * @param ApWorkOrder $workOrder
+   * @return array
+   */
+  private function transformInternalNoteDocumentForReport(ElectronicDocument $document, ApWorkOrder $workOrder): array
+  {
+
+    // Determinar moneda original y tasa de cambio
+    $currencyId = $document->sunat_concept_currency_id;
+    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
+    $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
+
+    // Moneda original del comprobante
+    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
+
+    // Convertir montos a soles
+    $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
+    $igv = ($document->total_igv ?? 0) * $exchangeRate;
+    $total = ($document->total ?? 0) * $exchangeRate;
+
+    // Si tiene orden de trabajo, obtener sus datos
+    if ($workOrder) {
+      $technicians = $this->getConsolidatedTechnicians($workOrder);
+      $firstItem = $workOrder->items->first();
+      $finalInvoice = $workOrder->getFinalInvoice();
+      $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
+
+      $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
+      $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
+      $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
+
+      return [
+        'taller' => $workOrder->sede?->abreviatura ?? '',
+        'numero_ot' => $workOrder->correlative ?? '',
+        'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+        'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+        'estado' => $estado,
+        'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+        'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+        'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+        'modelo_vehiculo' => $workOrder->vehicle?->model?->family?->description ?? '',
+        'trabajo_realizado' => $firstItem?->description ?? '',
+        'operario' => $technicians,
+        'serie_comprobante' => $document->serie ?? '',
+        'numero_comprobante' => $document->numero ?? '',
+        'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
+        'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
+        'cliente' => $document->cliente_denominacion ?? '',
+        'total_mano_obra' => number_format($totalManoObra, 2, '.', ''),
+        'total_repuestos' => number_format($totalRepuestos, 2, '.', ''),
+        'descuento_porcentaje' => number_format($workOrder->discount_percentage ?? 0, 2, '.', ''),
+        'descuento_monto' => number_format($descuentoMonto, 2, '.', ''),
+        'monto_sin_igv' => number_format($montoSinIgv, 2, '.', ''),
+        'igv' => number_format($igv, 2, '.', ''),
+        'total' => number_format($total, 2, '.', ''),
+        'moneda' => 'PEN',
+        'moneda_original' => $monedaOriginal,
+        'work_order_id' => $workOrder->id,
+        'document_id' => $document->id,
+      ];
+    }
+
+    // Si NO tiene orden de trabajo, usar datos del documento y la sede de la serie
+    return [
+      'taller' => $document->seriesModel?->sede?->abreviatura ?? '',
+      'numero_ot' => '',
+      'placa_vehiculo' => $document->placa_vehiculo ?? '',
+      'fecha_apertura_ot' => '',
+      'estado' => 'SIN OT',
+      'asesor_servicio' => '',
+      'tipo_servicio' => '',
+      'marca' => '',
+      'modelo_vehiculo' => '',
+      'trabajo_realizado' => '',
+      'operario' => '',
+      'serie_comprobante' => $document->serie ?? '',
+      'numero_comprobante' => $document->numero ?? '',
+      'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
+      'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
+      'cliente' => $document->cliente_denominacion ?? '',
+      'total_mano_obra' => '0.00',
+      'total_repuestos' => '0.00',
+      'descuento_porcentaje' => '0.00',
+      'descuento_monto' => '0.00',
+      'monto_sin_igv' => number_format($montoSinIgv, 2, '.', ''),
+      'igv' => number_format($igv, 2, '.', ''),
+      'total' => number_format($total, 2, '.', ''),
+      'moneda' => 'PEN',
+      'moneda_original' => $monedaOriginal,
+      'work_order_id' => null,
       'document_id' => $document->id,
     ];
   }
@@ -396,9 +546,10 @@ class InvoicingReportService
    *
    * @param $query
    * @param array $filters
+   * @param bool $isInternalNoteQuery Si true, filtra por fechas de documentos en notas internas
    * @return void
    */
-  private function applyWorkOrderFilters($query, array $filters): void
+  private function applyWorkOrderFilters($query, array $filters, bool $isInternalNoteQuery = false): void
   {
     foreach ($filters as $filter) {
       $column = $filter['column'] ?? null;
@@ -413,9 +564,17 @@ class InvoicingReportService
         case 'documentDateFilter':
           // Filtro de fecha de emisión en documentos relacionados
           if (is_array($value) && count($value) === 2) {
-            $query->whereHas('advancesWorkOrder', function ($q) use ($value) {
-              $q->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
-            });
+            if ($isInternalNoteQuery) {
+              // Para notas internas: filtrar por fecha del documento en la nota interna
+              $query->whereHas('internalNotes.electronicDocuments', function ($q) use ($value) {
+                $q->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
+              });
+            } else {
+              // Para anticipos: filtrar por fecha del documento en advancesWorkOrder
+              $query->whereHas('advancesWorkOrder', function ($q) use ($value) {
+                $q->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
+              });
+            }
           }
           break;
         case '=':
