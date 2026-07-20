@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\Reports;
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
@@ -106,8 +107,8 @@ class InvoicingReportService
         $q->whereHas('typePlanning', function ($subQ) {
           $subQ->where('type_document', 'INTERNA')
             ->whereNotIn('id', [
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+              TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
             ]);
         });
       })
@@ -227,13 +228,31 @@ class InvoicingReportService
     // Moneda original del comprobante
     $monedaOriginal = $isUSD ? 'USD' : 'PEN';
 
+    // Verificar si la OT tiene tipo DERCO_WARRANTY u ODEBRECHT_MAINTENANCE
+    $hasInternalNoteWithMassiveInvoice = $workOrder->items->contains(function ($item) {
+      return in_array($item->type_planning_id, [
+        TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+        TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+      ]);
+    });
+
     // Convertir montos a soles
     $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
     $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
     $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
-    $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
-    $igv = ($document->total_igv ?? 0) * $exchangeRate;
-    $total = ($document->total ?? 0) * $exchangeRate;
+
+    // Si tiene nota interna con factura masiva (DERCO_WARRANTY u ODEBRECHT_MAINTENANCE),
+    // usar los montos de la OT en lugar de los montos del documento
+    if ($hasInternalNoteWithMassiveInvoice) {
+      $total = ($workOrder->final_amount ?? 0) * $exchangeRate;
+      $igv = ($workOrder->tax_amount ?? 0) * $exchangeRate;
+      $montoSinIgv = $total - $igv;
+    } else {
+      // Para otros casos, usar los montos del documento electrónico
+      $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
+      $igv = ($document->total_igv ?? 0) * $exchangeRate;
+      $total = ($document->total ?? 0) * $exchangeRate;
+    }
 
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
