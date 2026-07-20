@@ -1162,7 +1162,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       $resetActions[] = "Log reseteado a pending: {$log->step}";
     }
 
-    VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+    VerifyAndMigrateShippingGuideJob::dispatch($guide->id, VerifyAndMigrateShippingGuideJob::queueFor($guide));
 
     return [
       'message' => "Job de migración despachado para la guía {$guide->document_number}",
@@ -1184,7 +1184,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $logs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->get();
         $reason = $this->buildDispatchAllReason($logs);
 
-        VerifyAndMigrateShippingGuideJob::dispatch($guide->id);
+        VerifyAndMigrateShippingGuideJob::dispatch($guide->id, VerifyAndMigrateShippingGuideJob::queueFor($guide));
 
         $dispatched[] = [
           'id'               => $guide->id,

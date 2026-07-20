@@ -38,19 +38,38 @@ use Illuminate\Support\Facades\Log;
  *   - Con un $shippingGuideId específico → procesa solo esa guía.
  *   - Sin ID                             → procesa todas las guías pendientes.
  *
- * COLA: shipping_guides | tries: 2 | timeout: 300 s | backoff: 120 s
+ * COLA: shipping_guides (transferencias) | shipping_guides_sale (ventas) | tries: 2 | timeout: 300 s | backoff: 120 s
  */
 class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
 
+  const QUEUE_DEFAULT            = 'shipping_guides';
+  const QUEUE_COMERCIAL_VENTA    = 'shipping_guides_comercial_venta';
+  const QUEUE_COMERCIAL_TRASLADO = 'shipping_guides_comercial_traslado';
+  const QUEUE_COMERCIAL_COMPRA   = 'shipping_guides_comercial_compra';
+
   public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
   public int $backoff = 120; // Aumentado a 120 segundos para dar más tiempo entre reintentos
 
-  public function __construct(public ?int $shippingGuideId = null)
+  public function __construct(
+    public ?int $shippingGuideId = null,
+    string $queue = self::QUEUE_DEFAULT
+  ) {
+    $this->onQueue($queue);
+  }
+
+  public static function queueFor(?ShippingGuides $guide): string
   {
-    $this->onQueue('shipping_guides');
+    if (!$guide) return self::QUEUE_DEFAULT;
+
+    return match ($guide->transfer_reason_id) {
+      SunatConcepts::TRANSFER_REASON_VENTA         => self::QUEUE_COMERCIAL_VENTA,
+      SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE => self::QUEUE_COMERCIAL_TRASLADO,
+      SunatConcepts::TRANSFER_REASON_COMPRA        => self::QUEUE_COMERCIAL_COMPRA,
+      default                                      => self::QUEUE_DEFAULT,
+    };
   }
 
   /**
