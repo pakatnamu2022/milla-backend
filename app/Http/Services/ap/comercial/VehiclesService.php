@@ -281,7 +281,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $vehicle;
   }
 
-  public function store(mixed $data): JsonResource
+  public function store(mixed $data, bool $skipMovement = false): JsonResource
   {
     DB::beginTransaction();
     try {
@@ -292,7 +292,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $vehicle = Vehicles::create($data);
 
       // Si es tipo de operación comercial, crear movimiento en consignación
-      if (($data['type_operation_id'] ?? null) == ApMasters::TIPO_OPERACION_COMERCIAL) {
+      // (omitir cuando el caller ya gestiona la creación del movimiento, ej. OC con vehículo)
+      if (!$skipMovement && ($data['type_operation_id'] ?? null) == ApMasters::TIPO_OPERACION_COMERCIAL) {
         $movementService = new VehicleMovementService();
         $movementService->storeConsignmentVehicleMovement($vehicle->id);
       }
