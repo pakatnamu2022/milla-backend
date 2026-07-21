@@ -93,6 +93,7 @@ class ApWorkOrder extends Model
     'estimated_delivery_date' => 'datetime',
     'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
+    'official_closing_date' => 'datetime',
     'is_delivery' => 'boolean',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',
@@ -1723,5 +1724,40 @@ class ApWorkOrder extends Model
       'freezePane' => 'A2',
       'autoFilter' => true,
     ];
+  }
+
+  /**
+   * Actualiza la fecha de cierre oficial de la OT según el tipo de documento
+   *
+   * @param \DateTime|string|null $date Fecha de cierre oficial (si es null, usa now())
+   * @return bool True si se actualizó, false si no se debe actualizar según el tipo de documento
+   */
+  public function updateOfficialClosingDate(\DateTime|string|null $date = null): bool
+  {
+    // Obtener el tipo de documento del primer item
+    $typeDocument = $this->items->first()?->typePlanning->type_document;
+
+    // Solo actualizar si:
+    // 1. Es INTERNA_SC (sin comprobante) - se cierra al generar la nota interna
+    // 2. Es INTERNA_CC (con comprobante) - se cierra al emitir el comprobante
+    // 3. Es PAYMENT_RECEIPTS - se cierra al emitir el comprobante final
+    if (!in_array($typeDocument, [
+      TypePlanningWorkOrder::INTERNA_SC,
+      TypePlanningWorkOrder::INTERNA_CC,
+      TypePlanningWorkOrder::PAYMENT_RECEIPTS
+    ])) {
+      return false;
+    }
+
+    // Si ya tiene fecha de cierre oficial, no sobrescribirla
+    if ($this->official_closing_date !== null) {
+      return false;
+    }
+
+    // Establecer la fecha de cierre oficial
+    $this->official_closing_date = $date ?? now();
+    $this->save();
+
+    return true;
   }
 }

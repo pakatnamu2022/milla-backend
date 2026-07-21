@@ -241,24 +241,24 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
       }
 
-      $inventoryMovementService = app(InventoryMovementService::class);
-
-      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-        $stock->product->dyn_code,
-        $stock->warehouse->dyn_code,
-      );
-
-      // El SP retorna ArticuloStock como string, convertir a float para comparar
-      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-        ? (float)trim($externalStock['ArticuloStock'])
-        : 0;
-
-      if ($availableQuantityExternal < $data['quantity_used']) {
-        throw new Exception(
-          "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
-        );
-      }
+//      $inventoryMovementService = app(InventoryMovementService::class);
+//
+//      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+//        $stock->product->dyn_code,
+//        $stock->warehouse->dyn_code,
+//      );
+//
+//      // El SP retorna ArticuloStock como string, convertir a float para comparar
+//      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+//        ? (float)trim($externalStock['ArticuloStock'])
+//        : 0;
+//
+//      if ($availableQuantityExternal < $data['quantity_used']) {
+//        throw new Exception(
+//          "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
+//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+//        );
+//      }
 
       if ($stock->available_quantity < $data['quantity_used']) {
         $product = Products::find($data['product_id']);
@@ -355,24 +355,24 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           throw new Exception('No se encontró registro de stock para el nuevo producto/almacén');
         }
 
-        $inventoryMovementService = app(InventoryMovementService::class);
-
-        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-          $newStock->product->dyn_code,
-          $newStock->warehouse->dyn_code,
-        );
-
-        // El SP retorna ArticuloStock como string, convertir a float para comparar
-        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-          ? (float)trim($externalStock['ArticuloStock'])
-          : 0;
-
-        if ($availableQuantityExternal < $data['quantity_used']) {
-          throw new Exception(
-            "Stock insuficiente en sistema dynamics para el repuesto: {$newStock->product->description}. " .
-              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
-          );
-        }
+//        $inventoryMovementService = app(InventoryMovementService::class);
+//
+//        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+//          $newStock->product->dyn_code,
+//          $newStock->warehouse->dyn_code,
+//        );
+//
+//        // El SP retorna ArticuloStock como string, convertir a float para comparar
+//        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+//          ? (float)trim($externalStock['ArticuloStock'])
+//          : 0;
+//
+//        if ($availableQuantityExternal < $data['quantity_used']) {
+//          throw new Exception(
+//            "Stock insuficiente en sistema dynamics para el repuesto: {$newStock->product->description}. " .
+//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+//          );
+//        }
 
         if ($newStock->available_quantity < $newQuantity) {
           $product = Products::find($newProductId);
@@ -610,22 +610,22 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
         }
 
-        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-          $stock->product->dyn_code,
-          $stock->warehouse->dyn_code
-        );
-
-        // El SP retorna ArticuloStock como string, convertir a float para comparar
-        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-          ? (float)trim($externalStock['ArticuloStock'])
-          : 0;
-
-        if ($availableQuantityExternal < $detail->quantity) {
-          throw new Exception(
-            "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
-              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
-          );
-        }
+//        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+//          $stock->product->dyn_code,
+//          $stock->warehouse->dyn_code
+//        );
+//
+//        // El SP retorna ArticuloStock como string, convertir a float para comparar
+//        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+//          ? (float)trim($externalStock['ArticuloStock'])
+//          : 0;
+//
+//        if ($availableQuantityExternal < $detail->quantity) {
+//          throw new Exception(
+//            "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+//          );
+//        }
 
         if ($stock->available_quantity < $detail->quantity) {
           $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
@@ -684,7 +684,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       if ($newTotalAssigned > $workOrderPart->quantity_used) {
         throw new Exception(
           "La cantidad a asignar excede la cantidad disponible. Disponible: " . ($workOrderPart->quantity_used - $totalAssigned) .
-            ", Solicitado: {$deliveredQuantity}"
+          ", Solicitado: {$deliveredQuantity}"
         );
       }
 
