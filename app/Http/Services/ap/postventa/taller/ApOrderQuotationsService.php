@@ -314,22 +314,22 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           }
 
           // Validar stock en sistema externo
-//          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-//            $stock->product->dyn_code,
-//            $stock->warehouse->dyn_code
-//          );
-//
-//          // El SP retorna ArticuloStock como string, convertir a float para comparar
-//          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-//            ? (float)trim($externalStock['ArticuloStock'])
-//            : 0;
-//
-//          if ($availableQuantityExternal < $quantity) {
-//            throw new Exception(
-//              "Producto ({$detail['description']}): Stock insuficiente en sistema Dynamics. " .
-//              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$quantity}"
-//            );
-//          }
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $stock->product->dyn_code,
+            $stock->warehouse->dyn_code
+          );
+
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $quantity) {
+            throw new Exception(
+              "Producto ({$detail['description']}): Stock insuficiente en sistema Dynamics. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$quantity}"
+            );
+          }
         }
       }
 

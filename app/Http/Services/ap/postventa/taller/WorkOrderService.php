@@ -1070,11 +1070,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
       ]);
 
-      // Actualizar fecha de cierre oficial según el tipo de documento
-      // Si es INTERNA_SC (Sin Comprobante), se establece la fecha ahora
-      // Si es INTERNA_CC (Con Comprobante), la fecha se establecerá cuando se emita el comprobante
-      $workOrder->updateOfficialClosingDate();
-
       // Generar ajuste de salida de inventario si la OT tiene repuestos
       $this->processInventoryAdjustmentForInternalNote($workOrder, $internalNote);
 
