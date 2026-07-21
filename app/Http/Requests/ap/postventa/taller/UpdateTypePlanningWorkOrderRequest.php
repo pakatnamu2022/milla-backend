@@ -23,7 +23,7 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
       'notes' => 'nullable|string|max:255',
       'validate_receipt' => 'sometimes|boolean',
       'validate_labor' => 'sometimes|boolean',
-      'type_document' => 'sometimes|string|in:' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
+      'type_document' => 'sometimes|string|in:' . TypePlanningWorkOrder::INTERNA_SC . ',' . TypePlanningWorkOrder::INTERNA_CC . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
       'status' => 'sometimes|boolean',
     ];
   }
@@ -43,7 +43,7 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
       'validate_labor.boolean' => 'El campo validar mano de obra debe ser un valor booleano.',
       'type_document.required' => 'El campo tipo documento es obligatorio.',
       'type_document.string' => 'El tipo documento debe ser una cadena de texto.',
-      'type_document.in' => 'El tipo documento seleccionado no es válido. Los valores permitidos son: INTERNA, PAYMENT_RECEIPTS.',
+      'type_document.in' => 'El tipo documento seleccionado no es válido. Los valores permitidos son: INTERNA_SC, INTERNA_CC, PAYMENT_RECEIPTS.',
     ];
   }
 }

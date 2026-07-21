@@ -34,7 +34,8 @@ class TypePlanningWorkOrder extends Model
   const int TYPE_PLANNING_RECALL_ID = 4;
 
   // TYPES DOCUMENT
-  const string INTERNA = 'INTERNA';
+  const string INTERNA_SC = 'INTERNA_SC';
+  const string INTERNA_CC = 'INTERNA_CC';
   const string PAYMENT_RECEIPTS = 'PAYMENT_RECEIPTS';
 
   const filters = [
