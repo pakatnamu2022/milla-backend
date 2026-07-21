@@ -427,19 +427,19 @@ class InventoryMovementService extends BaseService
           }
 
           // Validar stock en sistema dynamics
-          $externalStock = $this->validateStockInExternalSystem($product->dyn_code, $warehouseOrigin->dyn_code);
-
-          // El SP retorna ArticuloStock como string, convertir a float para comparar
-          $availableQuantity = isset($externalStock['ArticuloStock'])
-            ? (float)trim($externalStock['ArticuloStock'])
-            : 0;
-
-          if ($availableQuantity < $detail['quantity']) {
-            throw new Exception(
-              "Stock insuficiente en sistema dynamics para producto '{$product->name}'. " .
-              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail['quantity']}"
-            );
-          }
+//          $externalStock = $this->validateStockInExternalSystem($product->dyn_code, $warehouseOrigin->dyn_code);
+//
+//          // El SP retorna ArticuloStock como string, convertir a float para comparar
+//          $availableQuantity = isset($externalStock['ArticuloStock'])
+//            ? (float)trim($externalStock['ArticuloStock'])
+//            : 0;
+//
+//          if ($availableQuantity < $detail['quantity']) {
+//            throw new Exception(
+//              "Stock insuficiente en sistema dynamics para producto '{$product->name}'. " .
+//              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail['quantity']}"
+//            );
+//          }
         }
 
         // Validate stock availability in origin warehouse (centralized)
@@ -879,22 +879,22 @@ class InventoryMovementService extends BaseService
 
       if ($movement->item_type === "PRODUCTO") {
         // Validamos stock en almacén destino (Dynamics)
-        foreach ($movement->details as $detail) {
-          // Validar stock en sistema dynamics
-          $externalStock = $this->validateStockInExternalSystem($detail->product->dyn_code, $movement->warehouseDestination->dyn_code);
-
-          // El SP retorna ArticuloStock como string, convertir a float para comparar
-          $availableQuantity = isset($externalStock['ArticuloStock'])
-            ? (float)trim($externalStock['ArticuloStock'])
-            : 0;
-
-          if ($availableQuantity < $detail->quantity) {
-            throw new Exception(
-              "Stock insuficiente en sistema dynamics para producto '{$detail->product->name}'. " .
-              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail->quantity}"
-            );
-          }
-        }
+//        foreach ($movement->details as $detail) {
+//          // Validar stock en sistema dynamics
+//          $externalStock = $this->validateStockInExternalSystem($detail->product->dyn_code, $movement->warehouseDestination->dyn_code);
+//
+//          // El SP retorna ArticuloStock como string, convertir a float para comparar
+//          $availableQuantity = isset($externalStock['ArticuloStock'])
+//            ? (float)trim($externalStock['ArticuloStock'])
+//            : 0;
+//
+//          if ($availableQuantity < $detail->quantity) {
+//            throw new Exception(
+//              "Stock insuficiente en sistema dynamics para producto '{$detail->product->name}'. " .
+//              "Stock disponible en sistema dynamics: {$availableQuantity}, Cantidad solicitada: {$detail->quantity}"
+//            );
+//          }
+//        }
 
         // Validamos stock en almacén destino (sian)
         foreach ($movement->details as $detail) {

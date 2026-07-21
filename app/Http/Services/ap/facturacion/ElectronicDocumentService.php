@@ -2680,31 +2680,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
-      if ($detail->product && $detail->product->dyn_code && $warehouse->dyn_code) {
-        try {
-          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-            $detail->product->dyn_code,
-            $warehouse->dyn_code
-          );
-
-          // El SP retorna ArticuloStock como string, convertir a float para comparar
-          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-            ? (float)trim($externalStock['ArticuloStock'])
-            : 0;
-
-          if ($availableQuantityExternal < $detail->quantity) {
-            throw new Exception(
-              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
-              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
-            );
-          }
-        } catch (Exception $e) {
-          // Si falla la validación en sistema externo, propagar la excepción
-          throw new Exception(
-            "Error al validar stock externo para el producto '{$detail->product->description}': " . $e->getMessage()
-          );
-        }
-      }
+//      if ($detail->product && $detail->product->dyn_code && $warehouse->dyn_code) {
+//        try {
+//          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+//            $detail->product->dyn_code,
+//            $warehouse->dyn_code
+//          );
+//
+//          // El SP retorna ArticuloStock como string, convertir a float para comparar
+//          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+//            ? (float)trim($externalStock['ArticuloStock'])
+//            : 0;
+//
+//          if ($availableQuantityExternal < $detail->quantity) {
+//            throw new Exception(
+//              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+//              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+//            );
+//          }
+//        } catch (Exception $e) {
+//          // Si falla la validación en sistema externo, propagar la excepción
+//          throw new Exception(
+//            "Error al validar stock externo para el producto '{$detail->product->description}': " . $e->getMessage()
+//          );
+//        }
+//      }
     }
   }
 
@@ -2779,31 +2779,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
-      if ($part->product && $part->product->dyn_code && $warehouse->dyn_code) {
-        try {
-          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-            $part->product->dyn_code,
-            $warehouse->dyn_code
-          );
-
-          // El SP retorna ArticuloStock como string, convertir a float para comparar
-          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-            ? (float)trim($externalStock['ArticuloStock'])
-            : 0;
-
-          if ($availableQuantityExternal < $part->quantity_used) {
-            throw new Exception(
-              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
-              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
-            );
-          }
-        } catch (Exception $e) {
-          // Si falla la validación en sistema externo, propagar la excepción
-          throw new Exception(
-            "Error al validar stock externo para el repuesto '{$part->product->description}': " . $e->getMessage()
-          );
-        }
-      }
+//      if ($part->product && $part->product->dyn_code && $warehouse->dyn_code) {
+//        try {
+//          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+//            $part->product->dyn_code,
+//            $warehouse->dyn_code
+//          );
+//
+//          // El SP retorna ArticuloStock como string, convertir a float para comparar
+//          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+//            ? (float)trim($externalStock['ArticuloStock'])
+//            : 0;
+//
+//          if ($availableQuantityExternal < $part->quantity_used) {
+//            throw new Exception(
+//              "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description}. " .
+//              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
+//            );
+//          }
+//        } catch (Exception $e) {
+//          // Si falla la validación en sistema externo, propagar la excepción
+//          throw new Exception(
+//            "Error al validar stock externo para el repuesto '{$part->product->description}': " . $e->getMessage()
+//          );
+//        }
+//      }
     }
   }
 
