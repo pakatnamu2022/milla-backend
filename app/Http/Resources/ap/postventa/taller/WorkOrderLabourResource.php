@@ -20,6 +20,7 @@ class WorkOrderLabourResource extends JsonResource
       'total_cost' => (float)$this->total_cost,
       'net_amount' => (float)$this->net_amount,
       'tax_amount' => (float)$this->tax_amount,
+      'is_deductible' => (bool)$this->is_deductible,
       'worker_id' => $this->worker_id,
       'worker_full_name' => $this->worker ? $this->worker->nombre_completo : null,
       'work_order_id' => $this->work_order_id,

@@ -171,6 +171,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
 
+    if ($workOrderLabour->is_deductible) {
+      throw new Exception('No se puede eliminar el deductible desde este apartado. Por favor, elimínelo desde el apartado de deducibles.');
+    }
+
     $workOrder->ensureCanBeModified();
 
     // Validar si existe una solicitud de descuento activa

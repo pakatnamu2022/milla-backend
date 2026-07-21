@@ -2214,7 +2214,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'hourly_rate' => $electronicDocument->total_gravada,
         'discount_percentage' => 0,
         'total_cost' => -$electronicDocument->total_gravada,
-        'net_amount' => -$electronicDocument->total,
+        'net_amount' => -$electronicDocument->total_gravada,
         'tax_amount' => -$electronicDocument->total_igv,
         'work_order_id' => $data['work_order_id'],
         'is_deductible' => true,
