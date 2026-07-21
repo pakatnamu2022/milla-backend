@@ -44,10 +44,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 {
   use Queueable;
 
-  const QUEUE_DEFAULT            = 'shipping_guides';
-  const QUEUE_COMERCIAL_VENTA    = 'shipping_guides_comercial_venta';
+  const QUEUE_DEFAULT = 'shipping_guides';
+  const QUEUE_COMERCIAL_VENTA = 'shipping_guides_comercial_venta';
   const QUEUE_COMERCIAL_TRASLADO = 'shipping_guides_comercial_traslado';
-  const QUEUE_COMERCIAL_COMPRA   = 'shipping_guides_comercial_compra';
+  const QUEUE_COMERCIAL_COMPRA = 'shipping_guides_comercial_compra';
 
   public int $tries = 2; // Reducido de 5 → 2 para evitar crecimiento exponencial de jobs
   public int $timeout = 300;
@@ -55,8 +55,9 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
   public function __construct(
     public ?int $shippingGuideId = null,
-    string $queue = self::QUEUE_DEFAULT
-  ) {
+    string      $queue = self::QUEUE_DEFAULT
+  )
+  {
     $this->onQueue($queue);
   }
 
@@ -65,10 +66,10 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
     if (!$guide) return self::QUEUE_DEFAULT;
 
     return match ($guide->transfer_reason_id) {
-      SunatConcepts::TRANSFER_REASON_VENTA         => self::QUEUE_COMERCIAL_VENTA,
+      SunatConcepts::TRANSFER_REASON_VENTA => self::QUEUE_COMERCIAL_VENTA,
       SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE => self::QUEUE_COMERCIAL_TRASLADO,
-      SunatConcepts::TRANSFER_REASON_COMPRA        => self::QUEUE_COMERCIAL_COMPRA,
-      default                                      => self::QUEUE_DEFAULT,
+      SunatConcepts::TRANSFER_REASON_COMPRA => self::QUEUE_COMERCIAL_COMPRA,
+      default => self::QUEUE_DEFAULT,
     };
   }
 
@@ -118,6 +119,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
     ])
       ->where('send_dynamics', true)
+      ->where('is_annulled', false)
       ->where(function ($q) {
         $q->where('aceptada_por_sunat', true)
           ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA);
@@ -164,6 +166,13 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
+    if ($shippingGuide->is_annulled) {
+      Log::error('Guía de remisión anulada, no se puede procesar', [
+        'shipping_guide_id' => $shippingGuide->id,
+      ]);
+      return;
+    }
+
     if ($shippingGuide->area_id !== ApMasters::AREA_COMERCIAL) {
       Log::warning('Guía de remisión no es del área COMERCIAL, se omite la migración', [
         'shipping_guide_id' => $shippingGuide->id,
@@ -175,8 +184,8 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     if (!$shippingGuide->send_dynamics) {
       Log::info('Guía de remisión con send_dynamics=false, se omite la migración a Dynamics', [
-        'shipping_guide_id'   => $shippingGuide->id,
-        'transfer_reason_id'  => $shippingGuide->transfer_reason_id,
+        'shipping_guide_id'  => $shippingGuide->id,
+        'transfer_reason_id' => $shippingGuide->transfer_reason_id,
       ]);
       return;
     }
@@ -195,7 +204,7 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       && !$shippingGuide->is_received
     ) {
       Log::info('Guía de compra aún no recepcionada, se omite la migración', [
-        'shipping_guide_id' => $shippingGuide->id,
+        'shipping_guide_id'  => $shippingGuide->id,
         'transfer_reason_id' => $shippingGuide->transfer_reason_id,
         'is_received'        => $shippingGuide->is_received,
       ]);

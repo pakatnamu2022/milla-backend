@@ -213,6 +213,22 @@ return [
       'timeout'             => 90,
       'nice'                => 0,
     ],
+    'supervisor-check-electronic-documents'  => [
+      'connection'          => 'redis',
+      'queue'               => ['check_electronic_documents'],
+      'balance'             => 'auto',
+      'autoScalingStrategy' => 'time',
+      'minProcesses'        => 2,
+      'maxProcesses'        => 4,
+      'balanceMaxShift'     => 1,
+      'balanceCooldown'     => 3,
+      'maxTime'             => 0,
+      'maxJobs'             => 0,
+      'memory'              => 128,
+      'tries'               => 2,
+      'timeout'             => 60,
+      'nice'                => 0,
+    ],
     'supervisor-purchase-orders'             => [
       'connection'          => 'redis',
       'queue'               => ['purchase_orders'],
@@ -612,6 +628,7 @@ return [
   'environments' => [
     'production' => [
       'supervisor-electronic-documents'        => ['minProcesses' => 4, 'maxProcesses' => 6],
+      'supervisor-check-electronic-documents'  => ['minProcesses' => 2, 'maxProcesses' => 4],
       'supervisor-purchase-orders'             => ['minProcesses' => 2, 'maxProcesses' => 4],
       // migrate (VerifyAndMigrateShippingGuideJob)
       'supervisor-sg-migrate-venta'            => ['minProcesses' => 2, 'maxProcesses' => 6],
@@ -641,6 +658,7 @@ return [
 
     'local' => [
       'supervisor-electronic-documents'        => ['minProcesses' => 1, 'maxProcesses' => 2],
+      'supervisor-check-electronic-documents'  => ['minProcesses' => 1, 'maxProcesses' => 2],
       'supervisor-purchase-orders'             => ['minProcesses' => 1, 'maxProcesses' => 1],
       // migrate (VerifyAndMigrateShippingGuideJob)
       'supervisor-sg-migrate-venta'            => ['minProcesses' => 1, 'maxProcesses' => 2],
