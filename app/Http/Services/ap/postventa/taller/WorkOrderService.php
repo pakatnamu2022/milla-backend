@@ -1047,7 +1047,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
-      if ($validateDocument !== TypePlanningWorkOrder::INTERNA) {
+      if (!in_array($validateDocument, [TypePlanningWorkOrder::INTERNA_SC, TypePlanningWorkOrder::INTERNA_CC], true)) {
         throw new Exception('Solo se pueden generar notas internas para órdenes de trabajo con planificación de tipo "INTERNA"');
       }
 

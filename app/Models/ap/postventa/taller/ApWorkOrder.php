@@ -56,6 +56,7 @@ class ApWorkOrder extends Model
     'estimated_delivery_date',
     'estimated_delivery_time',
     'actual_delivery_date',
+    'official_closing_date',
     'is_delivery',
     'delivery_by',
     'diagnosis_date',

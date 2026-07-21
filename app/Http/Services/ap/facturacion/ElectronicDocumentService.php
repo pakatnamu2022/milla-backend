@@ -3731,15 +3731,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['serie'] = AssignSalesSeries::find($data['serie'])->series;
 
       // 4. Calculate totals from work orders
-      $subtotal = 0;
-      $taxAmount = 0;
+      // Si llegan los valores desde el frontend, usarlos; si no, calcularlos
+      $subtotal = isset($data['total_gravada']) ? (float)$data['total_gravada'] : 0;
+      $taxAmount = isset($data['total_igv']) ? (float)$data['total_igv'] : 0;
       $total = 0;
       $workOrdersData = [];
 
+      $shouldCalculateSubtotal = !isset($data['total_gravada']);
+      $shouldCalculateTaxAmount = !isset($data['total_igv']);
+
       foreach ($internalNotes as $note) {
         $workOrder = $note->workOrder;
-        $subtotal += (float)$workOrder->subtotal;
-        $taxAmount += (float)$workOrder->tax_amount;
+        if ($shouldCalculateSubtotal) {
+          $subtotal += (float)$workOrder->subtotal;
+        }
+        if ($shouldCalculateTaxAmount) {
+          $taxAmount += (float)$workOrder->tax_amount;
+        }
         $total += (float)$workOrder->final_amount;
 
         $workOrdersData[] = [
