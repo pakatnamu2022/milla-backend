@@ -3690,6 +3690,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     $workOrder->update(['has_invoice_generated' => true]);
+
+    // Actualizar fecha de cierre oficial SOLO si es factura final (no anticipo)
+    // Los anticipos (is_advance_payment = 1) no cierran la OT
+    // Solo la factura final (is_advance_payment = 0) cierra la OT
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    }
   }
 
   public function createConsolidatedInvoice(array $data): array
@@ -3969,6 +3976,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 16. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
+      }
+
+      // 17. Actualizar fecha de cierre oficial de las OT con la fecha de emisión del comprobante
+      foreach ($internalNotes as $note) {
+        $note->workOrder->updateOfficialClosingDate($emissionDate);
       }
 
       DB::commit();
