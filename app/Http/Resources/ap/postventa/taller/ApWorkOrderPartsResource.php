@@ -28,6 +28,7 @@ class ApWorkOrderPartsResource extends JsonResource
       'tax_amount' => (float)$this->tax_amount,
       'registered_by' => $this->registered_by,
       'is_delivered' => (bool)$this->is_delivered,
+      'is_traverse' => (bool)$this->is_traverse,
       'registered_by_name' => $this->registeredBy ? $this->registeredBy->name : null,
       'part_fully_delivered' => $this->deliveries->sum('delivered_quantity') >= $this->quantity_used,
     ];

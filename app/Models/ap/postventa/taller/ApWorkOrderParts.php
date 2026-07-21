@@ -29,6 +29,7 @@ class ApWorkOrderParts extends Model
     'net_amount',
     'tax_amount',
     'registered_by',
+    'is_traverse',
   ];
 
   protected $casts = [
@@ -39,6 +40,7 @@ class ApWorkOrderParts extends Model
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
+    'is_traverse' => 'boolean',
   ];
 
   const filters = [

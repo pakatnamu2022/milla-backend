@@ -60,6 +60,10 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
         'numeric',
         'min:0',
       ],
+      'is_traverse' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
@@ -101,6 +105,8 @@ class StoreApWorkOrderPartsRequest extends StoreRequest
 
       'net_amount.numeric' => 'El monto neto debe ser un número.',
       'net_amount.min' => 'El monto neto no puede ser negativo.',
+
+      'is_traverse.boolean' => 'El campo es travesía debe ser verdadero o falso.',
     ];
   }
 }

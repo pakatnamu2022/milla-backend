@@ -226,20 +226,27 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       // Calcular precios y totales automáticamente
       $this->calculatePricesAndTotals($data);
 
-      // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados)
-      $this->validateSalePrice($data, $workOrder);
+      // Determinar si es travesía
+      $isTraverse = $data['is_traverse'] ?? false;
 
-      // Validar que exista stock disponible para reservar
-      // lockForUpdate: evita que dos altas concurrentes del mismo producto/almacén
-      // lean el mismo available_quantity antes de guardar y sobre-reserven.
-      $stock = ProductWarehouseStock::where('product_id', $data['product_id'])
-        ->where('warehouse_id', $data['warehouse_id'])
-        ->lockForUpdate()
-        ->first();
-
-      if (!$stock) {
-        throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
+      // Validar precio de venta solo si NO es travesía
+      if (!$isTraverse) {
+        $this->validateSalePrice($data, $workOrder);
       }
+
+      // Validar y reservar stock solo si NO es travesía
+      if (!$isTraverse) {
+        // Validar que exista stock disponible para reservar
+        // lockForUpdate: evita que dos altas concurrentes del mismo producto/almacén
+        // lean el mismo available_quantity antes de guardar y sobre-reserven.
+        $stock = ProductWarehouseStock::where('product_id', $data['product_id'])
+          ->where('warehouse_id', $data['warehouse_id'])
+          ->lockForUpdate()
+          ->first();
+
+        if (!$stock) {
+          throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
+        }
 
 //      $inventoryMovementService = app(InventoryMovementService::class);
 //
@@ -260,21 +267,24 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 //        );
 //      }
 
-      if ($stock->available_quantity < $data['quantity_used']) {
-        $product = Products::find($data['product_id']);
-        $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$data['product_id']}";
-        throw new Exception(
-          "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$data['quantity_used']}"
-        );
+        if ($stock->available_quantity < $data['quantity_used']) {
+          $product = Products::find($data['product_id']);
+          $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$data['product_id']}";
+          throw new Exception(
+            "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$data['quantity_used']}"
+          );
+        }
       }
 
       // Create work order part
       $workOrderPart = ApWorkOrderParts::create($data);
 
-      // Reservar el stock
-      $reserveSuccess = $stock->reserveStock($data['quantity_used']);
-      if (!$reserveSuccess) {
-        throw new Exception('No se pudo reservar el stock. Stock insuficiente.');
+      // Reservar el stock solo si NO es travesía
+      if (!$isTraverse) {
+        $reserveSuccess = $stock->reserveStock($data['quantity_used']);
+        if (!$reserveSuccess) {
+          throw new Exception('No se pudo reservar el stock. Stock insuficiente.');
+        }
       }
 
       app(WorkOrderService::class)->performWorkOrderRecalculation($workOrder);
@@ -303,6 +313,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $oldProductId = $workOrderPart->product_id;
       $oldWarehouseId = $workOrderPart->warehouse_id;
       $oldQuantity = $workOrderPart->quantity_used;
+      $oldIsTraverse = $workOrderPart->is_traverse;
 
       // Si se cambió el producto, validar que no esté duplicado
       if (isset($data['product_id']) && $data['product_id'] != $oldProductId) {
@@ -320,6 +331,7 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $newProductId = $data['product_id'] ?? $oldProductId;
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
       $newQuantity = $data['quantity_used'] ?? $oldQuantity;
+      $newIsTraverse = $data['is_traverse'] ?? $oldIsTraverse;
 
       // Validar decimales si cambió la cantidad o el producto
       if (isset($data['quantity_used']) || isset($data['product_id'])) {
@@ -327,33 +339,39 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $product->validateDecimals($newQuantity);
       }
 
-      // Si cambió el producto, almacén o cantidad, ajustar el stock
-      if ($newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity) {
+      // Manejar cambios de stock según is_traverse
+      $needsStockAdjustment = $newProductId != $oldProductId || $newWarehouseId != $oldWarehouseId || $newQuantity != $oldQuantity || $newIsTraverse != $oldIsTraverse;
+
+      if ($needsStockAdjustment) {
         $sameStockRow = $newProductId == $oldProductId && $newWarehouseId == $oldWarehouseId;
+        $oldStock = null;
+        $newStock = null;
 
-        // lockForUpdate: evita que una edición concurrente del mismo producto/almacén
-        // lea un available_quantity obsoleto entre liberar lo viejo y reservar lo nuevo.
-        $oldStock = ProductWarehouseStock::where('product_id', $oldProductId)
-          ->where('warehouse_id', $oldWarehouseId)
-          ->lockForUpdate()
-          ->first();
-
-        if ($oldStock) {
-          $oldStock->releaseReservedStock($oldQuantity);
-        }
-
-        // Si es la misma fila (solo cambió la cantidad), reusar el objeto ya bloqueado
-        // y refrescado en vez de re-consultarlo.
-        $newStock = $sameStockRow
-          ? $oldStock
-          : ProductWarehouseStock::where('product_id', $newProductId)
-            ->where('warehouse_id', $newWarehouseId)
+        // Liberar stock antiguo solo si el original NO era travesía
+        if (!$oldIsTraverse) {
+          $oldStock = ProductWarehouseStock::where('product_id', $oldProductId)
+            ->where('warehouse_id', $oldWarehouseId)
             ->lockForUpdate()
             ->first();
 
-        if (!$newStock) {
-          throw new Exception('No se encontró registro de stock para el nuevo producto/almacén');
+          if ($oldStock) {
+            $oldStock->releaseReservedStock($oldQuantity);
+          }
         }
+
+        // Reservar nuevo stock solo si el nuevo NO es travesía
+        if (!$newIsTraverse) {
+          // Si es la misma fila y ya la bloqueamos, reutilizarla
+          $newStock = ($sameStockRow && $oldStock)
+            ? $oldStock
+            : ProductWarehouseStock::where('product_id', $newProductId)
+              ->where('warehouse_id', $newWarehouseId)
+              ->lockForUpdate()
+              ->first();
+
+          if (!$newStock) {
+            throw new Exception('No se encontró registro de stock para el nuevo producto/almacén');
+          }
 
 //        $inventoryMovementService = app(InventoryMovementService::class);
 //
@@ -367,28 +385,29 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 //          ? (float)trim($externalStock['ArticuloStock'])
 //          : 0;
 //
-//        if ($availableQuantityExternal < $data['quantity_used']) {
+//        if ($availableQuantityExternal < $newQuantity) {
 //          throw new Exception(
 //            "Stock insuficiente en sistema dynamics para el repuesto: {$newStock->product->description}. " .
-//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
+//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$newQuantity}"
 //          );
 //        }
 
-        if ($newStock->available_quantity < $newQuantity) {
-          $product = Products::find($newProductId);
-          $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$newProductId}";
-          throw new Exception(
-            "Stock insuficiente para el producto {$productInfo}. Disponible: {$newStock->available_quantity}, Requerido: {$newQuantity}"
-          );
-        }
-
-        $reserveSuccess = $newStock->reserveStock($newQuantity);
-        if (!$reserveSuccess) {
-          // Revertir la liberación del stock antiguo
-          if ($oldStock) {
-            $oldStock->reserveStock($oldQuantity);
+          if ($newStock->available_quantity < $newQuantity) {
+            $product = Products::find($newProductId);
+            $productInfo = $product ? "{$product->code} - {$product->name}" : "ID {$newProductId}";
+            throw new Exception(
+              "Stock insuficiente para el producto {$productInfo}. Disponible: {$newStock->available_quantity}, Requerido: {$newQuantity}"
+            );
           }
-          throw new Exception('No se pudo reservar el nuevo stock');
+
+          $reserveSuccess = $newStock->reserveStock($newQuantity);
+          if (!$reserveSuccess) {
+            // Revertir la liberación del stock antiguo solo si se había liberado
+            if ($oldStock && !$oldIsTraverse) {
+              $oldStock->reserveStock($oldQuantity);
+            }
+            throw new Exception('No se pudo reservar el nuevo stock');
+          }
         }
       }
 
@@ -411,8 +430,10 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $data['tax_amount'] = $recalcData['tax_amount'];
         $data['unit_price'] = $recalcData['unit_price'];
 
-        // Validar precio de venta (DESPUÉS de calculatePricesAndTotals para usar valores redondeados y considerar moneda)
-        $this->validateSalePrice($recalcData, $workOrder);
+        // Validar precio de venta solo si NO es travesía
+        if (!$newIsTraverse) {
+          $this->validateSalePrice($recalcData, $workOrder);
+        }
 
         // Validar que el nuevo monto no sea menor al monto pagado en anticipos
         $workOrder->refresh();
@@ -488,13 +509,15 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
 
       $workOrder->validateMinimumAmount($projectedFinalAmount);
 
-      // Liberar el stock reservado
-      $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)
-        ->where('warehouse_id', $workOrderPart->warehouse_id)
-        ->first();
+      // Liberar el stock reservado solo si NO es travesía
+      if (!$workOrderPart->is_traverse) {
+        $stock = ProductWarehouseStock::where('product_id', $workOrderPart->product_id)
+          ->where('warehouse_id', $workOrderPart->warehouse_id)
+          ->first();
 
-      if ($stock) {
-        $stock->releaseReservedStock($workOrderPart->quantity_used);
+        if ($stock) {
+          $stock->releaseReservedStock($workOrderPart->quantity_used);
+        }
       }
 
       // Buscamos la OT
