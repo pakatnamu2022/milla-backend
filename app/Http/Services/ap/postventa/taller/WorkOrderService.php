@@ -14,9 +14,11 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApDeductibleWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
@@ -2166,7 +2168,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Obtener el comprobante electrónico
-      $electronicDocument = \App\Models\ap\facturacion\ElectronicDocument::find($data['electronic_document_id']);
+      $electronicDocument = ElectronicDocument::find($data['electronic_document_id']);
 
       if (!$electronicDocument) {
         throw new Exception('Comprobante electrónico no encontrado');
@@ -2191,7 +2193,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Crear el registro del deducible
-      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::create([
+      ApDeductibleWorkOrder::create([
         'work_order_id' => $data['work_order_id'],
         'electronic_document_id' => $data['electronic_document_id'],
         'created_by' => auth()->id(),
@@ -2222,7 +2224,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   {
     return DB::transaction(function () use ($deductibleId) {
       // Buscar el deducible con sus relaciones
-      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::with('electronicDocument')
+      $deductible = ApDeductibleWorkOrder::with('electronicDocument')
         ->find($deductibleId);
 
       if (!$deductible) {
