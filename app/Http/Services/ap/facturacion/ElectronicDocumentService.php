@@ -3950,6 +3950,20 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $precioUnitario = round((float)$item['precio_unitario'], 2);
         }
 
+        // Los valores de subtotal, igv y total del item deben coincidir con los de la cabecera
+        // Si vienen en la cabecera, usarlos; si no, usar los del item
+        $itemSubtotal = isset($data['total_gravada']) && $data['total_gravada'] > 0
+          ? round((float)$data['total_gravada'], 2)
+          : round((float)$item['subtotal'], 2);
+
+        $itemIgv = isset($data['total_igv']) && $data['total_igv'] > 0
+          ? round((float)$data['total_igv'], 2)
+          : round((float)$item['igv'], 2);
+
+        $itemTotal = isset($data['total']) && $data['total'] > 0
+          ? round((float)$data['total'], 2)
+          : round((float)$item['total'], 2);
+
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
@@ -3960,10 +3974,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'precio_unitario' => $precioUnitario,
           'descuento' => $descuento > 0 ? $descuento : null,
           'descuento_unitario' => $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0,
-          'subtotal' => round((float)$item['subtotal'], 2),
+          'subtotal' => $itemSubtotal,
           'sunat_concept_igv_type_id' => $item['sunat_concept_igv_type_id'],
-          'igv' => round((float)$item['igv'], 2),
-          'total' => round((float)$item['total'], 2),
+          'igv' => $itemIgv,
+          'total' => $itemTotal,
           'account_plan_id' => $item['account_plan_id'] ?? null,
         ]);
       }
