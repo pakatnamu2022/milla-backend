@@ -14,9 +14,11 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApDeductibleWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\AppointmentPlanning;
@@ -480,7 +482,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'advancesWorkOrder',
       'vehicleInspection',
       'orderQuotation.details',
-      'typeCurrency'
+      'typeCurrency',
+      'deductibles.electronicDocument'
     ]);
 
     if ($workOrder->invoice_to === null) {
@@ -504,6 +507,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $totalAdvances = $activeAdvances->sum('total') ?? 0;
     $remainingBalance = $totals['total_amount'] - $totalAdvances;
 
+    // Obtener el primer deducible no eliminado
+    $deductible = $workOrder->deductibles->whereNull('deleted_at')->first();
+    $deductibleData = null;
+
+    if ($deductible && $deductible->electronicDocument) {
+      $doc = $deductible->electronicDocument;
+      $deductibleData = [
+        'full_number' => $doc->full_number ?? '',
+        'fecha_emision' => $doc->fecha_de_emision ? $doc->fecha_de_emision->format('d/m/Y') : '',
+        'cliente_numero_documento' => $doc->cliente_numero_de_documento ?? '',
+        'cliente_denominacion' => $doc->cliente_denominacion ?? '',
+        'total' => $doc->total ?? 0,
+      ];
+    }
+
     $data = [
       'workOrder' => $workOrder,
       'client' => $client,
@@ -511,6 +529,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'labours' => $labours,
       'parts' => $parts,
       'advances' => $activeAdvances,
+      'deductible' => $deductibleData,
       'currencySymbol' => $currencySymbol,
       'totals' => array_merge($totals, [
         'total_advances' => $totalAdvances,
@@ -1671,6 +1690,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
       }
 
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("No se puede revertir la orden de trabajo porque ya se generó la factura final {$finalInvoice->full_number}");
+      }
+
       $validateReception = $workOrder->shouldValidateReceipt();
       $validateLabor = $workOrder->shouldValidateLabor();
 
@@ -2047,6 +2071,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   private function recalculateLabourItems(ApWorkOrder $workOrder, float $factor = 1.0): void
   {
     foreach ($workOrder->labours as $labour) {
+      // El ítem de deducible no se recalcula con la fórmula estándar: sus montos
+      // vienen fijos del comprobante electrónico (total_gravada/total/total_igv)
+      // y no necesariamente siguen el IGV estándar de mano de obra.
+      if ($labour->is_deductible) {
+        continue;
+      }
+
       $result = PriceRounding::calculateLine(
         $labour->hourly_rate,
         $labour->time_spent_decimal,
@@ -2054,14 +2085,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $factor
       );
 
-      // Si la descripción contiene "DEDUCIBLE", invertir los signos para que reste del total
-      $isDeductible = stripos($labour->description ?? '', 'DEDUCIBLE') !== false;
-
       $labour->update([
         'hourly_rate' => $result['unit_price'],
-        'total_cost' => $isDeductible ? -$result['total_cost'] : $result['total_cost'],
-        'net_amount' => $isDeductible ? -$result['net_amount'] : $result['net_amount'],
-        'tax_amount' => $isDeductible ? -$result['tax_amount'] : $result['tax_amount'],
+        'total_cost' => $result['total_cost'],
+        'net_amount' => $result['net_amount'],
+        'tax_amount' => $result['tax_amount'],
       ]);
     }
   }
@@ -2125,8 +2153,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    * Almacena un deducible para una orden de trabajo
    * - Relaciona un comprobante electrónico con la orden de trabajo
    * - Guarda el registro en ap_deductible_work_order
-   * - Actualiza el campo deductible_amount en ap_work_orders (sumando el total del comprobante)
-   * - Valida que la orden no esté cerrada/finalizada/anulada
+   * - Crea automáticamente el ítem de mano de obra "Deducible" (en negativo, resta del total)
+   * - Actualiza el campo deductible_amount en ap_work_orders
+   * - Valida que la orden no esté cerrada/finalizada/anulada y que no tenga ya un deducible
    */
   public function storeDeductible(mixed $data)
   {
@@ -2148,8 +2177,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar un deducible a una orden de trabajo cerrada, finalizada o anulada');
       }
 
+      // Una orden de trabajo solo puede tener un deducible activo a la vez
+      $alreadyHasDeductible = WorkOrderLabour::where('work_order_id', $data['work_order_id'])
+        ->where('is_deductible', true)
+        ->exists();
+
+      if ($alreadyHasDeductible) {
+        throw new Exception('La orden de trabajo ya tiene un deducible asociado');
+      }
+
       // Obtener el comprobante electrónico
-      $electronicDocument = \App\Models\ap\facturacion\ElectronicDocument::find($data['electronic_document_id']);
+      $electronicDocument = ElectronicDocument::find($data['electronic_document_id']);
 
       if (!$electronicDocument) {
         throw new Exception('Comprobante electrónico no encontrado');
@@ -2173,10 +2211,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la orden de trabajo ({$workOrderCurrencyName})");
       }
 
-      // Crear el registro del deducible
-      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::create([
+      // Crear el ítem de mano de obra "Deducible" en negativo (resta del total de mano de obra)
+      $deductibleLabour = WorkOrderLabour::create([
+        'group_number' => 1,
+        'description' => 'Deducible',
+        'time_spent' => 1,
+        'hourly_rate' => $electronicDocument->total_gravada,
+        'discount_percentage' => 0,
+        'total_cost' => -$electronicDocument->total_gravada,
+        'net_amount' => -$electronicDocument->total_gravada,
+        'tax_amount' => -$electronicDocument->total_igv,
+        'work_order_id' => $data['work_order_id'],
+        'is_deductible' => true,
+      ]);
+
+      // Crear el registro de auditoría del deducible, ligado al ítem de mano de obra creado
+      ApDeductibleWorkOrder::create([
         'work_order_id' => $data['work_order_id'],
         'electronic_document_id' => $data['electronic_document_id'],
+        'work_order_labour_id' => $deductibleLabour->id,
         'created_by' => auth()->id(),
       ]);
 
@@ -2187,6 +2240,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workOrder->update([
         'deductible_amount' => $newDeductibleAmount,
       ]);
+
+      $this->performWorkOrderRecalculation($workOrder);
 
       // Recargar la orden de trabajo con los deducibles y su comprobante electrónico
       $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');
@@ -2199,13 +2254,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    * Elimina un deducible de una orden de trabajo
    * - Valida que la orden pueda ser modificada
    * - Resta el monto del comprobante del deductible_amount
+   * - Elimina en espejo el ítem de mano de obra "Deducible" ligado
    * - Elimina el registro usando soft delete
    */
   public function deleteDeductible(int $deductibleId)
   {
     return DB::transaction(function () use ($deductibleId) {
       // Buscar el deducible con sus relaciones
-      $deductible = \App\Models\ap\postventa\taller\ApDeductibleWorkOrder::with('electronicDocument')
+      $deductible = ApDeductibleWorkOrder::with('electronicDocument')
         ->find($deductibleId);
 
       if (!$deductible) {
@@ -2233,8 +2289,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'deductible_amount' => $newDeductibleAmount,
       ]);
 
+      // Eliminar en espejo el ítem de mano de obra "Deducible" ligado a este registro
+      if ($deductible->work_order_labour_id) {
+        WorkOrderLabour::where('id', $deductible->work_order_labour_id)
+          ->where('is_deductible', true)
+          ->delete();
+      }
+
       // Eliminar el deducible (soft delete)
       $deductible->delete();
+
+      $this->performWorkOrderRecalculation($workOrder);
 
       // Recargar la orden de trabajo con los deducibles activos
       $workOrder->load('deductibles.electronicDocument', 'deductibles.creator');

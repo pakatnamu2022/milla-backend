@@ -10,6 +10,7 @@ use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\ap\postventa\taller\ApDeductibleWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
@@ -170,6 +171,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $workOrderLabour = $this->find($id);
     $workOrder = $workOrderLabour->workOrder;
 
+    if ($workOrderLabour->is_deductible) {
+      throw new Exception('No se puede eliminar el deductible desde este apartado. Por favor, elimínelo desde el apartado de deducibles.');
+    }
+
     $workOrder->ensureCanBeModified();
 
     // Validar si existe una solicitud de descuento activa
@@ -213,6 +218,12 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         if ($quotationDetail) {
           $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_PENDING]);
         }
+      }
+
+      // Si es el labour de deducible, eliminar en cascada su(s) registro(s) de auditoría y resetear el monto
+      if ($workOrderLabour->is_deductible) {
+        ApDeductibleWorkOrder::where('work_order_labour_id', $workOrderLabour->id)->delete();
+        $workOrder->update(['deductible_amount' => 0]);
       }
 
       $workOrderLabour->delete();
@@ -264,26 +275,17 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
    * repuestos y detalles de cotización. Devuelve el hourly_rate ya convertido y
    * redondeado para que el llamador decida si lo persiste (ver store()/update()).
    *
-   * Si la descripción contiene "DEDUCIBLE", los montos se vuelven negativos
-   * (restando del total de mano de obra en lugar de sumar).
+   * El deducible negativo ya no se infiere por texto: solo se crea en negativo
+   * automáticamente desde WorkOrderService::storeDeductible(). Si el usuario
+   * escribe "Deducible" manualmente aquí, se trata como cualquier otro ítem (suma).
    */
   private function calculateLabourCosts(array &$data, float $timeSpent, float $hourlyRate, float $discountPercentage, float $factor): float
   {
     $result = PriceRounding::calculateLine($hourlyRate, $timeSpent, $discountPercentage, $factor);
 
-    // Si la descripción contiene "DEDUCIBLE", invertir los signos para que reste del total
-    $isDeductible = isset($data['description']) &&
-                    stripos(strtoupper($data['description']), 'DEDUCIBLE') !== false;
-
-    if ($isDeductible) {
-      $data['total_cost'] = -$result['total_cost'];
-      $data['net_amount'] = -$result['net_amount'];
-      $data['tax_amount'] = -$result['tax_amount'];
-    } else {
-      $data['total_cost'] = $result['total_cost'];
-      $data['net_amount'] = $result['net_amount'];
-      $data['tax_amount'] = $result['tax_amount'];
-    }
+    $data['total_cost'] = $result['total_cost'];
+    $data['net_amount'] = $result['net_amount'];
+    $data['tax_amount'] = $result['tax_amount'];
 
     return $result['unit_price'];
   }

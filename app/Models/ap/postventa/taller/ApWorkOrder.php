@@ -1318,6 +1318,17 @@ class ApWorkOrder extends Model
       $totalIgv += $item['igv'];
     }
 
+    // Si la OT tiene un deducible activo, ya fue cubierto por ese comprobante (aunque
+    // el ítem "Deducible" no aparece como línea en items_invoice, ver buildInvoiceItems()),
+    // así que se descuenta su gravada e IGV de los totales, igual que calculateTotals()
+    // ya neteaba el deducible completo (con IGV) en subtotal/tax_amount/final_amount de
+    // la OT. Así invoice_preview.total vuelve a cuadrar con final_amount.
+    $activeDeductible = $this->deductibles->whereNull('deleted_at')->first();
+    if ($activeDeductible && $activeDeductible->electronicDocument) {
+      $totalGravada -= (float)$activeDeductible->electronicDocument->total_gravada;
+      $totalIgv -= (float)$activeDeductible->electronicDocument->total_igv;
+    }
+
     // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
     // positivo aunque su línea en items_invoice esté en negativo.
     // Usamos directamente los subtotales almacenados para evitar problemas de redondeo
@@ -1343,11 +1354,10 @@ class ApWorkOrder extends Model
   {
     $items = [];
 
-    // Filtrar labours: NO incluir los que contienen "DEDUCIBLE" en su descripción
-    // ya que estos restan del total de mano de obra pero no deben aparecer como items en la factura
+    // Filtrar labours: NO incluir el ítem de deducible (is_deductible)
+    // ya que este resta del total de mano de obra pero no debe aparecer como item en la factura
     foreach ($this->labours as $labour) {
-      $isDeductible = stripos($labour->description ?? '', 'DEDUCIBLE') !== false;
-      if (!$isDeductible) {
+      if (!$labour->is_deductible) {
         $items[] = $this->buildLabourInvoiceItem($labour);
       }
     }

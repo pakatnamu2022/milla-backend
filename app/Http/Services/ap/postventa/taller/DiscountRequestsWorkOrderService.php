@@ -107,6 +107,15 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         throw new Exception('Para un descuento PARTIAL, debe especificar el ítem (parte o labor).');
       }
 
+      // El ítem "Deducible" no admite descuentos: sus montos vienen fijos del
+      // comprobante electrónico y no siguen la fórmula estándar de mano de obra.
+      if ($partLabourModel === WorkOrderLabour::class) {
+        $labour = WorkOrderLabour::find($data['part_labour_id']);
+        if ($labour && $labour->is_deductible) {
+          throw new Exception('No se puede solicitar un descuento sobre el ítem de Deducible.');
+        }
+      }
+
       // Validar que no exista un descuento GLOBAL PENDING para este tipo
       $existsGlobal = DiscountRequestsWorkOrder::where('ap_work_order_id', $data['ap_work_order_id'])
         ->where('type', DiscountRequestsWorkOrder::TYPE_GLOBAL)
@@ -376,8 +385,9 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
         ]);
       }
     } elseif ($partLabourModel === WorkOrderLabour::class) {
-      // Descuento global a todas las labores
-      $labours = $workOrder->labours()->get();
+      // Descuento global a todas las labores (excluye el ítem "Deducible": sus montos
+      // vienen fijos del comprobante electrónico y no siguen la fórmula estándar)
+      $labours = $workOrder->labours()->where('is_deductible', false)->get();
 
       if ($labours->isEmpty()) {
         throw new Exception('No se encontraron labores en la orden de trabajo.');
