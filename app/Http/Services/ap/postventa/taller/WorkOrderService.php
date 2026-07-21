@@ -1690,6 +1690,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
       }
 
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("No se puede revertir la orden de trabajo porque ya se generó la factura final {$finalInvoice->full_number}");
+      }
+
       $validateReception = $workOrder->shouldValidateReceipt();
       $validateLabor = $workOrder->shouldValidateLabor();
 
