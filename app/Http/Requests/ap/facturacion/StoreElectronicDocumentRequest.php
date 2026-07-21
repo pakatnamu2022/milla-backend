@@ -72,8 +72,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'retencion_base_imponible',
       'total_retencion',
       'detraccion_total',
-      'detraccion_porcentaje',
-      'detraccion'
+      'detraccion_porcentaje'
     ];
 
     foreach ($decimalFields as $field) {
