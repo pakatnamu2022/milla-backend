@@ -3930,17 +3930,34 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // 13. Create invoice items from frontend data
       $lineNumber = 1;
+      $porcentajeIgv = (float)($client->taxClassType->igv ?? 18);
+
       foreach ($data['items'] as $item) {
         $cantidad = max(1, (float)($item['cantidad'] ?? 1));
         $descuento = (float)($item['descuento'] ?? 0);
+
+        // Si no viene descripcion del frontend, usar descripcion por defecto
+        $descripcion = !empty($item['descripcion']) ? $item['descripcion'] : 'Servicio de mantenimiento';
+
+        // Si viene total_gravada desde el frontend, usarlo como base para valor_unitario
+        // Si no, usar el valor_unitario que viene en el item
+        if (isset($data['total_gravada']) && $data['total_gravada'] > 0) {
+          $valorUnitario = round((float)$data['total_gravada'] / $cantidad, 2);
+          // Calcular precio_unitario agregando el IGV
+          $precioUnitario = round($valorUnitario * (1 + ($porcentajeIgv / 100)), 2);
+        } else {
+          $valorUnitario = round((float)$item['valor_unitario'], 2);
+          $precioUnitario = round((float)$item['precio_unitario'], 2);
+        }
+
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
           'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
-          'descripcion' => $item['descripcion'],
+          'descripcion' => $descripcion,
           'cantidad' => $cantidad,
-          'valor_unitario' => round((float)$item['valor_unitario'], 2),
-          'precio_unitario' => round((float)$item['precio_unitario'], 2),
+          'valor_unitario' => $valorUnitario,
+          'precio_unitario' => $precioUnitario,
           'descuento' => $descuento > 0 ? $descuento : null,
           'descuento_unitario' => $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
