@@ -88,7 +88,7 @@ class PurchaseOrder extends BaseModel
   ];
 
   const filters = [
-    'search'                       => ['number', 'invoice_series', 'invoice_number', 'number_guide'],
+    'search'                       => ['number', 'invoice_series', 'invoice_number', 'number_guide', 'vehicle.vin'],
     'supplier_id'                  => '=',
     'warehouse_id'                 => '=',
     'migration_status'             => '=',

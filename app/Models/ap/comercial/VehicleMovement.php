@@ -4,6 +4,7 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\BaseModel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,8 @@ class VehicleMovement extends BaseModel
     'ap_vehicle_id',
     'ap_vehicle_status_id',
     'observation',
+    'warehouse_id',
+    'origin_warehouse_id',
     'movement_date',
     'origin_address',
     'destination_address',
@@ -94,6 +97,16 @@ class VehicleMovement extends BaseModel
   public function shippingGuides(): HasMany
   {
     return $this->hasMany(ShippingGuides::class, 'vehicle_movement_id');
+  }
+
+  public function warehouse(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function originWarehouse(): BelongsTo
+  {
+    return $this->belongsTo(Warehouse::class, 'origin_warehouse_id');
   }
 
   public function createdByUser(): BelongsTo

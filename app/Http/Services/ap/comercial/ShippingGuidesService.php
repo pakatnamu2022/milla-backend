@@ -850,6 +850,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('La guía no ha sido enviada a SUNAT aún');
       }
 
+      if ($guide->is_annulled) {
+        throw new Exception('La guía ha sido anulada y no puede ser consultada en SUNAT');
+      }
+
       $response = $this->nubefactService->queryGuide($guide);
 
       if ($response['success']) {

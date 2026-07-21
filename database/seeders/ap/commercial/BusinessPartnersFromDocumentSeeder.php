@@ -23,681 +23,370 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
    */
   protected array $documents = [
     [
-      "dni"   => "07087005",
+      "dni"   => "75090837",
       "largo" => "8",
-      "tipo"  => "DNI "
+      "tipo"  => "DNI"
     ],
     [
-      "dni"   => "47950345",
+      "dni"   => "42772411",
       "largo" => "8",
-      "tipo"  => "DNI "
+      "tipo"  => "DNI"
     ],
     [
-      "dni"   => "03678910",
+      "dni"   => "42082941",
       "largo" => "8",
-      "tipo"  => "DNI "
+      "tipo"  => "DNI"
     ],
     [
-      "dni"   => "74037777",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "74047976",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "44929921",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "80539915",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "46049408",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "17632017",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "77027417",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "44214322",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "45214796",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "74374644",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "72483421",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "70046881",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "09944265",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "76449504",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "33592480",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "44239534",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "16415453",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43481724",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "16691878",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "70450250",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "16640286",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "45625638",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "72090006",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "76127448",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"    => "26241969",
-      "largo"  => "8",
-      "tipo"   => "DNI ",
-      "nombre" => "VILLEGAS ORTIZ TATIANA PATRICIA",
-    ],
-    [
-      "dni"   => "26731155",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "72146905",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "26688241",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "71227050",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43686476",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "10613317",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "74925058",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "42345373",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "27434160",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "70039774",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "40981529",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43130520",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "77101519",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "44306184",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "41835190",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "71266878",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "41442136",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "47221113",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "75685321",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43157603",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43154949",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "42801453",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "40769323",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "46867879",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "02665397",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "03637139",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "42380922",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "46979537",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "43001912",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "45555555",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "42256324",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "45457528",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "72700680",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "03377751",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "02853657",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "46677685",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "03325660",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "70678110",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "44770275",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "42387876",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "76455480",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "71232224",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "29594778",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "45393418",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "16753004",
-      "largo" => "8",
-      "tipo"  => "DNI "
-    ],
-    [
-      "dni"   => "002540986",
-      "largo" => "9",
-      "tipo"  => "CEX "
-    ],
-    [
-      "dni"    => "0915451470",
+      "dni"    => "IE9692928F",
       "largo"  => "10",
-      "tipo"   => "PAS ",
-      "nombre" => "CRUZ AQUINO FERNANDO",
+      "tipo"   => "OTR",
+      "nombre" => "META PLATFORMS IRELAND LIMITE"
     ],
     [
-      "dni"   => "20607565938",
+      "dni"   => "20607826308",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20549379622",
+      "dni"   => "20101973922",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20604041164",
+      "dni"   => "20467534026",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20610852743",
+      "dni"   => "20603386541",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20609762331",
+      "dni"   => "20100017491",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20606978945",
+      "dni"   => "10414091038",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20100210909",
+      "dni"   => "20479461156",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20563405563",
+      "dni"   => "10276763984",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20100041953",
+      "dni"   => "20604155879",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20418896915",
+      "dni"   => "20495905552",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20553157014",
+      "dni"   => "20454073143",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20509959766",
+      "dni"   => "20602819834",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20603952899",
+      "dni"   => "20606438975",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20608882970",
+      "dni"   => "20601066018",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20348687191",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10467115273",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10277163778",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20613790692",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20603381697",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20606432446",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20144961146",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20505205791",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20610736778",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20519151279",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20164032613",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20379430377",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20610098259",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20545996252",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20543725821",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20565643496",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20557296973",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20607490229",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10167793431",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20561127311",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20479819051",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20492353214",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10415914321",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20511004251",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20480738676",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20615421791",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10192497936",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20491647770",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20557644416",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20609090791",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20613058878",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20522547957",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10459074525",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20526233329",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "10772384161",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20105354330",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20548704261",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20608652630",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20127765279",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20600509935",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20607596108",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20103117560",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20344877158",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20545621879",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20124148970",
+      "largo" => "11",
+      "tipo"  => "RUC"
+    ],
+    [
+      "dni"   => "20341841357",
+      "largo" => "11",
+      "tipo"  => "RUC"
     ],
     [
       "dni"   => "20504292968",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20546218504",
+      "dni"   => "20601415586",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20100115663",
+      "dni"   => "20604093091",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20495811736",
+      "dni"   => "20600057058",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20495625606",
+      "dni"   => "20517342891",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20600718674",
+      "dni"   => "20342868844",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20537284723",
+      "dni"   => "20515339508",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20604718041",
+      "dni"   => "20516711559",
       "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ],
     [
-      "dni"   => "20482084444",
+      "dni"   => "20604457948",
       "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10418849865",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20529823321",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20530062563",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20343877294",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20610719865",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20601001994",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20607544663",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20611409665",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20525998577",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20610677003",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20601647649",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20492783651",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20523395701",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20603393083",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20602209475",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10427037032",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20480270160",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20450158586",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10752180038",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20101036813",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20570875796",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20570772636",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20491734745",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20100278708",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "15410911776",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20100202124",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20538642445",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20602994946",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20513943998",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10409114437",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10733772838",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10405086854",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20613547437",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20614418827",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "10746130916",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20529965380",
-      "largo" => "11",
-      "tipo"  => "RUC "
-    ],
-    [
-      "dni"   => "20609971798",
-      "largo" => "11",
-      "tipo"  => "RUC "
+      "tipo"  => "RUC"
     ]
   ];
 
@@ -724,6 +413,7 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,  // 810
     'CEX' => 811,  // Carnet de Extranjería
     'PAS' => 973,  // Pasaporte
+    'OTR' => 974,  // Otros tipos o sin RUC
   ];
 
   // Tipo de consulta al servicio de validación (debe coincidir con Factiliza)
@@ -732,6 +422,7 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     'RUC' => 'ruc',
     'CEX' => 'ce',
     'PAS' => null,  // Factiliza no tiene endpoint para pasaportes; se usa nombre manual
+    'OTR' => null,  // Sin endpoint de validación
   ];
 
   public function run(): void
@@ -740,7 +431,9 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     $company = Company::first();
     $district = District::first();
     $taxClass = TaxClassTypes::where('id', 4)->first() ?? TaxClassTypes::first();
-    $origin = ApMasters::where('type', 'ORIGEN_CLIENTE')->first();
+    $supplierTaxClass = TaxClassTypes::where('dyn_code', 'N.T.SR.IGV')->where('type', 'PROVEEDOR')->first()
+      ?? TaxClassTypes::find(12);
+    $origin = ApMasters::where('type', 'ORIGEN_PROVEEDOR')->first();
     $typePerson = ApMasters::where('type', 'TIPO_PERSONA')->first();
     $personSegment = ApMasters::where('type', 'SEGMENTO_PERSONA')->first();
     $activityEconomic = ApMasters::where('type', 'ACTIVIDAD_ECONOMICA')->first();
@@ -750,9 +443,18 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
       return;
     }
 
-    if (!$origin || !$typePerson || !$personSegment || !$activityEconomic) {
-      $this->command->error('Faltan registros en ap_masters (ORIGIN, TYPE_PERSON, PERSON_SEGMENT, ACTIVITY_ECONOMIC). Abortando.');
+    if (!$supplierTaxClass) {
+      $this->command->error('No se encontró TaxClassTypes N.T.SR.IGV (tipo PROVEEDOR). Abortando.');
       return;
+    }
+
+    if (!$this->syncOnly && (!$typePerson || !$personSegment || !$activityEconomic)) {
+      $this->command->error('Faltan registros en ap_masters (TYPE_PERSON, PERSON_SEGMENT, ACTIVITY_ECONOMIC). Abortando.');
+      return;
+    }
+
+    if (!$origin) {
+      $this->command->warn('ORIGEN_PROVEEDOR no encontrado en ap_masters, se usará null.');
     }
 
     $validationService = new DocumentValidationService();
@@ -786,19 +488,37 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
         }
         $this->command->info("   [SYNC-ONLY] Encontrado id={$partner->id} → {$partner->full_name}");
 
+        // Asegurar supplier_tax_class_id en el registro local
+        if (!$partner->supplier_tax_class_id) {
+          $partner->update(['supplier_tax_class_id' => $supplierTaxClass->id]);
+          $this->command->line("   [ACTUALIZADO] supplier_tax_class_id={$supplierTaxClass->id} ({$supplierTaxClass->dyn_code})");
+        }
+
         if ($this->syncToDynamics) {
           try {
-            $existsInDynamics = DB::connection('dbtp')
-              ->table('neInTbCliente')
+            $dynRecord = DB::connection('dbtp')
+              ->table('neInTbProveedor')
               ->where('EmpresaId', 'GPAUP')
               ->where('NumeroDocumento', $numDoc)
-              ->exists();
+              ->first();
 
-            if ($existsInDynamics) {
-              $this->command->warn("   [SYNC OMITIDO] Ya existe en neInTbCliente (GPAUP).");
-              $report['sync_skipped'][] = "{$docCode} {$numDoc} → ya existe en neInTbCliente (GPAUP)";
+            if ($dynRecord) {
+              $tieneError = !empty($dynRecord->ProcesoError);
+              if ($tieneError && ($dynRecord->ClaseId ?? '') !== $supplierTaxClass->dyn_code) {
+                DB::connection('dbtp')
+                  ->table('neInTbProveedor')
+                  ->where('EmpresaId', 'GPAUP')
+                  ->where('NumeroDocumento', $numDoc)
+                  ->update(['ClaseId' => $supplierTaxClass->dyn_code]);
+                $this->command->line("   [DYN ACTUALIZADO] ClaseId={$supplierTaxClass->dyn_code} (ProcesoError={$dynRecord->ProcesoError})");
+                $report['synced'][] = "{$docCode} {$numDoc} → ClaseId actualizado en neInTbProveedor";
+              } else {
+                $motivo = !$tieneError ? 'sin ProcesoError' : 'ClaseId ya correcto';
+                $this->command->warn("   [SYNC OMITIDO] Ya existe en neInTbProveedor ({$motivo}).");
+                $report['sync_skipped'][] = "{$docCode} {$numDoc} → {$motivo}";
+              }
             } else {
-              $syncService->sync('business_partners', $partner->toArray(), 'create');
+              $syncService->sync('business_partners_ap_supplier', $partner->fresh()->toArray(), 'create');
               $this->command->line("   [SYNC]   Enviado a Dynamics.");
               $report['synced'][] = "{$docCode} {$numDoc} → id={$partner->id}";
             }
@@ -872,10 +592,11 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
         $company->id,
         $district->id,
         $taxClass->id,
-        $origin->id,
+        $origin?->id,
         $typePerson->id,
         $personSegment->id,
         $activityEconomic->id,
+        $supplierTaxClass->id,
         $nombreFijo,
       );
 
@@ -887,13 +608,15 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
         $payload['type_person_id'] = $juridica->id;
       }
 
-      // ── Validar campos requeridos para Dynamics ──────────────────────
-      $dynamicsErrors = $this->validateForDynamics($payload);
-      if (!empty($dynamicsErrors)) {
-        $errList = implode('; ', $dynamicsErrors);
-        $this->command->error("   [DYNAMICS INVÁLIDO] No se creará: {$errList}");
-        $report['failed'][] = "{$docCode} {$numDoc} → Dynamics: {$errList}";
-        continue;
+      // ── Validar campos requeridos para Dynamics (solo si se va a sincronizar) ──
+      if ($this->syncToDynamics) {
+        $dynamicsErrors = $this->validateForDynamics($payload);
+        if (!empty($dynamicsErrors)) {
+          $errList = implode('; ', $dynamicsErrors);
+          $this->command->error("   [DYNAMICS INVÁLIDO] No se creará: {$errList}");
+          $report['failed'][] = "{$docCode} {$numDoc} → Dynamics: {$errList}";
+          continue;
+        }
       }
 
       // ── Insertar ─────────────────────────────────────────────────────
@@ -912,16 +635,16 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
       if ($this->syncToDynamics) {
         try {
           $existsInDynamics = DB::connection('dbtp')
-            ->table('neInTbCliente')
+            ->table('neInTbProveedor')
             ->where('EmpresaId', 'GPAUP')
             ->where('NumeroDocumento', $numDoc)
             ->exists();
 
           if ($existsInDynamics) {
-            $this->command->warn("   [SYNC OMITIDO] Ya existe en neInTbCliente (GPAUP).");
-            $report['sync_skipped'][] = "{$docCode} {$numDoc} → ya existe en neInTbCliente (GPAUP)";
+            $this->command->warn("   [SYNC OMITIDO] Ya existe en neInTbProveedor (GPAUP).");
+            $report['sync_skipped'][] = "{$docCode} {$numDoc} → ya existe en neInTbProveedor (GPAUP)";
           } else {
-            $syncService->sync('business_partners', $partner->toArray(), 'create');
+            $syncService->sync('business_partners_ap_supplier', $partner->toArray(), 'create');
             $this->command->line("   [SYNC]   Enviado a Dynamics.");
             $report['synced'][] = "{$docCode} {$numDoc} → id={$partner->id}";
           }
@@ -967,7 +690,7 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
         $this->command->line("    ↑ {$line}");
       }
       if (!empty($report['sync_skipped'])) {
-        $this->command->warn('  OMITIDOS EN DYNAMICS — ya existen en neInTbCliente (' . count($report['sync_skipped']) . '):');
+        $this->command->warn('  OMITIDOS EN DYNAMICS — ya existen en neInTbProveedor (' . count($report['sync_skipped']) . '):');
         foreach ($report['sync_skipped'] as $line) {
           $this->command->line("    ~ {$line}");
         }
@@ -996,26 +719,28 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     int     $companyId,
     int     $districtId,
     int     $taxClassTypeId,
-    int     $originId,
+    ?int    $originId,
     int     $typePersonId,
     int     $personSegmentId,
     int     $activityEconomicId,
+    int     $supplierTaxClassId,
     ?string $nombreFijo = null,
   ): array
   {
     $base = [
-      'num_doc'              => $numDoc,
-      'document_type_id'     => $documentTypeId,
-      'type'                 => BusinessPartners::CLIENT,
-      'tax_class_type_id'    => $taxClassTypeId,
-      'company_id'           => $companyId,
-      'district_id'          => $districtId,
-      'origin_id'            => $originId,
-      'type_person_id'       => $typePersonId,
-      'person_segment_id'    => $personSegmentId,
-      'activity_economic_id' => $activityEconomicId,
-      'nationality'          => 'NACIONAL',
-      'status_ap'            => 1,
+      'num_doc'                => $numDoc,
+      'document_type_id'       => $documentTypeId,
+      'type'                   => BusinessPartners::SUPPLIER,
+      'tax_class_type_id'      => $taxClassTypeId,
+      'supplier_tax_class_id'  => $supplierTaxClassId,
+      'company_id'             => $companyId,
+      'district_id'            => $districtId,
+      'origin_id'              => $originId,
+      'type_person_id'         => $typePersonId,
+      'person_segment_id'      => $personSegmentId,
+      'activity_economic_id'   => $activityEconomicId,
+      'nationality'            => 'NACIONAL',
+      'status_ap'              => 1,
     ];
 
     $payload = match ($docCode) {
