@@ -248,25 +248,6 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           throw new Exception('No se encontró registro de stock para el producto en el almacén seleccionado');
         }
 
-//      $inventoryMovementService = app(InventoryMovementService::class);
-//
-//      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-//        $stock->product->dyn_code,
-//        $stock->warehouse->dyn_code,
-//      );
-//
-//      // El SP retorna ArticuloStock como string, convertir a float para comparar
-//      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-//        ? (float)trim($externalStock['ArticuloStock'])
-//        : 0;
-//
-//      if ($availableQuantityExternal < $data['quantity_used']) {
-//        throw new Exception(
-//          "Stock insuficiente en sistema dynamics para el repuesto: {$stock->product->description}. " .
-//            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$data['quantity_used']}"
-//        );
-//      }
-
         $inventoryMovementService = app(InventoryMovementService::class);
 
         $externalStock = $inventoryMovementService->validateStockInExternalSystem(

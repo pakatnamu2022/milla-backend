@@ -3510,7 +3510,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    */
   private function applyDetractionLogic(array &$data): void
   {
-    if (!in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_TALLER])) {
+    if (!in_array($data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_POSVENTA, ApMasters::AREA_TALLER])) {
       return;
     }
 
@@ -3550,8 +3550,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['sunat_concept_transaction_type_id'] = SunatConcepts::ID_SUJETA_DETRACCION;
     }
 
-    if (isset($data['detraccion']) && $data['detraccion'] === true && (int)$data['area_id'] === ApMasters::AREA_COMERCIAL) {
-      // Para el área comercial, solo marcar como sujeta a detracción sin importar el monto
+    if (isset($data['detraccion']) && $data['detraccion'] === true && in_array((int)$data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_POSVENTA])) {
+      // Para las áreas comercial y posventa, marcar como sujeta a detracción sin importar el monto
       $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
 
       // Obtener el porcentaje de detracción desde GeneralMaster
