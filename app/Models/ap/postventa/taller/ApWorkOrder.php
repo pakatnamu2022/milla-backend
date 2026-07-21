@@ -1729,6 +1729,12 @@ class ApWorkOrder extends Model
   /**
    * Actualiza la fecha de cierre oficial de la OT según el tipo de documento
    *
+   * IMPORTANTE: Este método SIEMPRE actualiza la fecha cuando se llama explícitamente.
+   * Esto permite manejar casos donde:
+   * - Se emite una factura final → se establece la fecha
+   * - Se anula esa factura → getFinalInvoice() retorna null
+   * - Se emite una NUEVA factura → la fecha se ACTUALIZA con la nueva emisión
+   *
    * @param \DateTime|string|null $date Fecha de cierre oficial (si es null, usa now())
    * @return bool True si se actualizó, false si no se debe actualizar según el tipo de documento
    */
@@ -1737,10 +1743,10 @@ class ApWorkOrder extends Model
     // Obtener el tipo de documento del primer item
     $typeDocument = $this->items->first()?->typePlanning->type_document;
 
-    // Solo actualizar si:
-    // 1. Es INTERNA_SC (sin comprobante) - se cierra al generar la nota interna
-    // 2. Es INTERNA_CC (con comprobante) - se cierra al emitir el comprobante
-    // 3. Es PAYMENT_RECEIPTS - se cierra al emitir el comprobante final
+    // Solo actualizar si es uno de los tipos que requieren fecha de cierre oficial:
+    // 1. INTERNA_SC (sin comprobante) - se cierra al generar la nota interna
+    // 2. INTERNA_CC (con comprobante) - se cierra al emitir el comprobante
+    // 3. PAYMENT_RECEIPTS - se cierra al emitir el comprobante final
     if (!in_array($typeDocument, [
       TypePlanningWorkOrder::INTERNA_SC,
       TypePlanningWorkOrder::INTERNA_CC,
@@ -1749,12 +1755,8 @@ class ApWorkOrder extends Model
       return false;
     }
 
-    // Si ya tiene fecha de cierre oficial, no sobrescribirla
-    if ($this->official_closing_date !== null) {
-      return false;
-    }
-
-    // Establecer la fecha de cierre oficial
+    // Establecer/actualizar la fecha de cierre oficial
+    // NOTA: Permite sobrescribir para manejar casos de anulación y re-emisión
     $this->official_closing_date = $date ?? now();
     $this->save();
 

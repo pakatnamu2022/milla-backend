@@ -3690,6 +3690,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     $workOrder->update(['has_invoice_generated' => true]);
+
+    // Actualizar fecha de cierre oficial SOLO si es factura final (no anticipo)
+    // Los anticipos (is_advance_payment = 1) no cierran la OT
+    // Solo la factura final (is_advance_payment = 0) cierra la OT
+    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
+      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    }
   }
 
   public function createConsolidatedInvoice(array $data): array
@@ -3923,17 +3930,34 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // 13. Create invoice items from frontend data
       $lineNumber = 1;
+      $porcentajeIgv = (float)($client->taxClassType->igv ?? 18);
+
       foreach ($data['items'] as $item) {
         $cantidad = max(1, (float)($item['cantidad'] ?? 1));
         $descuento = (float)($item['descuento'] ?? 0);
+
+        // Si no viene descripcion del frontend, usar descripcion por defecto
+        $descripcion = !empty($item['descripcion']) ? $item['descripcion'] : 'Servicio de mantenimiento';
+
+        // Si viene total_gravada desde el frontend, usarlo como base para valor_unitario
+        // Si no, usar el valor_unitario que viene en el item
+        if (isset($data['total_gravada']) && $data['total_gravada'] > 0) {
+          $valorUnitario = round((float)$data['total_gravada'] / $cantidad, 2);
+          // Calcular precio_unitario agregando el IGV
+          $precioUnitario = round($valorUnitario * (1 + ($porcentajeIgv / 100)), 2);
+        } else {
+          $valorUnitario = round((float)$item['valor_unitario'], 2);
+          $precioUnitario = round((float)$item['precio_unitario'], 2);
+        }
+
         $invoice->items()->create([
           'line_number' => $lineNumber++,
           'unidad_de_medida' => $item['unidad_de_medida'],
           'codigo' => ApAccountingAccountPlan::find(ApAccountingAccountPlan::AFTER_SALES_MAINTENANCE_SERVICE_ID)->code_dynamics ?? 'V0000018',
-          'descripcion' => $item['descripcion'],
+          'descripcion' => $descripcion,
           'cantidad' => $cantidad,
-          'valor_unitario' => round((float)$item['valor_unitario'], 2),
-          'precio_unitario' => round((float)$item['precio_unitario'], 2),
+          'valor_unitario' => $valorUnitario,
+          'precio_unitario' => $precioUnitario,
           'descuento' => $descuento > 0 ? $descuento : null,
           'descuento_unitario' => $descuento > 0 ? floor(($descuento / $cantidad) * 1000) / 1000 : 0,
           'subtotal' => round((float)$item['subtotal'], 2),
@@ -3969,6 +3993,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // 16. Mark internal notes as invoiced
       foreach ($internalNotes as $note) {
         $note->markAsInvoiced($emissionDate);
+      }
+
+      // 17. Actualizar fecha de cierre oficial de las OT con la fecha de emisión del comprobante
+      foreach ($internalNotes as $note) {
+        $note->workOrder->updateOfficialClosingDate($emissionDate);
       }
 
       DB::commit();
