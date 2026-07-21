@@ -387,7 +387,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
       'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
     ];
 
-    $vehicle = $vehicleService->store($vehicleData);
+    $vehicle = $vehicleService->store($vehicleData, skipMovement: true);
 
     // 2. Crear el movimiento del vehículo
     $vehicleMovement = VehicleMovement::create([

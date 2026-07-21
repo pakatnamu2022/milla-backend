@@ -426,11 +426,42 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
         return;
       }
 
-      // Cuando llega issue_date → mover vehículo a ALM destino con estado INVENTARIO_VN
       if ($this->isIssueDateReached($shippingGuide)) {
+        // Fecha de traslado alcanzada → mover a ALM destino con estado INVENTARIO_VN
         $this->createCommercialTransferVehicleMovement($shippingGuide, $wasAlreadyAccounted);
+      } elseif (
+        !$wasAlreadyAccounted
+        && $shippingGuide->document_type === ShippingGuides::DOCUMENT_TYPE_GR
+        && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+      ) {
+        // Guía recién contabilizada pero traslado aún no llega → registrar EN_CURSO
+        // para que el destino pueda facturar el vehículo antes de su llegada física.
+        $this->createCommercialTransferInProgressVehicleMovement($shippingGuide);
       }
     }
+  }
+
+  /**
+   * Crea el movimiento EN_CURSO para un traslado entre sedes cuya fecha aún no llegó.
+   * Evita duplicados verificando si ya existe un movimiento EN_CURSO para el mismo documento.
+   */
+  private function createCommercialTransferInProgressVehicleMovement(ShippingGuides $shippingGuide): void
+  {
+    $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+    if (!$vehicle) {
+      return;
+    }
+
+    $alreadyExists = $vehicle->vehicleMovements()
+      ->where('movement_type', VehicleMovement::EN_CURSO)
+      ->where('observation', 'like', "%{$shippingGuide->document_number}%")
+      ->exists();
+
+    if ($alreadyExists) {
+      return;
+    }
+
+    (new VehicleMovementService())->storeInterCompanyTransferInProgressVehicleMovement($vehicle, $shippingGuide);
   }
 
   /**

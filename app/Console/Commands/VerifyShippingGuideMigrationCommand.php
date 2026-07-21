@@ -43,6 +43,11 @@ class VerifyShippingGuideMigrationCommand extends Command
       // Verificar una guía específica
       $shippingGuide = ShippingGuides::find($shippingGuideId);
 
+      if ($shippingGuide->is_annulled) {
+        $this->error("La guía de remisión está anulada: {$shippingGuide->document_number}");
+        return 1;
+      }
+
       if (!$shippingGuide) {
         $this->error("Guía de remisión no encontrada: {$shippingGuideId}");
         return 1;
@@ -77,6 +82,7 @@ class VerifyShippingGuideMigrationCommand extends Command
       ])
         ->where('send_dynamics', true)
         ->where('aceptada_por_sunat', true)
+        ->where('is_annulled', false)
         ->where(function ($q) {
           // Guías de compra (transfer_reason_id = 15) solo migran después de ser recepcionadas
           $q->where(function ($inner) {

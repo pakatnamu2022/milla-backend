@@ -14,7 +14,7 @@ use Throwable;
  * Job para consultar el estado de un documento electrónico en Nubefact
  * Se ejecuta automáticamente para documentos en estado 'sent'
  *
- * php artisan queue:work --tries=2
+ * php artisan queue:work --queue=check_electronic_documents --tries=2
  */
 class CheckElectronicDocumentStatusJob implements ShouldQueue
 {
@@ -30,7 +30,7 @@ class CheckElectronicDocumentStatusJob implements ShouldQueue
     public int $documentId
   )
   {
-    $this->onQueue('electronic_documents');
+    $this->onQueue('check_electronic_documents');
   }
 
   /**

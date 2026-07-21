@@ -65,7 +65,14 @@ class TransferShippingGuideDynamicsService
       true
     );
 
-    if ($transferLog->proceso_estado === 1 && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+    // Solo las guías de COMPRA ingresan el vehículo a inventario desde el job de migración.
+    // Para TRASLADO_SEDE el estado se gestiona exclusivamente desde SyncShippingGuideDynamicsJob
+    // (EN_CURSO → INVENTARIO_VN) para respetar la fecha de traslado (issue_date).
+    if (
+      $transferLog->proceso_estado === 1
+      && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA
+      && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA
+    ) {
       $vehicle = $shippingGuide->vehicleMovement?->vehicle;
       if (!$vehicle) {
         throw new Exception("El vehículo asociado a la guía de remisión no tiene un ID válido. ShippingGuide ID: {$shippingGuide->id}");
@@ -152,7 +159,9 @@ class TransferShippingGuideDynamicsService
     $procesoEstado = $existingSerial->ProcesoEstado ?? 0;
     $serialLog->updateProcesoEstado(1);
 
-    if ($procesoEstado === "1") {
+    // updateVehicleWarehouse solo aplica a guías de COMPRA; para TRASLADO_SEDE
+    // el warehouse se asigna en SyncShippingGuideDynamicsJob respetando la issue_date.
+    if ($procesoEstado === "1" && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
       $this->updateVehicleWarehouse($shippingGuide);
     }
   }
