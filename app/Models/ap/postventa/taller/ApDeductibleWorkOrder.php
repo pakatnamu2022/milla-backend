@@ -17,6 +17,7 @@ class ApDeductibleWorkOrder extends Model
   protected $fillable = [
     'work_order_id',
     'electronic_document_id',
+    'work_order_labour_id',
     'created_by',
   ];
 
@@ -39,6 +40,11 @@ class ApDeductibleWorkOrder extends Model
   public function electronicDocument(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
+  }
+
+  public function workOrderLabour(): BelongsTo
+  {
+    return $this->belongsTo(WorkOrderLabour::class, 'work_order_labour_id');
   }
 
   public function creator(): BelongsTo

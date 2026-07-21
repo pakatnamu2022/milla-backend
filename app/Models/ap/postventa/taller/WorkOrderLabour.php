@@ -23,7 +23,8 @@ class WorkOrderLabour extends Model
     'net_amount',
     'tax_amount',
     'worker_id',
-    'work_order_id'
+    'work_order_id',
+    'is_deductible',
   ];
 
   const filters = [
@@ -49,6 +50,7 @@ class WorkOrderLabour extends Model
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
+    'is_deductible' => 'boolean',
   ];
 
   public function setDescriptionAttribute($value): void
