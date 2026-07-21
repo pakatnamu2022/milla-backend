@@ -578,25 +578,6 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
-   * Cancel/Reverse a consolidated invoice
-   * Returns internal notes to pending status and frees up work orders
-   * Only works if invoice has NOT been sent to SUNAT/Nubefac
-   *
-   * @param int $id Invoice ID
-   * @return JsonResponse
-   */
-  public function cancelConsolidatedInvoice(int $id): JsonResponse
-  {
-    try {
-      $result = $this->service->cancelConsolidatedInvoice($id);
-
-      return $this->success($result);
-    } catch (Exception $e) {
-      return $this->error($e->getMessage());
-    }
-  }
-
-  /**
    * Get invoice with internal notes and their work orders
    *
    * @param int $id Invoice ID

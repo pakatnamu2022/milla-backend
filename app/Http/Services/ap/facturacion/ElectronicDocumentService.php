@@ -1220,6 +1220,37 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Marcar como cancelado
       $document->markAsLocalCancelled($reason);
 
+      // Liberar OTs de facturas consolidadas masivas
+      if ($document->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+        // Obtener las notas internas asociadas con sus work orders
+        $internalNotes = $document->internalNotes()->with('workOrder')->get();
+
+        if ($internalNotes->isNotEmpty()) {
+          $workOrderIds = [];
+
+          // Revertir notas internas a estado pendiente
+          foreach ($internalNotes as $note) {
+            $note->update([
+              'status' => ApInternalNote::STATUS_PENDING,
+              'closed_date' => null,
+            ]);
+
+            // Recolectar IDs de work orders
+            if ($note->work_order_id) {
+              $workOrderIds[] = $note->work_order_id;
+            }
+          }
+
+          // Liberar work orders (permitir refacturación)
+          if (!empty($workOrderIds)) {
+            ApWorkOrder::whereIn('id', $workOrderIds)
+              ->update(['has_invoice_generated' => false]);
+          }
+
+          // NO hacemos detach() para mantener la trazabilidad de qué OTs estuvieron asociadas
+        }
+      }
+
       // Revertir estado del vehículo si es documento de venta comercial
       $this->revertVehicleStatusOnCancellation($document);
 
@@ -4046,98 +4077,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * @return array
    * @throws Exception
    */
-  public function cancelConsolidatedInvoice(int $invoiceId): array
-  {
-    DB::beginTransaction();
-    try {
-      // 1. Get invoice with related internal notes and work orders
-      $invoice = ElectronicDocument::with(['internalNotes.workOrder'])
-        ->find($invoiceId);
-
-      if (!$invoice) {
-        throw new Exception('Factura no encontrada');
-      }
-
-      // 2. Validate invoice is consolidated
-      if ($invoice->consolidation_type !== ElectronicDocument::CONSOLIDATION_MASSIVE) {
-        throw new Exception('Solo se pueden cancelar facturas de tipo consolidadas');
-      }
-
-      // 3. Validate invoice is not already deleted
-      if ($invoice->trashed()) {
-        throw new Exception('La factura ya ha sido eliminada');
-      }
-
-      // 4. CRITICAL: Validate invoice has NOT been sent to SUNAT/Nubefac
-      if ($invoice->aceptada_por_sunat || $invoice->sent_at) {
-        throw new Exception(
-          'No se puede cancelar esta factura porque ya fue enviada a SUNAT/Nubefac. ' .
-          'Las facturas enviadas no pueden ser revertidas.'
-        );
-      }
-
-      // Additional validation: check status
-      if (in_array($invoice->status, [
-        ElectronicDocument::STATUS_SENT,
-        ElectronicDocument::STATUS_ACCEPTED
-      ])) {
-        throw new Exception('No se puede cancelar una factura con estado "' . $invoice->status . '"');
-      }
-
-      // 5. Get internal notes related to this invoice
-      $internalNotes = $invoice->internalNotes;
-
-      if ($internalNotes->isEmpty()) {
-        throw new Exception('No se encontraron notas internas asociadas a esta factura');
-      }
-
-      $workOrderIds = [];
-
-      // 6. Revert internal notes to pending status
-      foreach ($internalNotes as $note) {
-        $note->update([
-          'status' => ApInternalNote::STATUS_PENDING,
-          'closed_date' => null,
-        ]);
-
-        // Collect work order IDs
-        if ($note->work_order_id) {
-          $workOrderIds[] = $note->work_order_id;
-        }
-      }
-
-      // 7. Free up work orders (set has_invoice_generated = false)
-      if (!empty($workOrderIds)) {
-        ApWorkOrder::whereIn('id', $workOrderIds)
-          ->update(['has_invoice_generated' => false]);
-      }
-
-      // 8. Detach internal notes from invoice (remove pivot table entries)
-      $invoice->internalNotes()->detach();
-
-      // 9. Soft delete the invoice
-      $invoice->delete();
-
-      DB::commit();
-
-      return [
-        'success' => true,
-        'message' => 'Factura consolidada cancelada exitosamente',
-        'invoice_id' => $invoiceId,
-        'invoice_number' => $invoice->full_number,
-        'internal_notes_count' => $internalNotes->count(),
-        'work_orders_freed' => count($workOrderIds),
-        'details' => [
-          'internal_notes_returned_to_pending' => $internalNotes->pluck('number')->toArray(),
-          'work_orders_freed' => $workOrderIds,
-        ],
-      ];
-
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
-  }
 
   /**
    * Get invoice with internal notes and their work orders

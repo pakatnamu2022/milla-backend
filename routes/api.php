@@ -1863,7 +1863,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Consolidated invoice from work orders
       Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
-      Route::delete('electronic-documents/{id}/consolidated-invoice', [ElectronicDocumentController::class, 'cancelConsolidatedInvoice']);
       Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
 
       // Regularizar anticipos (sin enviar a Nubefact)
