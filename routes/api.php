@@ -1379,6 +1379,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
       Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
       Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
+      Route::post('shippingGuides/{id}/reset-migration', [ShippingGuidesController::class, 'resetMigration']);
       Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
       Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
       Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
