@@ -174,18 +174,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'vehicleStatus',
       'warehouse.sede',
       'purchaseOrder',
+      'purchaseRequestQuote.opportunity.worker',
+      'purchaseRequestQuote.holder',
     ])
-      ->whereHas('vehicleMovements', function ($q) {
-        $q->whereIn('ap_vehicle_status_id', [
-          ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-          ApVehicleStatus::INVENTARIO_VN,
-        ]);
-      })
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
       ->whereNotIn('ap_vehicle_status_id', [
-        ApVehicleStatus::VENDIDO_NO_ENTREGADO,
         ApVehicleStatus::VENDIDO_ENTREGADO,
-        ApVehicleStatus::FACTURADO,
-        ApVehicleStatus::FACTURADO_FINAL,
       ]);
 
     if ($request->filled('emission_date')) {
@@ -208,9 +202,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $vehicles = $query->orderBy('ap_vehicle_status_id')->get();
 
     $columns = [
-      'fecha_emision'   => 'FECHA EMISION',
+      'estado'          => 'ESTADO',
+      'fecha_emision'   => 'FECHA EMISION OC',
       'importe_inicial' => 'IMPORTE INICIAL',
-      'numero_factura'  => 'NUMERO FACTURA',
+      'numero_factura'  => 'NUMERO FACTURA OC',
       'marca'           => 'MARCA VEHICULO',
       'modelo'          => 'MODELO VEHICULO',
       'color'           => 'COLOR VEHICULO',
@@ -220,8 +215,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'serie_motor'     => 'SERIE MOTOR',
       'sede'            => 'SEDE',
       'almacen'         => 'ALMACEN',
-      'estado'          => 'ESTADO',
-      'dias_vencidos'   => 'DIAS VENCIDOS',
+      'dias_vencidos'   => 'DIAS EN STOCK',
+      'solicitud'       => 'SOLICITUD',
+      'cliente'         => 'CLIENTE',
+      'asesor'          => 'ASESOR',
     ];
 
     $rows = $vehicles->map(function ($vehicle) {
@@ -234,7 +231,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         $invoiceNumber = trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-');
       }
 
+      $quote = $vehicle->purchaseRequestQuote;
+
       return [
+        'estado'          => $vehicle->vehicleStatus?->description,
         'fecha_emision'   => $emissionDate?->format('d/m/Y'),
         'importe_inicial' => $po?->total,
         'numero_factura'  => $invoiceNumber,
@@ -247,8 +247,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'serie_motor'     => $vehicle->engine_number,
         'sede'            => $vehicle->warehouse?->sede?->abreviatura,
         'almacen'         => $vehicle->warehouse?->description,
-        'estado'          => $vehicle->vehicleStatus?->description,
         'dias_vencidos'   => $diasVencidos,
+        'solicitud'       => $quote ? 'COT-' . $quote->correlative : null,
+        'cliente'         => $quote?->holder?->full_name,
+        'asesor'          => $quote?->opportunity?->worker?->nombre_completo,
       ];
     });
 

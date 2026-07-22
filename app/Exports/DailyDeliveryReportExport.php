@@ -14,8 +14,6 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use App\Exports\AvancePorSedeSheet;
-
 class DailyDeliveryReportExport implements WithMultipleSheets
 {
   protected $reportData;
@@ -32,8 +30,8 @@ class DailyDeliveryReportExport implements WithMultipleSheets
       new DailyDeliveryReportAdvisorsSheet($this->reportData),
       new DailyDeliveryReportHierarchySheet($this->reportData),
       new DailyDeliveryReportBrandsSheet($this->reportData),
-      new AvancePorSedeSheet($this->reportData),
       new DailyDeliveryReportPurchasesSheet($this->reportData),
+      new DailyDeliveryReportInventorySheet($this->reportData),
     ];
   }
 }
@@ -695,7 +693,7 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
   }
 }
 
-// Hoja 6: Reporte de Compras (por Marca y por Sede)
+// Hoja 5: Reporte de Compras (por Marca y por Sede)
 class DailyDeliveryReportPurchasesSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle, WithEvents
 {
   protected $reportData;
@@ -889,6 +887,141 @@ class DailyDeliveryReportPurchasesSheet implements FromCollection, WithHeadings,
         }
 
         $sheet->setShowSummaryBelow(false);
+      },
+    ];
+  }
+}
+
+// Hoja 6: Inventario Actual de Vehículos
+class DailyDeliveryReportInventorySheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle, WithEvents
+{
+  protected $reportData;
+  protected int $headerRow;
+
+  public function __construct(array $reportData)
+  {
+    $this->reportData = $reportData;
+    $summary = $reportData['current_inventory']['summary'] ?? [];
+    $this->headerRow = 6 + count($summary);
+  }
+
+  public function collection()
+  {
+    $inventory = $this->reportData['current_inventory']['items'] ?? [];
+
+    return collect($inventory)->map(fn($row) => [
+      $row['estado'],
+      $row['fecha_emision'],
+      $row['importe_inicial'],
+      $row['numero_factura'],
+      $row['marca'],
+      $row['modelo'],
+      $row['color'],
+      $row['anio_modelo'],
+      $row['combustible'],
+      $row['vin'],
+      $row['serie_motor'],
+      $row['sede'],
+      $row['almacen'],
+      $row['dias_en_stock'],
+      $row['solicitud_id'],
+      $row['solicitud'],
+      $row['cliente'],
+      $row['asesor'],
+    ]);
+  }
+
+  public function headings(): array
+  {
+    $summary = $this->reportData['current_inventory']['summary'] ?? [];
+
+    $rows = [
+      ['INVENTARIO ACTUAL DE VEHÍCULOS'],
+      ['Generado: ' . now()->format('d/m/Y H:i')],
+      [],
+      ['RESUMEN POR ESTADO', 'CANTIDAD'],
+    ];
+
+    foreach ($summary as $item) {
+      $rows[] = [$item['estado'], $item['total']];
+    }
+
+    $rows[] = [];
+    $rows[] = [
+      'ESTADO', 'FECHA EMISION OC', 'IMPORTE INICIAL', 'NUMERO FACTURA OC',
+      'MARCA VEHICULO', 'MODELO VEHICULO', 'COLOR VEHICULO', 'AÑO MODELO',
+      'TIPO COMBUSTIBLE', 'VIN', 'SERIE MOTOR', 'SEDE', 'ALMACEN',
+      'DIAS EN STOCK', 'ID SOLICITUD', 'SOLICITUD', 'CLIENTE', 'ASESOR',
+    ];
+
+    return $rows;
+  }
+
+  public function styles(Worksheet $sheet)
+  {
+    return [
+      1 => [
+        'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F5C2E']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+      ],
+      2 => [
+        'font' => ['italic' => true, 'size' => 10],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+      ],
+      4 => [
+        'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '375623']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+      ],
+      ($this->headerRow - 2) => [
+        'font' => ['bold' => true],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D4EDDA']],
+      ],
+      $this->headerRow => [
+        'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '375623']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+      ],
+    ];
+  }
+
+  public function title(): string
+  {
+    return 'Inventario Actual';
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        $sheet = $event->sheet->getDelegate();
+        $headerRow = $this->headerRow;
+        $dataStart = $headerRow + 1;
+        $summaryEnd = $headerRow - 2;
+
+        $sheet->mergeCells('A1:R1');
+        $sheet->mergeCells('A2:R2');
+
+        $sheet->getRowDimension(1)->setRowHeight(30);
+        $sheet->getRowDimension(4)->setRowHeight(20);
+        $sheet->getRowDimension($headerRow)->setRowHeight(25);
+
+        $sheet->getStyle('A4:B' . $summaryEnd)->applyFromArray([
+          'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D4D4D4']]],
+        ]);
+        $sheet->getStyle('B5:B' . $summaryEnd)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $lastRow = $sheet->getHighestRow();
+
+        $sheet->getStyle('A' . $headerRow . ':R' . $lastRow)->applyFromArray([
+          'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D4D4D4']]],
+        ]);
+
+        $sheet->getStyle('B' . $dataStart . ':N' . $lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->freezePane('A' . $dataStart);
+        $sheet->setAutoFilter('A' . $headerRow . ':R' . $headerRow);
       },
     ];
   }

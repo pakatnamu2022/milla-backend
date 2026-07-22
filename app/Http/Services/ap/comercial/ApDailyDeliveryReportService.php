@@ -3,6 +3,8 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
@@ -59,11 +61,11 @@ class ApDailyDeliveryReportService
     // Paso 6: Construir reporte por marcas y sedes
     $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
 
-    // Paso 7: Construir reporte de avance por sede
-    $avancePorSede = $this->buildAvancePorSede($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
-
-    // Paso 8: Construir reporte de compras por marca y por sede
+    // Paso 7: Construir reporte de compras por marca y por sede
     $purchasesReport = $this->buildPurchasesReport($fechaInicio, $fechaFin, $year, $month);
+
+    // Paso 8: Inventario actual (todos los vehículos comerciales excepto VENDIDO_ENTREGADO)
+    $currentInventory = $this->buildCurrentInventory();
 
     return [
       'fecha_inicio' => $fechaInicio,
@@ -76,8 +78,8 @@ class ApDailyDeliveryReportService
       'advisors' => $advisors,
       'hierarchy' => $hierarchy,
       'brand_report' => $brandReport,
-      'avance_por_sede' => $avancePorSede,
       'purchases_report' => $purchasesReport,
+      'current_inventory' => $currentInventory,
     ];
   }
 
@@ -96,13 +98,16 @@ class ApDailyDeliveryReportService
         $join->on('ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
           ->whereNull('ap_vehicle_delivery.deleted_at');
       })
-      ->join('purchase_request_quote', 'ap_vehicles.id', '=', 'purchase_request_quote.ap_vehicle_id')
-      ->join('ap_opportunity', 'purchase_request_quote.opportunity_id', '=', 'ap_opportunity.id')
+      ->leftJoin('purchase_request_quote', function ($join) {
+        $join->on('ap_vehicles.id', '=', 'purchase_request_quote.ap_vehicle_id')
+          ->whereNull('purchase_request_quote.deleted_at');
+      })
+      ->leftJoin('ap_opportunity', 'purchase_request_quote.opportunity_id', '=', 'ap_opportunity.id')
       ->join('ap_models_vn', 'ap_vehicles.ap_models_vn_id', '=', 'ap_models_vn.id')
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
       ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
-      ->leftJoin('config_sede', 'purchase_request_quote.sede_id', '=', 'config_sede.id')
+      ->leftJoin('config_sede', DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id)'), '=', 'config_sede.id')
       ->where(function ($query) use ($fechaInicio, $fechaFin) {
         // Tiene entrega en el rango de fechas
         $query->where(function ($q) use ($fechaInicio, $fechaFin) {
@@ -127,12 +132,11 @@ class ApDailyDeliveryReportService
           });
       })
       ->whereNull('ap_vehicles.deleted_at')
-      ->whereNull('purchase_request_quote.deleted_at')
       ->select([
         'ap_vehicles.id as vehicle_id',
         'ap_vehicle_delivery.real_delivery_date',
-        'ap_opportunity.worker_id as advisor_id',
-        'purchase_request_quote.sede_id',
+        DB::raw('COALESCE(ap_opportunity.worker_id, ap_vehicle_delivery.advisor_id) as advisor_id'),
+        DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id) as sede_id'),
         'config_sede.abreviatura as sede_name',
         'ap_class_article.id as article_class_id',
         'ap_class_article.description as article_class_description',
@@ -179,12 +183,9 @@ class ApDailyDeliveryReportService
   }
 
   /**
-   * Obtiene IDs de cotizaciones que tienen facturas válidas
-   * Sin filtro de fecha - una factura válida cuenta independientemente de cuándo se emitió
-   *
-   * @return Collection
+   * Obtiene IDs de cotizaciones con facturas emitidas dentro del periodo
    */
-  protected function getInvoicedQuoteIds(): Collection
+  protected function getInvoicedQuoteIds(string $fechaInicio, string $fechaFin): Collection
   {
     return ElectronicDocument::where('is_advance_payment', false)
       ->where('aceptada_por_sunat', true)
@@ -194,6 +195,8 @@ class ApDailyDeliveryReportService
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
       ])
       ->where('area_id', ApMasters::AREA_COMERCIAL)
+      ->whereNotNull('purchase_request_quote_id')
+      ->whereBetween('fecha_de_emision', [$fechaInicio, $fechaFin])
       ->whereNull('deleted_at')
       ->distinct()
       ->pluck('purchase_request_quote_id');
@@ -2055,5 +2058,76 @@ class ApDailyDeliveryReportService
       ->toArray();
 
     return $brands;
+  }
+
+  protected function buildCurrentInventory(): array
+  {
+    $vehicles = Vehicles::with([
+      'model.family.brand',
+      'model.fuelType',
+      'color',
+      'vehicleStatus',
+      'warehouse.sede',
+      'purchaseOrder',
+      'purchaseRequestQuote.opportunity.worker',
+      'purchaseRequestQuote.holder',
+    ])
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
+      ->whereNotIn('ap_vehicle_status_id', [ApVehicleStatus::VENDIDO_ENTREGADO])
+      ->orderBy('ap_vehicle_status_id')
+      ->get();
+
+    $summary = $vehicles
+      ->groupBy(fn($v) => $v->vehicleStatus?->description ?? 'SIN ESTADO')
+      ->map(fn($group) => [
+        'estado' => $group->first()->vehicleStatus?->description ?? 'SIN ESTADO',
+        'total'  => $group->count(),
+        'color'  => $group->first()->vehicleStatus?->color,
+      ])
+      ->values()
+      ->all();
+
+    $summary[] = [
+      'estado' => 'TOTAL',
+      'total'  => array_sum(array_column($summary, 'total')),
+      'color'  => null,
+    ];
+
+    $items = $vehicles->map(function ($vehicle) {
+      $po    = $vehicle->purchaseOrder;
+      $quote = $vehicle->purchaseRequestQuote;
+      $emissionDate = $po?->emission_date;
+
+      $invoiceNumber = null;
+      if ($po?->invoice_series || $po?->invoice_number) {
+        $invoiceNumber = trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-');
+      }
+
+      return [
+        'estado'          => $vehicle->vehicleStatus?->description,
+        'fecha_emision'   => $emissionDate?->format('d/m/Y'),
+        'importe_inicial' => $po?->total,
+        'numero_factura'  => $invoiceNumber,
+        'marca'           => $vehicle->model?->family?->brand?->name,
+        'modelo'          => $vehicle->model?->version,
+        'color'           => $vehicle->color?->description,
+        'anio_modelo'     => $vehicle->model?->model_year,
+        'combustible'     => $vehicle->model?->fuelType?->description,
+        'vin'             => $vehicle->vin,
+        'serie_motor'     => $vehicle->engine_number,
+        'sede'            => $vehicle->warehouse?->sede?->abreviatura,
+        'almacen'         => $vehicle->warehouse?->description,
+        'dias_en_stock'   => $emissionDate ? (int)$emissionDate->diffInDays(now()) : null,
+        'solicitud_id'    => $quote?->id,
+        'solicitud'       => $quote ? 'COT-' . $quote->correlative : null,
+        'cliente'         => $quote?->holder?->full_name,
+        'asesor'          => $quote?->opportunity?->worker?->nombre_completo,
+      ];
+    })->values()->all();
+
+    return [
+      'summary' => $summary,
+      'items'   => $items,
+    ];
   }
 }
