@@ -766,6 +766,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización ya ha sido descartada previamente.');
       }
 
+      if ($quotation->getFinalInvoice()) {
+        throw new Exception('No se puede descartar una cotización que tiene un comprobante final emitido');
+      }
+
       // Las cotizaciones de Taller nunca reservan stock al confirmarse (ver
       // reserveStockForQuotation), así que no hay nada que liberar aquí para ellas.
       // Liberar de todos modos restaría reserva ajena si el mismo producto+almacén
