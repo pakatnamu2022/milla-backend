@@ -141,10 +141,22 @@ class ApOrderQuotationsController extends Controller
     try {
       // Obtener el parámetro show_codes desde la query string (por defecto true)
       $showCodes = request()->query('show_codes', true);
+      // Obtener el parámetro format desde la query string (por defecto 'pdf')
+      $format = request()->query('format', 'pdf');
 
       // Convertir a booleano si viene como string
       if (is_string($showCodes)) {
         $showCodes = filter_var($showCodes, FILTER_VALIDATE_BOOLEAN);
+      }
+
+      // Validar formato
+      if (!in_array($format, ['pdf', 'excel'])) {
+        return $this->error('Formato no válido. Use "pdf" o "excel".');
+      }
+
+      // Llamar al método correspondiente según el formato
+      if ($format === 'excel') {
+        return $this->service->generateQuotationRepuestoExcel($id, $showCodes);
       }
 
       return $this->service->generateQuotationRepuestoPDF($id, $showCodes);
