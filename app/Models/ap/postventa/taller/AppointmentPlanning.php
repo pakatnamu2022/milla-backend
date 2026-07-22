@@ -115,6 +115,11 @@ class AppointmentPlanning extends Model
     return $this->belongsTo(User::class, 'created_by');
   }
 
+  public function workOrder()
+  {
+    return $this->hasOne(ApWorkOrder::class, 'appointment_planning_id');
+  }
+
   // Export Methods
   public static function getReportData($filters = [])
   {
@@ -125,7 +130,7 @@ class AppointmentPlanning extends Model
       'typePlanning',
       'typeOperationAppointment',
       'owner',
-      'creator'
+      'workOrder'
     ]);
 
     // Apply filters
@@ -163,7 +168,6 @@ class AppointmentPlanning extends Model
 
     return $appointments->map(function ($appointment) {
       return [
-        'id' => $appointment->id,
         'placa_vehiculo' => $appointment->vehicle ? $appointment->vehicle->plate : '',
         'vin_vehiculo' => $appointment->vehicle ? $appointment->vehicle->vin : '',
         'cliente' => $appointment->full_name_client,
@@ -180,7 +184,7 @@ class AppointmentPlanning extends Model
         'hora_entrega' => $appointment->delivery_time,
         'descripcion' => $appointment->description,
         'tomada' => $appointment->is_taken ? 'Sí' : 'No',
-        'creado_por' => $appointment->creator ? $appointment->creator->name : '',
+        'numero_ot' => ($appointment->is_taken && $appointment->workOrder) ? $appointment->workOrder->correlative : '',
         'fecha_creacion' => $appointment->created_at ? $appointment->created_at->format('Y-m-d H:i:s') : '',
       ];
     });
@@ -189,7 +193,6 @@ class AppointmentPlanning extends Model
   public static function getReportableColumns()
   {
     return [
-      'id' => 'ID',
       'placa_vehiculo' => 'Placa Vehículo',
       'vin_vehiculo' => 'VIN Vehículo',
       'cliente' => 'Cliente',
@@ -206,7 +209,7 @@ class AppointmentPlanning extends Model
       'hora_entrega' => 'Hora Entrega',
       'descripcion' => 'Descripción',
       'tomada' => 'Tomada',
-      'creado_por' => 'Creado Por',
+      'numero_ot' => 'Número OT',
       'fecha_creacion' => 'Fecha Creación',
     ];
   }
