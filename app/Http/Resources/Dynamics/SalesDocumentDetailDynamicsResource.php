@@ -90,8 +90,9 @@ class SalesDocumentDetailDynamicsResource extends JsonResource
     $precioTotalNeto = $this->overrideValorUnitario !== null
       ? $valorUnitario * $cantidad
       : (float)$this->subtotal;
-    $precioTotal = $precioTotalNeto > 0 ? round($precioTotalNeto, 2) : throw new Exception('El ítem no tiene precio total definido.');
-
+    //$precioTotal = $precioTotalNeto > 0 ? round($precioTotalNeto, 2) : throw new Exception('El ítem no tiene precio total definido.');
+    $precioTotal = round($precioTotalNeto, 2);
+    
     // Si es un anticipo regularizado, enviar valores en negativo para Dynamics
     if ($this->anticipo_regularizacion === true) {
       $precioUnitario = -abs($precioUnitario);
