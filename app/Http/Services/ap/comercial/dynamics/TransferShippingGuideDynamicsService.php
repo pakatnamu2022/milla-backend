@@ -44,19 +44,31 @@ class TransferShippingGuideDynamicsService
     }
 
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
     $detailStep = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
       : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+
+    $serialStep = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
 
     $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
       ->where('step', $detailStep)
       ->first();
 
-    if (!$detailLog || $detailLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      Log::info('Detalle de transferencia aún no confirmado por Dynamics, omitiendo cabecera', [
+    $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->where('step', $serialStep)
+      ->first();
+
+    $detailCompleted = $detailLog?->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED;
+    $serialCompleted = $serialLog?->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED;
+
+    if (!$detailCompleted || !$serialCompleted) {
+      Log::info('Detalle/Serie de transferencia aún no confirmados por Dynamics, omitiendo cabecera', [
         'shipping_guide_id' => $shippingGuide->id,
-        'detail_step'       => $detailStep,
         'detail_status'     => $detailLog?->status,
+        'serial_status'     => $serialLog?->status,
       ]);
       return;
     }
@@ -123,22 +135,6 @@ class TransferShippingGuideDynamicsService
     }
 
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-    $serialStep = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
-
-    $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', $serialStep)
-      ->first();
-
-    if (!$serialLog || $serialLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-      Log::info('Serie de transferencia aún no confirmada por Dynamics, omitiendo detalle', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'serial_step'       => $serialStep,
-        'serial_status'     => $serialLog?->status,
-      ]);
-      return;
-    }
 
     // Guard para evitar query con TransferenciaId = null
     if (empty($shippingGuide->dyn_series)) {
