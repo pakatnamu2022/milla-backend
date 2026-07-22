@@ -226,12 +226,14 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     // Preparar datos del cliente
     $clientDocument = 'N/A';
+    $clientName  =  'N/A';
     $clientAddress = 'N/A';
     $clientUbigeo = 'N/A';
     $clientCity = 'N/A';
 
     if ($customer) {
       $clientDocument = $customer->num_doc ?? 'N/A';
+      $clientName = $customer->full_name ?? 'N/A';
       $clientAddress = $customer->direction ?? 'N/A';
       $clientUbigeo = $customer->district->ubigeo ?? 'N/A';
       $clientCity = $customer->district && $customer->district->province
@@ -248,7 +250,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       'delivery_time' => $appointmentPlanning->delivery_time,
       'advisor_name' => $appointmentPlanning->advisor ? $appointmentPlanning->advisor->nombre_completo : 'N/A',
       'created_at' => $appointmentPlanning->created_at,
-      'full_name_client' => $appointmentPlanning->full_name_client,
+      'full_name_client' => $clientName,
       'email_client' => $appointmentPlanning->email_client,
       'phone_client' => $appointmentPlanning->phone_client,
       'client_document' => $clientDocument,
