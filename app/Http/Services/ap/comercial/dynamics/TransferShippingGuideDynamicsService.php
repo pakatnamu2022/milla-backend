@@ -253,9 +253,6 @@ class TransferShippingGuideDynamicsService
     }
   }
 
-  // Nota: los nombres syncTransferDetail / syncTransferSerial están invertidos internamente
-  // respecto a los steps que usan (SERIAL vs DETAIL). Se mantiene el comportamiento original.
-
   protected function syncTransferDetail(ShippingGuides $shippingGuide, bool $isCancelled): void
   {
     $vehicle_vn_id = $shippingGuide->vehicleMovement?->vehicle?->id ?? null;
@@ -273,18 +270,18 @@ class TransferShippingGuideDynamicsService
     }
 
     $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
 
-    $transferSerialLog = $this->logService->getOrCreateLog(
+    $transferDetailLog = $this->logService->getOrCreateLog(
       $shippingGuide->id,
       $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
 
-    if ($transferSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+    if ($transferDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
@@ -445,16 +442,16 @@ class TransferShippingGuideDynamicsService
         'CuentaContrapartida' => $counterpartInventoryAccount ?? throw new Exception('La Cuenta Contrapartida no fue encontrada.'),
       ];
 
-      $transferSerialLog->markAsInProgress();
+      $transferDetailLog->markAsInProgress();
       $this->syncService->sync('inventory_transfer_dt', $serialData, 'create');
-      $transferSerialLog->updateProcesoEstado(0);
+      $transferDetailLog->updateProcesoEstado(0);
     } catch (Exception $e) {
       Log::error('Error al sincronizar detalle de transferencia de inventario', [
         'shipping_guide_id' => $shippingGuide->id,
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString(),
       ]);
-      $transferSerialLog->markAsFailed("Error al sincronizar serial de transferencia: {$e->getMessage()}");
+      $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
       throw $e;
     }
   }
@@ -465,18 +462,18 @@ class TransferShippingGuideDynamicsService
     $prefix = $shippingGuide->getTransferPrefix($shippingGuide);
 
     $step = $isCancelled
-      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
-      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
 
-    $transferDetailLog = $this->logService->getOrCreateLog(
+    $transferSerialLog = $this->logService->getOrCreateLog(
       $shippingGuide->id,
       $step,
-      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL],
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL],
       $shippingGuide->document_number,
       $vehicle_vn_id
     );
 
-    if ($transferDetailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+    if ($transferSerialLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
       return;
     }
 
@@ -496,16 +493,16 @@ class TransferShippingGuideDynamicsService
         'DatoUsuario2' => $shippingGuide->vehicleMovement->vehicle->vin ?? 'N/A',
       ];
 
-      $transferDetailLog->markAsInProgress();
+      $transferSerialLog->markAsInProgress();
       $this->syncService->sync('inventory_transfer_dts', $detailData, 'create');
-      $transferDetailLog->updateProcesoEstado(0);
+      $transferSerialLog->updateProcesoEstado(0);
     } catch (Exception $e) {
-      Log::error('Error al sincronizar detalle de transferencia de inventario', [
+      Log::error('Error al sincronizar serial de transferencia de inventario', [
         'shipping_guide_id' => $shippingGuide->id,
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString(),
       ]);
-      $transferDetailLog->markAsFailed("Error al sincronizar detalle de transferencia: {$e->getMessage()}");
+      $transferSerialLog->markAsFailed("Error al sincronizar serial de transferencia: {$e->getMessage()}");
       throw $e;
     }
   }
