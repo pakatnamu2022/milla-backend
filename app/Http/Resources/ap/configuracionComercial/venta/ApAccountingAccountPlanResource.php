@@ -15,6 +15,7 @@ class ApAccountingAccountPlanResource extends JsonResource
       'code_dynamics' => $this->code_dynamics,
       'description' => $this->description,
       'is_detraction' => $this->is_detraction,
+      'detraction_percentage' => $this->detraction_percentage,
       'status' => $this->status,
       'enable_commercial' => $this->enable_commercial,
       'enable_after_sales' => $this->enable_after_sales,

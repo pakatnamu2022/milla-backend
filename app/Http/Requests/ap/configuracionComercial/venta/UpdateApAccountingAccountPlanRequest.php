@@ -32,6 +32,12 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'detraction_percentage' => [
+        'nullable',
+        'integer',
+        'in:10,12',
+        'required_if:is_detraction,true',
+      ],
       'status' => [
         'nullable',
         'boolean',
@@ -56,6 +62,10 @@ class UpdateApAccountingAccountPlanRequest extends StoreRequest
       'description.max' => 'La descripción no debe ser mayor a 255 caracteres.',
 
       'is_detraction.boolean' => 'El campo detracción debe ser verdadero o falso.',
+
+      'detraction_percentage.integer' => 'El porcentaje de detracción debe ser un número entero.',
+      'detraction_percentage.in' => 'El porcentaje de detracción debe ser 10 o 12.',
+      'detraction_percentage.required_if' => 'El porcentaje de detracción es obligatorio cuando se marca como detracción.',
 
       'enable_commercial.boolean' => 'El campo habilitar comercial debe ser verdadero o falso.',
       'enable_after_sales.boolean' => 'El campo habilitar post venta debe ser verdadero o falso.',
