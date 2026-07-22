@@ -472,7 +472,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * queda igual.
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
-        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+        $detractionTotal = $this->resolveDetractionAmountForInstallments($data, $document);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
           $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
@@ -690,7 +690,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         $isAdvancePayment = !empty($data['is_advance_payment']) && $data['is_advance_payment'] == 1;
         $hasDetraction = !$isAdvancePayment && !empty($data['detraccion']);
-        $detractionTotal = (float)($data['detraccion_total'] ?? 0);
+        $detractionTotal = $this->resolveDetractionAmountForInstallments($data, $document);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
           if ($hasDetraction && $detractionTotal > 0) {
@@ -923,6 +923,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($detractionData['detraccion_total'])) {
         $data['detraccion_total'] = $detractionData['detraccion_total'];
       }
+      if (isset($detractionData['detraccion_total_moneda_original'])) {
+        $data['detraccion_total_moneda_original'] = $detractionData['detraccion_total_moneda_original'];
+      }
 
       // ================================================================
       // PROCESAR ARCHIVO DE ORDEN DE COMPRA SERVICIO (OPCIONAL)
@@ -1015,7 +1018,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
         $document->installments()->delete();
 
-        $detractionTotal = (float)($data['detraccion_total'] ?? $document->detraccion_total ?? 0);
+        $detractionTotal = $this->resolveDetractionAmountForInstallments($data, $document);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
           $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
@@ -3534,6 +3537,59 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Calcula el monto de detracción en la moneda original del comprobante y su equivalente en soles.
+   *
+   * La detracción siempre se declara en soles (PEN), así que si el comprobante está en USD el monto
+   * se convierte usando el tipo de cambio. El monto en moneda original se usa aparte para restarlo de
+   * las cuotas de venta al crédito, ya que ese importe sí debe quedar en la moneda del comprobante.
+   *
+   * @return array{original: float, soles: float}
+   */
+  private function calculateDetractionAmounts(float $total, float $porcentaje, array $data): array
+  {
+    $originalAmount = $total * ($porcentaje / 100);
+
+    $currencyId = (int)($data['sunat_concept_currency_id'] ?? SunatConcepts::CURRENCY_PEN);
+    $exchangeRate = (float)($data['tipo_de_cambio'] ?? 1);
+    $solesAmount = ($currencyId === SunatConcepts::CURRENCY_USD && $exchangeRate > 0)
+      ? $originalAmount * $exchangeRate
+      : $originalAmount;
+
+    return ['original' => $originalAmount, 'soles' => $solesAmount];
+  }
+
+  /**
+   * Resuelve el monto de detracción en la moneda original del comprobante, para restarlo del
+   * importe de las cuotas de venta al crédito.
+   *
+   * Prioriza el monto recién calculado en esta misma request (`detraccion_total_moneda_original`).
+   * Si no está presente (p.ej. un update que no recalcula la detracción), reconstruye el monto en
+   * moneda original a partir de `detraccion_total` (guardado en soles) dividiendo por el tipo de cambio.
+   *
+   * @param array $data
+   * @param ElectronicDocument|null $document
+   * @return float
+   */
+  private function resolveDetractionAmountForInstallments(array $data, ?ElectronicDocument $document = null): float
+  {
+    if (isset($data['detraccion_total_moneda_original'])) {
+      return (float)$data['detraccion_total_moneda_original'];
+    }
+
+    $solesAmount = (float)($data['detraccion_total'] ?? $document->detraccion_total ?? 0);
+    if ($solesAmount == 0.0) {
+      return 0.0;
+    }
+
+    $currencyId = (int)($data['sunat_concept_currency_id'] ?? $document->sunat_concept_currency_id ?? SunatConcepts::CURRENCY_PEN);
+    $exchangeRate = (float)($data['tipo_de_cambio'] ?? $document->tipo_de_cambio ?? 1);
+
+    return ($currencyId === SunatConcepts::CURRENCY_USD && $exchangeRate > 0)
+      ? $solesAmount / $exchangeRate
+      : $solesAmount;
+  }
+
+  /**
    * Aplicar lógica de detracciones (orquestador principal)
    *
    * @param array $data
@@ -3569,8 +3625,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($detractionPercentage) {
           $porcentaje = (float)$detractionPercentage->value;
           $data['detraccion_porcentaje'] = $porcentaje;
-          // La detracción se calcula sobre el total del documento actual
-          $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+          // La detracción se calcula sobre el total del documento actual (detraccion_total siempre en soles)
+          $amounts = $this->calculateDetractionAmounts((float)$data['total'], $porcentaje, $data);
+          $data['detraccion_total'] = $amounts['soles'];
+          $data['detraccion_total_moneda_original'] = $amounts['original'];
         }
       }
     } elseif (isset($data['order_quotation_id']) && $data['order_quotation_id'] && (int)$data['area_id'] === ApMasters::AREA_TALLER) {
@@ -3590,8 +3648,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($detractionPercentage) {
         $porcentaje = (float)$detractionPercentage->value;
         $data['detraccion_porcentaje'] = $porcentaje;
-        // La detracción se calcula sobre el total del documento actual
-        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+        // La detracción se calcula sobre el total del documento actual (detraccion_total siempre en soles)
+        $amounts = $this->calculateDetractionAmounts((float)$data['total'], $porcentaje, $data);
+        $data['detraccion_total'] = $amounts['soles'];
+        $data['detraccion_total_moneda_original'] = $amounts['original'];
       }
     }
   }
@@ -3666,8 +3726,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($detractionPercentage) {
         $porcentaje = (float)$detractionPercentage->value;
         $data['detraccion_porcentaje'] = $porcentaje;
-        // La detracción se calcula sobre el total del documento actual (no sobre el anticipo)
-        $data['detraccion_total'] = (float)$data['total'] * ($porcentaje / 100);
+        // La detracción se calcula sobre el total del documento actual (no sobre el anticipo, detraccion_total siempre en soles)
+        $amounts = $this->calculateDetractionAmounts((float)$data['total'], $porcentaje, $data);
+        $data['detraccion_total'] = $amounts['soles'];
+        $data['detraccion_total_moneda_original'] = $amounts['original'];
       }
     } else {
       // Si no pasa el umbral, NO aplicar detracción
@@ -3676,6 +3738,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $data['sunat_concept_detraction_type_id'] = null;
       $data['detraccion_porcentaje'] = null;
       $data['detraccion_total'] = null;
+      $data['detraccion_total_moneda_original'] = null;
     }
   }
 
@@ -3940,8 +4003,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           if ($detractionPercentage) {
             $porcentaje = (float)$detractionPercentage->value;
             $invoiceData['detraccion_porcentaje'] = $porcentaje;
-            // La detracción se calcula sobre el total del documento
-            $invoiceData['detraccion_total'] = (float)$invoiceData['total'] * ($porcentaje / 100);
+            // La detracción se calcula sobre el total del documento (detraccion_total siempre en soles)
+            $amounts = $this->calculateDetractionAmounts((float)$invoiceData['total'], $porcentaje, $invoiceData);
+            $invoiceData['detraccion_total'] = $amounts['soles'];
+            $invoiceData['detraccion_total_moneda_original'] = $amounts['original'];
           }
         } else {
           // Si no aplica detracción, establecer los campos explícitamente
@@ -3949,6 +4014,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $invoiceData['sunat_concept_detraction_type_id'] = null;
           $invoiceData['detraccion_porcentaje'] = null;
           $invoiceData['detraccion_total'] = null;
+          $invoiceData['detraccion_total_moneda_original'] = null;
 
           // Establecer el transaction_type apropiado
           // Para facturas consolidadas sin detracción, usar VENTA_INTERNA
@@ -4024,7 +4090,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * queda igual.
        */
       if (isset($data['venta_al_credito']) && is_array($data['venta_al_credito'])) {
-        $detractionTotal = (float)($invoiceData['detraccion_total'] ?? 0);
+        $detractionTotal = $this->resolveDetractionAmountForInstallments($invoiceData, $invoice);
 
         foreach ($data['venta_al_credito'] as $cuotaData) {
           $cuotaData['importe'] = (float)$cuotaData['importe'] - $detractionTotal;
