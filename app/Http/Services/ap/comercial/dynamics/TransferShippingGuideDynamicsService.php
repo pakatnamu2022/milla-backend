@@ -102,9 +102,26 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+    $headerStep = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER;
+
+    $headerLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->where('step', $headerStep)
+      ->first();
+
+    if (!$headerLog || $headerLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      Log::info('Cabecera de transferencia aún no confirmada por Dynamics, omitiendo detalle', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'header_step' => $headerStep,
+        'header_status' => $headerLog?->status,
+      ]);
+      return;
+    }
+
     // Guard para evitar query con TransferenciaId = null
     if (empty($shippingGuide->dyn_series)) {
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncTransferDetail($shippingGuide, $isCancelled);
       return;
     }
@@ -116,7 +133,6 @@ class TransferShippingGuideDynamicsService
       ->first();
 
     if (!$existingDetail) {
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncTransferDetail($shippingGuide, $isCancelled);
       return;
     }
@@ -143,6 +159,24 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+    $detailStep = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+
+    $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+      ->where('step', $detailStep)
+      ->first();
+
+    if (!$detailLog || $detailLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      Log::info('Detalle de transferencia aún no confirmado por Dynamics, omitiendo serie', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'detail_step' => $detailStep,
+        'detail_status' => $detailLog?->status,
+      ]);
+      return;
+    }
+
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
@@ -151,7 +185,6 @@ class TransferShippingGuideDynamicsService
       ->first();
 
     if (!$existingSerial) {
-      $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
       $this->syncTransferSerial($shippingGuide, $isCancelled);
       return;
     }
