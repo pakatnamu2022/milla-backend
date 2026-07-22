@@ -27,6 +27,7 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
@@ -1276,5 +1277,65 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'error'             => $e->getMessage(),
       ]);
     }
+  }
+
+  public function resetMigration(int $id): array
+  {
+    $guide = $this->find($id);
+
+    if ($guide->is_accounted) {
+      throw new Exception('No se puede resetear una guía que ya fue contabilizada en Dynamics');
+    }
+
+    $dynSeries = $guide->dyn_series;
+    $deletedFromIntermediate = [];
+
+    if ($dynSeries) {
+      $isSale = $guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA;
+
+      if ($isSale) {
+        $tables = [
+          ['table' => 'neInTbTransaccionInventarioDtS', 'key' => 'TransaccionId'],
+          ['table' => 'neInTbTransaccionInventarioDet', 'key' => 'TransaccionId'],
+          ['table' => 'neInTbTransaccionInventario',    'key' => 'TransaccionId'],
+        ];
+        $ids = [$dynSeries, $dynSeries . '*'];
+      } else {
+        $tables = [
+          ['table' => 'neInTbTransferenciaInventarioDtS', 'key' => 'TransferenciaId'],
+          ['table' => 'neInTbTransferenciaInventarioDet', 'key' => 'TransferenciaId'],
+          ['table' => 'neInTbTransferenciaInventario',    'key' => 'TransferenciaId'],
+        ];
+        $ids = [$dynSeries, $dynSeries . '*'];
+      }
+
+      foreach ($tables as $entry) {
+        foreach ($ids as $id_dyn) {
+          $deleted = DB::connection('dbtp')
+            ->table($entry['table'])
+            ->where('EmpresaId', Company::AP_DYNAMICS)
+            ->where($entry['key'], $id_dyn)
+            ->delete();
+
+          if ($deleted) {
+            $deletedFromIntermediate[] = "{$entry['table']} ({$entry['key']} = {$id_dyn}): {$deleted} fila(s)";
+          }
+        }
+      }
+    }
+
+    $deletedLogs = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $guide->id)->delete();
+
+    $guide->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      'dyn_series'       => null,
+    ]);
+
+    return [
+      'message'                   => 'Migración reseteada correctamente. La guía puede volver a procesarse.',
+      'deleted_intermediate_rows' => $deletedFromIntermediate,
+      'deleted_logs'              => $deletedLogs,
+      'shipping_guide'            => new ShippingGuidesResource($guide->fresh()),
+    ];
   }
 }
