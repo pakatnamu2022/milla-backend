@@ -136,16 +136,12 @@ class TransferShippingGuideDynamicsService
 
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
-    // Guard para evitar query con TransferenciaId = null
-    if (empty($shippingGuide->dyn_series)) {
-      $this->syncTransferDetail($shippingGuide, $isCancelled);
-      return;
-    }
+    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL);
 
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transferId)
       ->first();
 
     if (!$existingDetail) {
@@ -179,10 +175,12 @@ class TransferShippingGuideDynamicsService
 
     $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
+    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL);
+
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transferId)
       ->where('Serie', $shippingGuide->vehicleMovement?->vehicle?->vin)
       ->first();
 
