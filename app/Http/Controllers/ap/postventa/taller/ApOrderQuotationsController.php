@@ -119,24 +119,36 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
-  public function downloadPDF($id)
+  public function downloadTaller($id)
   {
     try {
       // Obtener el parámetro show_codes desde la query string (por defecto true)
       $showCodes = request()->query('show_codes', true);
+      // Obtener el parámetro format desde la query string (por defecto 'pdf')
+      $format = request()->query('format', 'pdf');
 
       // Convertir a booleano si viene como string
       if (is_string($showCodes)) {
         $showCodes = filter_var($showCodes, FILTER_VALIDATE_BOOLEAN);
       }
 
-      return $this->service->generateQuotationPDF($id, $showCodes);
+      // Validar formato
+      if (!in_array($format, ['pdf', 'excel'])) {
+        return $this->error('Formato no válido. Use "pdf" o "excel".');
+      }
+
+      // Llamar al método correspondiente según el formato
+      if ($format === 'excel') {
+        return $this->service->generateQuotationTallerExcel($id, $showCodes);
+      }
+
+      return $this->service->generateQuotationTallerPDF($id, $showCodes);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
   }
 
-  public function downloadRepuestoPDF($id)
+  public function downloadRepuesto($id)
   {
     try {
       // Obtener el parámetro show_codes desde la query string (por defecto true)
