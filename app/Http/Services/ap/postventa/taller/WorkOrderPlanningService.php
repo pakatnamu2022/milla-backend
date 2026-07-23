@@ -53,6 +53,16 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('Orden de trabajo no encontrada');
       }
 
+      // Validar que si validate_labor=false, no se registre operario
+      $firstItem = $workOrder->items->first();
+      if ($firstItem && $firstItem->typePlanning) {
+        $typePlanning = $firstItem->typePlanning;
+
+        if (!$typePlanning->validate_labor && isset($data['worker_id'])) {
+          throw new Exception('No se puede registrar operario para el tipo de planificación: ' . $typePlanning->description);
+        }
+      }
+
       $validateReceipt = $workOrder->shouldValidateReceipt();
 
       $workOrder->ensureCanBeModified();

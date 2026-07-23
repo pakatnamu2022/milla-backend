@@ -2792,6 +2792,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
+      // Si es travesía, omitir validación de stock (bypass total)
+      if ($part->is_traverse) {
+        continue;
+      }
+
       // Obtener registro de stock para este producto en el almacén
       $stock = ProductWarehouseStock::where('warehouse_id', $part->warehouse_id)
         ->where('product_id', $part->product_id)

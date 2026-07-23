@@ -150,8 +150,27 @@ class TransferReceptionService extends BaseService
 
   public function generateInventoryMovement(TransferReception $reception, InventoryMovement $transferOutMovement): InventoryMovement
   {
-    // Get the shipping guide associated with the TRANSFER_OUT
-    $shippingGuide = $transferOutMovement->reference;
+    return DB::transaction(function () use ($reception, $transferOutMovement) {
+      // Validar si ya existe un movimiento TRANSFER_IN para esta recepción (evitar duplicados)
+      // Usar lockForUpdate() dentro de una transacción para prevenir race conditions
+      $existingMovement = InventoryMovement::where('reference_type', TransferReception::class)
+        ->where('reference_id', $reception->id)
+        ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+        ->whereNull('cancelled_inventory_movement_id') // Solo el movimiento original, no las reversiones
+        ->lockForUpdate()
+        ->first();
+
+      if ($existingMovement) {
+        Log::info('Ya existe un movimiento TRANSFER_IN para esta recepción, evitando duplicado', [
+          'transfer_reception_id' => $reception->id,
+          'existing_movement_id' => $existingMovement->id,
+          'existing_movement_number' => $existingMovement->movement_number
+        ]);
+        return $existingMovement;
+      }
+
+      // Get the shipping guide associated with the TRANSFER_OUT
+      $shippingGuide = $transferOutMovement->reference;
 
     //marcamos la $shippingGuide como recibida
     $shippingGuide->update([
@@ -257,6 +276,7 @@ class TransferReceptionService extends BaseService
     ]);
 
     return $transferInMovement;
+    });
   }
 
   /**
@@ -265,7 +285,26 @@ class TransferReceptionService extends BaseService
    */
   public function generateInventoryMovementFromTransferOut(InventoryMovement $transferOutMovement): InventoryMovement
   {
-    $shippingGuide = $transferOutMovement->reference;
+    return DB::transaction(function () use ($transferOutMovement) {
+      $shippingGuide = $transferOutMovement->reference;
+
+    // Validar si ya existe un movimiento TRANSFER_IN para esta guía de remisión (evitar duplicados)
+    // Usar lockForUpdate() para prevenir race conditions cuando múltiples jobs se ejecutan simultáneamente
+    $existingMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+      ->where('reference_id', $shippingGuide->id)
+      ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+      ->whereNull('cancelled_inventory_movement_id') // Solo el movimiento original, no las reversiones
+      ->lockForUpdate()
+      ->first();
+
+    if ($existingMovement) {
+      Log::info('Ya existe un movimiento TRANSFER_IN para esta guía de remisión, evitando duplicado', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'existing_movement_id' => $existingMovement->id,
+        'existing_movement_number' => $existingMovement->movement_number
+      ]);
+      return $existingMovement;
+    }
 
     $shippingGuide->update([
       'is_received' => true,
@@ -332,6 +371,7 @@ class TransferReceptionService extends BaseService
     ]);
 
     return $transferInMovement;
+    });
   }
 
   /**

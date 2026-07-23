@@ -53,6 +53,7 @@ class WorkOrderResource extends JsonResource
       'tax_amount' => (float)$this->tax_amount,
       'final_amount' => (float)$this->final_amount,
       'deductible_amount' => (float)$this->deductible_amount,
+      'deductible_amount_without_tax' => (float)$this->deductible_amount_without_tax,
       'deductible' => $this->whenLoaded('deductibles', function () {
         $document = $this->deductibles->first()?->electronicDocument;
 
