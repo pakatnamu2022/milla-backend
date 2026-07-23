@@ -162,10 +162,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         throw new Exception("No se puede modificar una solicitud de compra asociada a una cotización.");
       }
 
-      if ($purchaseRequest->approved) {
-        throw new Exception("No se puede modificar una solicitud de compra que ha sido aprobada.");
-      }
-
       if ($purchaseRequest->status === ApOrderPurchaseRequests::CANCELLED) {
         throw new Exception("No se puede modificar una solicitud de compra que ha sido cancelada.");
       }
@@ -209,13 +205,43 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       // Update details if provided
       if ($details !== null) {
-        // Delete existing details
-        ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $purchaseRequest->id)->delete();
+        if ($purchaseRequest->approved) {
+          // Una solicitud aprobada no permite agregar ni quitar repuestos,
+          // solo editar los datos (cantidad, precio, descuento, fechas, tipo de abastecimiento, etc.)
+          // de los repuestos ya existentes.
+          $existingProductIds = $purchaseRequest->details()->pluck('product_id')
+            ->map(fn($id) => (int) $id)->sort()->values()->all();
+          $incomingProductIds = collect($details)->pluck('product_id')
+            ->map(fn($id) => (int) $id)->sort()->values()->all();
 
-        // Create new details
-        foreach ($details as $detail) {
-          $detail['order_purchase_request_id'] = $purchaseRequest->id;
-          ApOrderPurchaseRequestDetails::create($detail);
+          if ($existingProductIds !== $incomingProductIds) {
+            throw new Exception("No se pueden agregar o quitar repuestos de una solicitud de compra que ha sido aprobada. Los demás datos si pueden ser editados.");
+          }
+
+          foreach ($details as $detail) {
+            $existingDetail = ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $purchaseRequest->id)
+              ->where('product_id', $detail['product_id'])
+              ->first();
+
+            $existingDetail?->update([
+              'quantity' => $detail['quantity'],
+              'unit_price' => $detail['unit_price'],
+              'discount_percentage' => $detail['discount_percentage'],
+              'total_amount' => $detail['total_amount'],
+              'notes' => $detail['notes'] ?? null,
+              'requested_delivery_date' => $detail['requested_delivery_date'] ?? null,
+              'supply_type' => $detail['supply_type'],
+            ]);
+          }
+        } else {
+          // Delete existing details
+          ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $purchaseRequest->id)->delete();
+
+          // Create new details
+          foreach ($details as $detail) {
+            $detail['order_purchase_request_id'] = $purchaseRequest->id;
+            ApOrderPurchaseRequestDetails::create($detail);
+          }
         }
       }
 
