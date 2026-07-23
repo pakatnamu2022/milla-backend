@@ -291,6 +291,15 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function resetMigration(int $id)
+  {
+    try {
+      return $this->success($this->service->resetMigration($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function checkResources($id)
   {
     try {

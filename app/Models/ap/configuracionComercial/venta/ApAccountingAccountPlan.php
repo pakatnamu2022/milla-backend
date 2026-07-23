@@ -17,6 +17,7 @@ class ApAccountingAccountPlan extends Model
     'code_dynamics',
     'description',
     'is_detraction',
+    'detraction_percentage',
     'type',
     'status',
     'enable_commercial',
@@ -41,8 +42,11 @@ class ApAccountingAccountPlan extends Model
     'status',
   ];
 
+  const array DETRACTION_PERCENTAGES = [10, 12];
+
   protected $casts = [
     'is_detraction' => 'boolean',
+    'detraction_percentage' => 'integer',
     'enable_commercial' => 'boolean',
     'enable_after_sales' => 'boolean',
   ];

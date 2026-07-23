@@ -45,7 +45,9 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($this->logService->hasExceededAttemptLimit($transactionLog)) {
-        $transactionLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        if ($transactionLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+          $transactionLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        }
         continue;
       }
 
@@ -98,7 +100,9 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($this->logService->hasExceededAttemptLimit($detailLog)) {
-        $detailLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        if ($detailLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+          $detailLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        }
         continue;
       }
 
@@ -141,7 +145,9 @@ class SaleShippingGuideDynamicsService
       }
 
       if ($this->logService->hasExceededAttemptLimit($serialLog)) {
-        $serialLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        if ($serialLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+          $serialLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
+        }
         continue;
       }
 
