@@ -38,10 +38,30 @@ class SalesDynamicsBuilder
     $igvDivisor = $this->getIgvDivisor($document);
     $nextLine = $document->items->max('line_number') + 1;
 
-    $items = $document->items->map(function ($item) use ($document, $postSaleAccessories, $igvDivisor) {
-      $overridePrice = $this->resolveVehicleBasePrice($item, $postSaleAccessories, $document, $igvDivisor);
-      return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
-    });
+    // Obtener el código de repuestos en travesía para discriminar
+    $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
+    $sparePartsRoadCode = $sparePartsRoadAccount?->code_dynamics;
+
+    // Variables para acumular repuestos en travesía
+    $traversePartsTotal = 0;
+    $hasTraverseParts = false;
+
+    // Mapear items normales, filtrando los repuestos en travesía
+    $items = $document->items
+      ->filter(function ($item) use ($sparePartsRoadCode, &$traversePartsTotal, &$hasTraverseParts) {
+        // Si el item tiene el código de repuestos en travesía, NO incluirlo individualmente
+        if ($sparePartsRoadCode && $item->dyn_code === $sparePartsRoadCode) {
+          // Acumular el subtotal del item (ya está sin IGV)
+          $traversePartsTotal += (float)($item->subtotal ?? 0);
+          $hasTraverseParts = true;
+          return false; // NO incluir este item
+        }
+        return true; // Incluir items normales
+      })
+      ->map(function ($item) use ($document, $postSaleAccessories, $igvDivisor) {
+        $overridePrice = $this->resolveVehicleBasePrice($item, $postSaleAccessories, $document, $igvDivisor);
+        return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
+      });
 
     foreach ($postSaleAccessories as $accessory) {
       $items->push($this->buildAccessoryLine($accessory, $document, $document->full_number, $nextLine++, $igvDivisor));
@@ -52,6 +72,15 @@ class SalesDynamicsBuilder
       $deductibleItem = $this->buildDeductibleLine($document, $nextLine);
       if ($deductibleItem !== null) {
         $items->push($deductibleItem);
+        $nextLine++;
+      }
+    }
+
+    // Si hubo repuestos en travesía, agregar UN item consolidado al final
+    if ($hasTraverseParts && $traversePartsTotal > 0) {
+      $traverseItem = $this->buildTraversePartsLine($document, $nextLine, $traversePartsTotal, $sparePartsRoadAccount);
+      if ($traverseItem !== null) {
+        $items->push($traverseItem);
       }
     }
 
@@ -194,6 +223,35 @@ class SalesDynamicsBuilder
       'PrecioUnitario' => $deductibleWithoutTax, // Negativo
       'DescuentoUnitario' => 0,
       'PrecioTotal' => $deductibleWithoutTax, // Negativo
+    ];
+  }
+
+  /**
+   * Construye el array de una línea consolidada de repuestos en travesía para Dynamics.
+   * Retorna null si no hay cuenta contable configurada.
+   */
+  public function buildTraversePartsLine(ElectronicDocument $document, int $linea, float $totalAmount, ?ApAccountingAccountPlan $sparePartsRoadAccount): ?array
+  {
+    if (!$sparePartsRoadAccount || !$sparePartsRoadAccount->code_dynamics) {
+      return null;
+    }
+
+    $description = Str::upper($sparePartsRoadAccount->description ?? 'REPUESTOS EN TRAVESIA');
+
+    return [
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'DocumentoId' => $document->full_number,
+      'Linea' => $linea,
+      'ArticuloId' => $sparePartsRoadAccount->code_dynamics,
+      'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+      'ArticuloDescripcionLarga' => $description,
+      'SitioId' => $document->warehouse()
+        ?? throw new Exception('El documento no tiene almacén asociado.'),
+      'UnidadMedidaId' => 'UNS', // Unidad de servicio
+      'Cantidad' => 1, // Siempre 1
+      'PrecioUnitario' => $totalAmount, // Suma de todos los repuestos en travesía (sin IGV)
+      'DescuentoUnitario' => 0,
+      'PrecioTotal' => $totalAmount, // Igual a PrecioUnitario ya que Cantidad = 1
     ];
   }
 }
