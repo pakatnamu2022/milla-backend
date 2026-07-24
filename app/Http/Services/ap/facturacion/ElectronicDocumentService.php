@@ -3469,6 +3469,41 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Obtiene el sunat_concept_detraction_type_id desde los items del documento.
+   * Valida que todos los items con detracción apunten al mismo tipo.
+   *
+   * @param array $items
+   * @return int|null ID del tipo de detracción, o null si ningún item tiene plan con detracción
+   * @throws Exception si hay más de un tipo de detracción distinto en los items
+   */
+  private function getDetractionTypeFromItems(array $items): ?int
+  {
+    $types = [];
+
+    foreach ($items as $item) {
+      if (empty($item['account_plan_id'])) {
+        continue;
+      }
+
+      $accountPlan = ApAccountingAccountPlan::find($item['account_plan_id']);
+
+      if (!$accountPlan || !$accountPlan->is_detraction || !$accountPlan->sunat_concept_detraction_type_id) {
+        continue;
+      }
+
+      $types[] = (int)$accountPlan->sunat_concept_detraction_type_id;
+    }
+
+    $unique = array_unique($types);
+
+    if (count($unique) > 1) {
+      throw new Exception('Solo se permite un tipo de detracción por documento. Se encontraron múltiples tipos distintos en los ítems.');
+    }
+
+    return !empty($unique) ? (int)reset($unique) : null;
+  }
+
+  /**
    * Aplicar lógica de detracción para Order Quotation
    *
    * @param array $data
@@ -3668,14 +3703,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (isset($data['sunat_concept_transaction_type_id'])
         && (int)$data['sunat_concept_transaction_type_id'] === SunatConcepts::ID_SUJETA_DETRACCION) {
         $data['detraccion'] = true;
-        $data['sunat_concept_detraction_type_id'] = match ((int)$data['area_id']) {
-          ApMasters::AREA_TALLER => SunatConcepts::ID_DETRACTION_MANTENIMIENTO_REPACION,
-          default => SunatConcepts::ID_DETRACTION_SERVICIOS
-        };
+        $detractionType = $this->getDetractionTypeFromItems($data['items'] ?? []);
+        if ($detractionType === null) {
+          throw new Exception('El plan de cuentas de los ítems no tiene configurado el tipo de detracción. Configure el tipo de detracción en el plan de cuentas para continuar.');
+        }
+        $data['sunat_concept_detraction_type_id'] = $detractionType;
 
-        // Obtener el porcentaje de detracción: primero desde el plan de cuentas del item, luego desde GeneralMaster
-        $porcentaje = $this->getDetractionPercentageFromItems($data['items'] ?? [])
-          ?? (float)(GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID)?->value ?? 0);
+        $porcentaje = $this->getDetractionPercentageFromItems($data['items'] ?? []);
+        if ($porcentaje === null) {
+          throw new Exception('El plan de cuentas de los ítems no tiene configurado el porcentaje de detracción. Configure el porcentaje en el plan de cuentas para continuar.');
+        }
 
         if ($porcentaje > 0) {
           $data['detraccion_porcentaje'] = $porcentaje;
@@ -3694,12 +3731,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     if (isset($data['detraccion']) && $data['detraccion'] === true && in_array((int)$data['area_id'], [ApMasters::AREA_COMERCIAL, ApMasters::AREA_POSVENTA])) {
-      // Para las áreas comercial y posventa, marcar como sujeta a detracción sin importar el monto
-      $data['sunat_concept_detraction_type_id'] = SunatConcepts::ID_DETRACTION_SERVICIOS;
+      $detractionType = $this->getDetractionTypeFromItems($data['items'] ?? []);
+      if ($detractionType === null) {
+        throw new Exception('El plan de cuentas de los ítems no tiene configurado el tipo de detracción. Configure el tipo de detracción en el plan de cuentas para continuar.');
+      }
+      $data['sunat_concept_detraction_type_id'] = $detractionType;
 
-      // Obtener el porcentaje de detracción: primero desde el plan de cuentas del item, luego desde GeneralMaster
-      $porcentaje = $this->getDetractionPercentageFromItems($data['items'] ?? [])
-        ?? (float)(GeneralMaster::find(GeneralMaster::SUNAT_DETRACTION_PERCENTAGE_ID)?->value ?? 0);
+      $porcentaje = $this->getDetractionPercentageFromItems($data['items'] ?? []);
+      if ($porcentaje === null) {
+        throw new Exception('El plan de cuentas de los ítems no tiene configurado el porcentaje de detracción. Configure el porcentaje en el plan de cuentas para continuar.');
+      }
 
       if ($porcentaje > 0) {
         $data['detraccion_porcentaje'] = $porcentaje;

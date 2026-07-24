@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\configuracionComercial\venta;
 
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -18,6 +20,7 @@ class ApAccountingAccountPlan extends Model
     'description',
     'is_detraction',
     'detraction_percentage',
+    'sunat_concept_detraction_type_id',
     'type',
     'status',
     'enable_commercial',
@@ -25,12 +28,12 @@ class ApAccountingAccountPlan extends Model
   ];
 
   const filters = [
-    'search' => ['account', 'description', 'code_dynamics'],
-    'code_dynamics' => '=',
-    'is_detraction' => '=',
-    'status' => '=',
-    'type' => '=',
-    'enable_commercial' => '=',
+    'search'             => ['account', 'description', 'code_dynamics'],
+    'code_dynamics'      => '=',
+    'is_detraction'      => '=',
+    'status'             => '=',
+    'type'               => '=',
+    'enable_commercial'  => '=',
     'enable_after_sales' => '=',
   ];
 
@@ -45,11 +48,16 @@ class ApAccountingAccountPlan extends Model
   const array DETRACTION_PERCENTAGES = [10, 12];
 
   protected $casts = [
-    'is_detraction' => 'boolean',
+    'is_detraction'         => 'boolean',
     'detraction_percentage' => 'integer',
-    'enable_commercial' => 'boolean',
-    'enable_after_sales' => 'boolean',
+    'enable_commercial'     => 'boolean',
+    'enable_after_sales'    => 'boolean',
   ];
+
+  public function detractionType(): BelongsTo
+  {
+    return $this->belongsTo(SunatConcepts::class, 'sunat_concept_detraction_type_id');
+  }
 
   const int TYPE_SALE = 0;
   const int TYPE_CREDIT_NOTE = 1;
