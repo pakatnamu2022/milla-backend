@@ -6,8 +6,10 @@ use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
 use App\Models\ap\ApMasters;
+use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
 use Illuminate\Support\Collection;
@@ -21,14 +23,14 @@ class SalesDynamicsBuilder
   public function buildAll(ElectronicDocument $document): array
   {
     return [
-      'sale'   => new SalesDocumentDynamicsResource($document),
-      'items'  => $this->buildItems($document),
+      'sale' => new SalesDocumentDynamicsResource($document),
+      'items' => $this->buildItems($document),
       'series' => new SalesDocumentSerialDynamicsResource($document),
     ];
   }
 
   /**
-   * Construye todas las líneas de detalle: ítems del documento + líneas de accesorios de posventa.
+   * Construye todas las líneas de detalle: ítems del documento + líneas de accesorios de posventa + deducible si aplica.
    */
   public function buildItems(ElectronicDocument $document): Collection
   {
@@ -45,6 +47,14 @@ class SalesDynamicsBuilder
       $items->push($this->buildAccessoryLine($accessory, $document, $document->full_number, $nextLine++, $igvDivisor));
     }
 
+    // Agregar ítem de deducible si el documento tiene orden de trabajo con deducible
+    if ($document->work_order_id && $document->workOrder) {
+      $deductibleItem = $this->buildDeductibleLine($document, $nextLine);
+      if ($deductibleItem !== null) {
+        $items->push($deductibleItem);
+      }
+    }
+
     return $items;
   }
 
@@ -58,8 +68,7 @@ class SalesDynamicsBuilder
     }
 
     return $document->purchaseRequestQuote?->accessories
-      ->filter(fn($a) =>
-        $a->type === 'ACCESORIO_ADICIONAL' &&
+      ->filter(fn($a) => $a->type === 'ACCESORIO_ADICIONAL' &&
         $a->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA
       ) ?? collect();
   }
@@ -117,20 +126,74 @@ class SalesDynamicsBuilder
     $description = Str::upper($accessory->approvedAccessory->description);
 
     return [
-      'EmpresaId'               => Company::AP_DYNAMICS,
-      'DocumentoId'             => $documentoId,
-      'Linea'                   => $linea,
-      'ArticuloId'              => $accessory->approvedAccessory->code_dynamics
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'DocumentoId' => $documentoId,
+      'Linea' => $linea,
+      'ArticuloId' => $accessory->approvedAccessory->code_dynamics
         ?? throw new Exception("El accesorio '{$accessory->approvedAccessory->code}' no tiene código Dynamics (code_dynamics) definido."),
       'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
       'ArticuloDescripcionLarga' => $description,
-      'SitioId'                 => $document->warehouse()
+      'SitioId' => $document->warehouse()
         ?? throw new Exception('El documento no tiene almacén asociado.'),
-      'UnidadMedidaId'          => 'UND',
-      'Cantidad'                => $accessory->quantity,
-      'PrecioUnitario'          => $unitPricePreTax,
-      'DescuentoUnitario'       => 0,
-      'PrecioTotal'             => round($accessory->quantity * $unitPricePreTax, 2),
+      'UnidadMedidaId' => 'UND',
+      'Cantidad' => $accessory->quantity,
+      'PrecioUnitario' => $unitPricePreTax,
+      'DescuentoUnitario' => 0,
+      'PrecioTotal' => round($accessory->quantity * $unitPricePreTax, 2),
+    ];
+  }
+
+  /**
+   * Construye el array de una línea de deducible para Dynamics.
+   * Retorna null si no hay deducible activo o el monto es 0.
+   */
+  public function buildDeductibleLine(ElectronicDocument $document, int $linea): ?array
+  {
+    $workOrder = $document->workOrder;
+
+    // Verificar que haya deducible_amount > 0
+    if (!$workOrder->deductible_amount || $workOrder->deductible_amount <= 0) {
+      return null;
+    }
+
+    // Obtener el primer deducible no eliminado
+    $firstDeductible = $workOrder->deductibles()->whereNull('deleted_at')->first();
+
+    // Si no hay deducible registrado, no agregar la línea
+    if (!$firstDeductible || !$firstDeductible->electronicDocument) {
+      return null;
+    }
+
+    // Obtener el código del artículo de deducible
+    $deductibleAccountPlan = ApAccountingAccountPlan::find(ApAccountingAccountPlan::CUSTOMER_DEDUCTIBLE_ID);
+    if (!$deductibleAccountPlan || !$deductibleAccountPlan->code_dynamics) {
+      throw new Exception('No se encontró el plan contable de deducible o no tiene código Dynamics definido.');
+    }
+
+    // Obtener la unidad de medida de servicio
+    $serviceUnit = UnitMeasurement::find(UnitMeasurement::SERVICE_ID);
+    $unidadMedidaId = $serviceUnit?->dyn_code ?? 'UNS';
+
+    // Obtener el deducible sin IGV (en negativo porque es un descuento)
+    $deductibleWithoutTax = -round($workOrder->deductible_amount_without_tax, 2);
+
+    // Usar el full_number del documento electrónico del deducible como descripción
+    $description = 'DEDUCIBLE - DOC: ' . $firstDeductible->electronicDocument->full_number;
+
+    return [
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'DocumentoId' => $document->full_number,
+      'Linea' => $linea,
+      'ArticuloId' => $deductibleAccountPlan->code_dynamics,
+      'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+      'ArticuloDescripcionLarga' => Str::upper($description),
+      'SitioId' => $document->warehouse()
+        ?? throw new Exception('El documento no tiene almacén asociado.'),
+      'UnidadMedidaId' => $unidadMedidaId,
+      'Cantidad' => 1,
+      'PrecioUnitario' => $deductibleWithoutTax, // Negativo
+      'DescuentoUnitario' => 0,
+      'PrecioTotal' => $deductibleWithoutTax, // Negativo
     ];
   }
 }

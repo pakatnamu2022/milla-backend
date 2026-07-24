@@ -65,6 +65,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       'creator',
       'vehicleMovement.vehicle',
       'purchaseRequestQuote.accessories.approvedAccessory',
+      'workOrder.deductibles.electronicDocument',
     ])->find($electronicDocumentId);
 
     if (!$document) {
