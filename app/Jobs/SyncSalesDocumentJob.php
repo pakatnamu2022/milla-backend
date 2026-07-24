@@ -110,8 +110,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT,
     ];
 
-    $allCompleted = $logs->every(fn($log) =>
-      $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
+    $allCompleted = $logs->every(fn($log) => $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
       $log->proceso_estado === 1
     );
 
@@ -342,15 +341,18 @@ class SyncSalesDocumentJob implements ShouldQueue
   }
 
   /**
-   * Sincroniza items para consolidación simple (lógica original)
-   * Usa los items directamente desde ap_billing_electronic_document_items
+   * Sincroniza items para consolidación simple
+   * Usa el SalesDynamicsBuilder que se encarga de filtrar y consolidar repuestos en travesía
    */
   private function syncDocumentItemsForSimpleConsolidation(ElectronicDocument $document, DatabaseSyncService $syncService): void
   {
-    // Construir los items usando el builder estándar
+    // El builder se encarga de:
+    // 1. Filtrar items con código de SPARE_PARTS_ROAD_ID (no los envía individualmente)
+    // 2. Acumular sus montos
+    // 3. Crear UN item consolidado al final si hay traverse parts
     $builder = new SalesDynamicsBuilder();
 
-    // Sincronizar cada item construido
+    // Sincronizar cada item construido (ya incluye la lógica de consolidación traverse)
     foreach ($builder->buildItems($document) as $item) {
       $data = is_array($item) ? $item : $item->toArray(request());
       $syncService->sync('sales_document_detail', $data);
@@ -410,6 +412,9 @@ class SyncSalesDocumentJob implements ShouldQueue
     // Número de línea inicial para los items del documento
     $lineNumber = 1;
 
+    // Variable para acumular el total de repuestos en travesía de TODAS las órdenes de trabajo
+    $totalTraversePartsForAllOTs = 0;
+
     // Procesar cada nota interna y su orden de trabajo asociada
     foreach ($internalNotes as $internalNote) {
       // Obtener la orden de trabajo relacionada con la nota interna
@@ -425,7 +430,54 @@ class SyncSalesDocumentJob implements ShouldQueue
       }
 
       // Procesar los items de la orden de trabajo actual
-      $lineNumber = $this->processWorkOrderItems($workOrder, $document, $syncService, $lineNumber);
+      [$lineNumber, $traversePartsTotalFromOT] = $this->processWorkOrderItems($workOrder, $document, $syncService, $lineNumber);
+
+      // Acumular el total de repuestos en travesía de esta OT
+      $totalTraversePartsForAllOTs += $traversePartsTotalFromOT;
+    }
+
+    // Si hay repuestos en travesía consolidados, enviar UN solo item al final
+    if ($totalTraversePartsForAllOTs > 0) {
+      // Obtener la cuenta contable para repuestos en travesía
+      $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
+
+      if (!$sparePartsRoadAccount || !$sparePartsRoadAccount->code_dynamics) {
+        Log::error('No se encontró la cuenta contable para repuestos en travesía', [
+          'document_id' => $document->id,
+          'account_id' => ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID
+        ]);
+      } else {
+        // Obtener almacén del documento
+        $warehouse = $document->warehouse();
+
+        // Obtener descripción de la cuenta
+        $description = Str::upper($sparePartsRoadAccount->description ?? 'REPUESTOS EN TRAVESIA');
+
+        // Construir el item consolidado
+        $consolidatedItemData = [
+          'EmpresaId' => Company::COMPANY_GPAUP_ID,
+          'DocumentoId' => $document->full_number,
+          'Linea' => $lineNumber,
+          'ArticuloId' => $sparePartsRoadAccount->code_dynamics,
+          'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+          'ArticuloDescripcionLarga' => $description,
+          'SitioId' => $warehouse,
+          'UnidadMedidaId' => 'UNS', // Unidad de servicio
+          'Cantidad' => 1, // Siempre 1
+          'PrecioUnitario' => $totalTraversePartsForAllOTs, // Suma de todos los repuestos en travesía (sin IGV)
+          'DescuentoUnitario' => 0,
+          'PrecioTotal' => $totalTraversePartsForAllOTs, // Igual a PrecioUnitario ya que Cantidad = 1
+        ];
+
+        // Sincronizar el item consolidado
+        $syncService->sync('sales_document_detail', $consolidatedItemData);
+
+        Log::info('Item consolidado de repuestos en travesía enviado a Dynamics (massive)', [
+          'document_id' => $document->id,
+          'total_amount' => $totalTraversePartsForAllOTs,
+          'line_number' => $lineNumber
+        ]);
+      }
     }
   }
 
@@ -437,14 +489,14 @@ class SyncSalesDocumentJob implements ShouldQueue
    * @param ElectronicDocument $document Documento electrónico padre
    * @param DatabaseSyncService $syncService Servicio de sincronización
    * @param int $lineNumber Número de línea inicial para los items
-   * @return int Siguiente número de línea disponible después de procesar todos los items
+   * @return array [int $lineNumber, float $traversePartsTotal] Siguiente número de línea y total acumulado de repuestos en travesía
    */
   private function processWorkOrderItems(
     ApWorkOrder         $workOrder,
     ElectronicDocument  $document,
     DatabaseSyncService $syncService,
     int                 $lineNumber
-  ): int
+  ): array
   {
     // Obtener el código de cuenta contable para mano de obra (labour)
     $labourCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_ID)?->code_dynamics ?? 'V0000011';
@@ -454,6 +506,9 @@ class SyncSalesDocumentJob implements ShouldQueue
 
     // Obtener el almacén del documento
     $warehouse = $document->warehouse();
+
+    // Variable para acumular el monto total de repuestos en travesía (solo para consolidación simple)
+    $traversePartsTotal = 0;
 
     // ============================================================
     // PROCESAR PARTS (REPUESTOS/PRODUCTOS) DE LA ORDEN DE TRABAJO
@@ -491,6 +546,16 @@ class SyncSalesDocumentJob implements ShouldQueue
           'work_order_id' => $workOrder->id,
           'document_id' => $document->id
         ]);
+        continue;
+      }
+
+      // Verificar si es un repuesto en travesía
+      if ($part->is_traverse) {
+        // Acumular el precio total (net_amount o total_cost) para consolidar después
+        $totalPrice = (float)($part->net_amount ?? $part->total_cost ?? 0);
+        $traversePartsTotal += $totalPrice;
+
+        // NO sincronizar este item individualmente, se enviará consolidado al final
         continue;
       }
 
@@ -596,8 +661,8 @@ class SyncSalesDocumentJob implements ShouldQueue
       $lineNumber++;
     }
 
-    // Retornar el siguiente número de línea disponible
-    return $lineNumber;
+    // Retornar el siguiente número de línea disponible y el total acumulado de repuestos en travesía
+    return [$lineNumber, $traversePartsTotal];
   }
 
   /**
