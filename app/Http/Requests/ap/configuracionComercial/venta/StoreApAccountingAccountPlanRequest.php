@@ -37,6 +37,12 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
         'in:10,12',
         'required_if:is_detraction,true',
       ],
+      'sunat_concept_detraction_type_id' => [
+        'nullable',
+        'integer',
+        'exists:sunat_concepts,id',
+        'required_if:is_detraction,true',
+      ],
       'enable_commercial' => [
         'nullable',
         'boolean',
@@ -65,6 +71,10 @@ class StoreApAccountingAccountPlanRequest extends StoreRequest
       'detraction_percentage.integer' => 'El porcentaje de detracción debe ser un número entero.',
       'detraction_percentage.in' => 'El porcentaje de detracción debe ser 10 o 12.',
       'detraction_percentage.required_if' => 'El porcentaje de detracción es obligatorio cuando se marca como detracción.',
+
+      'sunat_concept_detraction_type_id.integer' => 'El tipo de detracción debe ser un número entero.',
+      'sunat_concept_detraction_type_id.exists' => 'El tipo de detracción seleccionado no existe.',
+      'sunat_concept_detraction_type_id.required_if' => 'El tipo de detracción es obligatorio cuando se marca como detracción.',
 
       'enable_commercial.boolean' => 'El campo habilitar comercial debe ser verdadero o falso.',
       'enable_after_sales.boolean' => 'El campo habilitar post venta debe ser verdadero o falso.',

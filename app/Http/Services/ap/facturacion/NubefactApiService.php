@@ -46,14 +46,14 @@ class NubefactApiService
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
-      'operation' => 'generar_comprobante',
-      'request_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+      'operation'                         => 'generar_comprobante',
+      'request_payload'                   => json_encode($payload, JSON_UNESCAPED_UNICODE),
     ];
 
     try {
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type' => 'application/json',
+        'Content-Type'  => 'application/json',
       ])->post($this->apiUrl, $payload);
 
       $responseData = $response->json();
@@ -68,7 +68,7 @@ class NubefactApiService
 
         return [
           'success' => true,
-          'data' => $responseData,
+          'data'    => $responseData,
         ];
       } else {
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
@@ -78,8 +78,8 @@ class NubefactApiService
 
         return [
           'success' => false,
-          'error' => $errorMessage,
-          'data' => $responseData,
+          'error'   => $errorMessage,
+          'data'    => $responseData,
         ];
       }
     } catch (Exception $e) {
@@ -107,23 +107,23 @@ class NubefactApiService
 
     $this->setApiCredentials($document->sede_id);
     $body = [
-      'operacion' => 'consultar_comprobante',
+      'operacion'           => 'consultar_comprobante',
       'tipo_de_comprobante' => $document->documentType->code_nubefact,
-      'serie' => $document->serie,
-      'numero' => $document->numero,
+      'serie'               => $document->serie,
+      'numero'              => $document->numero,
     ];
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
-      'operation' => 'consultar_comprobante',
-      'request_payload' => json_encode($body, JSON_UNESCAPED_UNICODE),
+      'operation'                         => 'consultar_comprobante',
+      'request_payload'                   => json_encode($body, JSON_UNESCAPED_UNICODE),
     ];
 
     try {
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type' => 'application/json',
-        'Accept' => 'application/json',
+        'Content-Type'  => 'application/json',
+        'Accept'        => 'application/json',
       ])->post($this->apiUrl, $body);
 
       $responseData = $response->json();
@@ -138,7 +138,7 @@ class NubefactApiService
 
         return [
           'success' => true,
-          'data' => $responseData,
+          'data'    => $responseData,
         ];
       } else {
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
@@ -170,24 +170,24 @@ class NubefactApiService
   {
     $this->setApiCredentials($document->sede_id);
     $payload = [
-      'operacion' => 'generar_anulacion',
+      'operacion'           => 'generar_anulacion',
       'tipo_de_comprobante' => $document->documentType->code_nubefact,
-      'serie' => $document->serie,
-      'numero' => $document->numero,
-      'motivo' => $reason,
-      'codigo_unico' => $document->codigo_unico ?? uniqid('ANULACION_'),
+      'serie'               => $document->serie,
+      'numero'              => $document->numero,
+      'motivo'              => $reason,
+      'codigo_unico'        => $document->codigo_unico ?? uniqid('ANULACION_'),
     ];
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
-      'operation' => 'generar_anulacion',
-      'request_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+      'operation'                         => 'generar_anulacion',
+      'request_payload'                   => json_encode($payload, JSON_UNESCAPED_UNICODE),
     ];
 
     try {
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type' => 'application/json',
+        'Content-Type'  => 'application/json',
       ])->post($this->apiUrl, $payload);
 
       $responseData = $response->json();
@@ -202,7 +202,7 @@ class NubefactApiService
 
         return [
           'success' => true,
-          'data' => $responseData,
+          'data'    => $responseData,
         ];
       } else {
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
@@ -212,8 +212,8 @@ class NubefactApiService
 
         return [
           'success' => false,
-          'error' => $errorMessage,
-          'data' => $responseData,
+          'error'   => $errorMessage,
+          'data'    => $responseData,
         ];
       }
     } catch (Exception $e) {
@@ -237,21 +237,21 @@ class NubefactApiService
   {
     $this->setApiCredentials($document->sede_id);
     $queryParams = [
-      'tipo' => $document->documentType->code_nubefact,
-      'serie' => $document->serie,
+      'tipo'   => $document->documentType->code_nubefact,
+      'serie'  => $document->serie,
       'numero' => $document->numero,
     ];
 
     $logData = [
       'ap_billing_electronic_document_id' => $document->id,
-      'operation' => 'consultar_anulacion',
-      'request_payload' => json_encode($queryParams, JSON_UNESCAPED_UNICODE),
+      'operation'                         => 'consultar_anulacion',
+      'request_payload'                   => json_encode($queryParams, JSON_UNESCAPED_UNICODE),
     ];
 
     try {
       $response = Http::withHeaders([
         'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type' => 'application/json',
+        'Content-Type'  => 'application/json',
       ])->get($this->apiUrl, $queryParams);
 
       $responseData = $response->json();
@@ -266,7 +266,7 @@ class NubefactApiService
 
         return [
           'success' => true,
-          'data' => $responseData,
+          'data'    => $responseData,
         ];
       } else {
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
@@ -276,8 +276,8 @@ class NubefactApiService
 
         return [
           'success' => false,
-          'error' => $errorMessage,
-          'data' => $responseData,
+          'error'   => $errorMessage,
+          'data'    => $responseData,
         ];
       }
     } catch (Exception $e) {
@@ -300,32 +300,32 @@ class NubefactApiService
   {
     $this->setApiCredentials($document->sede_id);
     $payload = [
-      'operacion' => 'generar_comprobante',
-      'tipo_de_comprobante' => $document->documentType->code_nubefact,
-      'serie' => $document->serie,
-      'numero' => $document->numero,
-      'sunat_transaction' => $document->transactionType->code_nubefact,
-      'cliente_tipo_de_documento' => $document->identityDocumentType->code_nubefact,
-      'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
-      'cliente_denominacion' => $document->cliente_denominacion,
-      'cliente_direccion' => $document->cliente_direccion,
-      'cliente_email' => $document->cliente_email,
-      'fecha_de_emision' => $document->fecha_de_emision->format('d-m-Y'),
-      'moneda' => $document->currency->code_nubefact,
-      'porcentaje_de_igv' => $document->porcentaje_de_igv,
-      'total_descuento' => round($document->items->sum(fn($i) => (float) $i->descuento), 2),
-      'total_anticipo' => $document->total_anticipo ?? 0,
-      'total_gravada' => $document->total_gravada ?? 0,
-      'total_inafecta' => $document->total_inafecta ?? 0,
-      'total_exonerada' => $document->total_exonerada ?? 0,
-      'total_igv' => $document->total_igv ?? 0,
-      'total_gratuita' => $document->total_gratuita ?? 0,
-      'total_otros_cargos' => $document->total_otros_cargos ?? 0,
-      'total' => $document->total,
+      'operacion'                         => 'generar_comprobante',
+      'tipo_de_comprobante'               => $document->documentType->code_nubefact,
+      'serie'                             => $document->serie,
+      'numero'                            => $document->numero,
+      'sunat_transaction'                 => $document->transactionType->code_nubefact,
+      'cliente_tipo_de_documento'         => $document->identityDocumentType->code_nubefact,
+      'cliente_numero_de_documento'       => $document->cliente_numero_de_documento,
+      'cliente_denominacion'              => $document->cliente_denominacion,
+      'cliente_direccion'                 => $document->cliente_direccion,
+      'cliente_email'                     => $document->cliente_email,
+      'fecha_de_emision'                  => $document->fecha_de_emision->format('d-m-Y'),
+      'moneda'                            => $document->currency->code_nubefact,
+      'porcentaje_de_igv'                 => $document->porcentaje_de_igv,
+      'total_descuento'                   => round($document->items->sum(fn($i) => (float)$i->descuento), 2),
+      'total_anticipo'                    => $document->total_anticipo ?? 0,
+      'total_gravada'                     => $document->total_gravada ?? 0,
+      'total_inafecta'                    => $document->total_inafecta ?? 0,
+      'total_exonerada'                   => $document->total_exonerada ?? 0,
+      'total_igv'                         => $document->total_igv ?? 0,
+      'total_gratuita'                    => $document->total_gratuita ?? 0,
+      'total_otros_cargos'                => $document->total_otros_cargos ?? 0,
+      'total'                             => $document->total,
       'enviar_automaticamente_a_la_sunat' => $document->enviar_automaticamente_a_la_sunat,
       'enviar_automaticamente_al_cliente' => $document->enviar_automaticamente_al_cliente,
-      'codigo_unico' => $document->codigo_unico ?? uniqid('DOC_'),
-      'observaciones' => $document->observaciones ?? '',
+      'codigo_unico'                      => $document->codigo_unico ?? uniqid('DOC_'),
+      'observaciones'                     => $document->observaciones ?? '',
 //      'formato_de_pdf' => 'TICKET'
     ];
 
@@ -475,7 +475,7 @@ class NubefactApiService
         || ($isAnticipo && !$hasAnticipoRegularizacion);
       $codigo = $usarCodeDynamics ? $item->accountPlan->code_dynamics : $item->codigo;
 
-      $hasDescuento = $item->descuento && (float) $item->descuento > 0;
+      $hasDescuento = $item->descuento && (float)$item->descuento > 0;
 
       // Nubefact espera (según ejemplo oficial "FACTURA 8 DESCUENTO POR ITEM"):
       //   valor_unitario = bruto sin IGV, precio_unitario = bruto con IGV (= valor_unitario × igvFactor)
@@ -484,19 +484,19 @@ class NubefactApiService
       // Todos estos valores ya están correctamente almacenados en BD.
 
       $itemData = [
-        'unidad_de_medida' => $item->unidad_de_medida,
-        'codigo' => $codigo,
-        'descripcion' => $item->descripcion,
-        'cantidad' => $item->cantidad,
-        'valor_unitario' => round((float) $item->valor_unitario, 2),
-        'precio_unitario' => round((float) $item->precio_unitario, 2),
-        'descuento' => $hasDescuento ? round((float) $item->descuento, 2) : 0,
-        'subtotal' => $item->subtotal,
-        'tipo_de_igv' => $tipoIgv,
-        'igv' => round((float) $igvItem, 2),
-        'total' => round((float) $item->total, 2),
-        'anticipo_regularizacion' => $item->anticipo_regularizacion ? "true" : "false",
-        'anticipo_documento_serie' => $item->anticipo_regularizacion ? $item->anticipo_documento_serie : "",
+        'unidad_de_medida'          => $item->unidad_de_medida,
+        'codigo'                    => $codigo,
+        'descripcion'               => $item->descripcion,
+        'cantidad'                  => $item->cantidad,
+        'valor_unitario'            => round((float)$item->valor_unitario, 2),
+        'precio_unitario'           => round((float)$item->precio_unitario, 2),
+        'descuento'                 => $hasDescuento ? round((float)$item->descuento, 2) : 0,
+        'subtotal'                  => $item->subtotal,
+        'tipo_de_igv'               => $tipoIgv,
+        'igv'                       => round((float)$igvItem, 2),
+        'total'                     => round((float)$item->total, 2),
+        'anticipo_regularizacion'   => $item->anticipo_regularizacion ? "true" : "false",
+        'anticipo_documento_serie'  => $item->anticipo_regularizacion ? $item->anticipo_documento_serie : "",
         'anticipo_documento_numero' => $item->anticipo_regularizacion ? $item->anticipo_documento_numero : "",
       ];
 
@@ -513,7 +513,7 @@ class NubefactApiService
       $payload['guia_remision'] = [];
       foreach ($document->guides as $guide) {
         $payload['guia_remision'][] = [
-          'guia_tipo' => $guide->guia_tipo,
+          'guia_tipo'         => $guide->guia_tipo,
           'guia_serie_numero' => $guide->guia_serie_numero,
         ];
       }
@@ -524,9 +524,9 @@ class NubefactApiService
       $payload['venta_al_credito'] = [];
       foreach ($document->installments as $installment) {
         $payload['venta_al_credito'][] = [
-          'cuota' => $installment->cuota,
+          'cuota'         => $installment->cuota,
           'fecha_de_pago' => $installment->fecha_de_pago->format('d-m-Y'),
-          'importe' => $installment->importe,
+          'importe'       => $installment->importe,
         ];
       }
     }
@@ -583,22 +583,22 @@ class NubefactApiService
   {
     $data = [
       'aceptada_por_sunat' => true,
-      'anulado' => false,
-      'simulado' => true,
+      'anulado'            => false,
+      'simulado'           => true,
     ];
 
     $this->logRequest([
       'ap_billing_electronic_document_id' => $document->id,
-      'operation' => $operation,
-      'request_payload' => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
-      'response_payload' => json_encode($data, JSON_UNESCAPED_UNICODE),
-      'http_status_code' => 200,
-      'success' => true,
+      'operation'                         => $operation,
+      'request_payload'                   => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
+      'response_payload'                  => json_encode($data, JSON_UNESCAPED_UNICODE),
+      'http_status_code'                  => 200,
+      'success'                           => true,
     ]);
 
     return [
       'success' => true,
-      'data' => $data,
+      'data'    => $data,
     ];
   }
 
@@ -613,18 +613,18 @@ class NubefactApiService
     try {
       DB::table('ap_billing_nubefact_logs')->insert([
         'ap_billing_electronic_document_id' => $logData['ap_billing_electronic_document_id'] ?? null,
-        'operation' => $logData['operation'],
-        'request_payload' => $logData['request_payload'],
-        'response_payload' => $logData['response_payload'] ?? null,
-        'http_status_code' => $logData['http_status_code'] ?? null,
-        'success' => $logData['success'],
-        'error_message' => $logData['error_message'] ?? null,
-        'created_at' => now(),
-        'updated_at' => now(),
+        'operation'                         => $logData['operation'],
+        'request_payload'                   => $logData['request_payload'],
+        'response_payload'                  => $logData['response_payload'] ?? null,
+        'http_status_code'                  => $logData['http_status_code'] ?? null,
+        'success'                           => $logData['success'],
+        'error_message'                     => $logData['error_message'] ?? null,
+        'created_at'                        => now(),
+        'updated_at'                        => now(),
       ]);
     } catch (Exception $e) {
       Log::error('Error al guardar log de Nubefact', [
-        'error' => $e->getMessage(),
+        'error'    => $e->getMessage(),
         'log_data' => $logData,
       ]);
     }

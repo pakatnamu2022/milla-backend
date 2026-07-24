@@ -308,7 +308,7 @@ trait Filterable
         $query->where($filter, '=', $value);
         break;
       case 'in':
-        $query->whereIn($filter, $value);
+        $query->whereIn($filter, is_array($value) ? $value : [$value]);
         break;
       case 'in_or_equal':
         // Acepta tanto un valor único como un array
