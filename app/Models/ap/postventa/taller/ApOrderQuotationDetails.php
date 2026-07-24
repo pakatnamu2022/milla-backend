@@ -34,6 +34,7 @@ class ApOrderQuotationDetails extends Model
     'created_by',
     'supply_type',
     'status',
+    'is_traverse',
   ];
 
   const filters = [
@@ -56,6 +57,7 @@ class ApOrderQuotationDetails extends Model
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
+    'is_traverse' => 'boolean',
   ];
 
   const ITEM_TYPE_PRODUCT = 'PRODUCT';
