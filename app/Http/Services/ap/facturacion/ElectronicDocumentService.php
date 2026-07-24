@@ -3246,11 +3246,24 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if ($part->product->code) {
           $item['codigo'] = $part->product->code;
         }
-        if ($part->product->dyn_code) {
-          $item['dyn_code'] = $part->product->dyn_code;
-        }
-        if ($part->product->unitMeasurement) {
-          $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
+
+        // Verificar si el repuesto es de tipo traverse (is_traverse = true)
+        if ($part->is_traverse) {
+          // Para repuestos traverse, usar el código dinámico de SPARE_PARTS_ROAD_ID
+          $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
+          if ($sparePartsRoadAccount && $sparePartsRoadAccount->code_dynamics) {
+            $item['dyn_code'] = $sparePartsRoadAccount->code_dynamics;
+          }
+          // Usar la unidad de medida de servicio
+          $item['unidad_medida_dyn'] = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
+        } else {
+          // Comportamiento normal para repuestos no-traverse
+          if ($part->product->dyn_code) {
+            $item['dyn_code'] = $part->product->dyn_code;
+          }
+          if ($part->product->unitMeasurement) {
+            $item['unidad_medida_dyn'] = $part->product->unitMeasurement->dyn_code;
+          }
         }
         continue;
       }
