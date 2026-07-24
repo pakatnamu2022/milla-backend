@@ -172,110 +172,110 @@ class TransferReceptionService extends BaseService
       // Get the shipping guide associated with the TRANSFER_OUT
       $shippingGuide = $transferOutMovement->reference;
 
-    //marcamos la $shippingGuide como recibida
-    $shippingGuide->update([
-      'is_received' => true,
-      'received_by' => $reception->received_by,
-      'received_date' => now(),
-    ]);
+      //marcamos la $shippingGuide como recibida
+      $shippingGuide->update([
+        'is_received' => true,
+        'received_by' => $reception->received_by,
+        'received_date' => now(),
+      ]);
 
-    // Create TRANSFER_IN movement for the received quantities
-    $transferInMovement = InventoryMovement::create([
-      'movement_number' => InventoryMovement::generateMovementNumber(),
-      'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
-      'item_type' => $reception->item_type,
-      'movement_date' => $reception->reception_date,
-      'warehouse_id' => $transferOutMovement->warehouse_id, // Origin warehouse
-      'warehouse_destination_id' => $reception->warehouse_id, // Destination warehouse
-      'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
-      'reference_type' => TransferReception::class,
-      'reference_id' => $reception->id,
-      'user_id' => $reception->received_by,
-      'status' => InventoryMovement::STATUS_APPROVED,
-      'notes' => "Ingreso por recepción de transferencia {$transferOutMovement->movement_number}",
-      'total_items' => 0,
-      'total_quantity' => 0,
-    ]);
+      // Create TRANSFER_IN movement for the received quantities
+      $transferInMovement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
+        'item_type' => $reception->item_type,
+        'movement_date' => $reception->reception_date,
+        'warehouse_id' => $transferOutMovement->warehouse_id, // Origin warehouse
+        'warehouse_destination_id' => $reception->warehouse_id, // Destination warehouse
+        'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
+        'reference_type' => TransferReception::class,
+        'reference_id' => $reception->id,
+        'user_id' => $reception->received_by,
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Ingreso por recepción de transferencia {$transferOutMovement->movement_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
 
-    // Create TRANSFER_IN movement details (only for received quantities)
-    $totalItemsIn = 0;
-    $totalQuantityIn = 0;
+      // Create TRANSFER_IN movement details (only for received quantities)
+      $totalItemsIn = 0;
+      $totalQuantityIn = 0;
 
-    foreach ($reception->details as $detail) {
-      if ($detail['quantity_received'] > 0) {
-        // For SERVICIO type, product_id can be null
-        $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
-
-        InventoryMovementDetail::create([
-          'inventory_movement_id' => $transferInMovement->id,
-          'product_id' => $productId,
-          'quantity' => $detail['quantity_received'],
-          'unit_cost' => 0, // Cost is tracked at origin warehouse
-          'total_cost' => 0,
-          'batch_number' => null,
-          'expiration_date' => null,
-          'notes' => "Recibido de transferencia {$transferOutMovement->movement_number}",
-        ]);
-
-        $totalItemsIn++;
-        $totalQuantityIn += $detail['quantity_received'];
-      }
-    }
-
-    // Update TRANSFER_IN movement totals
-    $transferInMovement->update([
-      'total_items' => $totalItemsIn,
-      'total_quantity' => $totalQuantityIn,
-    ]);
-
-    // Update stock: Move from in_transit to actual quantity (only for PRODUCTO type)
-    if ($reception->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
       foreach ($reception->details as $detail) {
-        // Skip if product_id is null (service items)
-        if (!isset($detail['product_id'])) {
-          continue;
-        }
-
         if ($detail['quantity_received'] > 0) {
-          $this->stockService->moveFromInTransitToDestination(
-            $detail['product_id'],
-            $transferOutMovement->warehouse_id, // Origin warehouse
-            $reception->warehouse_id, // Destination warehouse
-            $detail['quantity_received']
-          );
+          // For SERVICIO type, product_id can be null
+          $productId = isset($detail['product_id']) ? $detail['product_id'] : null;
+
+          InventoryMovementDetail::create([
+            'inventory_movement_id' => $transferInMovement->id,
+            'product_id' => $productId,
+            'quantity' => $detail['quantity_received'],
+            'unit_cost' => 0, // Cost is tracked at origin warehouse
+            'total_cost' => 0,
+            'batch_number' => null,
+            'expiration_date' => null,
+            'notes' => "Recibido de transferencia {$transferOutMovement->movement_number}",
+          ]);
+
+          $totalItemsIn++;
+          $totalQuantityIn += $detail['quantity_received'];
         }
+      }
 
-        // Handle observed quantities (damaged/missing items)
-        // Remove from in_transit but don't add to destination quantity
-        $observedQty = $detail['observed_quantity'] ?? 0;
-        if ($observedQty > 0) {
-          // Just remove from in_transit (stock is lost/damaged)
-          $originStock = $this->stockService->getStock(
-            $detail['product_id'],
-            $transferOutMovement->warehouse_id
-          );
+      // Update TRANSFER_IN movement totals
+      $transferInMovement->update([
+        'total_items' => $totalItemsIn,
+        'total_quantity' => $totalQuantityIn,
+      ]);
 
-          if ($originStock && $originStock->quantity_in_transit >= $observedQty) {
-            $originStock->quantity_in_transit -= $observedQty;
-            $originStock->save();
+      // Update stock: Move from in_transit to actual quantity (only for PRODUCTO type)
+      if ($reception->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
+        foreach ($reception->details as $detail) {
+          // Skip if product_id is null (service items)
+          if (!isset($detail['product_id'])) {
+            continue;
+          }
+
+          if ($detail['quantity_received'] > 0) {
+            $this->stockService->moveFromInTransitToDestination(
+              $detail['product_id'],
+              $transferOutMovement->warehouse_id, // Origin warehouse
+              $reception->warehouse_id, // Destination warehouse
+              $detail['quantity_received']
+            );
+          }
+
+          // Handle observed quantities (damaged/missing items)
+          // Remove from in_transit but don't add to destination quantity
+          $observedQty = $detail['observed_quantity'] ?? 0;
+          if ($observedQty > 0) {
+            // Just remove from in_transit (stock is lost/damaged)
+            $originStock = $this->stockService->getStock(
+              $detail['product_id'],
+              $transferOutMovement->warehouse_id
+            );
+
+            if ($originStock && $originStock->quantity_in_transit >= $observedQty) {
+              $originStock->quantity_in_transit -= $observedQty;
+              $originStock->save();
+            }
           }
         }
       }
-    }
 
-    // Update TRANSFER_OUT movement status to APPROVED (completed)
-    $transferOutMovement->update([
-      'status' => InventoryMovement::STATUS_APPROVED
-    ]);
+      // Update TRANSFER_OUT movement status to APPROVED (completed)
+      $transferOutMovement->update([
+        'status' => InventoryMovement::STATUS_APPROVED
+      ]);
 
-    // Auto-approve reception
-    $reception->update([
-      'status' => TransferReception::STATUS_APPROVED,
-      'reviewed_by' => $reception->received_by,
-      'reviewed_at' => now(),
-    ]);
+      // Auto-approve reception
+      $reception->update([
+        'status' => TransferReception::STATUS_APPROVED,
+        'reviewed_by' => $reception->received_by,
+        'reviewed_at' => now(),
+      ]);
 
-    return $transferInMovement;
+      return $transferInMovement;
     });
   }
 
@@ -288,89 +288,89 @@ class TransferReceptionService extends BaseService
     return DB::transaction(function () use ($transferOutMovement) {
       $shippingGuide = $transferOutMovement->reference;
 
-    // Validar si ya existe un movimiento TRANSFER_IN para esta guía de remisión (evitar duplicados)
-    // Usar lockForUpdate() para prevenir race conditions cuando múltiples jobs se ejecutan simultáneamente
-    $existingMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
-      ->where('reference_id', $shippingGuide->id)
-      ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
-      ->whereNull('cancelled_inventory_movement_id') // Solo el movimiento original, no las reversiones
-      ->lockForUpdate()
-      ->first();
+      // Validar si ya existe un movimiento TRANSFER_IN para esta guía de remisión (evitar duplicados)
+      // Usar lockForUpdate() para prevenir race conditions cuando múltiples jobs se ejecutan simultáneamente
+      $existingMovement = InventoryMovement::where('reference_type', ShippingGuides::class)
+        ->where('reference_id', $shippingGuide->id)
+        ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
+        ->whereNull('cancelled_inventory_movement_id') // Solo el movimiento original, no las reversiones
+        ->lockForUpdate()
+        ->first();
 
-    if ($existingMovement) {
-      Log::info('Ya existe un movimiento TRANSFER_IN para esta guía de remisión, evitando duplicado', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'existing_movement_id' => $existingMovement->id,
-        'existing_movement_number' => $existingMovement->movement_number
-      ]);
-      return $existingMovement;
-    }
-
-    $shippingGuide->update([
-      'is_received' => true,
-      'received_by' => $transferOutMovement->user_id,
-      'received_date' => now(),
-    ]);
-
-    $transferInMovement = InventoryMovement::create([
-      'movement_number' => InventoryMovement::generateMovementNumber(),
-      'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
-      'item_type' => $transferOutMovement->item_type,
-      'movement_date' => now(),
-      'warehouse_id' => $transferOutMovement->warehouse_id,
-      'warehouse_destination_id' => $transferOutMovement->warehouse_destination_id,
-      'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
-      'reference_type' => ShippingGuides::class,
-      'reference_id' => $shippingGuide->id,
-      'user_id' => $transferOutMovement->user_id,
-      'status' => InventoryMovement::STATUS_APPROVED,
-      'notes' => "Ingreso por traslado de sede desde {$transferOutMovement->movement_number}",
-      'total_items' => 0,
-      'total_quantity' => 0,
-    ]);
-
-    $totalItems = 0;
-    $totalQuantity = 0;
-
-    foreach ($transferOutMovement->details as $detail) {
-      InventoryMovementDetail::create([
-        'inventory_movement_id' => $transferInMovement->id,
-        'product_id' => $detail->product_id,
-        'quantity' => $detail->quantity,
-        'unit_cost' => 0,
-        'total_cost' => 0,
-        'batch_number' => null,
-        'expiration_date' => null,
-        'notes' => "Traslado de sede {$transferOutMovement->movement_number}",
-      ]);
-
-      $totalItems++;
-      $totalQuantity += $detail->quantity;
-    }
-
-    $transferInMovement->update([
-      'total_items' => $totalItems,
-      'total_quantity' => $totalQuantity,
-    ]);
-
-    if ($transferOutMovement->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
-      foreach ($transferOutMovement->details as $detail) {
-        if (!$detail->product_id) continue;
-
-        $this->stockService->moveFromInTransitToDestination(
-          $detail->product_id,
-          $transferOutMovement->warehouse_id,
-          $transferOutMovement->warehouse_destination_id,
-          $detail->quantity
-        );
+      if ($existingMovement) {
+        Log::info('Ya existe un movimiento TRANSFER_IN para esta guía de remisión, evitando duplicado', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'existing_movement_id' => $existingMovement->id,
+          'existing_movement_number' => $existingMovement->movement_number
+        ]);
+        return $existingMovement;
       }
-    }
 
-    $transferOutMovement->update([
-      'status' => InventoryMovement::STATUS_APPROVED,
-    ]);
+      $shippingGuide->update([
+        'is_received' => true,
+        'received_by' => $transferOutMovement->user_id,
+        'received_date' => now(),
+      ]);
 
-    return $transferInMovement;
+      $transferInMovement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_TRANSFER_IN,
+        'item_type' => $transferOutMovement->item_type,
+        'movement_date' => $shippingGuide->issue_date ?? now(),
+        'warehouse_id' => $transferOutMovement->warehouse_id,
+        'warehouse_destination_id' => $transferOutMovement->warehouse_destination_id,
+        'reason_in_out_id' => $transferOutMovement->reason_in_out_id,
+        'reference_type' => ShippingGuides::class,
+        'reference_id' => $shippingGuide->id,
+        'user_id' => $transferOutMovement->user_id,
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'notes' => "Ingreso por traslado de sede desde {$transferOutMovement->movement_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      foreach ($transferOutMovement->details as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $transferInMovement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => 0,
+          'total_cost' => 0,
+          'batch_number' => null,
+          'expiration_date' => null,
+          'notes' => "Traslado de sede {$transferOutMovement->movement_number}",
+        ]);
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      $transferInMovement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      if ($transferOutMovement->item_type === TransferReception::ITEM_TYPE_PRODUCT) {
+        foreach ($transferOutMovement->details as $detail) {
+          if (!$detail->product_id) continue;
+
+          $this->stockService->moveFromInTransitToDestination(
+            $detail->product_id,
+            $transferOutMovement->warehouse_id,
+            $transferOutMovement->warehouse_destination_id,
+            $detail->quantity
+          );
+        }
+      }
+
+      $transferOutMovement->update([
+        'status' => InventoryMovement::STATUS_APPROVED,
+      ]);
+
+      return $transferInMovement;
     });
   }
 
