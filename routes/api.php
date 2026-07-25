@@ -1407,7 +1407,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles
       Route::match(['get', 'post'], 'vehicles/export', [VehiclesController::class, 'exportAll']);
-      Route::post('vehicles/export/billing', [VehiclesController::class, 'exportBilling']);
+      Route::post('vehicles/export/billing', [VehiclesController::class, 'exportB illing']);
       Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
       Route::post('vehicles/export/inventory', [VehiclesController::class, 'exportInventory']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
