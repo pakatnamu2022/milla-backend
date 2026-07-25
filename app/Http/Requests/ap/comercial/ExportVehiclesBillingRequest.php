@@ -13,7 +13,7 @@ class ExportVehiclesBillingRequest extends IndexRequest
       'title'              => 'nullable|string|max:255',
       'fecha_de_emision'   => 'nullable|array|size:2',
       'fecha_de_emision.*' => 'nullable|date',
-      'sede_id'            => 'nullable|integer|exists:config_sede',
+      'sede_id'            => 'nullable|integer|exists:config_sede,id',
     ];
   }
 }
