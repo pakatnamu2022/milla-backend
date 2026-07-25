@@ -22,12 +22,14 @@ class DiscountCoupons extends Model
     'valor_unitario',
     'precio_unitario',
     'is_negative',
+    'has_retention',
     'concept_code_id',
     'purchase_request_quote_id',
   ];
 
   protected $casts = [
-    'is_negative' => 'boolean',
+    'is_negative'   => 'boolean',
+    'has_retention' => 'boolean',
   ];
 
   const filter = [

@@ -2,7 +2,11 @@
 
 namespace App\Http\Resources\ap\comercial;
 
+use App\Http\Resources\ap\comercial\PurchaseRequestQuoteAccessoryResource;
+use App\Http\Resources\ap\comercial\PurchaseRequestQuoteDiscountResource;
+use App\Http\Resources\ap\comercial\PurchaseRequestQuoteOtherResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
+use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -64,47 +68,15 @@ class PurchaseRequestQuoteResource extends JsonResource
       'warranty_years'               => $this->warranty_years,
       'warranty_km'                  => $this->warranty_km,
       'consultant'                   => $this->opportunity?->worker ? WorkerResource::make($this->opportunity->worker) : null,
-      'bonus_discounts'              => $this->discountCoupons->map(function ($discount) {
-        return [
-          'id'              => $discount->id,
-          'description'     => $discount->description,
-          'type'            => $discount->type,
-          'percentage'      => $discount->percentage,
-          'amount'          => $discount->amount,
-          'igv'             => $discount->igv,
-          'valor_unitario'  => $discount->valor_unitario,
-          'precio_unitario' => $discount->precio_unitario,
-          'is_negative'     => $discount->is_negative,
-          'concept_code_id' => $discount->concept_code_id,
-          'concept_code'    => $discount->conceptCode->description ?? null,
-        ];
-      }),
-      'accessories'                  => $this->accessories->map(function ($accessory) {
-        return [
-          'id'                    => $accessory->id,
-          'approved_accessory_id' => $accessory->approved_accessory_id,
-          'description'           => $accessory->approvedAccessory->description ?? null,
-          'type'                  => $accessory->type,
-          'quantity'              => $accessory->quantity,
-          'price'                 => $accessory->price,
-          'additional_price'      => $accessory->additional_price,
-          'total'                 => $accessory->total,
-          'type_currency_id'      => $accessory->type_currency_id,
-          'type_currency_code'    => $accessory->typeCurrency->code ?? null,
-          'type_currency_symbol'  => $accessory->typeCurrency->symbol ?? null,
-        ];
-      }),
-      'others'                       => $this->relationLoaded('others') ? $this->others->map(fn($o) => [
-        'id'          => $o->id,
-        'description' => $o->description,
-        'type'        => $o->type,
-        'value'       => $o->value,
-        'amount'      => round($o->amount, 2),
-      ]) : [],
+      'bonus_discounts'              => PurchaseRequestQuoteDiscountResource::collection($this->discountCoupons),
+      'accessories'                  => PurchaseRequestQuoteAccessoryResource::collection($this->accessories),
+      'others'                       => $this->others
+        ? PurchaseRequestQuoteOtherResource::collection($this->others)
+        : [],
       'sede_id'                      => $this->sede_id ?? null,
       'sede'                         => $this->sede->abreviatura ?? null,
-      'kyc_declaration_id'           => $this->relationLoaded('kycDeclaration') ? $this->kycDeclaration?->id : null,
-      'kyc_status'                   => $this->relationLoaded('kycDeclaration') ? ($this->kycDeclaration?->status ?? 'PENDIENTE') : null,
+      'kyc_declaration_id'           => $this->kycDeclaration ? $this->kycDeclaration->id : null,
+      'kyc_status'                   => $this->kycDeclaration ? ($this->kycDeclaration->status ?? 'PENDIENTE') : null,
       'created_at'                   => $this->created_at,
       'updated_at'                   => $this->updated_at,
     ];
@@ -112,6 +84,9 @@ class PurchaseRequestQuoteResource extends JsonResource
     if ($this->showExtra) {
       $response['ap_vehicle'] = $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null;
       $response['model'] = $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null;
+      $response['electronic_documents'] = $this->electronicDocuments
+        ? ElectronicDocumentResource::collection($this->electronicDocuments)
+        : [];
     } else {
       $response['ap_vehicle'] = $this->ap_vehicle_id ? ($this->vehicle->model->version . ' - ' . $this->vehicle->vin) : null;
     }
