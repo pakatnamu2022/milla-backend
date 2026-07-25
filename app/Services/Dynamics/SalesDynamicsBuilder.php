@@ -36,7 +36,6 @@ class SalesDynamicsBuilder
   {
     $postSaleAccessories = $this->getPostSaleAccessories($document);
     $igvDivisor = $this->getIgvDivisor($document);
-    $nextLine = $document->items->max('line_number') + 1;
 
     // Obtener el código de repuestos en travesía para discriminar
     $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
@@ -47,7 +46,7 @@ class SalesDynamicsBuilder
     $hasTraverseParts = false;
 
     // Mapear items normales, filtrando los repuestos en travesía
-    $items = $document->items
+    $normalItems = $document->items
       ->filter(function ($item) use ($sparePartsRoadCode, &$traversePartsTotal, &$hasTraverseParts) {
         // Si el item tiene el código de repuestos en travesía, NO incluirlo individualmente
         if ($sparePartsRoadCode && $item->dyn_code === $sparePartsRoadCode) {
@@ -57,7 +56,14 @@ class SalesDynamicsBuilder
           return false; // NO incluir este item
         }
         return true; // Incluir items normales
-      })
+      });
+
+    // Calcular la siguiente línea disponible en base a los items que SÍ se incluyen,
+    // para que la línea liberada por un item excluido (repuesto en travesía) se reutilice
+    // en vez de dejar un hueco en la numeración.
+    $nextLine = $normalItems->max('line_number') + 1;
+
+    $items = $normalItems
       ->map(function ($item) use ($document, $postSaleAccessories, $igvDivisor) {
         $overridePrice = $this->resolveVehicleBasePrice($item, $postSaleAccessories, $document, $igvDivisor);
         return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
