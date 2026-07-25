@@ -608,9 +608,14 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           'group_number' => $data['group_number'],
         ];
 
-        // Validar decimales según la unidad de medida del producto
-        $product = Products::find($detail->product_id);
-        $product->validateDecimals($detail->quantity);
+        // Bypass: Si es travesía, saltar validaciones y NO reservar stock
+        $isTraverse = $detail->is_traverse ?? false;
+
+        if (!$isTraverse) {
+          // Validar decimales según la unidad de medida del producto
+          $product = Products::find($detail->product_id);
+          $product->validateDecimals($detail->quantity);
+        }
 
         // Calcular precios y totales automáticamente
         $this->calculatePricesAndTotals($partData);
@@ -620,51 +625,55 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
           $partData['registered_by'] = auth()->user()->id;
         }
 
-        // Validar que exista stock disponible para reservar
-        // lockForUpdate: evita sobre-reservar si otra transacción concurrente
-        // reserva el mismo producto/almacén al mismo tiempo.
-        $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
-          ->where('warehouse_id', $warehouseId)
-          ->lockForUpdate()
-          ->first();
+        if (!$isTraverse) {
+          // Validar que exista stock disponible para reservar
+          // lockForUpdate: evita sobre-reservar si otra transacción concurrente
+          // reserva el mismo producto/almacén al mismo tiempo.
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->lockForUpdate()
+            ->first();
 
-        if (!$stock) {
-          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
-          throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
-        }
+          if (!$stock) {
+            $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+            throw new Exception("No se encontró registro de stock para el producto {$productInfo} en el almacén seleccionado");
+          }
 
-        $externalStock = $inventoryMovementService->validateStockInExternalSystem(
-          $stock->product->dyn_code,
-          $stock->warehouse->dyn_code
-        );
-
-        // El SP retorna ArticuloStock como string, convertir a float para comparar
-        $availableQuantityExternal = isset($externalStock['ArticuloStock'])
-          ? (float)trim($externalStock['ArticuloStock'])
-          : 0;
-
-        if ($availableQuantityExternal < $detail->quantity) {
-          throw new Exception(
-            "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
-            "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+          $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+            $stock->product->dyn_code,
+            $stock->warehouse->dyn_code
           );
-        }
 
-        if ($stock->available_quantity < $detail->quantity) {
-          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
-          throw new Exception(
-            "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
-          );
+          // El SP retorna ArticuloStock como string, convertir a float para comparar
+          $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+            ? (float)trim($externalStock['ArticuloStock'])
+            : 0;
+
+          if ($availableQuantityExternal < $detail->quantity) {
+            throw new Exception(
+              "Stock insuficiente en sistema externo para el producto: {$detail->product->description}. " .
+              "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$detail->quantity}"
+            );
+          }
+
+          if ($stock->available_quantity < $detail->quantity) {
+            $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+            throw new Exception(
+              "Stock insuficiente para el producto {$productInfo}. Disponible: {$stock->available_quantity}, Requerido: {$detail->quantity}"
+            );
+          }
         }
 
         // Crear el repuesto
         $workOrderPart = ApWorkOrderParts::create($partData);
 
-        // Reservar el stock
-        $reserveSuccess = $stock->reserveStock($detail->quantity);
-        if (!$reserveSuccess) {
-          $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
-          throw new Exception("No se pudo reservar el stock para el producto {$productInfo}");
+        if (!$isTraverse) {
+          // Reservar el stock
+          $reserveSuccess = $stock->reserveStock($detail->quantity);
+          if (!$reserveSuccess) {
+            $productInfo = $detail->product ? "{$detail->product->code} - {$detail->product->name}" : "ID {$detail->product_id}";
+            throw new Exception("No se pudo reservar el stock para el producto {$productInfo}");
+          }
         }
 
         // Cargar las relaciones necesarias

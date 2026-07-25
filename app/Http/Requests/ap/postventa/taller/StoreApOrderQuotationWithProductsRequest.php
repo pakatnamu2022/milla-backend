@@ -87,6 +87,10 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
         'string',
         'in:STOCK,TRASLADO,LOCAL,CENTRAL,IMPORTACION',
       ],
+      'details.*.is_traverse' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
@@ -196,8 +200,14 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
         $productId = $detail['product_id'] ?? null;
         $supplyType = $detail['supply_type'] ?? null;
         $quantity = $detail['quantity'] ?? 0;
+        $isTraverse = $detail['is_traverse'] ?? false;
 
         if (!$productId || !$supplyType || !$sedeId) {
+          continue;
+        }
+
+        // Bypass: Si es travesía, saltar todas las validaciones de stock
+        if ($isTraverse) {
           continue;
         }
 

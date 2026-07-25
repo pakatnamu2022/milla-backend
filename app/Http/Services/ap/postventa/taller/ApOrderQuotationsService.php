@@ -263,6 +263,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $unitPrice = $detail['unit_price'];
         $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+        $isTraverse = $detail['is_traverse'] ?? false;
+
+        // Bypass: Si es travesía, saltar todas las validaciones
+        if ($isTraverse) {
+          continue;
+        }
 
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($productId);
@@ -296,6 +302,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       foreach ($data['details'] as $index => $detail) {
         $supplyType = $detail['supply_type'] ?? null;
+        $isTraverse = $detail['is_traverse'] ?? false;
+
+        // Bypass: Si es travesía, saltar validación de stock en Dynamics
+        if ($isTraverse) {
+          continue;
+        }
 
         // Solo validar stock externo si es tipo STOCK
         if ($supplyType === 'STOCK') {
@@ -387,6 +399,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
+          'is_traverse' => $detail['is_traverse'] ?? null,
         ]);
       }
 
@@ -582,6 +595,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $unitPrice = $detail['unit_price'];
         $quantity = $detail['quantity'];
         $sedeId = $data['sede_id'];
+        $isTraverse = $detail['is_traverse'] ?? false;
+
+        // Bypass: Si es travesía, saltar todas las validaciones
+        if ($isTraverse) {
+          continue;
+        }
 
         // Validar decimales según la unidad de medida del producto
         $product = Products::find($productId);
@@ -683,6 +702,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'exchange_rate' => $detail['exchange_rate'] ?? null,
           'freight_commission' => $detail['freight_commission'] ?? null,
           'supply_type' => $detail['supply_type'] ?? null,
+          'is_traverse' => $detail['is_traverse'] ?? null,
         ]);
       }
 
@@ -778,8 +798,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         // Obtener almacén para liberar stock
         $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
 
-        // Liberar stock de los detalles que son tipo STOCK antes de descartar
+        // Liberar stock de los detalles que son tipo STOCK y NO son travesía antes de descartar
         foreach ($quotation->details as $detail) {
+          // Bypass: Si es travesía, NO liberar stock (nunca se reservó)
+          if ($detail->is_traverse) {
+            continue;
+          }
+
           if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
             $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
               ->where('warehouse_id', $warehouseId)
@@ -2225,6 +2250,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id)?->id;
 
       foreach ($originalQuotation->details as $detail) {
+        // Bypass: Si es travesía, NO liberar stock (nunca se reservó)
+        if ($detail->is_traverse) {
+          continue;
+        }
+
         if ($detail->supply_type === ApOrderQuotations::STOCK && $detail->product_id && $warehouseId) {
           $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
             ->where('warehouse_id', $warehouseId)
@@ -2602,8 +2632,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotation->load('details');
     }
 
-    // Filtrar solo los productos con supply_type = 'STOCK'
-    $stockDetails = $quotation->details->where('supply_type', ApOrderQuotations::STOCK);
+    // Filtrar solo los productos con supply_type = 'STOCK' y que NO sean travesía
+    $stockDetails = $quotation->details
+      ->where('supply_type', ApOrderQuotations::STOCK)
+      ->filter(fn($detail) => !$detail->is_traverse);
 
     foreach ($stockDetails as $detail) {
       if (!$detail->product_id) {
