@@ -144,6 +144,15 @@ class PurchaseRequestQuoteController extends Controller
    * @param int $id
    * @return JsonResponse
    */
+  public function recalculateMargin(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->recalculateMargin($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function sendEmail(int $id): JsonResponse
   {
     try {

@@ -25,6 +25,7 @@ use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\DiscountCouponsController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
@@ -1329,6 +1330,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
       Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
       Route::post('purchaseRequestQuote/{id}/sendEmail', [PurchaseRequestQuoteController::class, 'sendEmail']);
+      Route::post('purchaseRequestQuote/{id}/recalculateMargin', [PurchaseRequestQuoteController::class, 'recalculateMargin']);
+
+      // Discount Coupons
+      Route::get('discountCoupons/byQuote/{quoteId}', [DiscountCouponsController::class, 'byQuote']);
+      Route::put('discountCoupons/{id}', [DiscountCouponsController::class, 'update']);
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
       Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
       Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);

@@ -37,7 +37,8 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'bonus_discounts.*.description' => ['required', 'string', 'max:255'],
       'bonus_discounts.*.type' => ['required', 'string', 'in:FIJO,PORCENTAJE'],
       'bonus_discounts.*.value' => ['required', 'numeric', 'min:0'],
-      'bonus_discounts.*.is_negative' => ['nullable', 'boolean'],
+      'bonus_discounts.*.is_negative'   => ['nullable', 'boolean'],
+      'bonus_discounts.*.has_retention' => ['nullable', 'boolean'],
 
       // Validaciones para accessories
       'accessories' => ['nullable', 'array'],
