@@ -3220,7 +3220,27 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Si el item tiene product_id, buscar el producto directamente para mapear código y dyn_code
       if (!empty($item['product_id'])) {
         $product = Products::find($item['product_id']);
-        if ($product) {
+
+        // Verificar si el item corresponde a un repuesto de tipo traverse (is_traverse = true).
+        // Se busca primero por el `codigo` original (ID del part) y, si no se encuentra,
+        // por coincidencia de product_id dentro de los repuestos de la orden de trabajo.
+        $originalItemId = $item['codigo'] ?? null;
+        $matchingPart = ($originalItemId !== null ? $parts->get($originalItemId) : null)
+          ?? $parts->firstWhere('product_id', $item['product_id']);
+
+        if ($matchingPart && $matchingPart->is_traverse) {
+          if ($product && $product->code) {
+            $item['codigo'] = $product->code;
+          }
+
+          // Para repuestos traverse, usar el código dinámico de SPARE_PARTS_ROAD_ID
+          $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
+          if ($sparePartsRoadAccount && $sparePartsRoadAccount->code_dynamics) {
+            $item['dyn_code'] = $sparePartsRoadAccount->code_dynamics;
+          }
+          // Usar la unidad de medida de servicio
+          $item['unidad_medida_dyn'] = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
+        } elseif ($product) {
           if ($product->code) {
             $item['codigo'] = $product->code;
           }
