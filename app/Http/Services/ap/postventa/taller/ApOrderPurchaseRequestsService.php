@@ -210,9 +210,9 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
           // solo editar los datos (cantidad, precio, descuento, fechas, tipo de abastecimiento, etc.)
           // de los repuestos ya existentes.
           $existingProductIds = $purchaseRequest->details()->pluck('product_id')
-            ->map(fn($id) => (int) $id)->sort()->values()->all();
+            ->map(fn($id) => (int)$id)->sort()->values()->all();
           $incomingProductIds = collect($details)->pluck('product_id')
-            ->map(fn($id) => (int) $id)->sort()->values()->all();
+            ->map(fn($id) => (int)$id)->sort()->values()->all();
 
           if ($existingProductIds !== $incomingProductIds) {
             throw new Exception("No se pueden agregar o quitar repuestos de una solicitud de compra que ha sido aprobada. Los demás datos si pueden ser editados.");
@@ -697,6 +697,10 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       if ($quotation->status === ApOrderPurchaseRequests::CANCELLED) {
         throw new Exception('No se puede aprobar una solicitud de compra que ha sido cancelada.');
+      }
+
+      if ($quotation->approved) {
+        throw new Exception('La solicitud de compra ya ha sido aprobada.');
       }
 
       $positionId = (int)($user->person?->position?->id ?? 0);
