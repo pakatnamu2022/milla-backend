@@ -18,6 +18,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Position;
@@ -87,7 +88,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       })
       // Condición 3: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
       ->whereHas('details', function ($q) {
-        $q->whereIn('supply_type', ['LOCAL', 'CENTRAL', 'IMPORTACION']);
+        $q->whereIn('supply_type', [
+          ApOrderQuotationDetails::SUPPLY_TYPE_LOCAL,
+          ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL,
+          ApOrderQuotationDetails::SUPPLY_TYPE_IMPORTACION
+        ]);
       });
 
 
@@ -134,7 +139,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       })
       // Condición: La cotización debe tener al menos 1 item con supply_type LOCAL, CENTRAL o IMPORTACION
       ->whereHas('details', function ($q) {
-        $q->whereIn('supply_type', ['LOCAL', 'CENTRAL', 'IMPORTACION']);
+        $q->whereIn('supply_type', [
+          ApOrderQuotationDetails::SUPPLY_TYPE_LOCAL,
+          ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL,
+          ApOrderQuotationDetails::SUPPLY_TYPE_IMPORTACION
+        ]);
       });
 
     return $this->getFilteredResults(
@@ -310,7 +319,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         }
 
         // Solo validar stock externo si es tipo STOCK
-        if ($supplyType === 'STOCK') {
+        if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
           $productId = $detail['product_id'];
           $quantity = $detail['quantity'];
 
@@ -805,7 +814,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
             continue;
           }
 
-          if ($detail->supply_type === 'STOCK' && $detail->product_id && $warehouseId) {
+          if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK && $detail->product_id && $warehouseId) {
             $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
               ->where('warehouse_id', $warehouseId)
               ->first();
@@ -1463,7 +1472,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Cambiar el estado a "Por Facturar"
       $quotation->update([
         'confirmed_at' => Carbon::now(),
-        'confirmation_channel' => 'presencial',
+        'confirmation_channel' => ApOrderQuotations::CONFIRMATION_CHANNEL_PRESENCIAL,
         'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
@@ -2255,7 +2264,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           continue;
         }
 
-        if ($detail->supply_type === ApOrderQuotations::STOCK && $detail->product_id && $warehouseId) {
+        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK && $detail->product_id && $warehouseId) {
           $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
             ->where('warehouse_id', $warehouseId)
             ->first();
@@ -2634,7 +2643,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     // Filtrar solo los productos con supply_type = 'STOCK' y que NO sean travesía
     $stockDetails = $quotation->details
-      ->where('supply_type', ApOrderQuotations::STOCK)
+      ->where('supply_type', ApOrderQuotationDetails::SUPPLY_TYPE_STOCK)
       ->filter(fn($detail) => !$detail->is_traverse);
 
     foreach ($stockDetails as $detail) {

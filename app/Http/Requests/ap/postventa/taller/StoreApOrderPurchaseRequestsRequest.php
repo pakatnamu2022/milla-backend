@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use Illuminate\Validation\Rule;
 
 class StoreApOrderPurchaseRequestsRequest extends StoreRequest
@@ -91,7 +92,7 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
       'details.*.supply_type' => [
         'required',
         'string',
-        'in:LOCAL,CENTRAL,IMPORTACION', //no se toma en cuenta stock porque se considera que si una solicitud de compra no tiene cotizacion es por stock
+        ApOrderPurchaseRequestDetails::getSupplyTypeValidationRule(), //no se toma en cuenta stock porque se considera que si una solicitud de compra no tiene cotizacion es por stock
       ]
     ];
   }
@@ -125,7 +126,7 @@ class StoreApOrderPurchaseRequestsRequest extends StoreRequest
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved o rejected.',
       'supply_type' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK,LOCAL, CENTRAL o IMPORTACION.',
+      'supply_type.in' => 'El tipo de suministro debe ser: LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION.',
 
       // Details messages
       'details.required' => 'Los detalles de la solicitud son obligatorios.',

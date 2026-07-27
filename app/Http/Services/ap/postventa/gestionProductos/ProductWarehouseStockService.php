@@ -15,6 +15,7 @@ use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use Illuminate\Http\Request;
@@ -2084,7 +2085,7 @@ class ProductWarehouseStockService extends BaseService
               ->where('w.id', '=', $stock->warehouse_id);
           })
           ->where('qd.product_id', $stock->product_id)
-          ->where('qd.supply_type', ApOrderQuotations::STOCK)
+          ->where('qd.supply_type', ApOrderQuotationDetails::SUPPLY_TYPE_STOCK)
           ->where('w.id', $stock->warehouse_id) // Ensure the warehouse matches
           // Las cotizaciones de Taller nunca reservan stock al confirmarse; su reserva
           // real vive en ap_work_order_parts una vez cargada a la OT (ver work order parts join arriba)

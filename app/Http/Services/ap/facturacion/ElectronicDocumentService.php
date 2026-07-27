@@ -30,6 +30,7 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
@@ -2706,7 +2707,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validación según confirmación y supply_type (igual lógica que checkSufficientStock en ApOrderQuotationsResource)
-      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+      if ($isConfirmed && $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
         // Cotización confirmada + STOCK: validar físico Y reservado
         if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
           throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
@@ -3412,7 +3413,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar que si hay repuestos de IMPORTACIÓN, el anticipo debe ser por la totalidad de la deuda
       $quotationWithDetails = ApOrderQuotations::with('details')->find($data['order_quotation_id']);
       $hasImportacion = $quotationWithDetails->details->contains(function ($detail) {
-        return $detail->supply_type === 'IMPORTACION';
+        return $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_IMPORTACION;
       });
 
       if ($hasImportacion) {

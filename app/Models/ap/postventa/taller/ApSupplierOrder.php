@@ -75,6 +75,29 @@ class ApSupplierOrder extends Model
   const LOCAL = 'LOCAL';
   const CENTRAL = 'CENTRAL';
   const IMPORTACION = 'IMPORTACION';
+  const CENTRAL_IMPORTACION = 'CENTRAL_IMPORTACION';
+
+  /**
+   * Get all valid supply types
+   */
+  public static function getSupplyTypes(): array
+  {
+    return [
+      self::STOCK,
+      self::LOCAL,
+      self::CENTRAL,
+      self::IMPORTACION,
+      self::CENTRAL_IMPORTACION,
+    ];
+  }
+
+  /**
+   * Get validation rule for supply_type
+   */
+  public static function getSupplyTypeValidationRule(): string
+  {
+    return 'in:' . implode(',', self::getSupplyTypes());
+  }
 
   // RECEPTION TYPE CONSTANTS
   const PARTIAL = 'PARTIAL';

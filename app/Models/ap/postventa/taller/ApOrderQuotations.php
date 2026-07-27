@@ -129,13 +129,6 @@ class ApOrderQuotations extends Model
   const STATUS_FACTURADO = 'Facturado';
   const STATUS_SEGMENTADA = 'Segmentada';
 
-  // SUPPLY TYPE CONSTANTS
-  const STOCK = 'STOCK';
-  const TRASLADO = 'TRASLADO';
-  const LOCAL = 'LOCAL';
-  const CENTRAL = 'CENTRAL';
-  const IMPORTACION = 'IMPORTACION';
-
   // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
   const  DAYS_TO_EDIT_OR_DELETE = 15;
 
@@ -1180,7 +1173,7 @@ class ApOrderQuotations extends Model
       }
 
       // Validación según confirmación y supply_type
-      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+      if ($isConfirmed && $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
         // Cotización confirmada + STOCK: validar físico Y reservado
         if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
           return false;

@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 
 class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 {
@@ -85,7 +86,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
       'details.*.supply_type' => [
         'required',
         'string',
-        'in:STOCK,TRASLADO,LOCAL,CENTRAL,IMPORTACION',
+        ApOrderQuotationDetails::getSupplyTypeValidationRule(),
       ],
       'details.*.is_traverse' => [
         'nullable',
@@ -154,7 +155,7 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
 
       'details.*.supply_type.required' => 'El tipo de suministro es obligatorio en todos los detalles.',
       'details.*.supply_type.string' => 'El tipo de suministro debe ser una cadena de texto.',
-      'details.*.supply_type.in' => 'El tipo de suministro debe ser STOCK, TRASLADO, LOCAL, CENTRAL o IMPORTACION.',
+      'details.*.supply_type.in' => 'El tipo de suministro debe ser STOCK, TRASLADO, LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION.',
     ];
   }
 
@@ -222,18 +223,18 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
           ->sum('available_quantity');
 
         // Validación para STOCK: solo si hay suficiente stock en la sede actual
-        if ($supplyType === 'STOCK') {
+        if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
           if ($stockInCurrentSede < $quantity) {
             $productName = $detail['description'] ?? "ID: {$productId}";
             $validator->errors()->add(
               "details.{$index}.supply_type",
-              "Repuesto '{$productName}': No puede usar tipo STOCK. El producto solo tiene {$stockInCurrentSede} unidades disponibles en esta sede pero solicita {$quantity}. Debe usar TRASLADO, LOCAL, CENTRAL o IMPORTACION."
+              "Repuesto '{$productName}': No puede usar tipo STOCK. El producto solo tiene {$stockInCurrentSede} unidades disponibles en esta sede pero solicita {$quantity}. Debe usar TRASLADO, LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION."
             );
           }
         }
 
         // Validación para TRASLADO: solo si NO hay suficiente en sede actual PERO sí en otras sedes
-        if ($supplyType === 'TRASLADO') {
+        if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_TRASLADO) {
           $productName = $detail['description'] ?? "ID: {$productId}";
           if ($stockInCurrentSede >= $quantity) {
             $validator->errors()->add(
@@ -249,12 +250,12 @@ class StoreApOrderQuotationWithProductsRequest extends StoreRequest
           } elseif ($stockInOtherSedes <= 0) {
             $validator->errors()->add(
               "details.{$index}.supply_type",
-              "Repuesto '{$productName}': No puede usar tipo TRASLADO porque no hay stock disponible en otras sedes. Debe usar LOCAL, CENTRAL o IMPORTACION."
+              "Repuesto '{$productName}': No puede usar tipo TRASLADO porque no hay stock disponible en otras sedes. Debe usar LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION."
             );
           } elseif ($stockInOtherSedes < $quantity) {
             $validator->errors()->add(
               "details.{$index}.supply_type",
-              "Repuesto '{$productName}': No puede usar tipo TRASLADO para {$quantity} unidades porque solo hay {$stockInOtherSedes} unidades disponibles en otras sedes. Debe usar LOCAL, CENTRAL o IMPORTACION para las unidades faltantes."
+              "Repuesto '{$productName}': No puede usar tipo TRASLADO para {$quantity} unidades porque solo hay {$stockInOtherSedes} unidades disponibles en otras sedes. Debe usar LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION para las unidades faltantes."
             );
           }
         }
