@@ -1348,8 +1348,11 @@ class InventoryMovementService extends BaseService
         throw new Exception('No se encontró almacén asociado a la sede de la cotización');
       }
 
-      // Filter only product items (exclude labor)
-      $productDetails = $quotation->details->where('item_type', '!=', 'LABOR')->where('product_id', '!=', null);
+      // Filter only product items (exclude labor and traverse items)
+      $productDetails = $quotation->details
+        ->where('item_type', '!=', 'LABOR')
+        ->where('product_id', '!=', null)
+        ->where('is_traverse', false);
 
       if ($productDetails->isEmpty()) {
         throw new Exception('La cotización no contiene productos para generar salida de inventario');
@@ -1482,8 +1485,10 @@ class InventoryMovementService extends BaseService
         throw new Exception('No se encontró almacén asociado a la sede de la orden de trabajo');
       }
 
-      // Filter only product items (exclude services/labor)
-      $productParts = $workOrder->parts->where('product_id', '!=', null);
+      // Filter only product items (exclude services/labor and traverse items)
+      $productParts = $workOrder->parts
+        ->where('product_id', '!=', null)
+        ->where('is_traverse', false);
 
       if ($productParts->isEmpty()) {
         throw new Exception('La orden de trabajo no contiene repuestos para generar salida de inventario');
@@ -1661,8 +1666,10 @@ class InventoryMovementService extends BaseService
       $totalQuantity = 0;
 
       if ($itemsToReturn === null) {
-        // Full return - return ALL products from work order
-        $productParts = $workOrder->parts->where('product_id', '!=', null);
+        // Full return - return ALL products from work order (exclude traverse items)
+        $productParts = $workOrder->parts
+          ->where('product_id', '!=', null)
+          ->where('is_traverse', false);
 
         foreach ($productParts as $part) {
           if ($isCreditNote) {
@@ -1823,9 +1830,11 @@ class InventoryMovementService extends BaseService
       $totalQuantity = 0;
 
       if ($itemsToReturn === null) {
-        // Full return - return ALL products from quotation (only PRODUCT type, not LABOR)
-        $productDetails = $quotation->details->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
-          ->where('product_id', '!=', null);
+        // Full return - return ALL products from quotation (only PRODUCT type, not LABOR, exclude traverse)
+        $productDetails = $quotation->details
+          ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+          ->where('product_id', '!=', null)
+          ->where('is_traverse', false);
 
         foreach ($productDetails as $detail) {
           if ($isCreditNote) {
