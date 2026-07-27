@@ -617,6 +617,17 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         if (!$vehicleMovement) {
           throw new Exception("La orden de compra original no tiene un movimiento de vehículo asociado. No se puede reenviar con datos de vehículo.");
         }
+
+        // Actualizar datos del vehículo con los del nuevo request
+        $vehicle->update(array_filter([
+          'vin'              => $data['vin'] ?? null,
+          'year'             => $data['year'] ?? null,
+          'engine_number'    => $data['engine_number'] ?? null,
+          'ap_models_vn_id'  => $data['ap_models_vn_id'] ?? null,
+          'vehicle_color_id' => $data['vehicle_color_id'] ?? null,
+          'engine_type_id'   => $data['engine_type_id'] ?? null,
+        ], fn($v) => $v !== null));
+
         $vehicleMovementId = $this->createResendVehicleMovement($vehicleMovement, $originalPO->number);
         $data['vehicle_movement_id'] = $vehicleMovementId;
       }
