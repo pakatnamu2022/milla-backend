@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void
   {
     Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->foreignId('status_id')->constrained('ap_masters')->onDelete('cascade');
+      $table->foreignId('status_id')->after('status')->default(1282)->constrained('ap_masters')->onDelete('cascade');
     });
   }
 
