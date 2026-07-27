@@ -2971,6 +2971,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       return;
     }
 
+    // Skip validation for free transfers (transferencia gratuita)
+    // When any item has sunat_concept_igv_type_id = 58 (ID_IGV_FREE_TRANSFER)
+    // the amount will be 0.00 and that's expected behavior
+    if (isset($data['items']) && is_array($data['items'])) {
+      foreach ($data['items'] as $item) {
+        if (isset($item['sunat_concept_igv_type_id']) &&
+            $item['sunat_concept_igv_type_id'] == SunatConcepts::ID_IGV_FREE_TRANSFER) {
+          return;
+        }
+      }
+    }
+
     $newTotal = (float)($data['total'] ?? 0);
     $entityTotal = 0;
     $entityName = '';
