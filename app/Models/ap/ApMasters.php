@@ -3,13 +3,13 @@
 namespace App\Models\ap;
 
 use App\Models\ap\comercial\Opportunity;
+use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApMasters extends Model
+class ApMasters extends BaseModel
 {
   use SoftDeletes;
 
@@ -24,9 +24,9 @@ class ApMasters extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
-    'type' => 'in_or_equal',
-    'status' => '=',
+    'search'                  => ['code', 'description', 'type'],
+    'type'                    => 'in_or_equal',
+    'status'                  => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
 

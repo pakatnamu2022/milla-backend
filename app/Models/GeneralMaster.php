@@ -2,11 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class GeneralMaster extends Model
+class GeneralMaster extends BaseModel
 {
   use SoftDeletes;
 
@@ -23,9 +22,9 @@ class GeneralMaster extends Model
 
   const filters = [
     'search' => ['code', 'description', 'type'],
-    'type' => 'in_or_equal',
+    'type'   => 'in_or_equal',
     'status' => '=',
-    'code' => '=',
+    'code'   => '=',
   ];
 
   const sorts = [
