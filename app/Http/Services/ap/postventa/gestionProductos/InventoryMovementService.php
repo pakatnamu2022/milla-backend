@@ -1370,7 +1370,7 @@ class InventoryMovementService extends BaseService
         }
 
         // Validación según supply_type
-        if ($detail->supply_type === ApOrderQuotations::STOCK) {
+        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
           // Para STOCK: validar contra stock físico total (ya está reservado)
           if ($stock->quantity < $detail->quantity) {
             throw new Exception(
@@ -1440,7 +1440,7 @@ class InventoryMovementService extends BaseService
       // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
       // contra available_quantity y con la reserva aún activa siempre fallaría.
       foreach ($productDetails as $detail) {
-        if ($detail->supply_type === ApOrderQuotations::STOCK) {
+        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
           $this->stockService->releaseReservedStock($detail->product_id, $warehouse->id, $detail->quantity);
         }
       }

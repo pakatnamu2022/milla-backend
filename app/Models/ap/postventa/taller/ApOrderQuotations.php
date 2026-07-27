@@ -10,6 +10,8 @@ use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -72,6 +74,7 @@ class ApOrderQuotations extends Model
     'chief_approval_by',
     'manager_approval_by',
     'status',
+    'status_id',
     'confirmation_token',
     'confirmation_token_expires_at',
     'confirmed_at',
@@ -125,13 +128,6 @@ class ApOrderQuotations extends Model
   const STATUS_POR_FACTURAR = 'Por Facturar';
   const STATUS_FACTURADO = 'Facturado';
   const STATUS_SEGMENTADA = 'Segmentada';
-
-  // SUPPLY TYPE CONSTANTS
-  const STOCK = 'STOCK';
-  const TRASLADO = 'TRASLADO';
-  const LOCAL = 'LOCAL';
-  const CENTRAL = 'CENTRAL';
-  const IMPORTACION = 'IMPORTACION';
 
   // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
   const  DAYS_TO_EDIT_OR_DELETE = 15;
@@ -216,6 +212,11 @@ class ApOrderQuotations extends Model
   public function client(): BelongsTo
   {
     return $this->belongsTo(BusinessPartners::class, 'client_id');
+  }
+
+  public function status(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'status_id');
   }
 
   public function details()
@@ -1114,6 +1115,139 @@ class ApOrderQuotations extends Model
       'subtotal' => $subtotal,
       'igv' => $igv,
       'total' => $total,
+    ];
+  }
+
+  /**
+   * Verifica si hay stock suficiente para todos los productos
+   *
+   * Lógica según estado de confirmación y supply_type:
+   *
+   * CONFIRMADA:
+   *   - STOCK: valida quantity (físico) Y reserved_quantity (reservado)
+   *   - NO STOCK (LOCAL/CENTRAL/IMPORTACION): valida available_quantity (libre actual)
+   *
+   * NO CONFIRMADA:
+   *   - STOCK: valida available_quantity (para saber si se puede reservar)
+   *   - NO STOCK: valida available_quantity (libre actual)
+   *
+   * @return bool
+   */
+  public function hasSufficientStock(): bool
+  {
+    // Get warehouse from sede
+    $warehouse = Warehouse::getPhysicalWarehouseForPostsale($this->sede_id);
+
+    // If no warehouse found, return false
+    if (!$warehouse) {
+      return false;
+    }
+
+    // Get all product details from quotation
+    $productDetails = $this->details
+      ->where('item_type', 'PRODUCT')
+      ->where('product_id', '!=', null);
+
+    // If no products, return true
+    if ($productDetails->isEmpty()) {
+      return true;
+    }
+
+    // Determinar si la cotización ya está confirmada
+    $isConfirmed = !is_null($this->confirmed_at);
+
+    // Check stock for each product
+    foreach ($productDetails as $detail) {
+      // Bypass: si el repuesto tiene is_traverse = true, no validar stock
+      if ($detail->is_traverse) {
+        continue;
+      }
+
+      // Get stock for this product in this warehouse
+      $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+        ->where('product_id', $detail->product_id)
+        ->first();
+
+      if (!$stock) {
+        return false;
+      }
+
+      // Validación según confirmación y supply_type
+      if ($isConfirmed && $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
+        // Cotización confirmada + STOCK: validar físico Y reservado
+        if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
+          return false;
+        }
+      } else {
+        // Cualquier otro caso: validar stock disponible (libre)
+        if ($stock->available_quantity < $detail->quantity) {
+          return false;
+        }
+      }
+    }
+
+    // All products have sufficient stock
+    return true;
+  }
+
+  /**
+   * Determina si se puede generar un comprobante final de venta
+   *
+   * Este método es la fuente de verdad que gobierna si se puede emitir
+   * un comprobante final (factura/boleta de venta interna código 01) o
+   * un anticipo (código 04).
+   *
+   * Retorna un objeto con:
+   * - can_final_receipt: boolean - puede generar comprobante final (venta interna)
+   * - can_advance: boolean - puede generar anticipo
+   * - is_toggle_enabled: boolean - si el usuario puede elegir entre ambos tipos
+   * - message: string|null - mensaje explicativo de la restricción
+   *
+   * Reglas de negocio (según lógica del frontend):
+   * 1. Sin stock → solo anticipo (fuerza is_advance_payment = true)
+   * 2. Con stock pero remaining_balance = 0 → solo venta interna (fuerza is_advance_payment = false)
+   * 3. Con stock y remaining_balance > 0 → usuario puede elegir (toggle habilitado)
+   *
+   * @return array{can_final_receipt: bool, can_advance: bool, is_toggle_enabled: bool, message: string|null}
+   */
+  public function canGenerateFinalReceipt(): array
+  {
+    // Verificar stock físico disponible
+    $hasStock = $this->hasSufficientStock();
+
+    // Obtener saldo pendiente
+    $paymentSummary = $this->getPaymentSummary();
+    $remainingBalance = (float)($paymentSummary['remaining_balance'] ?? 0);
+
+    // Caso 1: Sin stock suficiente
+    // → Solo puede emitir anticipos, no comprobante final
+    if (!$hasStock) {
+      return [
+        'can_final_receipt' => false,
+        'can_advance' => true,
+        'is_toggle_enabled' => false,
+        'message' => 'Stock insuficiente para generar comprobante final. Solo puede emitir anticipos.'
+      ];
+    }
+
+    // Caso 2: Con stock pero ya no hay saldo pendiente (remaining_balance = 0)
+    // → Debe emitir comprobante final, no puede emitir más anticipos
+    if ($remainingBalance === 0.0) {
+      return [
+        'can_final_receipt' => true,
+        'can_advance' => false,
+        'is_toggle_enabled' => false,
+        'message' => 'Debe emitir comprobante final. La cotización ya está completamente pagada.'
+      ];
+    }
+
+    // Caso 3: Con stock y hay saldo pendiente
+    // → Usuario puede elegir entre comprobante final o anticipo
+    return [
+      'can_final_receipt' => true,
+      'can_advance' => true,
+      'is_toggle_enabled' => true,
+      'message' => null
     ];
   }
 }

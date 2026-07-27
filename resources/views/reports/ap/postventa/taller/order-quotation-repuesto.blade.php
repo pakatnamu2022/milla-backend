@@ -432,7 +432,7 @@
       <td class="text-center">{{ $detail['unit_measure'] }}</td>
       <td class="text-center">{{ number_format($detail['quantity'], 2) }}</td>
       <td
-        class="text-center">{{ $detail['supply_type'] === \App\Models\ap\postventa\taller\ApOrderQuotations::STOCK ? 'SI':'NO' }}</td>
+        class="text-center">{{ $detail['supply_type'] === \App\Models\ap\postventa\taller\ApOrderQuotationDetails::SUPPLY_TYPE_STOCK ? 'SI':'NO' }}</td>
       <td class="text-left">
         {{ $detail['supply_type'] }}
         @if(!empty($detail['observations']))

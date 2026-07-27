@@ -30,6 +30,7 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
@@ -2690,6 +2691,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
+      // Bypass: si el repuesto tiene is_traverse = true, no validar stock
+      if ($detail->is_traverse) {
+        continue;
+      }
+
       // Get stock for this product in this warehouse
       $stock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
         ->where('product_id', $detail->product_id)
@@ -2701,7 +2707,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validación según confirmación y supply_type (igual lógica que checkSufficientStock en ApOrderQuotationsResource)
-      if ($isConfirmed && $detail->supply_type === 'STOCK') {
+      if ($isConfirmed && $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
         // Cotización confirmada + STOCK: validar físico Y reservado
         if ($stock->quantity < $detail->quantity || $stock->reserved_quantity < $detail->quantity) {
           throw new Exception('No hay stock suficiente para el producto: ' . $detail->product->description);
@@ -3117,6 +3123,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     }
 
     // Lógica normal para ventas (NO anticipos)
+    // Cargar la cotización con sus detalles
+    $quotation = ApOrderQuotations::with('details')->find($quotationId);
+
+    if (!$quotation) {
+      return;
+    }
+
+    // Indexar detalles de cotización por product_id para búsqueda rápida
+    $quotationDetails = $quotation->details->keyBy('product_id');
+
     // Recopilar todos los product_ids de items que no son anticipos
     $productIds = [];
     foreach ($items as $item) {
@@ -3151,8 +3167,23 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Si tiene product_id, mapear desde el producto
       if (!empty($item['product_id'])) {
         $product = $products->get($item['product_id']);
+        $detail = $quotationDetails->get($item['product_id']);
 
-        if ($product) {
+        // Verificar si el repuesto es de tipo traverse (is_traverse = true)
+        if ($detail && $detail->is_traverse) {
+          if ($product && $product->code) {
+            $item['codigo'] = $product->code;
+          }
+
+          // Para repuestos traverse, usar el código dinámico de SPARE_PARTS_ROAD_ID
+          $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
+          if ($sparePartsRoadAccount && $sparePartsRoadAccount->code_dynamics) {
+            $item['dyn_code'] = $sparePartsRoadAccount->code_dynamics;
+          }
+          // Usar la unidad de medida de servicio
+          $item['unidad_medida_dyn'] = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
+        } elseif ($product) {
+          // Comportamiento normal para repuestos no-traverse
           if ($product->code) {
             $item['codigo'] = $product->code;
           }
@@ -3382,7 +3413,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Validar que si hay repuestos de IMPORTACIÓN, el anticipo debe ser por la totalidad de la deuda
       $quotationWithDetails = ApOrderQuotations::with('details')->find($data['order_quotation_id']);
       $hasImportacion = $quotationWithDetails->details->contains(function ($detail) {
-        return $detail->supply_type === 'IMPORTACION';
+        return $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_IMPORTACION;
       });
 
       if ($hasImportacion) {
