@@ -533,22 +533,21 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $valorUnitario = 0;
       $igv = 0;
 
+      $hasRetention = (bool)($discount['has_retention'] ?? false);
+      $retentionFactor = $hasRetention ? 0.93 : 1.0;
+
       if ($discount['type'] === 'FIJO') {
-        // Si es monto fijo, guardar en amount y calcular el porcentaje
-        $amount = $discount['value'];
+        $amount = $discount['value'] * $retentionFactor;
         $percentage = ($salePrice > 0) ? ($amount / $salePrice) * 100 : 0;
 
-        // Calcular IGV y valores unitarios
-        $precioUnitario = $amount; // El valor ingresado ya incluye IGV
+        $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
         $igv = $precioUnitario - $valorUnitario;
       } elseif ($discount['type'] === 'PORCENTAJE') {
-        // Si es porcentaje, guardar en percentage y calcular el monto
         $percentage = $discount['value'];
-        $amount = ($salePrice * $percentage) / 100;
+        $amount = ($salePrice * $percentage) / 100 * $retentionFactor;
 
-        // Calcular IGV y valores unitarios
-        $precioUnitario = $amount; // El monto calculado incluye IGV
+        $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
         $igv = $precioUnitario - $valorUnitario;
       }
@@ -562,6 +561,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'valor_unitario'            => $valorUnitario,
         'precio_unitario'           => $precioUnitario,
         'is_negative'               => $discount['is_negative'] ?? false,
+        'has_retention'             => $hasRetention,
         'concept_code_id'           => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
@@ -856,6 +856,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   {
     $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.purchaseOrder']);
     $quote->update($this->calculateMargin($quote));
+  }
+
+  public function recalculateMargin(int $id): JsonResource
+  {
+    $quote = $this->find($id);
+    $this->refreshMargin($quote);
+    return new PurchaseRequestQuoteResource($quote->fresh(['others']));
   }
 
   /**
