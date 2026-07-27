@@ -93,6 +93,21 @@ class ApVehicleStatus extends Model
     self::PEDIDO_VN            => 50,
   ];
 
+  // Estados de venta: el vehículo ya fue facturado/vendido.
+  // Ninguna operación logística (guía de traslado, recepción) puede cambiar estos estados.
+  // Solo operaciones explícitas de venta (anulación de factura, entrega) los modifican.
+  const array SALE_STATUSES = [
+    self::FACTURADO,
+    self::FACTURADO_FINAL,
+    self::VENDIDO_NO_ENTREGADO,
+    self::VENDIDO_ENTREGADO,
+  ];
+
+  public static function isSaleStatus(?int $statusId): bool
+  {
+    return in_array($statusId, self::SALE_STATUSES, true);
+  }
+
 
   public function setCodeAttribute($value)
   {

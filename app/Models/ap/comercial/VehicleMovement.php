@@ -25,6 +25,7 @@ class VehicleMovement extends BaseModel
     'warehouse_id',
     'origin_warehouse_id',
     'movement_date',
+    'confirmed_at',
     'origin_address',
     'destination_address',
     'cancellation_reason',
@@ -37,7 +38,8 @@ class VehicleMovement extends BaseModel
 
   protected $casts = [
     'movement_date' => 'datetime',
-    'cancelled_at' => 'datetime',
+    'confirmed_at'  => 'datetime',
+    'cancelled_at'  => 'datetime',
   ];
 
   const array filters = [

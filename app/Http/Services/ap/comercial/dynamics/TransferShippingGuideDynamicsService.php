@@ -109,7 +109,7 @@ class TransferShippingGuideDynamicsService
       }
 
       $vehicleMovementService = new VehicleMovementService();
-      $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id);
+      $vehicleMovementService->storeInventoryVehicleMovement($vehicle->id, $shippingGuide);
     }
   }
 

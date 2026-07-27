@@ -79,6 +79,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           if (!$wasAccounted && !$isAnnulled) {
             if ($document->area_id === ApMasters::AREA_COMERCIAL) {
+              $this->confirmVehicleMovement($document);
               $this->restoreVehicleToInventoryIfApplicable($document);
             } else {
               $this->createInventoryMovementIfApplicable($document);
@@ -109,6 +110,17 @@ class SyncAccountingStatusJob implements ShouldQueue
         ]);
       }
     }
+  }
+
+  private function confirmVehicleMovement(ElectronicDocument $document): void
+  {
+    if (!$document->ap_vehicle_movement_id) {
+      return;
+    }
+
+    \App\Models\ap\comercial\VehicleMovement::where('id', $document->ap_vehicle_movement_id)
+      ->whereNull('confirmed_at')
+      ->update(['confirmed_at' => now()]);
   }
 
   private function restoreVehicleToInventoryIfApplicable(ElectronicDocument $document): void

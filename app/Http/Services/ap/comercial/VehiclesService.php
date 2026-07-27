@@ -911,6 +911,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'previous_status_id'   => $previousStatusId,
         'new_status_id'        => $statusId,
         'movement_date'        => $movementDate,
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'created_by'           => auth()->id(),
       ]);
