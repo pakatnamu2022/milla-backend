@@ -3942,12 +3942,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     $workOrder->update(['has_invoice_generated' => true]);
 
-    // Actualizar fecha de cierre oficial SOLO si es factura final (no anticipo)
-    // Los anticipos (is_advance_payment = 1) no cierran la OT
-    // Solo la factura final (is_advance_payment = 0) cierra la OT
-    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
-    }
+    // Actualizar fecha de cierre oficial SIEMPRE que se cree una OTE
+    // Se actualiza con la fecha de emisión del documento electrónico
+    $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
   }
 
   public function createConsolidatedInvoice(array $data): array

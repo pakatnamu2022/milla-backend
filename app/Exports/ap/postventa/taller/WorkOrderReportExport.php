@@ -73,6 +73,9 @@ class WorkOrderReportExport implements
       "PRECIO INSUMO ({$currency})",
       "PRECIO TOTAL ({$currency})",
       'AUTORIZACION DE DATOS PERSONALES',
+      'NUM. DOCUMENTO',
+      'FECHA DOCUMENTO',
+      'ESTADO SUNAT',
     ];
   }
 
@@ -109,6 +112,9 @@ class WorkOrderReportExport implements
       $row['precio_insumo'],
       $row['precio_total'],
       $row['autorizacion_datos_personales'],
+      $row['num_documento_electronico'],
+      $row['fecha_documento_electronico'],
+      $row['estado_sunat'],
     ];
   }
 
@@ -138,8 +144,53 @@ class WorkOrderReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-AD, 30 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:AD1');
+        // Habilitar filtros en la fila de encabezado (columnas A-AG, 33 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:AG1');
+
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna AG)
+        $sheet = $event->sheet->getDelegate();
+        $highestRow = $sheet->getHighestRow();
+
+        // Estilos para SI (verde con letra blanca)
+        $styleGreen = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '00B050'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Estilos para NO (rojo con letra blanca)
+        $styleRed = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FF0000'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Aplicar estilos desde la fila 2 hasta la última fila
+        for ($row = 2; $row <= $highestRow; $row++) {
+          $cellValue = $sheet->getCell('AG' . $row)->getValue();
+
+          if ($cellValue === 'SI') {
+            $sheet->getStyle('AG' . $row)->applyFromArray($styleGreen);
+          } elseif ($cellValue === 'NO') {
+            $sheet->getStyle('AG' . $row)->applyFromArray($styleRed);
+          }
+        }
       },
     ];
   }

@@ -6,6 +6,7 @@ use App\Exports\ap\postventa\taller\InvoicingReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\InvoicingReportService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
 class InvoicingReportController extends Controller
@@ -37,6 +38,10 @@ class InvoicingReportController extends Controller
 
     // Construir filtros
     $filters = $this->buildFilters($validated);
+
+    // TEMPORAL: Ejecutar comando para actualizar fechas de entrega antes de generar el reporte
+    // TODO: Remover esto cuando se arregle la reportería
+    Artisan::call('work-orders:update-delivery-dates', ['--force' => true]);
 
     // Obtener datos del reporte
     $reportData = $this->service->getInvoicingReport($filters);

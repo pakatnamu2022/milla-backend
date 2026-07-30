@@ -46,6 +46,7 @@ class InvoicingReportService
         'exchangeRate',
       ])
       ->where('anulado', false)
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
       ->where(function ($q) {
         // Facturación SIMPLE: tiene work_order_id directo
         $q->whereNotNull('work_order_id')
@@ -231,6 +232,10 @@ class InvoicingReportService
     // Moneda original del comprobante
     $monedaOriginal = $isUSD ? 'USD' : 'PEN';
 
+    // Verificar si es Nota de Crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+    $multiplier = $isCreditNote ? -1 : 1;
+
     // Verificar si la OT tiene tipo DERCO_WARRANTY u ODEBRECHT_MAINTENANCE
     $hasInternalNoteWithMassiveInvoice = $workOrder->items->contains(function ($item) {
       return in_array($item->type_planning_id, [
@@ -240,21 +245,21 @@ class InvoicingReportService
     });
 
     // Convertir montos a soles
-    $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
-    $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
-    $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
+    $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate * $multiplier;
+    $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate * $multiplier;
+    $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate * $multiplier;
 
     // Si tiene nota interna con factura masiva (DERCO_WARRANTY u ODEBRECHT_MAINTENANCE),
     // usar los montos de la OT en lugar de los montos del documento
     if ($hasInternalNoteWithMassiveInvoice) {
-      $total = ($workOrder->final_amount ?? 0) * $exchangeRate;
-      $igv = ($workOrder->tax_amount ?? 0) * $exchangeRate;
+      $total = ($workOrder->final_amount ?? 0) * $exchangeRate * $multiplier;
+      $igv = ($workOrder->tax_amount ?? 0) * $exchangeRate * $multiplier;
       $montoSinIgv = $total - $igv;
     } else {
       // Para otros casos, usar los montos del documento electrónico
-      $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
-      $igv = ($document->total_igv ?? 0) * $exchangeRate;
-      $total = ($document->total ?? 0) * $exchangeRate;
+      $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate * $multiplier;
+      $igv = ($document->total_igv ?? 0) * $exchangeRate * $multiplier;
+      $total = ($document->total ?? 0) * $exchangeRate * $multiplier;
     }
 
     return [
@@ -306,10 +311,14 @@ class InvoicingReportService
     // Moneda original del comprobante
     $monedaOriginal = $isUSD ? 'USD' : 'PEN';
 
+    // Verificar si es Nota de Crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+    $multiplier = $isCreditNote ? -1 : 1;
+
     // Convertir montos a soles
-    $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate;
-    $igv = ($document->total_igv ?? 0) * $exchangeRate;
-    $total = ($document->total ?? 0) * $exchangeRate;
+    $montoSinIgv = ($document->total_gravada ?? 0) * $exchangeRate * $multiplier;
+    $igv = ($document->total_igv ?? 0) * $exchangeRate * $multiplier;
+    $total = ($document->total ?? 0) * $exchangeRate * $multiplier;
 
     // Si tiene orden de trabajo, obtener sus datos
     if ($workOrder) {
@@ -318,9 +327,9 @@ class InvoicingReportService
       $finalInvoice = $workOrder->getFinalInvoice();
       $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
 
-      $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
-      $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
-      $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
+      $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate * $multiplier;
+      $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate * $multiplier;
+      $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate * $multiplier;
 
       return [
         'taller' => $workOrder->sede?->abreviatura ?? '',
