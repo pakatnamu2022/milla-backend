@@ -1407,7 +1407,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles
       Route::match(['get', 'post'], 'vehicles/export', [VehiclesController::class, 'exportAll']);
-      Route::post('vehicles/export/billing', [VehiclesController::class, 'exportB illing']);
+      Route::post('vehicles/export/billing', [VehiclesController::class, 'exportBilling']);
       Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
       Route::post('vehicles/export/inventory', [VehiclesController::class, 'exportInventory']);
       Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
@@ -1455,6 +1455,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles Delivery - Reprogramar
       Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
+
+      // Vehicles Delivery - Reenviar aprobación extraordinaria
+      Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);

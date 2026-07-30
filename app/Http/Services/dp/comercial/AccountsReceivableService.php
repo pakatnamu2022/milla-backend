@@ -69,7 +69,7 @@ class AccountsReceivableService extends BaseService
       }
     } while ($stmt->nextRowset());
 
-    $sedeMap = $this->buildSedeMap();
+    $sedeMap = $this->buildSedeMap($company);
     $batchAt = now()->toDateTimeString();
 
     $spDocNumbers = collect($rows)
@@ -126,6 +126,14 @@ class AccountsReceivableService extends BaseService
         SET ar.electronic_document_id = ed.id,
             ar.area_id = ed.area_id
         WHERE ar.company = 'automotores'
+      ");
+
+      DB::statement("
+        UPDATE accounts_receivable
+        SET area_id = 826
+        WHERE company = 'automotores'
+          AND cashier = 'CDV'
+          AND area_id IS NULL
       ");
     }
 
@@ -207,7 +215,7 @@ class AccountsReceivableService extends BaseService
   public function filterTree(string $company = 'deposito'): array
   {
     $userSedeIds = $this->getUserSedeIds();
-
+//    return $userSedeIds;
     if ($userSedeIds !== null) {
       return $this->buildFilterTree($company, $userSedeIds);
     }
@@ -231,6 +239,8 @@ class AccountsReceivableService extends BaseService
       ->orderBy('overdue_status')
       ->orderByDesc('due_year')
       ->get();
+
+//    return [$rows];
 
     $tree = [];
 
@@ -683,17 +693,17 @@ class AccountsReceivableService extends BaseService
 
   private function buildDashboard(string $company, array $filters = []): array
   {
-    $sedeIds  = !empty($filters['sede_ids'])  ? array_map('intval', (array)$filters['sede_ids'])  : null;
-    $statuses = !empty($filters['statuses'])  ? (array)$filters['statuses']                       : null;
-    $years    = !empty($filters['years'])     ? array_map('intval', (array)$filters['years'])     : null;
-    $areaIds  = !empty($filters['area_ids'])  ? array_map('intval', (array)$filters['area_ids'])  : null;
+    $sedeIds = !empty($filters['sede_ids']) ? array_map('intval', (array)$filters['sede_ids']) : null;
+    $statuses = !empty($filters['statuses']) ? (array)$filters['statuses'] : null;
+    $years = !empty($filters['years']) ? array_map('intval', (array)$filters['years']) : null;
+    $areaIds = !empty($filters['area_ids']) ? array_map('intval', (array)$filters['area_ids']) : null;
 
     $base = fn() => AccountReceivable::where('company', $company)
       ->whereNot('overdue_status', 'PAGADO')
-      ->when($sedeIds  !== null, fn($q) => $q->whereIn('sede_id',       $sedeIds))
+      ->when($sedeIds !== null, fn($q) => $q->whereIn('sede_id', $sedeIds))
       ->when($statuses !== null, fn($q) => $q->whereIn('overdue_status', $statuses))
-      ->when($years    !== null, fn($q) => $q->whereIn('due_year',       $years))
-      ->when($areaIds  !== null, fn($q) => $q->whereIn('area_id',        $areaIds));
+      ->when($years !== null, fn($q) => $q->whereIn('due_year', $years))
+      ->when($areaIds !== null, fn($q) => $q->whereIn('area_id', $areaIds));
 
     // KPIs
     $summary = $base()->selectRaw('
@@ -869,10 +879,13 @@ class AccountsReceivableService extends BaseService
     ];
   }
 
-  private function buildSedeMap(): array
+  private function buildSedeMap(string $company): array
   {
+    $empresaId = self::COMPANY_EMPRESA_ID_MAP[$company] ?? null;
+
     return Sede::select('id', 'suc_abrev')
       ->where('status_deleted', 1)
+      ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId))
       ->get()
       ->mapWithKeys(fn($s) => [strtoupper(trim($s->suc_abrev ?? '')) => $s->id])
       ->toArray();

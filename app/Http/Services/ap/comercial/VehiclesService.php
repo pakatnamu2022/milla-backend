@@ -98,6 +98,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'total_factura'    => 'TOTAL FACTURA',
       'pendiente'        => 'PENDIENTE',
       'ref_cancelacion'  => 'REF CANCELACION',
+      'estado'           => 'ESTADO',
       'forma_pago'       => 'FORMA DE PAGO',
       'banco'            => 'BANCO',
     ];
@@ -105,6 +106,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $rows = $documents->map(function ($doc) {
       $prq = $doc->purchaseRequestQuote;
       $receivable = $doc->receivableAccounts->first();
+      $totalBalance = $doc->receivableAccounts->sum('balance');
+      $hasReceivable = $doc->receivableAccounts->isNotEmpty();
+      $isCancelled = $hasReceivable && $totalBalance == 0;
 
       return [
         'solicitud'        => $prq?->correlative,
@@ -120,12 +124,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'numero_documento' => $doc->full_number,
         'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
         'pct_beneficio'    => $prq?->margin_pct,
-        'beneficio'        => $prq?->margin_amount,
-        'total_factura'    => $doc->total,
-        'pendiente'        => $doc->receivableAccounts->isNotEmpty()
-          ? $doc->receivableAccounts->sum('balance')
-          : null,
-        'ref_cancelacion'  => $receivable?->document_number,
+        'beneficio'        => is_numeric($prq?->margin_amount) ? number_format($prq->margin_amount, 2) : null,
+        'total_factura'    => is_numeric($doc->total) ? number_format($doc->total, 2) : null,
+        'pendiente'        => $hasReceivable ? number_format($totalBalance, 2) : null,
+        'ref_cancelacion'  => $isCancelled ? $receivable?->document_number : null,
+        'estado'           => ($hasReceivable && $totalBalance > 0) ? 'PENDIENTE' : 'CANCELADO',
         'forma_pago'       => $doc->condiciones_de_pago,
         'banco'            => $doc->bank?->description,
       ];

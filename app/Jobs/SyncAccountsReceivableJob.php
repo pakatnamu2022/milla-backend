@@ -23,6 +23,11 @@ class SyncAccountsReceivableJob implements ShouldQueue
     'automotores' => 'dbtp3',
   ];
 
+  private const COMPANY_EMPRESA_ID_MAP = [
+    'deposito'    => 2,
+    'automotores' => 3,
+  ];
+
   public function __construct(
     public string $company = 'deposito'
   )
@@ -123,6 +128,14 @@ class SyncAccountsReceivableJob implements ShouldQueue
             ar.area_id = ed.area_id
         WHERE ar.company = 'automotores'
       ");
+
+      DB::statement("
+        UPDATE accounts_receivable
+        SET area_id = 826
+        WHERE company = 'automotores'
+          AND cashier = 'CDV'
+          AND area_id IS NULL
+      ");
     }
 
     Cache::forget(AccountsReceivableService::filterTreeCacheKey($company));
@@ -173,7 +186,10 @@ class SyncAccountsReceivableJob implements ShouldQueue
 
   private function buildSedeMap(): array
   {
+    $empresaId = self::COMPANY_EMPRESA_ID_MAP[$this->company] ?? null;
+
     return Sede::select('id', 'localidad', 'suc_abrev', 'abreviatura')
+      ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId))
       ->get()
       ->mapWithKeys(fn($s) => [strtoupper(trim($s->suc_abrev ?? $s->abreviatura ?? $s->localidad ?? '')) => $s->id])
       ->toArray();
