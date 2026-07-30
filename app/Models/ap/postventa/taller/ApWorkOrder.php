@@ -86,6 +86,7 @@ class ApWorkOrder extends Model
     'discarded_note',
     'discarded_by',
     'discarded_at',
+    'is_sold_at_valid_price',
   ];
 
   protected $casts = [
@@ -112,6 +113,7 @@ class ApWorkOrder extends Model
     'allow_editing_inspection' => 'boolean',
     'post_service_follow_up' => 'array',
     'discarded_at' => 'datetime',
+    'is_sold_at_valid_price' => 'boolean',
   ];
 
   const filters = [
@@ -341,6 +343,41 @@ class ApWorkOrder extends Model
     }
 
     $this->save();
+  }
+
+  /**
+   * Calcula si todas las partes se vendieron al precio mínimo o superior
+   */
+  public function calculateIsSoldAtValidPrice(): void
+  {
+    $parts = $this->parts()
+      ->whereNotNull('product_id')
+      ->get();
+
+    if ($parts->isEmpty()) {
+      $this->is_sold_at_valid_price = true;
+      return;
+    }
+
+    foreach ($parts as $part) {
+      if ($part->is_traverse) continue;
+
+      if (!$part->sale_price_min_original || $part->sale_price_min_original == 0) {
+        continue;
+      }
+
+      $unitPriceInSoles = $part->unit_price;
+      if ($this->currency_id === TypeCurrency::USD_ID && $this->exchange_rate) {
+        $unitPriceInSoles = $part->unit_price * $this->exchange_rate;
+      }
+
+      if ($unitPriceInSoles < $part->sale_price_min_original) {
+        $this->is_sold_at_valid_price = false;
+        return;
+      }
+    }
+
+    $this->is_sold_at_valid_price = true;
   }
 
   /**

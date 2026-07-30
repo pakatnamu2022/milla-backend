@@ -392,6 +392,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discountPercentage = $detail['discount_percentage'] ?? 0;
         $result = PriceRounding::calculateLine((float)$detail['unit_price'], (float)$detail['quantity'], (float)$discountPercentage);
 
+        // Obtener el precio de venta mínimo actual como registro histórico
+        $salePriceMinOriginal = ProductWarehouseStock::getSalePriceMin(
+          $detail['product_id'],
+          $data['sede_id']
+        );
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -399,6 +405,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $result['unit_price'],
+          'sale_price_min_original' => $salePriceMinOriginal,
           'discount_percentage' => $discountPercentage,
           'total_cost' => $result['total_cost'],
           'net_amount' => $result['net_amount'],
@@ -414,6 +421,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Recalculate totals using centralized method in model
       $quotation->calculateTotals();
+      $quotation->calculateIsSoldAtValidPrice();
       $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([
@@ -695,6 +703,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $discountPercentage = $detail['discount_percentage'] ?? $detail['discount'] ?? 0;
         $result = PriceRounding::calculateLine($unitPrice, (float)$detail['quantity'], (float)$discountPercentage);
 
+        // Obtener el precio de venta mínimo actual como registro histórico
+        $salePriceMinOriginal = ProductWarehouseStock::getSalePriceMin(
+          $detail['product_id'],
+          $data['sede_id']
+        );
+
         $quotation->details()->create([
           'item_type' => 'PRODUCT',
           'product_id' => $detail['product_id'],
@@ -702,6 +716,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           'quantity' => $detail['quantity'],
           'unit_measure' => $detail['unit_measure'],
           'unit_price' => $result['unit_price'],
+          'sale_price_min_original' => $salePriceMinOriginal,
           'discount_percentage' => $discountPercentage,
           'total_cost' => $result['total_cost'],
           'net_amount' => $result['net_amount'],
@@ -720,6 +735,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Recalculate totals using centralized method in model
       $quotation->calculateTotals();
+      $quotation->calculateIsSoldAtValidPrice();
       $quotation->save();
 
       return new ApOrderQuotationsResource($quotation->load([

@@ -16,7 +16,7 @@ class UpdateActualDeliveryDateCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'work-orders:update-delivery-dates {--dry-run : Preview changes without applying them}';
+  protected $signature = 'work-orders:update-delivery-dates {--dry-run : Preview changes without applying them} {--force : Force the update without confirmation}';
 
   /**
    * The console command description.
@@ -31,6 +31,7 @@ class UpdateActualDeliveryDateCommand extends Command
   public function handle()
   {
     $isDryRun = $this->option('dry-run');
+    $isForced = $this->option('force');
 
     $this->info('🔍 Analizando órdenes de trabajo...');
     $this->newLine();
@@ -59,7 +60,8 @@ class UpdateActualDeliveryDateCommand extends Command
     }
 
     $this->newLine();
-    if (!$this->confirm('¿Deseas proceder con la actualización de ' . ($different->count() + $empty->count()) . ' órdenes de trabajo?')) {
+    // Si se usa --force, omitir la confirmación
+    if (!$isForced && !$this->confirm('¿Deseas proceder con la actualización de ' . ($different->count() + $empty->count()) . ' órdenes de trabajo?')) {
       $this->warn('❌ Actualización cancelada.');
       return 0;
     }
