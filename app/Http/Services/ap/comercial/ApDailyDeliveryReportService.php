@@ -58,14 +58,16 @@ class ApDailyDeliveryReportService
     // Paso 6: Construir árbol jerárquico
     $hierarchy = $this->buildHierarchyTree($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $advisorCounts);
 
-    // Paso 6: Construir reporte por marcas y sedes
-    $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin);
-
-    // Paso 7: Construir reporte de compras por marca y por sede
-    $purchasesReport = $this->buildPurchasesReport($fechaInicio, $fechaFin, $year, $month);
-
-    // Paso 8: Inventario actual (todos los vehículos comerciales excepto VENDIDO_ENTREGADO)
+    // Paso 7: Inventario actual — se computa antes del brand/purchases report para compartir libre_map
     $currentInventory = $this->buildCurrentInventory();
+    $stockLibreMap = $currentInventory['libre_map'];
+    unset($currentInventory['libre_map']);
+
+    // Paso 8: Construir reporte por marcas y sedes
+    $brandReport = $this->buildBrandReport($year, $month, $vehiclesWithDelivery, $invoicedQuoteIds, $fechaInicio, $fechaFin, $stockLibreMap);
+
+    // Paso 9: Construir reporte de compras por marca y por sede
+    $purchasesReport = $this->buildPurchasesReport($fechaInicio, $fechaFin, $year, $month, $vehiclesWithDelivery);
 
     return [
       'fecha_inicio'      => $fechaInicio,
@@ -1323,7 +1325,7 @@ class ApDailyDeliveryReportService
    * @param string $fechaFin
    * @return array
    */
-  protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, string $fechaInicio, string $fechaFin): array
+  protected function buildBrandReport(int $year, int $month, Collection $vehicles, Collection $invoicedQuoteIds, string $fechaInicio, string $fechaFin, array $stockLibreMap = []): array
   {
     // Obtener IDs de tipos de clase
     $vehicleTypeId = ApMasters::ofType('CLASS_TYPE')
@@ -1368,13 +1370,13 @@ class ApDailyDeliveryReportService
     $report = [];
 
     // Reporte por grupos de marcas (Chinas, Tradicionales, Inchcape)
-    $brandGroupSections = $this->buildBrandGroupSections($year, $month, $vehicleTypeId, $livianos, $invoicedQuoteIds, $allSedes, $comprasLivianos);
+    $brandGroupSections = $this->buildBrandGroupSections($year, $month, $vehicleTypeId, $livianos, $invoicedQuoteIds, $allSedes, $comprasLivianos, $stockLibreMap);
     foreach ($brandGroupSections as $section) {
       $report[] = $section;
     }
 
     // Reporte de camiones
-    $report[] = $this->buildCamionesSection($year, $month, $camionTypeId, $camiones, $invoicedQuoteIds, $allSedes, $comprasCamiones);
+    $report[] = $this->buildCamionesSection($year, $month, $camionTypeId, $camiones, $invoicedQuoteIds, $allSedes, $comprasCamiones, $stockLibreMap);
 
     return $report;
   }
@@ -1425,7 +1427,7 @@ class ApDailyDeliveryReportService
    * Construye secciones por grupo de marcas.
    * Orden: TRADICIONALES (TRADICIONAL + INCHCAPE fusionados), CHINA
    */
-  protected function buildBrandGroupSections(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
+  protected function buildBrandGroupSections(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $stockLibreMap = []): array
   {
     $sections = [];
 
@@ -1440,7 +1442,7 @@ class ApDailyDeliveryReportService
       $traditionalesVehicles = $vehicles->whereIn('brand_group_id', $tradicionalInchcapeIds);
       $traditionalesPurchases = $purchaseOrders->whereIn('brand_group_id', $tradicionalInchcapeIds);
       $brandsByShopTradicionales = $this->getBrandsByShopForGroups($year, $month, $tradicionalInchcapeIds, $typeClassId);
-      $sections[] = $this->buildBrandGroupSectionForGroups('TRADICIONALES', $traditionalesVehicles, $invoicedQuoteIds, $allSedes, $traditionalesPurchases, $brandsByShopTradicionales);
+      $sections[] = $this->buildBrandGroupSectionForGroups('TRADICIONALES', $traditionalesVehicles, $invoicedQuoteIds, $allSedes, $traditionalesPurchases, $brandsByShopTradicionales, $stockLibreMap);
     }
 
     // SECCIÓN 2: CHINA
@@ -1449,7 +1451,7 @@ class ApDailyDeliveryReportService
       $chinaVehicles = $vehicles->where('brand_group_id', $chinaGroup->id);
       $chinaPurchases = $purchaseOrders->where('brand_group_id', $chinaGroup->id);
       $brandsByShopChina = $this->getBrandsByShop($year, $month, $chinaGroup->id, $typeClassId);
-      $sections[] = $this->buildBrandGroupSection($chinaGroup, $chinaVehicles, $invoicedQuoteIds, $allSedes, $chinaPurchases, $brandsByShopChina);
+      $sections[] = $this->buildBrandGroupSection($chinaGroup, $chinaVehicles, $invoicedQuoteIds, $allSedes, $chinaPurchases, $brandsByShopChina, $stockLibreMap);
     }
 
     return $sections;
@@ -1497,13 +1499,14 @@ class ApDailyDeliveryReportService
   /**
    * Construye una sección de grupo de marcas unificando múltiples grupos bajo un mismo título
    */
-  protected function buildBrandGroupSectionForGroups(string $title, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop): array
+  protected function buildBrandGroupSectionForGroups(string $title, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop, array $stockLibreMap = []): array
   {
     $items = [];
 
     $totalCompras = $purchaseOrders->count();
     $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+    $totalLibre = 0;
 
     foreach ($allSedes as $sedeId => $sedeName) {
       $shopBrands = $brandsByShop[$sedeId] ?? [];
@@ -1514,6 +1517,8 @@ class ApDailyDeliveryReportService
 
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
+      $sedeLibre = array_sum(array_intersect_key($stockLibreMap[$sedeId] ?? [], $shopBrands));
+      $totalLibre += $sedeLibre;
 
       $items[] = [
         'name'                     => $sedeName,
@@ -1521,6 +1526,7 @@ class ApDailyDeliveryReportService
         'compras'                  => $sedePurchases->count(),
         'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
         'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+        'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
       ];
 
@@ -1534,6 +1540,7 @@ class ApDailyDeliveryReportService
           'compras'                  => $brandPurchases->count(),
           'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
           'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+          'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
         ];
       }
@@ -1544,6 +1551,7 @@ class ApDailyDeliveryReportService
       'total_compras'    => $totalCompras,
       'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
+      'total_libre'      => $totalLibre,
       'items'            => $items,
     ];
   }
@@ -1552,60 +1560,50 @@ class ApDailyDeliveryReportService
    * Construye una sección de grupo de marcas con sus sedes y marcas
    * Las entregas y facturaciones son independientes
    */
-  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop): array
+  protected function buildBrandGroupSection($brandGroup, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $brandsByShop, array $stockLibreMap = []): array
   {
     $groupName = $brandGroup->description;
 
     $items = [];
 
-    // Total del grupo
     $totalCompras = $purchaseOrders->count();
     $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+    $totalLibre = 0;
 
-    // Por cada shop que tenga marcas asignadas
     foreach ($allSedes as $sedeId => $sedeName) {
-      // Obtener solo las marcas asignadas a asesores en esta sede/shop
       $shopBrands = $brandsByShop[$sedeId] ?? [];
 
-      // Si no hay marcas asignadas en este shop, no mostrar el shop
       if (empty($shopBrands)) {
         continue;
       }
 
-      // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
-
-      // Total por sede
-      $sedeCompras = $sedePurchases->count();
-      $sedeEntregas = $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-      $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+      $sedeLibre = array_sum(array_intersect_key($stockLibreMap[$sedeId] ?? [], $shopBrands));
+      $totalLibre += $sedeLibre;
 
       $items[] = [
         'name'                     => $sedeName,
         'level'                    => 'sede',
-        'compras'                  => $sedeCompras,
-        'entregas'                 => $sedeEntregas,
-        'facturadas'               => $sedeFacturadas,
+        'compras'                  => $sedePurchases->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+        'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
       ];
 
-      // Mostrar solo las marcas asignadas (aunque tengan 0)
       foreach ($shopBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
-        $brandCompras = $brandPurchases->count();
-        $brandEntregas = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-        $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
-
         $items[] = [
           'name'                     => $brandName,
           'level'                    => 'brand',
-          'compras'                  => $brandCompras,
-          'entregas'                 => $brandEntregas,
-          'facturadas'               => $brandFacturadas,
+          'compras'                  => $brandPurchases->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+          'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
         ];
       }
@@ -1616,6 +1614,7 @@ class ApDailyDeliveryReportService
       'total_compras'    => $totalCompras,
       'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
+      'total_libre'      => $totalLibre,
       'items'            => $items,
     ];
   }
@@ -1624,69 +1623,57 @@ class ApDailyDeliveryReportService
    * Construye sección de camiones
    * Las entregas y facturaciones son independientes
    */
-  protected function buildCamionesSection(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders): array
+  protected function buildCamionesSection(int $year, int $month, int $typeClassId, Collection $vehicles, Collection $invoicedQuoteIds, array $allSedes, Collection $purchaseOrders, array $stockLibreMap = []): array
   {
     $items = [];
 
-    // Total de camiones
     $totalCompras = $purchaseOrders->count();
     $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+    $totalLibre = 0;
 
-    // Obtener el grupo de JAC CAMIONES
     $jacCamionesGroup = ApMasters::where('type', 'GRUPO_MARCAS')
       ->where('description', 'CHINA')
       ->first();
 
-    // Obtener marcas de camiones asignadas por shop
     $brandsByShop = [];
     if ($jacCamionesGroup) {
       $brandsByShop = $this->getBrandsByShop($year, $month, $jacCamionesGroup->id, $typeClassId);
     }
 
-    // Por cada shop que tenga marcas de camiones asignadas
     foreach ($allSedes as $sedeId => $sedeName) {
-      // Obtener solo las marcas asignadas a asesores en esta sede/shop
       $shopBrands = $brandsByShop[$sedeId] ?? [];
 
-      // Si no hay marcas asignadas en este shop, no mostrar el shop
       if (empty($shopBrands)) {
         continue;
       }
 
-      // Filtrar vehículos y compras de esta sede/shop
       $sedeVehicles = $vehicles->filter(fn($v) => $v->advisor_sede_id == $sedeId);
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
-
-      // Total por sede
-      $sedeCompras = $sedePurchases->count();
-      $sedeEntregas = $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-      $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
+      $sedeLibre = array_sum(array_intersect_key($stockLibreMap[$sedeId] ?? [], $shopBrands));
+      $totalLibre += $sedeLibre;
 
       $items[] = [
         'name'                     => $sedeName,
         'level'                    => 'sede',
-        'compras'                  => $sedeCompras,
-        'entregas'                 => $sedeEntregas,
-        'facturadas'               => $sedeFacturadas,
+        'compras'                  => $sedePurchases->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+        'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
       ];
 
-      // Mostrar solo las marcas de camiones asignadas (aunque tengan 0)
       foreach ($shopBrands as $brandId => $brandName) {
         $brandVehicles = $sedeVehicles->filter(fn($v) => $v->brand_id == $brandId);
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
-        $brandCompras = $brandPurchases->count();
-        $brandEntregas = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
-        $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
-
         $items[] = [
           'name'                     => $brandName,
           'level'                    => 'brand',
-          'compras'                  => $brandCompras,
-          'entregas'                 => $brandEntregas,
-          'facturadas'               => $brandFacturadas,
+          'compras'                  => $brandPurchases->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+          'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
         ];
       }
@@ -1697,6 +1684,7 @@ class ApDailyDeliveryReportService
       'total_compras'    => $totalCompras,
       'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
+      'total_libre'      => $totalLibre,
       'items'            => $items,
     ];
   }
@@ -1706,16 +1694,27 @@ class ApDailyDeliveryReportService
    * Por Marca: cada marca tiene total_compras y detalle por sede
    * Por Sede: cada sede tiene total_compras y detalle por marca
    */
-  protected function buildPurchasesReport(string $fechaInicio, string $fechaFin, int $year, int $month): array
+  protected function buildPurchasesReport(string $fechaInicio, string $fechaFin, int $year, int $month, Collection $deliveredVehicles = null): array
   {
     $purchaseOrders = $this->getPurchaseOrders($fechaInicio, $fechaFin);
     $sedeToShopMap = $this->getSedeToShopMap();
     $allShops = $this->getAllSedesFromAssignments($year, $month);
+    $advisorSedeAssignments = $this->getAdvisorSedeAssignments($year, $month);
 
     $purchaseOrders = $purchaseOrders->map(function ($p) use ($sedeToShopMap) {
       $p->shop_id = $sedeToShopMap[$p->sede_id] ?? null;
       return $p;
     });
+
+    // Mapear vehículos vendidos a shops via asesor
+    $deliveredVehicles = ($deliveredVehicles ?? collect())->map(function ($v) use ($advisorSedeAssignments, $sedeToShopMap) {
+      $v->advisor_shop_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? ($sedeToShopMap[$v->sede_id] ?? null);
+      return $v;
+    });
+    $deliveriesOnly = $deliveredVehicles->filter(fn($v) => !is_null($v->real_delivery_date));
+
+    $goalsIn  = $this->getGoalsForPeriod($year, $month, 'IN');
+    $goalsOut = $this->getGoalsForPeriod($year, $month, 'OUT');
 
     $brandNames = [];
     foreach ($purchaseOrders as $p) {
@@ -1723,30 +1722,58 @@ class ApDailyDeliveryReportService
         $brandNames[$p->brand_id] = $p->brand_name;
       }
     }
+    foreach ($deliveredVehicles as $v) {
+      if ($v->brand_id && $v->brand_name && !isset($brandNames[$v->brand_id])) {
+        $brandNames[$v->brand_id] = $v->brand_name;
+      }
+    }
+
+    // Todos los brand_id con algún dato (compras, ventas u objetivos)
+    $allBrandIds = collect($purchaseOrders)->pluck('brand_id')
+      ->merge($deliveredVehicles->pluck('brand_id'))
+      ->merge($goalsIn->pluck('brand_id'))
+      ->merge($goalsOut->pluck('brand_id'))
+      ->filter()
+      ->unique();
 
     // Por Marca: brand → sedes con conteo
     $byBrand = [];
-    foreach ($purchaseOrders->groupBy('brand_id') as $brandId => $brandOrders) {
-      if (!$brandId) continue;
+    foreach ($allBrandIds as $brandId) {
+      $brandOrders    = $purchaseOrders->filter(fn($p) => $p->brand_id == $brandId);
+      $brandDeliveries = $deliveriesOnly->filter(fn($v) => $v->brand_id == $brandId);
+      $brandSellIn    = $goalsIn->where('brand_id', $brandId)->sum('goal');
+      $brandSellOut   = $goalsOut->where('brand_id', $brandId)->sum('goal');
 
       $sedeDetail = [];
       foreach ($allShops as $shopId => $shopName) {
-        $shopOrders = $brandOrders->filter(fn($p) => $p->shop_id == $shopId);
-        if ($shopOrders->count() > 0) {
+        $shopOrders     = $brandOrders->filter(fn($p) => $p->shop_id == $shopId);
+        $shopDeliveries = $brandDeliveries->filter(fn($v) => $v->advisor_shop_id == $shopId);
+        $shopSellIn     = $goalsIn->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
+        $shopSellOut    = $goalsOut->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
+
+        if ($shopOrders->count() || $shopDeliveries->count() || $shopSellIn || $shopSellOut) {
           $sedeDetail[] = [
-            'sede_id'   => $shopId,
-            'sede_name' => $shopName,
-            'compras'   => $shopOrders->count(),
+            'sede_id'          => $shopId,
+            'sede_name'        => $shopName,
+            'compras'          => $shopOrders->count(),
+            'ventas'           => $shopDeliveries->count(),
+            'objetivo_sell_in' => $shopSellIn,
+            'objetivo_sell_out'=> $shopSellOut,
           ];
         }
       }
 
-      $byBrand[] = [
-        'brand_id'      => $brandId,
-        'brand_name'    => $brandNames[$brandId] ?? 'Desconocida',
-        'total_compras' => $brandOrders->count(),
-        'sedes'         => $sedeDetail,
-      ];
+      if ($brandOrders->count() || $brandDeliveries->count() || $brandSellIn || $brandSellOut) {
+        $byBrand[] = [
+          'brand_id'          => $brandId,
+          'brand_name'        => $brandNames[$brandId] ?? 'Desconocida',
+          'total_compras'     => $brandOrders->count(),
+          'total_ventas'      => $brandDeliveries->count(),
+          'objetivo_sell_in'  => $brandSellIn,
+          'objetivo_sell_out' => $brandSellOut,
+          'sedes'             => $sedeDetail,
+        ];
+      }
     }
 
     usort($byBrand, fn($a, $b) => strcmp($a['brand_name'], $b['brand_name']));
@@ -1754,27 +1781,47 @@ class ApDailyDeliveryReportService
     // Por Sede: sede → marcas con conteo
     $bySede = [];
     foreach ($allShops as $shopId => $shopName) {
-      $shopOrders = $purchaseOrders->filter(fn($p) => $p->shop_id == $shopId);
+      $shopOrders     = $purchaseOrders->filter(fn($p) => $p->shop_id == $shopId);
+      $shopDeliveries = $deliveriesOnly->filter(fn($v) => $v->advisor_shop_id == $shopId);
+      $shopSellIn     = $goalsIn->where('shop_id', $shopId)->sum('goal');
+      $shopSellOut    = $goalsOut->where('shop_id', $shopId)->sum('goal');
 
-      if ($shopOrders->isEmpty()) continue;
+      if ($shopOrders->isEmpty() && $shopDeliveries->isEmpty() && !$shopSellIn && !$shopSellOut) continue;
+
+      $shopBrandIds = collect($shopOrders)->pluck('brand_id')
+        ->merge($shopDeliveries->pluck('brand_id'))
+        ->merge($goalsIn->where('shop_id', $shopId)->pluck('brand_id'))
+        ->merge($goalsOut->where('shop_id', $shopId)->pluck('brand_id'))
+        ->filter()
+        ->unique();
 
       $brandDetail = [];
-      foreach ($shopOrders->groupBy('brand_id') as $brandId => $brandOrders) {
-        if (!$brandId) continue;
+      foreach ($shopBrandIds as $brandId) {
+        $brandOrders    = $shopOrders->filter(fn($p) => $p->brand_id == $brandId);
+        $brandDeliveries = $shopDeliveries->filter(fn($v) => $v->brand_id == $brandId);
+        $brandSellIn    = $goalsIn->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+        $brandSellOut   = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+
         $brandDetail[] = [
-          'brand_id'   => $brandId,
-          'brand_name' => $brandNames[$brandId] ?? 'Desconocida',
-          'compras'    => $brandOrders->count(),
+          'brand_id'          => $brandId,
+          'brand_name'        => $brandNames[$brandId] ?? 'Desconocida',
+          'compras'           => $brandOrders->count(),
+          'ventas'            => $brandDeliveries->count(),
+          'objetivo_sell_in'  => $brandSellIn,
+          'objetivo_sell_out' => $brandSellOut,
         ];
       }
 
       usort($brandDetail, fn($a, $b) => strcmp($a['brand_name'], $b['brand_name']));
 
       $bySede[] = [
-        'sede_id'       => $shopId,
-        'sede_name'     => $shopName,
-        'total_compras' => $shopOrders->count(),
-        'brands'        => $brandDetail,
+        'sede_id'           => $shopId,
+        'sede_name'         => $shopName,
+        'total_compras'     => $shopOrders->count(),
+        'total_ventas'      => $shopDeliveries->count(),
+        'objetivo_sell_in'  => $shopSellIn,
+        'objetivo_sell_out' => $shopSellOut,
+        'brands'            => $brandDetail,
       ];
     }
 
@@ -2247,6 +2294,7 @@ class ApDailyDeliveryReportService
       ->get();
 
     $vinsFacturadosIniciales = collect(self::VINS_FACTURADOS_STOCK_INICIAL);
+    $sedeToShopMap = $this->getSedeToShopMap();
 
     $items = $vehicles->map(function ($vehicle) use ($vinsFacturadosIniciales) {
       $po = $vehicle->purchaseOrder;
@@ -2326,9 +2374,28 @@ class ApDailyDeliveryReportService
       'color'  => null,
     ];
 
+    // Construir mapa de stock libre para compartir con brand_report
+    $libreMap = [];
+    foreach ($vehicles as $vehicle) {
+      $enArrayInicial        = $vinsFacturadosIniciales->contains($vehicle->vin);
+      $tieneMovFacturadoFinal = $vehicle->vehicleMovements
+        ->contains('ap_vehicle_status_id', ApVehicleStatus::FACTURADO_FINAL);
+      $esLibre = !$enArrayInicial && !$tieneMovFacturadoFinal && $vehicle->purchaseRequestQuote === null;
+
+      if ($esLibre) {
+        $brandId = $vehicle->model?->family?->brand?->id;
+        $sedeId  = $vehicle->warehouse?->sede_id;
+        $shopId  = $sedeToShopMap[$sedeId] ?? null;
+        if ($brandId && $shopId) {
+          $libreMap[$shopId][$brandId] = ($libreMap[$shopId][$brandId] ?? 0) + 1;
+        }
+      }
+    }
+
     return [
-      'summary' => $summary,
-      'items'   => $items,
+      'summary'   => $summary,
+      'items'     => $items,
+      'libre_map' => $libreMap,
     ];
   }
 }
