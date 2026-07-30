@@ -1382,18 +1382,32 @@ class ApWorkOrder extends Model
     // Usamos directamente los subtotales almacenados para evitar problemas de redondeo
     $totalAnticipo = $this->getSubtotalFromAdvances();
 
+    // Redondear los totales
+    $totalGravadaRounded = round($totalGravada, 2);
+    $totalIgvRounded = round($totalIgv, 2);
+    $totalFinal = round($totalGravada + $totalIgv, 2);
+
+    // Si el total está muy cercano a 0 (dentro del umbral de ±0.03 por errores de redondeo),
+    // forzar tanto total_gravada como total_igv a 0 para evitar inconsistencias como tener
+    // IGV positivo sobre base gravada negativa cuando el total es 0.
+    if (abs($totalFinal) < 0.03) {
+      $totalGravadaRounded = 0;
+      $totalIgvRounded = 0;
+      $totalFinal = 0;
+    }
+
     // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
     // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
     return [
       'items_invoice' => $items,
       'invoice_preview' => [
-        'total_gravada' => round($totalGravada, 2) + 0,
+        'total_gravada' => $totalGravadaRounded + 0,
         'total_inafecta' => 0,
         'total_exonerada' => 0,
-        'total_igv' => round($totalIgv, 2) + 0,
+        'total_igv' => $totalIgvRounded + 0,
         'total_gratuita' => 0,
         'total_anticipo' => round($totalAnticipo, 2) + 0,
-        'total' => round($totalGravada + $totalIgv, 2) + 0,
+        'total' => $totalFinal + 0,
       ],
     ];
   }
