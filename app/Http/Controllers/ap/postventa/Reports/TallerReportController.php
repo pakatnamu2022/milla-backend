@@ -70,13 +70,14 @@ class TallerReportController extends Controller
   {
     $filters = [];
 
-    // Filtro requerido: rango de fechas de documentos
+    // Filtro requerido: rango de fechas de emisión de documentos (comprobantes)
     $filters[] = [
-      'column' => 'opening_date',
+      'column' => 'fecha_de_emision',
       'operator' => 'documentDateFilter',
       'value' => $validated['opening_date'],
     ];
 
+    // Filtro por sede de la OT
     if (isset($validated['sede_id'])) {
       $filters[] = [
         'column' => 'sede_id',
@@ -85,43 +86,12 @@ class TallerReportController extends Controller
       ];
     }
 
-    if (isset($validated['advisor_id'])) {
-      $filters[] = [
-        'column' => 'advisor_id',
-        'operator' => '=',
-        'value' => $validated['advisor_id'],
-      ];
-    }
-
-    if (isset($validated['actual_delivery_date']) && count($validated['actual_delivery_date']) === 2) {
-      $filters[] = [
-        'column' => 'actual_delivery_date',
-        'operator' => 'between',
-        'value' => $validated['actual_delivery_date'],
-      ];
-    }
-
-    if (isset($validated['is_invoiced'])) {
-      $filters[] = [
-        'column' => 'is_invoiced',
-        'operator' => '=',
-        'value' => $validated['is_invoiced'],
-      ];
-    }
-
+    // Filtro por moneda de la OT
     if (isset($validated['currency_id'])) {
       $filters[] = [
         'column' => 'currency_id',
         'operator' => '=',
         'value' => $validated['currency_id'],
-      ];
-    }
-
-    if (isset($validated['vehicle_plate'])) {
-      $filters[] = [
-        'column' => 'vehicle_plate',
-        'operator' => 'like',
-        'value' => $validated['vehicle_plate'],
       ];
     }
 

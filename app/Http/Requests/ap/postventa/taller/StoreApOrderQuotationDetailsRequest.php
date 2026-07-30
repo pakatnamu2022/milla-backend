@@ -5,6 +5,7 @@ namespace App\Http\Requests\ap\postventa\taller;
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
   {
     if (empty($this->supply_type)) {
       $this->merge([
-        'supply_type' => 'M.O',
+        'supply_type' => ApOrderQuotationDetails::SUPPLY_TYPE_MO,
       ]);
     }
   }
@@ -93,7 +94,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       ],
       'supply_type' => [
         'nullable',
-        'in:STOCK,TRASLADO,LOCAL,CENTRAL,IMPORTACION,M.O',
+        ApOrderQuotationDetails::getSupplyTypeValidationRule(),
       ],
     ];
   }
@@ -160,7 +161,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       }
 
       // No validar stock para M.O (Mano de Obra)
-      if ($supplyType === 'M.O') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_MO) {
         return;
       }
 
@@ -194,7 +195,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         ->sum('available_quantity');
 
       // Validación para STOCK: solo si hay suficiente stock en la sede actual
-      if ($supplyType === 'STOCK') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
         if ($stockInCurrentSede < $quantity) {
           $validator->errors()->add(
             'supply_type',
@@ -204,7 +205,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       }
 
       // Validación para TRASLADO: solo si NO hay suficiente en sede actual PERO sí en otras sedes
-      if ($supplyType === 'TRASLADO') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_TRASLADO) {
         if ($stockInCurrentSede >= $quantity) {
           $validator->errors()->add(
             'supply_type',

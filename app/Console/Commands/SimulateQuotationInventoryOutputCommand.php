@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use Illuminate\Console\Command;
 
 /**
@@ -107,7 +108,7 @@ class SimulateQuotationInventoryOutputCommand extends Command
         continue;
       }
 
-      $isStockType = $detail->supply_type === ApOrderQuotations::STOCK;
+      $isStockType = $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK;
 
       // Misma validación que createSaleFromQuotation()
       if ($isStockType) {

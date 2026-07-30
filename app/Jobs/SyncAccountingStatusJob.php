@@ -271,8 +271,11 @@ class SyncAccountingStatusJob implements ShouldQueue
         return; // La factura final aún no está contabilizada
       }
 
-      // Verificar si la orden tiene repuestos (productos)
-      $hasProducts = $workOrder->parts->where('product_id', '!=', null)->isNotEmpty();
+      // Verificar si la orden tiene repuestos (productos) que NO sean travesía
+      $hasProducts = $workOrder->parts
+        ->where('product_id', '!=', null)
+        ->where('is_traverse', false)
+        ->isNotEmpty();
 
       // Si tiene repuestos, crear la salida de inventario
       if ($hasProducts) {
@@ -452,6 +455,16 @@ class SyncAccountingStatusJob implements ShouldQueue
 
         if (!$workOrderPart) {
           Log::warning('Repuesto no encontrado en OT para NC parcial', [
+            'credit_note_id' => $creditNote->id,
+            'work_order_id'  => $workOrder->id,
+            'product_id'     => $item->product_id,
+          ]);
+          continue;
+        }
+
+        // Si el repuesto es travesía, no debe devolverse porque nunca salió del inventario
+        if ($workOrderPart->is_traverse) {
+          Log::info('Repuesto de travesía ignorado en NC parcial (no afecta inventario)', [
             'credit_note_id' => $creditNote->id,
             'work_order_id'  => $workOrder->id,
             'product_id'     => $item->product_id,

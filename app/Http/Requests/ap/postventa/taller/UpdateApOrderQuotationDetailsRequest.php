@@ -13,7 +13,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
   protected function prepareForValidation(): void
   {
     if ($this->has('supply_type') && empty($this->supply_type)) {
-      $this->merge(['supply_type' => 'M.O']);
+      $this->merge(['supply_type' => ApOrderQuotationDetails::SUPPLY_TYPE_MO]);
     }
   }
   public function rules(): array
@@ -80,7 +80,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'supply_type' => [
         'sometimes',
         'nullable',
-        'in:STOCK,TRASLADO,LOCAL,CENTRAL,IMPORTACION,M.O',
+        ApOrderQuotationDetails::getSupplyTypeValidationRule(),
       ],
       'retail_price_external' => [
         'sometimes',
@@ -190,7 +190,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       }
 
       // No validar stock para M.O (Mano de Obra)
-      if ($supplyType === 'M.O') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_MO) {
         return;
       }
 
@@ -224,7 +224,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
         ->sum('available_quantity');
 
       // Validación para STOCK: solo si hay suficiente stock en la sede actual
-      if ($supplyType === 'STOCK') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
         if ($stockInCurrentSede < $quantity) {
           $validator->errors()->add(
             'supply_type',
@@ -234,7 +234,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       }
 
       // Validación para TRASLADO: solo si NO hay suficiente en sede actual PERO sí en otras sedes
-      if ($supplyType === 'TRASLADO') {
+      if ($supplyType === ApOrderQuotationDetails::SUPPLY_TYPE_TRASLADO) {
         if ($stockInCurrentSede >= $quantity) {
           $validator->errors()->add(
             'supply_type',
@@ -260,7 +260,11 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       }
 
       // Validación para LOCAL, CENTRAL, IMPORTACION: solo si la cantidad excede el stock de la sede actual
-      if (in_array($supplyType, ['LOCAL', 'CENTRAL', 'IMPORTACION'])) {
+      if (in_array($supplyType, [
+        ApOrderQuotationDetails::SUPPLY_TYPE_LOCAL,
+        ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL,
+        ApOrderQuotationDetails::SUPPLY_TYPE_IMPORTACION
+      ])) {
         if ($stockInCurrentSede >= $quantity) {
           $validator->errors()->add(
             'supply_type',

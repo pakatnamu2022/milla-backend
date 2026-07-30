@@ -44,7 +44,7 @@ class UpdateApSupplierOrderRequest extends StoreRequest
         'sometimes',
         'required',
         'string',
-        'in:' . ApSupplierOrder::STOCK . ',' . ApSupplierOrder::LOCAL . ',' . ApSupplierOrder::CENTRAL . ',' . ApSupplierOrder::IMPORTACION,
+        ApSupplierOrder::getSupplyTypeValidationRule(),
       ],
       'status' => [
         'sometimes',
@@ -104,7 +104,7 @@ class UpdateApSupplierOrderRequest extends StoreRequest
       'order_date.date' => 'La fecha de orden debe ser una fecha válida.',
 
       'supply_type.required' => 'El tipo de suministro es obligatorio.',
-      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, CENTRAL o IMPORTACION.',
+      'supply_type.in' => 'El tipo de suministro debe ser: STOCK, LOCAL, CENTRAL, IMPORTACION o CENTRAL_IMPORTACION.',
 
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser: pending, approved, rejected o completed.',

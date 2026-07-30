@@ -42,6 +42,7 @@ class ApOrderQuotationDetailsResource extends JsonResource
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'product' => new ProductsResource($this->whenLoaded('product')),
       'status' => $this->status,
+      'is_traverse' => (bool)$this->is_traverse,
     ];
   }
 }

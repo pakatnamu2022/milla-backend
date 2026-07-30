@@ -7,7 +7,9 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
+use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TallerReportService
@@ -21,7 +23,8 @@ class TallerReportService
    */
   public function getWorkOrdersReport(array $filters = [], bool $amountsInSoles = false): Collection
   {
-    $allWorkOrders = collect();
+    // Obtener sedes del usuario autenticado
+    $userSedeIds = $this->getUserSedeIds();
 
     // 1. Consultar WorkOrders que tienen documentos electrónicos (SIMPLE y MASSIVE)
     $queryDocuments = ElectronicDocument::query()
@@ -64,27 +67,42 @@ class TallerReportService
           });
       });
 
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryDocuments->where(function ($q) use ($userSedeIds) {
+        // Sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        });
+      });
+    }
+
     // Aplicar filtros de documentos
     $this->applyDocumentFilters($queryDocuments, $filters);
 
     $documents = $queryDocuments->get();
 
-    // Extraer las WorkOrders de los documentos
-    foreach ($documents as $document) {
-      // SIMPLE: tiene work_order_id directo
+    // Transformar documentos para el reporte (igual que InvoicingReport)
+    $reportData = $documents->flatMap(function ($document) use ($amountsInSoles) {
+      // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        $allWorkOrders->push($document->workOrder);
+        return [$this->transformWorkOrderForReport($document->workOrder, $amountsInSoles)];
       }
 
-      // MASSIVE: tiene notas internas → múltiples WorkOrders
+      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        foreach ($document->internalNotes as $internalNote) {
+        return $document->internalNotes->map(function ($internalNote) use ($amountsInSoles) {
           if ($internalNote->workOrder) {
-            $allWorkOrders->push($internalNote->workOrder);
+            return $this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles);
           }
-        }
+          return null;
+        })->filter();
       }
-    }
+
+      return []; // Sin OT, skip
+    })->values();
 
     // 2. Consultar WorkOrders cerradas con nota interna SIN factura
     $queryInternalNoteWorkOrders = ApWorkOrder::query()
@@ -126,18 +144,23 @@ class TallerReportService
         $q->whereHas('electronicDocuments');
       });
 
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
+    }
+
     // Aplicar filtros de notas internas
     $this->applyInternalNoteFilters($queryInternalNoteWorkOrders, $filters);
 
     $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
 
-    // Agregar estas OTs a la colección
-    $allWorkOrders = $allWorkOrders->concat($internalNoteWorkOrders);
-
-    // Eliminar duplicados por ID y transformar
-    return $allWorkOrders->unique('id')->map(function ($workOrder) use ($amountsInSoles) {
+    // Transformar OTs con nota interna SIN factura
+    $reportDataInternalNotes = $internalNoteWorkOrders->map(function ($workOrder) use ($amountsInSoles) {
       return $this->transformWorkOrderForReport($workOrder, $amountsInSoles);
     })->values();
+
+    // Combinar documentos con OTs de nota interna sin factura
+    return $reportData->concat($reportDataInternalNotes)->values();
   }
 
   /**
@@ -393,9 +416,9 @@ class TallerReportService
           break;
         case '=':
           // Filtros en la tabla workOrder
-          if (in_array($column, ['sede_id'])) {
+          if (in_array($column, ['sede_id', 'currency_id'])) {
             $query->where(function ($q) use ($column, $value) {
-              // Filtrar por sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+              // Filtrar por sede/moneda desde workOrder (simple) o desde internalNotes->workOrder (massive)
               $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
                 $subQ->where($column, $value);
               })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
@@ -456,5 +479,24 @@ class TallerReportService
           break;
       }
     }
+  }
+
+  /**
+   * Obtiene los IDs de las sedes asociadas al usuario autenticado
+   *
+   * @return array
+   */
+  private function getUserSedeIds(): array
+  {
+    $user = Auth::user();
+
+    if (!$user) {
+      return [];
+    }
+
+    return UserSede::where('user_id', $user->id)
+      ->where('status', true)
+      ->pluck('sede_id')
+      ->toArray();
   }
 }

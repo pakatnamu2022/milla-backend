@@ -34,6 +34,7 @@ class ApOrderQuotationDetails extends Model
     'created_by',
     'supply_type',
     'status',
+    'is_traverse',
   ];
 
   const filters = [
@@ -56,6 +57,7 @@ class ApOrderQuotationDetails extends Model
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
+    'is_traverse' => 'boolean',
   ];
 
   const ITEM_TYPE_PRODUCT = 'PRODUCT';
@@ -65,6 +67,39 @@ class ApOrderQuotationDetails extends Model
   const STATUS_PENDING = 'pending';
   const STATUS_TAKEN = 'taken';
 
+  //Constants supply_type
+  const SUPPLY_TYPE_STOCK = 'STOCK';
+  const SUPPLY_TYPE_TRASLADO = 'TRASLADO';
+  const SUPPLY_TYPE_LOCAL = 'LOCAL';
+  const SUPPLY_TYPE_CENTRAL = 'CENTRAL';
+  const SUPPLY_TYPE_IMPORTACION = 'IMPORTACION';
+  const SUPPLY_TYPE_CENTRAL_IMPORTACION = 'CENTRAL_IMPORTACION';
+  const SUPPLY_TYPE_MO = 'M.O'; // Mano de Obra
+
+  /**
+   * Get all valid supply types
+   */
+  public static function getSupplyTypes(): array
+  {
+    return [
+      self::SUPPLY_TYPE_STOCK,
+      self::SUPPLY_TYPE_TRASLADO,
+      self::SUPPLY_TYPE_LOCAL,
+      self::SUPPLY_TYPE_CENTRAL,
+      self::SUPPLY_TYPE_IMPORTACION,
+      self::SUPPLY_TYPE_CENTRAL_IMPORTACION,
+      self::SUPPLY_TYPE_MO,
+    ];
+  }
+
+  /**
+   * Get validation rule for supply_type
+   */
+  public static function getSupplyTypeValidationRule(): string
+  {
+    return 'in:' . implode(',', self::getSupplyTypes());
+  }
+  
   public function setDescriptionAttribute($value): void
   {
     if ($value) {
