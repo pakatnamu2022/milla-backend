@@ -239,12 +239,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   {
     $user = $request->user();
 
-    // Obtener los IDs de documentos que tienen notas de crédito asociadas
-    $documentsWithCreditNotes = ElectronicDocument::where('sunat_concept_document_type_id', SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA)
-      ->whereNotNull('credit_note_id')
-      ->pluck('credit_note_id')
-      ->toArray();
-
     if ($user->role->id === Constants::TICS_ROL_ID) {
       $query = ElectronicDocument::whereIn('sunat_concept_document_type_id', [
         SunatConcepts::ID_FACTURA_ELECTRONICA,
@@ -252,8 +246,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
         ->where('is_annulled', 0)
-        ->where('anulado', 0)
-        ->whereNotIn('id', $documentsWithCreditNotes);
+        ->whereNull('credit_note_id');
     } else {
       $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
       $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
@@ -265,8 +258,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
         ->where('is_annulled', 0)
-        ->where('anulado', 0)
-        ->whereNotIn('id', $documentsWithCreditNotes);
+        ->whereNull('credit_note_id');
     }
 
     return $this->getFilteredResults(
