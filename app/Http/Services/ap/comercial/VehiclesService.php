@@ -60,8 +60,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         ElectronicDocument::TYPE_BOLETA,
       ])
       ->where('is_advance_payment', false)
-      ->where('anulado', false)
-      ->where('aceptada_por_sunat', true);
+      ->where('anulado', false);
 
     if ($request->filled('fecha_de_emision')) {
       $dates = $request->get('fecha_de_emision');
@@ -101,6 +100,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'estado'           => 'ESTADO',
       'forma_pago'       => 'FORMA DE PAGO',
       'banco'            => 'BANCO',
+      'aceptada_sunat'   => 'ACEPTADA POR SUNAT',
     ];
 
     $rows = $documents->map(function ($doc) {
@@ -131,6 +131,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'estado'           => ($hasReceivable && $totalBalance > 0) ? 'PENDIENTE' : 'CANCELADO',
         'forma_pago'       => $doc->condiciones_de_pago,
         'banco'            => $doc->bank?->description,
+        'aceptada_sunat'   => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
       ];
     });
 
