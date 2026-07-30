@@ -291,14 +291,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         }
 
         $pedidoMovement = VehicleMovement::create([
-          'movement_type' => VehicleMovement::ORDERED,
-          'ap_vehicle_id' => $consignmentVehicle->id,
+          'movement_type'        => VehicleMovement::ORDERED,
+          'ap_vehicle_id'        => $consignmentVehicle->id,
           'ap_vehicle_status_id' => $consignmentVehicle->ap_vehicle_status_id,
-          'observation' => 'Orden de compra por vehículo en consignación',
-          'movement_date' => now(),
-          'previous_status_id' => ApVehicleStatus::CONSIGNACION,
-          'new_status_id' => ApVehicleStatus::PEDIDO_VN,
-          'created_by' => auth()->id(),
+          'observation'          => 'Orden de compra por vehículo en consignación',
+          'movement_date'        => now(),
+          'confirmed_at'         => now(),
+          'previous_status_id'   => ApVehicleStatus::CONSIGNACION,
+          'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
+          'created_by'           => auth()->id(),
         ]);
         $consignmentVehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN]);
 
@@ -391,14 +392,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
 
     // 2. Crear el movimiento del vehículo
     $vehicleMovement = VehicleMovement::create([
-      'movement_type' => VehicleMovement::ORDERED,
-      'ap_vehicle_id' => $vehicle->id,
+      'movement_type'        => VehicleMovement::ORDERED,
+      'ap_vehicle_id'        => $vehicle->id,
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'observation' => 'Creación de orden de compra con vehículo',
-      'movement_date' => now(),
-      'previous_status_id' => null,
-      'new_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'created_by' => auth()->id(),
+      'observation'          => 'Creación de orden de compra con vehículo',
+      'movement_date'        => now(),
+      'confirmed_at'         => now(),
+      'previous_status_id'   => null,
+      'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
+      'created_by'           => auth()->id(),
     ]);
 
     return [
@@ -411,14 +413,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   protected function createResendVehicleMovement($vehicleMovement, $numberOC): int
   {
     $vehicleMovement = VehicleMovement::create([
-      'movement_type' => VehicleMovement::ORDERED,
-      'ap_vehicle_id' => $vehicleMovement->ap_vehicle_id,
+      'movement_type'        => VehicleMovement::ORDERED,
+      'ap_vehicle_id'        => $vehicleMovement->ap_vehicle_id,
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'observation' => "Reenvío de orden de compra {$numberOC}",
-      'movement_date' => now(),
-      'previous_status_id' => $vehicleMovement->new_status_id,
-      'new_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
-      'created_by' => auth()->id(),
+      'observation'          => "Reenvío de orden de compra {$numberOC}",
+      'movement_date'        => now(),
+      'confirmed_at'         => now(),
+      'previous_status_id'   => $vehicleMovement->new_status_id,
+      'new_status_id'        => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
+      'created_by'           => auth()->id(),
     ]);
 
     return $vehicleMovement->id;

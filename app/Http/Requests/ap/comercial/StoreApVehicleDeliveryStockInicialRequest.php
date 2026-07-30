@@ -111,6 +111,10 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
         'string',
         'max:500',
       ],
+      'is_extraordinary' => [
+        'nullable',
+        'boolean',
+      ],
     ];
   }
 
