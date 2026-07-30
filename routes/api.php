@@ -1887,6 +1887,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //Registrar venta final histórica (factura con anticipo para OTs) con anticipo histórico
       Route::post('electronic-documents/register-historical-final-sale-with-advance', [ElectronicDocumentController::class, 'registerHistoricalFinalSaleWithAdvance']);
 
+      // Listar solo facturas y boletas (excluyendo notas de crédito y comprobantes asociados)
+      Route::get('electronic-documents/invoices-and-tickets', [ElectronicDocumentController::class, 'listInvoicesAndTickets']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
