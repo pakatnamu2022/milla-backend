@@ -52,6 +52,18 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Display a listing of invoices and tickets only (excluding credit notes and associated documents)
+   */
+  public function listInvoicesAndTickets(IndexElectronicDocumentRequest $request): JsonResponse
+  {
+    try {
+      return $this->service->listInvoicesAndTickets($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Get next correlative document number
    * @param NextCorrelativeElectronicDocumentRequest $request
    * @return JsonResponse
