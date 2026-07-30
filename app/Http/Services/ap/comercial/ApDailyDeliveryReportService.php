@@ -68,17 +68,17 @@ class ApDailyDeliveryReportService
     $currentInventory = $this->buildCurrentInventory();
 
     return [
-      'fecha_inicio' => $fechaInicio,
-      'fecha_fin' => $fechaFin,
-      'period' => [
-        'year' => $year,
+      'fecha_inicio'      => $fechaInicio,
+      'fecha_fin'         => $fechaFin,
+      'period'            => [
+        'year'  => $year,
         'month' => $month,
       ],
-      'summary' => $summary,
-      'advisors' => $advisors,
-      'hierarchy' => $hierarchy,
-      'brand_report' => $brandReport,
-      'purchases_report' => $purchasesReport,
+      'summary'           => $summary,
+      'advisors'          => $advisors,
+      'hierarchy'         => $hierarchy,
+      'brand_report'      => $brandReport,
+      'purchases_report'  => $purchasesReport,
       'current_inventory' => $currentInventory,
     ];
   }
@@ -237,15 +237,15 @@ class ApDailyDeliveryReportService
       fn($v) => $v->type_class_id == $camionTypeId
     );
 
-    $tradData   = $calc($tradicionales);
-    $chinaData  = $calc($chinas);
+    $tradData = $calc($tradicionales);
+    $chinaData = $calc($chinas);
     $camionData = $calc($camiones);
 
     return [
       'TRADICIONALES' => $tradData,
       'CHINAS'        => $chinaData,
       'CAMIONES'      => $camionData,
-      'TOTAL' => [
+      'TOTAL'         => [
         'entregas'                 => $tradData['entregas'] + $chinaData['entregas'] + $camionData['entregas'],
         'facturadas'               => $tradData['facturadas'] + $chinaData['facturadas'] + $camionData['facturadas'],
         'reporteria_dealer_portal' => null,
@@ -350,10 +350,10 @@ class ApDailyDeliveryReportService
       $advisor = Worker::find($advisorId);
 
       $advisorStats[] = [
-        'id' => $advisorId,
-        'name' => $advisor ? $advisor->nombre_completo : 'Desconocido',
-        'entregas' => $entregas,
-        'facturadas' => $facturacion,
+        'id'                       => $advisorId,
+        'name'                     => $advisor ? $advisor->nombre_completo : 'Desconocido',
+        'entregas'                 => $entregas,
+        'facturadas'               => $facturacion,
         'reporteria_dealer_portal' => null,
       ];
     }
@@ -545,7 +545,7 @@ class ApDailyDeliveryReportService
           'facturadas'               => $totals['facturadas'],
           'reporteria_dealer_portal' => null,
         ];
-        $sinAsesorEntregas   += $totals['entregas'];
+        $sinAsesorEntregas += $totals['entregas'];
         $sinAsesorFacturadas += $totals['facturadas'];
       }
 
@@ -627,15 +627,15 @@ class ApDailyDeliveryReportService
       }
 
       $managerNode = [
-        'id' => $managerId,
-        'name' => $manager->nombre_completo,
-        'level' => 'gerente',
-        'brand_group' => $managerAssignment->brandGroup?->description ?? 'Sin grupo',
-        'article_class' => $className,
-        'entregas' => 0,
-        'facturadas' => 0,
+        'id'                       => $managerId,
+        'name'                     => $manager->nombre_completo,
+        'level'                    => 'gerente',
+        'brand_group'              => $managerAssignment->brandGroup?->description ?? 'Sin grupo',
+        'article_class'            => $className,
+        'entregas'                 => 0,
+        'facturadas'               => 0,
         'reporteria_dealer_portal' => null,
-        'children' => [],
+        'children'                 => [],
       ];
 
       // Encontrar jefes que manejan este grupo de marcas
@@ -717,14 +717,14 @@ class ApDailyDeliveryReportService
       }
 
       $bossNode = [
-        'id' => $bossId,
-        'name' => $boss->nombre_completo,
-        'level' => 'jefe',
-        'article_class' => $className,
-        'entregas' => 0,
-        'facturadas' => 0,
+        'id'                       => $bossId,
+        'name'                     => $boss->nombre_completo,
+        'level'                    => 'jefe',
+        'article_class'            => $className,
+        'entregas'                 => 0,
+        'facturadas'               => 0,
         'reporteria_dealer_portal' => null,
-        'children' => [],
+        'children'                 => [],
       ];
 
       // Agregar todos los asesores bajo este jefe
@@ -747,11 +747,11 @@ class ApDailyDeliveryReportService
           $workerFacturadas = $advisorCounts[$workerId]['facturadas'] ?? 0;
 
           $bossNode['children'][] = [
-            'id' => $workerId,
-            'name' => $worker->nombre_completo,
-            'level' => 'asesor',
-            'entregas' => $workerEntregas,
-            'facturadas' => $workerFacturadas,
+            'id'                       => $workerId,
+            'name'                     => $worker->nombre_completo,
+            'level'                    => 'asesor',
+            'entregas'                 => $workerEntregas,
+            'facturadas'               => $workerFacturadas,
             'reporteria_dealer_portal' => null,
           ];
 
@@ -850,13 +850,13 @@ class ApDailyDeliveryReportService
     }
 
     $jefeNode = [
-      'id' => $jefeId,
-      'name' => $jefe->nombre_completo,
-      'level' => 'jefe',
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $jefeId,
+      'name'                     => $jefe->nombre_completo,
+      'level'                    => 'jefe',
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     $workers = $bossToWorkers->get($jefeId);
@@ -879,11 +879,11 @@ class ApDailyDeliveryReportService
         $asesorFacturacion = $advisorCounts[$workerId]['facturadas'] ?? 0;
 
         $jefeNode['children'][] = [
-          'id' => $workerId,
-          'name' => $asesor->nombre_completo,
-          'level' => 'asesor',
-          'entregas' => $asesorEntregas,
-          'facturadas' => $asesorFacturacion,
+          'id'                       => $workerId,
+          'name'                     => $asesor->nombre_completo,
+          'level'                    => 'asesor',
+          'entregas'                 => $asesorEntregas,
+          'facturadas'               => $asesorFacturacion,
           'reporteria_dealer_portal' => null,
         ];
 
@@ -934,15 +934,15 @@ class ApDailyDeliveryReportService
     // NO recalcular para evitar perder datos de vehículos facturados
 
     $managerNode = [
-      'id' => $managerId,
-      'name' => $manager->nombre_completo,
-      'level' => 'gerente',
-      'brand_group' => $brandGroupNames ?: 'Sin grupo',
-      'article_class' => $className,
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $managerId,
+      'name'                     => $manager->nombre_completo,
+      'level'                    => 'gerente',
+      'brand_group'              => $brandGroupNames ?: 'Sin grupo',
+      'article_class'            => $className,
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     // Filtrar conteos de asesor solo a vehículos de los grupos de marcas de este gerente
@@ -985,11 +985,11 @@ class ApDailyDeliveryReportService
         $orphanEntregas = $orphanVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
         $orphanFacturadas = $orphanVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
         $managerNode['children'][] = [
-          'id' => null,
-          'name' => 'Sin asesor',
-          'level' => 'sin_asesor',
-          'entregas' => $orphanEntregas,
-          'facturadas' => $orphanFacturadas,
+          'id'                       => null,
+          'name'                     => 'Sin asesor',
+          'level'                    => 'sin_asesor',
+          'entregas'                 => $orphanEntregas,
+          'facturadas'               => $orphanFacturadas,
           'reporteria_dealer_portal' => null,
         ];
         $managerNode['entregas'] += $orphanEntregas;
@@ -1021,15 +1021,15 @@ class ApDailyDeliveryReportService
     $groupAdvisorCounts = $this->calculateAdvisorCounts($groupVehicles, $invoicedQuoteIds);
 
     $managerNode = [
-      'id' => $managerId,
-      'name' => $manager->nombre_completo,
-      'level' => 'gerente',
-      'brand_group' => $managerAssignment->brandGroup?->description ?? 'Sin grupo',
-      'article_class' => $className,
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $managerId,
+      'name'                     => $manager->nombre_completo,
+      'level'                    => 'gerente',
+      'brand_group'              => $managerAssignment->brandGroup?->description ?? 'Sin grupo',
+      'article_class'            => $className,
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     // Identificar todos los jefes
@@ -1065,13 +1065,13 @@ class ApDailyDeliveryReportService
     }
 
     $jefeNode = [
-      'id' => $jefeId,
-      'name' => $jefe->nombre_completo,
-      'level' => 'jefe',
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $jefeId,
+      'name'                     => $jefe->nombre_completo,
+      'level'                    => 'jefe',
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     $workers = $bossToWorkers->get($jefeId);
@@ -1099,12 +1099,12 @@ class ApDailyDeliveryReportService
         $asesorFacturacion = $advisorCounts[$workerId]['facturadas'] ?? 0;
 
         $jefeNode['children'][] = [
-          'id' => $workerId,
-          'name' => $asesor->nombre_completo,
-          'level' => 'asesor',
-          'brands' => !empty($workerBrands) ? $workerBrands : null,
-          'entregas' => $asesorEntregas,
-          'facturadas' => $asesorFacturacion,
+          'id'                       => $workerId,
+          'name'                     => $asesor->nombre_completo,
+          'level'                    => 'asesor',
+          'brands'                   => !empty($workerBrands) ? $workerBrands : null,
+          'entregas'                 => $asesorEntregas,
+          'facturadas'               => $asesorFacturacion,
           'reporteria_dealer_portal' => null,
         ];
 
@@ -1127,13 +1127,13 @@ class ApDailyDeliveryReportService
     }
 
     $jefeNode = [
-      'id' => $jefeId,
-      'name' => $jefe->nombre_completo,
-      'level' => 'jefe',
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $jefeId,
+      'name'                     => $jefe->nombre_completo,
+      'level'                    => 'jefe',
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     $workers = $bossToWorkers->get($jefeId);
@@ -1156,11 +1156,11 @@ class ApDailyDeliveryReportService
         $asesorFacturacion = $advisorCounts[$workerId]['facturadas'] ?? 0;
 
         $jefeNode['children'][] = [
-          'id' => $workerId,
-          'name' => $asesor->nombre_completo,
-          'level' => 'asesor',
-          'entregas' => $asesorEntregas,
-          'facturadas' => $asesorFacturacion,
+          'id'                       => $workerId,
+          'name'                     => $asesor->nombre_completo,
+          'level'                    => 'asesor',
+          'entregas'                 => $asesorEntregas,
+          'facturadas'               => $asesorFacturacion,
           'reporteria_dealer_portal' => null,
         ];
 
@@ -1215,14 +1215,14 @@ class ApDailyDeliveryReportService
       }
 
       $bossNode = [
-        'id' => $bossId,
-        'name' => $boss->nombre_completo,
-        'level' => 'jefe',
-        'article_class' => 'CAMIONES',
-        'entregas' => 0,
-        'facturadas' => 0,
+        'id'                       => $bossId,
+        'name'                     => $boss->nombre_completo,
+        'level'                    => 'jefe',
+        'article_class'            => 'CAMIONES',
+        'entregas'                 => 0,
+        'facturadas'               => 0,
         'reporteria_dealer_portal' => null,
-        'children' => [],
+        'children'                 => [],
       ];
 
       // Agregar todos los asesores bajo este jefe (incluso sin entregas)
@@ -1241,12 +1241,12 @@ class ApDailyDeliveryReportService
           $workerBrands = $advisorBrands[$workerId] ?? [];
 
           $bossNode['children'][] = [
-            'id' => $workerId,
-            'name' => $worker->nombre_completo,
-            'level' => 'asesor',
-            'brands' => !empty($workerBrands) ? $workerBrands : null,
-            'entregas' => $workerEntregas,
-            'facturadas' => $workerFacturadas,
+            'id'                       => $workerId,
+            'name'                     => $worker->nombre_completo,
+            'level'                    => 'asesor',
+            'brands'                   => !empty($workerBrands) ? $workerBrands : null,
+            'entregas'                 => $workerEntregas,
+            'facturadas'               => $workerFacturadas,
             'reporteria_dealer_portal' => null,
           ];
 
@@ -1270,13 +1270,13 @@ class ApDailyDeliveryReportService
     }
 
     $jefeNode = [
-      'id' => $jefeId,
-      'name' => $jefe->nombre_completo,
-      'level' => 'jefe',
-      'entregas' => 0,
-      'facturadas' => 0,
+      'id'                       => $jefeId,
+      'name'                     => $jefe->nombre_completo,
+      'level'                    => 'jefe',
+      'entregas'                 => 0,
+      'facturadas'               => 0,
       'reporteria_dealer_portal' => null,
-      'children' => [],
+      'children'                 => [],
     ];
 
     $workers = $bossToWorkers->get($jefeId);
@@ -1296,12 +1296,12 @@ class ApDailyDeliveryReportService
       $workerBrands = $advisorBrands[$workerId] ?? [];
 
       $jefeNode['children'][] = [
-        'id' => $workerId,
-        'name' => $worker->nombre_completo,
-        'level' => 'asesor',
-        'brands' => !empty($workerBrands) ? $workerBrands : null,
-        'entregas' => $workerEntregas,
-        'facturadas' => $workerFacturadas,
+        'id'                       => $workerId,
+        'name'                     => $worker->nombre_completo,
+        'level'                    => 'asesor',
+        'brands'                   => !empty($workerBrands) ? $workerBrands : null,
+        'entregas'                 => $workerEntregas,
+        'facturadas'               => $workerFacturadas,
         'reporteria_dealer_portal' => null,
       ];
 
@@ -1397,24 +1397,24 @@ class ApDailyDeliveryReportService
       'title' => 'TOTALES GENERALES',
       'items' => [
         [
-          'name' => 'TOTAL AP LIVIANOS',
-          'compras' => $livianosCompras,
-          'entregas' => $livianosEntregas,
-          'facturadas' => $livianosFacturadas,
+          'name'                     => 'TOTAL AP LIVIANOS',
+          'compras'                  => $livianosCompras,
+          'entregas'                 => $livianosEntregas,
+          'facturadas'               => $livianosFacturadas,
           'reporteria_dealer_portal' => null,
         ],
         [
-          'name' => 'TOTAL AP CAMIONES',
-          'compras' => $camionesCompras,
-          'entregas' => $camionesEntregas,
-          'facturadas' => $camionesFacturadas,
+          'name'                     => 'TOTAL AP CAMIONES',
+          'compras'                  => $camionesCompras,
+          'entregas'                 => $camionesEntregas,
+          'facturadas'               => $camionesFacturadas,
           'reporteria_dealer_portal' => null,
         ],
         [
-          'name' => 'TOTAL AP',
-          'compras' => $livianosCompras + $camionesCompras,
-          'entregas' => $livianosEntregas + $camionesEntregas,
-          'facturadas' => $livianosFacturadas + $camionesFacturadas,
+          'name'                     => 'TOTAL AP',
+          'compras'                  => $livianosCompras + $camionesCompras,
+          'entregas'                 => $livianosEntregas + $camionesEntregas,
+          'facturadas'               => $livianosFacturadas + $camionesFacturadas,
           'reporteria_dealer_portal' => null,
         ],
       ],
@@ -1516,11 +1516,11 @@ class ApDailyDeliveryReportService
       $sedePurchases = $purchaseOrders->filter(fn($p) => $p->shop_id == $sedeId);
 
       $items[] = [
-        'name' => $sedeName,
-        'level' => 'sede',
-        'compras' => $sedePurchases->count(),
-        'entregas' => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
-        'facturadas' => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+        'name'                     => $sedeName,
+        'level'                    => 'sede',
+        'compras'                  => $sedePurchases->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         'reporteria_dealer_portal' => null,
       ];
 
@@ -1529,22 +1529,22 @@ class ApDailyDeliveryReportService
         $brandPurchases = $sedePurchases->filter(fn($p) => $p->brand_id == $brandId);
 
         $items[] = [
-          'name' => $brandName,
-          'level' => 'brand',
-          'compras' => $brandPurchases->count(),
-          'entregas' => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
-          'facturadas' => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+          'name'                     => $brandName,
+          'level'                    => 'brand',
+          'compras'                  => $brandPurchases->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
           'reporteria_dealer_portal' => null,
         ];
       }
     }
 
     return [
-      'title' => $title,
-      'total_compras' => $totalCompras,
-      'total_entregas' => $totalEntregas,
+      'title'            => $title,
+      'total_compras'    => $totalCompras,
+      'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
-      'items' => $items,
+      'items'            => $items,
     ];
   }
 
@@ -1583,11 +1583,11 @@ class ApDailyDeliveryReportService
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
       $items[] = [
-        'name' => $sedeName,
-        'level' => 'sede',
-        'compras' => $sedeCompras,
-        'entregas' => $sedeEntregas,
-        'facturadas' => $sedeFacturadas,
+        'name'                     => $sedeName,
+        'level'                    => 'sede',
+        'compras'                  => $sedeCompras,
+        'entregas'                 => $sedeEntregas,
+        'facturadas'               => $sedeFacturadas,
         'reporteria_dealer_portal' => null,
       ];
 
@@ -1601,22 +1601,22 @@ class ApDailyDeliveryReportService
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
         $items[] = [
-          'name' => $brandName,
-          'level' => 'brand',
-          'compras' => $brandCompras,
-          'entregas' => $brandEntregas,
-          'facturadas' => $brandFacturadas,
+          'name'                     => $brandName,
+          'level'                    => 'brand',
+          'compras'                  => $brandCompras,
+          'entregas'                 => $brandEntregas,
+          'facturadas'               => $brandFacturadas,
           'reporteria_dealer_portal' => null,
         ];
       }
     }
 
     return [
-      'title' => strtoupper($groupName),
-      'total_compras' => $totalCompras,
-      'total_entregas' => $totalEntregas,
+      'title'            => strtoupper($groupName),
+      'total_compras'    => $totalCompras,
+      'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
-      'items' => $items,
+      'items'            => $items,
     ];
   }
 
@@ -1664,11 +1664,11 @@ class ApDailyDeliveryReportService
       $sedeFacturadas = $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
       $items[] = [
-        'name' => $sedeName,
-        'level' => 'sede',
-        'compras' => $sedeCompras,
-        'entregas' => $sedeEntregas,
-        'facturadas' => $sedeFacturadas,
+        'name'                     => $sedeName,
+        'level'                    => 'sede',
+        'compras'                  => $sedeCompras,
+        'entregas'                 => $sedeEntregas,
+        'facturadas'               => $sedeFacturadas,
         'reporteria_dealer_portal' => null,
       ];
 
@@ -1682,22 +1682,22 @@ class ApDailyDeliveryReportService
         $brandFacturadas = $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
         $items[] = [
-          'name' => $brandName,
-          'level' => 'brand',
-          'compras' => $brandCompras,
-          'entregas' => $brandEntregas,
-          'facturadas' => $brandFacturadas,
+          'name'                     => $brandName,
+          'level'                    => 'brand',
+          'compras'                  => $brandCompras,
+          'entregas'                 => $brandEntregas,
+          'facturadas'               => $brandFacturadas,
           'reporteria_dealer_portal' => null,
         ];
       }
     }
 
     return [
-      'title' => 'JAC CAMIONES',
-      'total_compras' => $totalCompras,
-      'total_entregas' => $totalEntregas,
+      'title'            => 'JAC CAMIONES',
+      'total_compras'    => $totalCompras,
+      'total_entregas'   => $totalEntregas,
       'total_facturadas' => $totalFacturadas,
-      'items' => $items,
+      'items'            => $items,
     ];
   }
 
@@ -1734,18 +1734,18 @@ class ApDailyDeliveryReportService
         $shopOrders = $brandOrders->filter(fn($p) => $p->shop_id == $shopId);
         if ($shopOrders->count() > 0) {
           $sedeDetail[] = [
-            'sede_id' => $shopId,
+            'sede_id'   => $shopId,
             'sede_name' => $shopName,
-            'compras' => $shopOrders->count(),
+            'compras'   => $shopOrders->count(),
           ];
         }
       }
 
       $byBrand[] = [
-        'brand_id' => $brandId,
-        'brand_name' => $brandNames[$brandId] ?? 'Desconocida',
+        'brand_id'      => $brandId,
+        'brand_name'    => $brandNames[$brandId] ?? 'Desconocida',
         'total_compras' => $brandOrders->count(),
-        'sedes' => $sedeDetail,
+        'sedes'         => $sedeDetail,
       ];
     }
 
@@ -1762,25 +1762,25 @@ class ApDailyDeliveryReportService
       foreach ($shopOrders->groupBy('brand_id') as $brandId => $brandOrders) {
         if (!$brandId) continue;
         $brandDetail[] = [
-          'brand_id' => $brandId,
+          'brand_id'   => $brandId,
           'brand_name' => $brandNames[$brandId] ?? 'Desconocida',
-          'compras' => $brandOrders->count(),
+          'compras'    => $brandOrders->count(),
         ];
       }
 
       usort($brandDetail, fn($a, $b) => strcmp($a['brand_name'], $b['brand_name']));
 
       $bySede[] = [
-        'sede_id' => $shopId,
-        'sede_name' => $shopName,
+        'sede_id'       => $shopId,
+        'sede_name'     => $shopName,
         'total_compras' => $shopOrders->count(),
-        'brands' => $brandDetail,
+        'brands'        => $brandDetail,
       ];
     }
 
     return [
       'by_brand' => $byBrand,
-      'by_sede' => $bySede,
+      'by_sede'  => $bySede,
     ];
   }
 
@@ -1863,7 +1863,7 @@ class ApDailyDeliveryReportService
     $map = [];
     foreach ($assignments as $assignment) {
       $map[$assignment->worker_id] = [
-        'sede_id' => $assignment->shop_id ?? 0,
+        'sede_id'   => $assignment->shop_id ?? 0,
         'sede_name' => $assignment->shop_name ?? 'Sin Shop',
       ];
     }
@@ -1945,10 +1945,10 @@ class ApDailyDeliveryReportService
     // Por cada shop
     foreach ($allShops as $shopId => $shopName) {
       $shopNode = [
-        'sede_id' => $shopId,
+        'sede_id'   => $shopId,
         'sede_name' => $shopName,
-        'level' => 'sede',
-        'brands' => [],
+        'level'     => 'sede',
+        'brands'    => [],
       ];
 
       // Obtener marcas con objetivos en este shop
@@ -1984,24 +1984,24 @@ class ApDailyDeliveryReportService
         $cumplimientoCompra = $objetivosCompraInchcape > 0 ? round(($avanceCompra / $objetivosCompraInchcape) * 100, 2) : 0;
 
         $shopNode['brands'][] = [
-          'brand_id' => $brandId,
-          'brand_name' => $brandName,
-          'level' => 'brand',
+          'brand_id'                   => $brandId,
+          'brand_name'                 => $brandName,
+          'level'                      => 'brand',
 
           // Sección 1: Entregas (Sell Out)
-          'objetivo_ap_entregas' => $objetivoApEntregas,
-          'resultado_entrega' => $resultadoEntrega,
-          'cumplimiento_entrega' => $cumplimientoEntrega,
+          'objetivo_ap_entregas'       => $objetivoApEntregas,
+          'resultado_entrega'          => $resultadoEntrega,
+          'cumplimiento_entrega'       => $cumplimientoEntrega,
 
           // Sección 2: Reportes
           'objetivos_reporte_inchcape' => $objetivosReporteInchcape,
-          'reporte_dealer_portal' => $reporteDealerPortal,
-          'cumplimiento_reporte' => $cumplimientoReporte,
+          'reporte_dealer_portal'      => $reporteDealerPortal,
+          'cumplimiento_reporte'       => $cumplimientoReporte,
 
           // Sección 3: Compras (Sell In)
-          'objetivos_compra_inchcape' => $objetivosCompraInchcape,
-          'avance_compra' => $avanceCompra,
-          'cumplimiento_compra' => $cumplimientoCompra,
+          'objetivos_compra_inchcape'  => $objetivosCompraInchcape,
+          'avance_compra'              => $avanceCompra,
+          'cumplimiento_compra'        => $cumplimientoCompra,
         ];
       }
 
@@ -2060,6 +2060,175 @@ class ApDailyDeliveryReportService
     return $brands;
   }
 
+  // VINs del stock inicial que ya estaban facturados pero sin movimiento registrado.
+  // Temporal hasta que se regularice o se encuentre una mejor forma de manejarlos.
+  protected const VINS_FACTURADOS_STOCK_INICIAL = [
+    'LS4ASE2E8TA946156',
+    'LJ166A3D6V2240304',
+    'LJ11PABD4VC000204',
+    'LS4ASE2E4VA993512',
+    'MP2TFS40JVT600317',
+    'LGWFF7A56TJ641378',
+    'LS4ASL2E4VG800910',
+    'LS5A3DKE5VA941891',
+    'LS4ASL2E2VG800288',
+    'LGWCB4178TB656358',
+    'LS5A3DKE3VA940383',
+    'LS5A3DKE0VA940602',
+    'LJ11PABD1TC014722',
+    'LS5A3DBE1VD800248',
+    'LGWCB4175TB656463',
+    'LJ166B3D2V2250138',
+    'LS5A3ABE2VD910322',
+    'LS5A3DSE0VD910305',
+    'LJ11PABD4VC004883',
+    'LS4ASE2E6VA990997',
+    'LJ11PABD7TC014711',
+    'LGWDCF199VJ604566',
+    'LJ12EKR27V4000695',
+    'LGWDCF192VJ614906',
+    'LJ11PABD2TC014700',
+    'LJ166A337V2240268',
+    'LS4ASE2E5VA992708',
+    'LS4ASE2E7VA992998',
+    'LS4ASC2E4VG800535',
+    'LSCBBZ2G8VG801233',
+    'LS5A3DKE1VA942326',
+    'LS4ASC2E8VG800599',
+    'LS4ASE2E0TA998137',
+    'LS4ASE2E0VA993457',
+    'LS4ASE2E4VA993509',
+    'LS4ASE2E5VA993504',
+    'LGWCB4179VB601100',
+    'LJ166A333V2240414',
+    'LJ11PABDXVC006993',
+    'LJ11PABD2VC006938',
+    'LJ11PABD9VC006497',
+    'LS4ASL2E8VG801834',
+    'LS4AAB3R5VG801000',
+    'LJ11KRBD9V1900962',
+    'LJ11PABDXTC014816',
+    'LS4ASC2E5VG800365',
+    '93Y9SR333TJ470455',
+    'JM7KF2W7AV0165531',
+    'MA3YPLCS6VK162866',
+    'MA3JC74W3V0308111',
+    'MBHWDB3S3TG582110',
+    'MBHZCEES5VG537994',
+    'LVZA53P92VCB00383',
+    'LVZA53P9XVCB00468',
+    'JF1SL46M4TG035272',
+    'MHYDN71V0VJ400076',
+    'MA3ZFEFS1VA413930',
+    'MA3ZFEFS5VA414191',
+    'MHYDN71V3VJ400458',
+    'MA3JC74W3V0301384',
+    'MA3YPLCS4VK167242',
+    'LVZA53P90VAA00939',
+    'LVZA53P98VAA02194',
+    'LVZA53P9XVAA02133',
+    'LVZA53P9XVAA02147',
+    'LVZA53P99VAA02074',
+    'JF1SL46M6TG036083',
+    'JF1SL48M2TG036692',
+    'LS5A3ABE1VD800510',
+    'LS4ASE2E7VA992130',
+    'LS5A2DBE3VA960426',
+    'LS5A3DSE3VD910332',
+    'LS5A3DBE2VD910158',
+    'LS5A3ABE9VD910530',
+    'LS5A3DKE3VA941839',
+    'LS4ASE2E6VB082348',
+    'LS4ASE2E5VA993518',
+    'LS4AAB3R4VG800985',
+    'LS4ASE2E4VA993459',
+    'LS5A3DBE5VD800253',
+    'LS5A2DBE0VA960464',
+    'LS4ASE2E2VB081519',
+    'LS5A3DBEXVD910313',
+    'LS4ASE2E2VA993556',
+    'LS4ASE2E3VA993565',
+    'LS4ASE2E3VB083098',
+    'LS5A3DBE3VD910119',
+    'LS4ASL2E8VG801879',
+    'LS5A3DBE3VD910346',
+    'LS5A3DBE3VD910167',
+    'LGWDCF193VJ606717',
+    'LGWDCF197VJ614447',
+    'LGWDCF197VJ614710',
+    'LGWDCF19XVJ613907',
+    'LGWDCF198VJ614716',
+    'LGWDCF191VJ614203',
+    'LGWDCF198VJ612626',
+    'LJ12EKR21V4004516',
+    'LJ11PABE3VC000378',
+    'LJ11PABE1VC000380',
+    'LJ166B3D2V2250091',
+    'LJ166A259V4000923',
+    'LJ12EKS37V4700574',
+    'LJ12EKR28V4001631',
+    'LJ11KAAC2V1300438',
+    'LJ11PABD0VC003729',
+    'LJ166B3D2V2250303',
+    'LJ166A331V2240363',
+    'LJ166A3D0V2240301',
+    'LJ166A3D6V2240321',
+    'LJ12EKR27V4003077',
+    'LJ11PABD0VC006937',
+    'LJ11PABE0VC003075',
+    'LJ166A3D9V2240412',
+    'LJ166B3D2V2250401',
+    'LJ11PABD2VC005630',
+    'LJ11PABD4VC006939',
+    'LJ12EKS2XV4701614',
+    'LJ11PABD5VC003564',
+    'LJ11PABE9VC002314',
+    'LJ11PABE0VC002332',
+    'LJ11PABD4VC006942',
+    'LJ11R9EH5T3500148',
+    'LJ11KDBD4V1900967',
+    'LJ11KDBD4V1701269',
+    'LJ11KDAD8V1300700',
+    'LJ11R9DE6V3000218',
+    'MP2TFS40JVT500007',
+    'JM7KF2W7AV0164572',
+    'JM7KF2W7AT0157468',
+    'MP2TFS40JVT600302',
+    '93YRBB000VJ629000',
+    'MBHZCEES0TG440957',
+    'MA3YPLCS6VK171857',
+    'MBHZCEES0VG529348',
+    'MA3YPLCS2VK175338',
+    'MA3ZFEFS4VA413257',
+    'MA3ZFEFS6VA413163',
+    'LS4ASL2EXVG800295',
+    'LJ12EKR2XV4001775',
+    'LS4ASL2E9VG800384',
+    'LS4ASC2E6VG800598',
+    'LGWDCF196VJ612897',
+    'LGWDCF198VJ612707',
+    'LJ11PABD4VC004897',
+    'MA3FL61SXVA592638',
+    'LJ11PABD2VC003019',
+    'LS4ASE2E7VA993570',
+    'MA3ZFEFS0VA414101',
+    'MBHWDB3S8VG821170',
+    'LJ11PABD6VC006487',
+    'LS5A2DBE8TA960032',
+    'MBHWDB3S6TG464505',
+    'LGWDCF197VJ606784',
+    'LS4ASE2E4VA992876',
+    'LGWDCF196VJ612706',
+    'MA3JC74W5T0229407',
+    'LVZZ42F90TAA03242',
+    'LS4ASL2E6VG800293',
+    'MA3JC74W3V0311316',
+    'LJ11KDAD6V1300727',
+    'LJ11KDAD8V1300728',
+    '93YJ62S07VJ563317',
+
+  ];
+
   protected function buildCurrentInventory(): array
   {
     $vehicles = Vehicles::with([
@@ -2071,30 +2240,16 @@ class ApDailyDeliveryReportService
       'purchaseOrder',
       'purchaseRequestQuote.opportunity.worker',
       'purchaseRequestQuote.holder',
+      'vehicleMovements',
     ])
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
       ->whereNotIn('ap_vehicle_status_id', [ApVehicleStatus::VENDIDO_ENTREGADO])
-      ->orderBy('ap_vehicle_status_id')
       ->get();
 
-    $summary = $vehicles
-      ->groupBy(fn($v) => $v->vehicleStatus?->description ?? 'SIN ESTADO')
-      ->map(fn($group) => [
-        'estado' => $group->first()->vehicleStatus?->description ?? 'SIN ESTADO',
-        'total'  => $group->count(),
-        'color'  => $group->first()->vehicleStatus?->color,
-      ])
-      ->values()
-      ->all();
+    $vinsFacturadosIniciales = collect(self::VINS_FACTURADOS_STOCK_INICIAL);
 
-    $summary[] = [
-      'estado' => 'TOTAL',
-      'total'  => array_sum(array_column($summary, 'total')),
-      'color'  => null,
-    ];
-
-    $items = $vehicles->map(function ($vehicle) {
-      $po    = $vehicle->purchaseOrder;
+    $items = $vehicles->map(function ($vehicle) use ($vinsFacturadosIniciales) {
+      $po = $vehicle->purchaseOrder;
       $quote = $vehicle->purchaseRequestQuote;
       $emissionDate = $po?->emission_date;
 
@@ -2103,8 +2258,28 @@ class ApDailyDeliveryReportService
         $invoiceNumber = trim(($po->invoice_series ?? '') . '-' . ($po->invoice_number ?? ''), '-');
       }
 
+      $isReceived = (bool)($vehicle->warehouse?->is_received ?? false);
+      $tieneMovFacturadoFinal = $vehicle->vehicleMovements
+        ->contains('ap_vehicle_status_id', ApVehicleStatus::FACTURADO_FINAL);
+      $enArrayInicial = $vinsFacturadosIniciales->contains($vehicle->vin);
+      $esFacturado = $tieneMovFacturadoFinal || $enArrayInicial;
+      $tieneQuote = $quote !== null;
+
+      if (!$isReceived && $esFacturado) {
+        $estadoCalculado = 'TRAVESIA FACTURADO';
+      } elseif (!$isReceived && !$tieneQuote && !$enArrayInicial) {
+        $estadoCalculado = 'TRAVESIA LIBRE';
+      } elseif ($isReceived && $esFacturado) {
+        $estadoCalculado = 'PISO FACTURADO';
+      } elseif ($isReceived && !$tieneQuote && !$enArrayInicial) {
+        $estadoCalculado = 'PISO LIBRE';
+      } else {
+        $estadoCalculado = 'SIN CLASIFICAR';
+      }
+
       return [
-        'estado'          => $vehicle->vehicleStatus?->description,
+        'estado'          => $estadoCalculado,
+        'estado_real'     => $vehicle->vehicleStatus?->description,
         'fecha_emision'   => $emissionDate?->format('d/m/Y'),
         'importe_inicial' => $po?->total,
         'numero_factura'  => $invoiceNumber,
@@ -2124,6 +2299,32 @@ class ApDailyDeliveryReportService
         'asesor'          => $quote?->opportunity?->worker?->nombre_completo,
       ];
     })->values()->all();
+
+    $estadosConfig = [
+      'TRAVESIA FACTURADO' => '#F97316',
+      'TRAVESIA LIBRE'     => '#3B82F6',
+      'PISO FACTURADO'     => '#10B981',
+      'PISO LIBRE'         => '#8B5CF6',
+      'SIN CLASIFICAR'     => '#6B7280',
+    ];
+
+    $grouped = collect($items)->groupBy('estado');
+
+    $summary = collect($estadosConfig)
+      ->filter(fn($color, $estado) => $grouped->has($estado))
+      ->map(fn($color, $estado) => [
+        'estado' => $estado,
+        'total'  => $grouped[$estado]->count(),
+        'color'  => $color,
+      ])
+      ->values()
+      ->all();
+
+    $summary[] = [
+      'estado' => 'TOTAL',
+      'total'  => count($items),
+      'color'  => null,
+    ];
 
     return [
       'summary' => $summary,

@@ -94,6 +94,15 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
+  public function resendExtraordinaryApproval($id)
+  {
+    try {
+      return $this->success($this->service->resendExtraordinaryApproval((int) $id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function export(Request $request)
   {
     try {

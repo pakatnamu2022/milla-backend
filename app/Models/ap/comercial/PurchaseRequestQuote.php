@@ -70,6 +70,7 @@ class PurchaseRequestQuote extends Model
     'vehicle_color_id'           => '=',
     'ap_models_vn_id'            => '=',
     'apModelsVn.family.brand_id' => '=',
+    'apModelsVn.family_id'       => '=',
     'ap_vehicle_id'              => '=',
     'doc_type_currency_id'       => '=',
     'is_invoiced'                => '=',

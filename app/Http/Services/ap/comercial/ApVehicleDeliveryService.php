@@ -541,6 +541,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     try {
       return DB::transaction(function () use ($data) {
         $vehicle = Vehicles::findOrFail($data['vehicle_id']);
+        $isExtraordinary = !empty($data['is_extraordinary']);
 
         // Reutilizar el movimiento SOLD_NOT_DELIVERED ya existente
         $vehicleMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
@@ -563,7 +564,17 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'vehicle_movement_id'     => $vehicleMovement?->id,
         ];
 
+        if ($isExtraordinary) {
+          $deliveryData['extraordinary_approved'] = null;
+          $deliveryData['extraordinary_sent_by']  = auth()->id();
+          $deliveryData['extraordinary_token']    = Str::random(64);
+        }
+
         $vehicleDelivery = ApVehicleDelivery::create($deliveryData);
+
+        if ($isExtraordinary) {
+          $this->sendExtraordinaryApprovalEmail($vehicleDelivery->fresh()->load(['vehicle', 'client', 'sede']));
+        }
 
         return new ApVehicleDeliveryResource($vehicleDelivery);
       });
@@ -628,6 +639,27 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     ]);
 
     return ['already_approved' => false, 'delivery_id' => $delivery->id];
+  }
+
+  public function resendExtraordinaryApproval(int $id): ApVehicleDeliveryResource
+  {
+    $delivery = ApVehicleDelivery::with(['vehicle', 'client', 'sede'])
+      ->whereNull('deleted_at')
+      ->findOrFail($id);
+
+    if ($delivery->extraordinary_approved === true) {
+      throw new Exception('Esta entrega extraordinaria ya fue aprobada.');
+    }
+
+    $delivery->update([
+      'extraordinary_approved' => null,
+      'extraordinary_sent_by'  => auth()->id(),
+      'extraordinary_token'    => Str::random(64),
+    ]);
+
+    $this->sendExtraordinaryApprovalEmail($delivery->fresh()->load(['vehicle', 'client', 'sede']));
+
+    return new ApVehicleDeliveryResource($delivery->fresh());
   }
 
   /**

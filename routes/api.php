@@ -1456,6 +1456,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicles Delivery - Reprogramar
       Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
 
+      // Vehicles Delivery - Reenviar aprobación extraordinaria
+      Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
+
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
       Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);

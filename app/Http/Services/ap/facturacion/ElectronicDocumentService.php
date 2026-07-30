@@ -2363,6 +2363,16 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception("Vehículo con ID {$vehicleId} no encontrado");
       }
 
+      // Validar que el vehículo pertenece a la sede del documento
+      $documentSedeId = $document->sede_id;
+      $vehicleSedeId  = $vehicle->warehouse?->sede_id;
+      if ($documentSedeId && $vehicleSedeId && $documentSedeId !== $vehicleSedeId) {
+        throw new Exception(
+          "No se puede facturar el vehículo: pertenece a una sede diferente a la del documento. " .
+          "El vehículo está en sede {$vehicleSedeId} y el documento es de sede {$documentSedeId}."
+        );
+      }
+
       // Obtener el estado anterior del vehículo
       $previousStatusId = $vehicle->ap_vehicle_status_id;
 
@@ -2373,6 +2383,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'movement_date' => now(),
         'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
+        'warehouse_id'         => $vehicle->warehouse_id,
+        'origin_warehouse_id'  => $vehicle->warehouse_id,
         'previous_status_id' => $previousStatusId,
         'new_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'created_by' => auth()->id(),

@@ -84,14 +84,15 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     try {
       $vehiclePurchaseOrder = PurchaseOrder::find($vehiclePurchaseOrderId);
       $vehicleMovement = VehicleMovement::create([
-        'movement_type' => VehicleMovement::ORDERED,
+        'movement_type'        => VehicleMovement::ORDERED,
         'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-        'ap_vehicle_id' => $vehiclePurchaseOrder->id,
-        'observation' => 'Creación de orden de compra de vehículo',
-        'movement_date' => now(),
-        'previous_status_id' => null,
-        'new_status_id' => ApVehicleStatus::PEDIDO_VN,
-        'created_by' => auth()->id(),
+        'ap_vehicle_id'        => $vehiclePurchaseOrder->id,
+        'observation'          => 'Creación de orden de compra de vehículo',
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'previous_status_id'   => null,
+        'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
+        'created_by'           => auth()->id(),
       ]);
 
       DB::commit();
@@ -123,6 +124,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_id'        => $vehicleId,
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => 'Vehículo en tránsito - Factura Dynamics: ' . $vehiclePurchaseOrder->invoice_dynamics
           . " | Almacén origen: {$warehouseName}",
         'warehouse_id'         => $vehicle->warehouse_id,
@@ -148,7 +150,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
    * @return VehicleMovementResource
    * @throws Throwable
    */
-  public function storeInventoryVehicleMovement($vehicleId): VehicleMovementResource
+  public function storeInventoryVehicleMovement($vehicleId, ?ShippingGuides $shippingGuide = null): VehicleMovementResource
   {
     DB::beginTransaction();
     try {
@@ -167,24 +169,41 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         throw new Exception('No se encontró un almacén válido para el vehículo');
       }
 
-      $observation = "Vehículo ingresado a inventario | Almacén: {$warehouse->description}";
+      if ($shippingGuide) {
+        $guideRef = $shippingGuide->document_number;
+        if (!empty($shippingGuide->dyn_series)) {
+          $guideRef .= " (Dynamics: {$shippingGuide->dyn_series})";
+        }
+        $observation = "Por contabilización en Dynamics | Guía COMPRA: {$guideRef}";
+      } else {
+        $observation = 'Por asignación desde cotización de compra';
+      }
+
+      $previousStatusId = $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA;
+
+      // Si el vehículo ya fue facturado/vendido, la recepción física solo actualiza el almacén.
+      // El estado de venta se preserva; solo los movimientos de facturación lo modifican.
+      // El movimiento siempre registra INVENTARIO_VN porque eso es lo que ocurre logísticamente.
+      $isSale = ApVehicleStatus::isSaleStatus($previousStatusId);
 
       $vehicleMovement = VehicleMovement::create([
-        'movement_type'       => VehicleMovement::INVENTORY,
-        'ap_vehicle_id'       => $vehicleId,
+        'movement_type'        => VehicleMovement::INVENTORY,
+        'ap_vehicle_id'        => $vehicleId,
         'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-        'movement_date'       => now(),
-        'observation'         => $observation,
-        'warehouse_id'        => $warehouse->id,
-        'origin_warehouse_id' => $vehicle->warehouse_id,
-        'previous_status_id'  => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        'new_status_id'       => ApVehicleStatus::INVENTARIO_VN,
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'observation'          => $observation,
+        'warehouse_id'         => $warehouse->id,
+        'origin_warehouse_id'  => $vehicle->warehouse_id,
+        'previous_status_id'   => $previousStatusId,
+        'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
       ]);
 
-      $vehicle->update([
-        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-        'warehouse_id'         => $warehouse->id,
-      ]);
+      $updateData = ['warehouse_id' => $warehouse->id];
+      if (!$isSale) {
+        $updateData['ap_vehicle_status_id'] = ApVehicleStatus::INVENTARIO_VN;
+      }
+      $vehicle->update($updateData);
 
       DB::commit();
       return new VehicleMovementResource($vehicleMovement);
@@ -219,15 +238,17 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
           ->first()
         : null;
 
-      $observation = "Traslado interno contabilizado: {$shippingGuide->document_number}"
-        . " | {$transmitterName} → {$receiverName}"
-        . ($destWarehouse ? " | Almacén destino: {$destWarehouse->description}" : '');
+      $guideRef    = $shippingGuide->document_number
+        . (!empty($shippingGuide->dyn_series) ? " (Dynamics: {$shippingGuide->dyn_series})" : '');
+      $observation = "Por contabilización en Dynamics | Guía interna: {$guideRef}"
+        . " | {$transmitterName} → {$receiverName}";
 
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::INTERNAL_TRANSFER,
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => $vehicle->ap_vehicle_status_id,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'warehouse_id'         => $destWarehouse?->id,
         'origin_warehouse_id'  => $vehicle->warehouse_id,
@@ -273,16 +294,18 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
           ->first()
         : null;
 
-      $observation = "Traslado entre empresas contabilizado: {$shippingGuide->document_number}"
+      $guideRef    = $shippingGuide->document_number
+        . (!empty($shippingGuide->dyn_series) ? " (Dynamics: {$shippingGuide->dyn_series})" : '');
+      $observation = "Por contabilización en Dynamics | Guía: {$guideRef}"
         . " | {$transmitterName} → {$receiverName}"
-        . ($issueDate ? " | Fecha traslado: {$issueDate}" : '')
-        . ($destWarehouse ? " | Almacén destino: {$destWarehouse->description}" : '');
+        . ($issueDate ? " | Fecha traslado: {$issueDate}" : '');
 
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::INTERNAL_TRANSFER,
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'warehouse_id'         => $destWarehouse?->id,
         'origin_warehouse_id'  => $vehicle->warehouse_id,
@@ -318,6 +341,12 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     Vehicles       $vehicle,
     ShippingGuides $shippingGuide
   ): VehicleMovement {
+    if (ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)) {
+      throw new Exception(
+        "No se puede iniciar un traslado entre empresas: el vehículo ya está en estado de venta ({$vehicle->ap_vehicle_status_id})."
+      );
+    }
+
     DB::beginTransaction();
     try {
       $receiverSedeId  = $shippingGuide->sedeReceiver?->id;
@@ -335,16 +364,18 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
           ->first()
         : null;
 
-      $observation = "Traslado entre empresas en curso: {$shippingGuide->document_number}"
+      $guideRef    = $shippingGuide->document_number
+        . (!empty($shippingGuide->dyn_series) ? " (Dynamics: {$shippingGuide->dyn_series})" : '');
+      $observation = "Por contabilización en Dynamics | Guía: {$guideRef}"
         . " | {$transmitterName} → {$receiverName}"
-        . ($issueDate ? " | Fecha traslado: {$issueDate}" : '')
-        . ($exrWarehouse ? " | Almacén destino (EXR): {$exrWarehouse->description}" : '');
+        . ($issueDate ? " | Fecha traslado: {$issueDate}" : '');
 
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::EN_CURSO,
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => ApVehicleStatus::EN_CURSO,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'warehouse_id'         => $exrWarehouse?->id,
         'origin_warehouse_id'  => $vehicle->warehouse_id,
@@ -382,13 +413,14 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       }
 
       $vehicleMovement = VehicleMovement::create([
-        'movement_type' => VehicleMovement::IN_TRANSIT_RETURNED,
-        'ap_vehicle_id' => $vehicleId,
+        'movement_type'        => VehicleMovement::IN_TRANSIT_RETURNED,
+        'ap_vehicle_id'        => $vehicleId,
         'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
-        'movement_date' => now(),
-        'observation' => 'Vehículo devuelto por NC: ' . ($creditNote ?? ''),
-        'previous_status_id' => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-        'new_status_id' => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'observation'          => 'Vehículo devuelto por NC: ' . ($creditNote ?? ''),
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'new_status_id'        => ApVehicleStatus::VEHICULO_TRANSITO_DEVUELTO,
       ]);
 
       $vehicle->update([
@@ -420,6 +452,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_NO_ENTREGADO,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'warehouse_id'         => $vehicle->warehouse_id,
         'previous_status_id'   => $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::INVENTARIO_VN,
@@ -456,6 +489,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => $observation,
         'origin_address'       => $originAddress,
         'destination_address'  => $destinationAddress,
@@ -501,22 +535,28 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
 
     $statusCurrentVehicle = $vehicle->ap_vehicle_status_id;
 
+    // Vehículos ya facturados/vendidos no cambian de estado por una guía de traslado.
+    // El movimiento se registra pero el status permanece intacto.
+    $isSale = ApVehicleStatus::isSaleStatus($statusCurrentVehicle);
+    $newStatusId = $isSale ? $statusCurrentVehicle : ApVehicleStatus::VEHICULO_EN_TRAVESIA;
+
     $vehicleMovementData = [
-      'ap_vehicle_id' => $vehicleId,
-      'movement_type' => 'TRAVESIA',
-      'movement_date' => $issueDate ?? now(),
-      'observation' => $observation,
-      'origin_address' => $originAddress,
-      'destination_address' => $destinationAddress,
-      'previous_status_id' => $statusCurrentVehicle,
-      'new_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      'ap_vehicle_id'        => $vehicleId,
+      'movement_type'        => 'TRAVESIA',
+      'movement_date'        => $issueDate ?? now(),
+      'confirmed_at'         => now(),
+      'observation'          => $observation,
+      'origin_address'       => $originAddress,
+      'destination_address'  => $destinationAddress,
+      'previous_status_id'   => $statusCurrentVehicle,
+      'new_status_id'        => $newStatusId,
       'ap_vehicle_status_id' => $statusCurrentVehicle,
-      'created_by' => auth()->id(),
+      'created_by'           => auth()->id(),
     ];
 
-    $vehicle->update([
-      'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
-    ]);
+    if (!$isSale) {
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA]);
+    }
 
     return VehicleMovement::create($vehicleMovementData);
   }
@@ -535,14 +575,15 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     }
 
     $vehicleMovement = VehicleMovement::create([
-      'ap_vehicle_id' => $vehicleId,
-      'movement_type' => VehicleMovement::ORDERED,
-      'movement_date' => now(),
-      'observation' => 'Creación de vehículo para consignación',
-      'previous_status_id' => null,
-      'new_status_id' => ApVehicleStatus::PEDIDO_VN,
+      'ap_vehicle_id'        => $vehicleId,
+      'movement_type'        => VehicleMovement::ORDERED,
+      'movement_date'        => now(),
+      'confirmed_at'         => now(),
+      'observation'          => 'Creación de vehículo para consignación',
+      'previous_status_id'   => null,
+      'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
       'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'created_by' => auth()->id(),
+      'created_by'           => auth()->id(),
     ]);
 
     return $vehicleMovement;
@@ -574,16 +615,17 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     $statusCurrentVehicle = $vehicle->ap_vehicle_status_id;
 
     $vehicleMovementData = [
-      'ap_vehicle_id' => $vehicleId,
-      'movement_type' => VehicleMovement::CONSIGNMENT,
-      'movement_date' => $issueDate ?? now(),
-      'observation' => $observation,
-      'origin_address' => $originAddress,
-      'destination_address' => $destinationAddress,
-      'previous_status_id' => $statusCurrentVehicle,
-      'new_status_id' => ApVehicleStatus::CONSIGNACION,
+      'ap_vehicle_id'        => $vehicleId,
+      'movement_type'        => VehicleMovement::CONSIGNMENT,
+      'movement_date'        => $issueDate ?? now(),
+      'confirmed_at'         => now(),
+      'observation'          => $observation,
+      'origin_address'       => $originAddress,
+      'destination_address'  => $destinationAddress,
+      'previous_status_id'   => $statusCurrentVehicle,
+      'new_status_id'        => ApVehicleStatus::CONSIGNACION,
       'ap_vehicle_status_id' => ApVehicleStatus::CONSIGNACION,
-      'created_by' => auth()->id(),
+      'created_by'           => auth()->id(),
     ];
 
     $vehicle->update([
@@ -641,6 +683,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'ap_vehicle_id'        => $vehicle->id,
         'ap_vehicle_status_id' => $targetStatusId,
         'movement_date'        => now(),
+        'confirmed_at'         => now(),
         'observation'          => 'Reversión por anulación de factura SUNAT',
         'previous_status_id'   => $vehicle->ap_vehicle_status_id,
         'new_status_id'        => $targetStatusId,

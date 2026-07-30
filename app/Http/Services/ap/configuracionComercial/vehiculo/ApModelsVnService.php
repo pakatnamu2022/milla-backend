@@ -1305,6 +1305,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'previous_status_id'   => null,
           'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
           'movement_date'        => $uploadDate,
+          'confirmed_at'         => $uploadDate,
           'observation'          => 'Saldo inicial',
           'created_at'           => $uploadDate,
         ]);
@@ -1316,6 +1317,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
           'previous_status_id'   => ApVehicleStatus::PEDIDO_VN,
           'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
           'movement_date'        => $uploadDate,
+          'confirmed_at'         => $uploadDate,
           'observation'          => 'Saldo inicial - tránsito',
           'created_at'           => $uploadDate,
         ]);
@@ -1329,6 +1331,7 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
             'previous_status_id'   => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
             'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
             'movement_date'        => $uploadDate,
+            'confirmed_at'         => $uploadDate,
             'observation'          => 'Saldo inicial - ingreso a inventario',
             'created_at'           => $uploadDate,
           ]);

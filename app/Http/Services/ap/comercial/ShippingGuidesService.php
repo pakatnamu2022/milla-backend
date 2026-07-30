@@ -29,6 +29,7 @@ use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\DigitalFile;
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -104,6 +105,17 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // Crear el movimiento de vehículo SOLO si hay un vehículo (no para transferencias de productos)
       $vehicleMovement = null;
       if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $vehicle = Vehicles::findOrFail($data['ap_vehicle_id']);
+
+        if (
+          $data['transfer_reason_id'] == SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE
+          && ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)
+        ) {
+          throw new Exception(
+            'No se puede crear un traslado entre empresas para un vehículo que ya está facturado o vendido.'
+          );
+        }
+
         $vehicleMovement = $this->vehicleMovementService->storeShippingGuideVehicleMovement(
           $data['ap_vehicle_id'],
           $origin->address ?? '-',
@@ -229,6 +241,15 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ];
 
       $document = ShippingGuides::create($documentData);
+
+      // Actualizar la observación del movimiento TRAVESIA ahora que tenemos el número de guía
+      if ($vehicleMovement) {
+        $baseObs = "Guía de remisión registrada: {$document->document_number}";
+        if (!empty($data['notes'])) {
+          $baseObs .= " | {$data['notes']}";
+        }
+        $vehicleMovement->update(['observation' => $baseObs]);
+      }
 
       // Notificar al responsable de recepción en la fecha de entrega
       $this->notify(
