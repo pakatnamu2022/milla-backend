@@ -192,7 +192,7 @@ class ElectronicDocument extends BaseModel
     'work_order_id' => '=',
     'cliente_numero_de_documento' => '=',
     'sunat_concept_currency_id' => '=',
-    'status' => '=',
+    'status' => 'in_or_equal',
     'aceptada_por_sunat' => '=',
     'anulado' => '=',
     'fecha_de_emision' => '=',
