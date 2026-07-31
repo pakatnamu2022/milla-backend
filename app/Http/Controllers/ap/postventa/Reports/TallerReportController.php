@@ -6,6 +6,7 @@ use App\Exports\ap\postventa\taller\WorkOrderReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\TallerReportService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TallerReportController extends Controller
@@ -46,6 +47,10 @@ class TallerReportController extends Controller
 
     // Determinar si los montos deben estar en soles
     $amountsInSoles = $validated['amounts_in_soles'] ?? false;
+
+    // TEMPORAL: Ejecutar comando para actualizar fechas de entrega antes de generar el reporte
+    // TODO: Remover esto cuando se arregle la reportería
+    Artisan::call('work-orders:update-delivery-dates', ['--force' => true]);
 
     // Obtener datos del reporte
     $data = $this->service->getWorkOrdersReport($filters, $amountsInSoles);

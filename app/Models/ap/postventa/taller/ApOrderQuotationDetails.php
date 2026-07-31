@@ -23,6 +23,7 @@ class ApOrderQuotationDetails extends Model
     'quantity',
     'unit_measure',
     'unit_price',
+    'sale_price_min_original',
     'discount_percentage',
     'total_cost', //total_amount
     'net_amount',
@@ -57,6 +58,7 @@ class ApOrderQuotationDetails extends Model
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
+    'sale_price_min_original' => 'decimal:2',
     'is_traverse' => 'boolean',
   ];
 

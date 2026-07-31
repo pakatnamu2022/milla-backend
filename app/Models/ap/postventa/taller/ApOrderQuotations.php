@@ -83,6 +83,7 @@ class ApOrderQuotations extends Model
     'confirmation_metadata',
     'parent_quotation_id',
     'shipping_guide_id',
+    'is_sold_at_valid_price',
   ];
 
   const filters = [
@@ -120,6 +121,7 @@ class ApOrderQuotations extends Model
     'confirmation_token_expires_at' => 'datetime',
     'confirmed_at' => 'datetime',
     'confirmation_metadata' => 'array',
+    'is_sold_at_valid_price' => 'boolean',
   ];
 
   //STATUS CONSTANTS
@@ -354,6 +356,56 @@ class ApOrderQuotations extends Model
     }
 
     return "{$prefix}{$newNumber}";
+  }
+
+  /**
+   * Calcula y actualiza el campo is_sold_at_valid_price según los precios de venta de los items.
+   * Evalúa si TODOS los productos se vendieron al precio mínimo o superior comparando
+   * con el sale_price_min_original guardado en cada detalle.
+   *
+   * @return void
+   */
+  public function calculateIsSoldAtValidPrice(): void
+  {
+    // Obtener todos los detalles de tipo PRODUCT (excluir mano de obra)
+    $productDetails = $this->details()
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->whereNotNull('product_id')
+      ->get();
+
+    // Si no hay productos, marcar como true
+    if ($productDetails->isEmpty()) {
+      $this->is_sold_at_valid_price = true;
+      return;
+    }
+
+    // Validar cada producto
+    foreach ($productDetails as $detail) {
+      // Bypass: Si es travesía, no validar precio
+      if ($detail->is_traverse) {
+        continue;
+      }
+
+      // Si no tiene sale_price_min_original guardado, continuar (no afecta la validación)
+      if (!$detail->sale_price_min_original || $detail->sale_price_min_original == 0) {
+        continue;
+      }
+
+      // Convertir unit_price a soles si está en USD
+      $unitPriceInSoles = $detail->unit_price;
+      if ($this->currency_id === TypeCurrency::USD_ID && $this->exchange_rate) {
+        $unitPriceInSoles = $detail->unit_price * $this->exchange_rate;
+      }
+
+      // Si el precio unitario es menor al precio mínimo original, marcar como false
+      if ($unitPriceInSoles < $detail->sale_price_min_original) {
+        $this->is_sold_at_valid_price = false;
+        return;
+      }
+    }
+
+    // Si llegamos aquí, todos los productos cumplen con el precio mínimo
+    $this->is_sold_at_valid_price = true;
   }
 
   /**

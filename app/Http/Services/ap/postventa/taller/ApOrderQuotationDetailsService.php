@@ -83,6 +83,12 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
             "Producto ({$data['description']}): {$validation['message']}"
           );
         }
+
+        // Guardar el precio de venta mínimo actual como registro histórico
+        $data['sale_price_min_original'] = ProductWarehouseStock::getSalePriceMin(
+          $data['product_id'],
+          $sedeId
+        );
       }
 
       // Si es MANO DE OBRA y la cotización está en dólares, convertir el precio de soles a dólares
@@ -106,6 +112,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Recalculate quotation totals using centralized method in model
       $quotation->calculateTotals();
+      $quotation->calculateIsSoldAtValidPrice();
       $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
@@ -191,6 +198,12 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
             "Producto ({$description}): {$validation['message']}"
           );
         }
+
+        // Guardar el precio de venta mínimo actual como registro histórico
+        $data['sale_price_min_original'] = ProductWarehouseStock::getSalePriceMin(
+          $productId,
+          $quotation->sede_id
+        );
       }
 
       $this->calculatePricesAndTotals($data);
@@ -200,6 +213,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
       // Recalculate quotation totals using centralized method in model
       $quotation->calculateTotals();
+      $quotation->calculateIsSoldAtValidPrice();
       $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
@@ -232,6 +246,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       // Recalculate quotation totals using centralized method in model
       $quotation = ApOrderQuotations::find($quotationId);
       $quotation->calculateTotals();
+      $quotation->calculateIsSoldAtValidPrice();
       $quotation->save();
 
       // Recalculate work order totals if quotation is associated with one
@@ -340,6 +355,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     if ($workOrder) {
       // Recalculate and save work order totals
       $workOrder->calculateTotals();
+      $workOrder->calculateIsSoldAtValidPrice();
       $workOrder->save();
     }
   }

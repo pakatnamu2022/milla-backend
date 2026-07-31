@@ -86,6 +86,7 @@ class ApWorkOrder extends Model
     'discarded_note',
     'discarded_by',
     'discarded_at',
+    'is_sold_at_valid_price',
   ];
 
   protected $casts = [
@@ -93,6 +94,7 @@ class ApWorkOrder extends Model
     'estimated_delivery_date' => 'datetime',
     'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
+    'official_closing_date' => 'datetime',
     'is_delivery' => 'boolean',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',
@@ -112,6 +114,7 @@ class ApWorkOrder extends Model
     'allow_editing_inspection' => 'boolean',
     'post_service_follow_up' => 'array',
     'discarded_at' => 'datetime',
+    'is_sold_at_valid_price' => 'boolean',
   ];
 
   const filters = [
@@ -341,6 +344,41 @@ class ApWorkOrder extends Model
     }
 
     $this->save();
+  }
+
+  /**
+   * Calcula si todas las partes se vendieron al precio mínimo o superior
+   */
+  public function calculateIsSoldAtValidPrice(): void
+  {
+    $parts = $this->parts()
+      ->whereNotNull('product_id')
+      ->get();
+
+    if ($parts->isEmpty()) {
+      $this->is_sold_at_valid_price = true;
+      return;
+    }
+
+    foreach ($parts as $part) {
+      if ($part->is_traverse) continue;
+
+      if (!$part->sale_price_min_original || $part->sale_price_min_original == 0) {
+        continue;
+      }
+
+      $unitPriceInSoles = $part->unit_price;
+      if ($this->currency_id === TypeCurrency::USD_ID && $this->exchange_rate) {
+        $unitPriceInSoles = $part->unit_price * $this->exchange_rate;
+      }
+
+      if ($unitPriceInSoles < $part->sale_price_min_original) {
+        $this->is_sold_at_valid_price = false;
+        return;
+      }
+    }
+
+    $this->is_sold_at_valid_price = true;
   }
 
   /**
@@ -1345,18 +1383,32 @@ class ApWorkOrder extends Model
     // Usamos directamente los subtotales almacenados para evitar problemas de redondeo
     $totalAnticipo = $this->getSubtotalFromAdvances();
 
+    // Redondear los totales
+    $totalGravadaRounded = round($totalGravada, 2);
+    $totalIgvRounded = round($totalIgv, 2);
+    $totalFinal = round($totalGravada + $totalIgv, 2);
+
+    // Si el total está muy cercano a 0 (dentro del umbral de ±0.03 por errores de redondeo),
+    // forzar tanto total_gravada como total_igv a 0 para evitar inconsistencias como tener
+    // IGV positivo sobre base gravada negativa cuando el total es 0.
+    if (abs($totalFinal) < 0.03) {
+      $totalGravadaRounded = 0;
+      $totalIgvRounded = 0;
+      $totalFinal = 0;
+    }
+
     // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
     // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
     return [
       'items_invoice' => $items,
       'invoice_preview' => [
-        'total_gravada' => round($totalGravada, 2) + 0,
+        'total_gravada' => $totalGravadaRounded + 0,
         'total_inafecta' => 0,
         'total_exonerada' => 0,
-        'total_igv' => round($totalIgv, 2) + 0,
+        'total_igv' => $totalIgvRounded + 0,
         'total_gratuita' => 0,
         'total_anticipo' => round($totalAnticipo, 2) + 0,
-        'total' => round($totalGravada + $totalIgv, 2) + 0,
+        'total' => $totalFinal + 0,
       ],
     ];
   }

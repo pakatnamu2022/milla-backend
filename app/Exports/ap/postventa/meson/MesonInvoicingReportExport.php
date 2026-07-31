@@ -45,6 +45,7 @@ class MesonInvoicingReportExport implements
       'FECHA EMISIÓN',
       'SERIE',
       'NÚMERO',
+      'ESTADO SUNAT',
       'CÓDIGO ARTÍCULO',
       'NOMBRE ARTÍCULO',
       'CANTIDAD',
@@ -71,6 +72,7 @@ class MesonInvoicingReportExport implements
       $row['fecha_emision'],
       $row['serie_comprobante'],
       $row['numero_comprobante'],
+      $row['estado_sunat'],
       $row['codigo_articulo'],
       $row['nombre_articulo'],
       $row['cantidad'],
@@ -114,8 +116,53 @@ class MesonInvoicingReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-T, 20 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:T1');
+        // Habilitar filtros en la fila de encabezado (columnas A-U, 21 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:U1');
+
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna G)
+        $sheet = $event->sheet->getDelegate();
+        $highestRow = $sheet->getHighestRow();
+
+        // Estilos para SI (verde con letra blanca)
+        $styleGreen = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '00B050'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Estilos para NO (rojo con letra blanca)
+        $styleRed = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FF0000'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Aplicar estilos desde la fila 2 hasta la última fila
+        for ($row = 2; $row <= $highestRow; $row++) {
+          $cellValue = $sheet->getCell('G' . $row)->getValue();
+
+          if ($cellValue === 'SI') {
+            $sheet->getStyle('G' . $row)->applyFromArray($styleGreen);
+          } elseif ($cellValue === 'NO') {
+            $sheet->getStyle('G' . $row)->applyFromArray($styleRed);
+          }
+        }
       },
     ];
   }

@@ -234,6 +234,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         $this->validateSalePrice($data, $workOrder);
       }
 
+      // Guardar el precio de venta mínimo original
+      $data['sale_price_min_original'] = ProductWarehouseStock::getSalePriceMin(
+        $data['product_id'],
+        $workOrder->sede_id
+      );
+
       // Validar y reservar stock solo si NO es travesía
       if (!$isTraverse) {
         // Validar que exista stock disponible para reservar
@@ -434,6 +440,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         if (!$newIsTraverse) {
           $this->validateSalePrice($recalcData, $workOrder);
         }
+
+        // Guardar el precio de venta mínimo original
+        $data['sale_price_min_original'] = ProductWarehouseStock::getSalePriceMin(
+          $newProductId,
+          $workOrder->sede_id
+        );
 
         // Validar que el nuevo monto no sea menor al monto pagado en anticipos
         $workOrder->refresh();

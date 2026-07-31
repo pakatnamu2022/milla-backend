@@ -2057,6 +2057,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     // Recalcular totales del padre a partir de los hijos ya recalculados
     $workOrder->calculateTotals();
+    $workOrder->calculateIsSoldAtValidPrice();
+    $workOrder->save();
   }
 
   /**

@@ -234,6 +234,45 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * List only invoices and tickets (excluding credit notes and documents with associated credit notes)
+   */
+  public function listInvoicesAndTickets(Request $request): JsonResponse
+  {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ElectronicDocument::whereIn('sunat_concept_document_type_id', [
+        SunatConcepts::ID_FACTURA_ELECTRONICA,
+        SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
+      ])
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->where('is_annulled', 0)
+        ->whereNull('credit_note_id');
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
+        $q->whereIn('sede_id', $sedes);
+      })
+        ->whereIn('sunat_concept_document_type_id', [
+          SunatConcepts::ID_FACTURA_ELECTRONICA,
+          SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
+        ])
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->where('is_annulled', 0)
+        ->whereNull('credit_note_id');
+    }
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ElectronicDocument::filters,
+      ElectronicDocument::sorts,
+      ElectronicDocumentResource::class,
+      ['documentType', 'currency', 'identityDocumentType', 'items', 'creator']
+    );
+  }
+
+  /**
    * Find a specific electronic document by ID
    * @throws Exception
    */
@@ -2384,8 +2423,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'movement_date'        => now(),
         'observation'          => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
-        'warehouse_id'         => $vehicle->warehouse_id,
-        'origin_warehouse_id'  => $vehicle->warehouse_id,
+        'warehouse_id' => $vehicle->warehouse_id,
+        'origin_warehouse_id' => $vehicle->warehouse_id,
         'previous_status_id'   => $previousStatusId,
         'new_status_id'        => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
         'created_by'           => auth()->id(),
@@ -3955,12 +3994,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     $workOrder->update(['has_invoice_generated' => true]);
 
-    // Actualizar fecha de cierre oficial SOLO si es factura final (no anticipo)
-    // Los anticipos (is_advance_payment = 1) no cierran la OT
-    // Solo la factura final (is_advance_payment = 0) cierra la OT
-    if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {
-      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
-    }
+    // Actualizar fecha de cierre oficial SIEMPRE que se cree una OTE
+    // Se actualiza con la fecha de emisión del documento electrónico
+    $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
   }
 
   public function createConsolidatedInvoice(array $data): array

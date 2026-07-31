@@ -7,6 +7,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,7 @@ class TallerReportService
         'internalNotes.workOrder.internalNotes',
       ])
       ->where('anulado', false)
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
       ->where('is_advance_payment', false) // Solo facturas finales, no anticipos
       ->where(function ($q) {
         // Facturación SIMPLE: tiene work_order_id directo
@@ -88,14 +90,14 @@ class TallerReportService
     $reportData = $documents->flatMap(function ($document) use ($amountsInSoles) {
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        return [$this->transformWorkOrderForReport($document->workOrder, $amountsInSoles)];
+        return [$this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document)];
       }
 
       // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        return $document->internalNotes->map(function ($internalNote) use ($amountsInSoles) {
+        return $document->internalNotes->map(function ($internalNote) use ($amountsInSoles, $document) {
           if ($internalNote->workOrder) {
-            return $this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles);
+            return $this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $document);
           }
           return null;
         })->filter();
@@ -127,7 +129,10 @@ class TallerReportService
       })
       ->whereHas('items', function ($q) {
         $q->whereHas('typePlanning', function ($subQ) {
-          $subQ->where('type_document', 'INTERNA')
+          $subQ->whereIn('type_document', [
+              TypePlanningWorkOrder::INTERNA_SC,
+              TypePlanningWorkOrder::INTERNA_CC,
+            ])
             ->whereNotIn('id', [
               TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
               TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
@@ -168,9 +173,10 @@ class TallerReportService
    *
    * @param ApWorkOrder $workOrder
    * @param bool $amountsInSoles
+   * @param ElectronicDocument|null $document
    * @return array
    */
-  private function transformWorkOrderForReport(ApWorkOrder $workOrder, bool $amountsInSoles = false): array
+  private function transformWorkOrderForReport(ApWorkOrder $workOrder, bool $amountsInSoles = false, ?ElectronicDocument $document = null): array
   {
     $invoiceTo = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
@@ -179,10 +185,26 @@ class TallerReportService
     // Obtener técnicos únicos consolidados
     $technicians = $this->getConsolidatedTechnicians($workOrder);
 
+    // Verificar si es Nota de Crédito
+    $multiplier = 1;
+    if ($document && $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA) {
+      $multiplier = -1;
+    }
+
     // Calcular precios según la moneda solicitada
     $prices = $amountsInSoles
-      ? $this->calculatePricesInSoles($workOrder)
-      : $this->calculatePricesInDollars($workOrder);
+      ? $this->calculatePricesInSoles($workOrder, $multiplier)
+      : $this->calculatePricesInDollars($workOrder, $multiplier);
+
+    // Convertir estado SUNAT a SI/NO
+    $estadoSunat = '';
+    if ($document) {
+      if ($document->aceptada_por_sunat === 1 || $document->aceptada_por_sunat === true || $document->aceptada_por_sunat === '1') {
+        $estadoSunat = 'SI';
+      } elseif ($document->aceptada_por_sunat === 0 || $document->aceptada_por_sunat === false || $document->aceptada_por_sunat === '0') {
+        $estadoSunat = 'NO';
+      }
+    }
 
     return [
       'tipo_documento' => $invoiceTo?->documentType?->description ?? '',
@@ -215,6 +237,9 @@ class TallerReportService
       'precio_insumo' => '', // En blanco según requerimiento
       'precio_total' => number_format($prices['total'], 2, '.', ''),
       'autorizacion_datos_personales' => '', // En blanco según requerimiento
+      'num_documento_electronico' => $document?->full_number ?? '',
+      'fecha_documento_electronico' => $document && $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
+      'estado_sunat' => $estadoSunat,
     ];
   }
 
@@ -261,9 +286,10 @@ class TallerReportService
    * Calcula los precios en dólares
    *
    * @param ApWorkOrder $workOrder
+   * @param float $multiplier
    * @return array
    */
-  private function calculatePricesInDollars(ApWorkOrder $workOrder): array
+  private function calculatePricesInDollars(ApWorkOrder $workOrder, float $multiplier = 1): array
   {
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
@@ -284,15 +310,15 @@ class TallerReportService
 
     // Si la OT ya está en dólares, no convertir
     if ($workOrder->currency_id == TypeCurrency::USD_ID) {
-      $labourCostUSD = $labourCost;
-      $partsCostUSD = $partsCost;
-      $lubricantsCostUSD = $lubricantsCost;
+      $labourCostUSD = $labourCost * $multiplier;
+      $partsCostUSD = $partsCost * $multiplier;
+      $lubricantsCostUSD = $lubricantsCost * $multiplier;
     } else {
       // La OT está en soles, convertir a dólares
       $exchangeRate = $workOrder->getExchangeRateToUsd();
-      $labourCostUSD = $labourCost / $exchangeRate;
-      $partsCostUSD = $partsCost / $exchangeRate;
-      $lubricantsCostUSD = $lubricantsCost / $exchangeRate;
+      $labourCostUSD = ($labourCost / $exchangeRate) * $multiplier;
+      $partsCostUSD = ($partsCost / $exchangeRate) * $multiplier;
+      $lubricantsCostUSD = ($lubricantsCost / $exchangeRate) * $multiplier;
     }
 
     // Total
@@ -310,9 +336,10 @@ class TallerReportService
    * Calcula los precios en soles
    *
    * @param ApWorkOrder $workOrder
+   * @param float $multiplier
    * @return array
    */
-  private function calculatePricesInSoles(ApWorkOrder $workOrder): array
+  private function calculatePricesInSoles(ApWorkOrder $workOrder, float $multiplier = 1): array
   {
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
@@ -333,16 +360,16 @@ class TallerReportService
 
     // Si la OT ya está en soles, no convertir
     if ($workOrder->currency_id == TypeCurrency::PEN_ID) {
-      $labourCostPEN = $labourCost;
-      $partsCostPEN = $partsCost;
-      $lubricantsCostPEN = $lubricantsCost;
+      $labourCostPEN = $labourCost * $multiplier;
+      $partsCostPEN = $partsCost * $multiplier;
+      $lubricantsCostPEN = $lubricantsCost * $multiplier;
     } else {
       // La OT está en dólares, convertir a soles
       // Obtener el tipo de cambio real (no el de getExchangeRateToUsd que retorna 1.0 para USD)
       $exchangeRate = $this->getRealExchangeRate($workOrder);
-      $labourCostPEN = $labourCost * $exchangeRate;
-      $partsCostPEN = $partsCost * $exchangeRate;
-      $lubricantsCostPEN = $lubricantsCost * $exchangeRate;
+      $labourCostPEN = ($labourCost * $exchangeRate) * $multiplier;
+      $partsCostPEN = ($partsCost * $exchangeRate) * $multiplier;
+      $lubricantsCostPEN = ($lubricantsCost * $exchangeRate) * $multiplier;
     }
 
     // Total

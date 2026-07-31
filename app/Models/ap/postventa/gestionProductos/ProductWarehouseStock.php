@@ -255,21 +255,92 @@ class ProductWarehouseStock extends Model
     }
   }
 
-  public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice, ?int $currencyId = null, ?float $exchangeRate = null): array
+  /**
+   * Verifica si un producto tiene stock = 0 en un almacén específico.
+   * Método centralizado para reutilizar la lógica de validación de stock cero.
+   *
+   * @param int $productId ID del producto
+   * @param int $warehouseId ID del almacén
+   * @return bool true si el stock es 0, false en caso contrario
+   */
+  public static function hasZeroStock(int $productId, int $warehouseId): bool
   {
-    // Convertir el precio unitario a soles si está en dólares
-    // El precio de venta mínimo (sale_price_min) siempre está en soles
-    $unitPriceInSoles = $unitPrice;
-    if ($currencyId === TypeCurrency::USD_ID && $exchangeRate) {
-      $unitPriceInSoles = $unitPrice * $exchangeRate;
-    }
+    $stock = self::where('product_id', $productId)
+      ->where('warehouse_id', $warehouseId)
+      ->first();
 
+    return $stock ? ($stock->quantity == 0) : false;
+  }
+
+  /**
+   * Obtiene el precio de venta mínimo (sale_price_min) actual para un producto en una sede.
+   * Método centralizado para guardar el precio histórico en los detalles.
+   *
+   * @param int $productId ID del producto
+   * @param int $sedeId ID de la sede
+   * @return float|null Precio de venta mínimo o null si no se encuentra
+   */
+  public static function getSalePriceMin(int $productId, int $sedeId): ?float
+  {
     // Obtener el warehouse físico de postventa para la sede
     $warehouse = Warehouse::where('sede_id', $sedeId)
       ->where('is_physical_warehouse', true)
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
       ->where('status', true)
       ->first();
+
+    if (!$warehouse) {
+      return null;
+    }
+
+    // Obtener el stock del producto en el almacén de la sede
+    $stock = self::where('product_id', $productId)
+      ->where('warehouse_id', $warehouse->id)
+      ->first();
+
+    if (!$stock) {
+      return null;
+    }
+
+    $salePriceMin = $stock->sale_price_min;
+
+    // Si sale_price_min es 0 o null en el almacén de la sede, buscar en otros almacenes
+    if (!$salePriceMin || $salePriceMin == 0) {
+      $stocksInOtherWarehouses = self::where('product_id', $productId)
+        ->where('sale_price_min', '>', 0)
+        ->get();
+
+      if ($stocksInOtherWarehouses->isEmpty()) {
+        return null;
+      }
+
+      $salePriceMin = $stocksInOtherWarehouses->min('sale_price_min');
+    }
+
+    return $salePriceMin ? (float)$salePriceMin : null;
+  }
+
+  public static function validatePublicSalePrice(int $productId, int $sedeId, float $unitPrice, ?int $currencyId = null, ?float $exchangeRate = null): array
+  {
+    // Obtener el warehouse físico de postventa para la sede
+    $warehouse = Warehouse::where('sede_id', $sedeId)
+      ->where('is_physical_warehouse', true)
+      ->where('type_operation_id', ApMasters::TIPO_OPERACION_POSTVENTA)
+      ->where('status', true)
+      ->first();
+
+    // Si el producto tiene stock = 0 en el almacén de la sede, permitir cualquier precio
+    // No se valida el precio de venta mínimo cuando no hay stock disponible
+    if ($warehouse && self::hasZeroStock($productId, $warehouse->id)) {
+      return ['valid' => true, 'message' => null, 'sale_price' => null];
+    }
+
+    // Convertir el precio unitario a soles si está en dólares
+    // El precio de venta mínimo (sale_price_min) siempre está en soles
+    $unitPriceInSoles = $unitPrice;
+    if ($currencyId === TypeCurrency::USD_ID && $exchangeRate) {
+      $unitPriceInSoles = $unitPrice * $exchangeRate;
+    }
 
     // Buscar el producto en el almacén de la sede
     $stockInSedeWarehouse = $warehouse

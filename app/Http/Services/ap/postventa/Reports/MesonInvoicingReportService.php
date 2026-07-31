@@ -31,6 +31,7 @@ class MesonInvoicingReportService
       ->whereIn('sunat_concept_document_type_id', [
         ElectronicDocument::TYPE_FACTURA,
         ElectronicDocument::TYPE_BOLETA,
+        ElectronicDocument::TYPE_NOTA_CREDITO,
       ]);
 
     // Aplicar filtros
@@ -80,7 +81,7 @@ class MesonInvoicingReportService
     // Determinar tipo de comprobante
     $tipoComprobante = $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_FACTURA
       ? 'FACTURA'
-      : 'BOLETA';
+      : ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO ? 'NOTA DE CRÉDITO' : 'BOLETA');
 
     // Determinar moneda original y tasa de cambio
     $currencyId = $document->sunat_concept_currency_id;
@@ -89,6 +90,10 @@ class MesonInvoicingReportService
 
     // Moneda original del comprobante
     $monedaOriginal = $isUSD ? 'USD' : 'PEN';
+
+    // Verificar si es Nota de Crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+    $multiplier = $isCreditNote ? -1 : 1;
 
     // Obtener el costo del producto desde ProductWarehouseStock
     $costPrice = 0;
@@ -100,20 +105,31 @@ class MesonInvoicingReportService
       $costPrice = $stock ? (float)$stock->cost_price : 0;
     }
 
-    // PVP (Precio de Venta al Público) = Precio Unitario - Convertir a soles
-    $pvp = (float)$detail->unit_price * $exchangeRate;
+    // PVP (Precio de Venta al Público) = Precio Unitario - Convertir a soles y aplicar multiplicador
+    $pvp = (float)$detail->unit_price * $exchangeRate * $multiplier;
 
-    // Calcular costo total
-    $costoTotal = $costPrice * (float)$detail->quantity;
+    // Calcular costo total y aplicar multiplicador
+    $costoTotal = $costPrice * (float)$detail->quantity * $multiplier;
 
-    // Neto del item - Convertir a soles
-    $neto = (float)$detail->net_amount * $exchangeRate;
+    // Neto del item - Convertir a soles y aplicar multiplicador
+    $neto = (float)$detail->net_amount * $exchangeRate * $multiplier;
 
-    // Beneficio = PVP - Costo
-    $beneficio = $pvp - $costPrice;
+    // Beneficio = PVP - Costo (ya con multiplicador aplicado)
+    $beneficio = $pvp - ($costPrice * $multiplier);
 
     // % Beneficio = (Beneficio / PVP) * 100 (evitar división por cero)
-    $porcentajeBeneficio = $pvp > 0 ? ($beneficio / $pvp) * 100 : 0;
+    // El porcentaje no se ve afectado por el multiplicador
+    $pvpAbsoluto = abs($pvp);
+    $beneficioAbsoluto = abs($beneficio);
+    $porcentajeBeneficio = $pvpAbsoluto > 0 ? ($beneficioAbsoluto / $pvpAbsoluto) * 100 : 0;
+
+    // Convertir estado SUNAT a SI/NO
+    $estadoSunat = '';
+    if ($document->aceptada_por_sunat === 1 || $document->aceptada_por_sunat === true || $document->aceptada_por_sunat === '1') {
+      $estadoSunat = 'SI';
+    } elseif ($document->aceptada_por_sunat === 0 || $document->aceptada_por_sunat === false || $document->aceptada_por_sunat === '0') {
+      $estadoSunat = 'NO';
+    }
 
     return [
       'sede' => $quotation->sede?->abreviatura ?? '',
@@ -122,13 +138,14 @@ class MesonInvoicingReportService
       'fecha_emision' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
+      'estado_sunat' => $estadoSunat,
       'codigo_articulo' => $detail->product?->code ?? '',
       'nombre_articulo' => $detail->product?->name ?? '',
-      'cantidad' => number_format($detail->quantity, 2, '.', ''),
+      'cantidad' => number_format((float)$detail->quantity * $multiplier, 2, '.', ''),
       'pvp' => number_format($pvp, 2, '.', ''),
       'descuento_porcentaje' => number_format($detail->discount_percentage, 2, '.', ''),
       'neto' => number_format($neto, 2, '.', ''),
-      'costo' => number_format($costPrice, 2, '.', ''),
+      'costo' => number_format($costPrice * $multiplier, 2, '.', ''),
       'costo_total' => number_format($costoTotal, 2, '.', ''),
       'beneficio' => number_format($beneficio, 2, '.', ''),
       'porcentaje_beneficio' => number_format($porcentajeBeneficio, 2, '.', ''),
