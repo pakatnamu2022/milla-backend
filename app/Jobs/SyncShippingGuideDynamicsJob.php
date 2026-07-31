@@ -39,8 +39,10 @@ use Illuminate\Support\Facades\Log;
  *   B) Guía COMERCIAL de TRANSFERENCIA (area_id = COMERCIAL, no VENTA; incluye GUIA_INTERNA):
  *      - Consulta SP: EXEC neIvConsultarTransferenciasInventario '{transactionId}'
  *      - Verifica si Estado = 'CONTABILIZADO'.
- *      - Solo actualiza is_accounted / is_annulled. No genera movimientos de inventario
- *        (eso es exclusivo del área postventa).
+ *      - COMPRA: genera movimiento INVENTORY (INVENTARIO_VN) si aún no existe — fallback de
+ *        VerifyAndMigrateShippingGuideJob en caso de fallo silencioso.
+ *      - GUIA_INTERNA / TRASLADO_SEDE: solo actualiza is_accounted / is_annulled y crea
+ *        movimiento de vehículo de transferencia (sin movimientos de existencias postventa).
  *
  *   C) Guía de TRANSFERENCIA (postventa):
  *      - Consulta SP: EXEC neIvConsultarTransferenciasInventario '{transactionId}'
@@ -387,8 +389,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
   /**
    * Flujo TRANSFERENCIA comercial (area COMERCIAL, motivo distinto a VENTA; incluye GUIA_INTERNA).
    * Consulta neIvConsultarTransferenciasInventario y verifica Estado = 'CONTABILIZADO'.
-   * Solo actualiza is_accounted o is_annulled; no genera movimientos de inventario
-   * porque eso es responsabilidad exclusiva del área postventa.
+   * Para COMPRA: genera movimiento INVENTORY (INVENTARIO_VN) si aún no existe, actuando como
+   * fallback de VerifyAndMigrateShippingGuideJob que puede fallar silenciosamente.
+   * Para GUIA_INTERNA / TRASLADO_SEDE: solo actualiza is_accounted / is_annulled y crea
+   * movimiento de vehículo de transferencia (sin movimientos de existencias de postventa).
    * @throws \Throwable
    */
   protected function processCommercialTransferGuide(ShippingGuides $shippingGuide): void
@@ -468,11 +472,26 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
    * Crea el movimiento de vehículo para una guía comercial de transferencia,
    * evitando duplicados: si la guía ya estaba contabilizada ($wasAlreadyAccounted=true)
    * se verifica que no exista ya un movimiento con la misma observación antes de crear uno.
+   *
+   * Para COMPRA siempre verifica duplicados porque VerifyAndMigrateShippingGuideJob puede
+   * haber generado ya el movimiento INVENTORY desde verifyTransfer(); este job actúa como
+   * fallback cuando ese paso falló silenciosamente.
    */
   private function createCommercialTransferVehicleMovement(ShippingGuides $shippingGuide, bool $wasAlreadyAccounted): void
   {
     $vehicle = $shippingGuide->vehicleMovement?->vehicle;
     if (!$vehicle) {
+      return;
+    }
+
+    if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+      $alreadyExists = $vehicle->vehicleMovements()
+        ->where('movement_type', VehicleMovement::INVENTORY)
+        ->where('observation', 'like', "%{$shippingGuide->document_number}%")
+        ->exists();
+      if (!$alreadyExists) {
+        (new VehicleMovementService())->storeInventoryVehicleMovement($vehicle->id, $shippingGuide);
+      }
       return;
     }
 
