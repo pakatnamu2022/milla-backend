@@ -34,6 +34,7 @@ use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
+use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -2364,12 +2365,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validar que el vehículo pertenece al mismo shop que el documento
-      $documentShopId = $document->sede?->shop_id;
-      $vehicleShopId = $vehicle->warehouse?->sede?->shop_id;
+      $documentShopId = Sede::find($document->sede_id)?->shop_id;
+      $vehicleShopId  = $vehicle->warehouse?->sede?->shop_id;
       if ($documentShopId && $vehicleShopId && $documentShopId !== $vehicleShopId) {
         throw new Exception(
-          "No se puede facturar el vehículo: pertenece a una ciudad diferente a la del documento. " .
-          "El vehículo está en la ciudad {$vehicleShopId} y el documento es de la ciudad {$documentShopId}."
+          "No se puede facturar el vehículo: pertenece a un shop diferente al del documento. " .
+          "El vehículo está en shop {$vehicleShopId} y el documento es de shop {$documentShopId}."
         );
       }
 
