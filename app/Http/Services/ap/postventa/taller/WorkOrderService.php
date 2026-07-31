@@ -624,8 +624,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
 
-      if ($workOrder->getActiveAdvances()->count() > 0) {
-        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} ya tiene una factura final en borrador.");
+      }
+
+      // Validar si existe una factura final generada
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} ya tiene la factura final {$finalInvoice->full_number} generada.");
       }
 
       // Obtener la cotización antes de desasociar
@@ -1609,6 +1616,29 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // Validación de estados
       $workOrder->ensureCanBeModified();
+
+      // Validar si existe un anticipo en borrador
+      if ($workOrder->hasDraftAdvance()) {
+        throw new Exception("No se puede finalizar la orden de trabajo. Existe un anticipo en borrador que debe ser enviado primero.");
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("No se puede finalizar la orden de trabajo. Existe una factura final en borrador que debe ser enviada primero.");
+      }
+
+      // Validar que el monto de anticipos no supere el monto total de la OT
+      $advancesAmount = $workOrder->getNetAmountFromAdvances();
+      if ($advancesAmount > 0) {
+        // Hay anticipos registrados, validar que no superen el monto total
+        if ($advancesAmount > $workOrder->final_amount) {
+          throw new Exception(sprintf(
+            "No se puede finalizar la orden de trabajo. El monto de anticipos (%.2f) supera el monto total de la orden de trabajo (%.2f).",
+            $advancesAmount,
+            $workOrder->final_amount
+          ));
+        }
+      }
 
       // Recalcular totales de la OT antes de finalizar para asegurar
       // que los montos lleguen correctamente a caja

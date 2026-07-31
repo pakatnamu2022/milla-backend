@@ -209,28 +209,32 @@ class WorkOrderAdvancePaymentService
   }
 
   /**
-   * Valida que el nuevo final_amount no sea menor al monto ya pagado en anticipos.
-   * Se usa antes de permitir ediciones que reduzcan el monto de la OT.
+   * Valida que no exista un comprobante final antes de permitir ediciones en la OT.
+   * Se usa antes de permitir ediciones que modifiquen el monto de la OT.
    *
-   * Esta validación garantiza integridad financiera: no se puede reducir el total de una OT
-   * por debajo de lo que ya se cobró en anticipos. Si esto fuera necesario, primero se deben
-   * anular los anticipos correspondientes.
+   * Esta validación garantiza integridad financiera: no se puede modificar el monto de una OT
+   * si ya existe un comprobante final (borrador o generado). Esto permite que el usuario pueda
+   * ajustar montos libremente mientras cuadra su OT. La validación final de que los anticipos
+   * no superen el total se realiza en sendToFinished().
    *
    * @param Model $model Instance of ApWorkOrder or ApOrderQuotations
-   * @param float $newFinalAmount El nuevo monto total proyectado
-   * @throws \Exception Si el nuevo monto es menor al ya pagado
+   * @param float $newFinalAmount El nuevo monto total proyectado (parámetro mantenido por compatibilidad)
+   * @throws \Exception Si existe un comprobante final (borrador o generado)
    */
   public function validateMinimumAmount(Model $model, float $newFinalAmount): void
   {
-    $paidAmount = $this->getNetAmountFromAdvances($model);
-
-    // Redondear a 2 decimales para evitar problemas de precisión con floats
-    // Si son iguales o mayor, se permite; solo se rechaza si es estrictamente menor
-    if ($paidAmount > 0 && round($newFinalAmount, 2) < round($paidAmount, 2)) {
+    // Validar si existe una factura final en borrador
+    if ($model->hasDraftFinalInvoice()) {
       throw new \Exception(
-        "El nuevo monto total (S/. " . number_format($newFinalAmount, 2) . ") " .
-        "no puede ser menor al monto ya pagado en anticipos (S/. " . number_format($paidAmount, 2) . "). " .
-        "Debe anular los anticipos correspondientes antes de reducir el monto de la orden de trabajo."
+        "No se puede modificar el monto de la orden de trabajo. Existe una factura final en borrador que debe ser enviada o eliminada primero."
+      );
+    }
+
+    // Validar si existe una factura final generada
+    $finalInvoice = $model->getFinalInvoice();
+    if ($finalInvoice) {
+      throw new \Exception(
+        "No se puede modificar el monto de la orden de trabajo. Ya existe la factura final {$finalInvoice->full_number} generada."
       );
     }
   }
