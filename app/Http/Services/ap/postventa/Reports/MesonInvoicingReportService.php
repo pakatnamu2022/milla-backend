@@ -123,6 +123,14 @@ class MesonInvoicingReportService
     $beneficioAbsoluto = abs($beneficio);
     $porcentajeBeneficio = $pvpAbsoluto > 0 ? ($beneficioAbsoluto / $pvpAbsoluto) * 100 : 0;
 
+    // Convertir estado SUNAT a SI/NO
+    $estadoSunat = '';
+    if ($document->aceptada_por_sunat === 1 || $document->aceptada_por_sunat === true || $document->aceptada_por_sunat === '1') {
+      $estadoSunat = 'SI';
+    } elseif ($document->aceptada_por_sunat === 0 || $document->aceptada_por_sunat === false || $document->aceptada_por_sunat === '0') {
+      $estadoSunat = 'NO';
+    }
+
     return [
       'sede' => $quotation->sede?->abreviatura ?? '',
       'numero_cotizacion' => $quotation->quotation_number ?? '',
@@ -130,6 +138,7 @@ class MesonInvoicingReportService
       'fecha_emision' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
+      'estado_sunat' => $estadoSunat,
       'codigo_articulo' => $detail->product?->code ?? '',
       'nombre_articulo' => $detail->product?->name ?? '',
       'cantidad' => number_format((float)$detail->quantity * $multiplier, 2, '.', ''),

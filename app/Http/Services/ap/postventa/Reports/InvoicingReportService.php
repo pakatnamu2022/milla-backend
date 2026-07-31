@@ -262,6 +262,14 @@ class InvoicingReportService
       $total = ($document->total ?? 0) * $exchangeRate * $multiplier;
     }
 
+    // Convertir estado SUNAT a SI/NO
+    $estadoSunat = '';
+    if ($document->aceptada_por_sunat === 1 || $document->aceptada_por_sunat === true || $document->aceptada_por_sunat === '1') {
+      $estadoSunat = 'SI';
+    } elseif ($document->aceptada_por_sunat === 0 || $document->aceptada_por_sunat === false || $document->aceptada_por_sunat === '0') {
+      $estadoSunat = 'NO';
+    }
+
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
@@ -276,6 +284,7 @@ class InvoicingReportService
       'operario' => $technicians,
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
+      'estado_sunat' => $estadoSunat,
       'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
       'cliente' => $document->cliente_denominacion ?? '',
@@ -320,6 +329,14 @@ class InvoicingReportService
     $igv = ($document->total_igv ?? 0) * $exchangeRate * $multiplier;
     $total = ($document->total ?? 0) * $exchangeRate * $multiplier;
 
+    // Convertir estado SUNAT a SI/NO
+    $estadoSunat = '';
+    if ($document->aceptada_por_sunat === 1 || $document->aceptada_por_sunat === true || $document->aceptada_por_sunat === '1') {
+      $estadoSunat = 'SI';
+    } elseif ($document->aceptada_por_sunat === 0 || $document->aceptada_por_sunat === false || $document->aceptada_por_sunat === '0') {
+      $estadoSunat = 'NO';
+    }
+
     // Si tiene orden de trabajo, obtener sus datos
     if ($workOrder) {
       $technicians = $this->getConsolidatedTechnicians($workOrder);
@@ -345,6 +362,7 @@ class InvoicingReportService
         'operario' => $technicians,
         'serie_comprobante' => $document->serie ?? '',
         'numero_comprobante' => $document->numero ?? '',
+        'estado_sunat' => $estadoSunat,
         'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
         'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
         'cliente' => $document->cliente_denominacion ?? '',
@@ -377,6 +395,7 @@ class InvoicingReportService
       'operario' => '',
       'serie_comprobante' => $document->serie ?? '',
       'numero_comprobante' => $document->numero ?? '',
+      'estado_sunat' => $estadoSunat,
       'fecha_comprobante' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
       'num_doc_cliente' => $document->cliente_numero_de_documento ?? '',
       'cliente' => $document->cliente_denominacion ?? '',
@@ -699,6 +718,7 @@ class InvoicingReportService
       'operario' => $technicians,
       'serie_comprobante' => $serie,
       'numero_comprobante' => $numero,
+      'estado_sunat' => '',
       'fecha_comprobante' => $internalNote->created_date ? $internalNote->created_date->format('d/m/Y') : '',
       'num_doc_cliente' => '',
       'cliente' => '',

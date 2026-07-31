@@ -90,6 +90,7 @@ class InvoicingReportMainSheet implements
       'OPERARIO',
       'SERIE',
       'NÚMERO',
+      'ESTADO SUNAT',
       'FECHA COMPROBANTE',
       'NUM DOC',
       'CLIENTE',
@@ -121,6 +122,7 @@ class InvoicingReportMainSheet implements
       $row['operario'],
       $row['serie_comprobante'],
       $row['numero_comprobante'],
+      $row['estado_sunat'],
       $row['fecha_comprobante'],
       $row['num_doc_cliente'],
       $row['cliente'],
@@ -162,8 +164,53 @@ class InvoicingReportMainSheet implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-Y, 25 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:Y1');
+        // Habilitar filtros en la fila de encabezado (columnas A-Z, 26 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:Z1');
+
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna N)
+        $sheet = $event->sheet->getDelegate();
+        $highestRow = $sheet->getHighestRow();
+
+        // Estilos para SI (verde con letra blanca)
+        $styleGreen = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '00B050'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Estilos para NO (rojo con letra blanca)
+        $styleRed = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FF0000'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Aplicar estilos desde la fila 2 hasta la última fila
+        for ($row = 2; $row <= $highestRow; $row++) {
+          $cellValue = $sheet->getCell('N' . $row)->getValue();
+
+          if ($cellValue === 'SI') {
+            $sheet->getStyle('N' . $row)->applyFromArray($styleGreen);
+          } elseif ($cellValue === 'NO') {
+            $sheet->getStyle('N' . $row)->applyFromArray($styleRed);
+          }
+        }
       },
     ];
   }
