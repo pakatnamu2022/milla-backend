@@ -194,7 +194,7 @@ class UpdateActualDeliveryDateCommand extends Command
       })
       ->whereHas('items', function ($q) {
         $q->whereHas('typePlanning', function ($subQ) {
-          $subQ->where('type_document', 'INTERNA')
+          $subQ->whereIn('type_document', [TypePlanningWorkOrder::INTERNA_CC, TypePlanningWorkOrder::INTERNA_SC])
             ->whereNotIn('id', [
               TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
               TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
