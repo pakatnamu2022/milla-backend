@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\IndexShippingGuidesRequest;
+use App\Http\Requests\ap\comercial\StoreHistoricalShippingGuideRequest;
 use App\Http\Requests\ap\comercial\StoreInternalShippingGuideRequest;
 use App\Http\Requests\ap\comercial\StoreShippingGuidesRequest;
 use App\Http\Requests\ap\comercial\UpdateShippingGuidesRequest;
@@ -26,6 +27,15 @@ class ShippingGuidesController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeHistorical(StoreHistoricalShippingGuideRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeHistorical($request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
