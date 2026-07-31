@@ -94,6 +94,7 @@ class ApWorkOrder extends Model
     'estimated_delivery_date' => 'datetime',
     'estimated_delivery_time' => 'datetime:H:i',
     'actual_delivery_date' => 'datetime',
+    'official_closing_date' => 'datetime',
     'is_delivery' => 'boolean',
     'diagnosis_date' => 'datetime',
     'is_invoiced' => 'boolean',

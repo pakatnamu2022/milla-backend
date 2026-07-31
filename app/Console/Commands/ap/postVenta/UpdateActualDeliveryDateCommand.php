@@ -23,7 +23,7 @@ class UpdateActualDeliveryDateCommand extends Command
    *
    * @var string
    */
-  protected $description = 'Actualiza el actual_delivery_date de las órdenes de trabajo según su comprobante final o nota interna';
+  protected $description = 'Actualiza el actual_delivery_date y official_closing_date de las órdenes de trabajo según su comprobante final o nota interna';
 
   /**
    * Execute the console command.
@@ -232,8 +232,8 @@ class UpdateActualDeliveryDateCommand extends Command
    */
   private function analyzeWorkOrder($workOrder, $correctDate, $source)
   {
-    $currentDate = $workOrder->actual_delivery_date;
-    $currentDateFormatted = $currentDate ? $currentDate->format('Y-m-d H:i:s') : null;
+    $currentDeliveryDate = $workOrder->actual_delivery_date;
+    $currentClosingDate = $workOrder->official_closing_date;
 
     // Combinar fecha del documento/nota con hora del created_at
     $newDate = null;
@@ -241,22 +241,42 @@ class UpdateActualDeliveryDateCommand extends Command
       $newDate = $correctDate->format('Y-m-d') . ' ' . $workOrder->created_at->format('H:i:s');
     }
 
+    $deliveryStatus = $this->compareDate($currentDeliveryDate, $correctDate);
+    $closingStatus = $this->compareDate($currentClosingDate, $correctDate);
+
+    // Si cualquiera de los dos campos no coincide, la OT se marca para actualizar
     $status = 'match';
-    if ($currentDate === null) {
+    if ($deliveryStatus === 'empty' || $closingStatus === 'empty') {
       $status = 'empty';
-    } elseif ($currentDate->format('Y-m-d') !== $correctDate->format('Y-m-d')) {
-      // Solo comparar fechas, ignorar horas
+    } elseif ($deliveryStatus === 'different' || $closingStatus === 'different') {
       $status = 'different';
     }
 
     return [
       'workOrder' => $workOrder,
       'correlative' => $workOrder->correlative,
-      'current_date' => $currentDateFormatted,
+      'current_date' => $currentDeliveryDate ? $currentDeliveryDate->format('Y-m-d H:i:s') : null,
+      'current_closing_date' => $currentClosingDate ? $currentClosingDate->format('Y-m-d H:i:s') : null,
       'correct_date' => $newDate,
       'status' => $status,
       'source' => $source,
     ];
+  }
+
+  /**
+   * Compara la fecha actual de un campo contra la fecha correcta (solo día)
+   */
+  private function compareDate(?\Illuminate\Support\Carbon $currentDate, ?\Illuminate\Support\Carbon $correctDate): string
+  {
+    if ($currentDate === null) {
+      return 'empty';
+    }
+
+    if ($correctDate && $currentDate->format('Y-m-d') !== $correctDate->format('Y-m-d')) {
+      return 'different';
+    }
+
+    return 'match';
   }
 
   /**
@@ -280,7 +300,8 @@ class UpdateActualDeliveryDateCommand extends Command
       $this->line('   Primeras 5:');
       foreach ($different->take(5) as $item) {
         $this->line("   • OT: <fg=cyan>{$item['correlative']}</> | {$item['source']}");
-        $this->line("     Actual: <fg=red>{$item['current_date']}</> → Nuevo: <fg=green>{$item['correct_date']}</>");
+        $this->line("     Entrega actual: <fg=red>{$item['current_date']}</> → Nuevo: <fg=green>{$item['correct_date']}</>");
+        $this->line("     Cierre actual: <fg=red>{$item['current_closing_date']}</> → Nuevo: <fg=green>{$item['correct_date']}</>");
       }
       if ($different->count() > 5) {
         $this->line("   ... y " . ($different->count() - 5) . " más");
@@ -294,7 +315,8 @@ class UpdateActualDeliveryDateCommand extends Command
       $this->line('   Primeras 5:');
       foreach ($empty->take(5) as $item) {
         $this->line("   • OT: <fg=cyan>{$item['correlative']}</> | {$item['source']}");
-        $this->line("     NULL → <fg=green>{$item['correct_date']}</>");
+        $this->line("     Entrega: {$item['current_date']} → <fg=green>{$item['correct_date']}</>");
+        $this->line("     Cierre: {$item['current_closing_date']} → <fg=green>{$item['correct_date']}</>");
       }
       if ($empty->count() > 5) {
         $this->line("   ... y " . ($empty->count() - 5) . " más");
@@ -320,7 +342,8 @@ class UpdateActualDeliveryDateCommand extends Command
     foreach ($updates as $item) {
       try {
         $item['workOrder']->update([
-          'actual_delivery_date' => $item['correct_date']
+          'actual_delivery_date' => $item['correct_date'],
+          'official_closing_date' => $item['correct_date'],
         ]);
         $updated++;
       } catch (\Exception $e) {
