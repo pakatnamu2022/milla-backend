@@ -240,6 +240,15 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function revertInternalNote($id)
+  {
+    try {
+      return $this->service->revertInternalNote($id);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function generatePDIForVehicle($id)
   {
     try {
