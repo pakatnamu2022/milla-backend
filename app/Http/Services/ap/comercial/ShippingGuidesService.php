@@ -1387,11 +1387,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       if ($vehicleDelivery) {
         $vehicleDelivery->update([
-          'shipping_guide_id'   => $shippingGuide->id,
-          'vehicle_movement_id' => $vehicleMovement->id,
-          'real_delivery_date'  => $issueDate,
-          'status_delivery'     => 'pending',
-          'status_wash'         => 'completed',
+          'shipping_guide_id'       => $shippingGuide->id,
+          'vehicle_movement_id'     => $vehicleMovement->id,
+          'scheduled_delivery_date' => $issueDate,
+          'real_delivery_date'      => $issueDate,
+          'wash_date'               => $issueDate,
+          'real_wash_date'          => $issueDate,
+          'status_delivery'         => 'pending',
+          'status_wash'             => 'completed',
         ]);
       } else {
         $vehicleDelivery = ApVehicleDelivery::create([
@@ -1404,6 +1407,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           'vehicle_movement_id'     => $vehicleMovement->id,
           'scheduled_delivery_date' => $issueDate,
           'real_delivery_date'      => $issueDate,
+          'wash_date'               => $issueDate,
+          'real_wash_date'          => $issueDate,
           'status_delivery'         => 'completed',
           'status_wash'             => 'completed',
         ]);

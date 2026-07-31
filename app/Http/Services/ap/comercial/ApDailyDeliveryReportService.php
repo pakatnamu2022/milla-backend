@@ -111,13 +111,14 @@ class ApDailyDeliveryReportService
       ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
       ->leftJoin('config_sede', DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id)'), '=', 'config_sede.id')
       ->where(function ($query) use ($fechaInicio, $fechaFin) {
+        $fechaFinFull = $fechaFin . ' 23:59:59';
         // Tiene entrega en el rango de fechas
-        $query->where(function ($q) use ($fechaInicio, $fechaFin) {
-          $q->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFin])
+        $query->where(function ($q) use ($fechaInicio, $fechaFinFull) {
+          $q->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFinFull])
             ->whereNotNull('ap_vehicle_delivery.real_delivery_date');
         })
           // O tiene factura válida en el rango de fechas (independiente de la entrega)
-          ->orWhereExists(function ($q) use ($fechaInicio, $fechaFin) {
+          ->orWhereExists(function ($q) use ($fechaInicio, $fechaFinFull) {
             $q->select(DB::raw(1))
               ->from('ap_billing_electronic_documents')
               ->whereColumn('ap_billing_electronic_documents.purchase_request_quote_id', 'purchase_request_quote.id')
@@ -129,7 +130,7 @@ class ApDailyDeliveryReportService
                 SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
               ])
               ->where('ap_billing_electronic_documents.area_id', ApMasters::AREA_COMERCIAL)
-              ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$fechaInicio, $fechaFin])
+              ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$fechaInicio, $fechaFinFull])
               ->whereNull('ap_billing_electronic_documents.deleted_at');
           });
       })
@@ -168,7 +169,7 @@ class ApDailyDeliveryReportService
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
       ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
-      ->whereBetween('ap_purchase_order.emission_date', [$fechaInicio, $fechaFin])
+      ->whereBetween('ap_purchase_order.emission_date', [$fechaInicio, $fechaFin . ' 23:59:59'])
       ->where('ap_purchase_order.status', true)
       ->whereNull('ap_purchase_order.deleted_at')
       ->select([
@@ -198,7 +199,7 @@ class ApDailyDeliveryReportService
       ])
       ->where('area_id', ApMasters::AREA_COMERCIAL)
       ->whereNotNull('purchase_request_quote_id')
-      ->whereBetween('fecha_de_emision', [$fechaInicio, $fechaFin])
+      ->whereBetween('fecha_de_emision', [$fechaInicio, $fechaFin . ' 23:59:59'])
       ->whereNull('deleted_at')
       ->distinct()
       ->pluck('purchase_request_quote_id');
