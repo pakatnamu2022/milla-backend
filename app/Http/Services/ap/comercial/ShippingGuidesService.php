@@ -1300,6 +1300,132 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function storeHistorical(array $data): ShippingGuidesResource
+  {
+    return DB::transaction(function () use ($data) {
+      // 1. Vehículo
+      $vehicle = Vehicles::with(['model', 'warehouse'])->where('vin', $data['vin'])->firstOrFail();
+
+      // 2. Establecimiento AP en la sede de origen
+      $sedeTransmitterId = (int) $data['sede_transmitter_id'];
+      $establishment = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
+        ->where('sede_id', $sedeTransmitterId)
+        ->firstOrFail();
+
+      // 3. Número de documento y verificación de duplicado
+      $series      = strtoupper(trim($data['series']));
+      $correlativo = strtoupper(trim($data['correlativo']));
+      $documentNumber = $series . '-' . $correlativo;
+
+      if (ShippingGuides::where('document_number', $documentNumber)->exists()) {
+        throw new Exception("La guía {$documentNumber} ya está registrada en el sistema.");
+      }
+
+      // 4. Cliente explícito (no hay factura ni quote en el sistema)
+      $clientId = (int) $data['client_id'];
+
+      // 5. Clase de artículo (desde el almacén del vehículo)
+      $classArticleId = $vehicle->warehouse?->article_class_id;
+
+      // 6. Movimiento de vehículo (entrega completada histórica)
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::SOLD_DELIVERED,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO,
+        'movement_date'        => $data['issue_date'],
+        'confirmed_at'         => $data['issue_date'],
+        'observation'          => 'Regularizacion historica - Guia ' . $documentNumber . ($data['notes'] ? ' | ' . strtoupper($data['notes']) : ''),
+        'origin_address'       => $establishment->address ?? '-',
+        'destination_address'  => $establishment->address ?? '-',
+        'origin_warehouse_id'  => $vehicle->warehouse_id,
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => ApVehicleStatus::VENDIDO_ENTREGADO,
+        'created_by'           => Auth::id(),
+      ]);
+
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::VENDIDO_ENTREGADO]);
+
+      // 7. Guía de remisión histórica (ya aceptada por SUNAT)
+      $issueDate = $data['issue_date'];
+      $shippingGuide = ShippingGuides::create([
+        'document_type'       => ShippingGuides::DOCUMENT_TYPE_GR,
+        'type_voucher_id'     => SunatConcepts::TYPE_VOUCHER_REMISION_REMITENTE,
+        'issuer_type'         => ShippingGuides::ISSUER_TYPE_SYSTEM,
+        'series'              => $series,
+        'correlative'         => $correlativo,
+        'document_number'     => $documentNumber,
+        'issue_date'          => $issueDate,
+        'requires_sunat'      => false,
+        'is_sunat_registered' => true,
+        'aceptada_por_sunat'  => true,
+        'sent_at'             => $issueDate,
+        'accepted_at'         => $issueDate,
+        'transfer_reason_id'  => SunatConcepts::TRANSFER_REASON_VENTA,
+        'vehicle_movement_id' => $vehicleMovement->id,
+        'sede_transmitter_id' => $sedeTransmitterId,
+        'sede_receiver_id'    => $sedeTransmitterId,
+        'transmitter_id'      => $establishment->id,
+        'receiver_id'         => $establishment->id,
+        'origin_ubigeo'       => $establishment->ubigeo ?? '-',
+        'origin_address'      => $establishment->address ?? '-',
+        'destination_ubigeo'  => $establishment->ubigeo ?? '-',
+        'destination_address' => $establishment->address ?? '-',
+        'status'              => true,
+        'is_received'         => true,
+        'send_dynamics'       => true,
+        'migration_status'    => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'area_id'             => ApMasters::AREA_COMERCIAL,
+        'ap_class_article_id' => $classArticleId,
+        'notes'               => strtoupper($data['notes'] ?? 'REGULARIZACION HISTORICA - ENTREGA DE VEHICULO'),
+        'total_packages'      => 1,
+        'total_weight'        => (float) preg_replace('/[^0-9.]/', '', $vehicle->model->gross_weight ?? '') ?: 1,
+        'created_by'          => Auth::id(),
+      ]);
+
+      // 8. ApVehicleDelivery: actualizar existente o crear nuevo
+      $vehicleDelivery = ApVehicleDelivery::where('vehicle_id', $vehicle->id)->first();
+
+      if ($vehicleDelivery) {
+        $vehicleDelivery->update([
+          'shipping_guide_id'   => $shippingGuide->id,
+          'vehicle_movement_id' => $vehicleMovement->id,
+          'real_delivery_date'  => $issueDate,
+          'status_delivery'     => 'pending',
+          'status_wash'         => 'completed',
+        ]);
+      } else {
+        $vehicleDelivery = ApVehicleDelivery::create([
+          'vehicle_id'              => $vehicle->id,
+          'advisor_id'              => $data['advisor_id'],
+          'client_id'               => $clientId,
+          'sede_id'                 => $sedeTransmitterId,
+          'ap_class_article_id'     => $classArticleId,
+          'shipping_guide_id'       => $shippingGuide->id,
+          'vehicle_movement_id'     => $vehicleMovement->id,
+          'scheduled_delivery_date' => $issueDate,
+          'real_delivery_date'      => $issueDate,
+          'status_delivery'         => 'completed',
+          'status_wash'             => 'completed',
+        ]);
+      }
+
+      // 9. Checklist de entrega: crear o confirmar
+      $checklist = \App\Models\ap\comercial\ApDeliveryChecklist::firstOrNew(
+        ['vehicle_delivery_id' => $vehicleDelivery->id]
+      );
+
+      $checklist->fill([
+        'status'       => \App\Models\ap\comercial\ApDeliveryChecklist::STATUS_CONFIRMED,
+        'confirmed_at' => $issueDate,
+        'confirmed_by' => Auth::id(),
+        'created_by'   => $checklist->created_by ?? Auth::id(),
+      ]);
+      $checklist->save();
+
+      return new ShippingGuidesResource($shippingGuide->load(['vehicleMovement.vehicle', 'sedeTransmitter']));
+    });
+  }
+
   public function resetMigration(int $id): array
   {
     $guide = $this->find($id);
