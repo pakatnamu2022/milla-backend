@@ -213,6 +213,52 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function storeCompraReversalVehicleMovement(Vehicles $vehicle, ShippingGuides $shippingGuide): VehicleMovement
+  {
+    DB::beginTransaction();
+    try {
+      $existenciasWarehouse = Warehouse::where('is_received', false)
+        ->where('article_class_id', $vehicle->warehouse->article_class_id)
+        ->where('sede_id', $vehicle->warehouse->sede_id)
+        ->where('type_operation_id', $vehicle->warehouse->type_operation_id)
+        ->where('status', true)
+        ->first();
+
+      if (!$existenciasWarehouse) {
+        throw new Exception('No se encontró almacén de existencias para la reversión de guía COMPRA');
+      }
+
+      $guideRef = $shippingGuide->document_number;
+      if (!empty($shippingGuide->dyn_series)) {
+        $guideRef .= " (Dynamics: {$shippingGuide->dyn_series})";
+      }
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::INVENTORY,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'observation'          => "Anulación contabilizada en Dynamics | Guía COMPRA: {$guideRef}",
+        'warehouse_id'         => $existenciasWarehouse->id,
+        'origin_warehouse_id'  => $vehicle->warehouse_id,
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ]);
+
+      $vehicle->update([
+        'warehouse_id'         => $existenciasWarehouse->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::VEHICULO_EN_TRAVESIA,
+      ]);
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
   /**
    * Create a vehicle movement when an internal transfer (GUIA_INTERNA) is accounted in Dynamics.
    * Unlike storeInventoryVehicleMovement, keeps the vehicle status unchanged and moves it
