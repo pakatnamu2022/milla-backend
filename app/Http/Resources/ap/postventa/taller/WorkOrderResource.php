@@ -120,6 +120,14 @@ class WorkOrderResource extends JsonResource
         fn() => $this->getPaymentSummary()
       ),
       'internal_note' => new InternalNoteResource($this->whenLoaded('internalNote')),
+      'has_draft_final_invoice' => $this->when(
+        $this->relationLoaded('advancesWorkOrder'),
+        fn() => $this->hasDraftFinalInvoice()
+      ),
+      'has_draft_advance' => $this->when(
+        $this->relationLoaded('advancesWorkOrder'),
+        fn() => $this->hasDraftAdvance()
+      ),
     ];
   }
 }

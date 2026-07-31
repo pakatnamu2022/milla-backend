@@ -8,6 +8,7 @@ use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -532,6 +533,48 @@ class StoreElectronicDocumentRequest extends StoreRequest
                   $totalFactura,
                   $sumaAnticipos,
                   $precioVenta
+                )
+              );
+            }
+          }
+        }
+      }
+
+      // Validar documentos en borrador para órdenes de trabajo
+      if ($this->has('work_order_id') && $this->input('work_order_id')) {
+        $workOrder = ApWorkOrder::with('advancesWorkOrder')
+          ->find($this->input('work_order_id'));
+
+        if ($workOrder) {
+          $hasDraftAdvance = $workOrder->hasDraftAdvance();
+          $hasDraftFinalInvoice = $workOrder->hasDraftFinalInvoice();
+
+          // Validar que NO exista NINGÚN documento en borrador (anticipo o factura final)
+          // Solo se permite un documento en borrador a la vez
+          if ($hasDraftAdvance) {
+            $validator->errors()->add(
+              'work_order_id',
+              'Ya existe un anticipo en borrador para esta orden de trabajo. Debe completarlo o eliminarlo antes de generar cualquier otro documento.'
+            );
+          }
+
+          if ($hasDraftFinalInvoice) {
+            $validator->errors()->add(
+              'work_order_id',
+              'Ya existe una factura final en borrador para esta orden de trabajo. Debe completarla o eliminarla antes de generar cualquier otro documento.'
+            );
+          }
+
+          // Validar que el monto del documento no exceda el total de la OT
+          if ($this->has('total')) {
+            $newAmount = (float)$this->input('total', 0);
+            if ($newAmount > $workOrder->final_amount) {
+              $validator->errors()->add(
+                'total',
+                sprintf(
+                  'El monto del documento (S/ %.2f) no puede exceder el total de la orden de trabajo (S/ %.2f)',
+                  $newAmount,
+                  $workOrder->final_amount
                 )
               );
             }

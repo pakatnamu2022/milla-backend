@@ -828,6 +828,92 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Check if there's a draft final invoice for this work order.
+   *
+   * A draft final invoice is:
+   *   - NOT an advance payment (is_advance_payment = false)
+   *   - Status is DRAFT
+   *   - Type FACTURA or BOLETA
+   *   - NOT annulled (anulado != 1)
+   *
+   * @return bool
+   */
+  public function hasDraftFinalInvoice(): bool
+  {
+    return $this->advancesWorkOrder
+      ->filter(function ($document) {
+        // Must be final invoice (not advance)
+        if ($document->is_advance_payment) {
+          return false;
+        }
+
+        // Must be FACTURA or BOLETA
+        if (!in_array($document->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+          return false;
+        }
+
+        // Must be in DRAFT status
+        if ($document->status !== ElectronicDocument::STATUS_DRAFT) {
+          return false;
+        }
+
+        // Must not be annulled
+        if ($document->anulado == 1) {
+          return false;
+        }
+
+        return true;
+      })
+      ->isNotEmpty();
+  }
+
+  /**
+   * Check if there's a draft advance payment for this work order.
+   *
+   * A draft advance is:
+   *   - IS an advance payment (is_advance_payment = true)
+   *   - Status is DRAFT
+   *   - Type FACTURA or BOLETA
+   *   - NOT annulled (anulado != 1)
+   *
+   * @return bool
+   */
+  public function hasDraftAdvance(): bool
+  {
+    return $this->advancesWorkOrder
+      ->filter(function ($document) {
+        // Must be advance payment
+        if (!$document->is_advance_payment) {
+          return false;
+        }
+
+        // Must be FACTURA or BOLETA
+        if (!in_array($document->sunat_concept_document_type_id, [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA
+        ])) {
+          return false;
+        }
+
+        // Must be in DRAFT status
+        if ($document->status !== ElectronicDocument::STATUS_DRAFT) {
+          return false;
+        }
+
+        // Must not be annulled
+        if ($document->anulado == 1) {
+          return false;
+        }
+
+        return true;
+      })
+      ->isNotEmpty();
+  }
+
+  /**
    * Get all valid documents for this work order (advances + final invoice).
    *
    * Returns a collection containing:
