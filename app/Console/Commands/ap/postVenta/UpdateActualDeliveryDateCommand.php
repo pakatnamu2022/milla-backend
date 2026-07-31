@@ -108,6 +108,7 @@ class UpdateActualDeliveryDateCommand extends Command
 
   /**
    * Obtiene órdenes con factura final directa (simple)
+   * Agrupa por work_order_id y toma la factura más reciente
    */
   private function getWorkOrdersWithSimpleInvoice()
   {
@@ -120,23 +121,26 @@ class UpdateActualDeliveryDateCommand extends Command
         ElectronicDocument::TYPE_FACTURA,
         ElectronicDocument::TYPE_BOLETA
       ])
+      ->orderBy('fecha_de_emision', 'desc') // Más recientes primero
       ->get();
 
-    $results = [];
+    // Agrupar por work_order_id y tomar solo la factura más reciente de cada OT
+    $groupedByWorkOrder = [];
     foreach ($documents as $document) {
-      if ($document->workOrder) {
-        $results[] = [
+      if ($document->workOrder && !isset($groupedByWorkOrder[$document->work_order_id])) {
+        $groupedByWorkOrder[$document->work_order_id] = [
           'workOrder' => $document->workOrder,
           'date' => $document->fecha_de_emision,
         ];
       }
     }
 
-    return $results;
+    return array_values($groupedByWorkOrder);
   }
 
   /**
    * Obtiene órdenes con factura consolidada/masiva
+   * Agrupa por work_order_id y toma la factura más reciente
    */
   private function getWorkOrdersWithMassiveInvoice()
   {
@@ -151,23 +155,29 @@ class UpdateActualDeliveryDateCommand extends Command
         ElectronicDocument::TYPE_FACTURA,
         ElectronicDocument::TYPE_BOLETA
       ])
+      ->orderBy('fecha_de_emision', 'desc') // Más recientes primero
       ->get();
 
-    $results = [];
+    // Agrupar por work_order_id y tomar solo la factura más reciente de cada OT
+    $groupedByWorkOrder = [];
     foreach ($documents as $document) {
       if ($document->internalNotes && $document->internalNotes->count() > 0) {
         foreach ($document->internalNotes as $internalNote) {
           if ($internalNote->workOrder) {
-            $results[] = [
-              'workOrder' => $internalNote->workOrder,
-              'date' => $document->fecha_de_emision,
-            ];
+            $workOrderId = $internalNote->workOrder->id;
+            // Solo agregar si no existe o si esta factura es más reciente
+            if (!isset($groupedByWorkOrder[$workOrderId])) {
+              $groupedByWorkOrder[$workOrderId] = [
+                'workOrder' => $internalNote->workOrder,
+                'date' => $document->fecha_de_emision,
+              ];
+            }
           }
         }
       }
     }
 
-    return $results;
+    return array_values($groupedByWorkOrder);
   }
 
   /**
