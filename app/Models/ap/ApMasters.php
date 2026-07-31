@@ -24,9 +24,9 @@ class ApMasters extends BaseModel
   ];
 
   const filters = [
-    'search'                  => ['code', 'description', 'type'],
-    'type'                    => 'in_or_equal',
-    'status'                  => '=',
+    'search' => ['code', 'description', 'type'],
+    'type' => 'in_or_equal',
+    'status' => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
 
@@ -91,6 +91,15 @@ class ApMasters extends BaseModel
   const int FINISHED_WORK_ORDER_ID = 892;
   const int CLOSED_WORK_ORDER_ID = 893;
   const int CANCELED_WORK_ORDER_ID = 894;
+
+  // ESTADOS DE COTIZACIÓN (STATUS_ORDER_QUOTE)
+  const int STATUS_ORDER_QUOTE_APERTURADO = 1282;
+  const int STATUS_ORDER_QUOTE_APROBADO = 1283;
+  const int STATUS_ORDER_QUOTE_FACTURAR = 1284;
+  const int STATUS_ORDER_QUOTE_EN_EDICION = 1285;
+  const int STATUS_ORDER_QUOTE_FACTURADO = 1286;
+  const int STATUS_ORDER_QUOTE_SEGMENTADO = 1304;
+  const int STATUS_ORDER_QUOTE_DESCARTADO = 1305;
 
   // IDS de TIPO DE OPERACION CITA
   const int OP_TYPE_APPT_PDI_ID = 965;

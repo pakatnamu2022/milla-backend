@@ -1737,7 +1737,8 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $advancesAmount = $workOrder->getNetAmountFromAdvances();
       if ($advancesAmount > 0) {
         // Hay anticipos registrados, validar que no superen el monto total
-        if ($advancesAmount > $workOrder->final_amount) {
+        // Redondear a 2 decimales para evitar problemas de precisión con flotantes
+        if (round($advancesAmount, 2) > round($workOrder->final_amount, 2)) {
           throw new Exception(sprintf(
             "No se puede finalizar la orden de trabajo. El monto de anticipos (%.2f) supera el monto total de la orden de trabajo (%.2f).",
             $advancesAmount,

@@ -1302,4 +1302,88 @@ class ApOrderQuotations extends Model
       'message' => null
     ];
   }
+
+  /**
+   * Valida que la cotización NO esté en los estados prohibidos
+   *
+   * @param array $forbiddenStatuses Estados a validar
+   * @param string|null $action Acción que se está intentando (opcional, para personalizar mensaje)
+   * @throws \Exception
+   */
+  public function ensureNotInStates(array $forbiddenStatuses, ?string $action = null): void
+  {
+    if (in_array($this->status_id, $forbiddenStatuses, true)) {
+      $statusNames = [
+        ApMasters::STATUS_ORDER_QUOTE_APERTURADO => 'aperturada',
+        ApMasters::STATUS_ORDER_QUOTE_APROBADO => 'aprobada',
+        ApMasters::STATUS_ORDER_QUOTE_FACTURAR => 'por facturar',
+        ApMasters::STATUS_ORDER_QUOTE_EN_EDICION => 'en edición',
+        ApMasters::STATUS_ORDER_QUOTE_FACTURADO => 'facturada',
+        ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO => 'segmentada',
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO => 'descartada',
+      ];
+
+      $statusName = $statusNames[$this->status_id] ?? 'este estado';
+      $message = $action
+        ? "No se puede {$action} en una cotización {$statusName}"
+        : "Esta acción no está permitida en una cotización {$statusName}";
+
+      throw new \Exception($message);
+    }
+  }
+
+  /**
+   * Valida que la cotización esté en uno de los estados permitidos
+   *
+   * @param array $allowedStatuses Estados permitidos
+   * @param string|null $action Acción que se está intentando (opcional, para personalizar mensaje)
+   * @throws \Exception
+   */
+  public function ensureInStates(array $allowedStatuses, ?string $action = null): void
+  {
+    if (!in_array($this->status_id, $allowedStatuses, true)) {
+      $statusNames = [
+        ApMasters::STATUS_ORDER_QUOTE_APERTURADO => 'aperturada',
+        ApMasters::STATUS_ORDER_QUOTE_APROBADO => 'aprobada',
+        ApMasters::STATUS_ORDER_QUOTE_FACTURAR => 'por facturar',
+        ApMasters::STATUS_ORDER_QUOTE_EN_EDICION => 'en edición',
+        ApMasters::STATUS_ORDER_QUOTE_FACTURADO => 'facturada',
+        ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO => 'segmentada',
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO => 'descartada',
+      ];
+
+      $currentStatusName = $statusNames[$this->status_id] ?? 'este estado';
+      $message = $action
+        ? "No se puede {$action} en una cotización {$currentStatusName}"
+        : "Esta acción no está permitida en una cotización {$currentStatusName}";
+
+      throw new \Exception($message);
+    }
+  }
+
+  /**
+   * Valida que la cotización pueda ser modificada
+   * (no esté descartada o facturada)
+   *
+   * @throws \Exception
+   */
+  public function ensureCanBeModified(): void
+  {
+    $this->ensureNotInStates([
+      ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+      ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
+    ]);
+  }
+
+  /**
+   * Actualiza el status de la cotización
+   *
+   * @param int $statusId ID del nuevo estado (de ApMasters)
+   * @return void
+   */
+  public function updateStatus(int $statusId): void
+  {
+    $this->status_id = $statusId;
+    $this->save();
+  }
 }
