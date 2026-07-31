@@ -1092,6 +1092,112 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
   }
 
+  public function revertInternalNote($id)
+  {
+    DB::beginTransaction();
+
+    try {
+      $workOrder = $this->find($id);
+
+      // Validación 1: La OT debe estar cerrada
+      if ($workOrder->status_id !== ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('Solo se puede revertir una nota interna de una orden de trabajo cerrada');
+      }
+
+      // Validación 2: Debe existir nota interna
+      $internalNote = $workOrder->internalNote;
+      if (!$internalNote) {
+        throw new Exception('La orden de trabajo no tiene una nota interna asociada');
+      }
+
+      // Validación 3: Nota interna no debe estar facturada
+      if ($internalNote->status === ApInternalNote::STATUS_INVOICED) {
+        throw new Exception('No se puede revertir una nota interna que ya ha sido facturada');
+      }
+
+      // Validación 4: No debe tener documentos electrónicos asociados
+      if ($internalNote->electronicDocuments()->exists()) {
+        throw new Exception('No se puede revertir una nota interna que tiene documentos electrónicos asociados');
+      }
+
+      // 1. Revertir inventario si fue procesado
+      if ($workOrder->output_generation_warehouse) {
+        $this->reverseInventoryAdjustmentForInternalNote($workOrder, $internalNote);
+      }
+
+      // 2. Determinar estado al que debe regresar
+      $validateReception = $workOrder->shouldValidateReceipt();
+      $validateLabor = $workOrder->shouldValidateLabor();
+
+      if ($validateLabor || $validateReception) {
+        // Si tiene validaciones de trabajo o recepción, regresa a FINISHED
+        $newStatusId = ApMasters::FINISHED_WORK_ORDER_ID;
+      } else {
+        // OT simple sin validaciones, regresa a OPENING
+        $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
+      }
+
+      // 3. Actualizar OT
+      $workOrder->update([
+        'status_id' => $newStatusId,
+        'output_generation_warehouse' => false,
+      ]);
+
+      // 4. Eliminar nota interna (soft delete)
+      $internalNote->delete();
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Nota interna revertida correctamente',
+        'new_status_id' => $newStatusId,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  private function reverseInventoryAdjustmentForInternalNote(ApWorkOrder $workOrder, ApInternalNote $internalNote): void
+  {
+    // Obtener repuestos con product_id
+    $productParts = $workOrder->parts->filter(fn($part) => $part->product_id !== null);
+
+    if ($productParts->isEmpty()) {
+      return;
+    }
+
+    // Obtener almacén físico de la sede
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', true)
+      ->where('status', true)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró almacén físico activo para revertir el inventario');
+    }
+
+    // Crear ajuste de entrada (compensatorio)
+    $movementData = [
+      'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
+      'warehouse_id' => $warehouse->id,
+      'notes' => "Ajuste de entrada por reversión de Nota Interna {$internalNote->number} - OT {$workOrder->correlative}",
+      'movement_date' => now(),
+    ];
+
+    $details = [];
+    foreach ($productParts as $part) {
+      $details[] = [
+        'product_id' => $part->product_id,
+        'quantity' => $part->quantity_used,
+        'unit_cost' => $part->unit_price,
+        'notes' => "Reversión NI {$internalNote->number} - {$part->product->name}",
+      ];
+    }
+
+    $this->inventoryMovementService->createAdjustment($movementData, $details);
+  }
+
   public function generatePDIForVehicle($id)
   {
     DB::beginTransaction();

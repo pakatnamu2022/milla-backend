@@ -246,7 +246,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
       ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-        ->where('is_annulled', 0)
+        ->where(function ($q) {
+          $q->where('is_annulled', 0)
+            ->orWhereNull('is_annulled');
+        })
         ->whereNull('credit_note_id');
     } else {
       $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
@@ -258,7 +261,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
         ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-        ->where('is_annulled', 0)
+        ->where(function ($q) {
+          $q->where('is_annulled', 0)
+            ->orWhereNull('is_annulled');
+        })
         ->whereNull('credit_note_id');
     }
 
