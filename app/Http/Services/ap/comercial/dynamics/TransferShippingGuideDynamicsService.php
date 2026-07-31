@@ -77,6 +77,10 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
+    $transferIdToCheck = $isCancelled
+      ? rtrim($shippingGuide->dyn_series, '*') . '*'
+      : $shippingGuide->dyn_series;
+
     if (empty($shippingGuide->dyn_series)) {
       $this->syncTransfer($shippingGuide, $isCancelled);
       return;
@@ -85,7 +89,7 @@ class TransferShippingGuideDynamicsService
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transferIdToCheck)
       ->first();
 
     if (!$existingTransfer) {
@@ -253,7 +257,9 @@ class TransferShippingGuideDynamicsService
       $this->syncService->sync('inventory_transfer', $data, 'create');
       $transferLog->updateProcesoEstado(0);
 
-      $shippingGuide->update(['dyn_series' => $transferId]);
+      if (!$isCancelled) {
+        $shippingGuide->update(['dyn_series' => $transferId]);
+      }
     } catch (Exception $e) {
       Log::error('Error al sincronizar transferencia de inventario', [
         'shipping_guide_id' => $shippingGuide->id,
