@@ -124,9 +124,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'numero_documento' => $doc->full_number,
         'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
         'pct_beneficio'    => $prq?->margin_pct,
-        'beneficio'        => is_numeric($prq?->margin_amount) ? number_format($prq->margin_amount, 2) : null,
-        'total_factura'    => is_numeric($doc->total) ? number_format($doc->total, 2) : null,
-        'pendiente'        => $hasReceivable ? number_format($totalBalance, 2) : null,
+        'beneficio'        => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
+        'total_factura'    => is_numeric($doc->total) ? (float)$doc->total : null,
+        'pendiente'        => $hasReceivable ? (float)$totalBalance : null,
         'ref_cancelacion'  => $isCancelled ? $receivable?->document_number : null,
         'estado'           => ($hasReceivable && $totalBalance > 0) ? 'PENDIENTE' : 'CANCELADO',
         'forma_pago'       => $doc->condiciones_de_pago,
@@ -138,8 +138,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     $title = $request->get('title', 'Reporte de Facturación Comercial');
     $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
+    $cellColorRules = [
+      'estado' => [
+        'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
+        'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+      ],
+    ];
+
+    $accountingUsd = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
+    $columnFormats = [
+      'beneficio'     => $accountingUsd,
+      'total_factura' => $accountingUsd,
+      'pendiente'     => $accountingUsd,
+    ];
+
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new GeneralExport($rows, $columns, $title),
+      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats),
       $filename
     );
   }

@@ -26,14 +26,16 @@ class GeneralExport implements
   protected $title;
   protected $styles;
   protected $cellColorRules;
+  protected $columnFormats;
 
-  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [])
+  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [], $columnFormats = [])
   {
     $this->data = collect($data);
     $this->columns = $columns;
     $this->title = $title;
     $this->styles = !empty($styles) ? $styles : $this->getDefaultStyles();
     $this->cellColorRules = $cellColorRules;
+    $this->columnFormats = $columnFormats;
   }
 
   public function collection()
@@ -253,11 +255,36 @@ class GeneralExport implements
 
               // Check if the cell value matches any of the color rules
               if (isset($valueColorMap[$cellValue])) {
-                $color = $valueColorMap[$cellValue];
-                $sheet->getStyle("{$colLetter}{$rowIndex}")->getFill()
-                  ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                  ->getStartColor()->setRGB($color);
+                $colorDef = $valueColorMap[$cellValue];
+                $bgColor  = is_array($colorDef) ? ($colorDef['bg'] ?? null) : $colorDef;
+                $txtColor = is_array($colorDef) ? ($colorDef['text'] ?? null) : null;
+                if ($bgColor) {
+                  $sheet->getStyle("{$colLetter}{$rowIndex}")->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB($bgColor);
+                }
+                if ($txtColor) {
+                  $sheet->getStyle("{$colLetter}{$rowIndex}")->getFont()
+                    ->getColor()->setRGB($txtColor);
+                }
+                if (is_array($colorDef) && !empty($colorDef['bold'])) {
+                  $sheet->getStyle("{$colLetter}{$rowIndex}")->getFont()->setBold(true);
+                }
               }
+            }
+          }
+        }
+
+        // Apply Excel number formats to specific columns
+        if (!empty($this->columnFormats)) {
+          $columnKeys = array_keys($this->columns);
+          foreach ($this->columnFormats as $columnKey => $formatCode) {
+            $colIdx = array_search($columnKey, $columnKeys);
+            if ($colIdx === false) continue;
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx + 1);
+            if ($lastRow >= 2) {
+              $sheet->getStyle("{$colLetter}2:{$colLetter}{$lastRow}")
+                ->getNumberFormat()->setFormatCode($formatCode);
             }
           }
         }
