@@ -174,7 +174,7 @@ class InventoryMovement extends Model
 
   public function reference(): MorphTo
   {
-    return $this->morphTo();
+    return $this->morphTo()->withTrashed();
   }
 
   public function cancelledInventoryMovement(): BelongsTo
