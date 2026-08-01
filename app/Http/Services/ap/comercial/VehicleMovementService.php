@@ -379,8 +379,8 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   /**
    * Create an EN CURSO vehicle movement when a GR inter-company transfer (TRASLADO_SEDE)
    * is first accounted in Dynamics but issue_date hasn't arrived yet.
-   * Moves the vehicle to the EXR (is_received=false) warehouse of the receiver sede
-   * so Cajamarca can already select it for billing before physical arrival.
+   * Moves the vehicle to the ALM (is_received=true) warehouse of the receiver sede
+   * and sets status to EN_CURSO until physical arrival triggers the INVENTARIO_VN movement.
    * @throws Throwable
    */
   public function storeInterCompanyTransferInProgressVehicleMovement(
@@ -400,19 +400,19 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       $receiverName    = $shippingGuide->sedeReceiver?->name ?? 'Destino';
       $issueDate       = $shippingGuide->issue_date?->format('d/m/Y') ?? '';
 
-      // En curso → almacén EXR (existencias pendientes) del destino para permitir facturación anticipada
+      // En curso → almacén ALM (is_received=true) del destino; el vehículo está en tránsito
       $exrWarehouse = $receiverSedeId
         ? Warehouse::where('sede_id', $receiverSedeId)
           ->where('type_operation_id', $vehicle->type_operation_id)
           ->where('article_class_id', $vehicle->model->class_id ?? null)
-          ->where('is_received', false)
+          ->where('is_received', true)
           ->where('status', true)
           ->first()
         : null;
 
       $guideRef    = $shippingGuide->document_number
         . (!empty($shippingGuide->dyn_series) ? " (Dynamics: {$shippingGuide->dyn_series})" : '');
-      $observation = "Por contabilización en Dynamics | Guía: {$guideRef}"
+      $observation = "En tránsito - contabilizado en Dynamics | Guía: {$guideRef}"
         . " | {$transmitterName} → {$receiverName}"
         . ($issueDate ? " | Fecha traslado: {$issueDate}" : '');
 
