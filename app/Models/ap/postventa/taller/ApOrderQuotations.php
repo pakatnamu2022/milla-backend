@@ -582,6 +582,16 @@ class ApOrderQuotations extends Model
   }
 
   /**
+   * Check if there's a final invoice already generated and accepted.
+   *
+   * @return bool
+   */
+  public function hasFinalInvoice(): bool
+  {
+    return $this->getFinalInvoice() !== null;
+  }
+
+  /**
    * Get all valid documents for this quotation (advances + final invoice).
    *
    * @return \Illuminate\Database\Eloquent\Collection
@@ -802,7 +812,6 @@ class ApOrderQuotations extends Model
         ApMasters::STATUS_ORDER_QUOTE_APERTURADO => 'aperturada',
         ApMasters::STATUS_ORDER_QUOTE_APROBADO => 'aprobada',
         ApMasters::STATUS_ORDER_QUOTE_FACTURAR => 'por facturar',
-        ApMasters::STATUS_ORDER_QUOTE_EN_EDICION => 'en edición',
         ApMasters::STATUS_ORDER_QUOTE_FACTURADO => 'facturada',
         ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO => 'segmentada',
         ApMasters::STATUS_ORDER_QUOTE_DESCARTADO => 'descartada',
@@ -831,7 +840,6 @@ class ApOrderQuotations extends Model
         ApMasters::STATUS_ORDER_QUOTE_APERTURADO => 'aperturada',
         ApMasters::STATUS_ORDER_QUOTE_APROBADO => 'aprobada',
         ApMasters::STATUS_ORDER_QUOTE_FACTURAR => 'por facturar',
-        ApMasters::STATUS_ORDER_QUOTE_EN_EDICION => 'en edición',
         ApMasters::STATUS_ORDER_QUOTE_FACTURADO => 'facturada',
         ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO => 'segmentada',
         ApMasters::STATUS_ORDER_QUOTE_DESCARTADO => 'descartada',

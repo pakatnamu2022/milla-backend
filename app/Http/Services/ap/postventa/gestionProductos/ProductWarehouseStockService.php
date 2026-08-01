@@ -136,7 +136,8 @@ class ProductWarehouseStockService extends BaseService
     int   $productId,
     int   $warehouseId,
     float $quantity
-  ): ProductWarehouseStock {
+  ): ProductWarehouseStock
+  {
     DB::beginTransaction();
     try {
       // Find or create stock record
@@ -655,7 +656,7 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity < $detail->quantity) {
           throw new Exception(
             "Stock insuficiente para producto ID {$detail->product_id}. " .
-              "Stock: {$stock->quantity}, Solicitado: {$detail->quantity}"
+            "Stock: {$stock->quantity}, Solicitado: {$detail->quantity}"
           );
         }
 
@@ -694,7 +695,8 @@ class ProductWarehouseStockService extends BaseService
     int   $warehouseOriginId,
     int   $warehouseDestinationId,
     float $quantityReceived
-  ): array {
+  ): array
+  {
     DB::beginTransaction();
     try {
       // Remove from in_transit in origin warehouse
@@ -711,7 +713,7 @@ class ProductWarehouseStockService extends BaseService
       if ($originStock->quantity_in_transit < $quantityReceived) {
         throw new Exception(
           "Stock en tránsito insuficiente para producto ID {$productId}. " .
-            "En tránsito: {$originStock->quantity_in_transit}, Recibido: {$quantityReceived}"
+          "En tránsito: {$originStock->quantity_in_transit}, Recibido: {$quantityReceived}"
         );
       }
 
@@ -1078,7 +1080,8 @@ class ProductWarehouseStockService extends BaseService
     float $quantity,
     float $unitCostToReverse,
     bool  $fromPendingCreditNote = true
-  ): ProductWarehouseStock {
+  ): ProductWarehouseStock
+  {
     DB::beginTransaction();
     try {
       // Step 1: Find stock record
@@ -1092,9 +1095,9 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity_pending_credit_note < $quantity) {
           throw new Exception(
             "Cantidad pendiente de nota de crédito insuficiente. " .
-              "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
-              "Pendiente NC: {$stock->quantity_pending_credit_note}, Cantidad NC: {$quantity}. " .
-              "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics o ajustar manualmente el stock."
+            "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
+            "Pendiente NC: {$stock->quantity_pending_credit_note}, Cantidad NC: {$quantity}. " .
+            "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics o ajustar manualmente el stock."
           );
         }
       } else {
@@ -1102,9 +1105,9 @@ class ProductWarehouseStockService extends BaseService
         if ($stock->quantity < $quantity) {
           throw new Exception(
             "Stock insuficiente para procesar nota de crédito. " .
-              "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
-              "Stock actual: {$stock->quantity}, Cantidad NC: {$quantity}. " .
-              "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics."
+            "Producto ID: {$productId}, Almacén ID: {$warehouseId}. " .
+            "Stock actual: {$stock->quantity}, Cantidad NC: {$quantity}. " .
+            "ACCIÓN REQUERIDA: Verificar sincronización con Dynamics."
           );
         }
       }
@@ -1819,7 +1822,8 @@ class ProductWarehouseStockService extends BaseService
     int                   $productId,
     int                   $warehouseId,
     \DateTime|string|null $fromDate = null
-  ): array {
+  ): array
+  {
     DB::beginTransaction();
     try {
       // Convertir $fromDate a Carbon si viene como string
@@ -2078,6 +2082,7 @@ class ProductWarehouseStockService extends BaseService
           ->join('ap_order_quotations as q', 'qd.order_quotation_id', '=', 'q.id')
           ->join('usr_users as u', 'q.created_by', '=', 'u.id')
           ->leftJoin('config_sede as s', 'q.sede_id', '=', 's.id')
+          ->leftJoin('ap_masters as qstatus', 'q.status_id', '=', 'qstatus.id')
           ->leftJoin('warehouse as w', function ($join) use ($stock) {
             // Join with warehouse table to get the physical warehouse for postventa
             $join->on('w.sede_id', '=', 'q.sede_id')
@@ -2094,6 +2099,7 @@ class ProductWarehouseStockService extends BaseService
           // Only quotations that are not in excluded statuses
           ->whereNotIn('q.status_id', [
             ApMasters::STATUS_ORDER_QUOTE_APERTURADO,
+            ApMasters::STATUS_ORDER_QUOTE_APROBADO,
             ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
             ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO,
             ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
@@ -2102,7 +2108,7 @@ class ProductWarehouseStockService extends BaseService
             'q.id as quotation_id',
             'q.quotation_number',
             'q.status_id',
-            'status.description as status_description',
+            'qstatus.description as status_description',
             'qd.quantity',
             'qd.created_at as reserved_at',
             'u.id as user_id',
