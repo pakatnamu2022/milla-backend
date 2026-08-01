@@ -587,16 +587,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización no se puede editar porque ha sido segmentada en otras cotizaciones.');
       }
 
-      if ($quotation->getActiveAdvances()->count() > 0) {
-        throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
-      }
-
       if ($quotation->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty()) {
         throw new Exception('No se puede editar una cotización que tiene solicitudes de descuento aprobadas por gerencia');
       }
 
       // Validar cambio de moneda si existen pagos registrados
-      if ($quotation->getActiveAdvances()->count() > 0 && $quotation->currency_id !== $data['currency_id']) {
+      if ($quotation->currency_id != $data['currency_id']) {
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
