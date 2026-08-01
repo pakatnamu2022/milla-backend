@@ -14,7 +14,6 @@ use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
@@ -2093,11 +2092,17 @@ class ProductWarehouseStockService extends BaseService
           ->whereNull('qd.deleted_at')
           ->whereNull('q.deleted_at')
           // Only quotations that are not in excluded statuses
-          ->whereNotIn('q.status', [ApOrderQuotations::STATUS_APERTURADO, ApOrderQuotations::STATUS_DESCARTADO, ApOrderQuotations::STATUS_SEGMENTADA, ApOrderQuotations::STATUS_FACTURADO])
+          ->whereNotIn('q.status_id', [
+            ApMasters::STATUS_ORDER_QUOTE_APERTURADO,
+            ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+            ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO,
+            ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
+          ])
           ->select([
             'q.id as quotation_id',
             'q.quotation_number',
-            'q.status',
+            'q.status_id',
+            'status.description as status_description',
             'qd.quantity',
             'qd.created_at as reserved_at',
             'u.id as user_id',
@@ -2136,7 +2141,8 @@ class ProductWarehouseStockService extends BaseService
               return [
                 'quotation_id' => $detail->quotation_id,
                 'quotation_number' => $detail->quotation_number,
-                'quotation_status' => $detail->status,
+                'quotation_status_id' => $detail->status_id,
+                'quotation_status' => $detail->status_description,
                 'sede_name' => $detail->sede_name,
                 'quantity_reserved' => $detail->quantity,
                 'reserved_at' => $detail->reserved_at,

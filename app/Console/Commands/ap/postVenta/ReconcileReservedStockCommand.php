@@ -4,7 +4,6 @@ namespace App\Console\Commands\ap\postVenta;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -124,11 +123,11 @@ class ReconcileReservedStockCommand extends Command
       ->where('q.area_id', '!=', ApMasters::AREA_TALLER)
       ->whereNull('qd.deleted_at')
       ->whereNull('q.deleted_at')
-      ->whereNotIn('q.status', [
-        ApOrderQuotations::STATUS_APERTURADO,
-        ApOrderQuotations::STATUS_DESCARTADO,
-        ApOrderQuotations::STATUS_SEGMENTADA,
-        ApOrderQuotations::STATUS_FACTURADO,
+      ->whereNotIn('q.status_id', [
+        ApMasters::STATUS_ORDER_QUOTE_APERTURADO,
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO,
+        ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
       ])
       ->select('qd.product_id', 'w.id as warehouse_id', DB::raw('SUM(qd.quantity) as total'))
       ->groupBy('qd.product_id', 'w.id');

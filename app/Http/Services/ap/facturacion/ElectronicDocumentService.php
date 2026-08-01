@@ -822,7 +822,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
 
         // Validar que la cotización no esté descartada
-        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
           throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
         }
 
@@ -1341,7 +1341,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $quotation = ApOrderQuotations::find($document->order_quotation_id);
           if ($quotation) {
             $quotation->update([
-              'status'                      => ApOrderQuotations::STATUS_POR_FACTURAR,
+              'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
               'is_fully_paid'               => false,
               'output_generation_warehouse' => false,
             ]);
@@ -3429,7 +3429,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $quotation = ApOrderQuotations::with('advancesOrderQuotation')->find($data['order_quotation_id']);
 
     // Validar que cotización no esté descartada
-    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+    if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 

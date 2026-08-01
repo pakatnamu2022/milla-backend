@@ -114,7 +114,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         // Condiciones base: área mesón, no tomada y estado por facturar
         $query->where('area_id', ApMasters::AREA_MESON)
           ->where('is_take', false)
-          ->where('status', ApOrderQuotations::STATUS_POR_FACTURAR)
+          ->whereIn('status_id', [
+            ApMasters::STATUS_ORDER_QUOTE_APROBADO,
+            ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
+          ])
           ->where(function ($q) {
             // Al menos una de estas condiciones debe cumplirse:
 
@@ -574,11 +577,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         }
       }
 
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
         throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
       }
 
-      if ($quotation->status === ApOrderQuotations::STATUS_SEGMENTADA) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO) {
         throw new Exception('No se puede actualizar una cotización que ha sido segmentada.');
       }
 
@@ -587,7 +590,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede editar una cotización que está en estado "Facturar".');
       }
 
-      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_EN_EDICION && $quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_EN_EDICION && $quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APERTURADO) {
         throw new Exception('Solo se pueden editar cotizaciones en estado "En Edición" o "Aperturado".');
       }
 
@@ -755,7 +758,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
 
-    if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+    if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APERTURADO) {
       throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
     }
 
@@ -763,7 +766,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
     }
 
-    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+    if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
       throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
     }
 
@@ -796,7 +799,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Si esta era la última cotización segmentada, reabrir el padre
       if ($parentQuotation && $parentQuotation->segmentedQuotations()->count() === 0) {
-        $parentQuotation->update(['status' => ApOrderQuotations::STATUS_APERTURADO]);
+        $parentQuotation->update(['status_id' => ApMasters::STATUS_ORDER_QUOTE_APERTURADO]);
       }
     });
 
@@ -859,14 +862,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'discarded_by' => auth()->check() ? auth()->user()->id : null,
         'discarded_at' => Carbon::now(),
       ];
-
-      // Si se proporciona un status, actualizarlo
-      if (isset($data['status'])) {
-        $discardData['status'] = $data['status'];
-      } else {
-        // Establecer un status por defecto si no se proporciona
-        $discardData['status'] = ApOrderQuotations::STATUS_DESCARTADO;
-      }
 
       $quotation->update($discardData);
 
@@ -1070,7 +1065,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'show_codes' => $showCodes,
       'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
-      'status' => $quotation->status,
+      'status_id' => $quotation->status_id,
     ];
 
     // Datos del cliente
@@ -1233,7 +1228,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'show_codes' => $showCodes,
       'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
-      'status' => $quotation->status,
+      'status_id' => $quotation->status_id,
     ];
 
     // Datos del cliente
@@ -1356,7 +1351,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'show_codes' => $showCodes,
       'sede' => $quotation->sede,
       'type_currency' => $quotation->typeCurrency,
-      'status' => $quotation->status,
+      'status_id' => $quotation->status_id,
     ];
 
     // Datos del cliente
@@ -1483,7 +1478,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
       }
 
-      if ($quotation->status === ApOrderQuotations::STATUS_POR_FACTURAR) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_APROBADO) {
         throw new Exception('Esta cotización ya ha sido confirmada previamente.');
       }
 
@@ -1504,7 +1499,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'confirmed_at' => Carbon::now(),
         'confirmation_channel' => ApOrderQuotations::CONFIRMATION_CHANNEL_PRESENCIAL,
         'notes' => $data['notes'],
-        'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
 
       // Actualizar el status a APROBADO
@@ -2010,7 +2004,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 5. Resetear campos específicos según tus requerimientos
       $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
       $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
-      $newQuotationData['status'] = ApOrderQuotations::STATUS_APERTURADO;
+      $newQuotationData['status_id'] = ApMasters::STATUS_ORDER_QUOTE_APERTURADO;
       $newQuotationData['created_by'] = auth()->check() ? auth()->user()->id : null;
       $newQuotationData['chief_approval_by'] = null;
       $newQuotationData['manager_approval_by'] = null;
@@ -2074,7 +2068,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar que la cotización esté en estado válido
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
         throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
       }
 
@@ -2158,7 +2152,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede regenerar el token de una cotización ya confirmada.');
       }
 
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
         throw new Exception('No se puede regenerar el token de una cotización descartada.');
       }
 
@@ -2224,7 +2218,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 2.1. Validar que no esté confirmada: confirm() ya reservó stock (reserveStockForQuotation),
       // y segmentar duplica los detalles en cotizaciones nuevas sin heredar esa reserva,
       // dejando reserved_quantity huérfano en product_warehouse_stock si no se bloquea aquí.
-      if ($originalQuotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+      if ($originalQuotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APERTURADO) {
         throw new Exception('No se puede segmentar una cotización que ya fue confirmada. Solo se pueden segmentar cotizaciones en estado Aperturado.');
       }
 
@@ -2270,7 +2264,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $newQuotationData['expiration_date'] = $originalQuotation->expiration_date
           ? Carbon::parse($originalQuotation->expiration_date)->toDateString()
           : Carbon::now()->addDays(7)->toDateString();
-        $newQuotationData['status'] = ApOrderQuotations::STATUS_APERTURADO;
+        $newQuotationData['status_id'] = ApMasters::STATUS_ORDER_QUOTE_APERTURADO;
         $newQuotationData['created_by'] = auth()->check() ? auth()->user()->id : $originalQuotation->created_by;
 
         // Resetear campos de aprobación y confirmación
@@ -2349,7 +2343,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // 6.10. Marcar la cotización original como Segmentada (borrador, se excluye de la reportería)
-      $originalQuotation->update(['status' => ApOrderQuotations::STATUS_SEGMENTADA]);
+      $originalQuotation->update([
+        'status_id' => ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO,
+      ]);
 
       // 7. Cargar relaciones y retornar
       $quotationsWithRelations = ApOrderQuotations::whereIn('id', collect($segmentedQuotations)->pluck('id'))
@@ -2448,7 +2444,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar que no esté descartada
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
         throw new Exception('No se puede cambiar la moneda de una cotización descartada');
       }
 

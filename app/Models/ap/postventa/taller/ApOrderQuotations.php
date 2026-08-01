@@ -78,7 +78,6 @@ class ApOrderQuotations extends Model
     'delivery_document_number',
     'chief_approval_by',
     'manager_approval_by',
-    'status',
     'status_id',
     'confirmation_token',
     'confirmation_token_expires_at',
@@ -99,7 +98,7 @@ class ApOrderQuotations extends Model
     'area_id' => '=',
     'currency_id' => '=',
     'discard_reason_id' => '=',
-    'status' => 'in_or_equal',
+    'status_id' => 'in_or_equal',
     'sede_id' => '=',
     'supply_type' => 'in',
     'has_invoice_generated' => '=',
@@ -247,7 +246,7 @@ class ApOrderQuotations extends Model
     return $this->belongsTo(BusinessPartners::class, 'client_id');
   }
 
-  public function statusOriginal(): BelongsTo
+  public function status(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'status_id');
   }
