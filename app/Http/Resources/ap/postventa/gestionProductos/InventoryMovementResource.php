@@ -7,10 +7,12 @@ use App\Http\Resources\ap\compras\PurchaseReceptionResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\ap\facturacion\SupplierCreditNoteResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Http\Resources\ap\postventa\taller\InternalNoteResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderBasicInfoResource;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\SupplierCreditNote;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -80,6 +82,7 @@ class InventoryMovementResource extends JsonResource
       TransferReception::class => TransferReceptionResource::class,
       ApWorkOrder::class => WorkOrderBasicInfoResource::class,
       ElectronicDocument::class => ElectronicDocumentResource::class,
+      ApInternalNote::class => InternalNoteResource::class
     ];
 
     $resourceClass = $resourceMap[$this->reference_type] ?? null;

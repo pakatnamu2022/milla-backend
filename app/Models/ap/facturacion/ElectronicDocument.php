@@ -195,7 +195,7 @@ class ElectronicDocument extends BaseModel
     'status' => '=',
     'aceptada_por_sunat' => '=',
     'anulado' => '=',
-    'fecha_de_emision' => '=',
+    'fecha_de_emision' => 'date_between',
     'created_by' => '=',
     'seriesModel.sede_id' => '=',
     'consolidation_type' => '=',

@@ -4,7 +4,6 @@ namespace App\Console\Commands\ap\postVenta;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
-use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -34,8 +33,8 @@ class ReconcileReservedStockCommand extends Command
   {
     $productId = $this->option('product_id');
     $warehouseId = $this->option('warehouse_id');
-    $preview = (bool) $this->option('preview');
-    $all = (bool) $this->option('all');
+    $preview = (bool)$this->option('preview');
+    $all = (bool)$this->option('all');
 
     if ($warehouseId && !$productId) {
       $this->error('--warehouse_id requiere que también indiques --product_id.');
@@ -70,7 +69,7 @@ class ReconcileReservedStockCommand extends Command
       return $this->runPreview($stockQuery, $computedMap);
     }
 
-    return $this->runApply($stockQuery, $computedMap, (bool) $productId, $all);
+    return $this->runApply($stockQuery, $computedMap, (bool)$productId, $all);
   }
 
   /**
@@ -103,7 +102,7 @@ class ReconcileReservedStockCommand extends Command
 
     $otMap = [];
     foreach ($otQuery->get() as $row) {
-      $otMap["{$row->product_id}-{$row->warehouse_id}"] = (float) $row->total;
+      $otMap["{$row->product_id}-{$row->warehouse_id}"] = (float)$row->total;
     }
 
     // El warehouse físico de postventa es único por sede (validado: is_physical_warehouse=1
@@ -124,11 +123,12 @@ class ReconcileReservedStockCommand extends Command
       ->where('q.area_id', '!=', ApMasters::AREA_TALLER)
       ->whereNull('qd.deleted_at')
       ->whereNull('q.deleted_at')
-      ->whereNotIn('q.status', [
-        ApOrderQuotations::STATUS_APERTURADO,
-        ApOrderQuotations::STATUS_DESCARTADO,
-        ApOrderQuotations::STATUS_SEGMENTADA,
-        ApOrderQuotations::STATUS_FACTURADO,
+      ->whereNotIn('q.status_id', [
+        ApMasters::STATUS_ORDER_QUOTE_APERTURADO,
+        ApMasters::STATUS_ORDER_QUOTE_APROBADO,
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO,
+        ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
       ])
       ->select('qd.product_id', 'w.id as warehouse_id', DB::raw('SUM(qd.quantity) as total'))
       ->groupBy('qd.product_id', 'w.id');
@@ -142,7 +142,7 @@ class ReconcileReservedStockCommand extends Command
 
     $rpMap = [];
     foreach ($rpQuery->get() as $row) {
-      $rpMap["{$row->product_id}-{$row->warehouse_id}"] = (float) $row->total;
+      $rpMap["{$row->product_id}-{$row->warehouse_id}"] = (float)$row->total;
     }
 
     return [$otMap, $rpMap];
@@ -159,7 +159,7 @@ class ReconcileReservedStockCommand extends Command
         $totalRows++;
         $key = "{$stock->product_id}-{$stock->warehouse_id}";
         $computed = round($computedMap[$key] ?? 0.0, 2);
-        $current = round((float) $stock->reserved_quantity, 2);
+        $current = round((float)$stock->reserved_quantity, 2);
 
         $warehouseName = $stock->warehouse->dyn_code ?? "#{$stock->warehouse_id}";
         $mismatchesByWarehouse[$stock->warehouse_id] ??= [
@@ -271,7 +271,7 @@ class ReconcileReservedStockCommand extends Command
         foreach ($chunk as $stock) {
           $key = "{$stock->product_id}-{$stock->warehouse_id}";
           $computed = round($computedMap[$key] ?? 0.0, 2);
-          $current = round((float) $stock->reserved_quantity, 2);
+          $current = round((float)$stock->reserved_quantity, 2);
 
           if (abs($computed - $current) > self::EPSILON) {
             DB::transaction(function () use ($stock, $computed) {
@@ -286,9 +286,9 @@ class ReconcileReservedStockCommand extends Command
                 'product_id' => $stock->product_id,
                 'product' => $stock->product->code ?? $stock->product_id,
                 'warehouse_id' => $stock->warehouse_id,
-                'quantity' => (float) $stock->quantity,
+                'quantity' => (float)$stock->quantity,
                 'reserved_quantity' => $computed,
-                'available_quantity' => (float) $stock->available_quantity,
+                'available_quantity' => (float)$stock->available_quantity,
               ];
             }
           } else {

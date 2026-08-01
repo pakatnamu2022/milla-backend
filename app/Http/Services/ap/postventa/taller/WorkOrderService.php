@@ -1115,13 +1115,29 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede revertir una nota interna que ya ha sido facturada');
       }
 
-      // Validación 4: No debe tener documentos electrónicos asociados
-      if ($internalNote->electronicDocuments()->exists()) {
-        throw new Exception('No se puede revertir una nota interna que tiene documentos electrónicos asociados');
+      // Validación 4: Verificar estado de los documentos electrónicos asociados
+      $electronicDocuments = $internalNote->electronicDocuments;
+      if ($electronicDocuments->isNotEmpty()) {
+        // Verificar si hay algún documento que NO esté anulado
+        // Un documento está anulado si: status = CANCELLED O anulado = true
+        $activeDocuments = $electronicDocuments->filter(function ($doc) {
+          return $doc->status !== ElectronicDocument::STATUS_CANCELLED && !$doc->anulado;
+        });
+
+        if ($activeDocuments->isNotEmpty()) {
+          $documentNumbers = $activeDocuments->pluck('full_number')->join(', ');
+          throw new Exception(
+            "No se puede revertir la nota interna porque tiene comprobantes electrónicos activos: {$documentNumbers}. " .
+            "Solo se puede revertir si todos los comprobantes están anulados."
+          );
+        }
       }
 
-      // 1. Revertir inventario si fue procesado
-      if ($workOrder->output_generation_warehouse) {
+      // 1. Revertir inventario solo si fue procesado Y es tipo INTERNA_SC
+      // Las INTERNA_CC nunca generan salida de inventario, por lo tanto no hay nada que revertir
+      $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+      if ($workOrder->output_generation_warehouse && $typeDocument === TypePlanningWorkOrder::INTERNA_SC) {
         $this->reverseInventoryAdjustmentForInternalNote($workOrder, $internalNote);
       }
 
@@ -1181,8 +1197,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
       'warehouse_id' => $warehouse->id,
-      'notes' => "Ajuste de entrada por reversión de Nota Interna {$internalNote->number} - OT {$workOrder->correlative}",
+      'notes' => "Ajuste de entrada por reversión de Nota Interna {$internalNote->number} - {$workOrder->correlative}",
       'movement_date' => now(),
+      'reference_type' => ApInternalNote::class,
+      'reference_id' => $internalNote->id,
     ];
 
     $details = [];
@@ -1996,6 +2014,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       return; // Ya se procesó, salir
     }
 
+    // Obtener el tipo de documento del item de la orden de trabajo
+    $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+    // Solo generar salida para INTERNA_SC (sin comprobante)
+    // INTERNA_CC (con comprobante) no genera salida aquí porque se facturará después
+    if ($typeDocument === TypePlanningWorkOrder::INTERNA_CC) {
+      return; // No generar salida, se hará cuando se facture
+    }
+
     // Obtener solo los repuestos que tienen product_id (excluir mano de obra/servicios)
     $productParts = $workOrder->parts->filter(function ($part) {
       return $part->product_id !== null;
@@ -2060,8 +2087,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
-      'notes' => "Ajuste de salida por generación de Nota Interna {$internalNote->number} - OT {$workOrder->correlative}",
+      'notes' => "Ajuste de salida por generación de Nota Interna {$internalNote->number} - {$workOrder->correlative}",
       'movement_date' => now(),
+      'reference_type' => ApInternalNote::class,
+      'reference_id' => $internalNote->id,
     ];
 
     // Preparar detalles (uno por cada repuesto)

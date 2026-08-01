@@ -69,7 +69,10 @@ class ApOrderQuotationsResource extends JsonResource
       'manager_approval_by' => $this->manager_approval_by,
       'chief_approval_by_name' => $this->chiefApprovalBy ? $this->chiefApprovalBy->name : null,
       'manager_approval_by_name' => $this->managerApprovalBy ? $this->managerApprovalBy->name : null,
-      'status' => $this->status,
+      'status' => [
+        'id' => $this->status_id,
+        'description' => $this->status->description ?? null,
+      ],
       'cost_man_hours' => $this->when(
         isset($this->additional['includeCostManHours']) && $this->additional['includeCostManHours'],
         fn() => $this->vehicle->is_heavy
@@ -99,6 +102,14 @@ class ApOrderQuotationsResource extends JsonResource
       'payment_summary' => $this->when(
         $this->relationLoaded('advancesOrderQuotation'),
         fn() => $this->getPaymentSummary()
+      ),
+      'has_draft_final_invoice' => $this->when(
+        $this->relationLoaded('advancesOrderQuotation'),
+        fn() => $this->hasDraftFinalInvoice()
+      ),
+      'has_draft_advance' => $this->when(
+        $this->relationLoaded('advancesOrderQuotation'),
+        fn() => $this->hasDraftAdvance()
       ),
       'items_invoice' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['items_invoice']),
       'invoice_preview' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['invoice_preview']),

@@ -218,7 +218,7 @@ class SyncAccountingStatusJob implements ShouldQueue
       // Marcar la cotización como totalmente pagada y facturada
       $quotation->update([
         'is_fully_paid'               => true,
-        'status'                      => ApOrderQuotations::STATUS_FACTURADO,
+        'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
         'output_generation_warehouse' => true,
       ]);
 

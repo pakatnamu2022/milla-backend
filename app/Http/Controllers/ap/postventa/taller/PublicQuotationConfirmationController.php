@@ -5,7 +5,7 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\ConfirmQuotationVirtuallyRequest;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
-use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Carbon\Carbon;
 use Exception;
@@ -81,7 +81,7 @@ class PublicQuotationConfirmationController extends Controller
         }
 
         // Verificar si la cotización está en estado válido para confirmar
-        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
           throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
         }
 
@@ -101,18 +101,16 @@ class PublicQuotationConfirmationController extends Controller
           'notes' => $data['notes'] ?? null,
         ];
 
-        // Reservar stock para productos de tipo STOCK
-        $quotationService = app(ApOrderQuotationsService::class);
-        $quotationService->reserveStockForQuotation($quotation);
-
         // Actualizar cotización con datos de confirmación virtual
         $quotation->update([
           'confirmed_at' => Carbon::now(),
           'confirmation_channel' => ApOrderQuotations::CONFIRMATION_CHANNEL_VIRTUAL,
           'confirmation_ip' => $request->ip(),
           'confirmation_metadata' => $metadata,
-          'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
         ]);
+
+        // Actualizar el status a APROBADO (mismo estado que confirmación presencial)
+        $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_APROBADO);
 
         $quotation->load([
           'vehicle',
@@ -129,7 +127,7 @@ class PublicQuotationConfirmationController extends Controller
             'quotation_number' => $quotation->quotation_number,
             'confirmed_at' => $quotation->confirmed_at,
             'confirmation_channel' => $quotation->confirmation_channel,
-            'status' => $quotation->status,
+            'status_id' => $quotation->status_id,
           ]
         ]);
       });
