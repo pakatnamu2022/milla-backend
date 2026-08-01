@@ -113,11 +113,16 @@ class SyncAccountsReceivableJob implements ShouldQueue
         );
       });
 
-    // Mark records absent from SP as PAGADO
+    // Mark records absent from SP as PAGADO and zero out balance
     AccountReceivable::where('company', $company)
       ->where('synced_at', '<', $batchAt)
       ->where('overdue_status', '!=', 'PAGADO')
-      ->update(['overdue_status' => 'PAGADO', 'updated_at' => $batchAt]);
+      ->update([
+        'overdue_status' => 'PAGADO',
+        'balance'        => 0,
+        'balance_pen'    => 0,
+        'updated_at'     => $batchAt,
+      ]);
 
     if ($company === 'automotores') {
       DB::statement("
