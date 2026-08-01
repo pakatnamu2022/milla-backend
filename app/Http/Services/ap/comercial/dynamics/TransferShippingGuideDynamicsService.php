@@ -24,8 +24,14 @@ class TransferShippingGuideDynamicsService
 
   public function verifyTransfer(ShippingGuides $shippingGuide): void
   {
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER;
+
     $transferLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER)
+      ->where('step', $step)
       ->first();
 
     if (!$transferLog) {
@@ -42,8 +48,6 @@ class TransferShippingGuideDynamicsService
       }
       return;
     }
-
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
     $detailStep = $isCancelled
       ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
@@ -73,6 +77,10 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
+    $transferIdToCheck = $isCancelled
+      ? rtrim($shippingGuide->dyn_series, '*') . '*'
+      : $shippingGuide->dyn_series;
+
     if (empty($shippingGuide->dyn_series)) {
       $this->syncTransfer($shippingGuide, $isCancelled);
       return;
@@ -81,7 +89,7 @@ class TransferShippingGuideDynamicsService
     $existingTransfer = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventario')
       ->where('EmpresaId', Company::AP_DYNAMICS)
-      ->where('TransferenciaId', $shippingGuide->dyn_series)
+      ->where('TransferenciaId', $transferIdToCheck)
       ->first();
 
     if (!$existingTransfer) {
@@ -115,8 +123,14 @@ class TransferShippingGuideDynamicsService
 
   public function verifyTransferDetail(ShippingGuides $shippingGuide): void
   {
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL;
+
     $detailLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL)
+      ->where('step', $step)
       ->first();
 
     if (!$detailLog) {
@@ -134,9 +148,7 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
-    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_DETAIL);
+    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, $step);
 
     $existingDetail = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDet')
@@ -154,8 +166,14 @@ class TransferShippingGuideDynamicsService
 
   public function verifyTransferSerial(ShippingGuides $shippingGuide): void
   {
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    $step = $isCancelled
+      ? VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL_REVERSAL
+      : VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL;
+
     $serialLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
-      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL)
+      ->where('step', $step)
       ->first();
 
     if (!$serialLog) {
@@ -173,9 +191,7 @@ class TransferShippingGuideDynamicsService
       return;
     }
 
-    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
-
-    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, VehiclePurchaseOrderMigrationLog::STEP_INVENTORY_TRANSFER_SERIAL);
+    $transferId = $this->logService->buildTransferTransactionId($shippingGuide, $step);
 
     $existingSerial = DB::connection('dbtp')
       ->table('neInTbTransferenciaInventarioDtS')
@@ -241,7 +257,9 @@ class TransferShippingGuideDynamicsService
       $this->syncService->sync('inventory_transfer', $data, 'create');
       $transferLog->updateProcesoEstado(0);
 
-      $shippingGuide->update(['dyn_series' => $transferId]);
+      if (!$isCancelled) {
+        $shippingGuide->update(['dyn_series' => $transferId]);
+      }
     } catch (Exception $e) {
       Log::error('Error al sincronizar transferencia de inventario', [
         'shipping_guide_id' => $shippingGuide->id,

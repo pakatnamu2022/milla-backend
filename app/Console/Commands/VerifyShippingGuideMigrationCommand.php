@@ -43,23 +43,21 @@ class VerifyShippingGuideMigrationCommand extends Command
       // Verificar una guía específica
       $shippingGuide = ShippingGuides::find($shippingGuideId);
 
-      if ($shippingGuide->is_annulled) {
-        $this->error("La guía de remisión está anulada: {$shippingGuide->document_number}");
-        return 1;
-      }
-
       if (!$shippingGuide) {
         $this->error("Guía de remisión no encontrada: {$shippingGuideId}");
         return 1;
       }
 
+      if ($shippingGuide->is_annulled) {
+        $this->error("La guía de remisión está anulada: {$shippingGuide->document_number}");
+        return 1;
+      }
+
       if ($useSync) {
         $this->info("Ejecutando verificación para la guía: {$shippingGuide->document_number}");
-        $syncService = app(DatabaseSyncService::class);
-        $job = new VerifyAndMigrateShippingGuideJob($shippingGuide->id);
 
         try {
-          $job->handle($syncService);
+          VerifyAndMigrateShippingGuideJob::dispatchSync($shippingGuide->id);
           $this->info("✓ Verificación completada.");
         } catch (\Exception $e) {
           $this->error("Error: {$e->getMessage()}");
@@ -107,11 +105,9 @@ class VerifyShippingGuideMigrationCommand extends Command
         $bar = $this->output->createProgressBar($pendingGuides->count());
         $bar->start();
 
-        $syncService = app(DatabaseSyncService::class);
         foreach ($pendingGuides as $guide) {
           try {
-            $job = new VerifyAndMigrateShippingGuideJob($guide->id);
-            $job->handle($syncService);
+            VerifyAndMigrateShippingGuideJob::dispatchSync($guide->id);
           } catch (\Exception $e) {
             $this->newLine();
             $this->error("Error en guía {$guide->document_number}: {$e->getMessage()}");

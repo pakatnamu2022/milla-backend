@@ -418,6 +418,19 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
           'shipping_guide_id' => $shippingGuide->id,
           'transaction_id' => $transactionId,
         ]);
+        return;
+      }
+
+      if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+        $vehicle = $shippingGuide->vehicleMovement?->vehicle;
+        if ($vehicle) {
+          $alreadyReverted = $vehicle->vehicleMovements()
+            ->where('observation', 'like', "%Anulación%{$shippingGuide->document_number}%")
+            ->exists();
+          if (!$alreadyReverted) {
+            (new VehicleMovementService())->storeCompraReversalVehicleMovement($vehicle, $shippingGuide);
+          }
+        }
       }
     } else {
       $wasAlreadyAccounted = $shippingGuide->is_accounted;

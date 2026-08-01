@@ -211,7 +211,12 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
       return;
     }
 
-    if ($shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
+    $isCancelledGuide = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    if (
+      $shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING ||
+      ($isCancelledGuide && $shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+    ) {
       $shippingGuide->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
 
