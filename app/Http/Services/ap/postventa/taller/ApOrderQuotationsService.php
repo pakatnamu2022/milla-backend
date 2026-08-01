@@ -582,8 +582,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede actualizar una cotización que ha sido segmentada.');
       }
 
-      if ($quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
-        throw new Exception('Solo se pueden editar cotizaciones en estado "Aperturado".');
+      // Validar estado con status_id
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
+        throw new Exception('No se puede editar una cotización que está en estado "Facturar".');
+      }
+
+      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_EN_EDICION && $quotation->status !== ApOrderQuotations::STATUS_APERTURADO) {
+        throw new Exception('Solo se pueden editar cotizaciones en estado "En Edición" o "Aperturado".');
       }
 
       if ($quotation->segmentedQuotations()->count() > 0) {
@@ -803,6 +808,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
+      // Validar que NO esté descartada
+      $quotation->ensureNotInStates([
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO
+      ], 'descartar');
+
       if ($quotation->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede anular una cotización que tiene anticipos registrados');
       }
@@ -859,6 +869,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       $quotation->update($discardData);
+
+      // Actualizar el status a DESCARTADO
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_DESCARTADO);
 
       $quotation->load([
         'vehicle',
@@ -1460,10 +1473,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      // Validaciones
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
-        throw new Exception('No se puede confirmar una cotización que ha sido descartada.');
-      }
+      // Validar que NO esté descartada ni ya confirmada
+      $quotation->ensureNotInStates([
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
+      ], 'confirmar');
 
       if ($quotation->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
@@ -1485,13 +1499,54 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // Reservar stock para productos de tipo STOCK
       $this->reserveStockForQuotation($quotation);
 
-      // Cambiar el estado a "Por Facturar"
+      // Actualizar datos de confirmación
       $quotation->update([
         'confirmed_at' => Carbon::now(),
         'confirmation_channel' => ApOrderQuotations::CONFIRMATION_CHANNEL_PRESENCIAL,
         'notes' => $data['notes'],
         'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
       ]);
+
+      // Actualizar el status a APROBADO
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_APROBADO);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  public function setInEditing(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      // Actualizar el estado a EN_EDICION
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_EN_EDICION);
+
+      $quotation->load([
+        'vehicle',
+        'createdBy',
+        'details',
+      ]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  public function sendToInvoice(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $quotation = $this->find($data['id']);
+
+      // TODO: Agregar validaciones
+
+      // Actualizar el estado a FACTURAR
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_FACTURAR);
 
       $quotation->load([
         'vehicle',
@@ -1515,9 +1570,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotation = $this->find($id);
       $user = auth()->user();
 
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
-        throw new Exception('No se puede aprobar una cotización que ha sido descartada.');
-      }
+      // Validar que NO esté descartada
+      $quotation->ensureNotInStates([
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO
+      ], 'aprobar');
 
       $positionId = $user->person?->position?->id;
 
@@ -1661,9 +1717,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $quotation = $this->find($id);
       $user = auth()->user();
 
-      if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
-        throw new Exception('No se puede aprobar una cotización que ha sido descartada.');
-      }
+      // Validar que NO esté descartada
+      $quotation->ensureNotInStates([
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO
+      ], 'aprobar');
 
       $positionId = $user->person?->position?->id;
 
