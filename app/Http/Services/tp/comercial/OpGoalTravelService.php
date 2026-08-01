@@ -432,14 +432,63 @@ class OpGoalTravelService extends BaseService
                     $params[] = $month;
                 }
 
-                $viajesFacturados = DB::table('fac_viaje_asignada')
-                    ->where('status_deleted', 1)
-                    ->pluck('viaje_id')
-                    ->toArray();
-                $viajesFacturados = empty($viajesFacturados) ? [0] : $viajesFacturados;
 
-                $viajesExcluir = DB::table('op_despacho_item as odi')
+                //viajes facturados directamente (fac_viaje_asignada) - solo facturas completas
+                $viajesFacturados = DB::table('fac_viaje_asignada as va')
+                    ->join('fac_invoice as fi', 'fi.id', '=', 'va.invoice_id')
+                    ->where('va.status_deleted', 1)
+                    ->where('fi.status_fac_completo', 1)
+                    ->where('fi.status_comprobante', 1)
+                    ->where('fi.status_envio_gp', 1)
+                    ->where('fi.status_envio_sunat', 1)
+                    ->pluck('va.viaje_id')
+                    ->toArray();
+
+                //viajes con GRT asignada a factura (fac_grt_asignada) - solo facturas completas
+                $viajesConGrtFacturados = DB::table('fac_grt_asignada as ga')
+                    ->join('fac_guia_trasnportista as gt', 'gt.id', '=', 'ga.grt_id')
+                    ->join('fac_invoice as fi', 'fi.id', '=', 'ga.invoice_id')
+                    ->where('ga.status_deleted', 1)
+                    ->where('fi.status_fac_completo', 1)
+                    ->where('fi.status_comprobante', 1)
+                    ->where('fi.status_envio_gp', 1)
+                    ->where('fi.status_envio_sunat', 1)
+                    ->pluck('gt.viaje_id')
+                    ->toArray();
+
+
+                //viajes con GRR asignada a factura (fac_grr_asignada)
+                $viajesConGrrFacturados = DB::table('fac_grr_asignada as ga')
+                    ->join('fac_guia_remitente as gr', 'gr.id', '=', 'ga.grr_id')
+                    ->join('fac_invoice as fi', 'fi.id', '=', 'ga.invoice_id')
+                    ->where('ga.status_deleted', 1)
+                    ->where('fi.status_fac_completo', 1)
+                    ->where('fi.status_comprobante', 1)
+                    ->where('fi.status_envio_gp', 1)
+                    ->where('fi.status_envio_sunat', 1)
+                    ->pluck('gr.viaje_id')
+                    ->toArray();
+
+                //viajes con GRR exceptuante (sin GRT) - ya tienen GRR, no necesitan GRT
+                $viajesConGrrExceptuante = DB::table('fac_guia_remitente as gr')
+                    ->where('gr.exceptua_transportista', 1)
+                    ->where('gr.status_deleted', 1)
+                    ->pluck('gr.viaje_id')
+                    ->toArray();
+
+
+                $viajesExcluir = array_merge(
+                    $viajesFacturados,
+                    $viajesConGrtFacturados,
+                    $viajesConGrrFacturados,
+                    $viajesConGrrExceptuante
+                );
+                $viajesExcluir = empty($viajesExcluir) ? [0] : array_unique($viajesExcluir);
+
+
+                $viajesExcluirItem = DB::table('op_despacho_item as odi')
                     ->join('op_despacho as od', 'od.id', '=', 'odi.despacho_id')
+                    ->whereIn('odi.tipo_flete', ['PALET', 'VIAJE'])
                     ->where('od.produccion', 0)
                     ->where(function ($query) {
                         $query->where('odi.idproducto', 89)
@@ -452,7 +501,7 @@ class OpGoalTravelService extends BaseService
                     ->pluck('odi.despacho_id')
                     ->toArray();
                 // Combinar con los viajes facturados para excluir
-                $viajesExcluir = array_merge($viajesExcluir, $viajesFacturados);
+                $viajesExcluir = array_merge($viajesExcluir, $viajesExcluirItem);
                 $viajesExcluir = empty($viajesExcluir) ? [0] : array_unique($viajesExcluir);
 
 
@@ -841,20 +890,20 @@ class OpGoalTravelService extends BaseService
                     ];
                 }
                 $conductoresVacaciones = DB::table('rrhh_vacaciones as rv')
-                                        ->join('rrhh_persona as rp', 'rv.empleado_id', '=', 'rp.id')
-                                        ->where('rp.sede_id', 1)
-                                        ->where('rp.status_id', 22)
-                                        ->whereIn('rp.cargo_id', [11, 12])
-                                        ->where('rv.status_deleted', 1)
-                                        ->where('rv.aprobacion_jefatura', 0)
-                                        ->where('rv.aprobacion_rrhh', 1)
-                                        ->where('rv.fecha_inicio', '<=', $hoy)
-                                        ->where('rv.fecha_fin', '>=', $hoy)
-                                        ->pluck('rp.id')
-                                        ->toArray();
+                    ->join('rrhh_persona as rp', 'rv.empleado_id', '=', 'rp.id')
+                    ->where('rp.sede_id', 1)
+                    ->where('rp.status_id', 22)
+                    ->whereIn('rp.cargo_id', [11, 12])
+                    ->where('rv.status_deleted', 1)
+                    ->where('rv.aprobacion_jefatura', 0)
+                    ->where('rv.aprobacion_rrhh', 1)
+                    ->where('rv.fecha_inicio', '<=', $hoy)
+                    ->where('rv.fecha_fin', '>=', $hoy)
+                    ->pluck('rp.id')
+                    ->toArray();
 
-                    //si no hay conductores en vacaciones, usar un array vacio para el NOT IN
-                    $conductoresVacaciones = empty($conductoresVacaciones) ? [0] : $conductoresVacaciones;
+                //si no hay conductores en vacaciones, usar un array vacio para el NOT IN
+                $conductoresVacaciones = empty($conductoresVacaciones) ? [0] : $conductoresVacaciones;
 
 
                 $productosVacios = [109];
@@ -883,7 +932,7 @@ class OpGoalTravelService extends BaseService
                     )
                 ";
 
-                 $condicionCargaVehiculos = "
+                $condicionCargaVehiculos = "
                     (
                         od.produccion > 0
                         OR EXISTS (
@@ -932,7 +981,7 @@ class OpGoalTravelService extends BaseService
                                     AND rp.cargo_id in (11,12)
                                     AND rp.status_deleted = 1
                                     AND rp.sede_id = 1
-                                    AND rp.id NOT IN (". implode(',', $conductoresVacaciones) . ") 
+                                    AND rp.id NOT IN (" . implode(',', $conductoresVacaciones) . ") 
                                 GROUP BY rp.id, rp.nombre_completo
                                 HAVING porcentaje < ?
                                 ORDER BY porcentaje ASC
