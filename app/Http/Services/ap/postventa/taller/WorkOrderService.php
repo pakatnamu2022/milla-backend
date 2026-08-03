@@ -1193,7 +1193,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       throw new Exception('No se encontró almacén físico activo para revertir el inventario');
     }
 
-    // Crear ajuste de entrada (compensatorio)
+    // PASO 1: Crear ajuste de entrada (compensatorio) para devolver el stock al almacén
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
       'warehouse_id' => $warehouse->id,
@@ -1214,6 +1214,37 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     $this->inventoryMovementService->createAdjustment($movementData, $details);
+
+    // PASO 2: Volver a reservar el stock para la OT (ya que la OT regresa a un estado activo)
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
+
+      if (!$stock) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
+        );
+      }
+
+      // Intentar reservar el stock
+      $reserved = $stock->reserveStock($part->quantity_used);
+
+      if (!$reserved) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No hay stock disponible suficiente para reservar el producto {$productInfo}. " .
+          "Stock disponible: {$stock->available_quantity}, Cantidad necesaria: {$part->quantity_used}"
+        );
+      }
+    }
   }
 
   public function generatePDIForVehicle($id)
