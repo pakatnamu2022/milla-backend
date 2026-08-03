@@ -128,13 +128,6 @@ class ApOrderQuotations extends Model
     'is_sold_at_valid_price' => 'boolean',
   ];
 
-  //STATUS CONSTANTS
-  const STATUS_DESCARTADO = 'Descartado';
-  const STATUS_APERTURADO = 'Aperturado';
-  const STATUS_POR_FACTURAR = 'Por Facturar';
-  const STATUS_FACTURADO = 'Facturado';
-  const STATUS_SEGMENTADA = 'Segmentada';
-
   // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION
   const  DAYS_TO_EDIT_OR_DELETE = 15;
 

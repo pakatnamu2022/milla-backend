@@ -85,6 +85,7 @@ class ReconcileReservedStockCommand extends Command
       ->join('ap_work_orders as wo', 'wop.work_order_id', '=', 'wo.id')
       ->whereNull('wop.deleted_at')
       ->whereNull('wo.deleted_at')
+      ->where('wop.is_traverse', false)
       ->where(function ($q) {
         $q->where('wo.output_generation_warehouse', false)
           ->whereNotIn('wo.status_id', [ApMasters::CANCELED_WORK_ORDER_ID, ApMasters::CLOSED_WORK_ORDER_ID])
