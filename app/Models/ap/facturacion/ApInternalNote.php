@@ -64,7 +64,7 @@ class ApInternalNote extends BaseModel
      */
     public static function generateNextNumber(): string
     {
-        $lastNote = self::orderBy('id', 'desc')->first();
+        $lastNote = self::withTrashed()->orderBy('id', 'desc')->first();
 
         if (!$lastNote) {
             return 'IN-00001';
