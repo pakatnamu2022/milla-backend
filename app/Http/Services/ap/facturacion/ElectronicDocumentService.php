@@ -1009,6 +1009,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           ? $data['is_advance_payment'] == 1
           : $document->is_advance_payment == 1;
 
+        // Guardar items existentes ANTES de enriquecer para preservar unidad_medida_dyn
+        // Mapear por codigo para poder recuperar valores después
+        $existingItemsMap = $document->items->keyBy('codigo');
+
         // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
         // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
         if (!empty($effectiveQuotationId)) {
@@ -1017,17 +1021,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId, $isAdvancePayment);
         }
 
-        // Guardar items existentes antes de eliminarlos para hacer match por codigo
-        $existingItems = $document->items->keyBy('codigo');
-
-        // Rellenar dyn_code desde items existentes si falta
+        // Rellenar dyn_code y unidad_medida_dyn desde items existentes si falta
         foreach ($data['items'] as &$newItem) {
-          // Si el nuevo item no tiene dyn_code pero tiene codigo
-          if (empty($newItem['dyn_code']) && !empty($newItem['codigo'])) {
-            // Buscar el item existente con el mismo codigo
-            $existingItem = $existingItems->get($newItem['codigo']);
-            if ($existingItem && $existingItem->dyn_code) {
-              $newItem['dyn_code'] = $existingItem->dyn_code;
+          // Si el nuevo item tiene codigo, buscar el item existente
+          if (!empty($newItem['codigo'])) {
+            $existingItem = $existingItemsMap->get($newItem['codigo']);
+
+            if ($existingItem) {
+              // Preservar dyn_code si el nuevo item no tiene uno
+              if (empty($newItem['dyn_code']) && $existingItem->dyn_code) {
+                $newItem['dyn_code'] = $existingItem->dyn_code;
+              }
+
+              // Preservar unidad_medida_dyn si el nuevo item no tiene uno o tiene 'UND'
+              if ((empty($newItem['unidad_medida_dyn']) || $newItem['unidad_medida_dyn'] === 'UND') && $existingItem->unidad_medida_dyn) {
+                $newItem['unidad_medida_dyn'] = $existingItem->unidad_medida_dyn;
+              }
             }
           }
         }
