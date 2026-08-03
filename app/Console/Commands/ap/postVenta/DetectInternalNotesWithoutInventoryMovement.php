@@ -58,6 +58,7 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
     // Obtener todas las notas internas con sus relaciones
     $query = ApInternalNote::with([
       'workOrder.items.typePlanning',
+      'workOrder.parts.product', // Agregar parts para verificar si tiene repuestos
       'inventoryMovements',
       'electronicDocuments'
     ]);
@@ -113,6 +114,17 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
         continue;
       }
 
+      // CLAVE: Verificar si la OT tiene repuestos (parts con product_id)
+      // Solo si tiene repuestos debe tener salida de inventario
+      $productParts = $workOrder->parts->filter(fn($part) => $part->product_id !== null);
+      $hasProductParts = $productParts->isNotEmpty();
+
+      // Si NO tiene repuestos, esta OT no debe tener salida de inventario (es normal)
+      // Saltar al siguiente
+      if (!$hasProductParts) {
+        continue;
+      }
+
       // Verificar si tiene movimientos de inventario
       $hasInventoryMovement = $internalNote->inventoryMovements()->exists();
 
@@ -128,18 +140,21 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
         'has_movement' => $hasInventoryMovement,
         'has_electronic_document' => $internalNote->electronicDocuments->isNotEmpty(),
         'electronic_document_numbers' => $internalNote->electronicDocuments->pluck('full_number')->join(', '),
+        'parts_count' => $productParts->count(),
+        'total_quantity' => $productParts->sum('quantity_used'),
       ];
 
-      // Para INTERNA_SC: DEBE tener movimiento de inventario
-      // Para INTERNA_CC: NO debe tener movimiento al crear, solo al facturar
+      // Para INTERNA_SC: DEBE tener movimiento de inventario (si tiene repuestos)
+      // Para INTERNA_CC: NO debe tener movimiento al crear, solo al facturar (si tiene repuestos)
       if ($typeDocument === TypePlanningWorkOrder::INTERNA_SC) {
+        // INTERNA_SC con repuestos DEBE tener movimiento tipo ADJUSTMENT_OUT
         if (!$hasInventoryMovement) {
           $withoutMovement[] = $noteData;
         } else {
           $withMovement[] = $noteData;
         }
       } elseif ($typeDocument === TypePlanningWorkOrder::INTERNA_CC) {
-        // INTERNA_CC no debe tener movimiento hasta que se facture
+        // INTERNA_CC con repuestos no debe tener movimiento hasta que se facture
         // Si está facturada (invoiced) y tiene comprobante, DEBE tener movimiento tipo SALE
         if ($internalNote->status === ApInternalNote::STATUS_INVOICED && $noteData['has_electronic_document']) {
           if (!$hasInventoryMovement) {
@@ -164,10 +179,10 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
   {
     // Notas internas SIN movimiento cuando DEBERÍAN tenerlo
     if (!empty($withoutMovement)) {
-      $this->error("❌ NOTAS INTERNAS SIN SALIDA DE INVENTARIO ({$this->count($withoutMovement)}):");
+      $this->error("❌ NOTAS INTERNAS CON REPUESTOS SIN SALIDA DE INVENTARIO ({$this->count($withoutMovement)}):");
       $this->newLine();
 
-      $headers = ['ID NI', 'Núm. NI', 'ID OT', 'OT', 'Tipo Doc', 'Estado', 'Fecha Creación', 'Tiene Comprob.', 'Núm. Comprob.'];
+      $headers = ['ID NI', 'Núm. NI', 'ID OT', 'OT', 'Tipo Doc', 'Repuestos', 'Cant. Total', 'Estado', 'Fecha Creación'];
       $rows = array_map(function ($item) {
         return [
           $item['internal_note_id'],
@@ -175,10 +190,10 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
           $item['work_order_id'],
           $item['work_order_correlative'],
           $item['type_document'],
+          $item['parts_count'],
+          $item['total_quantity'],
           $item['status'],
           $item['created_date'] ?? '-',
-          $item['has_electronic_document'] ? 'Sí' : 'No',
-          $item['electronic_document_numbers'] ?: '-',
         ];
       }, array_slice($withoutMovement, 0, $limit));
 
@@ -189,7 +204,8 @@ class DetectInternalNotesWithoutInventoryMovement extends Command
       }
 
       $this->newLine();
-      $this->warn("⚠️ Estas notas internas DEBERÍAN tener salida de inventario pero NO la tienen.");
+      $this->warn("⚠️ Estas notas internas tienen repuestos pero NO tienen su salida de inventario.");
+      $this->warn("   Esto significa que el inventario NO se descontó cuando se generó/facturó la nota interna.");
       $this->newLine();
     } else {
       $this->info("✓ Todas las notas internas tienen su salida de inventario correctamente.");

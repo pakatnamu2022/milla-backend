@@ -154,9 +154,11 @@ class FixInternalNoteInventoryReferences extends Command
         'new_movement_date' => null,
       ];
 
-      // Para INTERNA_CC, buscar el comprobante electrónico
+      // Para INTERNA_CC, buscar el comprobante electrónico válido (no anulado)
       if ($typeDocument === TypePlanningWorkOrder::INTERNA_CC) {
-        $electronicDocument = $internalNote->electronicDocuments->first();
+        $electronicDocument = $internalNote->electronicDocuments
+          ->where('anulado', false)
+          ->first();
 
         if (!$electronicDocument) {
           $notFound[] = [
