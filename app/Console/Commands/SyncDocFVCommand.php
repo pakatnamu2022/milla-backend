@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class SyncDocFVCommand extends Command
 {
   protected $signature = 'electronic-document:sync-docfv
-                          {--limit=500 : Número máximo de documentos a procesar}
+                          {--limit=0 : Número máximo de documentos a procesar (0 = todos)}
                           {--dry-run : Solo muestra cuántos faltarían sin insertar}';
 
   protected $description = 'Backfill de RM20101_DOCFV en DBTP3 para documentos AP completados en Dynamics';
@@ -33,13 +33,17 @@ class SyncDocFVCommand extends Command
     $inserted = 0;
     $skipped = 0;
 
-    ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+    $query = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->whereNotNull('fecha_de_vencimiento')
       ->whereNull('deleted_at')
       ->select(['id', 'serie', 'numero', 'fecha_de_vencimiento'])
-      ->orderBy('id', 'desc')
-      ->limit($limit)
-      ->chunk(100, function ($documents) use ($existingIds, $dryRun, &$inserted, &$skipped) {
+      ->orderBy('id', 'desc');
+
+    if ($limit > 0) {
+      $query->limit($limit);
+    }
+
+    $query->chunk(100, function ($documents) use ($existingIds, $dryRun, &$inserted, &$skipped) {
         $rows = [];
 
         foreach ($documents as $document) {
