@@ -36,7 +36,7 @@ class SyncDocFVCommand extends Command
     $query = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->whereNotNull('fecha_de_vencimiento')
       ->whereNull('deleted_at')
-      ->select(['id', 'serie', 'numero', 'fecha_de_vencimiento'])
+      ->select(['id', 'full_number', 'fecha_de_vencimiento'])
       ->orderBy('id', 'desc');
 
     if ($limit > 0) {
