@@ -577,29 +577,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         }
       }
 
-      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
-        throw new Exception('No se puede actualizar una cotización que ha sido descartada.');
-      }
-
-      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_SEGMENTADO) {
-        throw new Exception('No se puede actualizar una cotización que ha sido segmentada.');
-      }
-
-      // Validar estado con status_id
-      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
-        throw new Exception('No se puede editar una cotización que está en estado "Facturar".');
-      }
-
-      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_EN_EDICION && $quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APERTURADO) {
-        throw new Exception('Solo se pueden editar cotizaciones en estado "En Edición" o "Aperturado".');
-      }
+      // Solo se pueden editar cotizaciones en estado "Aperturado" o "Aprobado"
+      $quotation->ensureInStates([
+        ApMasters::STATUS_ORDER_QUOTE_APERTURADO,
+        ApMasters::STATUS_ORDER_QUOTE_APROBADO
+      ], 'editar');
 
       if ($quotation->segmentedQuotations()->count() > 0) {
         throw new Exception('Esta cotización no se puede editar porque ha sido segmentada en otras cotizaciones.');
-      }
-
-      if ($quotation->getActiveAdvances()->count() > 0) {
-        throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
       }
 
       if ($quotation->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty()) {
@@ -607,7 +592,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar cambio de moneda si existen pagos registrados
-      if ($quotation->getActiveAdvances()->count() > 0 && $quotation->currency_id !== $data['currency_id']) {
+      if ($quotation->currency_id != $data['currency_id']) {
         throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
       }
 
@@ -758,16 +743,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   {
     $quotation = $this->find($id);
 
-    if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APERTURADO) {
-      throw new Exception('Solo se pueden eliminar cotizaciones en estado "Aperturado".');
+    // Solo se pueden eliminar cotizaciones en estado "Aperturado"
+    $quotation->ensureInStates([
+      ApMasters::STATUS_ORDER_QUOTE_APERTURADO
+    ], 'eliminar');
+
+    // Validar si existe una factura final generada
+    if ($quotation->hasFinalInvoice()) {
+      throw new Exception('No se puede eliminar una cotización que tiene una factura final generada.');
     }
 
     if ($quotation->getActiveAdvances()->count() > 0) {
-      throw new Exception('No se puede editar una cotización que tiene anticipos registrados');
-    }
-
-    if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
-      throw new Exception('No se puede eliminar una cotización que ha sido descartada.');
+      throw new Exception('No se puede eliminar una cotización que tiene anticipos registrados');
     }
 
     if ($quotation->is_take === true) {
@@ -783,9 +770,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         $quotationDate = Carbon::parse($quotation->quotation_date)->startOfDay();
         $today = Carbon::now()->startOfDay();
 
-        // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir edición
+        // Si la cotización tiene más de DAYS_TO_EDIT_OR_DELETE días de antigüedad, no permitir eliminar
         if ($quotationDate->diffInDays($today) > ApOrderQuotations::DAYS_TO_EDIT_OR_DELETE) {
-          throw new Exception('No se puede editar la cotización porque ya pasaron más de 15 días desde su fecha.');
+          throw new Exception('No se puede eliminar la cotización porque ya pasaron más de 15 días desde su fecha.');
         }
       }
     }
@@ -811,10 +798,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      // Validar que NO esté descartada
+      // Validar que NO esté descartada ni facturada
       $quotation->ensureNotInStates([
-        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_FACTURADO
       ], 'descartar');
+
+      // Validar si existe una factura final generada
+      if ($quotation->hasFinalInvoice()) {
+        throw new Exception('No se puede descartar una cotización que tiene una factura final generada.');
+      }
 
       if ($quotation->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede anular una cotización que tiene anticipos registrados');
@@ -824,15 +817,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Esta cotización ya ha sido descartada previamente.');
       }
 
-      if ($quotation->getFinalInvoice()) {
-        throw new Exception('No se puede descartar una cotización que tiene un comprobante final emitido');
+      // Validar que no existan comprobantes en borrador
+      if ($quotation->hasDraftAdvance()) {
+        throw new Exception('No se puede descartar la cotización. Existe un anticipo en borrador que debe ser eliminado primero.');
       }
 
-      // Las cotizaciones de Taller nunca reservan stock al confirmarse (ver
-      // reserveStockForQuotation), así que no hay nada que liberar aquí para ellas.
-      // Liberar de todos modos restaría reserva ajena si el mismo producto+almacén
-      // tiene reserva legítima por otra cotización de Mesón u OT.
-      if ($quotation->area_id !== ApMasters::AREA_TALLER) {
+      if ($quotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede descartar la cotización. Existe una factura final en borrador que debe ser eliminada primero.');
+      }
+
+      // Solo liberar stock si está en estado FACTURAR
+      // En ese estado es cuando se reservó el stock (ver sendToInvoice)
+      // Si está en APROBADO u otro estado, no se reservó stock aún
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
         // Obtener almacén para liberar stock
         $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
 
@@ -1468,18 +1465,15 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      // Validar que NO esté descartada ni ya confirmada
+      // Validar que NO esté descartada, facturada ni ya confirmada (aprobada)
       $quotation->ensureNotInStates([
         ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
         ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
+        ApMasters::STATUS_ORDER_QUOTE_APROBADO,
       ], 'confirmar');
 
       if ($quotation->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
-      }
-
-      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_APROBADO) {
-        throw new Exception('Esta cotización ya ha sido confirmada previamente.');
       }
 
       if ($quotation->segmentedQuotations()->count() > 0) {
@@ -1490,9 +1484,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       if (isset($data['customer_signature'])) {
         $this->processCustomerSignature($quotation, $data['customer_signature']);
       }
-
-      // Reservar stock para productos de tipo STOCK
-      $this->reserveStockForQuotation($quotation);
 
       // Actualizar datos de confirmación
       $quotation->update([
@@ -1514,13 +1505,50 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
-  public function setInEditing(mixed $data)
+  public function sendToInvoice(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      // Actualizar el estado a EN_EDICION
-      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_EN_EDICION);
+      // Validar que esté en estado APROBADO
+      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_APROBADO) {
+        throw new Exception('Solo se pueden enviar a facturar cotizaciones que estén en estado APROBADO');
+      }
+
+      // Validar si existe una factura final generada
+      if ($quotation->hasFinalInvoice()) {
+        throw new Exception('No se puede enviar a facturar la cotización. Ya existe una factura final generada.');
+      }
+
+      // Validar si existe un anticipo en borrador
+      if ($quotation->hasDraftAdvance()) {
+        throw new Exception('No se puede enviar a facturar la cotización. Existe un anticipo en borrador que debe ser enviado primero.');
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($quotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede enviar a facturar la cotización. Existe una factura final en borrador que debe ser enviada primero.');
+      }
+
+      // Validar que el monto de anticipos no supere el monto total de la cotización
+      $advancesAmount = $quotation->getNetAmountFromAdvances();
+      if ($advancesAmount > 0) {
+        // Hay anticipos registrados, validar que no superen el monto total
+        // Redondear a 2 decimales para evitar problemas de precisión con flotantes
+        if (round($advancesAmount, 2) > round($quotation->total_amount, 2)) {
+          throw new Exception(sprintf(
+            'No se puede enviar a facturar la cotización. El monto de anticipos (%.2f) supera el monto total de la cotización (%.2f).',
+            $advancesAmount,
+            $quotation->total_amount
+          ));
+        }
+      }
+
+      // Reservar stock para productos de tipo STOCK
+      $this->reserveStockForQuotation($quotation);
+
+      // Actualizar el estado a FACTURAR
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_FACTURAR);
 
       $quotation->load([
         'vehicle',
@@ -1532,15 +1560,59 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     });
   }
 
-  public function sendToInvoice(mixed $data)
+  public function setInEditing(mixed $data)
   {
     return DB::transaction(function () use ($data) {
       $quotation = $this->find($data['id']);
 
-      // TODO: Agregar validaciones
+      // Validar que no este en estado FACTURADO
+      if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_FACTURADO) {
+        throw new Exception('No se puede poner en edición una cotización que ya ha sido facturada.');
+      }
 
-      // Actualizar el estado a FACTURAR
-      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_FACTURAR);
+      // Validar que esté en estado FACTURAR
+      if ($quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
+        throw new Exception('Solo se pueden editar cotizaciones que estén en estado FACTURAR');
+      }
+
+      // Validar si existe una factura final generada
+      if ($quotation->hasFinalInvoice()) {
+        throw new Exception('No se puede poner en edición la cotización. Ya existe una factura final generada.');
+      }
+
+      // Validar si existe un anticipo en borrador
+      if ($quotation->hasDraftAdvance()) {
+        throw new Exception('No se puede poner en edición la cotización. Existe un anticipo en borrador que debe ser enviado primero.');
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($quotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede poner en edición la cotización. Existe una factura final en borrador que debe ser enviada primero.');
+      }
+
+      // Obtener almacén para liberar stock
+      $warehouseId = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id)?->id;
+
+      // Liberar stock de los detalles que son tipo STOCK y NO son travesía
+      foreach ($quotation->details as $detail) {
+        // Si es travesía, NO liberar stock (nunca se reservó)
+        if ($detail->is_traverse) {
+          continue;
+        }
+
+        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK && $detail->product_id && $warehouseId) {
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+          if ($stock) {
+            $stock->releaseReservedStock($detail->quantity);
+          }
+        }
+      }
+
+      // Actualizar el estado a APROBADO (para permitir edición)
+      $quotation->updateStatus(ApMasters::STATUS_ORDER_QUOTE_APROBADO);
 
       $quotation->load([
         'vehicle',
@@ -2120,7 +2192,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Enviar correo al cliente
       $this->emailService->queue([
-        'to' => 'wsuclupef@automotorespakatnamu.com', //$quotation->client->email,
+        'to' => $quotation->client->email,
         'subject' => 'Confirmación de Cotización - ' . $quotation->quotation_number,
         'template' => 'emails.quotation-virtual-confirmation',
         'data' => $emailData,

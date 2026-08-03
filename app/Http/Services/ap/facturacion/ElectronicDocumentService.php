@@ -3439,6 +3439,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ElectronicDocument::TYPE_NOTA_DEBITO
       ]);
 
+    // Validar que la cotización esté en estado FACTURAR para generar comprobantes
+    // (no aplica a notas de crédito/débito ya que estas ajustan documentos existentes)
+    if (!$isNotaCreditoDebito && $quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
+      throw new Exception('No se puede generar un comprobante electrónico para una cotización que no está en estado FACTURAR. La cotización debe estar en estado FACTURAR para poder generar comprobantes.');
+    }
+
     // Validar que no exista ya una factura final para esta cotización
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
     if (isset($data['is_advance_payment']) && $data['is_advance_payment'] == 0) {

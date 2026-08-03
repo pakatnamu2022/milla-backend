@@ -5,7 +5,6 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\ConfirmQuotationVirtuallyRequest;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
-use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Carbon\Carbon;
@@ -101,10 +100,6 @@ class PublicQuotationConfirmationController extends Controller
           'confirmed_by_name' => $data['confirmed_by_name'] ?? null,
           'notes' => $data['notes'] ?? null,
         ];
-
-        // Reservar stock para productos de tipo STOCK
-        $quotationService = app(ApOrderQuotationsService::class);
-        $quotationService->reserveStockForQuotation($quotation);
 
         // Actualizar cotización con datos de confirmación virtual
         $quotation->update([
