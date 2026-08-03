@@ -138,6 +138,24 @@ class ApVehicleDelivery extends Model
     return $this->deliveryChecklist?->status ?? null;
   }
 
+  public function getStatusDeliveryLabelAttribute(): string
+  {
+    return match ($this->status_delivery) {
+      'delivered', 'completed' => 'Entregado',
+      'pending'                => 'Pendiente',
+      default                  => $this->status_delivery ?? '-',
+    };
+  }
+
+  public function getChecklistConfirmationAttribute(): string
+  {
+    return match ($this->deliveryChecklist?->status) {
+      'confirmed' => 'Confirmado',
+      'draft'     => 'Borrador',
+      default     => 'Sin checklist',
+    };
+  }
+
   public function getHasVehicleDeliveryAttribute(): bool
   {
     return $this->vehicle_id !== null
@@ -221,6 +239,22 @@ class ApVehicleDelivery extends Model
       'label'     => 'HORA ENTREGA',
       'formatter' => 'date:H:i',
     ],
+    'status_delivery_label'                                        => [
+      'label'     => 'ESTADO',
+      'formatter' => null,
+    ],
+    'ShippingGuide.document_number'                                => [
+      'label'   => 'GUÍA DE REMISIÓN',
+      'default' => '-',
+    ],
+    'checklist_confirmation'                                       => [
+      'label'     => 'CHECKLIST (SERIALES)',
+      'formatter' => null,
+    ],
+    'is_accounted'                                                 => [
+      'label'     => 'CONTABILIZADO',
+      'formatter' => 'boolean',
+    ],
     'cliente_autorizo_datos'                                       => [
       'label' => 'CLIENTE AUTORIZO DATOS',
       'value' => 'SI',
@@ -237,6 +271,8 @@ class ApVehicleDelivery extends Model
     'advisor',
     'sede',
     'client.documentType',
+    'ShippingGuide',
+    'deliveryChecklist',
   ];
 
   protected $reportStyles = [

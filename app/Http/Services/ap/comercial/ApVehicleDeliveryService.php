@@ -347,6 +347,13 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $shippingGuide = ShippingGuides::create($shippingGuideData);
         $record->update(['shipping_guide_id' => $shippingGuide->id]);
 
+        try {
+          $freshRecord = $record->fresh()->load(['vehicle.model', 'vehicle.color', 'client', 'advisor', 'sede']);
+          $this->sendClientWelcomeEmail($freshRecord);
+        } catch (\Throwable $e) {
+          \Log::warning('Welcome email could not be queued: ' . $e->getMessage());
+        }
+
         return new ShippingGuidesResource($shippingGuide);
       });
     } catch (Exception $e) {
@@ -974,6 +981,60 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'vehicle'               => $vehicleInfo,
       'checks'                => $checks,
     ];
+  }
+
+  private function sendClientWelcomeEmail(ApVehicleDelivery $delivery): void
+  {
+    $client = $delivery->client;
+    if (!$client || empty($client->email)) {
+      return;
+    }
+
+    $welcomeConfigs = ApMasters::ofType(ApMasters::TYPE_VEHICLE_WELCOME)->get()->keyBy('code');
+    $letterUrl = $welcomeConfigs->get(ApMasters::VEHICLE_WELCOME_LETTER_CODE)?->description;
+    $videoUrl  = $welcomeConfigs->get(ApMasters::VEHICLE_WELCOME_VIDEO_CODE)?->description;
+
+    $attachments = [];
+    if ($letterUrl) {
+      $attachments[] = [
+        'url'  => $letterUrl,
+        'name' => 'Carta de Bienvenida.pdf',
+        'mime' => 'application/pdf',
+      ];
+    }
+    if ($videoUrl) {
+      $attachments[] = [
+        'url'  => $videoUrl,
+        'name' => 'Video de Bienvenida.mp4',
+        'mime' => 'video/mp4',
+      ];
+    }
+
+    $vehicle     = $delivery->vehicle;
+    $modelCode   = $vehicle?->model?->code ?? '';
+    $modelYear   = $vehicle?->model?->model_year ?? '';
+    $colorName   = $vehicle?->color?->description ?? '';
+    $advisorName = $delivery->advisor?->nombre_completo ?? '';
+    $sedeName    = $delivery->sede?->abreviatura ?? '';
+
+    $this->emailService->queue([
+      'to'          => $client->email,
+      'subject'     => '¡Bienvenido a la familia! Tu ' . trim($modelCode . ' ' . $modelYear) . ' te espera',
+      'template'    => 'emails.vehicle-welcome',
+      'attachments' => $attachments,
+      'data'        => [
+        'client_name'  => $client->full_name,
+        'model_code'   => $modelCode,
+        'model_year'   => $modelYear,
+        'vehicle_vin'  => $vehicle?->vin ?? '',
+        'color_name'   => $colorName,
+        'advisor_name' => $advisorName,
+        'sede_name'    => $sedeName,
+        'delivery_date'=> Carbon::parse($delivery->real_delivery_date ?? now())->format('d \d\e F \d\e Y'),
+        'has_letter'   => !empty($letterUrl),
+        'video_url'    => $videoUrl,
+      ],
+    ]);
   }
 
   private function sendExtraordinaryApprovalEmail(ApVehicleDelivery $delivery): void

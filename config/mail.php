@@ -123,6 +123,7 @@ return [
     'extraordinary_approval' => env('DELIVERY_EXTRAORDINARY_APPROVAL_EMAIL', 'eirigoins@automotorespakatnamu.com'),
   ],
 
+
   'recipients' => [
     'purchase_quote' => [
       'piura_jaen'         => ['john.timana@derco.pe'],
