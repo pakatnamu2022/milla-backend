@@ -22,6 +22,8 @@ class ApInternalNote extends BaseModel
         'created_date',
         'closed_date',
         'status',
+        'dyn_series',
+        'migration_status',
     ];
 
     protected $casts = [

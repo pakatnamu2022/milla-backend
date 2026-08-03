@@ -10,6 +10,7 @@ use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
+use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
@@ -1082,6 +1083,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       DB::commit();
 
+      // Despachar job para migrar a Dynamics
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, false);
+
       return response()->json([
         'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
         'internal_note_id' => $internalNote->id,
@@ -1159,10 +1163,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'output_generation_warehouse' => false,
       ]);
 
+      DB::commit();
+
+      // Despachar job para migrar reversión a Dynamics (antes de eliminar la nota)
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, true);
+
       // 4. Eliminar nota interna (soft delete)
       $internalNote->delete();
-
-      DB::commit();
 
       return response()->json([
         'message' => 'Nota interna revertida correctamente',

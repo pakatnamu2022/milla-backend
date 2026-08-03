@@ -3,6 +3,7 @@
 namespace App\Models\ap\comercial;
 
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
     'vehicle_purchase_order_id',
     'shipping_guide_id',
     'electronic_document_id',
+    'internal_note_id',
     'ap_vehicles_id',
     'step',
     'status',
@@ -75,6 +77,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_ACCOUNTING_ENTRY_HEADER = 'accounting_entry_header';
   const STEP_ACCOUNTING_ENTRY_DETAIL = 'accounting_entry_detail';
 
+  // Constantes para los pasos de migración (Internal Notes - Notas Internas)
+  const STEP_INTERNAL_NOTE_TRANSACTION = 'internal_note_transaction';
+  const STEP_INTERNAL_NOTE_TRANSACTION_DETAIL = 'internal_note_transaction_detail';
+
+  // Constantes para los pasos de reversión (Reversión de Notas Internas)
+  const STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL = 'internal_note_transaction_REVERSAL';
+  const STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL = 'internal_note_transaction_detail_REVERSAL';
+
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
@@ -114,6 +124,10 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALES_DOCUMENT_SERIAL => 'neInTbVentaDtS',
     self::STEP_ACCOUNTING_ENTRY_HEADER => 'neInTbIntegracionAsientoCab',
     self::STEP_ACCOUNTING_ENTRY_DETAIL => 'neInTbIntegracionAsientoDet',
+    self::STEP_INTERNAL_NOTE_TRANSACTION => 'neInTbTransaccionInventario',
+    self::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL => 'neInTbTransaccionInventarioDet',
+    self::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL => 'neInTbTransaccionInventario',
+    self::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL => 'neInTbTransaccionInventarioDet',
   ];
 
   /**
@@ -146,6 +160,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
   public function electronicDocument(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
+  }
+
+  /**
+   * Relación con la nota interna
+   */
+  public function internalNote(): BelongsTo
+  {
+    return $this->belongsTo(ApInternalNote::class, 'internal_note_id');
   }
 
   /**
