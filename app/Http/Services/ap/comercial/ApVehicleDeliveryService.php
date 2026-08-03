@@ -1001,37 +1001,36 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         'mime' => 'application/pdf',
       ];
     }
-    if ($videoUrl) {
-      $attachments[] = [
-        'url'  => $videoUrl,
-        'name' => 'Video de Bienvenida.mp4',
-        'mime' => 'video/mp4',
-      ];
-    }
+
+    preg_match('/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $videoUrl ?? '', $ytMatches);
+    $videoThumbnail = isset($ytMatches[1])
+      ? "https://img.youtube.com/vi/{$ytMatches[1]}/maxresdefault.jpg"
+      : null;
 
     $vehicle = $delivery->vehicle;
-    $modelCode = $vehicle?->model?->code ?? '';
-    $modelYear = $vehicle?->model?->model_year ?? '';
-    $colorName = $vehicle?->color?->description ?? '';
-    $advisorName = $delivery->advisor?->nombre_completo ?? '';
-    $sedeName = $delivery->sede?->abreviatura ?? '';
+    $modelVersion = $vehicle?->model?->version ?? '';
+    $modelYear    = $vehicle?->model?->model_year ?? '';
+    $colorName    = $vehicle?->color?->description ?? '';
+    $advisorName  = $delivery->advisor?->nombre_completo ?? '';
+    $sedeName     = $delivery->sede?->abreviatura ?? '';
 
     $this->emailService->queue([
       'to'          => $client->email,
-      'subject'     => '¡Bienvenido a la familia! Tu ' . trim($modelCode . ' ' . $modelYear) . ' te espera',
+      'subject'     => '¡Bienvenido a la familia! Tu ' . trim($modelVersion . ' ' . $modelYear) . ' te espera',
       'template'    => 'emails.vehicle-welcome',
       'attachments' => $attachments,
       'data'        => [
-        'client_name'   => $client->full_name,
-        'model_code'    => $modelCode,
-        'model_year'    => $modelYear,
-        'vehicle_vin'   => $vehicle?->vin ?? '',
-        'color_name'    => $colorName,
-        'advisor_name'  => $advisorName,
-        'sede_name'     => $sedeName,
-        'delivery_date' => Carbon::parse($delivery->real_delivery_date ?? now())->format('d \d\e F \d\e Y'),
-        'has_letter'    => !empty($letterUrl),
-        'video_url'     => $videoUrl,
+        'client_name'      => $client->full_name,
+        'model_version'    => $modelVersion,
+        'model_year'       => $modelYear,
+        'vehicle_vin'      => $vehicle?->vin ?? '',
+        'color_name'       => $colorName,
+        'advisor_name'     => $advisorName,
+        'sede_name'        => $sedeName,
+        'delivery_date'    => Carbon::parse($delivery->real_delivery_date ?? now())->format('d \d\e F \d\e Y'),
+        'has_letter'       => !empty($letterUrl),
+        'video_url'        => $videoUrl,
+        'video_thumbnail'  => $videoThumbnail,
       ],
     ]);
   }

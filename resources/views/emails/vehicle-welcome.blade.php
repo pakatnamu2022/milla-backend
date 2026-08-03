@@ -9,7 +9,7 @@
 </style>
 @endpush
 
-@section('email_subject', '¡Bienvenido a la familia! Tu ' . $model_code . ' ' . $model_year . ' te espera')
+@section('email_subject', '¡Bienvenido a la familia! Tu ' . $model_version . ' ' . $model_year . ' te espera')
 
 @section('title')
   <span style="color:#111111;">Bienvenido</span><br>
@@ -17,7 +17,7 @@
 @endsection
 
 @section('subtitle')
-  Estamos felices de que tu {{ $model_code }} {{ $model_year }} esté en tus manos. A partir de hoy, inicia una nueva experiencia.
+  Estamos felices de que tu {{ $model_version }} {{ $model_year }} esté en tus manos. A partir de hoy, inicia una nueva experiencia.
 @endsection
 
 @section('content')
@@ -28,7 +28,7 @@
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.75;color:#374151;">
         Estimado/a <strong style="color:#111111;font-weight:600;">{{ $client_name }}</strong>, en nombre de todo el equipo de
         <strong style="color:#111111;font-weight:600;">{{ $sede_name }}</strong> queremos felicitarte por esta gran decisión.
-        Tu nuevo vehículo fue entregado el {{ $delivery_date }} y nos llena de orgullo acompañarte en este momento.
+        Tu nuevo {{ $model_version }} fue entregado el {{ $delivery_date }} y nos llena de orgullo acompañarte en este momento.
       </p>
     </td>
   </tr>
@@ -42,7 +42,7 @@
           <td style="padding:28px 28px 10px 28px;">
             <p style="margin:0 0 4px 0;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:#9ca3af;text-transform:uppercase;">Tu vehículo</p>
             <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:26px;font-weight:300;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
-              {{ $model_code }}
+              {{ $model_version }}
               @if($model_year)
                 <span style="color:#6b7280;">{{ $model_year }}</span>
               @endif
@@ -111,26 +111,28 @@
   @if($video_url)
   <tr>
     <td style="padding-bottom:16px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-             style="background:#f9fafb;border:1px solid #f0f0f0;border-radius:10px;">
-        <tr>
-          <td style="padding:18px 20px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="width:40px;vertical-align:middle;padding-right:14px;">
-                  <img src="https://api.iconify.design/lucide/play-circle.svg?color=%23111111&width=32&height=32" alt=""
-                       width="32" height="32"
-                       style="display:block;border:0;outline:none;text-decoration:none;">
-                </td>
-                <td style="vertical-align:middle;">
-                  <p style="margin:0 0 2px 0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#111111;">Video de Bienvenida</p>
-                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.5;">Hemos preparado un video especialmente para ti. También lo encontrarás adjunto en este correo.</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+      <a href="{{ $video_url }}" target="_blank" style="text-decoration:none;display:block;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+               style="background:#f9fafb;border:1px solid #f0f0f0;border-radius:10px;">
+          <tr>
+            <td style="padding:18px 20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width:40px;vertical-align:middle;padding-right:14px;">
+                    <img src="https://api.iconify.design/lucide/play-circle.svg?color=%23111111&width=32&height=32" alt=""
+                         width="32" height="32"
+                         style="display:block;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <p style="margin:0 0 2px 0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#111111;">Video de Bienvenida</p>
+                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.5;">Hemos preparado un video especialmente para ti. Haz clic para verlo.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </a>
     </td>
   </tr>
   @endif
