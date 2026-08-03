@@ -1147,7 +1147,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if ($validateLabor || $validateReception) {
         // Si tiene validaciones de trabajo o recepción, regresa a FINISHED
-        $newStatusId = ApMasters::FINISHED_WORK_ORDER_ID;
+        $newStatusId = ApMasters::END_WORK_WORK_ORDER_ID;
       } else {
         // OT simple sin validaciones, regresa a OPENING
         $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
