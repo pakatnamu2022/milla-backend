@@ -165,7 +165,7 @@ class WorkOrderController extends Controller
     try {
       $data = $request->validate(
         [
-          'num_doc_pickup' => 'required|string|digits:8',
+          'num_doc_pickup' => ['required', 'string', 'regex:/^(\d{8}|\d{9})$/'],
           'full_pickup_name' => 'required|string',
           'phone_pickup' => 'required|string',
         ]
@@ -365,7 +365,7 @@ class WorkOrderController extends Controller
   {
     try {
       $files = $request->file('files');
-      return $this->success($this->service->uploadDocuments((int) $id, $files));
+      return $this->success($this->service->uploadDocuments((int)$id, $files));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -374,7 +374,7 @@ class WorkOrderController extends Controller
   public function documents($id)
   {
     try {
-      return $this->success($this->service->listDocuments((int) $id));
+      return $this->success($this->service->listDocuments((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
