@@ -46,8 +46,8 @@ class SyncSalesDocumentJob implements ShouldQueue
     } catch (\Exception $e) {
       Log::error('Error en SyncSalesDocumentJob', [
         'electronic_document_id' => $this->electronicDocumentId,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
+        'error'                  => $e->getMessage(),
+        'trace'                  => $e->getTraceAsString(),
       ]);
       throw $e;
     }
@@ -162,16 +162,16 @@ class SyncSalesDocumentJob implements ShouldQueue
         $log->markAsInProgress();
 
         $clientData = [
-          'id' => $document->client->id,
-          'num_doc' => $document->client->num_doc,
-          'full_name' => $document->client->full_name,
-          'document_type_id' => $document->client->document_type_id,
+          'id'                => $document->client->id,
+          'num_doc'           => $document->client->num_doc,
+          'full_name'         => $document->client->full_name,
+          'document_type_id'  => $document->client->document_type_id,
           'tax_class_type_id' => $document->client->tax_class_type_id,
-          'type_person_id' => $document->client->type_person_id,
-          'paternal_surname' => $document->client->paternal_surname,
-          'maternal_surname' => $document->client->maternal_surname,
-          'first_name' => $document->client->first_name,
-          'middle_name' => $document->client->middle_name,
+          'type_person_id'    => $document->client->type_person_id,
+          'paternal_surname'  => $document->client->paternal_surname,
+          'maternal_surname'  => $document->client->maternal_surname,
+          'first_name'        => $document->client->first_name,
+          'middle_name'       => $document->client->middle_name,
         ];
 
         $syncService->sync('business_partners', $clientData);
@@ -185,8 +185,8 @@ class SyncSalesDocumentJob implements ShouldQueue
       $log->markAsFailed($e->getMessage());
       Log::error('Error al sincronizar cliente', [
         'document_id' => $document->id,
-        'client_id' => $document->cliente_numero_de_documento,
-        'error' => $e->getMessage(),
+        'client_id'   => $document->cliente_numero_de_documento,
+        'error'       => $e->getMessage(),
       ]);
     }
   }
@@ -223,7 +223,7 @@ class SyncSalesDocumentJob implements ShouldQueue
 
     if (!$clientLog || $clientLog->proceso_estado !== 1) {
       Log::info('Esperando que el cliente sea procesado antes de sincronizar documento', [
-        'document_id' => $document->id,
+        'document_id'       => $document->id,
         'client_log_status' => $clientLog?->proceso_estado
       ]);
       return;
@@ -252,7 +252,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $log->markAsFailed($e->getMessage());
         Log::error('Error al sincronizar documento de venta', [
           'document_id' => $document->id,
-          'error' => $e->getMessage(),
+          'error'       => $e->getMessage(),
         ]);
         throw $e;
       }
@@ -266,8 +266,11 @@ class SyncSalesDocumentJob implements ShouldQueue
       if ($existingDocument->ProcesoEstado == 1 && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
         $log->markAsCompletedElectronicDocument();
 
-        // Sincronizar a tabla de caja para postventa (método separado, no afecta proceso principal)
+        // Sincronizar a tabla de caja para postventa (method separado, no afecta proceso principal)
         $this->syncToPostventaCaja($document);
+
+        // Sincronizar fecha de vencimiento a RM20101_DOCFV para todos los documentos
+        $this->syncDocFV($document);
       }
     }
   }
@@ -309,7 +312,7 @@ class SyncSalesDocumentJob implements ShouldQueue
         $log->markAsFailed($e->getMessage());
         Log::error('Error al sincronizar detalle de venta', [
           'document_id' => $document->id,
-          'error' => $e->getMessage(),
+          'error'       => $e->getMessage(),
         ]);
         throw $e;
       }
@@ -381,7 +384,7 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       if (!$originalDocument) {
         Log::error('Documento original no encontrado para generar items de nota de crédito massive', [
-          'document_id' => $document->id,
+          'document_id'          => $document->id,
           'original_document_id' => $document->original_document_id
         ]);
 
@@ -402,9 +405,9 @@ class SyncSalesDocumentJob implements ShouldQueue
     // Validar que existan notas internas
     if ($internalNotes->isEmpty()) {
       Log::warning('No se encontraron notas internas para consolidación masiva', [
-        'document_id' => $document->id,
+        'document_id'        => $document->id,
         'consolidation_type' => $document->consolidation_type,
-        'is_credit_note' => $document->sunat_concept_credit_note_type_id !== null
+        'is_credit_note'     => $document->sunat_concept_credit_note_type_id !== null
       ]);
       return;
     }
@@ -424,7 +427,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       if (!$workOrder) {
         Log::warning('Nota interna sin orden de trabajo asociada', [
           'internal_note_id' => $internalNote->id,
-          'document_id' => $document->id
+          'document_id'      => $document->id
         ]);
         continue;
       }
@@ -444,7 +447,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       if (!$sparePartsRoadAccount || !$sparePartsRoadAccount->code_dynamics) {
         Log::error('No se encontró la cuenta contable para repuestos en travesía', [
           'document_id' => $document->id,
-          'account_id' => ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID
+          'account_id'  => ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID
         ]);
       } else {
         // Obtener almacén del documento
@@ -455,27 +458,27 @@ class SyncSalesDocumentJob implements ShouldQueue
 
         // Construir el item consolidado
         $consolidatedItemData = [
-          'EmpresaId' => Company::COMPANY_GPAUP_ID,
-          'DocumentoId' => $document->full_number,
-          'Linea' => $lineNumber,
-          'ArticuloId' => $sparePartsRoadAccount->code_dynamics,
+          'EmpresaId'                => Company::COMPANY_GPAUP_ID,
+          'DocumentoId'              => $document->full_number,
+          'Linea'                    => $lineNumber,
+          'ArticuloId'               => $sparePartsRoadAccount->code_dynamics,
           'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
           'ArticuloDescripcionLarga' => $description,
-          'SitioId' => $warehouse,
-          'UnidadMedidaId' => 'UNS', // Unidad de servicio
-          'Cantidad' => 1, // Siempre 1
-          'PrecioUnitario' => $totalTraversePartsForAllOTs, // Suma de todos los repuestos en travesía (sin IGV)
-          'DescuentoUnitario' => 0,
-          'PrecioTotal' => $totalTraversePartsForAllOTs, // Igual a PrecioUnitario ya que Cantidad = 1
+          'SitioId'                  => $warehouse,
+          'UnidadMedidaId'           => 'UNS', // Unidad de servicio
+          'Cantidad'                 => 1, // Siempre 1
+          'PrecioUnitario'           => $totalTraversePartsForAllOTs, // Suma de todos los repuestos en travesía (sin IGV)
+          'DescuentoUnitario'        => 0,
+          'PrecioTotal'              => $totalTraversePartsForAllOTs, // Igual a PrecioUnitario ya que Cantidad = 1
         ];
 
         // Sincronizar el item consolidado
         $syncService->sync('sales_document_detail', $consolidatedItemData);
 
         Log::info('Item consolidado de repuestos en travesía enviado a Dynamics (massive)', [
-          'document_id' => $document->id,
+          'document_id'  => $document->id,
           'total_amount' => $totalTraversePartsForAllOTs,
-          'line_number' => $lineNumber
+          'line_number'  => $lineNumber
         ]);
       }
     }
@@ -518,9 +521,9 @@ class SyncSalesDocumentJob implements ShouldQueue
       // Validar que el part tenga un producto asociado
       if (!$part->product) {
         Log::warning('Part sin producto asociado', [
-          'part_id' => $part->id,
+          'part_id'       => $part->id,
           'work_order_id' => $workOrder->id,
-          'document_id' => $document->id
+          'document_id'   => $document->id
         ]);
         continue;
       }
@@ -528,10 +531,10 @@ class SyncSalesDocumentJob implements ShouldQueue
       // Validar que el producto tenga código de Dynamics
       if (!$part->product->dyn_code) {
         Log::warning('Producto sin código de Dynamics', [
-          'product_id' => $part->product->id,
-          'part_id' => $part->id,
+          'product_id'    => $part->product->id,
+          'part_id'       => $part->id,
           'work_order_id' => $workOrder->id,
-          'document_id' => $document->id
+          'document_id'   => $document->id
         ]);
         continue;
       }
@@ -542,9 +545,9 @@ class SyncSalesDocumentJob implements ShouldQueue
       // Validar que haya cantidad
       if ($quantity <= 0) {
         Log::warning('Part sin cantidad válida', [
-          'part_id' => $part->id,
+          'part_id'       => $part->id,
           'work_order_id' => $workOrder->id,
-          'document_id' => $document->id
+          'document_id'   => $document->id
         ]);
         continue;
       }
@@ -577,18 +580,18 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       // Construir el item en formato Dynamics
       $itemData = [
-        'EmpresaId' => Company::COMPANY_GPAUP_ID,
-        'DocumentoId' => $document->full_number,
-        'Linea' => $lineNumber,
-        'ArticuloId' => $part->product->dyn_code,
+        'EmpresaId'                => Company::COMPANY_GPAUP_ID,
+        'DocumentoId'              => $document->full_number,
+        'Linea'                    => $lineNumber,
+        'ArticuloId'               => $part->product->dyn_code,
         'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
         'ArticuloDescripcionLarga' => $description,
-        'SitioId' => $warehouse,
-        'UnidadMedidaId' => $unitMeasurementCode,
-        'Cantidad' => $quantity,
-        'PrecioUnitario' => $unitPrice,
-        'DescuentoUnitario' => $discountPercentage,
-        'PrecioTotal' => $totalPrice,
+        'SitioId'                  => $warehouse,
+        'UnidadMedidaId'           => $unitMeasurementCode,
+        'Cantidad'                 => $quantity,
+        'PrecioUnitario'           => $unitPrice,
+        'DescuentoUnitario'        => $discountPercentage,
+        'PrecioTotal'              => $totalPrice,
       ];
 
       // Sincronizar el item de part
@@ -611,9 +614,9 @@ class SyncSalesDocumentJob implements ShouldQueue
       // Validar que haya tiempo registrado
       if ($timeSpentHours <= 0) {
         Log::warning('Labour sin tiempo registrado', [
-          'labour_id' => $labour->id,
+          'labour_id'     => $labour->id,
           'work_order_id' => $workOrder->id,
-          'document_id' => $document->id
+          'document_id'   => $document->id
         ]);
         continue;
       }
@@ -640,18 +643,18 @@ class SyncSalesDocumentJob implements ShouldQueue
 
       // Construir el item en formato Dynamics
       $itemData = [
-        'EmpresaId' => Company::COMPANY_GPAUP_ID,
-        'DocumentoId' => $document->full_number,
-        'Linea' => $lineNumber,
-        'ArticuloId' => $articuloId,
+        'EmpresaId'                => Company::COMPANY_GPAUP_ID,
+        'DocumentoId'              => $document->full_number,
+        'Linea'                    => $lineNumber,
+        'ArticuloId'               => $articuloId,
         'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
         'ArticuloDescripcionLarga' => $description,
-        'SitioId' => $warehouse,
-        'UnidadMedidaId' => $unidadMedidaDyn,
-        'Cantidad' => $timeSpentHours,
-        'PrecioUnitario' => $unitPrice,
-        'DescuentoUnitario' => $discountPercentage,
-        'PrecioTotal' => $totalPrice,
+        'SitioId'                  => $warehouse,
+        'UnidadMedidaId'           => $unidadMedidaDyn,
+        'Cantidad'                 => $timeSpentHours,
+        'PrecioUnitario'           => $unitPrice,
+        'DescuentoUnitario'        => $discountPercentage,
+        'PrecioTotal'              => $totalPrice,
       ];
 
       // Sincronizar el item de labour
@@ -690,13 +693,13 @@ class SyncSalesDocumentJob implements ShouldQueue
     if (!$log) {
       $log = VehiclePurchaseOrderMigrationLog::create([
         'electronic_document_id' => $electronicDocumentId,
-        'ap_vehicles_id' => $vehicleId,
-        'step' => $step,
-        'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-        'table_name' => $tableName,
-        'external_id' => $externalId,
-        'proceso_estado' => 0,
-        'attempts' => 0,
+        'ap_vehicles_id'         => $vehicleId,
+        'step'                   => $step,
+        'status'                 => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+        'table_name'             => $tableName,
+        'external_id'            => $externalId,
+        'proceso_estado'         => 0,
+        'attempts'               => 0,
       ]);
     }
 
@@ -728,7 +731,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       if (!$document->seriesModel || !$document->seriesModel->sede_id) {
         Log::warning('Documento de postventa sin seriesModel o sede_id, no se sincronizará a CajaDo', [
           'document_id' => $document->id,
-          'series_id' => $document->series_id,
+          'series_id'   => $document->series_id,
         ]);
         return;
       }
@@ -740,7 +743,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       if (!$cajaId) {
         Log::warning('No se encontró mapeo de sede_id a CajaId para documento de postventa', [
           'document_id' => $document->id,
-          'sede_id' => $sedeId,
+          'sede_id'     => $sedeId,
         ]);
         return;
       }
@@ -759,33 +762,18 @@ class SyncSalesDocumentJob implements ShouldQueue
       DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('neRMPvtTb_CajaDo')
         ->insert([
-          'CajaId' => $cajaId,
-          'ModuloId' => 'SOP',
+          'CajaId'        => $cajaId,
+          'ModuloId'      => 'SOP',
           'DocumentoTipo' => '0',
-          'DocumentoId' => $document->full_number,
+          'DocumentoId'   => $document->full_number,
         ]);
 
-      // 7. Insertar en la tabla RM20101_DOCFV
-      // Verificar si ya existe el registro
-      $existingDocFV = DB::connection(Company::CONNECTION_DYNAMICS_3)
-        ->table('RM20101_DOCFV')
-        ->where('DocumentoId', $document->full_number)
-        ->first();
-
-      if (!$existingDocFV) {
-        DB::connection(Company::CONNECTION_DYNAMICS_3)
-          ->table('RM20101_DOCFV')
-          ->insert([
-            'DocumentoId' => $document->full_number,
-            'FechaVencimiento' => $document->fecha_de_vencimiento,
-          ]);
-      }
     } catch (\Exception $e) {
       // Capturar cualquier error para que no afecte el proceso principal
       Log::error('Error al sincronizar documento de postventa a neRMPvtTb_CajaDo (proceso no crítico)', [
         'document_id' => $document->id,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
+        'error'       => $e->getMessage(),
+        'trace'       => $e->getTraceAsString(),
       ]);
       // NO lanzar la excepción, solo registrarla
     }
@@ -812,14 +800,41 @@ class SyncSalesDocumentJob implements ShouldQueue
   }
 
   /**
+   * Inserta la fecha de vencimiento en RM20101_DOCFV para todos los documentos AP (postventa y comercial)
+   */
+  private function syncDocFV(ElectronicDocument $document): void
+  {
+    try {
+      $existing = DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->table('RM20101_DOCFV')
+        ->where('DocumentoId', $document->full_number)
+        ->exists();
+
+      if (!$existing) {
+        DB::connection(Company::CONNECTION_DYNAMICS_3)
+          ->table('RM20101_DOCFV')
+          ->insert([
+            'DocumentoId'      => $document->full_number,
+            'FechaVencimiento' => $document->fecha_de_vencimiento,
+          ]);
+      }
+    } catch (\Exception $e) {
+      Log::error('Error al sincronizar fecha de vencimiento a RM20101_DOCFV (proceso no crítico)', [
+        'document_id' => $document->id,
+        'error'       => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
    * Maneja el fallo del job
    */
   public function failed(\Throwable $exception): void
   {
     Log::error('SyncSalesDocumentJob failed', [
       'electronic_document_id' => $this->electronicDocumentId,
-      'error' => $exception->getMessage(),
-      'trace' => $exception->getTraceAsString(),
+      'error'                  => $exception->getMessage(),
+      'trace'                  => $exception->getTraceAsString(),
     ]);
   }
 }
