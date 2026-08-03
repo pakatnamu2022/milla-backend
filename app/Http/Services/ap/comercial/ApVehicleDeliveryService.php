@@ -347,13 +347,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $shippingGuide = ShippingGuides::create($shippingGuideData);
         $record->update(['shipping_guide_id' => $shippingGuide->id]);
 
-        try {
-          $freshRecord = $record->fresh()->load(['vehicle.model', 'vehicle.color', 'client', 'advisor', 'sede']);
-          $this->sendClientWelcomeEmail($freshRecord);
-        } catch (\Throwable $e) {
-          \Log::warning('Welcome email could not be queued: ' . $e->getMessage());
-        }
-
         return new ShippingGuidesResource($shippingGuide);
       });
     } catch (Exception $e) {
@@ -469,6 +462,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $shippingGuide->markAsAccepted($responseData);
           $vehicleDelivery->update(['aceptada_por_sunat' => true, 'real_delivery_date' => now()]);
           DB::commit();
+          try {
+            $freshDelivery = $vehicleDelivery->fresh()->load(['vehicle.model', 'vehicle.color', 'client', 'advisor', 'sede']);
+            $this->sendClientWelcomeEmail($freshDelivery);
+          } catch (\Throwable $e) {
+            \Log::warning('Welcome email could not be queued: ' . $e->getMessage());
+          }
           $message = 'La guía ha sido aceptada por SUNAT';
         } else {
           // Actualizar los enlaces aunque no esté aceptada aún
