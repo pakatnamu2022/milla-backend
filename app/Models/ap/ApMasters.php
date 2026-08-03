@@ -104,6 +104,11 @@ class ApMasters extends BaseModel
   const int OP_TYPE_APPT_PDI_ID = 965;
   const int OP_TYPE_APPT_ACC_INSTALL_ID = 983;
 
+  // VEHICLE WELCOME CONFIG — URLs stored in description via DB::table (bypasses uppercase mutator)
+  const string TYPE_VEHICLE_WELCOME        = 'VEHICLE_WELCOME_CONFIG';
+  const string VEHICLE_WELCOME_LETTER_CODE = 'LETTER_URL';
+  const string VEHICLE_WELCOME_VIDEO_CODE  = 'VIDEO_URL';
+
   /**
    * AREAS
    */

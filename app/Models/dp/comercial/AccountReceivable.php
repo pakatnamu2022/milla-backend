@@ -36,9 +36,10 @@ class AccountReceivable extends BaseModel
     'balance'           => 'Saldo',
     'amount_pen'        => 'Importe PEN (S/)',
     'balance_pen'       => 'Saldo PEN (S/)',
-    'collection_date'   => 'Fecha Cobro',
-    'area_id'           => 'Area ID',
-    'last_comment'      => 'Último Comentario',
+    'collection_date'      => 'Fecha Cobro',
+    'collection_reference' => 'Referencia de Cobro',
+    'area_id'              => 'Area ID',
+    'last_comment'         => 'Último Comentario',
   ];
 
   protected array $reportColorRules = [
@@ -73,6 +74,7 @@ class AccountReceivable extends BaseModel
     'branch',
     'observations',
     'collection_date',
+    'collection_reference',
     'amount_pen',
     'balance_pen',
     'synced_at',
