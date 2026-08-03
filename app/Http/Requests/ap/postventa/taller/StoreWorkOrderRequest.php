@@ -48,7 +48,7 @@ class StoreWorkOrderRequest extends StoreRequest
       'num_doc_contact' => [
         'nullable',
         'string',
-        'digits:8',
+        'regex:/^(\d{8}|\d{9})$/',
       ],
       'full_contact_name' => [
         'nullable',
@@ -61,7 +61,7 @@ class StoreWorkOrderRequest extends StoreRequest
       'num_doc_pickup' => [
         'nullable',
         'string',
-        'digits:8',
+        'regex:/^(\d{8}|\d{9})$/',
       ],
       'full_pickup_name' => [
         'nullable',
@@ -190,7 +190,8 @@ class StoreWorkOrderRequest extends StoreRequest
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
-      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
+      'num_doc_contact.regex' => 'El número de documento del contacto debe tener 8 o 9 dígitos.',
+      'num_doc_pickup.regex' => 'El número de documento del contacto debe tener 8 o 9 dígitos.',
 
       'full_contact_name.string' => 'El nombre completo del contacto debe ser una cadena de texto.',
       'phone_contact.string' => 'El teléfono de contacto debe ser una cadena de texto.',
