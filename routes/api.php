@@ -81,6 +81,7 @@ use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
@@ -1647,6 +1648,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Reports - Reportes de Taller
       Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
 
