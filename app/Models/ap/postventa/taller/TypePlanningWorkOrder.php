@@ -18,12 +18,14 @@ class TypePlanningWorkOrder extends Model
     'validate_receipt',
     'validate_labor',
     'type_document',
+    'category_type',
     'status'
   ];
 
   protected $casts = [
     'validate_receipt' => 'boolean',
     'validate_labor' => 'boolean',
+    'category_type' => 'string',
     'status' => 'boolean'
   ];
   // CONST ID
@@ -37,6 +39,11 @@ class TypePlanningWorkOrder extends Model
   const string INTERNA_SC = 'INTERNA_SC';
   const string INTERNA_CC = 'INTERNA_CC';
   const string PAYMENT_RECEIPTS = 'PAYMENT_RECEIPTS';
+  
+  //CATEGORY TYPES
+  const string ESTANDAR = 'ESTANDAR';
+  const string INTERNA = 'INTERNA';
+  const string GARANTIA_RECALL = 'GARANTIA_RECALL';
 
   const filters = [
     'search' => ['code', 'description'],

@@ -22,6 +22,7 @@ class TypePlanningWorkOrderResource extends JsonResource
       'validate_receipt' => $this->validate_receipt,
       'validate_labor' => $this->validate_labor,
       'type_document' => $this->type_document,
+      'category_type' => $this->category_type,
       'status' => $this->status,
     ];
   }
