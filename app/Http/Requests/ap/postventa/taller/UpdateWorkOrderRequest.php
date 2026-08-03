@@ -69,7 +69,7 @@ class UpdateWorkOrderRequest extends StoreRequest
         'sometimes',
         'required',
         'string',
-        'digits:8',
+        'regex:/^(\d{8}|\d{9})$/',
       ],
       'full_contact_name' => [
         'sometimes',
@@ -85,7 +85,7 @@ class UpdateWorkOrderRequest extends StoreRequest
         'sometimes',
         'nullable',
         'string',
-        'digits:8',
+        'regex:/^(\d{8}|\d{9})$/',
       ],
       'full_pickup_name' => [
         'sometimes',
@@ -246,8 +246,9 @@ class UpdateWorkOrderRequest extends StoreRequest
       'sede_id.integer' => 'La sede debe ser un entero.',
       'sede_id.exists' => 'La sede seleccionada no es válida.',
 
-      'num_doc_contact.required' => 'El número de documento del contacto es obligatorio.',
-      'num_doc_contact.digits' => 'El número de documento del contacto debe tener exactamente 8 dígitos.',
+      'num_doc_contact.regex' => 'El número de documento del contacto debe tener 8 o 9 dígitos.',
+
+      'num_doc_pickup.regex' => 'El número de documento del recojo debe tener 8 o 9 dígitos.',
 
       'full_contact_name.required' => 'El nombre del contacto es obligatorio.',
       'full_contact_name.string' => 'El nombre del contacto debe ser una cadena de texto.',

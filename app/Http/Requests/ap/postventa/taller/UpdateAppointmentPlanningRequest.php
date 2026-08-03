@@ -36,7 +36,7 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
       'num_doc_client' => [
         'required',
         'string',
-        'regex:/^(\d{8}|\d{11})$/',
+        'regex:/^(\d{8}|\d{9}|\d{11})$/',
       ],
       'full_name_client' => [
         'nullable',
@@ -99,7 +99,7 @@ class UpdateAppointmentPlanningRequest extends StoreRequest
 
       'num_doc_client.required' => 'El campo número de documento del cliente es obligatorio.',
       'num_doc_client.string' => 'El campo número de documento del cliente debe ser una cadena de texto.',
-      'num_doc_client.regex' => 'El número de documento debe tener 8 o 11 dígitos.',
+      'num_doc_client.regex' => 'El número de documento debe tener 8, 9 o 11 dígitos.',
 
       'full_name_client.string' => 'El campo nombre completo del cliente debe ser una cadena de texto.',
       'full_name_client.max' => 'El campo nombre completo del cliente no debe exceder los 100 caracteres.',
