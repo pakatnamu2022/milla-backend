@@ -104,7 +104,20 @@ class MigrateInternalNoteToDynamicsCommand extends Command
       return 1;
     }
 
-    // 4. Verificar que tenga movimiento de inventario
+    // 4. Verificar que la OT tenga repuestos (product_id)
+    $productParts = $internalNote->workOrder->parts->filter(fn($part) => $part->product_id !== null);
+
+    if ($productParts->isEmpty()) {
+      $this->warn("⚠️  La orden de trabajo {$internalNote->workOrder->correlative} NO tiene repuestos cargados.");
+      $this->line("  Solo las OT con repuestos generan salida de inventario.");
+      $this->line("  Esta nota interna NO requiere migración a Dynamics.");
+      return 0; // No es error, simplemente no hay nada que hacer
+    }
+
+    $this->line("✓ OT con {$productParts->count()} repuesto(s) cargado(s)");
+    $this->newLine();
+
+    // 5. Verificar que tenga movimiento de inventario
     $inventoryMovement = $internalNote->inventoryMovements()
       ->where('movement_type', InventoryMovement::TYPE_ADJUSTMENT_OUT)
       ->first();
@@ -189,6 +202,7 @@ class MigrateInternalNoteToDynamicsCommand extends Command
     // Buscar notas internas tipo INTERNA_SC con migration_status pendiente
     $pendingNotes = ApInternalNote::with([
       'workOrder.items.typePlanning',
+      'workOrder.parts',
       'inventoryMovements',
     ])
       ->whereHas('workOrder.items.typePlanning', function ($query) {
@@ -207,15 +221,24 @@ class MigrateInternalNoteToDynamicsCommand extends Command
       return 0;
     }
 
-    // Filtrar las que tienen movimiento de inventario
+    // Filtrar las que tienen repuestos Y movimiento de inventario
     $validNotes = $pendingNotes->filter(function ($note) {
+      // 1. Verificar que tenga repuestos
+      $hasProducts = $note->workOrder && $note->workOrder->parts->filter(fn($part) => $part->product_id !== null)->isNotEmpty();
+
+      if (!$hasProducts) {
+        return false;
+      }
+
+      // 2. Verificar que tenga movimiento de inventario
       return $note->inventoryMovements()
         ->where('movement_type', InventoryMovement::TYPE_ADJUSTMENT_OUT)
         ->exists();
     });
 
     if ($validNotes->isEmpty()) {
-      $this->warn('⚠️  Se encontraron notas internas pero ninguna tiene movimiento de inventario válido.');
+      $this->warn('⚠️  Se encontraron notas internas pero ninguna tiene repuestos o movimiento de inventario válido.');
+      $this->line('  Solo se migran las notas internas cuyas OT tienen repuestos cargados.');
       return 0;
     }
 
