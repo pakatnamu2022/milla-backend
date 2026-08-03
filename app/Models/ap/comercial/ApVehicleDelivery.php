@@ -142,8 +142,8 @@ class ApVehicleDelivery extends Model
   {
     return match ($this->status_delivery) {
       'delivered', 'completed' => 'Entregado',
-      'pending'                => 'Pendiente',
-      default                  => $this->status_delivery ?? '-',
+      'pending' => 'Pendiente',
+      default => $this->status_delivery ?? '-',
     };
   }
 
@@ -151,8 +151,8 @@ class ApVehicleDelivery extends Model
   {
     return match ($this->deliveryChecklist?->status) {
       'confirmed' => 'Confirmado',
-      'draft'     => 'Borrador',
-      default     => 'Sin checklist',
+      'draft' => 'Borrador',
+      default => 'Sin checklist',
     };
   }
 
@@ -287,6 +287,7 @@ class ApVehicleDelivery extends Model
   {
     return [
       'Total Entregas'  => $data->count(),
+      'Entregadas'      => $data->where('status_delivery', 'delivered')->count(),
       'Completadas'     => $data->where('status_delivery', 'completed')->count(),
       'Pendientes'      => $data->where('status_delivery', 'pending')->count(),
       'Extraordinarias' => $data->where('is_extraordinary', true)->count(),
