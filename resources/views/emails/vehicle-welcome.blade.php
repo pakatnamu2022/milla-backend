@@ -40,7 +40,10 @@
              style="background:#111111;border-radius:14px;overflow:hidden;">
         <tr>
           <td style="padding:28px 28px 10px 28px;">
-            <p style="margin:0 0 4px 0;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:#9ca3af;text-transform:uppercase;">Tu vehículo</p>
+            <p style="margin:0 0 2px 0;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:#9ca3af;text-transform:uppercase;">Tu vehículo</p>
+            @if($brand_name)
+            <p style="margin:0 0 6px 0;font-family:system-ui,-apple-system,sans-serif;font-size:17px;font-weight:600;letter-spacing:1px;color:#e5e7eb;text-transform:uppercase;">{{ $brand_name }}</p>
+            @endif
             <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:26px;font-weight:300;color:#ffffff;line-height:1.2;letter-spacing:-0.5px;">
               {{ $model_version }}
               @if($model_year)
@@ -82,9 +85,9 @@
   {{-- Carta de bienvenida adjunta --}}
   @if($has_letter)
   <tr>
-    <td style="padding-bottom:16px;">
+    <td style="padding-bottom:12px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-             style="background:#f9fafb;border:1px solid #f0f0f0;border-radius:10px;">
+             style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
         <tr>
           <td style="padding:18px 20px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -110,10 +113,10 @@
   {{-- Video de bienvenida --}}
   @if($video_url)
   <tr>
-    <td style="padding-bottom:16px;">
+    <td style="padding-bottom:12px;">
       <a href="{{ $video_url }}" target="_blank" style="text-decoration:none;display:block;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-               style="background:#f9fafb;border:1px solid #f0f0f0;border-radius:10px;">
+               style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
           <tr>
             <td style="padding:18px 20px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -125,7 +128,12 @@
                   </td>
                   <td style="vertical-align:middle;">
                     <p style="margin:0 0 2px 0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#111111;">Video de Bienvenida</p>
-                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.5;">Hemos preparado un video especialmente para ti. Haz clic para verlo.</p>
+                    <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.5;">Hemos preparado un video especialmente para ti</p>
+                  </td>
+                  <td style="vertical-align:middle;white-space:nowrap;padding-left:12px;">
+                    <span style="display:inline-block;background:#dc2626;border-radius:8px;padding:10px 14px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:500;color:#ffffff;letter-spacing:0.2px;">
+                      ▶ Ver ahora
+                    </span>
                   </td>
                 </tr>
               </table>
