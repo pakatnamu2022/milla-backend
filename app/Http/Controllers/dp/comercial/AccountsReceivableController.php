@@ -27,11 +27,14 @@ class AccountsReceivableController extends Controller
     try {
       $company = $request->input('company', 'deposito');
       SyncAccountsReceivableJob::dispatchSync($company);
-      SyncAccountsReceivableCollectionsJob::dispatch($company);
+      $collectionsUpdated = $company === 'automotores'
+        ? SyncAccountsReceivableCollectionsJob::dispatchSync($company)
+        : 0;
       $total = AccountReceivable::where('company', $company)->count();
       return $this->success([
-        'message' => "Sincronización completada",
-        'total'   => $total,
+        'message'             => "Sincronización completada",
+        'total'               => $total,
+        'collections_updated' => $collectionsUpdated,
       ]);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());

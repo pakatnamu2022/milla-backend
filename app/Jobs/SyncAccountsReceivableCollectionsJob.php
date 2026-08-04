@@ -28,6 +28,10 @@ class SyncAccountsReceivableCollectionsJob implements ShouldQueue
 
   public function handle(): int
   {
+    if ($this->company !== 'automotores') {
+      return 0;
+    }
+
     $connection = self::COMPANY_CONNECTION_MAP[$this->company]
       ?? throw new \Exception("Company '{$this->company}' has no configured connection.");
 
