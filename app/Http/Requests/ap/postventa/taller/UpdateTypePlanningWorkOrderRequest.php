@@ -24,6 +24,7 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
       'validate_receipt' => 'sometimes|boolean',
       'validate_labor' => 'sometimes|boolean',
       'type_document' => 'sometimes|string|in:' . TypePlanningWorkOrder::INTERNA_SC . ',' . TypePlanningWorkOrder::INTERNA_CC . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
+      'category_type' => 'sometimes|string|in:' . TypePlanningWorkOrder::ESTANDAR . ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
       'status' => 'sometimes|boolean',
     ];
   }
@@ -44,6 +45,9 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
       'type_document.required' => 'El campo tipo documento es obligatorio.',
       'type_document.string' => 'El tipo documento debe ser una cadena de texto.',
       'type_document.in' => 'El tipo documento seleccionado no es válido. Los valores permitidos son: INTERNA_SC, INTERNA_CC, PAYMENT_RECEIPTS.',
+      'category_type.required' => 'El campo categoría tipo es obligatorio.',
+      'category_type.string' => 'La categoría tipo debe ser una cadena de texto.',
+      'category_type.in' => 'La categoría tipo seleccionada no es válida. Los valores permitidos son: ESTANDAR, INTERNA, GARANTIA_RECALL.',
     ];
   }
 }

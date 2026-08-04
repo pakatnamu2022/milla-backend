@@ -2,10 +2,12 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApInternalNote extends BaseModel
@@ -62,7 +64,7 @@ class ApInternalNote extends BaseModel
      */
     public static function generateNextNumber(): string
     {
-        $lastNote = self::orderBy('id', 'desc')->first();
+        $lastNote = self::withTrashed()->orderBy('id', 'desc')->first();
 
         if (!$lastNote) {
             return 'IN-00001';
@@ -91,6 +93,11 @@ class ApInternalNote extends BaseModel
             'internal_note_id',
             'electronic_document_id'
         )->withTimestamps();
+    }
+
+    public function inventoryMovements(): MorphMany
+    {
+        return $this->morphMany(InventoryMovement::class, 'reference');
     }
 
     /**

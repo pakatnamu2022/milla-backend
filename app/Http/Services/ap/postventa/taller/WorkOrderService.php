@@ -624,8 +624,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('La orden de trabajo no tiene cotización asociada');
       }
 
-      if ($workOrder->getActiveAdvances()->count() > 0) {
-        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} al que se encuentra asociada ya tiene avances registrados.");
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} ya tiene una factura final en borrador.");
+      }
+
+      // Validar si existe una factura final generada
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("Esta cotización no puede ser desasociada. La orden de trabajo {$workOrder->correlative} ya tiene la factura final {$finalInvoice->full_number} generada.");
       }
 
       // Obtener la cotización antes de desasociar
@@ -1082,6 +1089,161 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     } catch (\Throwable $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  public function revertInternalNote($id)
+  {
+    DB::beginTransaction();
+
+    try {
+      $workOrder = $this->find($id);
+
+      // Validación 1: La OT debe estar cerrada
+      if ($workOrder->status_id !== ApMasters::CLOSED_WORK_ORDER_ID) {
+        throw new Exception('Solo se puede revertir una nota interna de una orden de trabajo cerrada');
+      }
+
+      // Validación 2: Debe existir nota interna
+      $internalNote = $workOrder->internalNote;
+      if (!$internalNote) {
+        throw new Exception('La orden de trabajo no tiene una nota interna asociada');
+      }
+
+      // Validación 3: Nota interna no debe estar facturada
+      if ($internalNote->status === ApInternalNote::STATUS_INVOICED) {
+        throw new Exception('No se puede revertir una nota interna que ya ha sido facturada');
+      }
+
+      // Validación 4: Verificar estado de los documentos electrónicos asociados
+      $electronicDocuments = $internalNote->electronicDocuments;
+      if ($electronicDocuments->isNotEmpty()) {
+        // Verificar si hay algún documento que NO esté anulado
+        // Un documento está anulado si: status = CANCELLED O anulado = true
+        $activeDocuments = $electronicDocuments->filter(function ($doc) {
+          return $doc->status !== ElectronicDocument::STATUS_CANCELLED && !$doc->anulado;
+        });
+
+        if ($activeDocuments->isNotEmpty()) {
+          $documentNumbers = $activeDocuments->pluck('full_number')->join(', ');
+          throw new Exception(
+            "No se puede revertir la nota interna porque tiene comprobantes electrónicos activos: {$documentNumbers}. " .
+            "Solo se puede revertir si todos los comprobantes están anulados."
+          );
+        }
+      }
+
+      // 1. Revertir inventario solo si fue procesado Y es tipo INTERNA_SC
+      // Las INTERNA_CC nunca generan salida de inventario, por lo tanto no hay nada que revertir
+      $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+      if ($workOrder->output_generation_warehouse && $typeDocument === TypePlanningWorkOrder::INTERNA_SC) {
+        $this->reverseInventoryAdjustmentForInternalNote($workOrder, $internalNote);
+      }
+
+      // 2. Determinar estado al que debe regresar
+      $validateReception = $workOrder->shouldValidateReceipt();
+      $validateLabor = $workOrder->shouldValidateLabor();
+
+      if ($validateLabor || $validateReception) {
+        // Si tiene validaciones de trabajo o recepción, regresa a FINISHED
+        $newStatusId = ApMasters::END_WORK_WORK_ORDER_ID;
+      } else {
+        // OT simple sin validaciones, regresa a OPENING
+        $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
+      }
+
+      // 3. Actualizar OT
+      $workOrder->update([
+        'status_id' => $newStatusId,
+        'output_generation_warehouse' => false,
+      ]);
+
+      // 4. Eliminar nota interna (soft delete)
+      $internalNote->delete();
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Nota interna revertida correctamente',
+        'new_status_id' => $newStatusId,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  private function reverseInventoryAdjustmentForInternalNote(ApWorkOrder $workOrder, ApInternalNote $internalNote): void
+  {
+    // Obtener repuestos con product_id
+    $productParts = $workOrder->parts->filter(fn($part) => $part->product_id !== null);
+
+    if ($productParts->isEmpty()) {
+      return;
+    }
+
+    // Obtener almacén físico de la sede
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', true)
+      ->where('status', true)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró almacén físico activo para revertir el inventario');
+    }
+
+    // PASO 1: Crear ajuste de entrada (compensatorio) para devolver el stock al almacén
+    $movementData = [
+      'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
+      'warehouse_id' => $warehouse->id,
+      'notes' => "Ajuste de entrada por reversión de Nota Interna {$internalNote->number} - {$workOrder->correlative}",
+      'movement_date' => now(),
+      'reference_type' => ApInternalNote::class,
+      'reference_id' => $internalNote->id,
+    ];
+
+    $details = [];
+    foreach ($productParts as $part) {
+      $details[] = [
+        'product_id' => $part->product_id,
+        'quantity' => $part->quantity_used,
+        'unit_cost' => $part->unit_price,
+        'notes' => "Reversión NI {$internalNote->number} - {$part->product->name}",
+      ];
+    }
+
+    $this->inventoryMovementService->createAdjustment($movementData, $details);
+
+    // PASO 2: Volver a reservar el stock para la OT (ya que la OT regresa a un estado activo)
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
+
+      if (!$stock) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
+        );
+      }
+
+      // Intentar reservar el stock
+      $reserved = $stock->reserveStock($part->quantity_used);
+
+      if (!$reserved) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No hay stock disponible suficiente para reservar el producto {$productInfo}. " .
+          "Stock disponible: {$stock->available_quantity}, Cantidad necesaria: {$part->quantity_used}"
+        );
+      }
     }
   }
 
@@ -1610,6 +1772,30 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       // Validación de estados
       $workOrder->ensureCanBeModified();
 
+      // Validar si existe un anticipo en borrador
+      if ($workOrder->hasDraftAdvance()) {
+        throw new Exception("No se puede finalizar la orden de trabajo. Existe un anticipo en borrador que debe ser enviado primero.");
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("No se puede finalizar la orden de trabajo. Existe una factura final en borrador que debe ser enviada primero.");
+      }
+
+      // Validar que el monto de anticipos no supere el monto total de la OT
+      $advancesAmount = $workOrder->getNetAmountFromAdvances();
+      if ($advancesAmount > 0) {
+        // Hay anticipos registrados, validar que no superen el monto total
+        // Redondear a 2 decimales para evitar problemas de precisión con flotantes
+        if (round($advancesAmount, 2) > round($workOrder->final_amount, 2)) {
+          throw new Exception(sprintf(
+            "No se puede finalizar la orden de trabajo. El monto de anticipos (%.2f) supera el monto total de la orden de trabajo (%.2f).",
+            $advancesAmount,
+            $workOrder->final_amount
+          ));
+        }
+      }
+
       // Recalcular totales de la OT antes de finalizar para asegurar
       // que los montos lleguen correctamente a caja
       $this->performWorkOrderRecalculation($workOrder);
@@ -1690,9 +1876,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Solo se puede revertir una orden de trabajo que está en estado finalizada');
       }
 
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("No se puede revertir la orden de trabajo porque existe una comprobante final en borrador");
+      }
+
+      // Validar si existe una factura final generada
       $finalInvoice = $workOrder->getFinalInvoice();
       if ($finalInvoice) {
-        throw new Exception("No se puede revertir la orden de trabajo porque ya se generó la factura final {$finalInvoice->full_number}");
+        throw new Exception("No se puede revertir la orden de trabajo porque ya se generó la comprobante final {$finalInvoice->full_number}");
       }
 
       $validateReception = $workOrder->shouldValidateReceipt();
@@ -1853,6 +2045,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       return; // Ya se procesó, salir
     }
 
+    // Obtener el tipo de documento del item de la orden de trabajo
+    $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+    // Solo generar salida para INTERNA_SC (sin comprobante)
+    // INTERNA_CC (con comprobante) no genera salida aquí porque se facturará después
+    if ($typeDocument === TypePlanningWorkOrder::INTERNA_CC) {
+      return; // No generar salida, se hará cuando se facture
+    }
+
     // Obtener solo los repuestos que tienen product_id (excluir mano de obra/servicios)
     $productParts = $workOrder->parts->filter(function ($part) {
       return $part->product_id !== null;
@@ -1917,8 +2118,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
-      'notes' => "Ajuste de salida por generación de Nota Interna {$internalNote->number} - OT {$workOrder->correlative}",
+      'notes' => "Ajuste de salida por generación de Nota Interna {$internalNote->number} - {$workOrder->correlative}",
       'movement_date' => now(),
+      'reference_type' => ApInternalNote::class,
+      'reference_id' => $internalNote->id,
     ];
 
     // Preparar detalles (uno por cada repuesto)

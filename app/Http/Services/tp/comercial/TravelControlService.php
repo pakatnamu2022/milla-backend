@@ -77,7 +77,8 @@ class TravelControlService extends BaseService
                     'updated_at'
                 ])
                 ->whereNotIn('estado', [10])
-                ->orderBy('fecha_viaje', 'DESC');
+                ->orderBy('fecha_viaje', 'DESC')
+                ->orderBy('id', 'DESC');
 
                 if($positionWorkerId == 11 || $positionWorkerName == 'CONDUCTOR DE TRACTO CAMION' || $positionWorkerId == 12 || $positionWorkerName == 'INSTRUCTOR DE FLOTA'){
                     $query->where('conductor_id', $workerId);

@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -45,7 +46,7 @@ class ApOrderQuotationsReversalService
 
       // Revertir estados
       $quotation->update([
-        'status' => ApOrderQuotations::STATUS_POR_FACTURAR,
+        'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
         'is_fully_paid' => false,
         'output_generation_warehouse' => false,
       ]);

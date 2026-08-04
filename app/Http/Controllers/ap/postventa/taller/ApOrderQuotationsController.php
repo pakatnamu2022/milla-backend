@@ -199,6 +199,26 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function sendToInvoice(Request $request, $id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->sendToInvoice($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function setInEditing(Request $request, $id)
+  {
+    try {
+      $data['id'] = $id;
+      return $this->success($this->service->setInEditing($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function approveTaller(ApproveApOrderQuotationsRequest $request, $id)
   {
     try {

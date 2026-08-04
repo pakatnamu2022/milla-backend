@@ -395,7 +395,7 @@
   </tr>
   <tr>
     <td class="label-cell">Estado:</td>
-    <td>{{ $quotation['status'] === \App\Models\ap\postventa\taller\ApOrderQuotations::STATUS_APERTURADO ? 'PENDIENTE DE APROBACIÓN POR PARTE DEL CLIENTE':'APROBADO POR EL CLIENTE' }}</td>
+    <td>{{ $quotation['status_id'] === \App\Models\ap\ApMasters::STATUS_ORDER_QUOTE_APERTURADO ? 'PENDIENTE DE APROBACIÓN POR PARTE DEL CLIENTE':'APROBADO POR EL CLIENTE' }}</td>
     <td class="label-cell">Correo:</td>
     <td>{{ $quotation['advisor_email'] }}</td>
   </tr>

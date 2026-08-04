@@ -246,7 +246,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
       ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-        ->where('is_annulled', 0)
+        ->where(function ($q) {
+          $q->where('is_annulled', 0)
+            ->orWhereNull('is_annulled');
+        })
         ->whereNull('credit_note_id');
     } else {
       $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
@@ -258,7 +261,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA
         ])
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-        ->where('is_annulled', 0)
+        ->where(function ($q) {
+          $q->where('is_annulled', 0)
+            ->orWhereNull('is_annulled');
+        })
         ->whereNull('credit_note_id');
     }
 
@@ -816,7 +822,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
 
         // Validar que la cotización no esté descartada
-        if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+        if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
           throw new Exception('No se puede asociar un documento electrónico a una cotización descartada.');
         }
 
@@ -1003,6 +1009,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           ? $data['is_advance_payment'] == 1
           : $document->is_advance_payment == 1;
 
+        // Guardar items existentes ANTES de enriquecer para preservar unidad_medida_dyn
+        // Mapear por codigo para poder recuperar valores después
+        $existingItemsMap = $document->items->keyBy('codigo');
+
         // Enriquecer el campo `codigo` y `dyn_code` de cada item antes de crearlos
         // En anticipos NO se setea dyn_code (se usará el code_dynamics del plan de cuentas)
         if (!empty($effectiveQuotationId)) {
@@ -1011,17 +1021,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $this->enrichItemsCodigoFromWorkOrder($data['items'], (int)$effectiveWorkOrderId, $isAdvancePayment);
         }
 
-        // Guardar items existentes antes de eliminarlos para hacer match por codigo
-        $existingItems = $document->items->keyBy('codigo');
-
-        // Rellenar dyn_code desde items existentes si falta
+        // Rellenar dyn_code y unidad_medida_dyn desde items existentes si falta
         foreach ($data['items'] as &$newItem) {
-          // Si el nuevo item no tiene dyn_code pero tiene codigo
-          if (empty($newItem['dyn_code']) && !empty($newItem['codigo'])) {
-            // Buscar el item existente con el mismo codigo
-            $existingItem = $existingItems->get($newItem['codigo']);
-            if ($existingItem && $existingItem->dyn_code) {
-              $newItem['dyn_code'] = $existingItem->dyn_code;
+          // Si el nuevo item tiene codigo, buscar el item existente
+          if (!empty($newItem['codigo'])) {
+            $existingItem = $existingItemsMap->get($newItem['codigo']);
+
+            if ($existingItem) {
+              // Preservar dyn_code si el nuevo item no tiene uno
+              if (empty($newItem['dyn_code']) && $existingItem->dyn_code) {
+                $newItem['dyn_code'] = $existingItem->dyn_code;
+              }
+
+              // Preservar unidad_medida_dyn si el nuevo item no tiene uno o tiene 'UND'
+              if ((empty($newItem['unidad_medida_dyn']) || $newItem['unidad_medida_dyn'] === 'UND') && $existingItem->unidad_medida_dyn) {
+                $newItem['unidad_medida_dyn'] = $existingItem->unidad_medida_dyn;
+              }
             }
           }
         }
@@ -1335,7 +1350,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $quotation = ApOrderQuotations::find($document->order_quotation_id);
           if ($quotation) {
             $quotation->update([
-              'status'                      => ApOrderQuotations::STATUS_POR_FACTURAR,
+              'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
               'is_fully_paid'               => false,
               'output_generation_warehouse' => false,
             ]);
@@ -3423,7 +3438,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     $quotation = ApOrderQuotations::with('advancesOrderQuotation')->find($data['order_quotation_id']);
 
     // Validar que cotización no esté descartada
-    if ($quotation->status === ApOrderQuotations::STATUS_DESCARTADO) {
+    if ($quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
       throw new Exception('No se puede generar un documento electrónico para una cotización descartada.');
     }
 
@@ -3432,6 +3447,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         ElectronicDocument::TYPE_NOTA_CREDITO,
         ElectronicDocument::TYPE_NOTA_DEBITO
       ]);
+
+    // Validar que la cotización esté en estado FACTURAR para generar comprobantes
+    // (no aplica a notas de crédito/débito ya que estas ajustan documentos existentes)
+    if (!$isNotaCreditoDebito && $quotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
+      throw new Exception('No se puede generar un comprobante electrónico para una cotización que no está en estado FACTURAR. La cotización debe estar en estado FACTURAR para poder generar comprobantes.');
+    }
 
     // Validar que no exista ya una factura final para esta cotización
     // (solo aplica si NO es anticipo y NO es nota de crédito/débito)
