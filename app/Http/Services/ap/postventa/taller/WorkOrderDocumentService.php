@@ -134,7 +134,7 @@ class WorkOrderDocumentService
    *   - NOT fully annulled by credit note
    *
    * @param Model $model Instance of ApWorkOrder or ApOrderQuotations
-   * @return ElectronicDocument|null
+   * @return \Closure
    */
   public function getFinalInvoice(Model $model)
   {

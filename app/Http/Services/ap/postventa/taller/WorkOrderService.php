@@ -10,6 +10,7 @@ use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
+use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
@@ -1082,6 +1083,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       DB::commit();
 
+      // Despachar job para migrar a Dynamics
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, false);
+
       return response()->json([
         'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
         'internal_note_id' => $internalNote->id,
@@ -1133,6 +1137,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Validación 5: Verificar límite de reversiones permitidas
+      if ($workOrder->internal_note_revert_count >= ApWorkOrder::LIMITATION_PERMITTED_REVERSAL) {
+        throw new Exception(
+          'Ha alcanzado el límite de reversiones permitidas para esta orden de trabajo. ' .
+          'Debe solicitar autorización para realizar una nueva reversión.'
+        );
+      }
+
       // 1. Revertir inventario solo si fue procesado Y es tipo INTERNA_SC
       // Las INTERNA_CC nunca generan salida de inventario, por lo tanto no hay nada que revertir
       $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
@@ -1153,20 +1165,67 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
       }
 
-      // 3. Actualizar OT
+      // 3. Actualizar OT e incrementar contadores de reversión
       $workOrder->update([
         'status_id' => $newStatusId,
         'output_generation_warehouse' => false,
+        'internal_note_revert_count' => $workOrder->internal_note_revert_count + 1,
+        'internal_note_total_reverts' => $workOrder->internal_note_total_reverts + 1,
       ]);
+
+      DB::commit();
+
+      // Despachar job para migrar reversión a Dynamics (antes de eliminar la nota)
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, true);
 
       // 4. Eliminar nota interna (soft delete)
       $internalNote->delete();
 
-      DB::commit();
-
       return response()->json([
         'message' => 'Nota interna revertida correctamente',
         'new_status_id' => $newStatusId,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Autoriza una reversión adicional de nota interna para una orden de trabajo
+   * Resetea el contador de reversiones permitidas y registra quién autorizó
+   *
+   * @param int $id ID de la orden de trabajo
+   * @param int $authorizedBy ID del usuario que autoriza
+   * @return \Illuminate\Http\JsonResponse
+   * @throws \Exception
+   */
+  public function authorizeInternalNoteRevert($id, $authorizedBy)
+  {
+    DB::beginTransaction();
+
+    try {
+      $workOrder = $this->find($id);
+
+      // Validar que el contador actual sea >= 1 (hay que tener al menos 1 reversión para autorizar otra)
+      if ($workOrder->internal_note_revert_count < 1) {
+        throw new Exception('Esta orden de trabajo aún no ha alcanzado el límite de reversiones. No requiere autorización.');
+      }
+
+      // Resetear el contador de reversiones permitidas y registrar la autorización
+      $workOrder->update([
+        'internal_note_revert_count' => 0,
+        'internal_note_revert_authorized_by' => $authorizedBy,
+        'internal_note_revert_authorized_at' => now(),
+      ]);
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Autorización de reversión de nota interna concedida correctamente',
+        'authorized_by' => $authorizedBy,
+        'authorized_at' => $workOrder->internal_note_revert_authorized_at,
+        'total_reverts' => $workOrder->internal_note_total_reverts,
       ]);
     } catch (\Throwable $e) {
       DB::rollBack();

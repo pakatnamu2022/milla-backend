@@ -81,6 +81,10 @@ class ApWorkOrder extends Model
     'type_recall',
     'has_invoice_generated',
     'output_generation_warehouse',
+    'internal_note_revert_count',
+    'internal_note_total_reverts',
+    'internal_note_revert_authorized_by',
+    'internal_note_revert_authorized_at',
     'allow_remove_associated_quote',
     'allow_editing_inspection',
     'created_by',
@@ -107,6 +111,9 @@ class ApWorkOrder extends Model
     'is_recall' => 'boolean',
     'has_invoice_generated' => 'boolean',
     'output_generation_warehouse' => 'boolean',
+    'internal_note_revert_count' => 'integer',
+    'internal_note_total_reverts' => 'integer',
+    'internal_note_revert_authorized_at' => 'datetime',
     'total_labor_cost' => 'decimal:2',
     'total_parts_cost' => 'decimal:2',
     'subtotal' => 'decimal:2',
@@ -123,7 +130,7 @@ class ApWorkOrder extends Model
   ];
 
   const filters = [
-    'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations'],
+    'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations', 'internalNotes.number'],
     'correlative' => '=',
     'currency_id' => '=',
     'appointment_planning_id' => '=',
@@ -153,6 +160,8 @@ class ApWorkOrder extends Model
     'actual_delivery_date',
     'created_at',
   ];
+
+  const int LIMITATION_PERMITTED_REVERSAL = 1;
 
   // Boot method
   protected static function boot()
@@ -589,6 +598,11 @@ class ApWorkOrder extends Model
     return $this->hasOne(ApInternalNote::class, 'work_order_id');
   }
 
+  public function internalNoteRevertAuthorizedBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'internal_note_revert_authorized_by');
+  }
+
   /**
    * Obtiene labours y parts dinámicamente:
    * - Si NO tiene cotización: retorna labours y parts existentes
@@ -646,7 +660,7 @@ class ApWorkOrder extends Model
   /**
    * Get the final invoice (factura/boleta final) for this work order.
    *
-   * @return ElectronicDocument|null
+   * @return \Closure
    */
   public function getFinalInvoice()
   {
