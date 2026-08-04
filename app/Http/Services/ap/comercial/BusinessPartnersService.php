@@ -16,6 +16,8 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PotentialBuyers;
+use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Models\ap\facturacion\ElectronicDocument;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -88,12 +90,12 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       if ($data['type'] === BusinessPartners::CLIENT && $data['type_person_id'] == Constants::TYPE_NATURAL_PERSON_ID) {
         // Para clientes, crear establecimiento por defecto
         $businessPartner->establishments()->create([
-          'code' => '0000',
-          'type' => 'CENTRAL',
-          'activity_economic' => $businessPartner->activityEconomic->name ?? null,
-          'address' => $businessPartner->direction ?? '-',
-          'full_address' => $businessPartner->direction ?? null,
-          'ubigeo' => $businessPartner->district->ubigeo ?? null,
+          'code'                => '0000',
+          'type'                => 'CENTRAL',
+          'activity_economic'   => $businessPartner->activityEconomic->name ?? null,
+          'address'             => $businessPartner->direction ?? '-',
+          'full_address'        => $businessPartner->direction ?? null,
+          'ubigeo'              => $businessPartner->district->ubigeo ?? null,
           'business_partner_id' => $businessPartner->id,
         ]);
       } elseif ($data['type'] === BusinessPartners::SUPPLIER && $data['type_person_id'] == Constants::TYPE_LEGAL_PERSON_ID) {
@@ -143,9 +145,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         if ($establishment) {
           $establishment->update([
             'activity_economic' => $businessPartner->activityEconomic->name ?? null,
-            'address' => $businessPartner->direction ?? '-',
-            'full_address' => $businessPartner->direction ?? null,
-            'ubigeo' => $businessPartner->district->ubigeo ?? null,
+            'address'           => $businessPartner->direction ?? '-',
+            'full_address'      => $businessPartner->direction ?? null,
+            'ubigeo'            => $businessPartner->district->ubigeo ?? null,
           ]);
         }
       }
@@ -291,7 +293,6 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
   }
 
   /**
-   * >>>>>>> main
    * Validar si un socio comercial tiene oportunidades abiertas
    */
   public function validateOpportunity($id, $leadId): BusinessPartnersResource
@@ -323,6 +324,39 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         }
       }
 
+    }
+
+    // Verificar solicitudes no facturadas (activas o creadas sin documento válido)
+    $hasUnbilledQuote = fn(int $partnerId): bool => PurchaseRequestQuote::where('holder_id', $partnerId)
+      ->whereDoesntHave('electronicDocuments', fn($q) => $q
+        ->where('aceptada_por_sunat', 1)
+        ->where('anulado', 0)
+        ->whereIn('sunat_concept_document_type_id', [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        ->where('is_advance_payment', 0)
+      )
+      ->exists();
+
+    // Caso 1: El cliente tiene una solicitud no facturada
+    if ($hasUnbilledQuote($businessPartner->id)) {
+      throw new Exception('El cliente ya tiene una solicitud activa sin facturar.');
+    }
+
+    // Caso 2: El cliente (DNI) es representante legal de una empresa con solicitud no facturada
+    if ($businessPartner->num_doc) {
+      $companyIds = BusinessPartners::where('legal_representative_num_doc', $businessPartner->num_doc)->pluck('id');
+      foreach ($companyIds as $companyId) {
+        if ($hasUnbilledQuote($companyId)) {
+          throw new Exception('El cliente es representante legal de una empresa que ya tiene una solicitud activa sin facturar.');
+        }
+      }
+    }
+
+    // Caso 3: El representante legal de la empresa (cliente) ya tiene una solicitud no facturada
+    if ($businessPartner->legal_representative_num_doc) {
+      $representative = BusinessPartners::where('num_doc', $businessPartner->legal_representative_num_doc)->first();
+      if ($representative && $hasUnbilledQuote($representative->id)) {
+        throw new Exception('El representante legal del cliente (Doc: ' . $businessPartner->legal_representative_num_doc . ') ya tiene una solicitud activa sin facturar.');
+      }
     }
 
     // Obtener la marca del lead para validaciones de partes relacionadas
