@@ -28,11 +28,7 @@ class SyncAccountsReceivableJob implements ShouldQueue
     'automotores' => 3,
   ];
 
-  private const BRANCH_ALIAS_MAP = [
-    'deposito' => ['CHICLAYO' => 'LEGUIA'],
-  ];
-
-  public function __construct(
+public function __construct(
     public string $company = 'deposito'
   )
   {
@@ -153,18 +149,19 @@ class SyncAccountsReceivableJob implements ShouldQueue
 
   private function mapRow(array $row, array $sedeMap, string $now): array
   {
-    $branch = trim($row['Sucursal'] ?? '');
-    $currency = strtoupper(trim($row['Moneda'] ?? 'PEN'));
-    $amount = (float)($row['DocumentoImporte'] ?? 0);
-    $balance = (float)($row['DocumentoDeuda'] ?? 0);
-    $rate = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
+    $branch    = trim($row['Sucursal'] ?? '');
+    $abreviatura = trim($row['Abreviatura'] ?? '');
+    $currency  = strtoupper(trim($row['Moneda'] ?? 'PEN'));
+    $amount    = (float)($row['DocumentoImporte'] ?? 0);
+    $balance   = (float)($row['DocumentoDeuda'] ?? 0);
+    $rate      = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
 
-    $amountPen = $currency === 'PEN' ? $amount : $amount * $rate;
+    $amountPen  = $currency === 'PEN' ? $amount : $amount * $rate;
     $balancePen = $currency === 'PEN' ? $balance : $balance * $rate;
 
     return [
       'company'           => $this->company,
-      'sede_id'           => $this->resolveSede($branch, $sedeMap),
+      'sede_id'           => $this->resolveSede($abreviatura ?: $branch, $sedeMap),
       'seller'            => $row['Vendedor'] ?? null,
       'cashier'           => $row['Caja'] ?? null,
       'document_number'   => trim($row['DocumentoNumero'] ?? ''),
@@ -210,7 +207,6 @@ class SyncAccountsReceivableJob implements ShouldQueue
       return null;
     }
     $key = strtoupper($branch);
-    $key = strtoupper(self::BRANCH_ALIAS_MAP[$this->company][$key] ?? $key);
     foreach ($sedeMap as $sedeKey => $sedeId) {
       if ($sedeKey && (str_contains($key, $sedeKey) || str_contains($sedeKey, $key))) {
         return $sedeId;
