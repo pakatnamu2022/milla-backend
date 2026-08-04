@@ -50,7 +50,7 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
   public function __construct(
     public ?int $internalNoteId = null,
     public bool $isReversal = false,
-    string $queue = self::QUEUE_DEFAULT
+    string      $queue = self::QUEUE_DEFAULT
   )
   {
     $this->onQueue($queue);
@@ -60,7 +60,7 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
    * @throws Exception
    */
   public function handle(
-    DatabaseSyncService $syncService,
+    DatabaseSyncService             $syncService,
     InternalNoteMigrationLogService $logService
   ): void
   {
@@ -92,7 +92,7 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
 
   protected function processAllPendingInternalNotes(
     InternalNoteMigrationLogService $logService,
-    InternalNoteDynamicsService $internalNoteService
+    InternalNoteDynamicsService     $internalNoteService
   ): void
   {
     $pendingNotes = ApInternalNote::whereIn('migration_status', [
@@ -122,10 +122,10 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
   }
 
   protected function processInternalNote(
-    int $internalNoteId,
-    bool $isReversal,
+    int                             $internalNoteId,
+    bool                            $isReversal,
     InternalNoteMigrationLogService $logService,
-    InternalNoteDynamicsService $internalNoteService
+    InternalNoteDynamicsService     $internalNoteService
   ): void
   {
     $internalNote = ApInternalNote::with(['workOrder.parts.product', 'workOrder.sede'])
@@ -205,12 +205,6 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
             $inventoryMovement->warehouse_id,
             null // Desde el inicio si es necesario
           );
-
-          Log::info('Historial de costos reconstruido', [
-            'product_id' => $detail->product_id,
-            'warehouse_id' => $inventoryMovement->warehouse_id,
-            'internal_note_id' => $internalNote->id,
-          ]);
         } catch (Exception $e) {
           Log::error('Error reconstruyendo historial de costos', [
             'product_id' => $detail->product_id,
