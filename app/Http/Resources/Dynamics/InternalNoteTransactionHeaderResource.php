@@ -32,18 +32,11 @@ class InternalNoteTransactionHeaderResource extends JsonResource
   {
     /** @var ApInternalNote $this */
 
-    if (!empty($this->dyn_series)) {
-      $transactionId = $this->dyn_series;
-    } else {
-      // Quitar el prefijo "IN-" y agregar "NIP-"
-      $number = str_replace('IN-', '', $this->number);
-      $transactionId = 'NIP-' . $number;
-    }
-
-    // Agregar asterisco si es reversión
-    if ($this->isReversal && !str_ends_with($transactionId, '*')) {
-      $transactionId .= '*';
-    }
+    // SIEMPRE generar TransaccionId con el nuevo formato
+    // Salida: PS-IN-00045
+    // Reversión/Ingreso: PI-IN-00045
+    $prefix = $this->isReversal ? 'PI-' : 'PS-';
+    $transactionId = $prefix . $this->number;
 
     // Obtener el movimiento de inventario para usar su fecha
     $inventoryMovement = $this->inventoryMovements()

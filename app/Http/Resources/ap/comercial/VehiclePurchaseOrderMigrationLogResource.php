@@ -47,6 +47,10 @@ class VehiclePurchaseOrderMigrationLogResource extends JsonResource
       'reception' => 'Recepción',
       'reception_detail' => 'Detalle de Recepción',
       'reception_detail_serial' => 'Serial de Recepción',
+      'internal_note_transaction' => 'Transacción de Nota Interna',
+      'internal_note_transaction_detail' => 'Detalle de Transacción de Nota Interna',
+      'internal_note_transaction_REVERSAL' => 'Reversión de Transacción de Nota Interna',
+      'internal_note_transaction_detail_REVERSAL' => 'Reversión de Detalle de Nota Interna',
       default => $this->step,
     };
   }

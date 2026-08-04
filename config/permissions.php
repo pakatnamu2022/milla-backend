@@ -284,28 +284,28 @@ return [
       'icon' => 'XCircle',
       'policy_method' => 'removeSparePartQuote',
     ],
-    'regularizationAdvances'       => [
-      'label'         => 'Regularización de Anticipos',
-      'description'   => 'Permite realizar la regularización de anticipos en el sistema',
-      'icon'          => 'Plus',
+    'regularizationAdvances' => [
+      'label' => 'Regularización de Anticipos',
+      'description' => 'Permite realizar la regularización de anticipos en el sistema',
+      'icon' => 'Plus',
       'policy_method' => 'regularizationAdvances',
     ],
-    'invoiceOtherSales'            => [
-      'label'         => 'Facturar Otros',
-      'description'   => 'Permite realizar ventas de otros productos',
-      'icon'          => 'Plus',
+    'invoiceOtherSales' => [
+      'label' => 'Facturar Otros',
+      'description' => 'Permite realizar ventas de otros productos',
+      'icon' => 'Plus',
       'policy_method' => 'invoiceOtherSales',
     ],
-    'changeAdvisor'                => [
-      'label'         => 'Cambiar Advisor',
-      'description'   => 'Permite cambiar advisor de otros productos',
-      'icon'          => 'Plus',
+    'changeAdvisor' => [
+      'label' => 'Cambiar Advisor',
+      'description' => 'Permite cambiar advisor de otros productos',
+      'icon' => 'Plus',
       'policy_method' => 'changeAdvisor',
     ],
-    'changeLocation'               => [
-      'label'         => 'Cambiar Ubicación',
-      'description'   => 'Permite cambiar la ubicación de un vehículo',
-      'icon'          => 'MapPin',
+    'changeLocation' => [
+      'label' => 'Cambiar Ubicación',
+      'description' => 'Permite cambiar la ubicación de un vehículo',
+      'icon' => 'MapPin',
       'policy_method' => 'changeLocation',
     ],
     'generateInternalNote' => [
@@ -313,6 +313,12 @@ return [
       'description' => 'Permite generar notas internas para las órdenes de trabajo',
       'icon' => 'Plus',
       'policy_method' => 'generateInternalNote',
+    ],
+    'authorizeReversalInternalNote' => [
+      'label' => 'Autorizar Nota Interna',
+      'description' => 'Permite autorizar la reversión de notas internas',
+      'icon' => 'Plus',
+      'policy_method' => 'authorizeReversalInternalNote',
     ]
   ],
 

@@ -23,7 +23,8 @@ class MigrateInternalNoteToDynamicsCommand extends Command
                           {id? : ID de la nota interna a migrar}
                           {--preview : Solo mostrar previsualización sin ejecutar}
                           {--all : Migrar todas las notas internas pendientes (solo INTERNA_SC)}
-                          {--force : Forzar migración aunque ya existan logs}';
+                          {--force : Forzar migración aunque ya existan logs}
+                          {--revert : Migrar reversión de nota interna (solo por ID, no permite --all)}';
 
   /**
    * The console command description.
@@ -37,6 +38,15 @@ class MigrateInternalNoteToDynamicsCommand extends Command
    */
   public function handle()
   {
+    // Validar que --revert no se use con --all
+    if ($this->option('revert') && $this->option('all')) {
+      $this->error('✗ ERROR: La opción --revert solo se permite por ID, no con --all');
+      $this->info('Ejemplos válidos:');
+      $this->line('  php artisan internal-note:migrate-dynamics 123 --revert --preview');
+      $this->line('  php artisan internal-note:migrate-dynamics 123 --revert');
+      return 1;
+    }
+
     if ($this->option('all')) {
       return $this->migrateAll();
     }
@@ -49,18 +59,21 @@ class MigrateInternalNoteToDynamicsCommand extends Command
       $this->line('  php artisan internal-note:migrate-dynamics 123 --preview');
       $this->line('  php artisan internal-note:migrate-dynamics 123');
       $this->line('  php artisan internal-note:migrate-dynamics --all');
+      $this->line('  php artisan internal-note:migrate-dynamics 123 --revert --preview');
+      $this->line('  php artisan internal-note:migrate-dynamics 123 --revert');
       return 1;
     }
 
-    return $this->migrateSingle($internalNoteId);
+    return $this->migrateSingle($internalNoteId, $this->option('revert'));
   }
 
   /**
-   * Migra una nota interna específica
+   * Migra una nota interna específica o su reversión
    */
-  protected function migrateSingle(int $internalNoteId): int
+  protected function migrateSingle(int $internalNoteId, bool $isReversal = false): int
   {
-    $this->info("🔍 Validando nota interna ID: {$internalNoteId}");
+    $operationType = $isReversal ? 'REVERSIÓN de nota interna' : 'nota interna';
+    $this->info("🔍 Validando {$operationType} ID: {$internalNoteId}");
     $this->newLine();
 
     // 1. Buscar la nota interna
@@ -133,58 +146,98 @@ class MigrateInternalNoteToDynamicsCommand extends Command
       return 1;
     }
 
-    // 5. Verificar duplicados (si ya existe migración)
-    $existingLogs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNoteId)
-      ->whereIn('step', [
-        VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
-        VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
-      ])
-      ->get();
+    // 6. Verificar duplicados (si ya existe migración o reversión)
+    if ($isReversal) {
+      // Validar duplicados de REVERSIÓN (step contiene "REVERSAL")
+      $existingReversalLogs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNoteId)
+        ->where('step', 'LIKE', '%REVERSAL%')
+        ->get();
 
-    if ($existingLogs->isNotEmpty() && !$this->option('force')) {
-      $this->warn("⚠️  Ya existen {$existingLogs->count()} logs de migración para esta nota interna:");
-      $this->newLine();
+      if ($existingReversalLogs->isNotEmpty() && !$this->option('force')) {
+        $this->warn("⚠️  Ya existen {$existingReversalLogs->count()} logs de reversión para esta nota interna:");
+        $this->newLine();
 
-      $headers = ['Step', 'Status', 'Attempts', 'Last Attempt'];
-      $rows = $existingLogs->map(fn($log) => [
-        $log->step,
-        $log->status,
-        $log->attempts,
-        $log->last_attempt_at?->format('Y-m-d H:i:s') ?? 'N/A',
-      ])->toArray();
+        $headers = ['Step', 'Status', 'Attempts', 'Last Attempt'];
+        $rows = $existingReversalLogs->map(fn($log) => [
+          $log->step,
+          $log->status,
+          $log->attempts,
+          $log->last_attempt_at?->format('Y-m-d H:i:s') ?? 'N/A',
+        ])->toArray();
 
-      $this->table($headers, $rows);
-      $this->newLine();
+        $this->table($headers, $rows);
+        $this->newLine();
 
-      $this->error('✗ La nota interna ya fue migrada o tiene intentos de migración.');
-      $this->info('Usa --force para forzar una nueva migración.');
-      return 1;
+        $this->error('✗ La reversión de esta nota interna ya fue migrada o tiene intentos de migración.');
+        $this->info('Usa --force para forzar una nueva migración de la reversión.');
+        return 1;
+      }
+    } else {
+      // Validar duplicados de MIGRACIÓN NORMAL
+      $existingLogs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNoteId)
+        ->whereIn('step', [
+          VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
+          VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
+        ])
+        ->get();
+
+      if ($existingLogs->isNotEmpty() && !$this->option('force')) {
+        $this->warn("⚠️  Ya existen {$existingLogs->count()} logs de migración para esta nota interna:");
+        $this->newLine();
+
+        $headers = ['Step', 'Status', 'Attempts', 'Last Attempt'];
+        $rows = $existingLogs->map(fn($log) => [
+          $log->step,
+          $log->status,
+          $log->attempts,
+          $log->last_attempt_at?->format('Y-m-d H:i:s') ?? 'N/A',
+        ])->toArray();
+
+        $this->table($headers, $rows);
+        $this->newLine();
+
+        $this->error('✗ La nota interna ya fue migrada o tiene intentos de migración.');
+        $this->info('Usa --force para forzar una nueva migración.');
+        return 1;
+      }
     }
 
-    // 6. Mostrar previsualización
-    $this->displayPreview($internalNote, $inventoryMovement);
+    // 7. Mostrar previsualización
+    $this->displayPreview($internalNote, $inventoryMovement, $isReversal);
 
     // Si es solo previsualización, terminar aquí
     if ($this->option('preview')) {
       $this->newLine();
       $this->info('✓ PREVISUALIZACIÓN COMPLETADA - No se ejecutó la migración.');
-      $this->line('Para ejecutar la migración, ejecuta:');
-      $this->line("  php artisan internal-note:migrate-dynamics {$internalNoteId}");
+
+      if ($isReversal) {
+        $this->line('Para ejecutar la migración de la reversión, ejecuta:');
+        $this->line("  php artisan internal-note:migrate-dynamics {$internalNoteId} --revert");
+      } else {
+        $this->line('Para ejecutar la migración, ejecuta:');
+        $this->line("  php artisan internal-note:migrate-dynamics {$internalNoteId}");
+      }
+
       return 0;
     }
 
-    // 7. Confirmar antes de ejecutar
-    if (!$this->confirm("¿Deseas migrar la nota interna {$internalNote->number} a Dynamics?", true)) {
+    // 8. Confirmar antes de ejecutar
+    $confirmMessage = $isReversal
+      ? "¿Deseas migrar la REVERSIÓN de la nota interna {$internalNote->number} a Dynamics?"
+      : "¿Deseas migrar la nota interna {$internalNote->number} a Dynamics?";
+
+    if (!$this->confirm($confirmMessage, true)) {
       $this->info('Operación cancelada.');
       return 0;
     }
 
-    // 8. Despachar el job
-    $this->info('🚀 Despachando job de migración...');
-    VerifyAndMigrateInternalNoteJob::dispatch($internalNoteId, false);
+    // 9. Despachar el job con el flag correcto
+    $jobType = $isReversal ? 'reversión' : 'migración';
+    $this->info("🚀 Despachando job de {$jobType}...");
+    VerifyAndMigrateInternalNoteJob::dispatch($internalNoteId, $isReversal);
 
     $this->newLine();
-    $this->info("✓ Job despachado correctamente para la nota interna {$internalNote->number}");
+    $this->info("✓ Job despachado correctamente para la {$operationType} {$internalNote->number}");
     $this->line("  El job se procesará en la cola 'internal_notes'");
     $this->line("  Puedes verificar el estado con: php artisan queue:work");
 
@@ -306,9 +359,10 @@ class MigrateInternalNoteToDynamicsCommand extends Command
   /**
    * Muestra la previsualización de los datos que se enviarán
    */
-  protected function displayPreview(ApInternalNote $internalNote, InventoryMovement $inventoryMovement): void
+  protected function displayPreview(ApInternalNote $internalNote, InventoryMovement $inventoryMovement, bool $isReversal = false): void
   {
-    $this->info('📋 PREVISUALIZACIÓN DE DATOS A ENVIAR:');
+    $operationType = $isReversal ? 'REVERSIÓN' : 'MIGRACIÓN';
+    $this->info("📋 PREVISUALIZACIÓN DE DATOS A ENVIAR ({$operationType}):");
     $this->newLine();
 
     // Información general
@@ -316,11 +370,16 @@ class MigrateInternalNoteToDynamicsCommand extends Command
     $this->line("OT: <fg=cyan>{$internalNote->workOrder->correlative}</>");
     $this->line("Tipo: <fg=green>" . TypePlanningWorkOrder::INTERNA_SC . "</>");
     $this->line("Estado Migración: <fg=yellow>{$internalNote->migration_status}</>");
+    if ($isReversal) {
+      $this->line("Operación: <fg=red>REVERSIÓN (Ingreso de Inventario)</>");
+    } else {
+      $this->line("Operación: <fg=green>SALIDA (Egreso de Inventario)</>");
+    }
     $this->newLine();
 
     // CABECERA (neInTbTransaccionInventario)
     try {
-      $headerResource = new InternalNoteTransactionHeaderResource($internalNote, false);
+      $headerResource = new InternalNoteTransactionHeaderResource($internalNote, $isReversal);
       $headerData = $headerResource->toArray(request());
 
       $this->info('📄 CABECERA (neInTbTransaccionInventario):');
@@ -335,13 +394,13 @@ class MigrateInternalNoteToDynamicsCommand extends Command
 
     // DETALLE (neInTbTransaccionInventarioDet)
     try {
-      $detailResource = new InternalNoteTransactionDetailResource($internalNote, false);
+      $detailResource = new InternalNoteTransactionDetailResource($internalNote, $isReversal);
       $detailsData = $detailResource->toArray(request());
 
       $this->info("📦 DETALLE (neInTbTransaccionInventarioDet): {$this->count($detailsData)} líneas");
       $this->newLine();
 
-      $headers = ['Línea', 'Artículo', 'Cantidad', 'UM', 'Almacén', 'Costo Unit'];
+      $headers = ['Línea', 'Artículo', 'Cantidad', 'UM', 'Almacén', 'Costo Unit', 'Cta Inventario', 'Cta Contrapartida'];
       $rows = collect($detailsData)->take(10)->map(fn($detail) => [
         $detail['Linea'],
         $detail['ArticuloId'],
@@ -349,6 +408,8 @@ class MigrateInternalNoteToDynamicsCommand extends Command
         $detail['UnidadMedidaId'],
         $detail['AlmacenId'],
         $detail['CostoUnitario'],
+        $detail['CuentaInventario'] ?? 'N/A',
+        $detail['CuentaContrapartida'] ?? 'N/A',
       ])->toArray();
 
       $this->table($headers, $rows);

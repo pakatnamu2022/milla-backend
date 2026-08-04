@@ -3,10 +3,12 @@
 namespace App\Jobs;
 
 use App\Http\Services\DatabaseSyncService;
+use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteDynamicsService;
 use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ApInternalNote;
+use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -145,6 +147,9 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
       $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
     }
 
+    // Reconstruir historial de costos para cada producto del movimiento de inventario
+    $this->rebuildCostHistoryForInternalNote($internalNote, $isReversal);
+
     // Asegurar que existan los logs
     if ($isReversal) {
       $logService->ensureInternalNoteReversalLogsExist($internalNote);
@@ -158,6 +163,71 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
 
     // Verificar si todos los pasos están completados
     $logService->checkAndUpdateCompletionStatus($internalNote, $isReversal);
+  }
+
+  /**
+   * Reconstruir historial de costos promedio ponderado para los productos de la nota interna
+   *
+   * @param ApInternalNote $internalNote
+   * @param bool $isReversal
+   * @return void
+   */
+  protected function rebuildCostHistoryForInternalNote(ApInternalNote $internalNote, bool $isReversal): void
+  {
+    try {
+      // Obtener el movimiento de inventario asociado a esta nota interna
+      $inventoryMovement = $internalNote->inventoryMovements()
+        ->with(['details.product', 'warehouse'])
+        ->where('movement_type', $isReversal
+          ? InventoryMovement::TYPE_ADJUSTMENT_IN
+          : InventoryMovement::TYPE_ADJUSTMENT_OUT)
+        ->first();
+
+      if (!$inventoryMovement || $inventoryMovement->details->isEmpty()) {
+        Log::warning('No se encontró movimiento de inventario para reconstruir historial de costos', [
+          'internal_note_id' => $internalNote->id,
+          'is_reversal' => $isReversal,
+        ]);
+        return;
+      }
+
+      $stockService = app(ProductWarehouseStockService::class);
+
+      // Reconstruir historial para cada producto del movimiento
+      foreach ($inventoryMovement->details as $detail) {
+        if (!$detail->product_id || !$inventoryMovement->warehouse_id) {
+          continue;
+        }
+
+        try {
+          $stockService->rebuildWeightedAverageCostHistory(
+            $detail->product_id,
+            $inventoryMovement->warehouse_id,
+            null // Desde el inicio si es necesario
+          );
+
+          Log::info('Historial de costos reconstruido', [
+            'product_id' => $detail->product_id,
+            'warehouse_id' => $inventoryMovement->warehouse_id,
+            'internal_note_id' => $internalNote->id,
+          ]);
+        } catch (Exception $e) {
+          Log::error('Error reconstruyendo historial de costos', [
+            'product_id' => $detail->product_id,
+            'warehouse_id' => $inventoryMovement->warehouse_id,
+            'internal_note_id' => $internalNote->id,
+            'error' => $e->getMessage(),
+          ]);
+          // Continuar con el siguiente producto
+        }
+      }
+    } catch (Exception $e) {
+      Log::error('Error general en rebuildCostHistoryForInternalNote', [
+        'internal_note_id' => $internalNote->id,
+        'error' => $e->getMessage(),
+      ]);
+      // No lanzar excepción para no detener el proceso de migración
+    }
   }
 
   public function failed(\Throwable $exception): void

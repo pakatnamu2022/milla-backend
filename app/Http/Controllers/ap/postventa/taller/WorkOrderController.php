@@ -12,9 +12,14 @@ use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Requests\ap\postventa\taller\UploadWorkOrderDocumentsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
+use App\Http\Services\DatabaseSyncService;
+use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -249,6 +254,66 @@ class WorkOrderController extends Controller
     }
   }
 
+  public function internalNoteLogs($id)
+  {
+    try {
+      $workOrder = $this->service->find($id);
+
+      if (!$workOrder) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Orden de trabajo no encontrada',
+        ], 404);
+      }
+
+      $internalNote = $workOrder->internalNote;
+
+      if (!$internalNote) {
+        return response()->json([
+          'success' => false,
+          'message' => 'La orden de trabajo no tiene una nota interna asociada',
+        ], 404);
+      }
+
+      $logs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+        ->orderBy('id')
+        ->get();
+
+      return response()->json([
+        'success' => true,
+        'data' => [
+          'work_order' => [
+            'id' => $workOrder->id,
+            'code' => $workOrder->code,
+            'status' => $workOrder->status->name ?? null,
+          ],
+          'internal_note' => [
+            'id' => $internalNote->id,
+            'created_date' => $internalNote->created_date?->format('Y-m-d H:i:s'),
+            'status' => $internalNote->status,
+            'created_at' => $internalNote->created_at->format('Y-m-d H:i:s'),
+          ],
+          'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  public function authorizeInternalNoteRevert($id)
+  {
+    try {
+      $authorizedBy = auth()->id();
+      return $this->service->authorizeInternalNoteRevert($id, $authorizedBy);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function generatePDIForVehicle($id)
   {
     try {
@@ -377,6 +442,55 @@ class WorkOrderController extends Controller
       return $this->success($this->service->listDocuments((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Lanza el job de verificación de migración de nota interna a Dynamics
+   */
+  public function verifyInternalNoteMigration($id)
+  {
+    try {
+      $workOrder = $this->service->find($id);
+
+      if (!$workOrder) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Orden de trabajo no encontrada',
+        ], 404);
+      }
+
+      $internalNote = $workOrder->internalNote;
+
+      if (!$internalNote) {
+        return response()->json([
+          'success' => false,
+          'message' => 'La orden de trabajo no tiene una nota interna asociada',
+        ], 404);
+      }
+
+      // Determinar si es reversión
+      $isReversal = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+        ->where('step', 'LIKE', '%REVERSAL%')
+        ->exists();
+
+      // Despachar job a la cola
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
+
+      return response()->json([
+        'success' => true,
+        'message' => 'Job de verificación de nota interna lanzado correctamente',
+        'data' => [
+          'internal_note_id' => $internalNote->id,
+          'internal_note_number' => $internalNote->number,
+          'is_reversal' => $isReversal,
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
     }
   }
 

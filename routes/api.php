@@ -1629,6 +1629,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
       Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
       Route::patch('workOrders/{id}/revert-internal-note', [WorkOrderController::class, 'revertInternalNote']);
+      Route::patch('workOrders/{id}/authorize-internal-note-revert', [WorkOrderController::class, 'authorizeInternalNoteRevert']);
+      Route::get('workOrders/{id}/internal-note-logs', [WorkOrderController::class, 'internalNoteLogs']);
+      Route::post('workOrders/{id}/verify-internal-note-migration', [WorkOrderController::class, 'verifyInternalNoteMigration']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
       Route::post('workOrders/deductible', [WorkOrderController::class, 'storeDeductible']);

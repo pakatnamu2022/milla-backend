@@ -12,127 +12,137 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApInternalNote extends BaseModel
 {
-    use SoftDeletes;
+  use SoftDeletes;
 
-    protected $table = 'ap_internal_notes';
+  protected $table = 'ap_internal_notes';
 
-    protected $fillable = [
-        'number',
-        'work_order_id',
-        'created_date',
-        'closed_date',
-        'status',
-        'dyn_series',
-        'migration_status',
-    ];
+  protected $fillable = [
+    'number',
+    'work_order_id',
+    'created_date',
+    'closed_date',
+    'status',
+    'dyn_series',
+    'migration_status',
+  ];
 
-    protected $casts = [
-        'created_date' => 'date',
-        'closed_date' => 'date',
-    ];
+  protected $casts = [
+    'created_date' => 'date',
+    'closed_date' => 'date',
+  ];
 
-    const array filters = [
-        'search' => ['number'],
-        'number' => '=',
-        'work_order_id' => '=',
-        'status' => '=',
-        'created_date' => 'date_between',
-        'closed_date' => 'date_between',
-    ];
+  const array filters = [
+    'search' => ['number'],
+    'number' => '=',
+    'work_order_id' => '=',
+    'status' => '=',
+    'created_date' => 'date_between',
+    'closed_date' => 'date_between',
+  ];
 
-    const array sorts = ['id', 'number', 'created_date', 'closed_date'];
+  const array sorts = ['id', 'number', 'created_date', 'closed_date'];
 
-    // Status constants
-    const STATUS_PENDING = 'pending';
-    const STATUS_INVOICED = 'invoiced';
+  // Status constants
+  const STATUS_PENDING = 'pending';
+  const STATUS_INVOICED = 'invoiced';
 
-    /**
-     * Boot method to auto-generate sequential number
-     */
-    protected static function booted()
-    {
-        static::creating(function ($model) {
-            if (empty($model->number)) {
-                $model->number = self::generateNextNumber();
-            }
-            if (empty($model->created_date)) {
-                $model->created_date = now();
-            }
-        });
+  /**
+   * Boot method to auto-generate sequential number
+   */
+  protected static function booted()
+  {
+    static::creating(function ($model) {
+      if (empty($model->number)) {
+        $model->number = self::generateNextNumber();
+      }
+      if (empty($model->created_date)) {
+        $model->created_date = now();
+      }
+    });
+  }
+
+  /**
+   * Generate next sequential number
+   * Format: IN-ddmmyy-correlative (e.g., IN-020826-000001)
+   */
+  public static function generateNextNumber(): string
+  {
+    $today = now();
+    $datePrefix = $today->format('dmy'); // Format: ddmmyy (e.g., 020826 for August 2, 2026)
+    $prefix = "IN-{$datePrefix}-";
+
+    // Find the last note created today
+    $lastNote = self::withTrashed()
+      ->where('number', 'LIKE', $prefix . '%')
+      ->orderBy('id', 'desc')
+      ->first();
+
+    if (!$lastNote) {
+      return $prefix . '000001';
     }
 
-    /**
-     * Generate next sequential number
-     */
-    public static function generateNextNumber(): string
-    {
-        $lastNote = self::withTrashed()->orderBy('id', 'desc')->first();
+    // Extract correlative from format IN-ddmmyy-000001
+    $parts = explode('-', $lastNote->number);
+    $lastCorrelative = (int)end($parts);
+    $nextCorrelative = $lastCorrelative + 1;
 
-        if (!$lastNote) {
-            return 'IN-00001';
-        }
+    return $prefix . str_pad($nextCorrelative, 6, '0', STR_PAD_LEFT);
+  }
 
-        // Extract number from format IN-00001
-        $lastNumber = (int) str_replace('IN-', '', $lastNote->number);
-        $nextNumber = $lastNumber + 1;
+  /**
+   * Relationships
+   */
+  public function workOrder(): BelongsTo
+  {
+    return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
+  }
 
-        return 'IN-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
-    }
+  public function electronicDocuments(): BelongsToMany
+  {
+    return $this->belongsToMany(
+      ElectronicDocument::class,
+      'electronic_document_internal_notes',
+      'internal_note_id',
+      'electronic_document_id'
+    )->withTimestamps();
+  }
 
-    /**
-     * Relationships
-     */
-    public function workOrder(): BelongsTo
-    {
-        return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
-    }
+  public function inventoryMovements(): MorphMany
+  {
+    return $this->morphMany(InventoryMovement::class, 'reference');
+  }
 
-    public function electronicDocuments(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            ElectronicDocument::class,
-            'electronic_document_internal_notes',
-            'internal_note_id',
-            'electronic_document_id'
-        )->withTimestamps();
-    }
+  /**
+   * Scopes
+   */
+  public function scopePending($query)
+  {
+    return $query->where('status', self::STATUS_PENDING);
+  }
 
-    public function inventoryMovements(): MorphMany
-    {
-        return $this->morphMany(InventoryMovement::class, 'reference');
-    }
+  public function scopeInvoiced($query)
+  {
+    return $query->where('status', self::STATUS_INVOICED);
+  }
 
-    /**
-     * Scopes
-     */
-    public function scopePending($query)
-    {
-        return $query->where('status', self::STATUS_PENDING);
-    }
+  /**
+   * Business methods
+   */
+  public function markAsInvoiced(?string $closedDate = null): void
+  {
+    $this->update([
+      'status' => self::STATUS_INVOICED,
+      'closed_date' => $closedDate ?? now()->toDateString(),
+    ]);
+  }
 
-    public function scopeInvoiced($query)
-    {
-        return $query->where('status', self::STATUS_INVOICED);
-    }
+  public function isPending(): bool
+  {
+    return $this->status === self::STATUS_PENDING;
+  }
 
-    /**
-     * Business methods
-     */
-    public function markAsInvoiced(?string $closedDate = null): void
-    {
-        $this->update([
-            'status' => self::STATUS_INVOICED,
-            'closed_date' => $closedDate ?? now()->toDateString(),
-        ]);
-    }
-
-    public function isPending(): bool
-    {
-        return $this->status === self::STATUS_PENDING;
-    }
-
-    public function isInvoiced(): bool
-    {
-        return $this->status === self::STATUS_INVOICED;
-    }
+  public function isInvoiced(): bool
+  {
+    return $this->status === self::STATUS_INVOICED;
+  }
 }
