@@ -33,7 +33,7 @@ class AccountsReceivableController extends Controller
       $total = AccountReceivable::where('company', $company)->count();
       return $this->success([
         'message'             => "Sincronización completada",
-        'total'               => $total,
+        'synced'              => $total,
         'collections_updated' => $collectionsUpdated,
       ]);
     } catch (Throwable $th) {
