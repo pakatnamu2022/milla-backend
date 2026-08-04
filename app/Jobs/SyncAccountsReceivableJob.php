@@ -28,6 +28,10 @@ class SyncAccountsReceivableJob implements ShouldQueue
     'automotores' => 3,
   ];
 
+  private const BRANCH_ALIAS_MAP = [
+    'deposito' => ['CHICLAYO' => 'LEGUIA'],
+  ];
+
   public function __construct(
     public string $company = 'deposito'
   )
@@ -206,6 +210,7 @@ class SyncAccountsReceivableJob implements ShouldQueue
       return null;
     }
     $key = strtoupper($branch);
+    $key = strtoupper(self::BRANCH_ALIAS_MAP[$this->company][$key] ?? $key);
     foreach ($sedeMap as $sedeKey => $sedeId) {
       if ($sedeKey && (str_contains($key, $sedeKey) || str_contains($sedeKey, $key))) {
         return $sedeId;
