@@ -1029,7 +1029,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         'color_name'       => $colorName,
         'advisor_name'     => $advisorName,
         'sede_name'        => $sedeName,
-        'delivery_date'    => Carbon::parse($delivery->real_delivery_date ?? now())->format('d \d\e F \d\e Y'),
+        'delivery_date'    => Carbon::parse($delivery->real_delivery_date ?? now())->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
         'has_letter'       => !empty($letterUrl),
         'video_url'        => $videoUrl,
         'video_thumbnail'  => $videoThumbnail,
