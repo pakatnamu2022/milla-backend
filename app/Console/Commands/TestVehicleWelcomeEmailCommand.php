@@ -21,7 +21,7 @@ class TestVehicleWelcomeEmailCommand extends Command
     $to = $this->argument('to');
     $deliveryId = $this->option('id');
 
-    $query = ApVehicleDelivery::with(['vehicle.model', 'vehicle.color', 'client', 'advisor', 'sede'])
+    $query = ApVehicleDelivery::with(['vehicle.model.family.brand', 'vehicle.color', 'client', 'advisor', 'sede'])
       ->whereHas('client', fn($q) => $q->whereNotNull('email'));
 
     $delivery = $deliveryId
@@ -66,6 +66,7 @@ class TestVehicleWelcomeEmailCommand extends Command
 
     $modelVersion = $delivery->vehicle?->model?->version ?? '';
     $modelYear    = $delivery->vehicle?->model?->model_year ?? '';
+    $brandName    = $delivery->vehicle?->model?->family?->brand?->name ?? '';
 
     $result = $emailService->send([
       'to'          => $to,
@@ -74,6 +75,7 @@ class TestVehicleWelcomeEmailCommand extends Command
       'attachments' => $attachments,
       'data'        => [
         'client_name'     => $delivery->client?->full_name ?? 'Cliente',
+        'brand_name'      => $brandName,
         'model_version'   => $modelVersion,
         'model_year'      => $modelYear,
         'vehicle_vin'     => $delivery->vehicle?->vin ?? '',

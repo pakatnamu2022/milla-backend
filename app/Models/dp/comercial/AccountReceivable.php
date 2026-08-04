@@ -107,6 +107,7 @@ class AccountReceivable extends BaseModel
     'document_due_date' => 'date_between',
     'due_year'          => 'in_or_equal',
     'area_id'           => 'in_or_equal',
+    'electronic_document_id' => 'null_bool',
   ];
 
   const sorts = [

@@ -463,7 +463,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           $vehicleDelivery->update(['aceptada_por_sunat' => true, 'real_delivery_date' => now()]);
           DB::commit();
           try {
-            $freshDelivery = $vehicleDelivery->fresh()->load(['vehicle.model', 'vehicle.color', 'client', 'advisor', 'sede']);
+            $freshDelivery = $vehicleDelivery->fresh()->load(['vehicle.model.family.brand', 'vehicle.color', 'client', 'advisor', 'sede']);
             $this->sendClientWelcomeEmail($freshDelivery);
           } catch (\Throwable $e) {
             \Log::warning('Welcome email could not be queued: ' . $e->getMessage());
@@ -1010,6 +1010,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $vehicle = $delivery->vehicle;
     $modelVersion = $vehicle?->model?->version ?? '';
     $modelYear    = $vehicle?->model?->model_year ?? '';
+    $brandName    = $vehicle?->model?->family?->brand?->name ?? '';
     $colorName    = $vehicle?->color?->description ?? '';
     $advisorName  = $delivery->advisor?->nombre_completo ?? '';
     $sedeName     = $delivery->sede?->abreviatura ?? '';
@@ -1021,6 +1022,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'attachments' => $attachments,
       'data'        => [
         'client_name'      => $client->full_name,
+        'brand_name'       => $brandName,
         'model_version'    => $modelVersion,
         'model_year'       => $modelYear,
         'vehicle_vin'      => $vehicle?->vin ?? '',
