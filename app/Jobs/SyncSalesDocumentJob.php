@@ -90,7 +90,10 @@ class SyncSalesDocumentJob implements ShouldQueue
     // 3. Sincronizar documento de venta (cabecera)
     $this->syncSalesDocument($document, $syncService);
 
-    // 4. Verificar si algún paso falló y actualizar el estado del documento
+    // 4. Insertar fecha de vencimiento en RM20101_DOCFV (último paso, su inserción = completado)
+    $this->syncDocFVStep($document);
+
+    // 5. Verificar si todos los pasos completaron y actualizar el estado del documento
     $this->checkAndUpdateCompletionStatus($document);
   }
 
@@ -108,6 +111,7 @@ class SyncSalesDocumentJob implements ShouldQueue
       VehiclePurchaseOrderMigrationLog::STEP_SALES_CLIENT,
       VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT_DETAIL,
       VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT,
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOC_FV,
     ];
 
     $allCompleted = $logs->every(fn($log) => $log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED &&
@@ -264,13 +268,10 @@ class SyncSalesDocumentJob implements ShouldQueue
       );
 
       if ($existingDocument->ProcesoEstado == 1 && $detailLog->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
-        $log->markAsCompletedElectronicDocument();
+        $log->markAsCompleted(1);
 
-        // Sincronizar a tabla de caja para postventa (method separado, no afecta proceso principal)
+        // Sincronizar a tabla de caja para postventa (no afecta proceso principal)
         $this->syncToPostventaCaja($document);
-
-        // Sincronizar fecha de vencimiento a RM20101_DOCFV para todos los documentos
-        $this->syncDocFV($document);
       }
     }
   }
@@ -800,10 +801,31 @@ class SyncSalesDocumentJob implements ShouldQueue
   }
 
   /**
-   * Inserta la fecha de vencimiento en RM20101_DOCFV para todos los documentos AP (postventa y comercial)
+   * Step 4: inserta DocumentoId + FechaVencimiento en RM20101_DOCFV.
+   * No hay ProcesoEstado que esperar; el insert exitoso = paso completado.
+   * Solo se ejecuta cuando STEP_SALES_DOCUMENT ya está completado.
    */
-  private function syncDocFV(ElectronicDocument $document): void
+  private function syncDocFVStep(ElectronicDocument $document): void
   {
+    $salesDocLog = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $document->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_SALES_DOCUMENT)
+      ->first();
+
+    if (!$salesDocLog || $salesDocLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
+    $log = $this->getOrCreateLog(
+      $document->id,
+      VehiclePurchaseOrderMigrationLog::STEP_SALES_DOC_FV,
+      VehiclePurchaseOrderMigrationLog::STEP_TABLE_MAPPING[VehiclePurchaseOrderMigrationLog::STEP_SALES_DOC_FV],
+      $document->full_number
+    );
+
+    if ($log->status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return;
+    }
+
     try {
       $existing = DB::connection(Company::CONNECTION_DYNAMICS_3)
         ->table('RM20101_DOCFV')
@@ -818,9 +840,13 @@ class SyncSalesDocumentJob implements ShouldQueue
             'FechaVencimiento' => $document->fecha_de_vencimiento,
           ]);
       }
+
+      $log->markAsCompleted(1);
     } catch (\Exception $e) {
-      Log::error('Error al sincronizar fecha de vencimiento a RM20101_DOCFV (proceso no crítico)', [
+      $log->markAsFailed($e->getMessage());
+      Log::error('Error al insertar en RM20101_DOCFV', [
         'document_id' => $document->id,
+        'full_number' => $document->full_number,
         'error'       => $e->getMessage(),
       ]);
     }
