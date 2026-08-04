@@ -47,12 +47,6 @@ class InternalNoteDynamicsService
       return;
     }
 
-    // Si aún no se generó el dyn_series, sincronizar y generarlo
-    if (empty($internalNote->dyn_series)) {
-      $this->syncTransaction($internalNote, $isReversal);
-      return;
-    }
-
     $transactionId = $this->logService->buildInternalNoteTransactionId($internalNote, $isReversal);
 
     $existingTransaction = DB::connection('dbtp')
@@ -139,18 +133,27 @@ class InternalNoteDynamicsService
     }
 
     try {
-      // Generar dyn_series si no existe
-      if (empty($internalNote->dyn_series)) {
-        // Quitar el prefijo "IN-" y agregar "NIP-"
-        $number = str_replace('IN-', '', $internalNote->number);
-        $dynSeries = 'NIP-' . $number;
-        $internalNote->update(['dyn_series' => $dynSeries]);
+      // Verificar si la cabecera ya existe antes de insertar
+      $transactionId = $this->logService->buildInternalNoteTransactionId($internalNote, $isReversal);
+      $existingTransaction = DB::connection('dbtp')
+        ->table('neInTbTransaccionInventario')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
+        ->where('TransaccionId', $transactionId)
+        ->first();
+
+      $transactionLog->markAsInProgress();
+
+      // Solo insertar si no existe
+      if (!$existingTransaction) {
+        $resource = new InternalNoteTransactionHeaderResource($internalNote, $isReversal);
+        $data = $resource->toArray(request());
+        $this->syncService->sync('inventory_transaction', $data, 'create');
+      } else {
+        Log::info('Cabecera de transacción ya existe en Dynamics, se omite inserción', [
+          'TransaccionId' => $transactionId,
+        ]);
       }
 
-      $resource = new InternalNoteTransactionHeaderResource($internalNote, $isReversal);
-      $data = $resource->toArray(request());
-      $transactionLog->markAsInProgress();
-      $this->syncService->sync('inventory_transaction', $data, 'create');
       $transactionLog->updateProcesoEstado(0);
     } catch (Exception $e) {
       Log::error('=== ERROR syncTransaction (InternalNote) ===', [
@@ -190,9 +193,26 @@ class InternalNoteDynamicsService
 
       $transactionDetailLog->markAsInProgress();
 
-      // Sincronizar cada detalle por separado
+      // Sincronizar cada detalle por separado, verificando si ya existe
       foreach ($details as $detail) {
-        $this->syncService->sync('inventory_transaction_dt', $detail, 'create');
+        // Verificar si esta línea específica ya existe en Dynamics
+        $existingLine = DB::connection('dbtp')
+          ->table('neInTbTransaccionInventarioDet')
+          ->where('EmpresaId', $detail['EmpresaId'])
+          ->where('TransaccionId', $detail['TransaccionId'])
+          ->where('Linea', $detail['Linea'])
+          ->first();
+
+        // Solo sincronizar si no existe
+        if (!$existingLine) {
+          $this->syncService->sync('inventory_transaction_dt', $detail, 'create');
+        } else {
+          Log::info('Línea de detalle ya existe en Dynamics, se omite inserción', [
+            'TransaccionId' => $detail['TransaccionId'],
+            'Linea' => $detail['Linea'],
+            'ArticuloId' => $detail['ArticuloId'],
+          ]);
+        }
       }
 
       $transactionDetailLog->updateProcesoEstado(0);

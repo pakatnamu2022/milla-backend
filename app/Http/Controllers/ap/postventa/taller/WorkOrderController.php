@@ -447,6 +447,7 @@ class WorkOrderController extends Controller
 
   /**
    * Lanza el job de verificación de migración de nota interna a Dynamics
+   * Si el estado es 'failed', resetea los logs a 'pending' para reintentar
    */
   public function verifyInternalNoteMigration($id)
   {
@@ -474,6 +475,30 @@ class WorkOrderController extends Controller
         ->where('step', 'LIKE', '%REVERSAL%')
         ->exists();
 
+      // Capturar estado original
+      $wasReset = false;
+
+      // Si el estado es 'failed', resetear para reintentar
+      if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+        $wasReset = true;
+
+        // Resetear nota interna a pending
+        $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
+
+        // Resetear logs relacionados a pending
+        VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+          ->whereIn('step', [
+            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
+            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
+            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL,
+            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL,
+          ])
+          ->update([
+            'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+            'error_message' => null,
+          ]);
+      }
+
       // Despachar job a la cola
       VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
 
@@ -484,6 +509,7 @@ class WorkOrderController extends Controller
           'internal_note_id' => $internalNote->id,
           'internal_note_number' => $internalNote->number,
           'is_reversal' => $isReversal,
+          'was_reset' => $wasReset,
         ],
       ]);
     } catch (\Throwable $th) {

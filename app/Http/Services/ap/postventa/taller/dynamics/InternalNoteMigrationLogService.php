@@ -101,21 +101,16 @@ class InternalNoteMigrationLogService
 
   /**
    * Construye el TransaccionId para Dynamics
-   * Formato: NIP-00001 (normal) o NIP-00001* (reversión)
+   * Formato: PS-IN-00001 (salida) o PI-IN-00001 (ingreso/reversión)
+   * Debe coincidir con el formato usado en InternalNoteTransactionHeaderResource
    */
   public function buildInternalNoteTransactionId(ApInternalNote $internalNote, bool $isReversal): string
   {
-    if (!empty($internalNote->dyn_series)) {
-      $transactionId = $internalNote->dyn_series;
-    } else {
-      // Quitar el prefijo "IN-" del número de nota interna y agregar "NIP-"
-      $number = str_replace('IN-', '', $internalNote->number);
-      $transactionId = 'NIP-' . $number;
-    }
-
-    if ($isReversal) {
-      $transactionId .= '*';
-    }
+    // SIEMPRE generar TransaccionId con el formato que usa el Resource
+    // Salida: PS-IN-00045
+    // Reversión/Ingreso: PI-IN-00045
+    $prefix = $isReversal ? 'PI-' : 'PS-';
+    $transactionId = $prefix . $internalNote->number;
 
     return $transactionId;
   }
