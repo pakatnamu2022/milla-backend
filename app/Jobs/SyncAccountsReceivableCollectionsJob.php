@@ -47,24 +47,26 @@ class SyncAccountsReceivableCollectionsJob implements ShouldQueue
     }
 
     $updated = 0;
-    $query->get()->each(function (AccountReceivable $record) use ($pdo, &$updated) {
-      $stmt = $pdo->prepare("EXEC Reporte_Venta_Cancelaciones_Detalle_SIAN ?");
-      $stmt->execute([trim($record->document_number)]);
+    $query->chunkById(50, function ($chunk) use ($pdo, &$updated) {
+      $chunk->each(function (AccountReceivable $record) use ($pdo, &$updated) {
+        $stmt = $pdo->prepare("EXEC Reporte_Venta_Cancelaciones_Detalle_SIAN ?");
+        $stmt->execute([trim($record->document_number)]);
 
-      $rows = collect();
-      do {
-        if ($stmt->columnCount() > 0) {
-          $rows = collect($stmt->fetchAll(\PDO::FETCH_OBJ));
-          break;
+        $rows = collect();
+        do {
+          if ($stmt->columnCount() > 0) {
+            $rows = collect($stmt->fetchAll(\PDO::FETCH_OBJ));
+            break;
+          }
+        } while ($stmt->nextRowset());
+
+        if ($rows->isEmpty()) {
+          return;
         }
-      } while ($stmt->nextRowset());
 
-      if ($rows->isEmpty()) {
-        return;
-      }
-
-      $record->update(['collection_reference' => $this->formatCollections($rows)]);
-      $updated++;
+        $record->update(['collection_reference' => $this->formatCollections($rows)]);
+        $updated++;
+      });
     });
 
     return $updated;
