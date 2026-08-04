@@ -7,6 +7,9 @@ use App\Http\Requests\dp\comercial\StoreAccountReceivableCommentRequest;
 use App\Http\Requests\dp\comercial\UpdateAccountReceivableCommentRequest;
 use App\Http\Services\dp\comercial\AccountsReceivableService;
 use App\Jobs\SendDueAccountsReceivableReportsJob;
+use App\Jobs\SyncAccountsReceivableCollectionsJob;
+use App\Jobs\SyncAccountsReceivableJob;
+use App\Models\dp\comercial\AccountReceivable;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -23,7 +26,29 @@ class AccountsReceivableController extends Controller
   {
     try {
       $company = $request->input('company', 'deposito');
-      return $this->success($this->service->sync($company));
+      SyncAccountsReceivableJob::dispatchSync($company);
+      if ($company === 'automotores') {
+        SyncAccountsReceivableCollectionsJob::dispatch($company);
+      }
+      $collectionsUpdated = 0;
+      $total = AccountReceivable::where('company', $company)->count();
+      return $this->success([
+        'message'             => "Sincronización completada",
+        'synced'              => $total,
+        'collections_updated' => $collectionsUpdated,
+      ]);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function syncCollections(Request $request)
+  {
+    try {
+      $company        = $request->input('company', 'deposito');
+      $documentNumber = $request->input('document_number');
+      SyncAccountsReceivableCollectionsJob::dispatchSync($company, $documentNumber);
+      return $this->success(['message' => 'Sincronización de cobros completada']);
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

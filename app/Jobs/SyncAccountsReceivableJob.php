@@ -28,7 +28,7 @@ class SyncAccountsReceivableJob implements ShouldQueue
     'automotores' => 3,
   ];
 
-  public function __construct(
+public function __construct(
     public string $company = 'deposito'
   )
   {
@@ -40,7 +40,7 @@ class SyncAccountsReceivableJob implements ShouldQueue
     $connection = self::COMPANY_CONNECTION_MAP[$this->company]
       ?? throw new \Exception("Company '{$this->company}' has no configured connection.");
 
-    $pdo  = DB::connection($connection)->getPdo();
+    $pdo = DB::connection($connection)->getPdo();
     $stmt = $pdo->prepare("EXEC GP_Reporte_Indicador_Comercial_CuentasPorCobrar '%'");
     $stmt->execute();
 
@@ -149,43 +149,44 @@ class SyncAccountsReceivableJob implements ShouldQueue
 
   private function mapRow(array $row, array $sedeMap, string $now): array
   {
-    $branch   = trim($row['Sucursal'] ?? '');
-    $currency = strtoupper(trim($row['Moneda'] ?? 'PEN'));
-    $amount   = (float)($row['DocumentoImporte'] ?? 0);
-    $balance  = (float)($row['DocumentoDeuda'] ?? 0);
-    $rate     = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
+    $branch    = trim($row['Sucursal'] ?? '');
+    $abreviatura = trim($row['Abreviatura'] ?? '');
+    $currency  = strtoupper(trim($row['Moneda'] ?? 'PEN'));
+    $amount    = (float)($row['DocumentoImporte'] ?? 0);
+    $balance   = (float)($row['DocumentoDeuda'] ?? 0);
+    $rate      = (float)($row['DocumentoTasaCambio'] ?? 1) ?: 1;
 
-    $amountPen = $currency === 'PEN' ? $amount : $amount * $rate;
+    $amountPen  = $currency === 'PEN' ? $amount : $amount * $rate;
     $balancePen = $currency === 'PEN' ? $balance : $balance * $rate;
 
     return [
-      'company'          => $this->company,
-      'sede_id'          => $this->resolveSede($branch, $sedeMap),
-      'seller'           => $row['Vendedor'] ?? null,
-      'cashier'          => $row['Caja'] ?? null,
-      'document_number'  => trim($row['DocumentoNumero'] ?? ''),
-      'client_id'        => $row['ClienteId'] ?? null,
-      'client_name'      => $row['ClienteNombre'] ?? null,
-      'client_id_real'   => $row['ClienteIdReal'] ?: null,
-      'client_name_real' => $row['ClienteNombreReal'] ?: null,
-      'document_date'    => $this->parseDate($row['DocumentoFecha'] ?? null),
+      'company'           => $this->company,
+      'sede_id'           => $this->resolveSede($abreviatura ?: $branch, $sedeMap),
+      'seller'            => $row['Vendedor'] ?? null,
+      'cashier'           => $row['Caja'] ?? null,
+      'document_number'   => trim($row['DocumentoNumero'] ?? ''),
+      'client_id'         => $row['ClienteId'] ?? null,
+      'client_name'       => $row['ClienteNombre'] ?? null,
+      'client_id_real'    => $row['ClienteIdReal'] ?: null,
+      'client_name_real'  => $row['ClienteNombreReal'] ?: null,
+      'document_date'     => $this->parseDate($row['DocumentoFecha'] ?? null),
       'document_due_date' => $this->parseDate($row['DocumentoVencimiento'] ?? null),
-      'due_year'         => $row['Anho_Vencimiento'] ?? null,
-      'due_month'        => $row['Mes_Vencimiento'] ?? null,
-      'overdue_days'     => $row['DiasVencidos'] ?? null,
-      'overdue_status'   => $row['Estado_Vencido'] ?? null,
-      'currency'         => $row['Moneda'] ?? null,
-      'exchange_rate'    => $row['DocumentoTasaCambio'] ?? null,
-      'amount'           => $amount,
-      'balance'          => $balance,
-      'amount_pen'       => $amountPen,
-      'balance_pen'      => $balancePen,
-      'branch'           => $branch ?: null,
-      'observations'     => $row['Observaciones'] ?: null,
-      'collection_date'  => $this->parseDate(trim($row['CobroFecha'] ?? '')),
-      'synced_at'        => $now,
-      'created_at'       => $now,
-      'updated_at'       => $now,
+      'due_year'          => $row['Anho_Vencimiento'] ?? null,
+      'due_month'         => $row['Mes_Vencimiento'] ?? null,
+      'overdue_days'      => $row['DiasVencidos'] ?? null,
+      'overdue_status'    => $row['Estado_Vencido'] ?? null,
+      'currency'          => $row['Moneda'] ?? null,
+      'exchange_rate'     => $row['DocumentoTasaCambio'] ?? null,
+      'amount'            => $amount,
+      'balance'           => $balance,
+      'amount_pen'        => $amountPen,
+      'balance_pen'       => $balancePen,
+      'branch'            => $branch ?: null,
+      'observations'      => $row['Observaciones'] ?: null,
+      'collection_date'   => $this->parseDate(trim($row['CobroFecha'] ?? '')),
+      'synced_at'         => $now,
+      'created_at'        => $now,
+      'updated_at'        => $now,
     ];
   }
 
@@ -194,7 +195,7 @@ class SyncAccountsReceivableJob implements ShouldQueue
     $empresaId = self::COMPANY_EMPRESA_ID_MAP[$this->company] ?? null;
 
     return Sede::select('id', 'localidad', 'suc_abrev', 'abreviatura')
-      ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId))
+      ->when($empresaId, fn($q) => $q->where('empresa_id', $empresaId)->where('status_deleted', 1))
       ->get()
       ->mapWithKeys(fn($s) => [strtoupper(trim($s->suc_abrev ?? $s->abreviatura ?? $s->localidad ?? '')) => $s->id])
       ->toArray();

@@ -318,6 +318,18 @@ trait Filterable
           $query->where($filter, '=', $value);
         }
         break;
+      case 'null_bool':
+        // Filtra por presencia/ausencia de valor: true => whereNotNull, false => whereNull
+        $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($bool === null) {
+          if ($value === '0' || $value === 0) {
+            $bool = false;
+          } else {
+            break;
+          }
+        }
+        $bool ? $query->whereNotNull($filter) : $query->whereNull($filter);
+        break;
       default:
         break;
     }

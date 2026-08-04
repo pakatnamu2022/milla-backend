@@ -33,6 +33,39 @@ class PurchaseOrder extends BaseModel
 
   protected $table = 'ap_purchase_order';
 
+  protected $reportColumns = [
+    'sede.suc_abrev'                    => ['label' => 'SEDE', 'width' => 12],
+    'number'                            => ['label' => 'NRO. OC', 'width' => 22],
+    'vehicle.vin'                       => ['label' => 'VIN', 'width' => 22],
+    'vehicle.engine_number'             => ['label' => 'NRO. MOTOR', 'width' => 20],
+    'vehicle.year'                      => ['label' => 'AÑO', 'width' => 10],
+    'vehicle.model.family.brand.name'   => ['label' => 'MARCA', 'width' => 20],
+    'vehicle.model.name'                => ['label' => 'MODELO', 'width' => 25],
+    'vehicle.color.description'         => ['label' => 'COLOR', 'width' => 18],
+    'vehicle.vehicleStatus.description' => ['label' => 'ESTADO VEHÍCULO', 'width' => 22],
+    'supplier.full_name'                => ['label' => 'PROVEEDOR', 'width' => 35],
+    'supplierOrderType.description'     => ['label' => 'TIPO OC', 'width' => 18],
+    'invoice_series'                    => ['label' => 'SERIE FACTURA', 'width' => 15],
+    'invoice_number'                    => ['label' => 'NRO. FACTURA', 'width' => 15],
+    'emission_date'                     => ['label' => 'FECHA EMISIÓN', 'formatter' => 'date', 'width' => 18],
+    'due_date'                          => ['label' => 'FECHA VENC.', 'formatter' => 'date', 'width' => 18],
+    'currency.description'              => ['label' => 'MONEDA', 'width' => 12],
+    'subtotal'                          => ['label' => 'SUBTOTAL', 'width' => 15],
+    'igv'                               => ['label' => 'IGV', 'width' => 12],
+    'total'                             => ['label' => 'TOTAL', 'width' => 15],
+    'migration_status'                  => ['label' => 'ESTADO MIGRACIÓN', 'width' => 20],
+  ];
+
+  protected $reportRelations = [
+    'sede',
+    'vehicle.model.family.brand',
+    'vehicle.color',
+    'vehicle.vehicleStatus',
+    'supplier',
+    'supplierOrderType',
+    'currency',
+  ];
+
   protected $fillable = [
     'number',
     'number_correlative',

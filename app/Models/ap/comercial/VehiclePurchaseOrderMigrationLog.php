@@ -62,6 +62,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_SALES_DOCUMENT = 'sales_document';
   const STEP_SALES_DOCUMENT_DETAIL = 'sales_document_detail';
   const STEP_SALES_DOCUMENT_SERIAL = 'sales_document_serial';
+  const STEP_SALES_DOC_FV = 'sales_doc_fv';
 
   // Constantes para los pasos de migración (Shipping Guides - Ventas)
   const STEP_SALE_SHIPPING_GUIDE = 'sale_shipping_guide';
@@ -122,6 +123,7 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALES_DOCUMENT => 'neInTbVenta',
     self::STEP_SALES_DOCUMENT_DETAIL => 'neInTbVentaDt',
     self::STEP_SALES_DOCUMENT_SERIAL => 'neInTbVentaDtS',
+    self::STEP_SALES_DOC_FV => 'RM20101_DOCFV',
     self::STEP_ACCOUNTING_ENTRY_HEADER => 'neInTbIntegracionAsientoCab',
     self::STEP_ACCOUNTING_ENTRY_DETAIL => 'neInTbIntegracionAsientoDet',
     self::STEP_INTERNAL_NOTE_TRANSACTION => 'neInTbTransaccionInventario',
