@@ -82,7 +82,7 @@ class TestVehicleWelcomeEmailCommand extends Command
         'color_name'      => $delivery->vehicle?->color?->description ?? '',
         'advisor_name'    => $delivery->advisor?->nombre_completo ?? '',
         'sede_name'       => $delivery->sede?->abreviatura ?? '',
-        'delivery_date'   => Carbon::parse($delivery->real_delivery_date ?? now())->format('d \d\e F \d\e Y'),
+        'delivery_date'   => Carbon::parse($delivery->real_delivery_date ?? now())->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
         'has_letter'      => !empty($letterUrl),
         'video_url'       => $videoUrl,
         'video_thumbnail' => $videoThumbnail,
