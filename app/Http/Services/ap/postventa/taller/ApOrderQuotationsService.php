@@ -2144,10 +2144,6 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede enviar link de confirmación a una cotización descartada.');
       }
 
-      if ($quotation->getActiveAdvances()->count() > 0) {
-        throw new Exception('No se puede enviar link de confirmación a una cotización que tiene anticipos registrados');
-      }
-
       if ($quotation->isConfirmed()) {
         throw new Exception('Esta cotización ya fue confirmada anteriormente.');
       }

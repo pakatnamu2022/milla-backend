@@ -646,7 +646,7 @@ return [
       'optional_mapping' => [
       ],
       'sync_mode' => 'insert',
-      'unique_key' => 'TransaccionId',
+      'unique_key' => ['EmpresaId', 'TransaccionId'],
       'actions' => [
         'create' => true,
         'update' => false,
@@ -677,7 +677,7 @@ return [
       'optional_mapping' => [
       ],
       'sync_mode' => 'insert',
-      'unique_key' => 'TransaccionId',
+      'unique_key' => ['EmpresaId', 'TransaccionId', 'Linea'],
       'actions' => [
         'create' => true,
         'update' => false,

@@ -4,12 +4,14 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
+use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
@@ -48,22 +50,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   protected DigitalFileService $digitalFileService;
   protected ExportService $exportService;
   protected InventoryMovementService $inventoryMovementService;
+  protected InternalNoteMigrationLogService $internalNoteMigrationLogService;
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
   private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
-    WorkOrderLabourService   $labourService,
-    DigitalFileService       $digitalFileService,
-    ExportService            $exportService,
-    InventoryMovementService $inventoryMovementService
+    WorkOrderLabourService            $labourService,
+    DigitalFileService                $digitalFileService,
+    ExportService                     $exportService,
+    InventoryMovementService          $inventoryMovementService,
+    InternalNoteMigrationLogService   $internalNoteMigrationLogService
   )
   {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
     $this->inventoryMovementService = $inventoryMovementService;
+    $this->internalNoteMigrationLogService = $internalNoteMigrationLogService;
   }
 
   public function list(Request $request)
@@ -1082,6 +1087,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       DB::commit();
 
+      // Despachar job para migrar a Dynamics
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, false);
+
       return response()->json([
         'message' => 'Nota interna generada y orden de trabajo cerrada correctamente',
         'internal_note_id' => $internalNote->id,
@@ -1133,6 +1141,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         }
       }
 
+      // Validación 5: Verificar límite de reversiones permitidas
+      if ($workOrder->internal_note_revert_count >= ApWorkOrder::LIMITATION_PERMITTED_REVERSAL) {
+        throw new Exception(
+          'Ha alcanzado el límite de reversiones permitidas para esta orden de trabajo. ' .
+          'Debe solicitar autorización para realizar una nueva reversión.'
+        );
+      }
+
       // 1. Revertir inventario solo si fue procesado Y es tipo INTERNA_SC
       // Las INTERNA_CC nunca generan salida de inventario, por lo tanto no hay nada que revertir
       $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
@@ -1153,20 +1169,67 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $newStatusId = ApMasters::OPENING_WORK_ORDER_ID;
       }
 
-      // 3. Actualizar OT
+      // 3. Actualizar OT e incrementar contadores de reversión
       $workOrder->update([
         'status_id' => $newStatusId,
         'output_generation_warehouse' => false,
+        'internal_note_revert_count' => $workOrder->internal_note_revert_count + 1,
+        'internal_note_total_reverts' => $workOrder->internal_note_total_reverts + 1,
       ]);
 
-      // 4. Eliminar nota interna (soft delete)
+      // 4. Eliminar nota interna (soft delete) - ANTES del commit
       $internalNote->delete();
 
       DB::commit();
 
+      // 5. Despachar job para migrar reversión a Dynamics (después del commit exitoso)
+      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, true);
+
       return response()->json([
         'message' => 'Nota interna revertida correctamente',
         'new_status_id' => $newStatusId,
+      ]);
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Autoriza una reversión adicional de nota interna para una orden de trabajo
+   * Resetea el contador de reversiones permitidas y registra quién autorizó
+   *
+   * @param int $id ID de la orden de trabajo
+   * @param int $authorizedBy ID del usuario que autoriza
+   * @return \Illuminate\Http\JsonResponse
+   * @throws \Exception
+   */
+  public function authorizeInternalNoteRevert($id, $authorizedBy)
+  {
+    DB::beginTransaction();
+
+    try {
+      $workOrder = $this->find($id);
+
+      // Validar que el contador actual sea >= 1 (hay que tener al menos 1 reversión para autorizar otra)
+      if ($workOrder->internal_note_revert_count < 1) {
+        throw new Exception('Esta orden de trabajo aún no ha alcanzado el límite de reversiones. No requiere autorización.');
+      }
+
+      // Resetear el contador de reversiones permitidas y registrar la autorización
+      $workOrder->update([
+        'internal_note_revert_count' => 0,
+        'internal_note_revert_authorized_by' => $authorizedBy,
+        'internal_note_revert_authorized_at' => now(),
+      ]);
+
+      DB::commit();
+
+      return response()->json([
+        'message' => 'Autorización de reversión de nota interna concedida correctamente',
+        'authorized_by' => $authorizedBy,
+        'authorized_at' => $workOrder->internal_note_revert_authorized_at,
+        'total_reverts' => $workOrder->internal_note_total_reverts,
       ]);
     } catch (\Throwable $e) {
       DB::rollBack();
@@ -1194,6 +1257,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     // PASO 1: Crear ajuste de entrada (compensatorio) para devolver el stock al almacén
+    // Generar el número de Dynamics (PI-IN-00010 para ingreso/reversión)
+    $dynamicsTransactionId = $this->internalNoteMigrationLogService->buildInternalNoteTransactionId($internalNote, true);
+
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
       'warehouse_id' => $warehouse->id,
@@ -1201,6 +1267,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'movement_date' => now(),
       'reference_type' => ApInternalNote::class,
       'reference_id' => $internalNote->id,
+      'movement_number_dyn' => $dynamicsTransactionId, // PI-IN-00010
     ];
 
     $details = [];
@@ -2115,6 +2182,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     // PASO 2: DESPUÉS crear el ajuste de salida (ahora el available_quantity ya incluye lo que estaba reservado)
+    // Generar el número de Dynamics (PS-IN-00010 para salida)
+    $dynamicsTransactionId = $this->internalNoteMigrationLogService->buildInternalNoteTransactionId($internalNote, false);
+
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
@@ -2122,6 +2192,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'movement_date' => now(),
       'reference_type' => ApInternalNote::class,
       'reference_id' => $internalNote->id,
+      'movement_number_dyn' => $dynamicsTransactionId, // PS-IN-00010
     ];
 
     // Preparar detalles (uno por cada repuesto)

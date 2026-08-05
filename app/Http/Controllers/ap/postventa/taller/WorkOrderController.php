@@ -12,9 +12,15 @@ use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Requests\ap\postventa\taller\UploadWorkOrderDocumentsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
+use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
+use App\Http\Services\DatabaseSyncService;
+use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\ap\facturacion\ApInternalNote;
+use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -165,7 +171,7 @@ class WorkOrderController extends Controller
     try {
       $data = $request->validate(
         [
-          'num_doc_pickup' => 'required|string|digits:8',
+          'num_doc_pickup' => ['required', 'string', 'regex:/^(\d{8}|\d{9})$/'],
           'full_pickup_name' => 'required|string',
           'phone_pickup' => 'required|string',
         ]
@@ -244,6 +250,82 @@ class WorkOrderController extends Controller
   {
     try {
       return $this->service->revertInternalNote($id);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function internalNoteLogs($id)
+  {
+    try {
+      $workOrder = $this->service->find($id);
+
+      if (!$workOrder) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Orden de trabajo no encontrada',
+        ], 404);
+      }
+
+      // Obtener TODAS las notas internas (incluidas las eliminadas) para mostrar historial completo
+      $internalNotes = ApInternalNote::withTrashed()
+        ->where('work_order_id', $workOrder->id)
+        ->orderBy('id', 'desc')
+        ->get();
+
+      if ($internalNotes->isEmpty()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'La orden de trabajo no tiene notas internas asociadas',
+        ], 404);
+      }
+
+      // Obtener logs de TODAS las notas internas de esta work order
+      $internalNoteIds = $internalNotes->pluck('id');
+      $logs = VehiclePurchaseOrderMigrationLog::whereIn('internal_note_id', $internalNoteIds)
+        ->orderBy('internal_note_id', 'desc')
+        ->orderBy('id')
+        ->get();
+
+      // Preparar información de todas las notas internas
+      $internalNotesData = $internalNotes->map(function ($note) {
+        return [
+          'id' => $note->id,
+          'number' => $note->number,
+          'created_date' => $note->created_date?->format('Y-m-d H:i:s'),
+          'status' => $note->status,
+          'migration_status' => $note->migration_status,
+          'is_deleted' => $note->trashed(),
+          'deleted_at' => $note->deleted_at?->format('Y-m-d H:i:s'),
+          'created_at' => $note->created_at->format('Y-m-d H:i:s'),
+        ];
+      });
+
+      return response()->json([
+        'success' => true,
+        'data' => [
+          'work_order' => [
+            'id' => $workOrder->id,
+            'code' => $workOrder->code,
+            'status' => $workOrder->status->name ?? null,
+          ],
+          'internal_notes' => $internalNotesData,
+          'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
+    }
+  }
+
+  public function authorizeInternalNoteRevert($id)
+  {
+    try {
+      $authorizedBy = auth()->id();
+      return $this->service->authorizeInternalNoteRevert($id, $authorizedBy);
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }
@@ -365,7 +447,7 @@ class WorkOrderController extends Controller
   {
     try {
       $files = $request->file('files');
-      return $this->success($this->service->uploadDocuments((int) $id, $files));
+      return $this->success($this->service->uploadDocuments((int)$id, $files));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -374,9 +456,107 @@ class WorkOrderController extends Controller
   public function documents($id)
   {
     try {
-      return $this->success($this->service->listDocuments((int) $id));
+      return $this->success($this->service->listDocuments((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Lanza el job de verificación de migración de nota interna a Dynamics
+   * Si el estado es 'failed', resetea los logs a 'pending' para reintentar
+   */
+  public function verifyInternalNoteMigration($id)
+  {
+    try {
+      $workOrder = $this->service->find($id);
+
+      if (!$workOrder) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Orden de trabajo no encontrada',
+        ], 404);
+      }
+
+      // Obtener TODAS las notas internas (activas y eliminadas) que requieren procesamiento
+      $internalNotes = ApInternalNote::withTrashed()
+        ->where('work_order_id', $workOrder->id)
+        ->whereIn('migration_status', [
+          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+          VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+        ])
+        ->orderBy('id', 'desc')
+        ->get();
+
+      if ($internalNotes->isEmpty()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'No hay notas internas pendientes de migración para esta orden de trabajo',
+        ], 404);
+      }
+
+      $processedNotes = [];
+
+      foreach ($internalNotes as $internalNote) {
+        // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
+        $isReversal = $internalNote->trashed() ||
+          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+            ->where('step', 'LIKE', '%REVERSAL%')
+            ->exists();
+
+        // Capturar estado original
+        $wasReset = false;
+
+        // Si el estado es 'failed', resetear para reintentar
+        if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+          $wasReset = true;
+
+          // Resetear nota interna a pending
+          $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
+
+          // Resetear logs relacionados a pending
+          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+            ->whereIn('step', [
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL,
+            ])
+            ->update([
+              'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+              'error_message' => null,
+            ]);
+        }
+
+        // Despachar job a la cola
+        VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
+
+        $processedNotes[] = [
+          'internal_note_id' => $internalNote->id,
+          'internal_note_number' => $internalNote->number,
+          'is_reversal' => $isReversal,
+          'is_deleted' => $internalNote->trashed(),
+          'was_reset' => $wasReset,
+          'migration_status' => $internalNote->migration_status,
+        ];
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => count($processedNotes) > 1
+          ? 'Jobs de verificación de notas internas lanzados correctamente'
+          : 'Job de verificación de nota interna lanzado correctamente',
+        'data' => [
+          'processed_count' => count($processedNotes),
+          'notes' => $processedNotes,
+        ],
+      ]);
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => $th->getMessage()
+      ], 400);
     }
   }
 

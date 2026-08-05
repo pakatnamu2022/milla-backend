@@ -78,16 +78,58 @@ class InvoicingReportService
       return !$document->is_advance_payment;
     });
 
-    // Solo incluir anticipos cuyas OTs ya tengan factura final generada
-    $advanceDocuments = $documents->filter(function ($document) {
-      if (!$document->is_advance_payment) {
-        return false;
+    // CAMBIO: Los anticipos deben aparecer en el mes en que se emitió la FACTURA FINAL, no en el mes del anticipo.
+    // Obtener los work_order_id de todas las OTs que tienen factura final en el rango de fechas del filtro
+    $workOrderIdsWithFinalInvoice = collect();
+
+    // Para facturas SIMPLES: tienen work_order_id directo
+    $workOrderIdsWithFinalInvoice = $workOrderIdsWithFinalInvoice->merge(
+      $finalDocuments->whereNotNull('work_order_id')->pluck('work_order_id')
+    );
+
+    // Para facturas MASIVAS: tienen notas internas con work_order_id
+    $finalDocuments->each(function ($document) use (&$workOrderIdsWithFinalInvoice) {
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        $workOrderIdsWithFinalInvoice = $workOrderIdsWithFinalInvoice->merge(
+          $document->internalNotes->pluck('work_order_id')->filter()
+        );
+      }
+    });
+
+    $workOrderIdsWithFinalInvoice = $workOrderIdsWithFinalInvoice->unique()->filter();
+
+    // Consultar TODOS los anticipos de esas OTs (sin importar la fecha de emisión del anticipo)
+    $advanceDocuments = collect();
+
+    if ($workOrderIdsWithFinalInvoice->isNotEmpty()) {
+      $queryAdvances = ElectronicDocument::query()
+        ->with([
+          'workOrder.sede',
+          'workOrder.advisor',
+          'workOrder.status',
+          'workOrder.vehicle.model.family.brand',
+          'workOrder.items.typePlanning',
+          'workOrder.plannings.worker',
+          'currency',
+          'exchangeRate',
+        ])
+        ->where('is_advance_payment', true)
+        ->where('anulado', false)
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->whereIn('work_order_id', $workOrderIdsWithFinalInvoice);
+
+      // Filtrar por sedes del usuario
+      if (!empty($userSedeIds)) {
+        $queryAdvances->whereHas('workOrder', function ($q) use ($userSedeIds) {
+          $q->whereIn('sede_id', $userSedeIds);
+        });
       }
 
-      // Verificar que la OT tenga factura final
-      $finalInvoice = $document->workOrder?->getFinalInvoice();
-      return $finalInvoice !== null;
-    });
+      // Aplicar otros filtros (excepto documentDateFilter que no aplica para anticipos)
+      $this->applyDocumentFiltersExceptDate($queryAdvances, $filters);
+
+      $advanceDocuments = $queryAdvances->get();
+    }
 
     // NUEVO: Consultar OTs cerradas con nota interna SIN factura
     $queryInternalNoteWorkOrders = ApWorkOrder::query()
@@ -790,5 +832,48 @@ class InvoicingReportService
       ->where('status', true)
       ->pluck('sede_id')
       ->toArray();
+  }
+
+  /**
+   * Aplica filtros a la query de ElectronicDocument excluyendo el filtro de fecha
+   * (usado para anticipos que deben filtrarse por fecha de factura final, no del anticipo)
+   *
+   * @param $query
+   * @param array $filters
+   * @return void
+   */
+  private function applyDocumentFiltersExceptDate($query, array $filters): void
+  {
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      switch ($operator) {
+        case 'documentDateFilter':
+          // SKIP: No aplicar filtro de fecha para anticipos
+          break;
+        case '=':
+          // Filtros en la tabla workOrder
+          if (in_array($column, ['sede_id'])) {
+            $query->whereHas('workOrder', function ($q) use ($column, $value) {
+              $q->where($column, $value);
+            });
+          }
+          break;
+        case 'like':
+          // Filtros like en la tabla workOrder
+          if (in_array($column, ['correlative'])) {
+            $query->whereHas('workOrder', function ($q) use ($column, $value) {
+              $q->where($column, 'like', '%' . $value . '%');
+            });
+          }
+          break;
+      }
+    }
   }
 }
