@@ -372,8 +372,9 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
-        'status_delivery' => 'delivered',
+        'status_delivery'   => 'delivered',
         'real_delivery_date' => now(),
+        'is_accounted'      => true,
       ]);
 
     $delivery = ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)->first();
