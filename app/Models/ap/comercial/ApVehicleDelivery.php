@@ -156,6 +156,11 @@ class ApVehicleDelivery extends Model
     };
   }
 
+  public function getAccountedStatusAttribute(): string
+  {
+    return $this->is_accounted ? 'Contabilizado' : 'En trabajo';
+  }
+
   public function getHasVehicleDeliveryAttribute(): bool
   {
     return $this->vehicle_id !== null
@@ -252,8 +257,10 @@ class ApVehicleDelivery extends Model
       'formatter' => null,
     ],
     'is_accounted'                                                 => [
-      'label'     => 'CONTABILIZADO',
-      'formatter' => 'boolean',
+      'label'       => 'CONTABILIZADO',
+      'formatter'   => 'boolean',
+      'true_label'  => 'CONTABILIZADO',
+      'false_label' => 'EN TRABAJO',
     ],
     'cliente_autorizo_datos'                                       => [
       'label' => 'CLIENTE AUTORIZO DATOS',

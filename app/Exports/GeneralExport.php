@@ -81,7 +81,7 @@ class GeneralExport implements
       if (is_array($column) && (is_null($value) || $value === '') && isset($column['default'])) {
         $value = $column['default'];
       } elseif (is_array($column) && isset($column['formatter'])) {
-        $value = $this->formatValue($value, $column['formatter']);
+        $value = $this->formatValue($value, $column['formatter'], $column);
       }
 
       $mapped[] = $value;
@@ -89,7 +89,7 @@ class GeneralExport implements
     return $mapped;
   }
 
-  protected function formatValue($value, $formatter)
+  protected function formatValue($value, $formatter, array $column = [])
   {
     if (is_null($value) || $value === '') return '';
 
@@ -117,10 +117,8 @@ class GeneralExport implements
       case 'number':
         return is_numeric($value) ? number_format($value) : $value;
       case 'boolean':
-        if (is_bool($value)) {
-          return $value ? 'Sí' : 'No';
-        }
-        return in_array(strtolower($value), ['1', 'true', 'yes', 'sí']) ? 'Sí' : 'No';
+        $truthy = is_bool($value) ? $value : in_array(strtolower((string) $value), ['1', 'true', 'yes', 'sí']);
+        return $truthy ? ($column['true_label'] ?? 'Sí') : ($column['false_label'] ?? 'No');
       default:
         return $value;
     }

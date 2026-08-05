@@ -49,7 +49,7 @@ class PurchaseOrder extends BaseModel
     'invoice_number'                    => ['label' => 'NRO. FACTURA', 'width' => 15],
     'emission_date'                     => ['label' => 'FECHA EMISIÓN', 'formatter' => 'date', 'width' => 18],
     'due_date'                          => ['label' => 'FECHA VENC.', 'formatter' => 'date', 'width' => 18],
-    'currency.description'              => ['label' => 'MONEDA', 'width' => 12],
+    'currency.name'                     => ['label' => 'MONEDA', 'width' => 12],
     'subtotal'                          => ['label' => 'SUBTOTAL', 'width' => 15],
     'igv'                               => ['label' => 'IGV', 'width' => 12],
     'total'                             => ['label' => 'TOTAL', 'width' => 15],
@@ -289,6 +289,11 @@ class PurchaseOrder extends BaseModel
     } else {
       $this->attributes['number_guide'] = 'NI' . $value;
     }
+  }
+
+  public function setMigrationStatusAttribute($value)
+  {
+    $this->attributes['migration_status'] = $value !== null ? strtoupper($value) : null;
   }
 
   /**
