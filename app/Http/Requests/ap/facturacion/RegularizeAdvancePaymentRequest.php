@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\facturacion;
 
 use App\Http\Requests\StoreRequest;
 use App\Models\ap\ApMasters;
+use App\Models\ap\postventa\taller\ApOrderQuotations;
 use Illuminate\Validation\Rule;
 
 class RegularizeAdvancePaymentRequest extends StoreRequest
@@ -148,5 +149,39 @@ class RegularizeAdvancePaymentRequest extends StoreRequest
       'items.required' => 'Debe incluir al menos un item',
       'items.min' => 'Debe incluir al menos un item',
     ];
+  }
+
+  /**
+   * Configure the validator instance.
+   *
+   * @param  \Illuminate\Validation\Validator  $validator
+   * @return void
+   */
+  public function withValidator($validator)
+  {
+    $validator->after(function ($validator) {
+      // Validar cuando se trate de una order_quotation_id
+      if ($this->filled('order_quotation_id')) {
+        $orderQuotation = ApOrderQuotations::find($this->order_quotation_id);
+
+        if ($orderQuotation) {
+          // Validar que tenga invoice_to configurado
+          if (empty($orderQuotation->invoice_to)) {
+            $validator->errors()->add(
+              'order_quotation_id',
+              'La cotización no tiene configurado a quién se le va a facturar'
+            );
+          }
+
+          // Validar que esté en estado FACTURAR
+          if ($orderQuotation->status_id !== ApMasters::STATUS_ORDER_QUOTE_FACTURAR) {
+            $validator->errors()->add(
+              'order_quotation_id',
+              'La cotización debe estar en estado FACTURAR para regularizar un anticipo'
+            );
+          }
+        }
+      }
+    });
   }
 }
