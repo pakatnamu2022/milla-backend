@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\tp\configuracionComercial;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\tp\comercial\UpdateTipoVehiculoRequest;
+use App\Http\Requests\tp\configuracionComercial\UpdateTipoVehiculoRequest;
 use App\Http\Requests\tp\configuracionComercial\StoreTipoVehiculoRequest;
 use App\Http\Services\tp\configuracionComercial\TipoVehiculoService;
 use Illuminate\Http\Request;
