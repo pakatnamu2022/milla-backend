@@ -40,18 +40,28 @@ class VerifyInternalNoteMigrationCommand extends Command
     $useSync = $sync;
 
     if ($internalNoteId) {
-      // Verificar una nota específica
-      $internalNote = ApInternalNote::find($internalNoteId);
+      // Verificar una nota específica (incluye notas soft-deleted para poder verificar reversiones)
+      $internalNote = ApInternalNote::withTrashed()->find($internalNoteId);
 
       if (!$internalNote) {
         $this->error("✗ Nota interna no encontrada: {$internalNoteId}");
         return 1;
       }
 
-      // Determinar si es reversión
-      $isReversal = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNoteId)
-        ->where('step', 'LIKE', '%REVERSAL%')
-        ->exists();
+      // Informar si la nota está revertida (soft-deleted)
+      if ($internalNote->trashed()) {
+        $this->warn("⚠️  Esta nota interna fue revertida (soft-deleted) el: {$internalNote->deleted_at}");
+      }
+
+      // Determinar si es reversión:
+      // 1. Si la nota está soft-deleted, es una reversión
+      // 2. O si ya existen logs de reversión
+      $isReversal = $internalNote->trashed() ||
+        VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNoteId)
+          ->where('step', 'LIKE', '%REVERSAL%')
+          ->exists();
+
+      $this->line("  Tipo de migración: " . ($isReversal ? '<fg=yellow>REVERSIÓN (Ingreso)</>' : '<fg=cyan>SALIDA</>'));
 
       if ($useSync) {
         $this->info("🔍 Ejecutando verificación para la nota interna: {$internalNote->number}");
@@ -104,9 +114,11 @@ class VerifyInternalNoteMigrationCommand extends Command
 
         foreach ($pendingNotes as $note) {
           try {
-            $isReversal = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
-              ->where('step', 'LIKE', '%REVERSAL%')
-              ->exists();
+            // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
+            $isReversal = $note->trashed() ||
+              VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
+                ->where('step', 'LIKE', '%REVERSAL%')
+                ->exists();
 
             $job = new VerifyAndMigrateInternalNoteJob($note->id, $isReversal);
             $job->handle($syncService, $logService);
@@ -122,9 +134,11 @@ class VerifyInternalNoteMigrationCommand extends Command
         $this->info("✓ Verificación completada.");
       } else {
         foreach ($pendingNotes as $note) {
-          $isReversal = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
-            ->where('step', 'LIKE', '%REVERSAL%')
-            ->exists();
+          // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
+          $isReversal = $note->trashed() ||
+            VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
+              ->where('step', 'LIKE', '%REVERSAL%')
+              ->exists();
 
           VerifyAndMigrateInternalNoteJob::dispatch($note->id, $isReversal);
           $bar->advance();
@@ -159,6 +173,14 @@ class VerifyInternalNoteMigrationCommand extends Command
     $this->line("📊 ESTADO DE MIGRACIÓN:");
     $this->line("  Nota Interna: <fg=cyan>{$internalNote->number}</>");
     $this->line("  Estado: <fg=yellow>{$internalNote->migration_status}</>");
+
+    // Mostrar si está revertida
+    if ($internalNote->trashed()) {
+      $this->line("  Revertida: <fg=red>Sí (eliminada el {$internalNote->deleted_at})</>");
+    } else {
+      $this->line("  Revertida: <fg=green>No (activa)</>");
+    }
+
     $this->newLine();
 
     // Mostrar logs de migración

@@ -80,7 +80,8 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
       ]);
 
       if ($this->internalNoteId) {
-        $internalNote = ApInternalNote::find($this->internalNoteId);
+        // Buscar con withTrashed() para manejar notas revertidas (soft-deleted)
+        $internalNote = ApInternalNote::withTrashed()->find($this->internalNoteId);
         if ($internalNote) {
           $logService->checkAndUpdateCompletionStatus($internalNote, $this->isReversal);
         }
@@ -105,12 +106,13 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
 
     foreach ($pendingNotes as $note) {
       try {
-        // Determinar si es reversión basándose en la existencia de logs de reversión
-        $hasReversalLogs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
-          ->where('step', 'LIKE', '%REVERSAL%')
-          ->exists();
+        // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
+        $isReversal = $note->trashed() ||
+          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $note->id)
+            ->where('step', 'LIKE', '%REVERSAL%')
+            ->exists();
 
-        $this->processInternalNote($note->id, $hasReversalLogs, $logService, $internalNoteService);
+        $this->processInternalNote($note->id, $isReversal, $logService, $internalNoteService);
       } catch (Exception $e) {
         Log::error('Error procesando nota interna', [
           'internal_note_id' => $note->id,
@@ -128,7 +130,9 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
     InternalNoteDynamicsService     $internalNoteService
   ): void
   {
-    $internalNote = ApInternalNote::with(['workOrder.parts.product', 'workOrder.sede'])
+    // Buscar con withTrashed() porque las reversiones trabajan con notas soft-deleted
+    $internalNote = ApInternalNote::withTrashed()
+      ->with(['workOrder.parts.product', 'workOrder.sede'])
       ->find($internalNoteId);
 
     if (!$internalNote) {
@@ -136,9 +140,6 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
     }
 
     if (!$internalNote->workOrder) {
-      Log::error('Nota interna sin orden de trabajo asociada', [
-        'internal_note_id' => $internalNote->id,
-      ]);
       return;
     }
 
@@ -233,7 +234,9 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
     ]);
 
     if ($this->internalNoteId) {
-      ApInternalNote::where('id', $this->internalNoteId)
+      // Incluir soft-deleted para poder actualizar notas revertidas
+      ApInternalNote::withTrashed()
+        ->where('id', $this->internalNoteId)
         ->update(['migration_status' => 'failed']);
     }
   }
