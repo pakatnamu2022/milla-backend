@@ -87,6 +87,9 @@ class ExportService
     if ($request->filled('type')) {
       $context['type'] = $request->get('type');
     }
+    if ($request->filled('type_operation_id')) {
+      $context['type_operation_id'] = $request->get('type_operation_id');
+    }
 
     $options = [
       'title' => $request->get('title', 'Reporte'),

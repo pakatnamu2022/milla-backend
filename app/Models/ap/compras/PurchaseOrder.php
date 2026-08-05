@@ -297,6 +297,36 @@ class PurchaseOrder extends BaseModel
   }
 
   /**
+   * Filtra las columnas del reporte según el contexto
+   * Si el tipo de operación es POSTVENTA, oculta las columnas relacionadas con vehículos
+   *
+   * @param array $columns
+   * @param array $context
+   * @return array
+   */
+  public function filterReportColumns(array $columns, array $context = []): array
+  {
+    // Si el tipo de operación es POSTVENTA, excluir columnas de vehículos
+    if (isset($context['type_operation_id']) && $context['type_operation_id'] == ApMasters::TIPO_OPERACION_POSTVENTA) {
+      $vehicleColumns = [
+        'vehicle.vin',
+        'vehicle.engine_number',
+        'vehicle.year',
+        'vehicle.model.family.brand.name',
+        'vehicle.model.name',
+        'vehicle.color.description',
+        'vehicle.vehicleStatus.description',
+      ];
+
+      foreach ($vehicleColumns as $column) {
+        unset($columns[$column]);
+      }
+    }
+
+    return $columns;
+  }
+
+  /**
    * Obtiene el siguiente número correlativo para una orden de compra
    * Fuente de verdad centralizada para la asignación de correlativos
    *
