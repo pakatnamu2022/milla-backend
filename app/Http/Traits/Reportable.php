@@ -1,6 +1,74 @@
 <?php
 
 namespace App\Http\Traits;
+
+/**
+ * Trait Reportable — habilita exportación Excel/PDF en modelos Eloquent.
+ *
+ * USO EN EL MODELO
+ * ----------------
+ * 1. Agregar el trait:
+ *      use App\Http\Traits\Reportable;
+ *      class MiModelo extends BaseModel { use Reportable; }
+ *
+ * 2. Definir las propiedades que el trait lee:
+ *
+ *    $reportColumns   — columnas a exportar (ver tipo ReportColumn abajo)
+ *    $reportRelations — relaciones Eloquent a eager-load antes de exportar
+ *                       ej: ['sede', 'vehicle.model.family.brand']
+ *    $reportStyles    — estilos PhpSpreadsheet para el Excel (opcional)
+ *    $reportColorRules — colores condicionales por valor de celda (opcional)
+ *                        ej: ['migration_status' => ['PENDIENTE' => 'FFA500', 'COMPLETADO' => '00AA00']]
+ *
+ * EJEMPLO MÍNIMO
+ * --------------
+ *    protected $reportColumns = [
+ *        'number'           => ['label' => 'NRO.'],
+ *        'emission_date'    => ['label' => 'FECHA', 'formatter' => 'date'],
+ *        'supplier.name'    => ['label' => 'PROVEEDOR'],
+ *        'total'            => ['label' => 'TOTAL', 'formatter' => 'currency'],
+ *    ];
+ *
+ *    protected $reportRelations = ['supplier'];
+ *
+ * TIPO DE CADA COLUMNA (ReportColumn)
+ * ------------------------------------
+ * @phpstan-type ReportColumn array{
+ *   label:        string,   // Encabezado visible en Excel/PDF — REQUERIDO
+ *   width?:       int,      // Ancho sugerido de columna en caracteres
+ *
+ *   formatter?:  'date'        // Formatea Carbon/string → d/m/Y
+ *               |'datetime'    // Formatea Carbon/string → d/m/Y H:i:s
+ *               |'currency'    // Agrega $ y 2 decimales: $ 1,234.56
+ *               |'number'      // number_format sin decimales: 1,234
+ *               |'percentage'  // Devuelve el valor numérico (Excel da el formato %)
+ *               |'boolean',    // true/false → true_label/false_label
+ *
+ *   true_label?:  string,  // Solo con formatter='boolean'. Default: 'Sí'
+ *   false_label?: string,  // Solo con formatter='boolean'. Default: 'No'
+ *
+ *   accessor?:    string,  // Nombre de método del modelo. Llama $row->método()
+ *                          // en lugar de data_get($row, 'clave')
+ *
+ *   value?:       mixed,   // Valor estático fijo. Ignora completamente el row.
+ *                          // Útil para columnas calculadas fuera del modelo.
+ *
+ *   fallback?:    string,  // Dot-notation alternativo si el valor principal es null/''
+ *                          // ej: 'vehicle.vin' como fallback de 'vin'
+ *
+ *   default?:     mixed,   // Valor final si sigue siendo null/'' tras el fallback.
+ *                          // NOTA: si default aplica, el formatter se omite.
+ * }
+ *
+ * PRIORIDAD DE RESOLUCIÓN DEL VALOR (de mayor a menor)
+ * ------------------------------------------------------
+ *   1. value    → valor estático, se usa tal cual
+ *   2. accessor → método del modelo
+ *   3. clave    → data_get($row, 'clave.dot.notation')
+ *   4. fallback → si 3 es null/''
+ *   5. default  → si sigue siendo null/'' (sin formatter)
+ *   6. formatter→ se aplica sobre el valor resultante de 2/3/4
+ */
 trait Reportable
 {
   public function getReportableColumns()
