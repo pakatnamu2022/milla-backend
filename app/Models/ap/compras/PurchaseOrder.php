@@ -53,7 +53,9 @@ class PurchaseOrder extends BaseModel
     'subtotal'                          => ['label' => 'SUBTOTAL', 'width' => 15],
     'igv'                               => ['label' => 'IGV', 'width' => 12],
     'total'                             => ['label' => 'TOTAL', 'width' => 15],
-    'migration_status'                  => ['label' => 'ESTADO MIGRACIÓN', 'width' => 20],
+    'migration_status_translated'       => ['label' => 'ESTADO MIGRACIÓN', 'accessor' => 'getMigrationStatusTranslated', 'width' => 20],
+    'status'                            => ['label' => 'ESTADO', 'formatter' => 'boolean', 'true_label' => 'VÁLIDA', 'false_label' => 'ANULADA', 'width' => 15],
+    'is_contabilizado'                  => ['label' => 'CONTABILIZADO', 'accessor' => 'isContabilizado', 'formatter' => 'boolean', 'true_label' => 'SÍ', 'false_label' => 'NO', 'width' => 18],
   ];
 
   protected $reportRelations = [
@@ -64,6 +66,23 @@ class PurchaseOrder extends BaseModel
     'supplier',
     'supplierOrderType',
     'currency',
+  ];
+
+  protected $reportColorRules = [
+    'migration_status_translated' => [
+      'COMPLETADO' => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde
+      'PENDIENTE'  => ['bg' => 'FFA500', 'text' => 'FFFFFF'], // Naranja
+      'FALLIDO'    => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo
+      'PROCESANDO' => ['bg' => '0066CC', 'text' => 'FFFFFF'], // Azul
+    ],
+    'status' => [
+      true  => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde para "VÁLIDA"
+      false => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo para "ANULADA"
+    ],
+    'is_contabilizado' => [
+      true  => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde con texto blanco para "SÍ"
+      false => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo con texto blanco para "NO"
+    ],
   ];
 
   protected $fillable = [
@@ -353,5 +372,46 @@ class PurchaseOrder extends BaseModel
     $maxCorrelative = $query->max('number_correlative');
 
     return $maxCorrelative ? $maxCorrelative + 1 : $correlativeStart;
+  }
+
+  /**
+   * Accessor para determinar si la orden de compra está contabilizada
+   * Una orden está contabilizada cuando ambos campos invoice_dynamics y receipt_dynamics tienen valor
+   *
+   * @return bool
+   */
+  public function getIsContabilizadoAttribute(): bool
+  {
+    return !empty($this->invoice_dynamics) && !empty($this->receipt_dynamics);
+  }
+
+  /**
+   * Método auxiliar para acceder al atributo is_contabilizado
+   * Usado por el sistema de reportes con accessor
+   *
+   * @return bool
+   */
+  public function isContabilizado(): bool
+  {
+    return $this->is_contabilizado;
+  }
+
+  /**
+   * Traduce el estado de migración al español
+   * Usado por el sistema de reportes con accessor
+   *
+   * @return string
+   */
+  public function getMigrationStatusTranslated(): string
+  {
+    $translations = [
+      'PENDING'    => 'PENDIENTE',
+      'COMPLETED'  => 'COMPLETADO',
+      'FAILED'     => 'FALLIDO',
+      'PROCESSING' => 'PROCESANDO',
+    ];
+
+    $status = strtoupper($this->migration_status ?? '');
+    return $translations[$status] ?? $status;
   }
 }
