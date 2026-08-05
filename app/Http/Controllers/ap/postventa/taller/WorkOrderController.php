@@ -19,6 +19,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use Exception;
 use Illuminate\Http\Request;
@@ -266,18 +267,39 @@ class WorkOrderController extends Controller
         ], 404);
       }
 
-      $internalNote = $workOrder->internalNote;
+      // Obtener TODAS las notas internas (incluidas las eliminadas) para mostrar historial completo
+      $internalNotes = ApInternalNote::withTrashed()
+        ->where('work_order_id', $workOrder->id)
+        ->orderBy('id', 'desc')
+        ->get();
 
-      if (!$internalNote) {
+      if ($internalNotes->isEmpty()) {
         return response()->json([
           'success' => false,
-          'message' => 'La orden de trabajo no tiene una nota interna asociada',
+          'message' => 'La orden de trabajo no tiene notas internas asociadas',
         ], 404);
       }
 
-      $logs = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+      // Obtener logs de TODAS las notas internas de esta work order
+      $internalNoteIds = $internalNotes->pluck('id');
+      $logs = VehiclePurchaseOrderMigrationLog::whereIn('internal_note_id', $internalNoteIds)
+        ->orderBy('internal_note_id', 'desc')
         ->orderBy('id')
         ->get();
+
+      // Preparar información de todas las notas internas
+      $internalNotesData = $internalNotes->map(function ($note) {
+        return [
+          'id' => $note->id,
+          'number' => $note->number,
+          'created_date' => $note->created_date?->format('Y-m-d H:i:s'),
+          'status' => $note->status,
+          'migration_status' => $note->migration_status,
+          'is_deleted' => $note->trashed(),
+          'deleted_at' => $note->deleted_at?->format('Y-m-d H:i:s'),
+          'created_at' => $note->created_at->format('Y-m-d H:i:s'),
+        ];
+      });
 
       return response()->json([
         'success' => true,
@@ -287,12 +309,7 @@ class WorkOrderController extends Controller
             'code' => $workOrder->code,
             'status' => $workOrder->status->name ?? null,
           ],
-          'internal_note' => [
-            'id' => $internalNote->id,
-            'created_date' => $internalNote->created_date?->format('Y-m-d H:i:s'),
-            'status' => $internalNote->status,
-            'created_at' => $internalNote->created_at->format('Y-m-d H:i:s'),
-          ],
+          'internal_notes' => $internalNotesData,
           'logs' => VehiclePurchaseOrderMigrationLogResource::collection($logs),
         ],
       ]);
@@ -461,55 +478,78 @@ class WorkOrderController extends Controller
         ], 404);
       }
 
-      $internalNote = $workOrder->internalNote;
+      // Obtener TODAS las notas internas (activas y eliminadas) que requieren procesamiento
+      $internalNotes = ApInternalNote::withTrashed()
+        ->where('work_order_id', $workOrder->id)
+        ->whereIn('migration_status', [
+          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
+          VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+        ])
+        ->orderBy('id', 'desc')
+        ->get();
 
-      if (!$internalNote) {
+      if ($internalNotes->isEmpty()) {
         return response()->json([
           'success' => false,
-          'message' => 'La orden de trabajo no tiene una nota interna asociada',
+          'message' => 'No hay notas internas pendientes de migración para esta orden de trabajo',
         ], 404);
       }
 
-      // Determinar si es reversión
-      $isReversal = VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
-        ->where('step', 'LIKE', '%REVERSAL%')
-        ->exists();
+      $processedNotes = [];
 
-      // Capturar estado original
-      $wasReset = false;
+      foreach ($internalNotes as $internalNote) {
+        // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
+        $isReversal = $internalNote->trashed() ||
+          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+            ->where('step', 'LIKE', '%REVERSAL%')
+            ->exists();
 
-      // Si el estado es 'failed', resetear para reintentar
-      if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
-        $wasReset = true;
+        // Capturar estado original
+        $wasReset = false;
 
-        // Resetear nota interna a pending
-        $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
+        // Si el estado es 'failed', resetear para reintentar
+        if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+          $wasReset = true;
 
-        // Resetear logs relacionados a pending
-        VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
-          ->whereIn('step', [
-            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
-            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
-            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL,
-            VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL,
-          ])
-          ->update([
-            'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-            'error_message' => null,
-          ]);
-      }
+          // Resetear nota interna a pending
+          $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
 
-      // Despachar job a la cola
-      VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
+          // Resetear logs relacionados a pending
+          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
+            ->whereIn('step', [
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL,
+              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL,
+            ])
+            ->update([
+              'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+              'error_message' => null,
+            ]);
+        }
 
-      return response()->json([
-        'success' => true,
-        'message' => 'Job de verificación de nota interna lanzado correctamente',
-        'data' => [
+        // Despachar job a la cola
+        VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
+
+        $processedNotes[] = [
           'internal_note_id' => $internalNote->id,
           'internal_note_number' => $internalNote->number,
           'is_reversal' => $isReversal,
+          'is_deleted' => $internalNote->trashed(),
           'was_reset' => $wasReset,
+          'migration_status' => $internalNote->migration_status,
+        ];
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => count($processedNotes) > 1
+          ? 'Jobs de verificación de notas internas lanzados correctamente'
+          : 'Job de verificación de nota interna lanzado correctamente',
+        'data' => [
+          'processed_count' => count($processedNotes),
+          'notes' => $processedNotes,
         ],
       ]);
     } catch (\Throwable $th) {

@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
@@ -49,22 +50,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   protected DigitalFileService $digitalFileService;
   protected ExportService $exportService;
   protected InventoryMovementService $inventoryMovementService;
+  protected InternalNoteMigrationLogService $internalNoteMigrationLogService;
 
   // Configuración de rutas para archivos
   private const FILE_PATH_DELIVERY_SIGNATURE = '/ap/postventa/taller/entregas/firmas/';
   private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
-    WorkOrderLabourService   $labourService,
-    DigitalFileService       $digitalFileService,
-    ExportService            $exportService,
-    InventoryMovementService $inventoryMovementService
+    WorkOrderLabourService            $labourService,
+    DigitalFileService                $digitalFileService,
+    ExportService                     $exportService,
+    InventoryMovementService          $inventoryMovementService,
+    InternalNoteMigrationLogService   $internalNoteMigrationLogService
   )
   {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
     $this->exportService = $exportService;
     $this->inventoryMovementService = $inventoryMovementService;
+    $this->internalNoteMigrationLogService = $internalNoteMigrationLogService;
   }
 
   public function list(Request $request)
@@ -1173,13 +1177,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'internal_note_total_reverts' => $workOrder->internal_note_total_reverts + 1,
       ]);
 
+      // 4. Eliminar nota interna (soft delete) - ANTES del commit
+      $internalNote->delete();
+
       DB::commit();
 
-      // Despachar job para migrar reversión a Dynamics (antes de eliminar la nota)
+      // 5. Despachar job para migrar reversión a Dynamics (después del commit exitoso)
       VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, true);
-
-      // 4. Eliminar nota interna (soft delete)
-      $internalNote->delete();
 
       return response()->json([
         'message' => 'Nota interna revertida correctamente',
@@ -1253,6 +1257,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     // PASO 1: Crear ajuste de entrada (compensatorio) para devolver el stock al almacén
+    // Generar el número de Dynamics (PI-IN-00010 para ingreso/reversión)
+    $dynamicsTransactionId = $this->internalNoteMigrationLogService->buildInternalNoteTransactionId($internalNote, true);
+
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
       'warehouse_id' => $warehouse->id,
@@ -1260,6 +1267,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'movement_date' => now(),
       'reference_type' => ApInternalNote::class,
       'reference_id' => $internalNote->id,
+      'movement_number_dyn' => $dynamicsTransactionId, // PI-IN-00010
     ];
 
     $details = [];
@@ -2174,6 +2182,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     }
 
     // PASO 2: DESPUÉS crear el ajuste de salida (ahora el available_quantity ya incluye lo que estaba reservado)
+    // Generar el número de Dynamics (PS-IN-00010 para salida)
+    $dynamicsTransactionId = $this->internalNoteMigrationLogService->buildInternalNoteTransactionId($internalNote, false);
+
     $movementData = [
       'movement_type' => InventoryMovement::TYPE_ADJUSTMENT_OUT,
       'warehouse_id' => $warehouse->id,
@@ -2181,6 +2192,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'movement_date' => now(),
       'reference_type' => ApInternalNote::class,
       'reference_id' => $internalNote->id,
+      'movement_number_dyn' => $dynamicsTransactionId, // PS-IN-00010
     ];
 
     // Preparar detalles (uno por cada repuesto)

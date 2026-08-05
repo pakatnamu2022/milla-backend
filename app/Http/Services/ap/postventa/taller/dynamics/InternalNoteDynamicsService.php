@@ -15,9 +15,11 @@ use Illuminate\Support\Facades\Log;
 class InternalNoteDynamicsService
 {
   public function __construct(
-    protected DatabaseSyncService $syncService,
+    protected DatabaseSyncService             $syncService,
     protected InternalNoteMigrationLogService $logService
-  ) {}
+  )
+  {
+  }
 
   /**
    * Verifica y sincroniza la cabecera de transacción de inventario (salida o ingreso)
@@ -41,6 +43,10 @@ class InternalNoteDynamicsService
     }
 
     if ($this->logService->hasExceededAttemptLimit($transactionLog)) {
+      Log::warning('[DynamicsService] verifyTransaction - Excedió límite de intentos', [
+        'log_id' => $transactionLog->id,
+        'attempts' => $transactionLog->attempts,
+      ]);
       if ($transactionLog->status !== VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
         $transactionLog->markAsFailed('Máximo de intentos alcanzado. Requiere intervención manual.');
       }
@@ -149,14 +155,14 @@ class InternalNoteDynamicsService
         $data = $resource->toArray(request());
         $this->syncService->sync('inventory_transaction', $data, 'create');
       } else {
-        Log::info('Cabecera de transacción ya existe en Dynamics, se omite inserción', [
+        Log::info('[DynamicsService] syncTransaction - Cabecera ya existe, omitiendo inserción', [
           'TransaccionId' => $transactionId,
         ]);
       }
 
       $transactionLog->updateProcesoEstado(0);
     } catch (Exception $e) {
-      Log::error('=== ERROR syncTransaction (InternalNote) ===', [
+      Log::error('[DynamicsService] syncTransaction - ERROR', [
         'internal_note_id' => $internalNote->id,
         'is_reversal' => $isReversal,
         'error' => $e->getMessage(),
@@ -190,11 +196,10 @@ class InternalNoteDynamicsService
     try {
       $resource = new InternalNoteTransactionDetailResource($internalNote, $isReversal);
       $details = $resource->toArray(request());
-
       $transactionDetailLog->markAsInProgress();
 
       // Sincronizar cada detalle por separado, verificando si ya existe
-      foreach ($details as $detail) {
+      foreach ($details as $index => $detail) {
         // Verificar si esta línea específica ya existe en Dynamics
         $existingLine = DB::connection('dbtp')
           ->table('neInTbTransaccionInventarioDet')
@@ -207,7 +212,7 @@ class InternalNoteDynamicsService
         if (!$existingLine) {
           $this->syncService->sync('inventory_transaction_dt', $detail, 'create');
         } else {
-          Log::info('Línea de detalle ya existe en Dynamics, se omite inserción', [
+          Log::info('[DynamicsService] syncTransactionDetail - Línea ya existe, omitiendo', [
             'TransaccionId' => $detail['TransaccionId'],
             'Linea' => $detail['Linea'],
             'ArticuloId' => $detail['ArticuloId'],
