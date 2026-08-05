@@ -188,7 +188,8 @@ class GeneralExport implements
     ];
 
     if (!empty($bodyStyle)) {
-      $styles['A2:Z1000'] = $bodyStyle;
+      $lastRow = max($this->data->count() + 1, 2);
+      $styles['A2:Z' . $lastRow] = $bodyStyle;
     }
 
     return $styles;
@@ -222,12 +223,6 @@ class GeneralExport implements
         $alignment->setVertical('center');
         $alignment->setWrapText(false); // Explícitamente desactivar wrap text
         $alignment->setHorizontal('left'); // Alinear a la izquierda para mejor legibilidad
-
-        // Ajustar manualmente el ancho de columnas si es necesario
-        for ($i = 1; $i <= $lastColumnIndex; $i++) {
-          $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-          $sheet->getColumnDimension($colLetter)->setAutoSize(true);
-        }
 
         // Aplicar colores condicionales por columna
         if (!empty($this->cellColorRules)) {
@@ -286,6 +281,8 @@ class GeneralExport implements
             }
           }
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -329,6 +326,8 @@ class GeneralExport implements
 
   protected function getDefaultStyles()
   {
+    $lastRow = max($this->data->count() + 1, 2);
+
     return [
       1 => [
         'font' => [
@@ -345,7 +344,7 @@ class GeneralExport implements
           'vertical' => 'center'
         ]
       ],
-      'A2:Z1000' => [
+      'A2:Z' . $lastRow => [
         'alignment' => [
           'vertical' => 'center'
         ],

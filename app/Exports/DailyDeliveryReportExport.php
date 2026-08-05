@@ -150,6 +150,8 @@ class DailyDeliveryReportSummarySheet implements FromCollection, WithHeadings, W
 
         // Center align numbers (dinámico)
         $sheet->getStyle('B5:D' . $lastDataRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -251,6 +253,8 @@ class DailyDeliveryReportAdvisorsSheet implements FromCollection, WithHeadings, 
 
         // Auto filter
         $sheet->setAutoFilter('A4:D4');
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -457,6 +461,8 @@ class DailyDeliveryReportHierarchySheet implements FromCollection, WithHeadings,
 
         // Colapsar grupos por defecto
         $sheet->setShowSummaryBelow(false);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -688,6 +694,8 @@ class DailyDeliveryReportBrandsSheet implements FromCollection, WithHeadings, Wi
 
         // Colapsar grupos por defecto
         $sheet->setShowSummaryBelow(false);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -887,13 +895,15 @@ class DailyDeliveryReportPurchasesSheet implements FromCollection, WithHeadings,
         }
 
         $sheet->setShowSummaryBelow(false);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
 }
 
 // Hoja 6: Inventario Actual de Vehículos
-class DailyDeliveryReportInventorySheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle, WithEvents
+class DailyDeliveryReportInventorySheet implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
   protected $reportData;
   protected int $headerRow;
@@ -1022,6 +1032,20 @@ class DailyDeliveryReportInventorySheet implements FromCollection, WithHeadings,
 
         $sheet->freezePane('A' . $dataStart);
         $sheet->setAutoFilter('A' . $headerRow . ':R' . $headerRow);
+
+        // Anchos explícitos (reemplaza ShouldAutoSize que es muy costoso con 18 cols × muchas filas)
+        $columnWidths = [
+          'A' => 18, 'B' => 16, 'C' => 16, 'D' => 20,
+          'E' => 22, 'F' => 28, 'G' => 16, 'H' => 12,
+          'I' => 16, 'J' => 20, 'K' => 18, 'L' => 18,
+          'M' => 18, 'N' => 14, 'O' => 14, 'P' => 30,
+          'Q' => 30, 'R' => 25,
+        ];
+        foreach ($columnWidths as $col => $width) {
+          $sheet->getColumnDimension($col)->setWidth($width);
+        }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
