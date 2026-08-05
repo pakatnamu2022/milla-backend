@@ -158,22 +158,22 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $warehouseId = $data['warehouse_id'];
     }
 
-    // Validamos el precio de venta al público no esté por debajo de lo establecido
-    $sale_price = ProductWarehouseStock::where('product_id', $data['product_id'])
+    // Validamos el precio de venta no esté por debajo del precio mínimo establecido
+    $sale_price_min = ProductWarehouseStock::where('product_id', $data['product_id'])
       ->where('warehouse_id', $warehouseId)
-      ->value('sale_price');
+      ->value('sale_price_min');
 
-    if (!$sale_price) {
-      return; // No hay precio de venta registrado, no validar
+    if (!$sale_price_min) {
+      return; // No hay precio mínimo registrado, no validar
     }
 
-    $priceToCompare = $sale_price;
+    $priceToCompare = $sale_price_min;
 
-    // Si la OT está en dólares, convertir el sale_price (soles) a dólares
+    // Si la OT está en dólares, convertir el sale_price_min (soles) a dólares
     if ($workOrder->currency_id === TypeCurrency::USD_ID) {
-      // El sale_price está en soles, necesitamos convertirlo a dólares
+      // El sale_price_min está en soles, necesitamos convertirlo a dólares
       if ($workOrder->exchange_rate && $workOrder->exchange_rate > 0) {
-        $priceToCompare = $sale_price / $workOrder->exchange_rate;
+        $priceToCompare = $sale_price_min / $workOrder->exchange_rate;
       } else {
         // Si no hay tipo de cambio, no podemos validar correctamente
         throw new Exception('No se puede validar el precio: la orden de trabajo en dólares no tiene tipo de cambio registrado');
