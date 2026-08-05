@@ -284,6 +284,13 @@ class ElectronicDocument extends BaseModel
           ->commercial()->received()->active()->first();
         return $warehouse->dyn_code;
       } else {
+        // Cotización con vehículo asignado pero sin vehicle movement aún (e.g. preventa)
+        $classId = $this->purchaseRequestQuote->vehicle?->model?->class_id;
+        if ($classId) {
+          $warehouse = Warehouse::where('article_class_id', $classId)->where('sede_id', $sedeId)
+            ->active()->received()->first();
+          return $warehouse->dyn_code;
+        }
         throw new Exception("No se pudo determinar el almacén para el documento electrónico ID: {$this->id}");
       }
     } else {
