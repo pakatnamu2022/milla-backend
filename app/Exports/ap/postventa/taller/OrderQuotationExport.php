@@ -248,6 +248,8 @@ class OrderQuotationExport implements
           $sheet->getStyle("F{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
           $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

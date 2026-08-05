@@ -94,8 +94,9 @@ class InventoryOutputReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-J, 10 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:J1');
+        $sheet = $event->sheet->getDelegate();
+        $sheet->setAutoFilter('A1:J1');
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

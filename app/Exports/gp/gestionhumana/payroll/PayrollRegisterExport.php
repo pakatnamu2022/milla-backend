@@ -312,6 +312,8 @@ class PayrollRegisterExport implements
                         'bottom' => ['borderStyle' => 'medium']
                     ]
                 ]);
+
+                $sheet->setSelectedCells('A1');
             },
         ];
     }

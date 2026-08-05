@@ -199,6 +199,8 @@ class PayrollAttendanceExcelSheet implements FromArray, WithHeadings, WithTitle,
         // DNI center
         $ws->getStyle("C2:C{$lastRow}")->getAlignment()
           ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $ws->setSelectedCells('A1');
       },
     ];
   }
@@ -353,6 +355,8 @@ class PayrollCalcDetailExcelSheet implements WithTitle, WithEvents
         $ws->getColumnDimension('D')->setWidth(14);
         $ws->getColumnDimension('E')->setWidth(14);
         $ws->getColumnDimension('F')->setWidth(16);
+
+        $ws->setSelectedCells('A1');
       },
     ];
   }
@@ -508,6 +512,8 @@ class PayrollNominaExcelSheet implements FromArray, WithHeadings, WithTitle, Wit
           $ws->getColumnDimension('M')->setWidth(13);
           $ws->getColumnDimension('N')->setWidth(13);
         }
+
+        $ws->setSelectedCells('A1');
       },
     ];
   }
