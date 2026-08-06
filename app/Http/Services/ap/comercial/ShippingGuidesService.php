@@ -590,6 +590,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           if ($assignSeries) {
             // Calcular cuál debería ser el correlativo actual basado en el correlative_start
             $existingCount = ShippingGuides::where('document_series_id', $document->document_series_id)
+              ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
               ->where('id', '!=', $document->id)
               ->count();
             $expectedCorrelativeNumber = $assignSeries->correlative_start + $existingCount + 1;
@@ -611,6 +612,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
           // Contar documentos existentes con la serie (excluyendo el actual)
           $existingCount = ShippingGuides::where('document_series_id', $seriesId)
+            ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
             ->where('id', '!=', $document->id)
             ->count();
           $correlativeNumber = $correlativeStart + $existingCount + 1;
@@ -1017,6 +1019,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $series = $assignSeries->series;
 
     $maxCorrelative = ShippingGuides::where('document_series_id', $documentSeriesId)
+      ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
       ->max('correlative');
 
     $correlativeNumber = $maxCorrelative !== null
