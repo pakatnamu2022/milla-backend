@@ -148,6 +148,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $assignSeries->series;
 
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
           ? ((int)$maxCorrelative) + 1
@@ -410,6 +411,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $assignSeries->series;
 
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
           ? ((int)$maxCorrelative) + 1
