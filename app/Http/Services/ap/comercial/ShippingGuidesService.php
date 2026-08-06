@@ -622,6 +622,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           $data['document_number'] = $documentNumber;
         }
       } elseif (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
+        // Un documento de proveedor nunca debe tener una serie del sistema asociada,
+        // de lo contrario contamina el cálculo del siguiente correlativo de esa serie.
+        $data['document_series_id'] = null;
+
         // Para proveedor, reconstruir document_number si cambiaron series o correlative
         if (isset($data['series']) && isset($data['correlative'])) {
           $data['document_number'] = $data['series'] . '-' . $data['correlative'];
