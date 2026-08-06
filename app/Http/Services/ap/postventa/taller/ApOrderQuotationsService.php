@@ -2245,6 +2245,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('Cotización no encontrada');
       }
 
+      if ($apOrderQuotations->hasDraftAdvance()) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya existe un anticipo en borrador para esta cotización');
+      }
+
+      if ($apOrderQuotations->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede modificar el destinatario de factura porque ya existe una factura final en borrador para esta cotización');
+      }
+
       if ($apOrderQuotations->getActiveAdvances()->count() > 0) {
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }

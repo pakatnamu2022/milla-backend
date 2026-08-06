@@ -45,6 +45,7 @@ class ApWorkOrder extends Model
     'currency_id',
     'vehicle_plate',
     'vehicle_vin',
+    'mileage',
     'status_id',
     'advisor_id',
     'invoice_to',
@@ -930,13 +931,12 @@ class ApWorkOrder extends Model
       $firstItem = $workOrder->items->first();
 
       return [
-        'id' => $workOrder->id,
+        'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
         'correlativo' => $workOrder->correlative,
         'placa_vehiculo' => $workOrder->vehicle_plate,
         'vin_vehiculo' => $workOrder->vehicle_vin,
         'estado' => $workOrder->status ? $workOrder->status->description : '',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
-        'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
         'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
         'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
         'descripcion_item' => $firstItem ? $firstItem->description : '',
@@ -957,6 +957,9 @@ class ApWorkOrder extends Model
         'observaciones' => $workOrder->observations,
         'creado_por' => $workOrder->creator ? $workOrder->creator->name : '',
         'fecha_creacion' => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d H:i:s') : '',
+        'comprobante_final' => $workOrder->getFinalInvoice()?->full_number ?? '-',
+        'estado_sunat' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->aceptada_por_sunat ? 'SI' : 'NO') : '-',
+        'contabilizada' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->is_accounted ? 'SI' : 'NO') : '-',
       ];
     });
   }
@@ -964,13 +967,12 @@ class ApWorkOrder extends Model
   public static function getReportableColumns()
   {
     return [
-      'id' => 'ID',
+      'sede' => 'Sede',
       'correlativo' => 'Correlativo',
       'placa_vehiculo' => 'Placa Vehículo',
       'vin_vehiculo' => 'VIN Vehículo',
       'estado' => 'Estado',
       'asesor' => 'Asesor',
-      'sede' => 'Sede',
       'tipo_planificacion' => 'Tipo de Planificación',
       'operacion' => 'Operación',
       'descripcion_item' => 'Descripción',
@@ -991,6 +993,9 @@ class ApWorkOrder extends Model
       'observaciones' => 'Observaciones',
       'creado_por' => 'Creado Por',
       'fecha_creacion' => 'Fecha Creación',
+      'comprobante_final' => 'Comprobante Final',
+      'estado_sunat' => 'Estado SUNAT',
+      'contabilizada' => 'Contabilizada',
     ];
   }
 
@@ -1004,6 +1009,20 @@ class ApWorkOrder extends Model
       'bodyFontSize' => 10,
       'freezePane' => 'A2',
       'autoFilter' => true,
+    ];
+  }
+
+  public static function getReportColorRules()
+  {
+    return [
+      'estado_sunat' => [
+        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
+        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
+      ],
+      'contabilizada' => [
+        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
+        'NO' => ['bg' => 'A9A9A9', 'text' => '000000'],  // Gris con texto negro
+      ],
     ];
   }
 

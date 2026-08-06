@@ -96,6 +96,7 @@ class ApVehicleInspectionService extends BaseService
       $inspection = ApVehicleInspection::create($data);
 
       $workOrder->update([
+        'mileage' => $data['mileage'] ?? $workOrder->mileage,
         'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
       ]);
