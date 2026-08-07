@@ -191,6 +191,8 @@ class WorkOrderReportExport implements
             $sheet->getStyle('AG' . $row)->applyFromArray($styleRed);
           }
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

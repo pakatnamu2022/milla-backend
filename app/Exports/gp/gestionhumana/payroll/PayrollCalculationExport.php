@@ -173,6 +173,8 @@ class PayrollCalculationExport implements
             'bottom' => ['borderStyle' => 'medium']
           ]
         ]);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

@@ -211,6 +211,8 @@ class InvoicingReportMainSheet implements
             $sheet->getStyle('N' . $row)->applyFromArray($styleRed);
           }
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
@@ -326,8 +328,9 @@ class InvoicingReportSummarySheet implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-H, 8 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:H1');
+        $sheet = $event->sheet->getDelegate();
+        $sheet->setAutoFilter('A1:H1');
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
