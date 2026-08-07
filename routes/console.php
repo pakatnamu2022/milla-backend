@@ -156,14 +156,12 @@ Schedule::command('tp:sync-fac-invoice')
 Schedule::job(new SyncAccountsReceivableJob('deposito'))
   ->everyFiveMinutes()
   ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+  ->withoutOverlapping();
 
 Schedule::job(new SyncAccountsReceivableJob('automotores'))
   ->everyFiveMinutes()
   ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+  ->withoutOverlapping();
 
 // Enviar reportes de CxC por vencer (≤2 días) — diariamente a las 8am
 Schedule::command('ar:send-due-reports')
