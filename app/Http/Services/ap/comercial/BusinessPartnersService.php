@@ -327,8 +327,13 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
     }
 
-    // Verificar solicitudes no facturadas (activas o creadas sin documento válido)
+    // Obtener la marca del lead para scoping de validaciones por marca
+    $lead = PotentialBuyers::findOrFail($leadId);
+    $newBrandId = $lead->vehicle_brand_id;
+
+    // Verificar solicitudes no facturadas (activas o creadas sin documento válido) para la misma marca
     $hasUnbilledQuote = fn(int $partnerId): bool => PurchaseRequestQuote::where('holder_id', $partnerId)
+      ->whereHas('apModelsVn.family', fn($q) => $q->where('brand_id', $newBrandId))
       ->whereDoesntHave('electronicDocuments', fn($q) => $q
         ->where('aceptada_por_sunat', 1)
         ->where('anulado', 0)
@@ -337,32 +342,28 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       )
       ->exists();
 
-    // Caso 1: El cliente tiene una solicitud no facturada
+    // Caso 1: El cliente tiene una solicitud no facturada para esta marca
     if ($hasUnbilledQuote($businessPartner->id)) {
-      throw new Exception('El cliente ya tiene una solicitud activa sin facturar.');
+      throw new Exception('El cliente ya tiene una solicitud activa sin facturar para esta marca.');
     }
 
-    // Caso 2: El cliente (DNI) es representante legal de una empresa con solicitud no facturada
+    // Caso 2: El cliente (DNI) es representante legal de una empresa con solicitud no facturada para esta marca
     if ($businessPartner->num_doc) {
       $companyIds = BusinessPartners::where('legal_representative_num_doc', $businessPartner->num_doc)->pluck('id');
       foreach ($companyIds as $companyId) {
         if ($hasUnbilledQuote($companyId)) {
-          throw new Exception('El cliente es representante legal de una empresa que ya tiene una solicitud activa sin facturar.');
+          throw new Exception('El cliente es representante legal de una empresa que ya tiene una solicitud activa sin facturar para esta marca.');
         }
       }
     }
 
-    // Caso 3: El representante legal de la empresa (cliente) ya tiene una solicitud no facturada
+    // Caso 3: El representante legal de la empresa (cliente) ya tiene una solicitud no facturada para esta marca
     if ($businessPartner->legal_representative_num_doc) {
       $representative = BusinessPartners::where('num_doc', $businessPartner->legal_representative_num_doc)->first();
       if ($representative && $hasUnbilledQuote($representative->id)) {
-        throw new Exception('El representante legal del cliente (Doc: ' . $businessPartner->legal_representative_num_doc . ') ya tiene una solicitud activa sin facturar.');
+        throw new Exception('El representante legal del cliente (Doc: ' . $businessPartner->legal_representative_num_doc . ') ya tiene una solicitud activa sin facturar para esta marca.');
       }
     }
-
-    // Obtener la marca del lead para validaciones de partes relacionadas
-    $lead = PotentialBuyers::findOrFail($leadId);
-    $newBrandId = $lead->vehicle_brand_id;
 
     // Verificar si el mismo cliente ya tiene una oportunidad abierta para esta marca
     $hasSameBrandOpenOpp = Opportunity::where('client_id', $businessPartner->id)
