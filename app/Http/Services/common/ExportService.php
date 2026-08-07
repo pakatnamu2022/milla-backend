@@ -142,7 +142,7 @@ class ExportService
     return $availableColumns;
   }
 
-  protected function buildFiltersFromRequest($request, $modelClass = null)
+  public function buildFiltersFromRequest($request, $modelClass = null)
   {
     $filters = [];
 

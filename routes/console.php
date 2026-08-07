@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\SyncAccountsReceivableJob;
 use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -147,6 +148,19 @@ Schedule::command('warehouse:notify-low-stock')
 // Sincronizar FAC_INVOICE desde RM20101_MILLA_DOCFV (DBTP2) — Módulo Transportes
 Schedule::command('tp:sync-fac-invoice')
   ->dailyAt('08:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Sincronizar cuentas por cobrar desde Dynamics cada 5 minutos
+Schedule::job(new SyncAccountsReceivableJob('deposito'))
+  ->everyFiveMinutes()
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+Schedule::job(new SyncAccountsReceivableJob('automotores'))
+  ->everyFiveMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
