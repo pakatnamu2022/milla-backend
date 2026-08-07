@@ -606,4 +606,17 @@ class WorkOrderController extends Controller
       throw new Exception('No se puede crear una orden de trabajo para vehículos con color "OTROS".');
     }
   }
+
+  /**
+   * Actualiza los campos is_accounted_in e is_accounted_out de las notas internas
+   * consultando los ajustes de inventario en Dynamics
+   */
+  public function updateInternalNoteAccountingStatus($id)
+  {
+    try {
+      return $this->service->updateInternalNoteAccountingStatus($id);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
