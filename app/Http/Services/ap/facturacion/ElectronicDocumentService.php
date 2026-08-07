@@ -141,6 +141,32 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     ];
   }
 
+  public function resetMigration(int $id): array
+  {
+    $document = ElectronicDocument::find($id);
+
+    if (!$document) {
+      throw new Exception('Documento electrónico no encontrado');
+    }
+
+    if ($document->is_accounted) {
+      throw new Exception('No se puede resetear un documento que ya fue contabilizado en Dynamics');
+    }
+
+    $deletedLogs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)->delete();
+
+    $document->update([
+      'migration_status'  => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      'was_dyn_requested' => false,
+    ]);
+
+    return [
+      'message'      => 'Migración reseteada correctamente. El documento puede volver a procesarse.',
+      'deleted_logs' => $deletedLogs,
+      'document'     => new ElectronicDocumentResource($document->fresh()),
+    ];
+  }
+
   private function buildDispatchAllReason($logs): array
   {
     if ($logs->isEmpty()) {
