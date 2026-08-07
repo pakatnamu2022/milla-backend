@@ -391,6 +391,35 @@ class VehiclePurchaseOrderMigrationController extends Controller
   }
 
   /**
+   * Elimina todos los logs de una OC y resetea su migration_status a pending.
+   * No toca la BD intermedia (GPIN).
+   */
+  public function resetMigration(int $purchaseOrderId): JsonResponse
+  {
+    $purchaseOrder = PurchaseOrder::find($purchaseOrderId);
+
+    if (!$purchaseOrder) {
+      return $this->error('Orden de compra no encontrada');
+    }
+
+    if ($purchaseOrder->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED) {
+      return $this->errorValidation('La OC ya está migrada completamente y no puede resetearse');
+    }
+
+    $deletedLogs = VehiclePurchaseOrderMigrationLog::where('vehicle_purchase_order_id', $purchaseOrderId)->delete();
+
+    $purchaseOrder->update([
+      'migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+      'migrated_at'      => null,
+    ]);
+
+    return $this->success([
+      'message'      => 'Migración reseteada correctamente. La OC puede volver a procesarse.',
+      'deleted_logs' => $deletedLogs,
+    ]);
+  }
+
+  /**
    * Get statistics about migration process
    */
   public function statistics(): JsonResponse

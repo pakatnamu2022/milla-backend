@@ -368,6 +368,15 @@ class ElectronicDocumentController extends Controller
     }
   }
 
+  public function resetMigration(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->resetMigration($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   /**
    * Get sync status for electronic document
    */
