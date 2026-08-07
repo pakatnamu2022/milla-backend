@@ -1372,6 +1372,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
         Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
         Route::post('/{id}/dispatch-migration', [VehiclePurchaseOrderMigrationController::class, 'dispatchMigration']);
+        Route::post('/{id}/reset-migration', [VehiclePurchaseOrderMigrationController::class, 'resetMigration']);
         Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
         Route::post('/logs/{logId}/reset', [VehiclePurchaseOrderMigrationController::class, 'resetLog']);
       });
@@ -1876,6 +1877,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
       Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
       Route::post('electronic-documents/{id}/dispatch-migration', [ElectronicDocumentController::class, 'dispatchMigration']);
+      Route::post('electronic-documents/{id}/reset-migration', [ElectronicDocumentController::class, 'resetMigration']);
       Route::post('electronic-documents/dispatch-all', [ElectronicDocumentController::class, 'dispatchAll']);
 
       // Report
