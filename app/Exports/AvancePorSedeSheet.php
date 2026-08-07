@@ -279,6 +279,8 @@ class AvancePorSedeSheet implements FromCollection, WithHeadings, WithStyles, Sh
 
         // Colapsar grupos por defecto
         $sheet->setShowSummaryBelow(false);
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

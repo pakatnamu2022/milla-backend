@@ -163,6 +163,8 @@ class MesonInvoicingReportExport implements
             $sheet->getStyle('G' . $row)->applyFromArray($styleRed);
           }
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

@@ -148,6 +148,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $assignSeries->series;
 
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
           ? ((int)$maxCorrelative) + 1
@@ -410,6 +411,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $assignSeries->series;
 
         $maxCorrelative = ShippingGuides::where('document_series_id', $data['document_series_id'])
+          ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
           ->max('correlative');
         $correlativeNumber = $maxCorrelative !== null
           ? ((int)$maxCorrelative) + 1
@@ -588,6 +590,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           if ($assignSeries) {
             // Calcular cuál debería ser el correlativo actual basado en el correlative_start
             $existingCount = ShippingGuides::where('document_series_id', $document->document_series_id)
+              ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
               ->where('id', '!=', $document->id)
               ->count();
             $expectedCorrelativeNumber = $assignSeries->correlative_start + $existingCount + 1;
@@ -609,6 +612,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
           // Contar documentos existentes con la serie (excluyendo el actual)
           $existingCount = ShippingGuides::where('document_series_id', $seriesId)
+            ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
             ->where('id', '!=', $document->id)
             ->count();
           $correlativeNumber = $correlativeStart + $existingCount + 1;
@@ -622,6 +626,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           $data['document_number'] = $documentNumber;
         }
       } elseif (isset($data['issuer_type']) && $data['issuer_type'] == 'PROVEEDOR') {
+        // Un documento de proveedor nunca debe tener una serie del sistema asociada,
+        // de lo contrario contamina el cálculo del siguiente correlativo de esa serie.
+        $data['document_series_id'] = null;
+
         // Para proveedor, reconstruir document_number si cambiaron series o correlative
         if (isset($data['series']) && isset($data['correlative'])) {
           $data['document_number'] = $data['series'] . '-' . $data['correlative'];
@@ -1011,6 +1019,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $series = $assignSeries->series;
 
     $maxCorrelative = ShippingGuides::where('document_series_id', $documentSeriesId)
+      ->where('issuer_type', ShippingGuides::ISSUER_TYPE_SYSTEM)
       ->max('correlative');
 
     $correlativeNumber = $maxCorrelative !== null

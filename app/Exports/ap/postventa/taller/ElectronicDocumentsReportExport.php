@@ -92,8 +92,9 @@ class ElectronicDocumentsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-I, 9 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:I1');
+        $sheet = $event->sheet->getDelegate();
+        $sheet->setAutoFilter('A1:I1');
+        $sheet->setSelectedCells('A1');
       },
     ];
   }

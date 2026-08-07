@@ -106,6 +106,8 @@ class WorkedHoursDetailSheet implements
             ->getNumberFormat()
             ->setFormatCode('0.00');
         }
+
+        $sheet->setSelectedCells('A1');
       },
     ];
   }
