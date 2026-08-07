@@ -316,7 +316,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
           $lastAction &&
           $lastAction->result === false &&
           $lastAction->datetime->diffInDays(now()) >= 5 &&
-          !$opportunity->purchaseRequestsQuote()->exists()
+          !$opportunity->purchaseRequestsQuote()->where('is_approved', 1)->exists()
         ) {
           $opportunity->update(
             ['opportunity_status_id' => Opportunity::CLOSED_ID,
