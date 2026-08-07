@@ -315,7 +315,8 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         if (
           $lastAction &&
           $lastAction->result === false &&
-          $lastAction->datetime->diffInDays(now()) >= 5
+          $lastAction->datetime->diffInDays(now()) >= 5 &&
+          !$opportunity->purchaseRequestsQuote()->exists()
         ) {
           $opportunity->update(
             ['opportunity_status_id' => Opportunity::CLOSED_ID,
@@ -362,6 +363,16 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     // Obtener la marca del lead para validaciones de partes relacionadas
     $lead = PotentialBuyers::findOrFail($leadId);
     $newBrandId = $lead->vehicle_brand_id;
+
+    // Verificar si el mismo cliente ya tiene una oportunidad abierta para esta marca
+    $hasSameBrandOpenOpp = Opportunity::where('client_id', $businessPartner->id)
+      ->whereIn('opportunity_status_id', $statusIds)
+      ->whereHas('family', fn($q) => $q->where('brand_id', $newBrandId))
+      ->exists();
+
+    if ($hasSameBrandOpenOpp) {
+      throw new Exception('El cliente ya tiene una oportunidad activa para esta marca.');
+    }
 
     // Validar partes relacionadas (misma marca): representante legal y cónyuge/copropietario
     $clientIdsWithOpenOpps = Opportunity::whereIn('opportunity_status_id', $statusIds)
