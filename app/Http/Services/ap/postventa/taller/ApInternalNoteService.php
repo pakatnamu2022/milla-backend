@@ -7,7 +7,8 @@ use App\Http\Services\BaseService;
 use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ApInternalNote;
-use App\Models\gp\maestroGeneral\Company;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
+use App\Models\gp\gestionsistema\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +17,14 @@ class ApInternalNoteService extends BaseService
 {
   public function list(Request $request)
   {
-    $query = ApInternalNote::withTrashed();
+    $query = ApInternalNote::withTrashed()
+      ->whereHas('workOrder', function ($workOrderQuery) {
+        $workOrderQuery->whereHas('items', function ($itemQuery) {
+          $itemQuery->whereHas('typePlanning', function ($planningQuery) {
+            $planningQuery->where('type_document', TypePlanningWorkOrder::INTERNA_SC);
+          });
+        });
+      });
 
     return $this->getFilteredResults(
       $query,
@@ -136,6 +144,7 @@ class ApInternalNoteService extends BaseService
 
     // Verificar SALIDA (dyn_series_out)
     if ($internalNote->dyn_series_out && isset($adjustmentsMap[$internalNote->dyn_series_out]['SALIDA'])) {
+
       if (!$internalNote->is_accounted_out) {
         $updateData['is_accounted_out'] = true;
       }
@@ -143,6 +152,7 @@ class ApInternalNoteService extends BaseService
 
     // Verificar INGRESO (dyn_series_in)
     if ($internalNote->dyn_series_in && isset($adjustmentsMap[$internalNote->dyn_series_in]['INGRESO'])) {
+
       if (!$internalNote->is_accounted_in) {
         $updateData['is_accounted_in'] = true;
       }
@@ -153,6 +163,9 @@ class ApInternalNoteService extends BaseService
     if (!empty($updateData)) {
       $internalNote->update($updateData);
       $updated = true;
+
+      // LOG 5: Refrescar y mostrar estado después de actualizar
+      $internalNote->refresh();
     }
 
     return response()->json([
