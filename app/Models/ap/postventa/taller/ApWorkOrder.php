@@ -886,7 +886,8 @@ class ApWorkOrder extends Model
       'creator',
       'typeCurrency',
       'invoiceTo',
-      'advancesWorkOrder'
+      'advancesWorkOrder',
+      'internalNote.electronicDocuments'
     ]);
 
     // Apply filters
@@ -951,6 +952,22 @@ class ApWorkOrder extends Model
         $advancesFormatted = implode(' | ', $advancesArray);
       }
 
+      // Determinar el documento electrónico a usar para las últimas 3 columnas
+      $electronicDocument = null;
+
+      // Si el tipo de documento es INTERNA_CC, obtener el documento desde la nota interna
+      if ($firstItem && $firstItem->typePlanning && $firstItem->typePlanning->type_document === TypePlanningWorkOrder::INTERNA_CC) {
+        $internalNote = $workOrder->internalNote;
+        if ($internalNote) {
+          $electronicDocument = $internalNote->electronicDocuments()->first();
+        }
+      }
+
+      // Si no se encontró documento desde nota interna, usar getFinalInvoice()
+      if (!$electronicDocument) {
+        $electronicDocument = $workOrder->getFinalInvoice();
+      }
+
       return [
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
         'correlativo' => $workOrder->correlative,
@@ -972,9 +989,9 @@ class ApWorkOrder extends Model
         'tiene_anticipo' => $tieneAnticipo,
         'anticipos' => $advancesFormatted,
         'total_anticipos' => number_format($totalAdvances, 2),
-        'comprobante_final' => $workOrder->getFinalInvoice()?->full_number ?? '-',
-        'estado_sunat' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->aceptada_por_sunat ? 'SI' : 'NO') : '-',
-        'contabilizada' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->is_accounted ? 'SI' : 'NO') : '-',
+        'comprobante_final' => $electronicDocument?->full_number ?? '-',
+        'estado_sunat' => $electronicDocument ? ($electronicDocument->aceptada_por_sunat ? 'SI' : 'NO') : '-',
+        'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
       ];
     });
   }
