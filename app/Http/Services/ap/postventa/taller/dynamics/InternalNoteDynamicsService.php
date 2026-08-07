@@ -160,6 +160,13 @@ class InternalNoteDynamicsService
         ]);
       }
 
+      // Guardar el TransaccionId en los campos correspondientes según el tipo de operación
+      if ($isReversal) {
+        $internalNote->update(['dyn_series_in' => $transactionId]);
+      } else {
+        $internalNote->update(['dyn_series_out' => $transactionId]);
+      }
+
       $transactionLog->updateProcesoEstado(0);
     } catch (Exception $e) {
       Log::error('[DynamicsService] syncTransaction - ERROR', [

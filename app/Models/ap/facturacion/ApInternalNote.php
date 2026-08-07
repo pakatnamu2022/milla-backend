@@ -22,13 +22,18 @@ class ApInternalNote extends BaseModel
     'created_date',
     'closed_date',
     'status',
-    'dyn_series',
+    'dyn_series_in',
+    'dyn_series_out',
+    'is_accounted_in',
+    'is_accounted_out',
     'migration_status',
   ];
 
   protected $casts = [
     'created_date' => 'date',
     'closed_date' => 'date',
+    'is_accounted_in' => 'boolean',
+    'is_accounted_out' => 'boolean',
   ];
 
   const array filters = [

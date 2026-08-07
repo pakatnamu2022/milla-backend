@@ -2630,4 +2630,108 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->orderByDesc('id')
       ->get();
   }
+
+  /**
+   * Actualiza los campos is_accounted_in e is_accounted_out de las notas internas
+   * consultando los ajustes de inventario en Dynamics
+   */
+  public function updateInternalNoteAccountingStatus($id)
+  {
+    $workOrder = $this->find($id);
+
+    if (!$workOrder) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Orden de trabajo no encontrada',
+      ], 404);
+    }
+
+    // Obtener TODAS las notas internas de la OT (incluyendo eliminadas)
+    $internalNotes = ApInternalNote::withTrashed()
+      ->where('work_order_id', $workOrder->id)
+      ->get();
+
+    if ($internalNotes->isEmpty()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'La orden de trabajo no tiene notas internas asociadas',
+      ], 404);
+    }
+
+    // Consultar ajustes de inventario en Dynamics
+    $dynamicsAdjustments = $this->consultAjustesInventario();
+
+    if (empty($dynamicsAdjustments)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'No se obtuvieron registros de ajustes de inventario desde Dynamics',
+      ], 404);
+    }
+
+    // Crear un mapa para búsqueda rápida: [Numero][Tipo_Movimiento] = true
+    $adjustmentsMap = [];
+    foreach ($dynamicsAdjustments as $adjustment) {
+      $numero = $adjustment->Numero ?? null;
+      $tipoMovimiento = $adjustment->Tipo_Movimiento ?? null;
+
+      if ($numero && $tipoMovimiento) {
+        if (!isset($adjustmentsMap[$numero])) {
+          $adjustmentsMap[$numero] = [];
+        }
+        $adjustmentsMap[$numero][$tipoMovimiento] = true;
+      }
+    }
+
+    $updatedCount = 0;
+
+    // Actualizar cada nota interna
+    foreach ($internalNotes as $note) {
+      $updateData = [];
+
+      // Verificar SALIDA (dyn_series_out)
+      if ($note->dyn_series_out && isset($adjustmentsMap[$note->dyn_series_out]['SALIDA'])) {
+        if (!$note->is_accounted_out) {
+          $updateData['is_accounted_out'] = true;
+        }
+      }
+
+      // Verificar INGRESO (dyn_series_in)
+      if ($note->dyn_series_in && isset($adjustmentsMap[$note->dyn_series_in]['INGRESO'])) {
+        if (!$note->is_accounted_in) {
+          $updateData['is_accounted_in'] = true;
+        }
+      }
+
+      // Actualizar solo si hay cambios
+      if (!empty($updateData)) {
+        $note->update($updateData);
+        $updatedCount++;
+      }
+    }
+
+    return response()->json([
+      'success' => true,
+      'message' => "Se actualizaron $updatedCount nota(s) interna(s)",
+      'data' => [
+        'updated_count' => $updatedCount,
+        'total_notes' => $internalNotes->count(),
+      ],
+    ]);
+  }
+
+  /**
+   * Consulta los ajustes de inventario en Dynamics
+   */
+  protected function consultAjustesInventario(): array
+  {
+    try {
+      return DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->select("EXEC neIvConsultarAjustesInventario");
+    } catch (\Exception $e) {
+      Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [
+        'error' => $e->getMessage()
+      ]);
+      throw $e;
+    }
+  }
 }

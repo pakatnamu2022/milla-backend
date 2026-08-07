@@ -884,7 +884,8 @@ class ApWorkOrder extends Model
       'items.typeOperation',
       'creator',
       'typeCurrency',
-      'invoiceTo'
+      'invoiceTo',
+      'advancesWorkOrder'
     ]);
 
     // Apply filters
@@ -930,9 +931,30 @@ class ApWorkOrder extends Model
       // Obtener el primer item no eliminado
       $firstItem = $workOrder->items->first();
 
+      // Obtener los anticipos activos
+      $activeAdvances = $workOrder->getActiveAdvances();
+
+      // Formatear anticipos: "full_number (SI/NO) | full_number (SI/NO)"
+      $advancesFormatted = '-';
+      $totalAdvances = 0;
+      $tieneAnticipo = 'NO';
+
+      if ($activeAdvances && $activeAdvances->count() > 0) {
+        $tieneAnticipo = 'SI';
+        $advancesArray = [];
+        foreach ($activeAdvances as $advance) {
+          $sunatStatus = $advance->aceptada_por_sunat == 1 ? '(SI)' : '(NO)';
+          $advancesArray[] = $advance->full_number . ' ' . $sunatStatus;
+          $totalAdvances += $advance->total ?? 0;
+        }
+        $advancesFormatted = implode(' | ', $advancesArray);
+      }
+
       return [
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
         'correlativo' => $workOrder->correlative,
+        'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
+        'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
         'placa_vehiculo' => $workOrder->vehicle_plate,
         'vin_vehiculo' => $workOrder->vehicle_vin,
         'estado' => $workOrder->status ? $workOrder->status->description : '',
@@ -940,23 +962,16 @@ class ApWorkOrder extends Model
         'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
         'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
         'descripcion_item' => $firstItem ? $firstItem->description : '',
-        'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
-        'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
-        'fecha_entrega_real' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('Y-m-d H:i:s') : '',
-        'fecha_diagnostico' => $workOrder->diagnosis_date ? $workOrder->diagnosis_date->format('Y-m-d H:i:s') : '',
         'moneda' => $workOrder->typeCurrency ? $workOrder->typeCurrency->symbol : '',
         'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->dyn_name : '',
         'subtotal' => number_format($workOrder->subtotal_amount ?? 0, 2),
         'descuento' => number_format($workOrder->discount_amount ?? 0, 2),
         'impuestos' => number_format($workOrder->tax_amount ?? 0, 2),
         'total' => number_format($workOrder->final_amount ?? 0, 2),
-        'es_garantia' => $workOrder->is_guarantee ? 'Sí' : 'No',
-        'es_recall' => $workOrder->is_recall ? 'Sí' : 'No',
-        'esta_entregado' => $workOrder->is_delivery ? 'Sí' : 'No',
-        'esta_facturado' => $workOrder->is_invoiced ? 'Sí' : 'No',
         'observaciones' => $workOrder->observations,
-        'creado_por' => $workOrder->creator ? $workOrder->creator->name : '',
-        'fecha_creacion' => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d H:i:s') : '',
+        'tiene_anticipo' => $tieneAnticipo,
+        'anticipos' => $advancesFormatted,
+        'total_anticipos' => number_format($totalAdvances, 2),
         'comprobante_final' => $workOrder->getFinalInvoice()?->full_number ?? '-',
         'estado_sunat' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->aceptada_por_sunat ? 'SI' : 'NO') : '-',
         'contabilizada' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->is_accounted ? 'SI' : 'NO') : '-',
@@ -969,6 +984,8 @@ class ApWorkOrder extends Model
     return [
       'sede' => 'Sede',
       'correlativo' => 'Correlativo',
+      'fecha_apertura' => 'Fecha Apertura',
+      'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
       'placa_vehiculo' => 'Placa Vehículo',
       'vin_vehiculo' => 'VIN Vehículo',
       'estado' => 'Estado',
@@ -976,23 +993,16 @@ class ApWorkOrder extends Model
       'tipo_planificacion' => 'Tipo de Planificación',
       'operacion' => 'Operación',
       'descripcion_item' => 'Descripción',
-      'fecha_apertura' => 'Fecha Apertura',
-      'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
-      'fecha_entrega_real' => 'Fecha Entrega Real',
-      'fecha_diagnostico' => 'Fecha Diagnóstico',
       'moneda' => 'Moneda',
       'cliente_facturar' => 'Cliente Facturar',
       'subtotal' => 'Subtotal',
       'descuento' => 'Descuento',
       'impuestos' => 'Impuestos',
       'total' => 'Total',
-      'es_garantia' => 'Es Garantía',
-      'es_recall' => 'Es Recall',
-      'esta_entregado' => 'Está Entregado',
-      'esta_facturado' => 'Está Facturado',
       'observaciones' => 'Observaciones',
-      'creado_por' => 'Creado Por',
-      'fecha_creacion' => 'Fecha Creación',
+      'tiene_anticipo' => 'Tiene Anticipo',
+      'anticipos' => 'Anticipos',
+      'total_anticipos' => 'Total Anticipos',
       'comprobante_final' => 'Comprobante Final',
       'estado_sunat' => 'Estado SUNAT',
       'contabilizada' => 'Contabilizada',
@@ -1015,6 +1025,10 @@ class ApWorkOrder extends Model
   public static function getReportColorRules()
   {
     return [
+      'tiene_anticipo' => [
+        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
+        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
+      ],
       'estado_sunat' => [
         'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
         'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
