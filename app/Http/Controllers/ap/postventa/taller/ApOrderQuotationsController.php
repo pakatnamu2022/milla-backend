@@ -385,6 +385,15 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function exportOrderQuotations(IndexApOrderQuotationsRequest $request)
+  {
+    try {
+      return $this->service->exportOrderQuotations($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   /**
    * Valida que el vehículo cumpla con los requisitos para crear/actualizar una cotización
    *

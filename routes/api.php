@@ -1,32 +1,21 @@
 <?php
 
 use App\Http\Controllers\AiController;
-use App\Http\Controllers\ManualController;
 use App\Http\Controllers\ap\ApMastersController;
-use App\Http\Controllers\gp\GpMastersController;
-use App\Http\Controllers\gp\tics\pm\ScrumProjectController;
-use App\Http\Controllers\gp\tics\pm\ScrumSprintController;
-use App\Http\Controllers\gp\tics\pm\ScrumItemController;
-use App\Http\Controllers\gp\tics\pm\ScrumCommentController;
-use App\Http\Controllers\gp\tics\pm\ScrumTagController;
-use App\Http\Controllers\gp\tics\pm\ScrumItemHistoryController;
-use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
-use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
-use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
-use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
-use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
+use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
+use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
+use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
-use App\Http\Controllers\dp\comercial\AccountsReceivableController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
+use App\Http\Controllers\ap\comercial\DiscountCouponsController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
-use App\Http\Controllers\ap\comercial\DiscountCouponsController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
@@ -64,35 +53,45 @@ use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementControll
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
-use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
-use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
-use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
-use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
-use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
-use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
-use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
-use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
-use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
-use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
-use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
-use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
-use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
-use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
-use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
-use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
-use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
-use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
-use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
+use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
-use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
+use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
+use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
+use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
+use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
+use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
+use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
+use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
+use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
+use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
+use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
+use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
+use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderItemController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderLabourController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningController;
+use App\Http\Controllers\ap\postventa\taller\WorkOrderPlanningSessionController;
 use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\TotpController;
+use App\Http\Controllers\common\NotificationController;
 use App\Http\Controllers\Dashboard\AdoptionDashboardController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
 use App\Http\Controllers\DocumentValidationController;
+use App\Http\Controllers\dp\comercial\AccountsReceivableController;
+use App\Http\Controllers\GeneralMaster\GeneralMasterController;
+use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceCodeMappingController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceExclusionController;
+use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
+use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\DetailedDevelopmentPlanController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetailController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailController;
@@ -114,9 +113,24 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonDetailContr
 use App\Http\Controllers\gp\gestionhumana\evaluacion\EvaluationPersonResultController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryController;
 use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailController;
-use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
-use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
+use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollRegisterController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
+use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
+use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -127,26 +141,6 @@ use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemExpenseController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemPolicyController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRateController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\PerDiemRequestController;
-use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceCodeMappingController;
-use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceExclusionController;
-use App\Http\Controllers\gp\gestionhumana\asistencias\AttendanceSyncController;
-use App\Http\Controllers\gp\gestionhumana\ausentismo\AusentismoLaboralController;
-use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollPeriodController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLiquidationBbssController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollLoanExtraDiscountController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollRegisterController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionsistema\AccessController;
 use App\Http\Controllers\gp\gestionsistema\AreaController;
 use App\Http\Controllers\gp\gestionsistema\CompanyController;
@@ -162,6 +156,7 @@ use App\Http\Controllers\gp\gestionsistema\UserController;
 use App\Http\Controllers\gp\gestionsistema\UserRoleController;
 use App\Http\Controllers\gp\gestionsistema\UserSedeController;
 use App\Http\Controllers\gp\gestionsistema\ViewController;
+use App\Http\Controllers\gp\GpMastersController;
 use App\Http\Controllers\gp\maestroGeneral\ExchangeRateController;
 use App\Http\Controllers\gp\maestroGeneral\SedeController;
 use App\Http\Controllers\gp\maestroGeneral\SunatConceptsController;
@@ -170,26 +165,33 @@ use App\Http\Controllers\gp\tics\EquipmentController;
 use App\Http\Controllers\gp\tics\EquipmentTypeController;
 use App\Http\Controllers\gp\tics\PhoneLineController;
 use App\Http\Controllers\gp\tics\PhoneLineWorkerController;
+use App\Http\Controllers\gp\tics\pm\ScrumCommentController;
+use App\Http\Controllers\gp\tics\pm\ScrumItemController;
+use App\Http\Controllers\gp\tics\pm\ScrumItemHistoryController;
+use App\Http\Controllers\gp\tics\pm\ScrumProjectController;
+use App\Http\Controllers\gp\tics\pm\ScrumSprintController;
+use App\Http\Controllers\gp\tics\pm\ScrumTagController;
 use App\Http\Controllers\gp\tics\TelephoneAccountController;
 use App\Http\Controllers\gp\tics\TelephonePlanController;
 use App\Http\Controllers\JobStatusController;
-use App\Http\Controllers\tp\comercial\OpFreightController;
-use App\Http\Controllers\tp\comercial\OpGoalTravelController;
-use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
-use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
-
-//TP - Controller
-use App\Http\Controllers\tp\comercial\FacInvoiceController;
-use App\Http\Controllers\tp\comercial\TravelControlController;
-use App\Http\Controllers\common\NotificationController;
+use App\Http\Controllers\ManualController;
+use App\Http\Controllers\TotpController;
 use App\Http\Controllers\tp\comercial\DeviceController;
 use App\Http\Controllers\tp\comercial\DriverController;
 use App\Http\Controllers\tp\comercial\DriverLocationConfigurationController;
 use App\Http\Controllers\tp\comercial\DriverLocationController;
 use App\Http\Controllers\tp\comercial\DriverStatusLogController;
+use App\Http\Controllers\tp\comercial\FacInvoiceController;
+use App\Http\Controllers\tp\comercial\OpFreightController;
+use App\Http\Controllers\tp\comercial\OpGoalTravelController;
+use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
+use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
+use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\tp\configuracionComercial\TipoVehiculoController;
 use App\Http\Controllers\tp\configuracionComercial\VehiculoController;
 use Illuminate\Support\Facades\Route;
+
+//TP - Controller
 
 // Vehicle Delivery - public approval endpoint (no auth required)
 Route::get('vehiclesDelivery/extraordinary/{token}/approve', [ApVehicleDeliveryController::class, 'approveExtraordinary'])
@@ -1637,8 +1639,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('workOrders/{id}/revert-internal-note', [WorkOrderController::class, 'revertInternalNote']);
       Route::patch('workOrders/{id}/authorize-internal-note-revert', [WorkOrderController::class, 'authorizeInternalNoteRevert']);
       Route::get('workOrders/{id}/internal-note-logs', [WorkOrderController::class, 'internalNoteLogs']);
-      Route::post('workOrders/{id}/verify-internal-note-migration', [WorkOrderController::class, 'verifyInternalNoteMigration']);
-      Route::post('workOrders/{id}/update-internal-note-accounting-status', [WorkOrderController::class, 'updateInternalNoteAccountingStatus']);
       Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
       Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
       Route::post('workOrders/deductible', [WorkOrderController::class, 'storeDeductible']);
@@ -1656,8 +1656,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Internal Notes - Notas Internas
+      Route::post('internalNotes/{id}/verify-internal-note-migration', [ApInternalNoteController::class, 'verifyInternalNoteMigration']);
+      Route::post('internalNotes/{id}/update-internal-note-accounting-status', [ApInternalNoteController::class, 'updateInternalNoteAccountingStatus']);
+
+      Route::apiResource('internalNotes', ApInternalNoteController::class)->only([
+        'index'
+      ]);
+
       // Reports - Reportes de Taller
       Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
@@ -1747,6 +1756,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
       Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
+      Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
