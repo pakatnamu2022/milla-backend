@@ -334,6 +334,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     // Verificar solicitudes no facturadas (activas o creadas sin documento válido) para la misma marca
     $hasUnbilledQuote = fn(int $partnerId): bool => PurchaseRequestQuote::where('holder_id', $partnerId)
       ->whereHas('apModelsVn.family', fn($q) => $q->where('brand_id', $newBrandId))
+      ->whereHas('opportunity', fn($q) => $q->whereIn('opportunity_status_id', $statusIds))
       ->whereDoesntHave('electronicDocuments', fn($q) => $q
         ->where('aceptada_por_sunat', 1)
         ->where('anulado', 0)
