@@ -3,6 +3,7 @@
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
+use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
@@ -1431,9 +1432,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      // Daily Delivery Report
-      Route::get('reports/daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
-      Route::get('reports/daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
+      // Reports
+      Route::prefix('reports')->group(function () {
+        Route::get('daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
+        Route::get('daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
+
+        Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
+      });
 
       // Delivery Checklist
       Route::get('vehiclesDelivery/{vehicleDeliveryId}/checklist', [ApDeliveryChecklistController::class, 'getOrInitialize']);
