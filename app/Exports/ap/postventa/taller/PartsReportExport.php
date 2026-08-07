@@ -55,6 +55,9 @@ class PartsReportExport implements
       "NETO ({$currency})",
       "COSTO ({$currency})",
       "BENEFICIO ({$currency})",
+      'NUM. DOCUMENTO',
+      'FECHA DOCUMENTO',
+      'ESTADO SUNAT',
     ];
   }
 
@@ -73,6 +76,9 @@ class PartsReportExport implements
       $row['neto'],
       $row['costo'],
       $row['beneficio'],
+      $row['num_documento_electronico'],
+      $row['fecha_documento_electronico'],
+      $row['estado_sunat'],
     ];
   }
 
@@ -102,8 +108,8 @@ class PartsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-L, 12 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:L1');
+        // Habilitar filtros en la fila de encabezado (columnas A-O, 15 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:O1');
 
         // Aplicar formato de número a las columnas de moneda
         $sheet = $event->sheet->getDelegate();
@@ -128,9 +134,50 @@ class PartsReportExport implements
           ->setFormatCode('0.00');
 
         // Alineación central para todas las columnas
-        $sheet->getStyle('A2:L' . $highestRow)
+        $sheet->getStyle('A2:O' . $highestRow)
           ->getAlignment()
           ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        // Estilos para SI (verde con letra blanca)
+        $styleGreen = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '00B050'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Estilos para NO (rojo con letra blanca)
+        $styleRed = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FF0000'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna O)
+        for ($row = 2; $row <= $highestRow; $row++) {
+          $cellValue = $sheet->getCell('O' . $row)->getValue();
+
+          if ($cellValue === 'SI') {
+            $sheet->getStyle('O' . $row)->applyFromArray($styleGreen);
+          } elseif ($cellValue === 'NO') {
+            $sheet->getStyle('O' . $row)->applyFromArray($styleRed);
+          }
+        }
 
         $sheet->setSelectedCells('A1');
       },
