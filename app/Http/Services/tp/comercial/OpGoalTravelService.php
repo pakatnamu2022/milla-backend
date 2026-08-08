@@ -489,11 +489,10 @@ class OpGoalTravelService extends BaseService
                     ->whereIn('odi.tipo_flete', ['PALET', 'VIAJE', 'TONELADAS'])
                     ->where('od.produccion', 0)
                     ->where(function ($query) {
-                        $query->whereIn('odi.idproducto', [89, 90, 109, 204])
+                        $query->whereIn('odi.idproducto', [89, 90, 109, 204, 184])
                             ->orWhere(function ($q) {
                                 $q->where('odi.precio_unit', 0)
-                                    ->where('odi.cantidad', 0)
-                                    ->where('odi.total', 0);
+                                    ->Where('odi.total', 0);
                             });
                     })
                     ->pluck('odi.despacho_id')
@@ -544,9 +543,12 @@ class OpGoalTravelService extends BaseService
                         COUNT(od.id) as total_viajes,
                         SUM(od.produccion) as total_produccion
                     FROM op_despacho od
+                    INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
                     WHERE od.estado <> 10
                         AND od.por_facturar = 1
                         AND od.fecha_viaje <= ?
+                        AND rp.sede_id = 1
+                        AND rp.b_cliente = 1
                         {$filtrosFecha}
                 ", $params);
 
@@ -593,16 +595,19 @@ class OpGoalTravelService extends BaseService
 
                     $totalParams = array_merge([$fechaLimite], $viajesExcluir, $params);
                     $totalGeneral = DB::selectOne("
-                    SELECT 
-                        COUNT(od.id) as total_viajes,
-                        SUM(od.produccion) as total_produccion
-                    FROM op_despacho od
-                    WHERE od.estado <> 10
-                        AND od.por_facturar = 1
-                        AND od.fecha_viaje <= ?
-                        AND od.id NOT IN ({$placeholders})
-                        {$filtrosFecha}
-                ", $totalParams);
+                                SELECT 
+                                    COUNT(od.id) as total_viajes,
+                                    SUM(od.produccion) as total_produccion
+                                FROM op_despacho od
+                                INNER JOIN rrhh_persona rp ON rp.id = od.idcliente
+                                WHERE od.estado <> 10
+                                    AND od.por_facturar = 1
+                                    AND od.fecha_viaje <= ?
+                                    AND od.id NOT IN ({$placeholders})
+                                    AND rp.sede_id = 1
+                                    AND rp.b_cliente = 1
+                                    {$filtrosFecha}
+                            ", $totalParams);
 
                     return [
                         'data' => $resultados,
