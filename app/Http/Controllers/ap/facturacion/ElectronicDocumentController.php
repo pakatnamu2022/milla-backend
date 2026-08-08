@@ -15,6 +15,7 @@ use App\Http\Requests\ap\facturacion\UpdateElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreConsolidatedInvoiceRequest;
 use App\Http\Requests\ap\facturacion\RegularizeAdvancePaymentRequest;
 use App\Http\Requests\ap\facturacion\StoreHistoricalAdvancePaymentRequest;
+use App\Http\Requests\ap\facturacion\ExportElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreHistoricalFinalSaleRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
@@ -695,7 +696,7 @@ class ElectronicDocumentController extends Controller
     }
   }
 
-  public function export(Request $request)
+  public function export(ExportElectronicDocumentRequest $request)
   {
     try {
       return $this->service->export($request);
