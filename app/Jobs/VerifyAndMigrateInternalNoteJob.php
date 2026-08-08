@@ -97,9 +97,9 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
   ): void
   {
     $pendingNotes = ApInternalNote::whereIn('migration_status', [
-      VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-      VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+      ApInternalNote::MIGRATION_STATUS_PENDING,
+      ApInternalNote::MIGRATION_STATUS_IN_PROGRESS,
+      ApInternalNote::MIGRATION_STATUS_FAILED,
     ])
       ->whereNull('deleted_at')
       ->get();
@@ -145,13 +145,13 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
 
     // Verificar que la orden de trabajo tenga repuestos cargados
     if (!$internalNote->workOrder->parts || $internalNote->workOrder->parts->isEmpty()) {
-      $internalNote->update(['migration_status' => 'skipped']);
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_SKIPPED]);
       return;
     }
 
     // Actualizar estado a in_progress si está pendiente
-    if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
-      $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
+    if ($internalNote->migration_status === ApInternalNote::MIGRATION_STATUS_PENDING) {
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_IN_PROGRESS]);
     }
 
     // Reconstruir historial de costos para cada producto del movimiento de inventario
@@ -243,7 +243,7 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
       // Incluir soft-deleted para poder actualizar notas revertidas
       ApInternalNote::withTrashed()
         ->where('id', $this->internalNoteId)
-        ->update(['migration_status' => 'failed']);
+        ->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_FAILED]);
     }
   }
 }
