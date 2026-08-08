@@ -220,6 +220,10 @@ class ApVehicleDelivery extends Model
       'label'     => 'SEDE',
       'formatter' => null,
     ],
+    'vehicle.electronicDocumentParent.full_number'                  => [
+      'label'   => 'COMPROBANTE VENTA',
+      'default' => '-',
+    ],
     'vehicle.electronicDocumentParent.fecha_de_emision'            => [
       'label'     => 'FECHA FACTURACIÓN',
       'formatter' => 'date',
@@ -261,6 +265,12 @@ class ApVehicleDelivery extends Model
       'formatter'   => 'boolean',
       'true_label'  => 'CONTABILIZADO',
       'false_label' => 'EN TRABAJO',
+    ],
+    'is_extraordinary'                                             => [
+      'label'       => 'TIPO ENTREGA',
+      'formatter'   => 'boolean',
+      'true_label'  => 'EXTRAORDINARIA',
+      'false_label' => 'NORMAL',
     ],
     'cliente_autorizo_datos'                                       => [
       'label' => 'CLIENTE AUTORIZO DATOS',
