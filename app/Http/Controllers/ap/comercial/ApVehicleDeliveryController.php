@@ -277,6 +277,7 @@ class ApVehicleDeliveryController extends Controller
       // Si ya existe en la intermedia no re-insertamos — el verify job lo procesará
       $existsInIntermediate = DB::connection('dbtp')
         ->table('neInTbIntegracionAsientoCab')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
         ->where('Referencia', $headerLog->external_id)
         ->exists();
 
@@ -313,7 +314,7 @@ class ApVehicleDeliveryController extends Controller
       ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_VENTA)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('status_dynamic', 1)
-      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::AP_DYNAMICS))
+      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::COMPANY_AP_ID))
       ->orderBy('issue_date')
       ->get();
 
