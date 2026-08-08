@@ -143,6 +143,12 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
       return;
     }
 
+    // Verificar que la orden de trabajo tenga repuestos cargados
+    if (!$internalNote->workOrder->parts || $internalNote->workOrder->parts->isEmpty()) {
+      $internalNote->update(['migration_status' => 'skipped']);
+      return;
+    }
+
     // Actualizar estado a in_progress si está pendiente
     if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING) {
       $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
