@@ -391,6 +391,8 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'guides',
       'installments',
       'vehicleMovement',
+      'creditNoteType',
+      'debitNoteType',
       'creator',
       'updater'
     ])->withCount('referencingItems')->find($id);
@@ -2422,10 +2424,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       $dataArray = $resource->resolve();
 
       // Agregar datos adicionales para el PDF
-      $dataArray['currency_symbol'] = $document->currency->symbol ?? 'S/';
-      $dataArray['document_type_name'] = $document->documentType->description ?? '';
+      $dataArray['currency_symbol']            = $document->currency->symbol ?? 'S/';
+      $dataArray['document_type_name']         = $document->documentType->description ?? '';
       $dataArray['identity_document_type_name'] = $document->identityDocumentType->description ?? '';
-      $dataArray['transaction_type_name'] = $document->transactionType->description ?? '';
+      $dataArray['transaction_type_name']      = $document->transactionType->description ?? '';
+      $dataArray['credit_note_type_description'] = $document->creditNoteType->description ?? '';
+      $dataArray['debit_note_type_description']  = $document->debitNoteType->description ?? '';
 
       // Cargar items con sus relaciones
       $dataArray['items_collection'] = $document->items->map(function ($item) {

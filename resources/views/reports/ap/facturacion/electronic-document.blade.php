@@ -17,7 +17,11 @@
   ];
 
   $documentTypeName = $documentTypeMap[$document['sunat_concept_document_type_id']] ?? $document['document_type_name'];
-  $numeroCompleto = $document['numero_completo'] ?? ($document['serie'] . '-' . $document['numero']);
+  $numeroCompleto   = $document['numero_completo'] ?? ($document['serie'] . '-' . $document['numero']);
+  $status           = $document['status'] ?? '';
+  $isCancelled      = $document['is_annulled'] ?? ($status === 'cancelled');
+  $isRejected       = $status === 'rejected';
+  $isAnulado        = !empty($document['anulado']) || $isCancelled;
 @endphp
 <!doctype html>
 <html lang="es">
@@ -219,7 +223,7 @@
   </style>
 </head>
 <body>
-@if($document['anulado'] || $document['is_cancelled'])
+@if($isAnulado)
   <div class="watermark">ANULADO</div>
 @elseif(!$document['aceptada_por_sunat'])
   <div class="watermark">BORRADOR</div>
@@ -243,9 +247,9 @@
       <div class="document-number">{{ $numeroCompleto }}</div>
       @if($document['aceptada_por_sunat'])
         <span class="status-badge status-accepted">ACEPTADO POR SUNAT</span>
-      @elseif($document['is_rejected'])
+      @elseif($isRejected)
         <span class="status-badge status-rejected">RECHAZADO</span>
-      @elseif($document['anulado'] || $document['is_cancelled'])
+      @elseif($isAnulado)
         <span class="status-badge status-cancelled">ANULADO</span>
       @else
         <span class="status-badge status-pending">PENDIENTE</span>
@@ -302,16 +306,16 @@
     <td class="label" style="width: 25%;">Número:</td>
     <td style="width: 25%;">{{ $document['documento_que_se_modifica_serie'] }}-{{ $document['documento_que_se_modifica_numero'] }}</td>
   </tr>
-  @if($document['sunat_concept_document_type_id'] == 31 && $document['credit_note_type'])
+  @if($document['sunat_concept_document_type_id'] == 31 && !empty($document['credit_note_type_description']))
   <tr>
     <td class="label">Motivo:</td>
-    <td colspan="3">{{ $document['credit_note_type']['description'] ?? '' }}</td>
+    <td colspan="3">{{ $document['credit_note_type_description'] }}</td>
   </tr>
   @endif
-  @if($document['sunat_concept_document_type_id'] == 32 && $document['debit_note_type'])
+  @if($document['sunat_concept_document_type_id'] == 32 && !empty($document['debit_note_type_description']))
   <tr>
     <td class="label">Motivo:</td>
-    <td colspan="3">{{ $document['debit_note_type']['description'] ?? '' }}</td>
+    <td colspan="3">{{ $document['debit_note_type_description'] }}</td>
   </tr>
   @endif
 </table>
