@@ -13,6 +13,7 @@ use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -312,6 +313,7 @@ class ApVehicleDeliveryController extends Controller
       ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_VENTA)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('status_dynamic', 1)
+      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::AP_DYNAMICS))
       ->orderBy('issue_date')
       ->get();
 

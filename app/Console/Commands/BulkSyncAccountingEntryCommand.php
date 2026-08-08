@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class BulkSyncAccountingEntryCommand extends Command
       ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_VENTA)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('status_dynamic', 1)
+      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::AP_DYNAMICS))
       ->orderBy('id')
       ->get();
 
