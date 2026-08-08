@@ -2,11 +2,13 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -123,6 +125,11 @@ class ApInternalNote extends BaseModel
   public function inventoryMovements(): MorphMany
   {
     return $this->morphMany(InventoryMovement::class, 'reference');
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'internal_note_id');
   }
 
   /**
