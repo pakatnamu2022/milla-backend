@@ -31,7 +31,7 @@ class AccountingEntryHeaderDynamicsResource extends JsonResource
       'Asiento' => $this->asientoNumber,
       'EmpresaId' => Company::AP_DYNAMICS, // 'CTEST'
       'LoteId' => $this->creator->person->vat,
-      'Referencia' => $this->full_number,
+      'Referencia' => self::buildReferencia($this->full_number, $this->vehicle->vin),
       'Fecha' => $this->date->format('Y-m-d H:i:s'),
       'MonedaId' => $this->currency->iso_code,
       'TipoTasaId' => 'NEGOCIAR',
@@ -40,5 +40,17 @@ class AccountingEntryHeaderDynamicsResource extends JsonResource
       'Estado' => 0,
       'FechaEstado' => null,
     ];
+  }
+
+  /**
+   * Construye la Referencia para Dynamics: quita ceros del correlativo, agrega VIN y trunca a 30 chars.
+   * Ejemplo: BXX1-00181911 + LS5A3ABE9VD910530 → "BXX1-181911|LS5A3ABE9VD910530"
+   */
+  public static function buildReferencia(string $fullNumber, string $vin): string
+  {
+    $parts = explode('-', $fullNumber, 2);
+    $serie = $parts[0];
+    $correlativo = ltrim($parts[1] ?? '', '0') ?: '0';
+    return substr("{$serie}-{$correlativo}|{$vin}", 0, 30);
   }
 }

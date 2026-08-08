@@ -960,4 +960,27 @@ class ElectronicDocument extends BaseModel
     'workOrder',
     'creator',
   ];
+
+  protected $reportStyles = [
+    'headerBold'            => true,
+    'headerFontSize'        => 11,
+    'headerFontColor'       => 'FFFFFF',
+    'headerBackgroundColor' => '1B5E20',
+    'bodyFontSize'          => 9,
+  ];
+
+  protected $reportColorRules = [
+    'status' => [
+      'draft'     => ['bg' => 'BDBDBD', 'text' => '212121'],
+      'sent'      => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
+      'accepted'  => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
+      'rejected'  => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
+      'cancelled' => ['bg' => 'FFE0B2', 'text' => 'E65100'],
+    ],
+    'migration_status' => [
+      'pending'   => ['bg' => 'FFF9C4', 'text' => 'F57F17'],
+      'completed' => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
+      'failed'    => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
+    ],
+  ];
 }

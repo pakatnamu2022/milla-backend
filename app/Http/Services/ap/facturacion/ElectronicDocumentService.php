@@ -7,10 +7,13 @@ use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
+use App\Exports\GeneralExport;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Services\gp\maestroGeneral\ExchangeRateService;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
@@ -256,6 +259,75 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ElectronicDocument::sorts,
       ElectronicDocumentResource::class,
       ['documentType', 'currency', 'identityDocumentType', 'items', 'creator']
+    );
+  }
+
+  public function exportParams(): array
+  {
+    $model = new ElectronicDocument();
+
+    $filters = collect(ElectronicDocument::filters)
+      ->except('search')
+      ->map(fn($operator, $key) => [
+        'key'      => $key,
+        'operator' => $operator,
+      ])
+      ->values()
+      ->toArray();
+
+    $columns = collect($model->getReportableColumns())
+      ->map(fn($config, $key) => [
+        'key'       => $key,
+        'label'     => $config['label'],
+        'formatter' => $config['formatter'] ?? null,
+      ])
+      ->values()
+      ->toArray();
+
+    return [
+      'filters' => $filters,
+      'columns' => $columns,
+    ];
+  }
+
+  public function export(Request $request)
+  {
+    $user = $request->user();
+    $title = $request->get('title', 'Reporte Documentos Electrónicos');
+
+    $exportService = new ExportService();
+    $filters = $exportService->buildFiltersFromRequest($request, ElectronicDocument::class);
+
+    $model = new ElectronicDocument();
+    $relations = $model->getReportRelations();
+
+    if ($user->role->id !== Constants::TICS_ROL_ID) {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
+        $q->whereIn('sede_id', $sedes);
+      });
+    } else {
+      $query = ElectronicDocument::query();
+    }
+
+    if (!empty($relations)) {
+      $query->with($relations);
+    }
+
+    foreach ($filters as $filter) {
+      $query = $model->applyReportFilter($query, $filter);
+    }
+
+    $data = $query->get();
+    $columns = $model->getReportableColumns();
+    $styles = $model->getReportStyles();
+    $colorRules = $model->getReportColorRules();
+
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    return Excel::download(
+      new GeneralExport($data, $columns, $title, $styles, $colorRules),
+      $filename
     );
   }
 
