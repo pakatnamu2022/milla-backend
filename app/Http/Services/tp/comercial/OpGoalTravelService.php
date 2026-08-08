@@ -486,12 +486,13 @@ class OpGoalTravelService extends BaseService
 
                 $viajesExcluirItem = DB::table('op_despacho_item as odi')
                     ->join('op_despacho as od', 'od.id', '=', 'odi.despacho_id')
-                    ->whereIn('odi.tipo_flete', ['PALET', 'VIAJE'])
+                    ->whereIn('odi.tipo_flete', ['PALET', 'VIAJE', 'TONELADAS'])
                     ->where('od.produccion', 0)
                     ->where(function ($query) {
                         $query->whereIn('odi.idproducto', [89, 90, 109, 204])
                             ->orWhere(function ($q) {
                                 $q->where('odi.precio_unit', 0)
+                                    ->where('odi.cantidad', 0)
                                     ->where('odi.total', 0);
                             });
                     })
