@@ -32,7 +32,15 @@
       "Bash(cd:*)",
       "Bash(\"C:/laragon/bin/php/php-8.3.30-nts-Win32-vs16-x64/php.exe\" artisan:*)",
       "Bash(\"C:/laragon/bin/php/php-8.3.30-nts-Win32-vs16-x64/php.exe\" -r \":*)",
-      "PowerShell(Get-ChildItem \"C:\\\\laragon\\\\www\\\\milla-backend\\\\database\\\\migrations\" -Force | ForEach-Object { $_.Name } | Select-Object -Last 10)"
+      "PowerShell(Get-ChildItem \"C:\\\\laragon\\\\www\\\\milla-backend\\\\database\\\\migrations\" -Force | ForEach-Object { $_.Name } | Select-Object -Last 10)",
+      "PowerShell(php -v)",
+      "PowerShell(node -v)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Hector\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--laragon-www-milla-backend\\\\0dc77374-3abb-4843-a183-5bf1dfcf5c91\\\\scratchpad\")",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npm config *)",
+      "Bash(\"C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.30-nts-Win32-vs16-x64\\\\php.exe\" inspect.php \"C:\\\\Users\\\\Hector\\\\Desktop\\\\Planillas\\\\ESTRUCTURA PLANILLA TP SAC.xlsx\" 30)",
+      "Bash('C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.30-nts-Win32-vs16-x64\\\\php.exe' -r ' *)"
     ],
     "deny": [],
     "ask": []
