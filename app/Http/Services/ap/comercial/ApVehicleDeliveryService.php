@@ -608,6 +608,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function reschedule(int $id, array $data): ApVehicleDeliveryResource
   {
     $vehicleDelivery = $this->find($id);
+    $isExtraordinary = !empty($data['is_extraordinary']);
 
     if ($vehicleDelivery->status_delivery === 'completed') {
       throw new Exception('No se puede reprogramar una entrega ya completada.');
@@ -618,25 +619,41 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $newDate = Carbon::parse($data['scheduled_delivery_date']);
-    $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
-      ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
-      : collect([$vehicleDelivery->sede_id]);
 
-    $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
-      ->whereIn('sede_id', $sedeIdsDelShop)
-      ->where('id', '!=', $id)
-      ->whereNull('deleted_at')
-      ->exists();
+    if (!$isExtraordinary) {
+      $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
+        ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
+        : collect([$vehicleDelivery->sede_id]);
 
-    if ($slotTaken) {
-      throw new Exception('El horario ' . $newDate->format('H:i') . ' del ' . $newDate->format('d/m/Y') . ' ya está ocupado en este shop. Elija otro horario.');
+      $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
+        ->whereIn('sede_id', $sedeIdsDelShop)
+        ->where('id', '!=', $id)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($slotTaken) {
+        throw new Exception('El horario ' . $newDate->format('H:i') . ' del ' . $newDate->format('d/m/Y') . ' ya está ocupado en este shop. Elija otro horario.');
+      }
     }
 
-    $vehicleDelivery->update([
+    $updateData = [
       'scheduled_delivery_date' => $data['scheduled_delivery_date'],
       'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
       'rescheduled_by'          => auth()->id(),
-    ]);
+      'is_extraordinary'        => $isExtraordinary,
+    ];
+
+    if ($isExtraordinary) {
+      $updateData['extraordinary_approved']    = null;
+      $updateData['extraordinary_sent_by']     = auth()->id();
+      $updateData['extraordinary_token']       = Str::random(64);
+    }
+
+    $vehicleDelivery->update($updateData);
+
+    if ($isExtraordinary) {
+      $this->sendExtraordinaryApprovalEmail($vehicleDelivery->fresh()->load(['vehicle', 'client', 'sede']));
+    }
 
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
