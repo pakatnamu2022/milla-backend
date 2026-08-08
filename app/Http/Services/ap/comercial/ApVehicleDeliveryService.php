@@ -228,11 +228,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('Entrega de Vehículo no encontrada');
         }
 
-        // Las entregas extraordinarias requieren aprobación antes de generar la guía
-        if ($record->is_extraordinary && $record->extraordinary_approved !== true) {
-          throw new Exception('La entrega extraordinaria debe ser aprobada por gerencia antes de generar la guía de remisión.');
-        }
-
         // Validar que la guía se genere el mismo día de la entrega programada
         if (!$record->scheduled_delivery_date || !now()->isSameDay(\Carbon\Carbon::parse($record->scheduled_delivery_date))) {
           throw new Exception('La guía de remisión solo puede generarse el día de la entrega programada (' . \Carbon\Carbon::parse($record->scheduled_delivery_date)->format('d/m/Y') . ')');

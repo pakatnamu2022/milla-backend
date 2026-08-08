@@ -75,6 +75,10 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
             return;
           }
 
+          if ($this->boolean('is_extraordinary')) {
+            return;
+          }
+
           $requestedSedeId = $this->input('sede_id');
           $sede = $requestedSedeId ? Sede::find($requestedSedeId) : null;
           $sedeIdsDelShop = $sede && $sede->shop_id
