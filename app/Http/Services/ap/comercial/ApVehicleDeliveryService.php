@@ -121,13 +121,13 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Sincronizar CxC al momento del store para tener datos frescos
         SyncAccountsReceivableJob::dispatchSync('automotores');
 
-        // Validar que la factura no tenga saldo pendiente en cuentas por cobrar
-        $tieneSaldoPendiente = AccountReceivable::where('electronic_document_id', $documentData->electronicDocument->id)
-          ->where('balance', '>', 0)
+        // Validar que la cuenta por cobrar no esté vencida (liquidado = sin deuda vencida)
+        $tieneVencido = AccountReceivable::where('electronic_document_id', $documentData->electronicDocument->id)
+          ->where('overdue_status', 'VENCIDO')
           ->exists();
 
-        if ($tieneSaldoPendiente) {
-          throw new Exception('La factura del vehículo tiene saldo pendiente de cobro. Debe estar completamente liquidada para poder programar la entrega.');
+        if ($tieneVencido) {
+          throw new Exception('La cuenta por cobrar del vehículo está vencida. Regularice el pago antes de programar la entrega.');
         }
 
         if ($isExtraordinary) {
@@ -959,19 +959,20 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     // ── 7. Factura electrónica ───────────────────────────────────────────────
-    if (!$isStockInicial) {
-      $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($q) use ($vehicle) {
-        $q->where('ap_vehicle_id', $vehicle->id);
+    // Buscar el documento para todos los vehículos (se usa también en el check de CxC)
+    $electronicDocument = ElectronicDocument::whereHas('vehicleMovement', function ($q) use ($vehicle) {
+      $q->where('ap_vehicle_id', $vehicle->id);
+    })
+      ->where('aceptada_por_sunat', true)
+      ->where(function ($q) {
+        $q->where('anulado', false)->orWhereNull('anulado');
       })
-        ->where('aceptada_por_sunat', true)
-        ->where(function ($q) {
-          $q->where('anulado', false)->orWhereNull('anulado');
-        })
-        ->whereNotNull('client_id')
-        ->whereNotNull('purchase_request_quote_id')
-        ->orderByDesc('fecha_de_emision')
-        ->first();
+      ->whereNotNull('client_id')
+      ->whereNotNull('purchase_request_quote_id')
+      ->orderByDesc('fecha_de_emision')
+      ->first();
 
+    if (!$isStockInicial) {
       if (!$electronicDocument) {
         $checks[] = [
           'step'    => 'Factura electrónica',
@@ -990,7 +991,32 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       }
     }
 
-    // ── 8. Pago del vehículo ─────────────────────────────────────────────────
+    // ── 8. Liquidación (CxC no vencida) ─────────────────────────────────────
+    // Aplica a todos los vehículos que tienen factura electrónica (incluyendo stock inicial facturado)
+    if (!empty($electronicDocument)) {
+      $tieneVencido = AccountReceivable::where('electronic_document_id', $electronicDocument->id)
+        ->where('overdue_status', 'VENCIDO')
+        ->exists();
+
+      if ($tieneVencido) {
+        $checks[] = [
+          'step'    => 'Liquidación (CxC)',
+          'status'  => 'fail',
+          'message' => 'La cuenta por cobrar de la factura está vencida.',
+          'action'  => 'Regularice el pago de la deuda vencida antes de programar la entrega.',
+        ];
+        $canGenerate = false;
+      } else {
+        $checks[] = [
+          'step'    => 'Liquidación (CxC)',
+          'status'  => 'pass',
+          'message' => 'La cuenta por cobrar no está vencida. El vehículo está liquidado.',
+          'action'  => null,
+        ];
+      }
+    }
+
+    // ── 9. Pago del vehículo ─────────────────────────────────────────────────
     if (!$vehicle->is_paid) {
       $checks[] = [
         'step'    => 'Pago del vehículo',
