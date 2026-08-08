@@ -48,9 +48,9 @@ class ApInternalNoteService extends BaseService
 
     // Verificar si requiere procesamiento
     if (!in_array($internalNote->migration_status, [
-      VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-      VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-      VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
+      ApInternalNote::MIGRATION_STATUS_PENDING,
+      ApInternalNote::MIGRATION_STATUS_IN_PROGRESS,
+      ApInternalNote::MIGRATION_STATUS_FAILED,
     ])) {
       return response()->json([
         'success' => false,
@@ -68,11 +68,11 @@ class ApInternalNoteService extends BaseService
     $wasReset = false;
 
     // Si el estado es 'failed', resetear para reintentar
-    if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
+    if ($internalNote->migration_status === ApInternalNote::MIGRATION_STATUS_FAILED) {
       $wasReset = true;
 
       // Resetear nota interna a pending
-      $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_PENDING]);
 
       // Resetear logs relacionados a pending
       VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
@@ -117,7 +117,7 @@ class ApInternalNoteService extends BaseService
     }
 
     // Validar que la nota no esté en estado skipped
-    if ($internalNote->migration_status === 'skipped') {
+    if ($internalNote->migration_status === ApInternalNote::MIGRATION_STATUS_SKIPPED) {
       return response()->json([
         'success' => false,
         'message' => 'La nota interna fue omitida porque no tiene repuestos cargados',

@@ -52,6 +52,13 @@ class ApInternalNote extends BaseModel
   const STATUS_PENDING = 'pending';
   const STATUS_INVOICED = 'invoiced';
 
+  // Migration status constants
+  const MIGRATION_STATUS_COMPLETED = 'completed';
+  const MIGRATION_STATUS_FAILED = 'failed';
+  const MIGRATION_STATUS_PENDING = 'pending';
+  const MIGRATION_STATUS_IN_PROGRESS = 'in_progress';
+  const MIGRATION_STATUS_SKIPPED = 'skipped';
+
   /**
    * Boot method to auto-generate sequential number
    */
