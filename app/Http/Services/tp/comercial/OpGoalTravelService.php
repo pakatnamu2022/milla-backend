@@ -489,8 +489,7 @@ class OpGoalTravelService extends BaseService
                     ->whereIn('odi.tipo_flete', ['PALET', 'VIAJE'])
                     ->where('od.produccion', 0)
                     ->where(function ($query) {
-                        $query->where('odi.idproducto', 89)
-                            ->orWhere('odi.idproducto', 90)
+                        $query->whereIn('odi.idproducto', [89, 90, 109, 204])
                             ->orWhere(function ($q) {
                                 $q->where('odi.precio_unit', 0)
                                     ->where('odi.total', 0);
