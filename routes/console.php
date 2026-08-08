@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\SyncAccountsReceivableJob;
 use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -150,6 +151,17 @@ Schedule::command('tp:sync-fac-invoice')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
+
+// Sincronizar cuentas por cobrar desde Dynamics cada 5 minutos
+Schedule::job(new SyncAccountsReceivableJob('deposito'))
+  ->everyFiveMinutes()
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
+
+Schedule::job(new SyncAccountsReceivableJob('automotores'))
+  ->everyFiveMinutes()
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
 
 // Enviar reportes de CxC por vencer (≤2 días) — diariamente a las 8am
 Schedule::command('ar:send-due-reports')

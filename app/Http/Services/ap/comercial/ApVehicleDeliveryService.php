@@ -9,7 +9,11 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
+use App\Exports\VehicleDeliveryExport;
+use App\Jobs\SyncAccountsReceivableJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
+use App\Models\dp\comercial\AccountReceivable;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use Carbon\Carbon;
@@ -113,6 +117,18 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         // Obtener el documento electrónico y cliente usando el método centralizado
         $documentData = Vehicles::getElectronicDocumentWithClient($data['vehicle_id']);
         $data['client_id'] = $documentData->client->id;
+
+        // Sincronizar CxC al momento del store para tener datos frescos
+        SyncAccountsReceivableJob::dispatchSync('automotores');
+
+        // Validar que la factura no tenga saldo pendiente en cuentas por cobrar
+        $tieneSaldoPendiente = AccountReceivable::where('electronic_document_id', $documentData->electronicDocument->id)
+          ->where('balance', '>', 0)
+          ->exists();
+
+        if ($tieneSaldoPendiente) {
+          throw new Exception('La factura del vehículo tiene saldo pendiente de cobro. Debe estar completamente liquidada para poder programar la entrega.');
+        }
 
         if ($isExtraordinary) {
           $data['extraordinary_approved'] = null;
@@ -592,6 +608,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
   public function reschedule(int $id, array $data): ApVehicleDeliveryResource
   {
     $vehicleDelivery = $this->find($id);
+    $isExtraordinary = !empty($data['is_extraordinary']);
 
     if ($vehicleDelivery->status_delivery === 'completed') {
       throw new Exception('No se puede reprogramar una entrega ya completada.');
@@ -602,25 +619,41 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $newDate = Carbon::parse($data['scheduled_delivery_date']);
-    $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
-      ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
-      : collect([$vehicleDelivery->sede_id]);
 
-    $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
-      ->whereIn('sede_id', $sedeIdsDelShop)
-      ->where('id', '!=', $id)
-      ->whereNull('deleted_at')
-      ->exists();
+    if (!$isExtraordinary) {
+      $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
+        ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
+        : collect([$vehicleDelivery->sede_id]);
 
-    if ($slotTaken) {
-      throw new Exception('El horario ' . $newDate->format('H:i') . ' del ' . $newDate->format('d/m/Y') . ' ya está ocupado en este shop. Elija otro horario.');
+      $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
+        ->whereIn('sede_id', $sedeIdsDelShop)
+        ->where('id', '!=', $id)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if ($slotTaken) {
+        throw new Exception('El horario ' . $newDate->format('H:i') . ' del ' . $newDate->format('d/m/Y') . ' ya está ocupado en este shop. Elija otro horario.');
+      }
     }
 
-    $vehicleDelivery->update([
+    $updateData = [
       'scheduled_delivery_date' => $data['scheduled_delivery_date'],
       'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
       'rescheduled_by'          => auth()->id(),
-    ]);
+      'is_extraordinary'        => $isExtraordinary,
+    ];
+
+    if ($isExtraordinary) {
+      $updateData['extraordinary_approved']    = null;
+      $updateData['extraordinary_sent_by']     = auth()->id();
+      $updateData['extraordinary_token']       = Str::random(64);
+    }
+
+    $vehicleDelivery->update($updateData);
+
+    if ($isExtraordinary) {
+      $this->sendExtraordinaryApprovalEmail($vehicleDelivery->fresh()->load(['vehicle', 'client', 'sede']));
+    }
 
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
@@ -1066,12 +1099,23 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function export(Request $request)
   {
-    $request->merge([
-      'title' => $request->get('title', 'Reporte Entregas de Vehículos'),
-    ]);
+    $title = $request->get('title', 'Reporte Entregas de Vehículos');
 
     $exportService = new ExportService();
-    return $exportService->exportFromRequest($request, ApVehicleDelivery::class);
+    $filters       = $exportService->buildFiltersFromRequest($request, ApVehicleDelivery::class);
+
+    $model     = new ApVehicleDelivery();
+    $data      = $model->getReportData($filters);
+    $columns   = $model->getReportableColumns();
+    $styles    = $model->getReportStyles();
+    $colorRules = method_exists($model, 'getReportColorRules') ? $model->getReportColorRules() : [];
+
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    return Excel::download(
+      new VehicleDeliveryExport($data, $columns, $title, $styles, $colorRules),
+      $filename
+    );
   }
 
   public function availableSlots(string $date, ?int $shopId = null): array
