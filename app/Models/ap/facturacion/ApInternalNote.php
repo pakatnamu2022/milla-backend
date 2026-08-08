@@ -37,7 +37,7 @@ class ApInternalNote extends BaseModel
   ];
 
   const array filters = [
-    'search' => ['number'],
+    'search' => ['number', 'workOrder.correlative'],
     'number' => '=',
     'work_order_id' => '=',
     'status' => '=',

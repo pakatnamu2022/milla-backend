@@ -18,6 +18,7 @@ class ApInternalNoteResource extends JsonResource
       'id' => $this->id,
       'number' => $this->number,
       'work_order_id' => $this->work_order_id,
+      'work_order_correlative' => $this->workOrder?->correlative,
       'created_date' => $this->created_date?->format('Y-m-d'),
       'closed_date' => $this->closed_date?->format('Y-m-d'),
       'status' => $this->status,
