@@ -111,6 +111,15 @@ trait Reportable
         return $query->where($column, 'LIKE', "%{$value}%");
       case 'in':
         return $query->whereIn($column, is_array($value) ? $value : [$value]);
+      case 'in_or_equal':
+        if (is_array($value)) {
+          return $query->whereIn($column, $value);
+        }
+        return $query->where($column, '=', $value);
+      case 'null_bool':
+        $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($bool === null) return $query;
+        return $bool ? $query->whereNotNull($column) : $query->whereNull($column);
       case 'between':
         return $query->whereBetween($column, $value);
       case 'date_btw':

@@ -486,6 +486,18 @@ class ElectronicDocument extends BaseModel
     return $query->where('area_id', ApMasters::AREA_MESON);
   }
 
+  public function getStatusLabelAttribute(): string
+  {
+    return match($this->status) {
+      self::STATUS_DRAFT     => 'BORRADOR',
+      self::STATUS_SENT      => 'ENVIADO',
+      self::STATUS_ACCEPTED  => 'ACEPTADO',
+      self::STATUS_REJECTED  => 'RECHAZADO',
+      self::STATUS_CANCELLED => 'CANCELADO',
+      default                => strtoupper($this->status ?? ''),
+    };
+  }
+
   public function scopeAccepted($query)
   {
     return $query->where('status', self::STATUS_ACCEPTED)
@@ -850,7 +862,7 @@ class ElectronicDocument extends BaseModel
       'label'     => 'TOTAL',
       'formatter' => null,
     ],
-    'status'                                                  => [
+    'status_label'                                            => [
       'label'     => 'ESTADO',
       'formatter' => null,
     ],
@@ -970,12 +982,12 @@ class ElectronicDocument extends BaseModel
   ];
 
   protected $reportColorRules = [
-    'status' => [
-      'draft'     => ['bg' => 'BDBDBD', 'text' => '212121'],
-      'sent'      => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
-      'accepted'  => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
-      'rejected'  => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
-      'cancelled' => ['bg' => 'FFE0B2', 'text' => 'E65100'],
+    'status_label' => [
+      'BORRADOR'  => ['bg' => 'BDBDBD', 'text' => '212121'],
+      'ENVIADO'   => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
+      'ACEPTADO'  => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
+      'RECHAZADO' => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
+      'CANCELADO' => ['bg' => 'FFE0B2', 'text' => 'E65100'],
     ],
     'migration_status' => [
       'pending'   => ['bg' => 'FFF9C4', 'text' => 'F57F17'],
