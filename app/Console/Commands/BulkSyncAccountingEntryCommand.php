@@ -29,7 +29,7 @@ class BulkSyncAccountingEntryCommand extends Command
       ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_VENTA)
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('status_dynamic', 1)
-      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::AP_DYNAMICS))
+      ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::COMPANY_AP_ID))
       ->orderBy('id')
       ->get();
 
@@ -97,15 +97,17 @@ class BulkSyncAccountingEntryCommand extends Command
 
     // Eliminar de tablas intermedias Dynamics
     if (!empty($externalIds)) {
-      // Obtener Asiento numbers para borrar el detalle también
+      // Obtener Asiento numbers para borrar el detalle también (solo GPAUP)
       $asientoNumbers = DB::connection('dbtp')
         ->table('neInTbIntegracionAsientoCab')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
         ->whereIn('Referencia', $externalIds)
         ->pluck('Asiento')
         ->toArray();
 
       DB::connection('dbtp')
         ->table('neInTbIntegracionAsientoCab')
+        ->where('EmpresaId', Company::AP_DYNAMICS)
         ->whereIn('Referencia', $externalIds)
         ->delete();
 

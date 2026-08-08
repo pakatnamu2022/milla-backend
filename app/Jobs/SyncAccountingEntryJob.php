@@ -125,6 +125,7 @@ class SyncAccountingEntryJob implements ShouldQueue
       // 7. Guardia anti-duplicado: si ya existe registro en la intermedia, no re-insertar
       $alreadyExists = DB::connection('dbtp')
         ->table('neInTbIntegracionAsientoCab')
+        ->where('EmpresaId', \App\Models\gp\gestionsistema\Company::AP_DYNAMICS)
         ->where('Referencia', $referencia)
         ->exists();
 
