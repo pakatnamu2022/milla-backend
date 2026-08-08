@@ -41,7 +41,7 @@ class PartsReportService
         'workOrder.items.typePlanning',
         'workOrder.plannings.worker',
         'workOrder.labours',
-        'workOrder.parts.product',
+        'workOrder.parts.product.category',
         'workOrder.typeCurrency',
         'workOrder.exchangeRate',
         'workOrder.internalNotes',
@@ -54,7 +54,7 @@ class PartsReportService
         'internalNotes.workOrder.items.typePlanning',
         'internalNotes.workOrder.plannings.worker',
         'internalNotes.workOrder.labours',
-        'internalNotes.workOrder.parts.product',
+        'internalNotes.workOrder.parts.product.category',
         'internalNotes.workOrder.typeCurrency',
         'internalNotes.workOrder.exchangeRate',
         'internalNotes.workOrder.internalNotes',
@@ -120,7 +120,7 @@ class PartsReportService
         'items.typePlanning',
         'plannings.worker',
         'labours',
-        'parts.product',
+        'parts.product.category',
         'typeCurrency',
         'exchangeRate',
         'internalNotes'
@@ -240,10 +240,12 @@ class PartsReportService
     }
 
     return [
+      'sede' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
       'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'categoria' => $part->product?->category?->description ?? '',
       'codigo_repuesto' => $part->product?->code ?? '',
       'nombre_repuesto' => $part->product?->name ?? '',
       'cantidad' => number_format((float)$part->quantity_used * $multiplier, 2, '.', ''),

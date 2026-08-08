@@ -43,10 +43,12 @@ class PartsReportExport implements
     $currency = $this->amountsInSoles ? 'S/' : '$';
 
     return [
+      'SEDE',
       'NÚMERO DE OT',
       'FECHA DE APERTURA OT',
       'FECHA DE CIERRE OT',
       'TIPO DE SERVICIO',
+      'CATEGORÍA',
       'COD REPUESTO',
       'NOMBRE REPUESTO',
       'CANTIDAD',
@@ -64,10 +66,12 @@ class PartsReportExport implements
   public function map($row): array
   {
     return [
+      $row['sede'],
       $row['numero_ot'],
       $row['fecha_apertura_ot'],
       $row['fecha_cierre_ot'],
       $row['tipo_servicio'],
+      $row['categoria'],
       $row['codigo_repuesto'],
       $row['nombre_repuesto'],
       $row['cantidad'],
@@ -108,33 +112,33 @@ class PartsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-O, 15 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:O1');
+        // Habilitar filtros en la fila de encabezado (columnas A-Q, 17 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:Q1');
 
         // Aplicar formato de número a las columnas de moneda
         $sheet = $event->sheet->getDelegate();
         $highestRow = $sheet->getHighestRow();
 
-        // Formato de número para las columnas H (PVP), J (NETO), K (COSTO), L (BENEFICIO)
-        $currencyColumns = ['H', 'J', 'K', 'L'];
+        // Formato de número para las columnas J (PVP), L (NETO), M (COSTO), N (BENEFICIO)
+        $currencyColumns = ['J', 'L', 'M', 'N'];
         foreach ($currencyColumns as $column) {
           $sheet->getStyle($column . '2:' . $column . $highestRow)
             ->getNumberFormat()
             ->setFormatCode('#,##0.00');
         }
 
-        // Formato de número para CANTIDAD (columna G)
-        $sheet->getStyle('G2:G' . $highestRow)
+        // Formato de número para CANTIDAD (columna I)
+        $sheet->getStyle('I2:I' . $highestRow)
           ->getNumberFormat()
           ->setFormatCode('#,##0.00');
 
-        // Formato de porcentaje para DESC (columna I)
-        $sheet->getStyle('I2:I' . $highestRow)
+        // Formato de porcentaje para DESC (columna K)
+        $sheet->getStyle('K2:K' . $highestRow)
           ->getNumberFormat()
           ->setFormatCode('0.00');
 
         // Alineación central para todas las columnas
-        $sheet->getStyle('A2:O' . $highestRow)
+        $sheet->getStyle('A2:Q' . $highestRow)
           ->getAlignment()
           ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
@@ -168,14 +172,14 @@ class PartsReportExport implements
           ],
         ];
 
-        // Aplicar estilos condicionales a la columna Estado SUNAT (columna O)
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna Q)
         for ($row = 2; $row <= $highestRow; $row++) {
-          $cellValue = $sheet->getCell('O' . $row)->getValue();
+          $cellValue = $sheet->getCell('Q' . $row)->getValue();
 
           if ($cellValue === 'SI') {
-            $sheet->getStyle('O' . $row)->applyFromArray($styleGreen);
+            $sheet->getStyle('Q' . $row)->applyFromArray($styleGreen);
           } elseif ($cellValue === 'NO') {
-            $sheet->getStyle('O' . $row)->applyFromArray($styleRed);
+            $sheet->getStyle('Q' . $row)->applyFromArray($styleRed);
           }
         }
 
