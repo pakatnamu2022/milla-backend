@@ -40,7 +40,12 @@
       "Bash(npm install *)",
       "Bash(npm config *)",
       "Bash(\"C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.30-nts-Win32-vs16-x64\\\\php.exe\" inspect.php \"C:\\\\Users\\\\Hector\\\\Desktop\\\\Planillas\\\\ESTRUCTURA PLANILLA TP SAC.xlsx\" 30)",
-      "Bash('C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.30-nts-Win32-vs16-x64\\\\php.exe' -r ' *)"
+      "Bash('C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.30-nts-Win32-vs16-x64\\\\php.exe' -r ' *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)"
     ],
     "deny": [],
     "ask": []
