@@ -101,36 +101,42 @@ class SyncAccountingEntryJob implements ShouldQueue
         return;
       }
 
-      // 5. Crear/recuperar logs de migración
+      // 5. Construir Referencia (formato corto: sin ceros + VIN, máx 30 chars)
+      $referencia = AccountingEntryHeaderDynamicsResource::buildReferencia(
+        $electronicDocument->full_number,
+        $shippingGuide->vehicleMovement->vehicle->vin
+      );
+
+      // 6. Crear/recuperar logs de migración
       $headerLog = $this->getOrCreateLog(
         $shippingGuide->id,
         VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
         'neInTbIntegracionAsientoCab',
-        $electronicDocument->full_number
+        $referencia
       );
 
       $detailLog = $this->getOrCreateLog(
         $shippingGuide->id,
         VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
         'neInTbIntegracionAsientoDet',
-        $electronicDocument->full_number
+        $referencia
       );
 
-      // 6. Guardia anti-duplicado: si ya existe registro en la intermedia, no re-insertar
+      // 7. Guardia anti-duplicado: si ya existe registro en la intermedia, no re-insertar
       $alreadyExists = DB::connection('dbtp')
         ->table('neInTbIntegracionAsientoCab')
-        ->where('Referencia', $electronicDocument->full_number)
+        ->where('Referencia', $referencia)
         ->exists();
 
       if ($alreadyExists) {
         Log::info('SyncAccountingEntryJob: registro ya existe en intermedia, se omite re-inserción', [
           'shipping_guide_id' => $shippingGuide->id,
-          'referencia' => $electronicDocument->full_number,
+          'referencia' => $referencia,
         ]);
         return;
       }
 
-      // 7. Generar número de asiento
+      // 8. Generar número de asiento
       $asientoNumber = $accountingService->getNextAsientoNumber();
 
       Log::info('Número de asiento generado', [

@@ -1454,6 +1454,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Vehicles Delivery - Export
       Route::get('vehiclesDelivery/export', [ApVehicleDeliveryController::class, 'export']);
 
+      // Vehicles Delivery - Reporte CSV asientos contables por VIN
+      Route::get('vehiclesDelivery/accounting-entry-report', [ApVehicleDeliveryController::class, 'accountingEntryReport']);
+
       // Vehicles Delivery - Stock Inicial
       Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
       Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
@@ -1887,6 +1890,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Report
       Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
+      Route::get('electronic-documents/export/params', [ElectronicDocumentController::class, 'exportParams']);
+      Route::get('electronic-documents/export', [ElectronicDocumentController::class, 'export']);
 
       // Consolidated invoice from work orders
       Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);

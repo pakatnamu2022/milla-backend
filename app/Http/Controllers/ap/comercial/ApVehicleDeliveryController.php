@@ -11,9 +11,12 @@ use App\Http\Requests\ap\comercial\UpdateApVehicleDeliveryRequest;
 use App\Http\Services\ap\comercial\ApVehicleDeliveryService;
 use App\Jobs\SyncAccountingEntryJob;
 use App\Models\ap\comercial\ApVehicleDelivery;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApVehicleDeliveryController extends Controller
 {
@@ -295,5 +298,56 @@ class ApVehicleDeliveryController extends Controller
     } catch (\Throwable $th) {
       return response()->json(['success' => false, 'message' => $th->getMessage()], 400);
     }
+  }
+
+  /**
+   * Exporta CSV con VINs entregados y estado de asiento contable
+   */
+  public function accountingEntryReport(): StreamedResponse
+  {
+    $guides = ShippingGuides::with([
+      'vehicleMovement.vehicle',
+      'migrationLogs' => fn($q) => $q->where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER),
+    ])
+      ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_VENTA)
+      ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
+      ->where('status_dynamic', 1)
+      ->orderBy('issue_date')
+      ->get();
+
+    $filename = 'asientos_contables_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+    return response()->streamDownload(function () use ($guides) {
+      $handle = fopen('php://output', 'w');
+
+      fputcsv($handle, ['ID Guía', 'Número Guía', 'Fecha', 'VIN', 'Estado Asiento', 'Estado GP', 'Referencia']);
+
+      foreach ($guides as $guide) {
+        $vin       = $guide->vehicleMovement?->vehicle?->vin ?? '';
+        $headerLog = $guide->migrationLogs->first();
+
+        $accountingStatus = 'NO ENVIADO';
+        $procesoEstado    = '';
+
+        if ($headerLog) {
+          $accountingStatus = strtoupper($headerLog->status);
+          $procesoEstado    = $headerLog->proceso_estado === 1 ? 'Procesado GP' : 'Pendiente GP';
+        }
+
+        fputcsv($handle, [
+          $guide->id,
+          $guide->document_number,
+          $guide->issue_date?->format('Y-m-d') ?? '',
+          $vin,
+          $accountingStatus,
+          $procesoEstado,
+          $headerLog?->external_id ?? '',
+        ]);
+      }
+
+      fclose($handle);
+    }, $filename, [
+      'Content-Type' => 'text/csv; charset=UTF-8',
+    ]);
   }
 }

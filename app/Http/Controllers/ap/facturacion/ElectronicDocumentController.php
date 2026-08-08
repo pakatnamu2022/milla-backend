@@ -685,4 +685,22 @@ class ElectronicDocumentController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function exportParams(): JsonResponse
+  {
+    try {
+      return $this->success($this->service->exportParams());
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }
