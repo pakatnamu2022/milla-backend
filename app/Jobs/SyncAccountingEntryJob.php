@@ -11,6 +11,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -137,22 +138,30 @@ class SyncAccountingEntryJob implements ShouldQueue
         return;
       }
 
-      // 8. Generar número de asiento
-      $asientoNumber = $accountingService->getNextAsientoNumber();
+      // 8. Generar número de asiento e insertar header bajo lock distribuido
+      // El lock serializa la operación get-number+insert para evitar colisión de PK.
+      $asientoNumber = null;
+      $lock = Cache::lock('sync_accounting_entry_asiento', 30);
+      try {
+        $lock->block(20);
 
-      Log::info('Número de asiento generado', [
-        'shipping_guide_id' => $shippingGuide->id,
-        'asiento_number' => $asientoNumber
-      ]);
+        $asientoNumber = $accountingService->getNextAsientoNumber();
 
-      // 8. Sincronizar cabecera
-      $headerLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
+        Log::info('Número de asiento generado', [
+          'shipping_guide_id' => $shippingGuide->id,
+          'asiento_number' => $asientoNumber
+        ]);
 
-      $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
-      $headerData = $headerResource->toArray(request());
+        $headerLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
 
-      $syncService->sync('accounting_entry_header', $headerData, 'create');
-      $headerLog->update(['proceso_estado' => 0]);
+        $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
+        $headerData = $headerResource->toArray(request());
+
+        $syncService->sync('accounting_entry_header', $headerData, 'create');
+        $headerLog->update(['proceso_estado' => 0]);
+      } finally {
+        $lock->forceRelease();
+      }
 
       Log::info('Cabecera de asiento sincronizada', [
         'shipping_guide_id' => $shippingGuide->id,
