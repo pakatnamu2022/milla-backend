@@ -116,6 +116,14 @@ class ApInternalNoteService extends BaseService
       ], 404);
     }
 
+    // Validar que la nota no esté en estado skipped
+    if ($internalNote->migration_status === 'skipped') {
+      return response()->json([
+        'success' => false,
+        'message' => 'La nota interna fue omitida porque no tiene repuestos cargados',
+      ], 400);
+    }
+
     // Consultar ajustes de inventario en Dynamics
     $dynamicsAdjustments = $this->consultAjustesInventario();
 
