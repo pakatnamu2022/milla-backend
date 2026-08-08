@@ -43,6 +43,7 @@ class ApInternalNote extends BaseModel
     'status' => '=',
     'created_date' => 'date_between',
     'closed_date' => 'date_between',
+    'workOrder.sede_id' => '='
   ];
 
   const array sorts = ['id', 'number', 'created_date', 'closed_date'];
