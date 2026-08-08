@@ -9,6 +9,7 @@ use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogServi
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -132,7 +133,7 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
   {
     // Buscar con withTrashed() porque las reversiones trabajan con notas soft-deleted
     $internalNote = ApInternalNote::withTrashed()
-      ->with(['workOrder.parts.product', 'workOrder.sede'])
+      ->with(['workOrder.parts.product', 'workOrder.sede', 'workOrder.items.typePlanning'])
       ->find($internalNoteId);
 
     if (!$internalNote) {
@@ -146,6 +147,17 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
     // Verificar que la orden de trabajo tenga repuestos cargados
     if (!$internalNote->workOrder->parts || $internalNote->workOrder->parts->isEmpty()) {
       $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_SKIPPED]);
+      return;
+    }
+
+    // Validar que sea tipo INTERNA_SC (las INTERNA_CC no generan movimientos de inventario)
+    $typeDocument = $internalNote->workOrder->items->first()?->typePlanning->type_document;
+    if ($typeDocument !== TypePlanningWorkOrder::INTERNA_SC) {
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_SKIPPED]);
+      Log::info('Nota interna omitida: No es tipo INTERNA_SC', [
+        'internal_note_id' => $internalNote->id,
+        'type_document' => $typeDocument,
+      ]);
       return;
     }
 
