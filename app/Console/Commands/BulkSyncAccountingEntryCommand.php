@@ -32,7 +32,7 @@ class BulkSyncAccountingEntryCommand extends Command
       ->get();
 
     $dryRun = $this->option('dry-run');
-    $reset  = $this->option('reset');
+    $reset = $this->option('reset');
 
     $this->info("Guías VENTA completadas en Dynamics: {$guides->count()}");
 
@@ -49,7 +49,7 @@ class BulkSyncAccountingEntryCommand extends Command
     }
 
     $dispatched = 0;
-    $skipped    = 0;
+    $skipped = 0;
 
     foreach ($guides as $guide) {
       $hasLog = $guide->migrationLogs->isNotEmpty();
