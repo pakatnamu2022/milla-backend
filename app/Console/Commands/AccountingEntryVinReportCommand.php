@@ -29,6 +29,7 @@ class AccountingEntryVinReportCommand extends Command
       ->where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
       ->where('status_dynamic', 1)
       ->whereHas('sedeTransmitter', fn($q) => $q->where('empresa_id', Company::COMPANY_AP_ID))
+      ->whereExists(fn($q) => $q->from('ap_vehicle_delivery')->whereColumn('ap_vehicle_delivery.shipping_guide_id', 'shipping_guides.id')->whereNull('ap_vehicle_delivery.deleted_at'))
       ->orderBy('issue_date')
       ->get();
 
