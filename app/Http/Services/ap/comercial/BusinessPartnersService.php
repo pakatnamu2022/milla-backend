@@ -306,18 +306,19 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       ->get();
 
     if ($opportunities->count() > 0) {
-      // Cerrar oportunidades sin seguimiento: última acción sin resultado y con más de 5 días
+      // Cerrar oportunidades sin seguimiento: última acción sin resultado y con más de 5 días,
+      // o sin ninguna acción y con más de 5 días desde su creación
       foreach ($opportunities as $opportunity) {
         $lastAction = $opportunity->actions()
           ->orderByDesc('datetime')
           ->first();
 
-        if (
-          $lastAction &&
-          $lastAction->result === false &&
-          $lastAction->datetime->diffInDays(now()) >= 5 &&
-          !$opportunity->purchaseRequestsQuote()->where('is_approved', 1)->exists()
-        ) {
+        $hasApprovedQuote = $opportunity->purchaseRequestsQuote()->where('is_approved', 1)->exists();
+
+        $sinAccionYVencida = !$lastAction && $opportunity->created_at->diffInDays(now()) >= 5;
+        $ultimaAccionSinResultado = $lastAction && $lastAction->result === false && $lastAction->datetime->diffInDays(now()) >= 5;
+
+        if (!$hasApprovedQuote && ($sinAccionYVencida || $ultimaAccionSinResultado)) {
           $opportunity->update(
             ['opportunity_status_id' => Opportunity::CLOSED_ID,
              'comment'               => 'Oportunidad cerrada automáticamente por falta de seguimiento después de 5 días']
