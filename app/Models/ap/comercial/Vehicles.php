@@ -325,6 +325,20 @@ class Vehicles extends BaseModel
     return (bool)($this->attributes['is_paid'] ?? false);
   }
 
+  public function getNotasCreditoReport(): ?string
+  {
+    $quote = $this->purchaseRequestQuote;
+    if (!$quote) return null;
+
+    $ncs = $quote->electronicDocuments
+      ->filter(fn($doc) => $doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO && !$doc->anulado)
+      ->pluck('full_number')
+      ->filter()
+      ->values();
+
+    return $ncs->isNotEmpty() ? $ncs->implode(', ') : null;
+  }
+
   public function getPurchasePriceAttribute(): float
   {
     $purchaseOrder = $this->purchaseOrder;
@@ -476,6 +490,10 @@ class Vehicles extends BaseModel
       'label'     => 'FECHA REGISTRO',
       'formatter' => 'date',
     ],
+    'notas_credito'                                                                    => [
+      'label'    => 'NC',
+      'accessor' => 'getNotasCreditoReport',
+    ],
   ];
 
   protected $reportRelations = [
@@ -492,5 +510,6 @@ class Vehicles extends BaseModel
     'shippingGuideReceiving',
     'purchaseOrder.supplierOrderType',
     'vehicleDelivery.advisor',
+    'purchaseRequestQuote.electronicDocuments',
   ];
 }
