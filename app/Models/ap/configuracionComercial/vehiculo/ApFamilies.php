@@ -20,9 +20,10 @@ class ApFamilies extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description'],
-    'brand_id' => '=',
-    'status' => '=',
+    'search'                  => ['code', 'description'],
+    'brand_id'                => '=',
+    'status'                  => '=',
+    'brand.type_operation_id' => '=',
   ];
 
   const sorts = [
