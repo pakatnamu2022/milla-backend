@@ -39,7 +39,7 @@ class TypePlanningWorkOrder extends Model
   const string INTERNA_SC = 'INTERNA_SC';
   const string INTERNA_CC = 'INTERNA_CC';
   const string PAYMENT_RECEIPTS = 'PAYMENT_RECEIPTS';
-  
+
   //CATEGORY TYPES
   const string ESTANDAR = 'ESTANDAR';
   const string INTERNA = 'INTERNA';
@@ -69,5 +69,15 @@ class TypePlanningWorkOrder extends Model
   public function setNotesAttribute($value)
   {
     $this->attributes['notes'] = strtoupper($value);
+  }
+
+  public function conceptObjectives()
+  {
+    return $this->belongsToMany(
+      ConceptObjectiveMasterPv::class,
+      'type_planning_concept_objective_master_pv',
+      'type_planning_work_order_id',
+      'concept_objective_master_pv_id'
+    )->withTimestamps();
   }
 }

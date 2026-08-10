@@ -1394,9 +1394,10 @@
 
         @if($workshopCoordinator && $workshopCoordinator->nombre_completo && $workshopCoordinatorSignature)
           <div class="coordinator-signature">
-            <img src="{{ $workshopCoordinatorSignature }}" alt="Firma Coordinador de Taller" class="coordinator-signature-img">
+            <img src="{{ $workshopCoordinatorSignature }}" alt="Firma {{ $isWorkshopCoordinator ? 'Coordinador de Taller' : 'Jefe de Taller' }}"
+                 class="coordinator-signature-img">
             <div class="coordinator-signature-name">{{ $workshopCoordinator->nombre_completo }}</div>
-            <div class="coordinator-signature-subtitle">(Visto Bueno de Técnico)</div>
+            <div class="coordinator-signature-subtitle">(Visto Bueno de {{ $isWorkshopCoordinator ? 'Técnico' : 'Jefe de Taller' }})</div>
           </div>
         @endif
       </div>
