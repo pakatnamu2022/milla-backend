@@ -40,6 +40,10 @@ class PurchaseRequestQuote extends Model
     'comment',
     'is_invoiced',
     'is_approved',
+    'credit_type',
+    'credit_entity',
+    'insurance_entity',
+    'gps_hunter_years',
     'warranty_years',
     'warranty_km',
     'opportunity_id',
@@ -393,6 +397,26 @@ class PurchaseRequestQuote extends Model
       'label'     => 'Aprobado',
       'formatter' => 'boolean',
       'width'     => 12,
+    ],
+    'credit_type'                        => [
+      'label'     => 'Tipo Crédito',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'credit_entity'                      => [
+      'label'     => 'Entidad Crédito',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'insurance_entity'                   => [
+      'label'     => 'Seguro Inchcape',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'gps_hunter_years'                   => [
+      'label'     => 'GPS Hunter (Años)',
+      'formatter' => null,
+      'width'     => 18,
     ],
     'is_invoiced'                        => [
       'label'     => 'Facturado',

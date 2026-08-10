@@ -46,7 +46,11 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
       'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
-      'type_currency_id' => ['required', 'exists:ap_masters,id'],
+      'type_currency_id'  => ['required', 'exists:ap_masters,id'],
+      'credit_type'       => ['nullable', 'string', 'in:CREDITO_INCHCAPE,FONDO_COLECTIVO,CAJAS,CREDITO_PROPIO,LEASING'],
+      'credit_entity'     => ['nullable', 'string', 'max:100'],
+      'insurance_entity'  => ['nullable', 'string', 'max:100'],
+      'gps_hunter_years'  => ['nullable', 'integer', 'min:1'],
 
       // Sede
       'sede_id' => ['required', 'exists:config_sede,id']
