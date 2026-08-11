@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Http\Resources\ap\comercial\PurchaseRequestQuoteDiscountResource;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DiscountCoupons;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use Exception;
@@ -18,7 +19,8 @@ class DiscountCouponsService
       throw new Exception('Cotización no encontrada.');
     }
 
-    $coupons = DiscountCoupons::where('purchase_request_quote_id', $quoteId)
+    $coupons = DiscountCoupons::with('conceptCode')
+      ->where('purchase_request_quote_id', $quoteId)
       ->whereNull('deleted_at')
       ->get();
 
@@ -55,14 +57,18 @@ class DiscountCouponsService
       $valorUnitario = $precioUnitario / 1.18;
     }
 
+    $newConceptId = $data['concept_id'] ?? $coupon->concept_code_id;
+    $concept      = ApMasters::find($newConceptId);
+    $isNegative   = $concept && is_null($concept->parent_id);
+
     $coupon->update([
-      'description'   => $data['description'] ?? $coupon->description,
-      'percentage'    => $percentage,
-      'amount'        => $amount,
-      'valor_unitario' => $valorUnitario,
+      'concept_code_id' => $newConceptId,
+      'percentage'      => $percentage,
+      'amount'          => $amount,
+      'valor_unitario'  => $valorUnitario,
       'precio_unitario' => $precioUnitario,
-      'is_negative'   => $data['is_negative'] ?? $coupon->is_negative,
-      'has_retention' => $hasRetention,
+      'is_negative'     => $isNegative,
+      'has_retention'   => $hasRetention,
     ]);
 
     // Recalcular margen de la cotización

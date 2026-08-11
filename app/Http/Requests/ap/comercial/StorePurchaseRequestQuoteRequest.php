@@ -34,10 +34,8 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       // Validaciones para bonus_discounts
       'bonus_discounts'                 => ['nullable', 'array'],
       'bonus_discounts.*.concept_id'    => ['required', 'exists:ap_masters,id'],
-      'bonus_discounts.*.description'   => ['required', 'string', 'max:255'],
       'bonus_discounts.*.type'          => ['required', 'string', 'in:FIJO,PORCENTAJE'],
       'bonus_discounts.*.value'         => ['required', 'numeric', 'min:0'],
-      'bonus_discounts.*.is_negative'   => ['nullable', 'boolean'],
       'bonus_discounts.*.has_retention' => ['nullable', 'boolean'],
 
       // Validaciones para accessories
@@ -78,10 +76,8 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'with_vin'                       => 'Con VIN',
       'bonus_discounts'                => 'Descuentos',
       'bonus_discounts.*.concept_id'   => 'Concepto',
-      'bonus_discounts.*.description'  => 'Descripción del Descuento',
       'bonus_discounts.*.type'         => 'Tipo de Descuento',
       'bonus_discounts.*.value'        => 'Valor del Descuento',
-      'bonus_discounts.*.is_negative'  => '¿Es un descuento negativo?',
       'accessories'                    => 'Accesorios',
       'accessories.*.accessory_id'     => 'Accesorio',
       'accessories.*.quantity'         => 'Cantidad del Accesorio',

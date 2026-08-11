@@ -11,7 +11,6 @@ class PurchaseRequestQuoteDiscountResource extends JsonResource
   {
     return [
       'id'              => $this->id,
-      'description'     => $this->description,
       'type'            => $this->type,
       'percentage'      => $this->percentage,
       'amount'          => $this->amount,
@@ -20,8 +19,9 @@ class PurchaseRequestQuoteDiscountResource extends JsonResource
       'precio_unitario' => $this->precio_unitario,
       'is_negative'     => $this->is_negative,
       'has_retention'   => $this->has_retention,
-      'concept_code_id' => $this->concept_code_id,
-      'concept_code'    => $this->conceptCode->description ?? null,
+      'concept_code_id'        => $this->concept_code_id,
+      'concept_code'           => $this->conceptCode->description ?? null,
+      'concept_code_parent_id' => $this->conceptCode->parent_id ?? null,
     ];
   }
 }
