@@ -236,8 +236,12 @@ class ApVehicleDelivery extends Model
       'label'    => 'TELÉFONO CLIENTE',
       'fallback' => 'client.phone',
     ],
+    'vehicle.purchaseRequestQuote.opportunity.worker.nombre_completo' => [
+      'label'    => 'ASESOR VENTA',
+      'fallback' => 'advisor.nombre_completo',
+    ],
     'advisor.nombre_completo'                                      => [
-      'label'     => 'ASESOR ENTREGA',
+      'label'     => 'PERSONAL DE ENTREGA',
       'formatter' => null,
     ],
     'date_scheduled_delivery_date'                                 => [
