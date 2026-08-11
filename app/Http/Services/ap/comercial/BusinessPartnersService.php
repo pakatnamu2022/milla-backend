@@ -367,6 +367,30 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       }
     }
 
+    // Caso 4: El cliente tiene RUC tipo 10 → el DNI embebido (posiciones 2-9) ya tiene solicitud sin facturar
+    // Ejemplo: RUC 10731442121 contiene el DNI 73144212
+    $numDoc = $businessPartner->num_doc ?? '';
+    $embeddedDni = (strlen($numDoc) === 11 && str_starts_with($numDoc, '10'))
+      ? substr($numDoc, 2, 8)
+      : null;
+    if ($embeddedDni) {
+      $dniPartner = BusinessPartners::where('num_doc', $embeddedDni)->first();
+      if ($dniPartner && $hasUnbilledQuote($dniPartner->id)) {
+        throw new Exception('El cliente comparte número de documento con otro cliente registrado con DNI (' . $embeddedDni . ') que ya tiene una solicitud activa sin facturar para esta marca.');
+      }
+    }
+
+    // Caso 5: El cliente tiene DNI → existe un RUC tipo 10 derivado que ya tiene solicitud sin facturar
+    // Ejemplo: DNI 73144212 está contenido en el RUC 10731442121
+    if (strlen($numDoc) === 8) {
+      $ruc10Partners = BusinessPartners::where('num_doc', 'like', '10' . $numDoc . '_')->get(['id', 'num_doc']);
+      foreach ($ruc10Partners as $ruc10Partner) {
+        if ($hasUnbilledQuote($ruc10Partner->id)) {
+          throw new Exception('El cliente comparte número de documento con otro cliente registrado con RUC tipo 10 (' . $ruc10Partner->num_doc . ') que ya tiene una solicitud activa sin facturar para esta marca.');
+        }
+      }
+    }
+
     // Verificar si el mismo cliente ya tiene una oportunidad abierta para esta marca
     $hasSameBrandOpenOpp = Opportunity::where('client_id', $businessPartner->id)
       ->whereIn('opportunity_status_id', $statusIds)
@@ -417,6 +441,36 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         $conflict = $partnersWithOpenOpps->where('spouse_num_doc', $businessPartner->num_doc)->first();
         if ($conflict) {
           throw new Exception('El cliente es cónyuge/copropietario de alguien que ya tiene una oportunidad activa para esta marca.');
+        }
+      }
+    }
+
+    // DNI/RUC10 cruzado (oportunidades): RUC tipo 10 → buscar DNI embebido con oportunidad activa
+    if ($embeddedDni) {
+      $dniPartnerIds = BusinessPartners::where('num_doc', $embeddedDni)->pluck('id');
+      if ($dniPartnerIds->isNotEmpty()) {
+        $conflict = Opportunity::whereIn('client_id', $dniPartnerIds)
+          ->whereIn('opportunity_status_id', $statusIds)
+          ->whereHas('family', fn($q) => $q->where('brand_id', $newBrandId))
+          ->exists();
+        if ($conflict) {
+          throw new Exception('El cliente comparte número de documento con otro cliente registrado con DNI (' . $embeddedDni . ') que ya tiene una oportunidad activa para esta marca.');
+        }
+      }
+    }
+
+    // DNI/RUC10 cruzado (oportunidades): DNI → buscar RUC tipo 10 derivado con oportunidad activa
+    if (strlen($numDoc) === 8) {
+      $ruc10Ids = BusinessPartners::where('num_doc', 'like', '10' . $numDoc . '_')->pluck('id');
+      if ($ruc10Ids->isNotEmpty()) {
+        $conflictingRuc = BusinessPartners::whereIn('id', $ruc10Ids)
+          ->whereIn('id', Opportunity::whereIn('opportunity_status_id', $statusIds)
+            ->whereHas('family', fn($q) => $q->where('brand_id', $newBrandId))
+            ->pluck('client_id')
+          )
+          ->value('num_doc');
+        if ($conflictingRuc) {
+          throw new Exception('El cliente comparte número de documento con otro cliente registrado con RUC tipo 10 (' . $conflictingRuc . ') que ya tiene una oportunidad activa para esta marca.');
         }
       }
     }

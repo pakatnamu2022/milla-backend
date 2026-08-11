@@ -14,7 +14,6 @@ class DiscountCoupons extends Model
   protected $table = 'discount_coupons';
 
   protected $fillable = [
-    'description',
     'type',
     'percentage',
     'amount',

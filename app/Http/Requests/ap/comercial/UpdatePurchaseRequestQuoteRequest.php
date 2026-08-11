@@ -32,11 +32,9 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
 
       // Validaciones para bonus_discounts
       'bonus_discounts' => ['nullable', 'array'],
-      'bonus_discounts.*.concept_id' => ['required', 'exists:ap_masters,id'],
-      'bonus_discounts.*.description' => ['required', 'string', 'max:255'],
-      'bonus_discounts.*.type' => ['required', 'string', 'in:FIJO,PORCENTAJE'],
-      'bonus_discounts.*.value' => ['required', 'numeric', 'min:0'],
-      'bonus_discounts.*.is_negative'   => ['nullable', 'boolean'],
+      'bonus_discounts.*.concept_id'    => ['required', 'exists:ap_masters,id'],
+      'bonus_discounts.*.type'          => ['required', 'string', 'in:FIJO,PORCENTAJE'],
+      'bonus_discounts.*.value'         => ['required', 'numeric', 'min:0'],
       'bonus_discounts.*.has_retention' => ['nullable', 'boolean'],
 
       // Validaciones para accessories
@@ -45,11 +43,11 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
       'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
-      'type_currency_id'  => ['sometimes', 'exists:ap_masters,id'],
-      'credit_type'       => ['nullable', 'string', 'in:CREDITO_INCHCAPE,FONDO_COLECTIVO,CAJAS,CREDITO_PROPIO,LEASING'],
-      'credit_entity'     => ['nullable', 'string', 'max:100'],
-      'insurance_entity'  => ['nullable', 'string', 'max:100'],
-      'gps_hunter_years'  => ['nullable', 'integer', 'min:1'],
+      'type_currency_id'    => ['sometimes', 'exists:ap_masters,id'],
+      'credit_type_id'      => ['nullable', 'exists:ap_masters,id'],
+      'credit_entity_id'    => ['nullable', 'exists:ap_masters,id'],
+      'insurance_entity_id' => ['nullable', 'exists:ap_masters,id'],
+      'gps_hunter_years'    => ['nullable', 'integer', 'min:1'],
 
       'sede_id' => ['sometimes', 'exists:config_sede,id']
     ];
@@ -97,16 +95,12 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       // Mensajes para bonus_discounts
       'bonus_discounts.array' => 'Los descuentos/bonos deben ser una lista.',
       'bonus_discounts.*.concept_id.required' => 'El concepto es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.concept_id.exists' => 'El concepto seleccionado no es válido.',
-      'bonus_discounts.*.description.required' => 'La descripción es obligatoria para cada descuento/bono.',
-      'bonus_discounts.*.description.string' => 'La descripción debe ser una cadena de texto.',
-      'bonus_discounts.*.description.max' => 'La descripción no debe exceder los 255 caracteres.',
-      'bonus_discounts.*.type.required' => 'El tipo es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.type.in' => 'El tipo debe ser FIJO o PORCENTAJE.',
-      'bonus_discounts.*.value.required' => 'El valor es obligatorio para cada descuento/bono.',
-      'bonus_discounts.*.value.numeric' => 'El valor debe ser un número.',
-      'bonus_discounts.*.value.min' => 'El valor debe ser mayor o igual a 0.',
-      'bonus_discounts.*.is_negative.boolean' => 'El campo es negativo debe ser verdadero o falso.',
+      'bonus_discounts.*.concept_id.exists'   => 'El concepto seleccionado no es válido.',
+      'bonus_discounts.*.type.required'       => 'El tipo es obligatorio para cada descuento/bono.',
+      'bonus_discounts.*.type.in'             => 'El tipo debe ser FIJO o PORCENTAJE.',
+      'bonus_discounts.*.value.required'      => 'El valor es obligatorio para cada descuento/bono.',
+      'bonus_discounts.*.value.numeric'       => 'El valor debe ser un número.',
+      'bonus_discounts.*.value.min'           => 'El valor debe ser mayor o igual a 0.',
 
       // Mensajes para accessories
       'accessories.array' => 'Los accesorios deben ser una lista.',
