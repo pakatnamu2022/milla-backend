@@ -57,11 +57,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
-    WorkOrderLabourService            $labourService,
-    DigitalFileService                $digitalFileService,
-    ExportService                     $exportService,
-    InventoryMovementService          $inventoryMovementService,
-    InternalNoteMigrationLogService   $internalNoteMigrationLogService
+    WorkOrderLabourService          $labourService,
+    DigitalFileService              $digitalFileService,
+    ExportService                   $exportService,
+    InventoryMovementService        $inventoryMovementService,
+    InternalNoteMigrationLogService $internalNoteMigrationLogService
   )
   {
     $this->labourService = $labourService;
@@ -882,10 +882,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->first();
 
     $workshopCoordinatorSignature = null;
+    $isWorkshopCoordinator = false;
     if ($workshopCoordinator) {
       $coordinatorSignature = WorkerSignature::where('worker_id', $workshopCoordinator->id)->first();
       if ($coordinatorSignature && $coordinatorSignature->signature_url) {
         $workshopCoordinatorSignature = Helpers::convertUrlToBase64($coordinatorSignature->signature_url);
+        $isWorkshopCoordinator = true;
+      }
+    } else {
+      $workJefeTaller = Worker::where('sede_id', $workOrder->sede_id)
+        ->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
+        ->where('status_id', 22)
+        ->first();
+
+      if ($workJefeTaller) {
+        $workshopCoordinator = $workJefeTaller;
+        $jefeTallerSignature = WorkerSignature::where('worker_id', $workJefeTaller->id)->first();
+        if ($jefeTallerSignature && $jefeTallerSignature->signature_url) {
+          $workshopCoordinatorSignature = Helpers::convertUrlToBase64($jefeTallerSignature->signature_url);
+        }
       }
     }
 
@@ -953,6 +968,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'advisorSignature' => $advisorSignature,
       'workshopCoordinator' => $workshopCoordinator,
       'workshopCoordinatorSignature' => $workshopCoordinatorSignature,
+      'isWorkshopCoordinator' => $isWorkshopCoordinator,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
       'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,

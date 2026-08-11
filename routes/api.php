@@ -70,6 +70,9 @@ use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
+use App\Http\Controllers\ap\postventa\taller\ConceptObjectiveMasterPvController;
+use App\Http\Controllers\ap\postventa\taller\ConceptObjectivePeriodPvController;
+use App\Http\Controllers\ap\postventa\taller\ObjectiveSedePeriodPvController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
@@ -1618,6 +1621,26 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+
+      // Concept Objective Master PV - Conceptos Objetivos Master PV
+      Route::get('conceptObjectiveMasterPv', [ConceptObjectiveMasterPvController::class, 'index']);
+      Route::post('conceptObjectiveMasterPv/updateOrCreate', [ConceptObjectiveMasterPvController::class, 'updateOrCreate']);
+      Route::delete('conceptObjectiveMasterPv/{id}', [ConceptObjectiveMasterPvController::class, 'destroy']);
+
+      // Objective Sede Period PV - Objetivos por Sede y Período PV
+      Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
+      Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+      Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
+      Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
+      Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
+
+      // Concept Objective Period PV - Conceptos Objetivos por Período PV
+      Route::get('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'index']);
+      Route::post('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'store']);
+      Route::get('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'show']);
+      Route::put('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'update']);
+      Route::delete('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'destroy']);
 
       // Work Orders - Órdenes de Trabajo
       Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);

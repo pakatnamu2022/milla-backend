@@ -4,8 +4,6 @@ namespace App\Exports\ap\postventa\taller;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -17,28 +15,29 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class WorkedHoursSummarySheet implements
   FromCollection,
-  WithHeadings,
-  WithMapping,
   WithStyles,
   ShouldAutoSize,
   WithTitle,
   WithEvents
 {
-  protected Collection $data;
+  protected Collection $workedData;
+  protected Collection $billedData;
 
-  public function __construct(Collection $data)
+  public function __construct(Collection $workedData, Collection $billedData)
   {
-    $this->data = $data;
+    $this->workedData = $workedData;
+    $this->billedData = $billedData;
   }
 
   public function collection()
   {
-    return $this->data;
-  }
+    $rows = collect();
 
-  public function headings(): array
-  {
-    return [
+    // Subtítulo: Horas Trabajadas
+    $rows->push(['HORAS TRABAJADAS', '', '', '', '', '', '']);
+
+    // Encabezados para Horas Trabajadas
+    $rows->push([
       'SEDE',
       'DNI TÉCNICO',
       'NOMBRE TÉCNICO',
@@ -46,42 +45,57 @@ class WorkedHoursSummarySheet implements
       'HORAS ESTÁNDAR',
       'HORAS GARANTÍA/RECALL',
       'TOTAL HORAS',
-    ];
-  }
+    ]);
 
-  public function map($row): array
-  {
-    return [
-      $row['sede'],
-      $row['dni_tecnico'],
-      $row['nombre_tecnico'],
-      $row['horas_interna'],
-      $row['horas_estandar'],
-      $row['horas_garantia_recall'],
-      $row['total_horas'],
-    ];
+    // Datos de Horas Trabajadas
+    foreach ($this->workedData as $row) {
+      $rows->push([
+        $row['sede'],
+        $row['dni_tecnico'],
+        $row['nombre_tecnico'],
+        $row['horas_interna'],
+        $row['horas_estandar'],
+        $row['horas_garantia_recall'],
+        $row['total_horas'],
+      ]);
+    }
+
+    // Fila vacía de separación
+    $rows->push(['', '', '', '', '', '', '']);
+
+    // Subtítulo: Horas Facturadas
+    $rows->push(['HORAS FACTURADAS', '', '', '', '', '', '']);
+
+    // Encabezados para Horas Facturadas
+    $rows->push([
+      'SEDE',
+      'DNI TÉCNICO',
+      'NOMBRE TÉCNICO',
+      'HORAS INTERNA',
+      'HORAS ESTÁNDAR',
+      'HORAS GARANTÍA/RECALL',
+      'TOTAL HORAS',
+    ]);
+
+    // Datos de Horas Facturadas
+    foreach ($this->billedData as $row) {
+      $rows->push([
+        $row['sede'],
+        $row['dni_tecnico'],
+        $row['nombre_tecnico'],
+        $row['horas_interna'],
+        $row['horas_estandar'],
+        $row['horas_garantia_recall'],
+        $row['total_horas'],
+      ]);
+    }
+
+    return $rows;
   }
 
   public function styles(Worksheet $sheet)
   {
-    return [
-      // Estilo del encabezado
-      1 => [
-        'font' => [
-          'bold' => true,
-          'color' => ['rgb' => 'FFFFFF'],
-          'size' => 11,
-        ],
-        'fill' => [
-          'fillType' => Fill::FILL_SOLID,
-          'startColor' => ['rgb' => '4472C4'],
-        ],
-        'alignment' => [
-          'horizontal' => Alignment::HORIZONTAL_CENTER,
-          'vertical' => Alignment::VERTICAL_CENTER,
-        ],
-      ],
-    ];
+    return [];
   }
 
   public function registerEvents(): array
@@ -89,36 +103,101 @@ class WorkedHoursSummarySheet implements
     return [
       AfterSheet::class => function (AfterSheet $event) {
         $sheet = $event->sheet->getDelegate();
-        $highestRow = $sheet->getHighestRow();
 
-        // Habilitar filtros en la fila de encabezado
-        $sheet->setAutoFilter('A1:G1');
+        // Calcular posiciones de filas
+        $workedSubtitleRow = 1;
+        $workedHeaderRow = 2;
+        $workedDataStartRow = 3;
+        $workedDataEndRow = 2 + $this->workedData->count();
+        $workedTotalRow = $workedDataEndRow;
 
-        // Aplicar estilo de negrita y color gris a la fila de totales (última fila)
-        if ($highestRow > 1) {
-          $totalRowStyle = [
-            'font' => [
-              'bold' => true,
-              'size' => 11,
-            ],
-            'fill' => [
-              'fillType' => Fill::FILL_SOLID,
-              'startColor' => ['rgb' => 'D3D3D3'],
-            ],
-            'alignment' => [
-              'horizontal' => Alignment::HORIZONTAL_RIGHT,
-            ],
-          ];
+        $emptyRow = $workedDataEndRow + 1;
 
-          $sheet->getStyle('A' . $highestRow . ':G' . $highestRow)->applyFromArray($totalRowStyle);
-        }
+        $billedSubtitleRow = $emptyRow + 1;
+        $billedHeaderRow = $billedSubtitleRow + 1;
+        $billedDataStartRow = $billedHeaderRow + 1;
+        $billedDataEndRow = $billedHeaderRow + $this->billedData->count();
+        $billedTotalRow = $billedDataEndRow;
 
-        // Aplicar formato numérico a las columnas de horas (D, E, F, G)
-        if ($highestRow > 1) {
-          $sheet->getStyle('D2:G' . $highestRow)
-            ->getNumberFormat()
-            ->setFormatCode('0.00');
-        }
+        // Estilo para subtítulos
+        $subtitleStyle = [
+          'font' => [
+            'bold' => true,
+            'size' => 14,
+            'color' => ['rgb' => 'FFFFFF'],
+          ],
+          'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '2F5496'],
+          ],
+          'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_LEFT,
+            'vertical' => Alignment::VERTICAL_CENTER,
+          ],
+        ];
+
+        // Estilo para encabezados
+        $headerStyle = [
+          'font' => [
+            'bold' => true,
+            'color' => ['rgb' => 'FFFFFF'],
+            'size' => 11,
+          ],
+          'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '4472C4'],
+          ],
+          'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER,
+            'vertical' => Alignment::VERTICAL_CENTER,
+          ],
+        ];
+
+        // Estilo para filas de totales
+        $totalRowStyle = [
+          'font' => [
+            'bold' => true,
+            'size' => 11,
+          ],
+          'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'D3D3D3'],
+          ],
+          'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_RIGHT,
+          ],
+        ];
+
+        // Aplicar estilos - Subtítulo Horas Trabajadas
+        $sheet->getStyle('A' . $workedSubtitleRow . ':G' . $workedSubtitleRow)->applyFromArray($subtitleStyle);
+        $sheet->mergeCells('A' . $workedSubtitleRow . ':G' . $workedSubtitleRow);
+
+        // Aplicar estilos - Encabezado Horas Trabajadas
+        $sheet->getStyle('A' . $workedHeaderRow . ':G' . $workedHeaderRow)->applyFromArray($headerStyle);
+        $sheet->setAutoFilter('A' . $workedHeaderRow . ':G' . $workedHeaderRow);
+
+        // Aplicar estilos - Fila de totales Horas Trabajadas
+        $sheet->getStyle('A' . $workedTotalRow . ':G' . $workedTotalRow)->applyFromArray($totalRowStyle);
+
+        // Aplicar estilos - Subtítulo Horas Facturadas
+        $sheet->getStyle('A' . $billedSubtitleRow . ':G' . $billedSubtitleRow)->applyFromArray($subtitleStyle);
+        $sheet->mergeCells('A' . $billedSubtitleRow . ':G' . $billedSubtitleRow);
+
+        // Aplicar estilos - Encabezado Horas Facturadas
+        $sheet->getStyle('A' . $billedHeaderRow . ':G' . $billedHeaderRow)->applyFromArray($headerStyle);
+        $sheet->setAutoFilter('A' . $billedHeaderRow . ':G' . $billedHeaderRow);
+
+        // Aplicar estilos - Fila de totales Horas Facturadas
+        $sheet->getStyle('A' . $billedTotalRow . ':G' . $billedTotalRow)->applyFromArray($totalRowStyle);
+
+        // Aplicar formato numérico a las columnas de horas (D, E, F, G) para ambas tablas
+        $sheet->getStyle('D' . $workedDataStartRow . ':G' . $workedDataEndRow)
+          ->getNumberFormat()
+          ->setFormatCode('0.00');
+
+        $sheet->getStyle('D' . $billedDataStartRow . ':G' . $billedDataEndRow)
+          ->getNumberFormat()
+          ->setFormatCode('0.00');
 
         $sheet->setSelectedCells('A1');
       },
