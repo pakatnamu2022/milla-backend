@@ -28,7 +28,6 @@ class UpdateObjectiveSedePeriodPvRequest extends FormRequest
       ],
       'year' => 'required|integer|min:2000|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'amount' => 'required|numeric|min:0',
     ];
   }
 
@@ -49,10 +48,6 @@ class UpdateObjectiveSedePeriodPvRequest extends FormRequest
       'month.integer' => 'El mes debe ser un número entero.',
       'month.min' => 'El mes debe estar entre 1 y 12.',
       'month.max' => 'El mes debe estar entre 1 y 12.',
-
-      'amount.required' => 'El campo monto es obligatorio.',
-      'amount.numeric' => 'El monto debe ser un valor numérico.',
-      'amount.min' => 'El monto debe ser mayor o igual a 0.',
     ];
   }
 }

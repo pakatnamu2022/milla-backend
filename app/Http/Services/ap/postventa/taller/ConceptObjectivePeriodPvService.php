@@ -100,6 +100,10 @@ class ConceptObjectivePeriodPvService extends BaseService implements BaseService
 
       $conceptObjective->update($data);
 
+      if (!empty($advisors) && $data['is_vehicular_crossing'] == 1) {
+        throw new Exception('No se pueden asignar asesores a un concepto objetivo de cruce vehicular.');
+      }
+
       // Sync type plannings
       $conceptObjective->typePlannings()->sync($typePlanningIds);
 
@@ -192,6 +196,7 @@ class ConceptObjectivePeriodPvService extends BaseService implements BaseService
   {
     $totalAmount = ConceptObjectivePeriodPv::where('objective_sede_period_pv_id', $objectiveSedePeriodId)
       ->where('status', true)
+      ->where('is_vehicular_crossing', 0)
       ->sum('sub_amount');
 
     $objectiveSedePeriod = ObjectiveSedePeriodPv::find($objectiveSedePeriodId);

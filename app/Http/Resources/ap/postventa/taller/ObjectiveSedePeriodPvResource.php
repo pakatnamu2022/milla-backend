@@ -21,7 +21,9 @@ class ObjectiveSedePeriodPvResource extends JsonResource
       'year' => $this->year,
       'month' => $this->month,
       'amount' => $this->amount,
-      'concept_objectives' => ConceptObjectivePeriodPvResource::collection($this->whenLoaded('conceptObjectives')),
+      'concept_objectives' => ConceptObjectivePeriodPvResource::collection(
+        $this->whenLoaded('conceptObjectives') ? $this->conceptObjectives->sortBy('order')->values() : []
+      ),
       'created_at' => $this->created_at,
       'updated_at' => $this->updated_at,
     ];
