@@ -59,6 +59,7 @@ use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
 use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
@@ -1696,6 +1697,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
+
+      // Objectives Dashboard - Dashboard de Objetivos Postventa
+      Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
+      Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
 
       // Reports - Reportes de Mesón
       Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);

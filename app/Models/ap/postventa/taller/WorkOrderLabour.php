@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,6 +26,7 @@ class WorkOrderLabour extends Model
     'worker_id',
     'work_order_id',
     'is_deductible',
+    'registered_by'
   ];
 
   const filters = [
@@ -41,6 +43,7 @@ class WorkOrderLabour extends Model
     'total_cost',
     'net_amount',
     'worker_id',
+    'registered_by',
     'created_at',
   ];
 
@@ -106,5 +109,10 @@ class WorkOrderLabour extends Model
   public function workOrder(): BelongsTo
   {
     return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
+  }
+
+  public function registeredBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'registered_by');
   }
 }

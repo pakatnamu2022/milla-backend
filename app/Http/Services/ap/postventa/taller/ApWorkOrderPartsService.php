@@ -205,6 +205,12 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
         throw new Exception('No se puede agregar repuestos a una orden de trabajo sin recepción de vehículo');
       }
 
+      // Validar que no se permitan repuestos de travesía en órdenes internas
+      $isTraverse = $data['is_traverse'] ?? false;
+      if ($isTraverse && $workOrder->isInternaSC()) {
+        throw new Exception('No se permiten repuestos de travesía en órdenes de trabajo de tipo interno (INTERNA_SC)');
+      }
+
       // Validar que no exista el mismo producto en la orden de trabajo
       $existingPart = ApWorkOrderParts::where('work_order_id', $data['work_order_id'])
         ->where('product_id', $data['product_id'])
@@ -338,6 +344,11 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
       $newWarehouseId = $data['warehouse_id'] ?? $oldWarehouseId;
       $newQuantity = $data['quantity_used'] ?? $oldQuantity;
       $newIsTraverse = $data['is_traverse'] ?? $oldIsTraverse;
+
+      // Validar que no se permitan repuestos de travesía en órdenes internas
+      if ($newIsTraverse && $workOrder->isInternaSC()) {
+        throw new Exception('No se permiten repuestos de travesía en órdenes de trabajo de tipo interno (INTERNA_SC)');
+      }
 
       // Validar decimales si cambió la cantidad o el producto
       if (isset($data['quantity_used']) || isset($data['product_id'])) {
