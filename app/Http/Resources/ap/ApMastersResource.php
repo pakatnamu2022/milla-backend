@@ -10,11 +10,12 @@ class ApMastersResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'id' => $this->id,
-      'code' => $this->code,
+      'id'          => $this->id,
+      'code'        => $this->code,
       'description' => $this->description,
-      'type' => $this->type,
-      'status' => $this->status,
+      'type'        => $this->type,
+      'parent_id'   => $this->parent_id,
+      'status'      => $this->status,
     ];
   }
 }
