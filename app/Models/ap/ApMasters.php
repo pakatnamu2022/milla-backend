@@ -20,13 +20,15 @@ class ApMasters extends BaseModel
     'code',
     'description',
     'type',
+    'parent_id',
     'status',
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'type'],
-    'type' => 'in_or_equal',
-    'status' => '=',
+    'search'                 => ['code', 'description', 'type'],
+    'type'                   => 'in_or_equal',
+    'parent_id'              => '=',
+    'status'                 => '=',
     'open_opportunity_status' => 'accessor_bool',
   ];
 
@@ -125,6 +127,16 @@ class ApMasters extends BaseModel
     self::AREA_TALLER,
     self::AREA_MESON,
   ];
+
+  public function parent()
+  {
+    return $this->belongsTo(ApMasters::class, 'parent_id');
+  }
+
+  public function children()
+  {
+    return $this->hasMany(ApMasters::class, 'parent_id');
+  }
 
   public function setCodeAttribute($value)
   {

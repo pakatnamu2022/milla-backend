@@ -13,8 +13,6 @@ use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use App\Models\ap\comercial\CustomerKycDeclaration;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -40,6 +38,10 @@ class PurchaseRequestQuote extends Model
     'comment',
     'is_invoiced',
     'is_approved',
+    'credit_type_id',
+    'credit_entity_id',
+    'insurance_entity_id',
+    'gps_hunter_years',
     'warranty_years',
     'warranty_km',
     'opportunity_id',
@@ -168,6 +170,21 @@ class PurchaseRequestQuote extends Model
   public function accessories(): HasMany
   {
     return $this->hasMany(DetailsApprovedAccessoriesQuote::class, 'purchase_request_quote_id');
+  }
+
+  public function creditType(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'credit_type_id');
+  }
+
+  public function creditEntity(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'credit_entity_id');
+  }
+
+  public function insuranceEntity(): BelongsTo
+  {
+    return $this->belongsTo(ApMasters::class, 'insurance_entity_id');
   }
 
   public function vehicleColor(): BelongsTo
@@ -394,6 +411,26 @@ class PurchaseRequestQuote extends Model
       'formatter' => 'boolean',
       'width'     => 12,
     ],
+    'creditType.description'             => [
+      'label'     => 'Tipo Crédito',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'creditEntity.description'           => [
+      'label'     => 'Entidad Crédito',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'insuranceEntity.description'        => [
+      'label'     => 'Seguro Inchcape',
+      'formatter' => null,
+      'width'     => 20,
+    ],
+    'gps_hunter_years'                   => [
+      'label'     => 'GPS Hunter (Años)',
+      'formatter' => null,
+      'width'     => 18,
+    ],
     'is_invoiced'                        => [
       'label'     => 'Facturado',
       'formatter' => 'boolean',
@@ -428,6 +465,9 @@ class PurchaseRequestQuote extends Model
     'typeCurrency',
     'docTypeCurrency',
     'vehicleColor',
+    'creditType',
+    'creditEntity',
+    'insuranceEntity',
     'opportunity.worker',
     'opportunity.client',
     'vehicle',

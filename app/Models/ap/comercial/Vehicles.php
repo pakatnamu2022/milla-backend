@@ -62,7 +62,7 @@ class Vehicles extends BaseModel
     'ap_models_vn_id'                    => '=',
     'model.class_id'                     => '=',
     'warehouse_id'                       => '=',
-    'ap_vehicle_status_id'               => '=',
+    'ap_vehicle_status_id'               => 'in_or_equal',
     'vehicle_color_id'                   => '=',
     'engine_type_id'                     => '=',
     'warehouse_physical_id'              => '=',
@@ -80,7 +80,7 @@ class Vehicles extends BaseModel
     'is_received'                        => 'accessor_bool',
     'has_delivery_guide'                 => 'accessor_bool',
     'has_vehicle_delivery'               => 'accessor_bool',
-    'vehicleMovements.new_status_id'     => '=',
+    'vehicleMovements.new_status_id'     => 'in_or_equal',
   ];
 
   const array sorts = [
@@ -325,6 +325,20 @@ class Vehicles extends BaseModel
     return (bool)($this->attributes['is_paid'] ?? false);
   }
 
+  public function getNotasCreditoReport(): ?string
+  {
+    $quote = $this->purchaseRequestQuote;
+    if (!$quote) return null;
+
+    $ncs = $quote->electronicDocuments
+      ->filter(fn($doc) => $doc->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO && !$doc->anulado)
+      ->pluck('full_number')
+      ->filter()
+      ->values();
+
+    return $ncs->isNotEmpty() ? $ncs->implode(', ') : null;
+  }
+
   public function getPurchasePriceAttribute(): float
   {
     $purchaseOrder = $this->purchaseOrder;
@@ -476,6 +490,10 @@ class Vehicles extends BaseModel
       'label'     => 'FECHA REGISTRO',
       'formatter' => 'date',
     ],
+    'notas_credito'                                                                    => [
+      'label'    => 'NC',
+      'accessor' => 'getNotasCreditoReport',
+    ],
   ];
 
   protected $reportRelations = [
@@ -492,5 +510,6 @@ class Vehicles extends BaseModel
     'shippingGuideReceiving',
     'purchaseOrder.supplierOrderType',
     'vehicleDelivery.advisor',
+    'purchaseRequestQuote.electronicDocuments',
   ];
 }
