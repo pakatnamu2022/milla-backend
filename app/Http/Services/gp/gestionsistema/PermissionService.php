@@ -56,9 +56,9 @@ class PermissionService extends BaseService
 
         if (!$exists) {
           RolePermission::create([
-            'role_id' => $roleId,
+            'role_id'       => $roleId,
             'permission_id' => $permissionId,
-            'granted' => true,
+            'granted'       => true,
           ]);
         } else {
           RolePermission::where('role_id', $roleId)
@@ -106,10 +106,10 @@ class PermissionService extends BaseService
       Access::updateOrCreate(
         [
           'vista_id' => $vistaId,
-          'role_id' => $roleId,
+          'role_id'  => $roleId,
         ],
         [
-          'ver' => true,
+          'ver'            => true,
           'status_deleted' => 1,
         ]
       );
@@ -237,12 +237,12 @@ class PermissionService extends BaseService
         if ($existingPermission->trashed()) {
           $existingPermission->restore();
           $existingPermission->update([
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'module' => $data['module'],
-            'vista_id' => $data['vista_id'] ?? null,
+            'name'          => $data['name'],
+            'description'   => $data['description'] ?? null,
+            'module'        => $data['module'],
+            'vista_id'      => $data['vista_id'] ?? null,
             'policy_method' => $data['policy_method'],
-            'is_active' => $data['is_active'] ?? true,
+            'is_active'     => $data['is_active'] ?? true,
           ]);
 
           DB::commit();
@@ -255,13 +255,13 @@ class PermissionService extends BaseService
 
       // Crear el nuevo permiso
       $permission = Permission::create([
-        'code' => $data['code'],
-        'name' => $data['name'],
-        'description' => $data['description'] ?? null,
-        'module' => $data['module'],
-        'vista_id' => $data['vista_id'] ?? null,
+        'code'          => $data['code'],
+        'name'          => $data['name'],
+        'description'   => $data['description'] ?? null,
+        'module'        => $data['module'],
+        'vista_id'      => $data['vista_id'] ?? null,
         'policy_method' => $data['policy_method'],
-        'is_active' => $data['is_active'] ?? true,
+        'is_active'     => $data['is_active'] ?? true,
       ]);
 
       DB::commit();
@@ -324,8 +324,14 @@ class PermissionService extends BaseService
         $code = "{$module}.{$action}";
         $expectedCodes[] = $code;
 
-        // Verificar si ya existe el permiso (incluyendo soft-deleted)
-        $existingPermission = Permission::withTrashed()->where('code', $code)->first();
+        // Verificar si ya existe el permiso (incluyendo soft-deleted), filtrando por vista_id
+        $existingPermissionQuery = Permission::withTrashed()->where('code', $code);
+        if ($vistaId !== null) {
+          $existingPermissionQuery->where('vista_id', $vistaId);
+        } else {
+          $existingPermissionQuery->whereNull('vista_id');
+        }
+        $existingPermission = $existingPermissionQuery->first();
 
         if ($existingPermission) {
           // Si existe pero está eliminado (soft delete), restaurarlo
@@ -336,12 +342,12 @@ class PermissionService extends BaseService
 
           // SIEMPRE actualizar los datos (esté eliminado o activo)
           $existingPermission->update([
-            'name' => "{$actionConfig['label']} {$moduleName}",
-            'description' => $actionConfig['description'],
-            'module' => $module,
-            'vista_id' => $vistaId,
+            'name'          => "{$actionConfig['label']} {$moduleName}",
+            'description'   => $actionConfig['description'],
+            'module'        => $module,
+            'vista_id'      => $vistaId,
             'policy_method' => $actionConfig['policy_method'] ?? $action,
-            'is_active' => $isActive,
+            'is_active'     => $isActive,
           ]);
 
           // Agregar a la respuesta
@@ -351,13 +357,13 @@ class PermissionService extends BaseService
 
         // Crear el nuevo permiso (solo si no existe en absoluto)
         $permission = Permission::create([
-          'code' => $code,
-          'name' => "{$actionConfig['label']} {$moduleName}",
-          'description' => $actionConfig['description'],
-          'module' => $module,
-          'vista_id' => $vistaId,
+          'code'          => $code,
+          'name'          => "{$actionConfig['label']} {$moduleName}",
+          'description'   => $actionConfig['description'],
+          'module'        => $module,
+          'vista_id'      => $vistaId,
           'policy_method' => $actionConfig['policy_method'] ?? $action,
-          'is_active' => $isActive,
+          'is_active'     => $isActive,
         ]);
 
         $syncedPermissions[] = new PermissionResource($permission);
@@ -375,7 +381,7 @@ class PermissionService extends BaseService
       DB::commit();
 
       return [
-        'synced' => $syncedPermissions,
+        'synced'  => $syncedPermissions,
         'message' => "Sincronización completa: {$createdCount} creado(s), {$deletedCount} eliminado(s)",
       ];
     } catch (\Exception $e) {
@@ -394,10 +400,10 @@ class PermissionService extends BaseService
 
     foreach ($actions as $value => $config) {
       $formatted[] = [
-        'value' => $value,
-        'label' => $config['label'],
+        'value'       => $value,
+        'label'       => $config['label'],
         'description' => $config['description'],
-        'icon' => $config['icon'] ?? null,
+        'icon'        => $config['icon'] ?? null,
       ];
     }
 
