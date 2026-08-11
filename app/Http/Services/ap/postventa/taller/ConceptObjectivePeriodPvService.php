@@ -103,13 +103,12 @@ class ConceptObjectivePeriodPvService extends BaseService implements BaseService
       // Sync type plannings
       $conceptObjective->typePlannings()->sync($typePlanningIds);
 
-      // Sync advisors
+      // Sync advisors (even if empty array to delete all existing)
+      $this->syncAdvisors($conceptObjective, $advisors);
+
       if (!empty($advisors)) {
-        $this->syncAdvisors($conceptObjective, $advisors);
-        // Update sub_amount from advisors sum
         $this->updateSubAmount($conceptObjective);
       }
-      // If no advisors sent, sub_amount comes from $data and is already updated
 
       // Update objective sede period amount
       $this->updateObjectiveSedePeriodAmount($conceptObjective->objective_sede_period_pv_id);

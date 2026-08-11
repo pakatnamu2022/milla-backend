@@ -597,7 +597,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar cambio de moneda si existen pagos registrados
       if ($quotation->currency_id != $data['currency_id']) {
-        throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos registrados para esta cotización.');
+        if ($quotation->hasDraftAdvance()) {
+          throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos en borrador para esta cotización.');
+        }
+
+        if ($quotation->hasDraftFinalInvoice()) {
+          throw new Exception('No se puede cambiar el tipo de moneda porque ya existe una factura final en borrador para esta cotización.');
+        }
+
+        if ($quotation->getActiveAdvances()->count() > 0) {
+          throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos contabilizados para esta cotización.');
+        }
+
+        if ($quotation->hasFinalInvoice()) {
+          throw new Exception('No se puede cambiar el tipo de moneda porque ya existe una factura final contabilizada para esta cotización.');
+        }
       }
 
       // Validar que no se repita el mismo producto dentro del payload de details
