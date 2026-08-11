@@ -333,6 +333,13 @@ class PermissionService extends BaseService
         }
         $existingPermission = $existingPermissionQuery->first();
 
+        if (!$existingPermission) {
+          $conflict = Permission::withTrashed()->where('code', $code)->first();
+          if ($conflict) {
+            throw new \Exception("El código '{$code}' ya está en uso por otra vista (ID: {$conflict->vista_id}). Use un módulo distinto para esta vista.");
+          }
+        }
+
         if ($existingPermission) {
           // Si existe pero está eliminado (soft delete), restaurarlo
           if ($existingPermission->trashed()) {
