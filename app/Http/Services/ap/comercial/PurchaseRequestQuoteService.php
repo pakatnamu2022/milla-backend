@@ -173,7 +173,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $this->sendQuoteCreatedEmail($purchaseRequestQuote->fresh()->load([
         'holder', 'opportunity.worker', 'apModelsVn.family.brand',
         'vehicleColor', 'typeCurrency', 'docTypeCurrency',
-        'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+        'discountCoupons.conceptCode', 'accessories.approvedAccessory', 'sede', 'vehicle',
       ]));
 
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh(['others']));
@@ -533,12 +533,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    */
   private function saveBonusDiscounts($purchaseRequestQuoteId, $bonusDiscounts, $salePrice)
   {
+    $conceptIds = array_column($bonusDiscounts, 'concept_id');
+    $concepts   = ApMasters::whereIn('id', $conceptIds)->get()->keyBy('id');
+
     foreach ($bonusDiscounts as $discount) {
       $percentage = 0;
       $amount = 0;
       $precioUnitario = 0;
       $valorUnitario = 0;
-      $igv = 0;
 
       $hasRetention = (bool)($discount['has_retention'] ?? false);
       $retentionFactor = $hasRetention ? 0.93 : 1.0;
@@ -546,28 +548,25 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       if ($discount['type'] === 'FIJO') {
         $amount = $discount['value'] * $retentionFactor;
         $percentage = ($salePrice > 0) ? ($amount / $salePrice) * 100 : 0;
-
         $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
-        $igv = $precioUnitario - $valorUnitario;
       } elseif ($discount['type'] === 'PORCENTAJE') {
         $percentage = $discount['value'];
         $amount = ($salePrice * $percentage) / 100 * $retentionFactor;
-
         $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
-        $igv = $precioUnitario - $valorUnitario;
       }
 
+      $concept    = $concepts->get($discount['concept_id']);
+      $isNegative = $concept && is_null($concept->parent_id);
+
       DiscountCoupons::create([
-        'description'               => $discount['description'],
         'type'                      => $discount['type'],
         'percentage'                => $percentage,
         'amount'                    => $amount,
-//        'igv' => $igv,
         'valor_unitario'            => $valorUnitario,
         'precio_unitario'           => $precioUnitario,
-        'is_negative'               => $discount['is_negative'] ?? false,
+        'is_negative'               => $isNegative,
         'has_retention'             => $hasRetention,
         'concept_code_id'           => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
@@ -609,7 +608,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $quote->load([
       'holder', 'opportunity.worker', 'apModelsVn.family.brand',
       'vehicleColor', 'typeCurrency', 'docTypeCurrency',
-      'discountCoupons', 'accessories.approvedAccessory', 'sede', 'vehicle',
+      'discountCoupons.conceptCode', 'accessories.approvedAccessory', 'sede', 'vehicle',
     ]);
 
     $this->sendQuoteCreatedEmail($quote);
@@ -701,7 +700,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         // Descuentos y accesorios
         'discounts'          => $quote->discountCoupons->map(function ($d) {
           return [
-            'description'     => $d->description,
+            'description'     => $d->conceptCode->description ?? null,
             'type'            => $d->type,
             'precio_unitario' => $d->precio_unitario,
             'is_negative'     => $d->is_negative,
