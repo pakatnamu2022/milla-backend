@@ -8,6 +8,7 @@ use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ObjectiveSedePeriodPv;
 use App\Models\ap\postventa\taller\ConceptObjectiveMasterPv;
 use App\Models\ap\postventa\taller\ConceptObjectivePeriodPv;
+use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -113,5 +114,92 @@ class ObjectiveSedePeriodPvService extends BaseService implements BaseServiceInt
       $objectiveSede->delete();
     });
     return response()->json(['message' => 'Objetivo sede período eliminado correctamente.']);
+  }
+
+  public function bulkGenerate(mixed $data)
+  {
+    try {
+      DB::beginTransaction();
+
+      $year = $data['year'];
+      $month = $data['month'];
+
+      // Obtener todas las sedes con taller activo
+      $sedes = Sede::where('has_workshop', true)
+        ->where('status', 1)
+        ->get();
+
+      if ($sedes->isEmpty()) {
+        throw new Exception('No hay sedes con taller activo');
+      }
+
+      $created = [];
+      $skipped = [];
+
+      foreach ($sedes as $sede) {
+        // Verificar si ya existe un registro para esta sede, año y mes
+        $exists = ObjectiveSedePeriodPv::where('sede_id', $sede->id)
+          ->where('year', $year)
+          ->where('month', $month)
+          ->exists();
+
+        if ($exists) {
+          $skipped[] = [
+            'id' => $sede->id,
+            'nombre' => $sede->abreviatura ?? $sede->suc_abrev,
+          ];
+          continue;
+        }
+
+        // Crear el objetivo para esta sede
+        $objectiveSede = ObjectiveSedePeriodPv::create([
+          'sede_id' => $sede->id,
+          'year' => $year,
+          'month' => $month,
+          'amount' => 0,
+        ]);
+
+        // Crear automáticamente los ConceptObjectivePeriodPv desde la tabla maestra
+        $conceptsMaster = ConceptObjectiveMasterPv::with('typePlannings')->where('status', true)->get();
+
+        foreach ($conceptsMaster as $conceptMaster) {
+          $conceptPeriod = ConceptObjectivePeriodPv::create([
+            'objective_sede_period_pv_id' => $objectiveSede->id,
+            'area_id' => $conceptMaster->area_id,
+            'description' => $conceptMaster->description,
+            'is_vehicular_crossing' => $conceptMaster->is_vehicular_crossing,
+            'status' => $conceptMaster->status,
+            'sub_amount' => 0,
+            'order' => $conceptMaster->order,
+          ]);
+
+          // Copiar las relaciones de type_plannings
+          if ($conceptMaster->typePlannings->isNotEmpty()) {
+            $typePlanningIds = $conceptMaster->typePlannings->pluck('id')->toArray();
+            $conceptPeriod->typePlannings()->sync($typePlanningIds);
+          }
+        }
+
+        $created[] = [
+          'id' => $sede->id,
+          'nombre' => $sede->abreviatura ?? $sede->suc_abrev,
+        ];
+      }
+
+      DB::commit();
+
+      return [
+        'year' => $year,
+        'month' => $month,
+        'total_sedes_con_taller' => $sedes->count(),
+        'creadas' => count($created),
+        'omitidas' => count($skipped),
+        'detalle_creadas' => $created,
+        'detalle_omitidas' => $skipped,
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

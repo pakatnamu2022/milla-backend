@@ -1632,6 +1632,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Objective Sede Period PV - Objetivos por Sede y Período PV
       Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
       Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+      Route::post('objectiveSedePeriodPv/bulk-generate', [ObjectiveSedePeriodPvController::class, 'bulkGenerate']);
       Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
       Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
       Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
