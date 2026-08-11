@@ -80,7 +80,7 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       $lead = $opportunity->lead();
       $lead->update(['use' => PotentialBuyers::USED]);
       DB::commit();
-      return new OpportunityResource($opportunity);
+      return (new OpportunityResource($opportunity));
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
@@ -89,7 +89,7 @@ class OpportunityService extends BaseService implements BaseServiceInterface
 
   public function show($id)
   {
-    return new OpportunityResource($this->find($id));
+    return (new OpportunityResource($this->find($id)))->showExtra();
   }
 
   public function update(mixed $data)
@@ -220,11 +220,11 @@ class OpportunityService extends BaseService implements BaseServiceInterface
 
     return $groupedActions->map(function ($actions, $date) {
       return [
-        'date' => $date,
-        'count' => $actions->count(),
+        'date'                  => $date,
+        'count'                 => $actions->count(),
         'count_positive_result' => $actions->where('result', 1)->count(),
         'count_negative_result' => $actions->where('result', 0)->count(),
-        'actions' => OpportunityActionResource::collection($actions),
+        'actions'               => OpportunityActionResource::collection($actions),
       ];
     })->values();
   }
@@ -241,38 +241,38 @@ class OpportunityService extends BaseService implements BaseServiceInterface
     $opportunity->load(['client', 'worker', 'family']);
 
     return response()->json([
-      'opportunity_id' => $opportunity->id,
-      'holder_id' => $opportunity->client_id,
-      'client' => [
-        'id' => $opportunity->client->id,
-        'name' => $opportunity->client->card_name,
+      'opportunity_id'     => $opportunity->id,
+      'holder_id'          => $opportunity->client_id,
+      'client'             => [
+        'id'      => $opportunity->client->id,
+        'name'    => $opportunity->client->card_name,
         'num_doc' => $opportunity->client->num_doc,
-        'phone' => $opportunity->client->phone1,
-        'email' => $opportunity->client->e_mail,
+        'phone'   => $opportunity->client->phone1,
+        'email'   => $opportunity->client->e_mail,
       ],
-      'worker_id' => $opportunity->worker_id,
-      'worker' => [
-        'id' => $opportunity->worker->id,
+      'worker_id'          => $opportunity->worker_id,
+      'worker'             => [
+        'id'        => $opportunity->worker->id,
         'full_name' => $opportunity->worker->FullName,
-        'email' => $opportunity->worker->email,
+        'email'     => $opportunity->worker->email,
       ],
-      'family_id' => $opportunity->family_id,
-      'family' => $opportunity->family ? [
-        'id' => $opportunity->family->id,
+      'family_id'          => $opportunity->family_id,
+      'family'             => $opportunity->family ? [
+        'id'          => $opportunity->family->id,
         'description' => $opportunity->family->description,
       ] : null,
       'opportunity_status' => [
-        'id' => $opportunity->opportunityStatus->id,
-        'code' => $opportunity->opportunityStatus->code,
+        'id'          => $opportunity->opportunityStatus->id,
+        'code'        => $opportunity->opportunityStatus->code,
         'description' => $opportunity->opportunityStatus->description,
       ],
-      'client_status' => $opportunity->clientStatus ? [
-        'id' => $opportunity->clientStatus->id,
-        'code' => $opportunity->clientStatus->code,
+      'client_status'      => $opportunity->clientStatus ? [
+        'id'          => $opportunity->clientStatus->id,
+        'code'        => $opportunity->clientStatus->code,
         'description' => $opportunity->clientStatus->description,
       ] : null,
-      'comment' => $opportunity->comment,
-      'created_at' => $opportunity->created_at,
+      'comment'            => $opportunity->comment,
+      'created_at'         => $opportunity->created_at,
     ]);
   }
 }

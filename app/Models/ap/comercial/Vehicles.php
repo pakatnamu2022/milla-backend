@@ -62,7 +62,7 @@ class Vehicles extends BaseModel
     'ap_models_vn_id'                    => '=',
     'model.class_id'                     => '=',
     'warehouse_id'                       => '=',
-    'ap_vehicle_status_id'               => '=',
+    'ap_vehicle_status_id'               => 'in_or_equal',
     'vehicle_color_id'                   => '=',
     'engine_type_id'                     => '=',
     'warehouse_physical_id'              => '=',
@@ -80,7 +80,7 @@ class Vehicles extends BaseModel
     'is_received'                        => 'accessor_bool',
     'has_delivery_guide'                 => 'accessor_bool',
     'has_vehicle_delivery'               => 'accessor_bool',
-    'vehicleMovements.new_status_id'     => '=',
+    'vehicleMovements.new_status_id'     => 'in_or_equal',
   ];
 
   const array sorts = [

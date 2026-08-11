@@ -144,6 +144,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'down_payment'         => $data['down_payment'] ?? null,
         'sede_id'              => $data['sede_id'] ?? null,
         'quote_deadline'       => $data['quote_deadline'] ?? null,
+        'credit_type_id'       => $data['credit_type_id'] ?? null,
+        'credit_entity_id'     => $data['credit_entity_id'] ?? null,
+        'insurance_entity_id'  => $data['insurance_entity_id'] ?? null,
+        'gps_hunter_years'     => $data['gps_hunter_years'] ?? null,
       ];
 
       // Crear el registro principal
