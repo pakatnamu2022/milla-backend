@@ -47,6 +47,7 @@ class ObjectiveSedePeriodPvService extends BaseService implements BaseServiceInt
     try {
       DB::beginTransaction();
 
+      $data['amount'] = 0; // Inicializar el monto en 0
       $objectiveSede = ObjectiveSedePeriodPv::create($data);
 
       // Crear automáticamente los ConceptObjectivePeriodPv desde la tabla maestra
