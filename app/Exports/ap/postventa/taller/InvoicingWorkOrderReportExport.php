@@ -14,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class InvoicingReportExport implements WithMultipleSheets
+class InvoicingWorkOrderReportExport implements WithMultipleSheets
 {
   protected Collection $finalDocuments;
   protected Collection $advanceDocuments;

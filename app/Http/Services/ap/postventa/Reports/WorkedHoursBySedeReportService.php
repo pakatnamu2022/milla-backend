@@ -8,7 +8,6 @@ use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class WorkedHoursBySedeReportService
 {
@@ -205,7 +204,7 @@ class WorkedHoursBySedeReportService
 
   /**
    * Obtiene el reporte de Horas Facturadas por Sede
-   * Distribuye las horas facturadas proporcionalmente entre los técnicos que trabajaron en la OT
+   * Distribuye las horas facturadas en partes iguales entre los técnicos que trabajaron en la OT
    *
    * @param array $filters
    * @param array $userSedeIds
@@ -289,17 +288,15 @@ class WorkedHoursBySedeReportService
         continue;
       }
 
-      // Calcular el total de horas reales trabajadas por todos los técnicos en esta OT
-      $totalWorkedHours = $plannings->sum(function ($planning) {
-        return (float)$planning->actual_hours;
-      });
+      // Contar el número de técnicos que trabajaron en esta OT
+      $totalWorkers = $plannings->count();
 
-      // Si no hay horas trabajadas, no podemos distribuir
-      if ($totalWorkedHours <= 0) {
+      // Si no hay técnicos, no podemos distribuir
+      if ($totalWorkers <= 0) {
         continue;
       }
 
-      // Distribuir las horas facturadas proporcionalmente entre los técnicos
+      // Distribuir las horas facturadas en partes iguales entre los técnicos
       foreach ($plannings as $planning) {
         $worker = $planning->worker;
 
@@ -307,10 +304,8 @@ class WorkedHoursBySedeReportService
           continue;
         }
 
-        $workedHours = (float)$planning->actual_hours;
-
-        // Calcular la proporción: (horas trabajadas por el técnico / total horas trabajadas) × horas facturadas
-        $proportionalBilledHours = ($workedHours / $totalWorkedHours) * $billedHours;
+        // Calcular la distribución igual: horas facturadas / número de técnicos
+        $equalBilledHours = $billedHours / $totalWorkers;
 
         // Inicializar estructura si no existe
         if (!isset($workerHours[$sedeId])) {
@@ -327,8 +322,8 @@ class WorkedHoursBySedeReportService
           ];
         }
 
-        // Acumular las horas proporcionales por categoría
-        $workerHours[$sedeId][$worker->id][$categoryType] += $proportionalBilledHours;
+        // Acumular las horas en partes iguales por categoría
+        $workerHours[$sedeId][$worker->id][$categoryType] += $equalBilledHours;
       }
     }
 
