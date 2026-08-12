@@ -6,6 +6,7 @@ use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
+use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
@@ -1487,6 +1488,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
 
         Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
+      });
+
+      // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
+      Route::prefix('dashboard/unidades')->group(function () {
+        Route::get('resumen', [ApUnidadesDashboardController::class, 'resumen']);
+        Route::get('dashboard', [ApUnidadesDashboardController::class, 'dashboard']);
+        Route::get('vencimientos', [ApUnidadesDashboardController::class, 'vencimientos']);
       });
 
       // Delivery Checklist
