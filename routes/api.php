@@ -5,6 +5,7 @@ use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
+use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
@@ -1443,6 +1444,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
 
         Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
+
+        Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
       });
 
       // Delivery Checklist
@@ -1473,6 +1476,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicles Delivery - Reprogramar
       Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
+      Route::get('vehiclesDelivery/{id}/reschedule-history', [ApVehicleDeliveryController::class, 'rescheduleHistory']);
 
       // Vehicles Delivery - Reenviar aprobación extraordinaria
       Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
