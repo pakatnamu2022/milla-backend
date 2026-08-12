@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models\ap\marketing;
 
@@ -17,9 +17,20 @@ class MktBudget extends BaseModel
   const TYPE_REGULAR    = 'regular';
   const TYPE_ADDITIONAL = 'additional';
 
+  const TYPE_LABELS = [
+    'regular'    => 'Regular',
+    'additional' => 'Adicional',
+  ];
+
   const STATUS_DRAFT    = 'draft';
   const STATUS_APPROVED = 'approved';
   const STATUS_CLOSED   = 'closed';
+
+  const STATUS_LABELS = [
+    'draft'    => 'Borrador',
+    'approved' => 'Aprobado',
+    'closed'   => 'Cerrado',
+  ];
 
   protected $fillable = [
     'plan_id',

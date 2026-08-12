@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\marketing;
 
+use App\Models\ap\marketing\MktPlan;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,7 +21,8 @@ class MktPlanResource extends JsonResource
       'concept'     => $this->concept,
       'year'        => $this->year,
       'description' => $this->description,
-      'status'      => $this->status,
+      'status'       => $this->status,
+      'status_label' => MktPlan::STATUS_LABELS[$this->status] ?? $this->status,
       'budgets'     => MktBudgetResource::collection($this->whenLoaded('budgets')),
       'created_by'  => $this->created_by,
       'updated_by'  => $this->updated_by,

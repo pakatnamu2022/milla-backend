@@ -49,6 +49,7 @@ use App\Http\Controllers\ap\marketing\MktKpiController;
 use App\Http\Controllers\ap\marketing\MktPlanController;
 use App\Http\Controllers\ap\marketing\MktProposalController;
 use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
+use App\Http\Controllers\ap\marketing\MktConstantsController;
 use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\facturacion\AccountingEntryController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
@@ -1301,6 +1302,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Dashboard
       Route::get('dashboard', [MktDashboardController::class, 'index']);
       Route::get('dashboard/monthly', [MktDashboardController::class, 'monthly']);
+
+      // Constants / Diccionario de enums
+      Route::get('constants', [MktConstantsController::class, 'index']);
     });
 
     //      COMMERCIAL

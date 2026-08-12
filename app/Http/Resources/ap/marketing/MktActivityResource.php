@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\marketing;
 
+use App\Models\ap\marketing\MktActivity;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,8 +14,9 @@ class MktActivityResource extends JsonResource
       'id'               => $this->id,
       'budget_id'        => $this->budget_id,
       'budget'           => $this->whenLoaded('budget', fn() => [
-        'id'   => $this->budget->id,
-        'type' => $this->budget->type,
+        'id'      => $this->budget->id,
+        'type'    => $this->budget->type,
+        'plan_id' => $this->budget->plan_id,
       ]),
       'activity_type'    => $this->activity_type,
       'name'             => $this->name,
@@ -34,10 +36,11 @@ class MktActivityResource extends JsonResource
       'estimated_amount' => $this->estimated_amount,
       'supplier_id'      => $this->supplier_id,
       'supplier'         => $this->whenLoaded('supplier', fn() => [
-        'id'   => $this->supplier->id,
-        'name' => $this->supplier->name,
+        'id'        => $this->supplier->id,
+        'full_name' => $this->supplier->full_name,
       ]),
       'status'           => $this->status,
+      'status_label'     => MktActivity::STATUS_LABELS[$this->status] ?? $this->status,
       'notes'            => $this->notes,
       'locations'        => MktActivityLocationResource::collection($this->whenLoaded('locations')),
       'proposals'        => MktProposalResource::collection($this->whenLoaded('proposals')),
