@@ -16,7 +16,7 @@ class MktProposalService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktProposal::class,
+      MktProposal::query()->with(['activity:id,name', 'currency:id,name,code,symbol', 'supplier:id,full_name']),
       $request,
       MktProposal::filters,
       MktProposal::sorts,

@@ -20,6 +20,13 @@ class MktPlan extends BaseModel
   const STATUS_CLOSED = 'closed';
   const STATUS_CANCELLED = 'cancelled';
 
+  const STATUS_LABELS = [
+    'draft'     => 'Borrador',
+    'active'    => 'Activo',
+    'closed'    => 'Cerrado',
+    'cancelled' => 'Cancelado',
+  ];
+
   protected $fillable = [
     'brand_id',
     'name',

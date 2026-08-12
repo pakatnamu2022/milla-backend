@@ -17,6 +17,12 @@ class MktProposal extends BaseModel
   const STATUS_APPROVED = 'approved';
   const STATUS_REJECTED = 'rejected';
 
+  const STATUS_LABELS = [
+    'pending'  => 'Pendiente',
+    'approved' => 'Aprobado',
+    'rejected' => 'Rechazado',
+  ];
+
   protected $fillable = [
     'activity_id',
     'supplier_id',

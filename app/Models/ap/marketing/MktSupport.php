@@ -19,6 +19,14 @@ class MktSupport extends BaseModel
   const TYPE_REPORT  = 'report';
   const TYPE_OTHER   = 'other';
 
+  const TYPE_LABELS = [
+    'receipt' => 'Boleta',
+    'invoice' => 'Factura',
+    'photo'   => 'Foto',
+    'report'  => 'Informe',
+    'other'   => 'Otro',
+  ];
+
   protected $fillable = [
     'activity_id',
     'purchase_order_id',

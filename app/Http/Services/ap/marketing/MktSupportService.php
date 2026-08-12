@@ -15,7 +15,7 @@ class MktSupportService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktSupport::class,
+      MktSupport::query()->with(['activity:id,name', 'purchaseOrder:id,number,status', 'currency:id,name,code,symbol', 'supplier:id,full_name']),
       $request,
       MktSupport::filters,
       MktSupport::sorts,

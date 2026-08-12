@@ -15,7 +15,7 @@ class MktKpiService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktKpi::class,
+      MktKpi::query()->with(['activity:id,name', 'currency:id,name,code,symbol']),
       $request,
       MktKpi::filters,
       MktKpi::sorts,

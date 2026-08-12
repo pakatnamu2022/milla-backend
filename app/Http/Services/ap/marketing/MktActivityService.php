@@ -19,7 +19,7 @@ class MktActivityService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktActivity::class,
+      MktActivity::query()->with(['budget:id,type,plan_id', 'currency:id,name,code,symbol', 'supplier:id,full_name']),
       $request,
       MktActivity::filters,
       MktActivity::sorts,

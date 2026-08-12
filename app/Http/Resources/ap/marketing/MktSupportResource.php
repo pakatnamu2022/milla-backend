@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\marketing;
 
+use App\Models\ap\marketing\MktSupport;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -23,13 +24,14 @@ class MktSupportResource extends JsonResource
         'status' => $this->purchaseOrder->status,
       ]),
       'type'              => $this->type,
+      'type_label'        => MktSupport::TYPE_LABELS[$this->type] ?? $this->type,
       'document_series'   => $this->document_series,
       'document_number'   => $this->document_number,
       'issue_date'        => $this->issue_date?->format('Y-m-d'),
       'supplier_id'       => $this->supplier_id,
       'supplier'          => $this->whenLoaded('supplier', fn() => [
-        'id'   => $this->supplier->id,
-        'name' => $this->supplier->name,
+        'id'        => $this->supplier->id,
+        'full_name' => $this->supplier->full_name,
       ]),
       'currency_id'       => $this->currency_id,
       'currency'          => $this->whenLoaded('currency', fn() => [

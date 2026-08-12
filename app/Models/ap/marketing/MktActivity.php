@@ -19,6 +19,13 @@ class MktActivity extends BaseModel
   const STATUS_EXECUTED    = 'executed';
   const STATUS_CANCELLED   = 'cancelled';
 
+  const STATUS_LABELS = [
+    'planned'     => 'Planificado',
+    'in_progress' => 'En progreso',
+    'executed'    => 'Ejecutado',
+    'cancelled'   => 'Cancelado',
+  ];
+
   protected $fillable = [
     'budget_id',
     'activity_type',

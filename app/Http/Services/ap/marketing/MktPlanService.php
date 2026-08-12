@@ -15,7 +15,7 @@ class MktPlanService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktPlan::class,
+      MktPlan::query()->with(['brand:id,name']),
       $request,
       MktPlan::filters,
       MktPlan::sorts,

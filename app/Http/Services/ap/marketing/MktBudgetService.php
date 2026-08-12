@@ -17,7 +17,7 @@ class MktBudgetService extends BaseService implements BaseServiceInterface
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktBudget::class,
+      MktBudget::query()->with(['plan:id,name,year', 'currency:id,name,code,symbol']),
       $request,
       MktBudget::filters,
       MktBudget::sorts,
