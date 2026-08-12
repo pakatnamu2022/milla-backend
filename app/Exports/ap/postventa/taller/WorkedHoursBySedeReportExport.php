@@ -18,6 +18,7 @@ class WorkedHoursBySedeReportExport implements WithMultipleSheets
     return [
       new WorkedHoursSummarySheet($this->data['summary'], $this->data['billed']),
       new WorkedHoursDetailSheet($this->data['detail']),
+      new BilledHoursDetailSheet($this->data['billed_detail']),
     ];
   }
 }

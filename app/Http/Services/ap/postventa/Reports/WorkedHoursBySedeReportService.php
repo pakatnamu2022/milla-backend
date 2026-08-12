@@ -155,10 +155,14 @@ class WorkedHoursBySedeReportService
     // Obtener horas facturadas
     $billedData = $this->getBilledHoursBySedeReport($filters, $userSedeIds);
 
+    // Obtener detalle de horas facturadas
+    $billedDetailData = $this->getBilledHoursDetailData($filters, $userSedeIds);
+
     return [
       'summary' => $reportData,
       'detail' => $detailData,
-      'billed' => $billedData
+      'billed' => $billedData,
+      'billed_detail' => $billedDetailData
     ];
   }
 
@@ -377,6 +381,128 @@ class WorkedHoursBySedeReportService
     ]);
 
     return $reportData;
+  }
+
+  /**
+   * Genera los datos detallados de cada facturación por OT
+   * Muestra cómo se distribuyen las horas facturadas entre los técnicos
+   *
+   * @param array $filters
+   * @param array $userSedeIds
+   * @return Collection
+   */
+  private function getBilledHoursDetailData(array $filters, array $userSedeIds): Collection
+  {
+    // Primero obtener los IDs de work orders que tienen planificaciones completadas
+    $workOrderIdsQuery = ApWorkOrderPlanning::query()
+      ->where('status', 'completed')
+      ->select('work_order_id');
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($userSedeIds) {
+        $q->whereIn('sede_id', $userSedeIds);
+      });
+    }
+
+    // Aplicar filtros de fecha
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      if ($column === 'sede_id' && $operator === '=') {
+        $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($value) {
+          $q->where('sede_id', $value);
+        });
+      } elseif ($column === 'actual_end_datetime' && $operator === 'date_between') {
+        if (is_array($value) && count($value) === 2) {
+          $workOrderIdsQuery->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
+        }
+      }
+    }
+
+    $workOrderIds = $workOrderIdsQuery->pluck('work_order_id')->unique()->toArray();
+
+    if (empty($workOrderIds)) {
+      return collect();
+    }
+
+    // Consultar WorkOrderLabour con las exclusiones
+    $labours = WorkOrderLabour::query()
+      ->with([
+        'workOrder.sede',
+        'workOrder.items.typePlanning',
+        'workOrder.plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        }
+      ])
+      ->whereIn('work_order_id', $workOrderIds)
+      ->where('description', '!=', 'MATERIALES')
+      ->where('description', 'NOT LIKE', '%DEDUCIBLE%')
+      ->get();
+
+    $detailData = collect();
+
+    // Procesar cada labour (horas facturadas)
+    foreach ($labours as $labour) {
+      $workOrder = $labour->workOrder;
+      $workOrderItem = $workOrder->items->first();
+
+      if (!$workOrderItem || !$workOrderItem->typePlanning) {
+        continue;
+      }
+
+      $categoryType = $workOrderItem->typePlanning->category_type;
+      $billedHours = $labour->time_spent_decimal; // Horas facturadas al cliente
+      $labourDescription = $labour->description ?? ''; // Descripción del labour
+      $sede = $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE';
+      $numeroOT = $workOrder->correlative ?? '';
+
+      // Obtener todos los técnicos que trabajaron en esta OT
+      $plannings = $workOrder->plannings;
+
+      if ($plannings->isEmpty()) {
+        continue;
+      }
+
+      // Contar el número de técnicos y calcular distribución
+      $totalWorkers = $plannings->count();
+      $equalBilledHours = $billedHours / $totalWorkers;
+
+      // Generar una fila por cada técnico que trabajó en la OT
+      foreach ($plannings as $planning) {
+        $worker = $planning->worker;
+
+        if (!$worker) {
+          continue;
+        }
+
+        $detailData->push([
+          'sede' => $sede,
+          'numero_ot' => $numeroOT,
+          'descripcion_labour' => $labourDescription,
+          'categoria_tipo' => $categoryType,
+          'horas_facturadas_total' => number_format($billedHours, 2, '.', ''),
+          'cantidad_tecnicos' => $totalWorkers,
+          'dni_tecnico' => $worker->vat ?? '',
+          'nombre_tecnico' => $worker->nombre_completo ?? '',
+          'horas_trabajadas' => number_format((float)$planning->actual_hours, 2, '.', ''),
+          'horas_asignadas' => number_format($equalBilledHours, 2, '.', ''),
+        ]);
+      }
+    }
+
+    // Ordenar por sede, número de OT y nombre de técnico
+    return $detailData->sortBy([
+      ['sede', 'asc'],
+      ['numero_ot', 'asc'],
+      ['nombre_tecnico', 'asc']
+    ])->values();
   }
 
   /**
