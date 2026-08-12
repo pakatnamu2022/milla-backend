@@ -41,6 +41,14 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBran
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
+use App\Http\Controllers\ap\marketing\MktActivityController;
+use App\Http\Controllers\ap\marketing\MktBudgetController;
+use App\Http\Controllers\ap\marketing\MktDashboardController;
+use App\Http\Controllers\ap\marketing\MktKpiController;
+use App\Http\Controllers\ap\marketing\MktPlanController;
+use App\Http\Controllers\ap\marketing\MktProposalController;
+use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
+use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\facturacion\AccountingEntryController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
@@ -1255,6 +1263,41 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+    });
+
+    //      MARKETING
+    Route::group(['prefix' => 'marketing'], function () {
+      // Plans
+      Route::apiResource('plans', MktPlanController::class);
+
+      // Budgets
+      Route::apiResource('budgets', MktBudgetController::class);
+      Route::post('budgets/{id}/fundings', [MktBudgetController::class, 'addFunding']);
+
+      // Activities
+      Route::apiResource('activities', MktActivityController::class);
+      Route::post('activities/{id}/locations', [MktActivityController::class, 'addLocation']);
+      Route::post('activities/{id}/supports', [MktActivityController::class, 'addSupport']);
+      Route::patch('activities/{id}/status', [MktActivityController::class, 'changeStatus']);
+
+      // Proposals
+      Route::apiResource('proposals', MktProposalController::class);
+      Route::post('proposals/{id}/approve', [MktProposalController::class, 'approve']);
+      Route::post('proposals/{id}/reject', [MktProposalController::class, 'reject']);
+
+      // Purchase Orders
+      Route::apiResource('purchase-orders', MktPurchaseOrderController::class);
+      Route::patch('purchase-orders/{id}/status', [MktPurchaseOrderController::class, 'changeStatus']);
+
+      // Supports
+      Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'destroy']);
+
+      // KPIs
+      Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+      // Dashboard
+      Route::get('dashboard', [MktDashboardController::class, 'index']);
+      Route::get('dashboard/monthly', [MktDashboardController::class, 'monthly']);
     });
 
     //      COMMERCIAL

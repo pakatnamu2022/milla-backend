@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Http\Controllers\ap\marketing;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\marketing\IndexMktKpiRequest;
+use App\Http\Requests\ap\marketing\StoreMktKpiRequest;
+use App\Http\Requests\ap\marketing\UpdateMktKpiRequest;
+use App\Http\Services\ap\marketing\MktKpiService;
+
+class MktKpiController extends Controller
+{
+  protected MktKpiService $service;
+
+  public function __construct(MktKpiService $service)
+  {
+    $this->service = $service;
+  }
+
+  public function index(IndexMktKpiRequest $request)
+  {
+    try {
+      return $this->service->list($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function store(StoreMktKpiRequest $request)
+  {
+    try {
+      return $this->success($this->service->store($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function show($id)
+  {
+    try {
+      return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function update(UpdateMktKpiRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function destroy($id)
+  {
+    try {
+      return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+}
