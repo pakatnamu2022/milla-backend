@@ -12,9 +12,6 @@ use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateWorkOrderItemsRequest;
 use App\Http\Requests\ap\postventa\taller\UploadWorkOrderDocumentsRequest;
 use App\Http\Services\ap\postventa\taller\WorkOrderService;
-use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
-use App\Http\Services\DatabaseSyncService;
-use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -463,104 +460,6 @@ class WorkOrderController extends Controller
   }
 
   /**
-   * Lanza el job de verificación de migración de nota interna a Dynamics
-   * Si el estado es 'failed', resetea los logs a 'pending' para reintentar
-   */
-  public function verifyInternalNoteMigration($id)
-  {
-    try {
-      $workOrder = $this->service->find($id);
-
-      if (!$workOrder) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Orden de trabajo no encontrada',
-        ], 404);
-      }
-
-      // Obtener TODAS las notas internas (activas y eliminadas) que requieren procesamiento
-      $internalNotes = ApInternalNote::withTrashed()
-        ->where('work_order_id', $workOrder->id)
-        ->whereIn('migration_status', [
-          VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-          VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-          VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
-        ])
-        ->orderBy('id', 'desc')
-        ->get();
-
-      if ($internalNotes->isEmpty()) {
-        return response()->json([
-          'success' => false,
-          'message' => 'No hay notas internas pendientes de migración para esta orden de trabajo',
-        ], 404);
-      }
-
-      $processedNotes = [];
-
-      foreach ($internalNotes as $internalNote) {
-        // Determinar si es reversión (nota soft-deleted o logs de reversión existentes)
-        $isReversal = $internalNote->trashed() ||
-          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
-            ->where('step', 'LIKE', '%REVERSAL%')
-            ->exists();
-
-        // Capturar estado original
-        $wasReset = false;
-
-        // Si el estado es 'failed', resetear para reintentar
-        if ($internalNote->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_FAILED) {
-          $wasReset = true;
-
-          // Resetear nota interna a pending
-          $internalNote->update(['migration_status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING]);
-
-          // Resetear logs relacionados a pending
-          VehiclePurchaseOrderMigrationLog::where('internal_note_id', $internalNote->id)
-            ->whereIn('step', [
-              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION,
-              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL,
-              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL,
-              VehiclePurchaseOrderMigrationLog::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL,
-            ])
-            ->update([
-              'status' => VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
-              'error_message' => null,
-            ]);
-        }
-
-        // Despachar job a la cola
-        VerifyAndMigrateInternalNoteJob::dispatch($internalNote->id, $isReversal);
-
-        $processedNotes[] = [
-          'internal_note_id' => $internalNote->id,
-          'internal_note_number' => $internalNote->number,
-          'is_reversal' => $isReversal,
-          'is_deleted' => $internalNote->trashed(),
-          'was_reset' => $wasReset,
-          'migration_status' => $internalNote->migration_status,
-        ];
-      }
-
-      return response()->json([
-        'success' => true,
-        'message' => count($processedNotes) > 1
-          ? 'Jobs de verificación de notas internas lanzados correctamente'
-          : 'Job de verificación de nota interna lanzado correctamente',
-        'data' => [
-          'processed_count' => count($processedNotes),
-          'notes' => $processedNotes,
-        ],
-      ]);
-    } catch (\Throwable $th) {
-      return response()->json([
-        'success' => false,
-        'message' => $th->getMessage()
-      ], 400);
-    }
-  }
-
-  /**
    * Valida que el vehículo cumpla con los requisitos para crear/actualizar una orden de trabajo
    *
    * @param int $vehicleId ID del vehículo a validar
@@ -604,19 +503,6 @@ class WorkOrderController extends Controller
     // Validar que el vehículo no tenga color "OTROS" (COLOR_OTHERS_ID = 1003)
     if ($vehicle->vehicle_color_id === ApMasters::COLOR_OTHERS_ID) {
       throw new Exception('No se puede crear una orden de trabajo para vehículos con color "OTROS".');
-    }
-  }
-
-  /**
-   * Actualiza los campos is_accounted_in e is_accounted_out de las notas internas
-   * consultando los ajustes de inventario en Dynamics
-   */
-  public function updateInternalNoteAccountingStatus($id)
-  {
-    try {
-      return $this->service->updateInternalNoteAccountingStatus($id);
-    } catch (\Throwable $e) {
-      return $this->error($e->getMessage());
     }
   }
 }

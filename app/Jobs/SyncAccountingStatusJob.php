@@ -185,7 +185,7 @@ class SyncAccountingStatusJob implements ShouldQueue
   private function createInventoryMovementForQuotation(int $quotationId): void
   {
     try {
-      $quotation = ApOrderQuotations::find($quotationId);
+      $quotation = ApOrderQuotations::with(['details'])->find($quotationId);
 
       if (!$quotation) {
         return;
@@ -208,14 +208,22 @@ class SyncAccountingStatusJob implements ShouldQueue
         return; // La factura final aún no está contabilizada
       }
 
-      // Crear la salida de inventario
-      $inventoryMovementService = app(InventoryMovementService::class);
-      $movement = $inventoryMovementService->createSaleFromQuotation($quotationId);
+      // Verificar si la cotización tiene productos (repuestos) que NO sean travesía
+      $hasProducts = $quotation->details
+        ->where('product_id', '!=', null)
+        ->where('is_traverse', false)
+        ->isNotEmpty();
 
-      // Actualizar electronic_document_id con la factura final
-      $movement->update(['electronic_document_id' => $finalInvoice->id]);
+      // Si tiene productos, crear la salida de inventario
+      if ($hasProducts) {
+        $inventoryMovementService = app(InventoryMovementService::class);
+        $movement = $inventoryMovementService->createSaleFromQuotation($quotationId);
 
-      // Marcar la cotización como totalmente pagada y facturada
+        // Actualizar electronic_document_id con la factura final
+        $movement->update(['electronic_document_id' => $finalInvoice->id]);
+      }
+
+      // Marcar la cotización como totalmente pagada y facturada (con o sin repuestos)
       $quotation->update([
         'is_fully_paid'               => true,
         'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,

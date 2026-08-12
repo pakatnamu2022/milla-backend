@@ -57,11 +57,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   private const FILE_PATH_DOCUMENTS = '/ap/postventa/taller/ordenes-trabajo/documentos/';
 
   public function __construct(
-    WorkOrderLabourService            $labourService,
-    DigitalFileService                $digitalFileService,
-    ExportService                     $exportService,
-    InventoryMovementService          $inventoryMovementService,
-    InternalNoteMigrationLogService   $internalNoteMigrationLogService
+    WorkOrderLabourService          $labourService,
+    DigitalFileService              $digitalFileService,
+    ExportService                   $exportService,
+    InventoryMovementService        $inventoryMovementService,
+    InternalNoteMigrationLogService $internalNoteMigrationLogService
   )
   {
     $this->labourService = $labourService;
@@ -882,10 +882,25 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->first();
 
     $workshopCoordinatorSignature = null;
+    $isWorkshopCoordinator = false;
     if ($workshopCoordinator) {
       $coordinatorSignature = WorkerSignature::where('worker_id', $workshopCoordinator->id)->first();
       if ($coordinatorSignature && $coordinatorSignature->signature_url) {
         $workshopCoordinatorSignature = Helpers::convertUrlToBase64($coordinatorSignature->signature_url);
+        $isWorkshopCoordinator = true;
+      }
+    } else {
+      $workJefeTaller = Worker::where('sede_id', $workOrder->sede_id)
+        ->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
+        ->where('status_id', 22)
+        ->first();
+
+      if ($workJefeTaller) {
+        $workshopCoordinator = $workJefeTaller;
+        $jefeTallerSignature = WorkerSignature::where('worker_id', $workJefeTaller->id)->first();
+        if ($jefeTallerSignature && $jefeTallerSignature->signature_url) {
+          $workshopCoordinatorSignature = Helpers::convertUrlToBase64($jefeTallerSignature->signature_url);
+        }
       }
     }
 
@@ -953,6 +968,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'advisorSignature' => $advisorSignature,
       'workshopCoordinator' => $workshopCoordinator,
       'workshopCoordinatorSignature' => $workshopCoordinatorSignature,
+      'isWorkshopCoordinator' => $isWorkshopCoordinator,
       'appointmentPlanning' => $workOrder->appointmentPlanning ?? null,
       'plannings' => $workOrder->plannings ?? collect(),
       'isGuarantee' => $workOrder->is_guarantee ?? false,
@@ -1081,6 +1097,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $workOrder->update([
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
       ]);
+
+      // Validar stock en sistema externo antes de generar el ajuste de salida
+      $this->validateExternalStockForInternalNote($workOrder);
 
       // Generar ajuste de salida de inventario si la OT tiene repuestos
       $this->processInventoryAdjustmentForInternalNote($workOrder, $internalNote);
@@ -2213,6 +2232,87 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $workOrder->update(['output_generation_warehouse' => true]);
   }
 
+  /**
+   * Valida el stock en sistema externo antes de generar nota interna
+   * Solo valida para tipo INTERNA_SC (las INTERNA_CC no generan salida)
+   *
+   * @param ApWorkOrder $workOrder
+   * @return void
+   * @throws Exception
+   */
+  private function validateExternalStockForInternalNote(ApWorkOrder $workOrder): void
+  {
+    // Obtener el tipo de documento del item de la orden de trabajo
+    $typeDocument = $workOrder->items->first()?->typePlanning->type_document;
+
+    // Solo validar para INTERNA_SC (sin comprobante)
+    // INTERNA_CC (con comprobante) no genera salida aquí porque se facturará después
+    if ($typeDocument === TypePlanningWorkOrder::INTERNA_CC) {
+      return; // No validar, se hará cuando se facture
+    }
+
+    // Obtener solo los repuestos que tienen product_id (excluir mano de obra/servicios)
+    $productParts = $workOrder->parts->filter(function ($part) {
+      return $part->product_id !== null;
+    });
+
+    if ($productParts->isEmpty()) {
+      return; // No hay repuestos para validar
+    }
+
+    // Obtener el almacén físico de la sede de la orden de trabajo
+    $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+      ->where('is_physical_warehouse', true)
+      ->where('status', true)
+      ->first();
+
+    if (!$warehouse) {
+      throw new Exception('No se encontró almacén físico activo para la sede de la orden de trabajo. No se puede validar el stock de los productos.');
+    }
+
+    // Instanciar el servicio de inventario
+    $inventoryMovementService = app(InventoryMovementService::class);
+
+    // Validar stock en sistema externo para cada repuesto
+    foreach ($productParts as $part) {
+      $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+        ->where('warehouse_id', $part->warehouse_id)
+        ->first();
+
+      if (!$stock) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "No se encontró registro de stock para el producto {$productInfo} en el almacén especificado"
+        );
+      }
+
+      // Validar stock en sistema externo
+      $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+        $stock->product->dyn_code,
+        $stock->warehouse->dyn_code
+      );
+
+      // El SP retorna ArticuloStock como string, convertir a float para comparar
+      $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+        ? (float)trim($externalStock['ArticuloStock'])
+        : 0;
+
+      if ($availableQuantityExternal < $part->quantity_used) {
+        $product = $part->product;
+        $productInfo = $product
+          ? "[{$product->code}] {$product->name}"
+          : "ID {$part->product_id}";
+        throw new Exception(
+          "Producto {$productInfo}: Stock insuficiente en sistema Dynamics. " .
+          "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
+        );
+      }
+    }
+  }
+
   public function updateItems(mixed $data)
   {
     return DB::transaction(function () use ($data) {
@@ -2629,109 +2729,5 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ->where('id_model', $workOrder->id)
       ->orderByDesc('id')
       ->get();
-  }
-
-  /**
-   * Actualiza los campos is_accounted_in e is_accounted_out de las notas internas
-   * consultando los ajustes de inventario en Dynamics
-   */
-  public function updateInternalNoteAccountingStatus($id)
-  {
-    $workOrder = $this->find($id);
-
-    if (!$workOrder) {
-      return response()->json([
-        'success' => false,
-        'message' => 'Orden de trabajo no encontrada',
-      ], 404);
-    }
-
-    // Obtener TODAS las notas internas de la OT (incluyendo eliminadas)
-    $internalNotes = ApInternalNote::withTrashed()
-      ->where('work_order_id', $workOrder->id)
-      ->get();
-
-    if ($internalNotes->isEmpty()) {
-      return response()->json([
-        'success' => false,
-        'message' => 'La orden de trabajo no tiene notas internas asociadas',
-      ], 404);
-    }
-
-    // Consultar ajustes de inventario en Dynamics
-    $dynamicsAdjustments = $this->consultAjustesInventario();
-
-    if (empty($dynamicsAdjustments)) {
-      return response()->json([
-        'success' => false,
-        'message' => 'No se obtuvieron registros de ajustes de inventario desde Dynamics',
-      ], 404);
-    }
-
-    // Crear un mapa para búsqueda rápida: [Numero][Tipo_Movimiento] = true
-    $adjustmentsMap = [];
-    foreach ($dynamicsAdjustments as $adjustment) {
-      $numero = $adjustment->Numero ?? null;
-      $tipoMovimiento = $adjustment->Tipo_Movimiento ?? null;
-
-      if ($numero && $tipoMovimiento) {
-        if (!isset($adjustmentsMap[$numero])) {
-          $adjustmentsMap[$numero] = [];
-        }
-        $adjustmentsMap[$numero][$tipoMovimiento] = true;
-      }
-    }
-
-    $updatedCount = 0;
-
-    // Actualizar cada nota interna
-    foreach ($internalNotes as $note) {
-      $updateData = [];
-
-      // Verificar SALIDA (dyn_series_out)
-      if ($note->dyn_series_out && isset($adjustmentsMap[$note->dyn_series_out]['SALIDA'])) {
-        if (!$note->is_accounted_out) {
-          $updateData['is_accounted_out'] = true;
-        }
-      }
-
-      // Verificar INGRESO (dyn_series_in)
-      if ($note->dyn_series_in && isset($adjustmentsMap[$note->dyn_series_in]['INGRESO'])) {
-        if (!$note->is_accounted_in) {
-          $updateData['is_accounted_in'] = true;
-        }
-      }
-
-      // Actualizar solo si hay cambios
-      if (!empty($updateData)) {
-        $note->update($updateData);
-        $updatedCount++;
-      }
-    }
-
-    return response()->json([
-      'success' => true,
-      'message' => "Se actualizaron $updatedCount nota(s) interna(s)",
-      'data' => [
-        'updated_count' => $updatedCount,
-        'total_notes' => $internalNotes->count(),
-      ],
-    ]);
-  }
-
-  /**
-   * Consulta los ajustes de inventario en Dynamics
-   */
-  protected function consultAjustesInventario(): array
-  {
-    try {
-      return DB::connection(Company::CONNECTION_DYNAMICS_3)
-        ->select("EXEC neIvConsultarAjustesInventario");
-    } catch (\Exception $e) {
-      Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [
-        'error' => $e->getMessage()
-      ]);
-      throw $e;
-    }
   }
 }

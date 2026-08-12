@@ -888,6 +888,27 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
     return DB::transaction(function () use ($id, $data) {
       $planning = $this->find($id);
 
+      $workOrder = ApWorkOrder::find($planning->work_order_id);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+        throw new Exception('No se puede cancelar esta planificación porque la orden de trabajo ya fue enviada para generar el comprobante final.');
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("No se puede cancelar esta planificación porque la orden de trabajo tiene una factura final en borrador. Por favor, elimine la factura final antes de cancelar el trabajo.");
+      }
+
+      // Validar si existe una factura final generada
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("No se puede cancelar esta planificación porque la orden de trabajo ya tiene una factura final generada. Por favor, elimine la factura final antes de cancelar el trabajo.");
+      }
+
       // Validar que el trabajo no esté ya cancelado
       if ($planning->status === 'canceled') {
         throw new Exception('Este trabajo ya ha sido cancelado.');

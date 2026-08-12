@@ -876,7 +876,8 @@ class ApWorkOrder extends Model
   public static function getReportData($filters = [])
   {
     $query = self::with([
-      'vehicle',
+      'vehicle.model.family.brand',
+      'vehicle.model',
       'advisor',
       'sede',
       'status',
@@ -885,7 +886,8 @@ class ApWorkOrder extends Model
       'creator',
       'typeCurrency',
       'invoiceTo',
-      'advancesWorkOrder'
+      'advancesWorkOrder',
+      'internalNote.electronicDocuments'
     ]);
 
     // Apply filters
@@ -950,31 +952,46 @@ class ApWorkOrder extends Model
         $advancesFormatted = implode(' | ', $advancesArray);
       }
 
+      // Determinar el documento electrónico a usar para las últimas 3 columnas
+      $electronicDocument = null;
+
+      // Si el tipo de documento es INTERNA_CC, obtener el documento desde la nota interna
+      if ($firstItem && $firstItem->typePlanning && $firstItem->typePlanning->type_document === TypePlanningWorkOrder::INTERNA_CC) {
+        $internalNote = $workOrder->internalNote;
+        if ($internalNote) {
+          $electronicDocument = $internalNote->electronicDocuments()->first();
+        }
+      }
+
+      // Si no se encontró documento desde nota interna, usar getFinalInvoice()
+      if (!$electronicDocument) {
+        $electronicDocument = $workOrder->getFinalInvoice();
+      }
+
       return [
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
         'correlativo' => $workOrder->correlative,
+        'estado' => $workOrder->status ? $workOrder->status->description : '',
         'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
         'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
         'placa_vehiculo' => $workOrder->vehicle_plate,
         'vin_vehiculo' => $workOrder->vehicle_vin,
-        'estado' => $workOrder->status ? $workOrder->status->description : '',
+        'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
+        'modelo' => $workOrder->vehicle?->model?->version ?? '',
+        'km' => $workOrder->mileage ?? '',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
         'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
         'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
         'descripcion_item' => $firstItem ? $firstItem->description : '',
         'moneda' => $workOrder->typeCurrency ? $workOrder->typeCurrency->symbol : '',
-        'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->dyn_name : '',
-        'subtotal' => number_format($workOrder->subtotal_amount ?? 0, 2),
-        'descuento' => number_format($workOrder->discount_amount ?? 0, 2),
-        'impuestos' => number_format($workOrder->tax_amount ?? 0, 2),
+        'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->full_name : '',
         'total' => number_format($workOrder->final_amount ?? 0, 2),
-        'observaciones' => $workOrder->observations,
         'tiene_anticipo' => $tieneAnticipo,
         'anticipos' => $advancesFormatted,
         'total_anticipos' => number_format($totalAdvances, 2),
-        'comprobante_final' => $workOrder->getFinalInvoice()?->full_number ?? '-',
-        'estado_sunat' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->aceptada_por_sunat ? 'SI' : 'NO') : '-',
-        'contabilizada' => $workOrder->getFinalInvoice() ? ($workOrder->getFinalInvoice()->is_accounted ? 'SI' : 'NO') : '-',
+        'comprobante_final' => $electronicDocument?->full_number ?? '-',
+        'estado_sunat' => $electronicDocument ? ($electronicDocument->aceptada_por_sunat ? 'SI' : 'NO') : '-',
+        'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
       ];
     });
   }
@@ -984,22 +1001,21 @@ class ApWorkOrder extends Model
     return [
       'sede' => 'Sede',
       'correlativo' => 'Correlativo',
+      'estado' => 'Estado',
       'fecha_apertura' => 'Fecha Apertura',
       'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
       'placa_vehiculo' => 'Placa Vehículo',
       'vin_vehiculo' => 'VIN Vehículo',
-      'estado' => 'Estado',
+      'marca' => 'Marca',
+      'modelo' => 'Modelo',
+      'km' => 'KM',
       'asesor' => 'Asesor',
       'tipo_planificacion' => 'Tipo de Planificación',
       'operacion' => 'Operación',
       'descripcion_item' => 'Descripción',
       'moneda' => 'Moneda',
       'cliente_facturar' => 'Cliente Facturar',
-      'subtotal' => 'Subtotal',
-      'descuento' => 'Descuento',
-      'impuestos' => 'Impuestos',
       'total' => 'Total',
-      'observaciones' => 'Observaciones',
       'tiene_anticipo' => 'Tiene Anticipo',
       'anticipos' => 'Anticipos',
       'total_anticipos' => 'Total Anticipos',

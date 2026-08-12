@@ -203,3 +203,13 @@ Schedule::command('ap:sync-models-vn')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Verificar y migrar notas internas pendientes de POSTVENTA/TALLER
+// Ejecuta cada 10 segundos, omite registros con migration_status='completed' o 'skipped'
+// y aquellos con 3+ intentos fallidos (attempts >= 6)
+Schedule::command('internal-notes:verify-migration --all')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

@@ -2,11 +2,13 @@
 
 namespace App\Models\ap\facturacion;
 
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -37,12 +39,13 @@ class ApInternalNote extends BaseModel
   ];
 
   const array filters = [
-    'search' => ['number'],
+    'search' => ['number', 'workOrder.correlative'],
     'number' => '=',
     'work_order_id' => '=',
     'status' => '=',
     'created_date' => 'date_between',
     'closed_date' => 'date_between',
+    'workOrder.sede_id' => '='
   ];
 
   const array sorts = ['id', 'number', 'created_date', 'closed_date'];
@@ -50,6 +53,13 @@ class ApInternalNote extends BaseModel
   // Status constants
   const STATUS_PENDING = 'pending';
   const STATUS_INVOICED = 'invoiced';
+
+  // Migration status constants
+  const MIGRATION_STATUS_COMPLETED = 'completed';
+  const MIGRATION_STATUS_FAILED = 'failed';
+  const MIGRATION_STATUS_PENDING = 'pending';
+  const MIGRATION_STATUS_IN_PROGRESS = 'in_progress';
+  const MIGRATION_STATUS_SKIPPED = 'skipped';
 
   /**
    * Boot method to auto-generate sequential number
@@ -115,6 +125,11 @@ class ApInternalNote extends BaseModel
   public function inventoryMovements(): MorphMany
   {
     return $this->morphMany(InventoryMovement::class, 'reference');
+  }
+
+  public function migrationLogs(): HasMany
+  {
+    return $this->hasMany(VehiclePurchaseOrderMigrationLog::class, 'internal_note_id');
   }
 
   /**

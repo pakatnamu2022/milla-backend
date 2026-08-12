@@ -16,7 +16,7 @@ class WorkedHoursBySedeReportExport implements WithMultipleSheets
   public function sheets(): array
   {
     return [
-      new WorkedHoursSummarySheet($this->data['summary']),
+      new WorkedHoursSummarySheet($this->data['summary'], $this->data['billed']),
       new WorkedHoursDetailSheet($this->data['detail']),
     ];
   }

@@ -142,13 +142,13 @@ class InternalNoteMigrationLogService
 
     if ($allCompleted) {
       // Actualizar migration_status a 'completed'
-      $internalNote->update(['migration_status' => 'completed']);
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_COMPLETED]);
     } elseif ($anyFailed) {
       // Actualizar migration_status a 'failed'
-      $internalNote->update(['migration_status' => 'failed']);
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_FAILED]);
     } else {
       // Actualizar migration_status a 'in_progress'
-      $internalNote->update(['migration_status' => 'in_progress']);
+      $internalNote->update(['migration_status' => ApInternalNote::MIGRATION_STATUS_IN_PROGRESS]);
     }
   }
 }
