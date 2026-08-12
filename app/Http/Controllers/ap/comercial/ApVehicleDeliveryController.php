@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\comercial\GenerateShippingGuideRequest;
 use App\Http\Requests\ap\comercial\IndexApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\RescheduleApVehicleDeliveryRequest;
 use App\Http\Requests\ap\comercial\StoreApVehicleDeliveryRequest;
@@ -55,6 +56,15 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
+  public function rescheduleHistory($id)
+  {
+    try {
+      return $this->success($this->service->rescheduleHistory((int)$id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function update(UpdateApVehicleDeliveryRequest $request, $id)
   {
     try {
@@ -78,7 +88,7 @@ class ApVehicleDeliveryController extends Controller
   public function reschedule(RescheduleApVehicleDeliveryRequest $request, $id)
   {
     try {
-      return $this->success($this->service->reschedule((int) $id, $request->validated()));
+      return $this->success($this->service->reschedule((int)$id, $request->validated()));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -90,7 +100,7 @@ class ApVehicleDeliveryController extends Controller
 
     try {
       $result = $this->service->approveExtraordinary($token);
-      $status  = $result['already_approved'] ? 'already_approved' : 'approved';
+      $status = $result['already_approved'] ? 'already_approved' : 'approved';
       return redirect("{$frontendBase}/entregas-extraordinarias/confirmacion?status={$status}&id={$result['delivery_id']}");
     } catch (\Throwable $th) {
       $message = urlencode($th->getMessage());
@@ -101,7 +111,7 @@ class ApVehicleDeliveryController extends Controller
   public function resendExtraordinaryApproval($id)
   {
     try {
-      return $this->success($this->service->resendExtraordinaryApproval((int) $id));
+      return $this->success($this->service->resendExtraordinaryApproval((int)$id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -179,20 +189,10 @@ class ApVehicleDeliveryController extends Controller
   /**
    * Genera la guía de remisión para una entrega de vehículo
    */
-  public function generateShippingGuide($id, Request $request)
+  public function generateShippingGuide($id, GenerateShippingGuideRequest $request)
   {
     try {
-      $data = $request->validate([
-        'driver_doc' => 'nullable|string|max_digits:11|min_digits:8',
-        'license' => 'nullable|string|max:20',
-        'plate' => 'nullable|string|max:20',
-        'driver_name' => 'nullable|string|max:100',
-        'transfer_modality_id' => 'required|string|exists:ap_masters,id',
-        'carrier_ruc' => 'nullable|string|max:11|min:11',
-        'company_name_transport' => 'nullable|string|max:100',
-      ]);
-
-      return $this->success($this->service->generateShippingGuide($id, $data));
+      return $this->success($this->service->generateShippingGuide($id, $request->validated()));
     } catch (\Throwable $th) {
       return response()->json([
         'success' => false,
@@ -283,8 +283,8 @@ class ApVehicleDeliveryController extends Controller
 
       if ($existsInIntermediate) {
         return response()->json([
-          'success' => true,
-          'message' => 'Estado reseteado. El asiento ya existe en GP, será verificado en el próximo ciclo.',
+          'success'    => true,
+          'message'    => 'Estado reseteado. El asiento ya existe en GP, será verificado en el próximo ciclo.',
           'dispatched' => false,
         ]);
       }
@@ -327,15 +327,15 @@ class ApVehicleDeliveryController extends Controller
       fputcsv($handle, ['ID Guía', 'Número Guía', 'Fecha', 'VIN', 'Estado Asiento', 'Estado GP', 'Referencia']);
 
       foreach ($guides as $guide) {
-        $vin       = $guide->vehicleMovement?->vehicle?->vin ?? '';
+        $vin = $guide->vehicleMovement?->vehicle?->vin ?? '';
         $headerLog = $guide->migrationLogs->first();
 
         $accountingStatus = 'NO ENVIADO';
-        $procesoEstado    = '';
+        $procesoEstado = '';
 
         if ($headerLog) {
           $accountingStatus = strtoupper($headerLog->status);
-          $procesoEstado    = $headerLog->proceso_estado === 1 ? 'Procesado GP' : 'Pendiente GP';
+          $procesoEstado = $headerLog->proceso_estado === 1 ? 'Procesado GP' : 'Pendiente GP';
         }
 
         fputcsv($handle, [

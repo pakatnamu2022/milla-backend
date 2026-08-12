@@ -133,6 +133,11 @@ class ApVehicleDelivery extends Model
     return $this->hasOne(ApDeliveryChecklist::class, 'vehicle_delivery_id');
   }
 
+  public function rescheduleLogs()
+  {
+    return $this->hasMany(ApVehicleDeliveryRescheduleLog::class, 'vehicle_delivery_id')->orderByDesc('created_at');
+  }
+
   public function getChecklistStatusAttribute(): ?string
   {
     return $this->deliveryChecklist?->status ?? null;

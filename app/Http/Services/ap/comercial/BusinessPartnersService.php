@@ -316,7 +316,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         $hasApprovedQuote = $opportunity->purchaseRequestsQuote()->where('is_approved', 1)->exists();
 
         $sinAccionYVencida = !$lastAction && $opportunity->created_at->diffInDays(now()) >= 5;
-        $ultimaAccionSinResultado = $lastAction && $lastAction->result === false && $lastAction->datetime->diffInDays(now()) >= 5;
+        $ultimaAccionSinResultado = $lastAction && $lastAction->datetime->diffInDays(now()) >= 5;
 
         if (!$hasApprovedQuote && ($sinAccionYVencida || $ultimaAccionSinResultado)) {
           $opportunity->update(
