@@ -3,6 +3,7 @@
 namespace App\Models\ap\marketing;
 
 use App\Models\BaseModel;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,6 +48,7 @@ class MktPurchaseOrder extends BaseModel
     'status',
     'sent_at',
     'billed_at',
+    'electronic_document_id',
     'notes',
     'created_by',
     'updated_by',
@@ -101,6 +103,11 @@ class MktPurchaseOrder extends BaseModel
   public function supports(): HasMany
   {
     return $this->hasMany(MktSupport::class, 'purchase_order_id');
+  }
+
+  public function electronicDocument(): BelongsTo
+  {
+    return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
   }
 
   public function createdBy(): BelongsTo
