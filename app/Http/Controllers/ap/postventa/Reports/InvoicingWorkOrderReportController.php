@@ -4,16 +4,16 @@ namespace App\Http\Controllers\ap\postventa\Reports;
 
 use App\Exports\ap\postventa\taller\InvoicingReportExport;
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\Reports\InvoicingReportService;
+use App\Http\Services\ap\postventa\Reports\InvoicingWorkOrderReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
-class InvoicingReportController extends Controller
+class InvoicingWorkOrderReportController extends Controller
 {
-  protected InvoicingReportService $service;
+  protected InvoicingWorkOrderReportService $service;
 
-  public function __construct(InvoicingReportService $service)
+  public function __construct(InvoicingWorkOrderReportService $service)
   {
     $this->service = $service;
   }

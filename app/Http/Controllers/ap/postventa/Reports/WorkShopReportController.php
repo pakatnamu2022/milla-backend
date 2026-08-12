@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\WorkOrderReportExport;
+use App\Exports\ap\postventa\taller\WorkShopReportExport;
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\Reports\TallerReportService;
+use App\Http\Services\ap\postventa\Reports\WorkShopReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
-class TallerReportController extends Controller
+class WorkShopReportController extends Controller
 {
-  protected TallerReportService $service;
+  protected WorkShopReportService $service;
 
-  public function __construct(TallerReportService $service)
+  public function __construct(WorkShopReportService $service)
   {
     $this->service = $service;
   }
@@ -60,7 +60,7 @@ class TallerReportController extends Controller
 
     // Exportar a Excel
     return Excel::download(
-      new WorkOrderReportExport($data, 'Reporte de Órdenes de Trabajo', $amountsInSoles),
+      new WorkShopReportExport($data, 'Reporte de Órdenes de Trabajo', $amountsInSoles),
       $filename
     );
   }

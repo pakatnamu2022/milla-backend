@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
+use App\Exports\ap\postventa\taller\ObjectivesDashboardExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\taller\ObjectiveDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ObjectiveDashboardController extends Controller
 {
@@ -27,7 +29,7 @@ class ObjectiveDashboardController extends Controller
     $validated = $request->validate([
       'year' => 'required|integer|min:2020|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'sede_id' => 'nullable|integer|exists:gp_sedes,id',
+      'sede_id' => 'nullable|integer|exists:config_sede,id',
       'use_cache' => 'nullable|boolean'
     ]);
 
@@ -63,7 +65,7 @@ class ObjectiveDashboardController extends Controller
     $validated = $request->validate([
       'year' => 'required|integer|min:2020|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'sede_id' => 'nullable|integer|exists:gp_sedes,id'
+      'sede_id' => 'nullable|integer|exists:config_sede,id'
     ]);
 
     $year = $validated['year'];
@@ -83,6 +85,47 @@ class ObjectiveDashboardController extends Controller
       return response()->json([
         'success' => false,
         'message' => 'Error al actualizar el dashboard',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
+
+  /**
+   * Export objectives dashboard to Excel
+   *
+   * @param Request $request
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function exportExcel(Request $request)
+  {
+    $validated = $request->validate([
+      'year' => 'required|integer|min:2020|max:2100',
+      'month' => 'required|integer|min:1|max:12',
+      'sede_id' => 'nullable|integer|exists:config_sede,id'
+    ]);
+
+    $year = $validated['year'];
+    $month = $validated['month'];
+    $sedeId = $validated['sede_id'] ?? null;
+
+    try {
+      // Get dashboard data without cache to ensure fresh data
+      $dashboardData = $this->service->getDashboardData($year, $month, $sedeId, false);
+
+      // Generate filename
+      $periodName = $dashboardData['period']['name'];
+      $sedeName = $sedeId ? '_sede_' . $sedeId : '_todas_sedes';
+      $filename = 'dashboard_objetivos_' . strtolower(str_replace(' ', '_', $periodName)) . $sedeName . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+      // Export to Excel
+      return Excel::download(
+        new ObjectivesDashboardExport($dashboardData),
+        $filename
+      );
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al exportar el dashboard',
         'error' => $e->getMessage()
       ], 500);
     }
