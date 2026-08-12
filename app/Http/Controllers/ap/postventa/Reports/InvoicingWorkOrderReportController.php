@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\InvoicingReportExport;
+use App\Exports\ap\postventa\taller\InvoicingWorkOrderReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\InvoicingWorkOrderReportService;
 use Illuminate\Http\Request;
@@ -51,7 +51,7 @@ class InvoicingWorkOrderReportController extends Controller
 
     // Exportar a Excel
     return Excel::download(
-      new InvoicingReportExport(
+      new InvoicingWorkOrderReportExport(
         $reportData['final_documents'],
         $reportData['advance_documents'],
         $reportData['summary'],
