@@ -106,11 +106,13 @@ class PurchaseOrderReportExport implements
     return [
       AfterSheet::class => function (AfterSheet $event) use ($fechaRef) {
         $sheet   = $event->sheet->getDelegate();
-        $lastRow = $sheet->getHighestRow();
         $lastCol = self::LAST_COL;
 
         // Insertar fila de fecha de referencia antes de los headers
         $sheet->insertNewRowBefore(1, 1);
+
+        // Capturar lastRow DESPUÉS del insert para incluir la fila desplazada
+        $lastRow = $sheet->getHighestRow();
 
         // Fecha de referencia en A1
         $sheet->setCellValue('A1', 'FECHA DE REFERENCIA: ' . $fechaRef);
