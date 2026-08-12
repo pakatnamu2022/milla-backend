@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,7 +9,7 @@ class StoreMktBudgetRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'plan_id'          => 'required|integer|exists:mkt_plans,id',
+      'plan_id'          => 'required|integer|exists:ap_mkt_plans,id',
       'type'             => 'required|string|in:regular,additional',
       'period_month'     => 'nullable|integer|min:1|max:12',
       'currency_id'      => 'required|integer|exists:type_currency,id',

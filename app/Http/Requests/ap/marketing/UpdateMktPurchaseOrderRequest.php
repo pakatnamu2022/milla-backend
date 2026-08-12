@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,8 +9,8 @@ class UpdateMktPurchaseOrderRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'activity_id' => 'nullable|integer|exists:mkt_activities,id',
-      'proposal_id' => 'nullable|integer|exists:mkt_proposals,id',
+      'activity_id' => 'nullable|integer|exists:ap_mkt_activities,id',
+      'proposal_id' => 'nullable|integer|exists:ap_mkt_proposals,id',
       'supplier_id' => 'nullable|integer|exists:business_partners,id',
       'currency_id' => 'nullable|integer|exists:type_currency,id',
       'number'      => 'nullable|string|max:50',

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,7 +9,7 @@ class StoreMktActivityRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'budget_id'        => 'required|integer|exists:mkt_budgets,id',
+      'budget_id'        => 'required|integer|exists:ap_mkt_budgets,id',
       'activity_type'    => 'required|string|max:100',
       'name'             => 'required|string|max:200',
       'description'      => 'nullable|string',

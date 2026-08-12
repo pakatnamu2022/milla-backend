@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -12,7 +12,7 @@ class MktPurchaseOrder extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'mkt_purchase_orders';
+  protected $table = 'ap_mkt_purchase_orders';
 
   const STATUS_DRAFT           = 'draft';
   const STATUS_SENT            = 'sent';

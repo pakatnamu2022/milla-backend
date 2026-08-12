@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -11,7 +11,7 @@ class MktProposal extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'mkt_proposals';
+  protected $table = 'ap_mkt_proposals';
 
   const STATUS_PENDING  = 'pending';
   const STATUS_APPROVED = 'approved';

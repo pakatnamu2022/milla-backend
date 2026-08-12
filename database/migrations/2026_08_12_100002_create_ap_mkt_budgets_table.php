@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -8,7 +8,7 @@ return new class extends Migration
 {
   public function up(): void
   {
-    Schema::create('mkt_budgets', function (Blueprint $table) {
+    Schema::create('ap_mkt_budgets', function (Blueprint $table) {
       $table->id();
       $table->unsignedBigInteger('plan_id');
       $table->enum('type', ['regular', 'additional'])->default('regular');
@@ -23,7 +23,7 @@ return new class extends Migration
       $table->timestamps();
       $table->softDeletes();
 
-      $table->foreign('plan_id')->references('id')->on('mkt_plans')->cascadeOnDelete();
+      $table->foreign('plan_id')->references('id')->on('ap_mkt_plans')->cascadeOnDelete();
       $table->foreign('currency_id')->references('id')->on('type_currency');
       $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
       $table->foreign('updated_by')->references('id')->on('users')->nullOnDelete();
@@ -32,6 +32,6 @@ return new class extends Migration
 
   public function down(): void
   {
-    Schema::dropIfExists('mkt_budgets');
+    Schema::dropIfExists('ap_mkt_budgets');
   }
 };

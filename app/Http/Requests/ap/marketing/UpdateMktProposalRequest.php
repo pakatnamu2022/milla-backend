@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,7 +9,7 @@ class UpdateMktProposalRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'activity_id' => 'nullable|integer|exists:mkt_activities,id',
+      'activity_id' => 'nullable|integer|exists:ap_mkt_activities,id',
       'supplier_id' => 'nullable|integer|exists:business_partners,id',
       'currency_id' => 'nullable|integer|exists:type_currency,id',
       'amount'      => 'nullable|numeric|min:0',

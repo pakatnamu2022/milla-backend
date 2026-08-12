@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MktActivityLocation extends Model
 {
-  protected $table = 'mkt_activity_locations';
+  protected $table = 'ap_mkt_activity_locations';
 
   protected $fillable = [
     'activity_id',

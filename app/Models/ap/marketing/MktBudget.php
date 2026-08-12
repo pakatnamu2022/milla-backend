@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -12,7 +12,7 @@ class MktBudget extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'mkt_budgets';
+  protected $table = 'ap_mkt_budgets';
 
   const TYPE_REGULAR    = 'regular';
   const TYPE_ADDITIONAL = 'additional';

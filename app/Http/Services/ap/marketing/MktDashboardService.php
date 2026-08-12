@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Services\ap\marketing;
 
@@ -81,19 +81,19 @@ class MktDashboardService extends BaseService
       ->get();
 
     // Monthly KPI aggregation
-    $monthlyKpis = DB::table('mkt_kpis')
-      ->join('mkt_activities', 'mkt_kpis.activity_id', '=', 'mkt_activities.id')
-      ->whereIn('mkt_activities.budget_id', $budgetIds)
-      ->where('mkt_kpis.period_year', $year)
-      ->whereNull('mkt_activities.deleted_at')
+    $monthlyKpis = DB::table('ap_mkt_kpis')
+      ->join('ap_mkt_activities', 'ap_mkt_kpis.activity_id', '=', 'ap_mkt_activities.id')
+      ->whereIn('ap_mkt_activities.budget_id', $budgetIds)
+      ->where('ap_mkt_kpis.period_year', $year)
+      ->whereNull('ap_mkt_activities.deleted_at')
       ->select(
-        'mkt_kpis.period_month',
-        DB::raw('SUM(mkt_kpis.leads) as total_leads'),
-        DB::raw('SUM(mkt_kpis.sales) as total_sales'),
-        DB::raw('SUM(mkt_kpis.investment) as total_investment')
+        'ap_mkt_kpis.period_month',
+        DB::raw('SUM(ap_mkt_kpis.leads) as total_leads'),
+        DB::raw('SUM(ap_mkt_kpis.sales) as total_sales'),
+        DB::raw('SUM(ap_mkt_kpis.investment) as total_investment')
       )
-      ->groupBy('mkt_kpis.period_month')
-      ->orderBy('mkt_kpis.period_month')
+      ->groupBy('ap_mkt_kpis.period_month')
+      ->orderBy('ap_mkt_kpis.period_month')
       ->get();
 
     // By brand summary

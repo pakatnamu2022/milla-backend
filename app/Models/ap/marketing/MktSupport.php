@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -11,7 +11,7 @@ class MktSupport extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'mkt_supports';
+  protected $table = 'ap_mkt_supports';
 
   const TYPE_RECEIPT = 'receipt';
   const TYPE_INVOICE = 'invoice';

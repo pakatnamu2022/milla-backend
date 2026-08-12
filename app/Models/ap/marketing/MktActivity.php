@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -12,7 +12,7 @@ class MktActivity extends BaseModel
 {
   use SoftDeletes;
 
-  protected $table = 'mkt_activities';
+  protected $table = 'ap_mkt_activities';
 
   const STATUS_PLANNED     = 'planned';
   const STATUS_IN_PROGRESS = 'in_progress';

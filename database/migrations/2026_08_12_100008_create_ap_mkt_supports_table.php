@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -8,7 +8,7 @@ return new class extends Migration
 {
   public function up(): void
   {
-    Schema::create('mkt_supports', function (Blueprint $table) {
+    Schema::create('ap_mkt_supports', function (Blueprint $table) {
       $table->id();
       $table->unsignedBigInteger('activity_id')->nullable();
       $table->unsignedBigInteger('purchase_order_id')->nullable();
@@ -26,8 +26,8 @@ return new class extends Migration
       $table->timestamps();
       $table->softDeletes();
 
-      $table->foreign('activity_id')->references('id')->on('mkt_activities')->nullOnDelete();
-      $table->foreign('purchase_order_id')->references('id')->on('mkt_purchase_orders')->nullOnDelete();
+      $table->foreign('activity_id')->references('id')->on('ap_mkt_activities')->nullOnDelete();
+      $table->foreign('purchase_order_id')->references('id')->on('ap_mkt_purchase_orders')->nullOnDelete();
       $table->foreign('supplier_id')->references('id')->on('business_partners')->nullOnDelete();
       $table->foreign('currency_id')->references('id')->on('type_currency')->nullOnDelete();
       $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
@@ -37,6 +37,6 @@ return new class extends Migration
 
   public function down(): void
   {
-    Schema::dropIfExists('mkt_supports');
+    Schema::dropIfExists('ap_mkt_supports');
   }
 };

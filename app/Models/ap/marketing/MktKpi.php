@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MktKpi extends Model
 {
-  protected $table = 'mkt_kpis';
+  protected $table = 'ap_mkt_kpis';
 
   protected $fillable = [
     'activity_id',

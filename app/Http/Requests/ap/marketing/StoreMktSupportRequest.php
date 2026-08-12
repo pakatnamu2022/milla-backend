@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,8 +9,8 @@ class StoreMktSupportRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'activity_id'       => 'nullable|integer|exists:mkt_activities,id',
-      'purchase_order_id' => 'nullable|integer|exists:mkt_purchase_orders,id',
+      'activity_id'       => 'nullable|integer|exists:ap_mkt_activities,id',
+      'purchase_order_id' => 'nullable|integer|exists:ap_mkt_purchase_orders,id',
       'type'              => 'required|string|in:receipt,invoice,photo,report,other',
       'document_series'   => 'nullable|string|max:10',
       'document_number'   => 'nullable|string|max:20',

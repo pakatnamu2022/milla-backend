@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models\ap\marketing;
 
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MktBudgetFunding extends Model
 {
-  protected $table = 'mkt_budget_fundings';
+  protected $table = 'ap_mkt_budget_fundings';
 
   const SOURCE_AP    = 'AP';
   const SOURCE_BRAND = 'brand';

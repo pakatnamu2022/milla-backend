@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,7 +9,7 @@ class StoreMktProposalRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'activity_id' => 'required|integer|exists:mkt_activities,id',
+      'activity_id' => 'required|integer|exists:ap_mkt_activities,id',
       'supplier_id' => 'required|integer|exists:business_partners,id',
       'currency_id' => 'required|integer|exists:type_currency,id',
       'amount'      => 'required|numeric|min:0',

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Requests\ap\marketing;
 
@@ -9,7 +9,7 @@ class UpdateMktKpiRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'activity_id'  => 'nullable|integer|exists:mkt_activities,id',
+      'activity_id'  => 'nullable|integer|exists:ap_mkt_activities,id',
       'period_month' => 'nullable|integer|min:1|max:12',
       'period_year'  => 'nullable|integer|min:2020|max:2100',
       'leads'        => 'nullable|integer|min:0',
