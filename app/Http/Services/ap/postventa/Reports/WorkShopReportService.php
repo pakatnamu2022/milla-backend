@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class TallerReportService
+class WorkShopReportService
 {
   /**
    * Obtiene el reporte de Órdenes de Trabajo
@@ -130,9 +130,9 @@ class TallerReportService
       ->whereHas('items', function ($q) {
         $q->whereHas('typePlanning', function ($subQ) {
           $subQ->whereIn('type_document', [
-              TypePlanningWorkOrder::INTERNA_SC,
-              TypePlanningWorkOrder::INTERNA_CC,
-            ])
+            TypePlanningWorkOrder::INTERNA_SC,
+            TypePlanningWorkOrder::INTERNA_CC,
+          ])
             ->whereNotIn('id', [
               TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
               TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,

@@ -56,10 +56,12 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockCont
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
-use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
+use App\Http\Controllers\ap\postventa\Reports\InvoicingWorkOrderReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
-use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
+use App\Http\Controllers\ap\postventa\Reports\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
@@ -1635,6 +1637,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Objective Sede Period PV - Objetivos por Sede y Período PV
       Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
       Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+      Route::post('objectiveSedePeriodPv/bulk-generate', [ObjectiveSedePeriodPvController::class, 'bulkGenerate']);
       Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
       Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
       Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
@@ -1695,11 +1698,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Reports - Reportes de Taller
-      Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
       Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
-      Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
+      Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
+
+      // Objectives Dashboard - Dashboard de Objetivos Postventa
+      Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
+      Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
+      Route::post('reports/objectives/dashboard/export', [ObjectiveDashboardController::class, 'exportExcel']);
 
       // Reports - Reportes de Mesón
       Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);

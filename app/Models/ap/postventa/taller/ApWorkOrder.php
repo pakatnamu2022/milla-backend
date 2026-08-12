@@ -637,6 +637,85 @@ class ApWorkOrder extends Model
     $this->items->first()?->typePlanning->validate_receipt;
   }
 
+  /**
+   * Verifica si la orden de trabajo tiene un tipo de documento específico
+   *
+   * @param string $typeDocument El tipo de documento a verificar (ej: TypePlanningWorkOrder::INTERNA_SC)
+   * @return bool
+   */
+  public function hasTypeDocument(string $typeDocument): bool
+  {
+    return $this->items()
+      ->whereHas('typePlanning', function ($query) use ($typeDocument) {
+        $query->where('type_document', $typeDocument);
+      })->exists();
+  }
+
+  /**
+   * Verifica si la orden de trabajo es de tipo INTERNA_SC
+   *
+   * @return bool
+   */
+  public function isInternaSC(): bool
+  {
+    return $this->hasTypeDocument(TypePlanningWorkOrder::INTERNA_SC);
+  }
+
+  /**
+   * Verifica si la orden de trabajo es de tipo INTERNA_CC
+   *
+   * @return bool
+   */
+  public function isInternaCC(): bool
+  {
+    return $this->hasTypeDocument(TypePlanningWorkOrder::INTERNA_CC);
+  }
+
+  /**
+   * Verifica si la orden de trabajo es de tipo PAYMENT_RECEIPTS
+   *
+   * @return bool
+   */
+  public function isPaymentReceipts(): bool
+  {
+    return $this->hasTypeDocument(TypePlanningWorkOrder::PAYMENT_RECEIPTS);
+  }
+
+  /**
+   * Verifica si la orden de trabajo es de tipo interno (INTERNA_SC o INTERNA_CC)
+   *
+   * @return bool
+   */
+  public function isInternalType(): bool
+  {
+    return $this->items()
+      ->whereHas('typePlanning', function ($query) {
+        $query->whereIn('type_document', [
+          TypePlanningWorkOrder::INTERNA_SC,
+          TypePlanningWorkOrder::INTERNA_CC
+        ]);
+      })->exists();
+  }
+
+  /**
+   * Check if there's a draft advance payment for this work order.
+   *
+   * @return bool
+   */
+  public function hasDraftAdvance(): bool
+  {
+    return $this->documentService()->hasDraftAdvance($this);
+  }
+
+  /**
+   * Check if there's a draft final invoice for this work order.
+   *
+   * @return bool
+   */
+  public function hasDraftFinalInvoice(): bool
+  {
+    return $this->documentService()->hasDraftFinalInvoice($this);
+  }
 
   /**
    * Get active advances for this work order.
@@ -669,23 +748,25 @@ class ApWorkOrder extends Model
   }
 
   /**
-   * Check if there's a draft final invoice for this work order.
+   * Check if there's a final invoice already generated and accepted.
+   * Optimized for validation - uses the service method.
    *
    * @return bool
    */
-  public function hasDraftFinalInvoice(): bool
+  public function hasFinalInvoice(): bool
   {
-    return $this->documentService()->hasDraftFinalInvoice($this);
+    return $this->getFinalInvoice() !== null;
   }
 
   /**
-   * Check if there's a draft advance payment for this work order.
+   * Check if there are any active advances for this work order.
+   * Optimized for validation - uses exists() instead of loading all records.
    *
    * @return bool
    */
-  public function hasDraftAdvance(): bool
+  public function hasAdvances(): bool
   {
-    return $this->documentService()->hasDraftAdvance($this);
+    return $this->documentService()->hasActiveAdvances($this);
   }
 
   /**
@@ -871,6 +952,42 @@ class ApWorkOrder extends Model
     return $this->billingService()->getInvoicePreviewForWorkOrder($this);
   }
 
+  /**
+   * Actualiza la fecha de cierre oficial de la OT según el tipo de documento
+   *
+   * IMPORTANTE: Este método SIEMPRE actualiza la fecha cuando se llama explícitamente.
+   * Esto permite manejar casos donde:
+   * - Se emite una factura final → se establece la fecha
+   * - Se anula esa factura → getFinalInvoice() retorna null
+   * - Se emite una NUEVA factura → la fecha se ACTUALIZA con la nueva emisión
+   *
+   * @param \DateTime|string|null $date Fecha de cierre oficial (si es null, usa now())
+   * @return bool True si se actualizó, false si no se debe actualizar según el tipo de documento
+   */
+  public function updateOfficialClosingDate(\DateTime|string|null $date = null): bool
+  {
+    // Obtener el tipo de documento del primer item
+    $typeDocument = $this->items->first()?->typePlanning->type_document;
+
+    // Solo actualizar si es uno de los tipos que requieren fecha de cierre oficial:
+    // 1. INTERNA_SC (sin comprobante) - se cierra al generar la nota interna
+    // 2. INTERNA_CC (con comprobante) - se cierra al emitir el comprobante
+    // 3. PAYMENT_RECEIPTS - se cierra al emitir el comprobante final
+    if (!in_array($typeDocument, [
+      TypePlanningWorkOrder::INTERNA_SC,
+      TypePlanningWorkOrder::INTERNA_CC,
+      TypePlanningWorkOrder::PAYMENT_RECEIPTS
+    ])) {
+      return false;
+    }
+
+    // Establecer/actualizar la fecha de cierre oficial
+    // NOTA: Permite sobrescribir para manejar casos de anulación y re-emisión
+    $this->official_closing_date = $date ?? now();
+    $this->save();
+
+    return true;
+  }
 
   // Export Methods
   public static function getReportData($filters = [])
@@ -1054,42 +1171,5 @@ class ApWorkOrder extends Model
         'NO' => ['bg' => 'A9A9A9', 'text' => '000000'],  // Gris con texto negro
       ],
     ];
-  }
-
-  /**
-   * Actualiza la fecha de cierre oficial de la OT según el tipo de documento
-   *
-   * IMPORTANTE: Este método SIEMPRE actualiza la fecha cuando se llama explícitamente.
-   * Esto permite manejar casos donde:
-   * - Se emite una factura final → se establece la fecha
-   * - Se anula esa factura → getFinalInvoice() retorna null
-   * - Se emite una NUEVA factura → la fecha se ACTUALIZA con la nueva emisión
-   *
-   * @param \DateTime|string|null $date Fecha de cierre oficial (si es null, usa now())
-   * @return bool True si se actualizó, false si no se debe actualizar según el tipo de documento
-   */
-  public function updateOfficialClosingDate(\DateTime|string|null $date = null): bool
-  {
-    // Obtener el tipo de documento del primer item
-    $typeDocument = $this->items->first()?->typePlanning->type_document;
-
-    // Solo actualizar si es uno de los tipos que requieren fecha de cierre oficial:
-    // 1. INTERNA_SC (sin comprobante) - se cierra al generar la nota interna
-    // 2. INTERNA_CC (con comprobante) - se cierra al emitir el comprobante
-    // 3. PAYMENT_RECEIPTS - se cierra al emitir el comprobante final
-    if (!in_array($typeDocument, [
-      TypePlanningWorkOrder::INTERNA_SC,
-      TypePlanningWorkOrder::INTERNA_CC,
-      TypePlanningWorkOrder::PAYMENT_RECEIPTS
-    ])) {
-      return false;
-    }
-
-    // Establecer/actualizar la fecha de cierre oficial
-    // NOTA: Permite sobrescribir para manejar casos de anulación y re-emisión
-    $this->official_closing_date = $date ?? now();
-    $this->save();
-
-    return true;
   }
 }

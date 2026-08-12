@@ -269,6 +269,59 @@ class WorkOrderDocumentService
   }
 
   /**
+   * Check if there are any active advances (optimized for validation).
+   * Uses exists() instead of loading all records.
+   *
+   * An advance is considered active when:
+   *   - is_advance_payment = true
+   *   - Accepted by SUNAT (based on document type)
+   *   - Type is FACTURA or BOLETA
+   *   - NOT cancelled (status != 'cancelled' AND anulado != 1)
+   *   - Does NOT have an annulling credit note (ANULACION or DEVOLUCION_TOTAL)
+   *
+   * @param Model $model Instance of ApWorkOrder or ApOrderQuotations
+   * @return bool
+   */
+  public function hasActiveAdvances(Model $model): bool
+  {
+    $annullingTypes = [
+      SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    $relation = $this->getDocumentRelation($model);
+
+    return $model->$relation()
+      ->where('is_advance_payment', true)
+      ->whereIn('sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA
+      ])
+      ->where(function ($query) {
+        // For boletas, accept if sent or accepted
+        $query->where(function ($q) {
+          $q->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA)
+            ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED]);
+        })
+        // For facturas, must be accepted
+        ->orWhere(function ($q) {
+          $q->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+            ->where('aceptada_por_sunat', true);
+        });
+      })
+      ->where('status', '!=', ElectronicDocument::STATUS_CANCELLED)
+      ->where('anulado', 0)
+      ->where(function ($query) use ($annullingTypes) {
+        // Either no credit note, or credit note is not annulling type
+        $query->whereNull('credit_note_id')
+          ->orWhereDoesntHave('creditNote', function ($q) use ($annullingTypes) {
+            $q->whereIn('sunat_concept_credit_note_type_id', $annullingTypes);
+          });
+      })
+      ->exists();
+  }
+
+  /**
    * Get all valid documents for a model (advances + final invoice).
    *
    * Returns a collection containing:
@@ -506,6 +559,26 @@ class WorkOrderDocumentService
 
     if (property_exists($model, 'advancesOrderQuotation') || method_exists($model, 'advancesOrderQuotation')) {
       return $model->advancesOrderQuotation;
+    }
+
+    throw new \Exception('Model does not have advances relation');
+  }
+
+  /**
+   * Get the relation name for querying (polymorphic support)
+   *
+   * @param Model $model
+   * @return string
+   */
+  private function getDocumentRelation(Model $model): string
+  {
+    // ApWorkOrder uses advancesWorkOrder, ApOrderQuotations uses advancesOrderQuotation
+    if (method_exists($model, 'advancesWorkOrder')) {
+      return 'advancesWorkOrder';
+    }
+
+    if (method_exists($model, 'advancesOrderQuotation')) {
+      return 'advancesOrderQuotation';
     }
 
     throw new \Exception('Model does not have advances relation');

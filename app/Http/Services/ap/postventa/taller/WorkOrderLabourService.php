@@ -69,8 +69,13 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         }
         // Si la OT está en soles, dejar el valor tal cual
       }
-      // Si viene de cotización (quotation_detail_id), dejar el valor tal cual
 
+      // Set registered_by
+      if (auth()->check()) {
+        $data['registered_by'] = auth()->user()->id;
+      }
+      
+      // Si viene de cotización (quotation_detail_id), dejar el valor tal cual
       $factor = $this->getCurrencyConversionFactor($workOrder);
       $data['hourly_rate'] = $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
       $data['time_spent'] = $timeSpentDecimal;
