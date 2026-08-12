@@ -4,13 +4,14 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktProposalResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktProposal;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class MktProposalService extends BaseService
+class MktProposalService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -23,7 +24,7 @@ class MktProposalService extends BaseService
     );
   }
 
-  private function find(int $id): MktProposal
+  public function find(int $id): MktProposal
   {
     $proposal = MktProposal::with(['activity', 'supplier', 'currency', 'reviewedBy'])->find($id);
     if (!$proposal) {
@@ -66,11 +67,18 @@ class MktProposalService extends BaseService
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(int $id): array
   {
-    $proposal = $this->find($id);
-    $proposal->delete();
-    return response()->json(['message' => 'Propuesta eliminada correctamente']);
+    DB::beginTransaction();
+    try {
+      $proposal = $this->find($id);
+      $proposal->delete();
+      DB::commit();
+      return ['message' => 'Propuesta eliminada correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   public function approve(int $id): MktProposalResource

@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktPlanResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktPlan;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MktPlanService extends BaseService
+class MktPlanService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -22,7 +23,7 @@ class MktPlanService extends BaseService
     );
   }
 
-  private function find(int $id): MktPlan
+  public function find(int $id): MktPlan
   {
     $plan = MktPlan::with(['brand', 'budgets'])->find($id);
     if (!$plan) {
@@ -65,10 +66,17 @@ class MktPlanService extends BaseService
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(int $id): array
   {
-    $plan = $this->find($id);
-    $plan->delete();
-    return response()->json(['message' => 'Plan eliminado correctamente']);
+    DB::beginTransaction();
+    try {
+      $plan = $this->find($id);
+      $plan->delete();
+      DB::commit();
+      return ['message' => 'Plan de marketing eliminado correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktSupportResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktSupport;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MktSupportService extends BaseService
+class MktSupportService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -22,7 +23,7 @@ class MktSupportService extends BaseService
     );
   }
 
-  private function find(int $id): MktSupport
+  public function find(int $id): MktSupport
   {
     $support = MktSupport::with(['activity', 'purchaseOrder', 'supplier', 'currency'])->find($id);
     if (!$support) {
@@ -50,10 +51,32 @@ class MktSupportService extends BaseService
     return new MktSupportResource($this->find($id));
   }
 
-  public function destroy(int $id)
+  public function update(mixed $data): MktSupportResource
   {
-    $support = $this->find($id);
-    $support->delete();
-    return response()->json(['message' => 'Soporte eliminado correctamente']);
+    $support = $this->find($data['id']);
+    DB::beginTransaction();
+    try {
+      $support->update($data);
+      $support->load(['activity', 'purchaseOrder', 'supplier', 'currency']);
+      DB::commit();
+      return new MktSupportResource($support);
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  public function destroy(int $id): array
+  {
+    DB::beginTransaction();
+    try {
+      $support = $this->find($id);
+      $support->delete();
+      DB::commit();
+      return ['message' => 'Soporte eliminado correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

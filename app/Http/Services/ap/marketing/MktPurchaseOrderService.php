@@ -4,12 +4,13 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktPurchaseOrderResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktPurchaseOrder;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MktPurchaseOrderService extends BaseService
+class MktPurchaseOrderService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
@@ -22,7 +23,7 @@ class MktPurchaseOrderService extends BaseService
     );
   }
 
-  private function find(int $id): MktPurchaseOrder
+  public function find(int $id): MktPurchaseOrder
   {
     $order = MktPurchaseOrder::with(['activity', 'proposal', 'supplier', 'currency', 'supports'])->find($id);
     if (!$order) {
@@ -65,11 +66,18 @@ class MktPurchaseOrderService extends BaseService
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(int $id): array
   {
-    $order = $this->find($id);
-    $order->delete();
-    return response()->json(['message' => 'Orden de compra eliminada correctamente']);
+    DB::beginTransaction();
+    try {
+      $order = $this->find($id);
+      $order->delete();
+      DB::commit();
+      return ['message' => 'Orden de compra eliminada correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   public function changeStatus(int $id, string $status): MktPurchaseOrderResource
