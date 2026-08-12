@@ -22,6 +22,7 @@ class ApVehicleBrand extends Model
     'logo_min',
     'type_operation_id',
     'type_class_id',
+    'is_marketed',
     'status',
     'group_id',
   ];
@@ -30,6 +31,7 @@ class ApVehicleBrand extends Model
     'search' => ['code', 'dyn_code', 'name', 'description'],
     'type_operation_id' => '=',
     'status' => '=',
+    'is_marketed' => '=',
     'sede_id' => 'accessor'
   ];
 
@@ -37,6 +39,11 @@ class ApVehicleBrand extends Model
     'code',
     'dyn_code',
     'name',
+  ];
+
+  protected $casts = [
+    'is_marketed' => 'boolean',
+    'status' => 'boolean',
   ];
 
   const int BRAND_OTHERS_ID = 13;

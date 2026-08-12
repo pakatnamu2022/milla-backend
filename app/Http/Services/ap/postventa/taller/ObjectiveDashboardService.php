@@ -33,7 +33,7 @@ class ObjectiveDashboardService
       Cache::forget($cacheKey);
     }
 
-    return Cache::remember($cacheKey, now()->addMinutes(30), function() use ($year, $month, $sedeId) {
+    return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($year, $month, $sedeId) {
       // Get period info
       $period = $this->getPeriodInfo($year, $month);
 
@@ -111,7 +111,7 @@ class ObjectiveDashboardService
   private function calculateHeadquarterDetail(ObjectiveSedePeriodPv $objective, int $year, int $month): array
   {
     $sedeId = $objective->sede_id;
-    $totalObjective = (float) $objective->amount;
+    $totalObjective = (float)$objective->amount;
 
     // Separate concepts by area
     $workshopConcepts = $objective->conceptObjectives->where('area_id', ApMasters::AREA_TALLER);
@@ -165,7 +165,7 @@ class ObjectiveDashboardService
     }
 
     // Get all type_planning_ids from concepts
-    $typePlanningIds = $concepts->flatMap(function($concept) {
+    $typePlanningIds = $concepts->flatMap(function ($concept) {
       return $concept->typePlannings->pluck('id');
     })->unique()->toArray();
 
@@ -186,13 +186,13 @@ class ObjectiveDashboardService
               $itemQ->whereIn('type_planning_id', $typePlanningIds);
             });
         })
-        // MASSIVE invoicing: internal notes
-        ->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
-          $subQ->where('sede_id', $sedeId)
-            ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
-              $itemQ->whereIn('type_planning_id', $typePlanningIds);
-            });
-        });
+          // MASSIVE invoicing: internal notes
+          ->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
+            $subQ->where('sede_id', $sedeId)
+              ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
+                $itemQ->whereIn('type_planning_id', $typePlanningIds);
+              });
+          });
       })
       ->with([
         'workOrder.vehicle.model.family.brand',
@@ -234,12 +234,19 @@ class ObjectiveDashboardService
 
         // Calculate amount (considering credit notes)
         $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
-        $amount = (float) $document->total * $multiplier;
+        $amount = (float)$document->total * $multiplier;
 
         $totalBilling += $amount;
 
-        // By brand
-        $brandName = $workOrder->vehicle?->model?->family?->brand?->name ?? 'Otras marcas';
+        // By brand - check if brand is marketed
+        $brand = $workOrder->vehicle?->model?->family?->brand;
+        $brandName = 'OTRAS MARCAS';
+
+        if ($brand) {
+          // If is_marketed = 1, use brand name; otherwise group as "OTRAS MARCAS"
+          $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
+        }
+
         if (!isset($brandBreakdown[$brandName])) {
           $brandBreakdown[$brandName] = [
             'brand_name' => $brandName,
@@ -257,16 +264,16 @@ class ObjectiveDashboardService
 
           if (!isset($advisorBreakdown[$advisorId])) {
             // Get advisor objective if exists
-            $advisorObjective = ObjectiveAdvisorsPeriodPv::whereHas('conceptObjectivePeriod', function($q) use ($concepts) {
+            $advisorObjective = ObjectiveAdvisorsPeriodPv::whereHas('conceptObjectivePeriod', function ($q) use ($concepts) {
               $q->whereIn('id', $concepts->pluck('id'));
             })
-            ->where('worker_id', $advisorId)
-            ->first();
+              ->where('worker_id', $advisorId)
+              ->first();
 
             $advisorBreakdown[$advisorId] = [
               'advisor_id' => $advisorId,
               'advisor_name' => $advisorName,
-              'objective' => $advisorObjective ? (float) $advisorObjective->amount : 0,
+              'objective' => $advisorObjective ? (float)$advisorObjective->amount : 0,
               'progress' => 0
             ];
           }
@@ -284,7 +291,7 @@ class ObjectiveDashboardService
     }
 
     // Calculate advisor completion and rank
-    $advisorBreakdown = collect($advisorBreakdown)->map(function($advisor) {
+    $advisorBreakdown = collect($advisorBreakdown)->map(function ($advisor) {
       $advisor['progress'] = round($advisor['progress'], 2);
       $advisor['completion_percentage'] = $advisor['objective'] > 0
         ? round(($advisor['progress'] / $advisor['objective']) * 100, 2)
@@ -295,7 +302,7 @@ class ObjectiveDashboardService
 
     // Add ranking
     $rank = 1;
-    $advisorBreakdown = $advisorBreakdown->map(function($advisor) use (&$rank) {
+    $advisorBreakdown = $advisorBreakdown->map(function ($advisor) use (&$rank) {
       $advisor['rank'] = $rank++;
       return $advisor;
     });
@@ -307,7 +314,7 @@ class ObjectiveDashboardService
     $completionPercentage = $totalObjective > 0 ? round(($totalBilling / $totalObjective) * 100, 2) : 0;
 
     return [
-      'objective' => (float) $totalObjective,
+      'objective' => (float)$totalObjective,
       'progress' => round($totalBilling, 2),
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage),
@@ -341,7 +348,7 @@ class ObjectiveDashboardService
       ->whereBetween('fecha_de_emision', [$startDate, $endDate])
       ->where('anulado', false)
       ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-      ->whereHas('orderQuotation', function($q) use ($sedeId) {
+      ->whereHas('orderQuotation', function ($q) use ($sedeId) {
         $q->where('sede_id', $sedeId)
           ->where('area_id', ApMasters::AREA_MESON);
       })
@@ -353,7 +360,7 @@ class ObjectiveDashboardService
     $completionPercentage = $totalObjective > 0 ? round(($totalBilling / $totalObjective) * 100, 2) : 0;
 
     return [
-      'objective' => (float) $totalObjective,
+      'objective' => (float)$totalObjective,
       'progress' => round($totalBilling, 2),
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage)
@@ -378,7 +385,7 @@ class ObjectiveDashboardService
       ];
     }
 
-    $totalObjective = (float) $concept->sub_amount;
+    $totalObjective = (float)$concept->sub_amount;
 
     $startDate = Carbon::create($year, $month, 1)->startOfMonth();
     $endDate = $startDate->copy()->endOfMonth();
@@ -396,7 +403,14 @@ class ObjectiveDashboardService
     // Group by brand
     $brandBreakdown = [];
     foreach ($workOrders as $workOrder) {
-      $brandName = $workOrder->vehicle?->model?->family?->brand?->name ?? 'Otras marcas';
+      // Check if brand is marketed
+      $brand = $workOrder->vehicle?->model?->family?->brand;
+      $brandName = 'OTRAS MARCAS';
+
+      if ($brand) {
+        // If is_marketed = 1, use brand name; otherwise group as "OTRAS MARCAS"
+        $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
+      }
 
       if (!isset($brandBreakdown[$brandName])) {
         $brandBreakdown[$brandName] = [
@@ -417,7 +431,7 @@ class ObjectiveDashboardService
     $completionPercentage = $totalObjective > 0 ? round(($totalCount / $totalObjective) * 100, 2) : 0;
 
     return [
-      'objective' => (int) $totalObjective,
+      'objective' => (int)$totalObjective,
       'progress' => $totalCount,
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage),
@@ -465,7 +479,7 @@ class ObjectiveDashboardService
   private function createHeadquartersComparison(array $headquartersDetail): array
   {
     // Sort by completion percentage DESC
-    usort($headquartersDetail, function($a, $b) {
+    usort($headquartersDetail, function ($a, $b) {
       return $b['completion_percentage'] <=> $a['completion_percentage'];
     });
 
