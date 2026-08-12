@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models\ap\marketing;
 
@@ -18,6 +18,14 @@ class MktSupport extends BaseModel
   const TYPE_PHOTO   = 'photo';
   const TYPE_REPORT  = 'report';
   const TYPE_OTHER   = 'other';
+
+  const TYPE_LABELS = [
+    'receipt' => 'Boleta',
+    'invoice' => 'Factura',
+    'photo'   => 'Foto',
+    'report'  => 'Informe',
+    'other'   => 'Otro',
+  ];
 
   protected $fillable = [
     'activity_id',

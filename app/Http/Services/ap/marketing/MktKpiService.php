@@ -4,17 +4,18 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktKpiResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktKpi;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MktKpiService extends BaseService
+class MktKpiService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktKpi::class,
+      MktKpi::query()->with(['activity:id,name', 'currency:id,name,code,symbol']),
       $request,
       MktKpi::filters,
       MktKpi::sorts,
@@ -22,7 +23,7 @@ class MktKpiService extends BaseService
     );
   }
 
-  private function find(int $id): MktKpi
+  public function find(int $id): MktKpi
   {
     $kpi = MktKpi::with(['activity', 'currency'])->find($id);
     if (!$kpi) {
@@ -65,10 +66,17 @@ class MktKpiService extends BaseService
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(int $id): array
   {
-    $kpi = $this->find($id);
-    $kpi->delete();
-    return response()->json(['message' => 'KPI eliminado correctamente']);
+    DB::beginTransaction();
+    try {
+      $kpi = $this->find($id);
+      $kpi->delete();
+      DB::commit();
+      return ['message' => 'KPI eliminado correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

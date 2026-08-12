@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\marketing;
 
+use App\Models\ap\marketing\MktBudget;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +19,7 @@ class MktBudgetResource extends JsonResource
         'year' => $this->plan->year,
       ]),
       'type'             => $this->type,
+      'type_label'       => MktBudget::TYPE_LABELS[$this->type] ?? $this->type,
       'period_month'     => $this->period_month,
       'currency_id'      => $this->currency_id,
       'currency'         => $this->whenLoaded('currency', fn() => [
@@ -29,6 +31,7 @@ class MktBudgetResource extends JsonResource
       'amount_estimated' => $this->amount_estimated,
       'amount_executed'  => $this->amount_executed,
       'status'           => $this->status,
+      'status_label'     => MktBudget::STATUS_LABELS[$this->status] ?? $this->status,
       'notes'            => $this->notes,
       'fundings'         => MktBudgetFundingResource::collection($this->whenLoaded('fundings')),
       'created_by'       => $this->created_by,

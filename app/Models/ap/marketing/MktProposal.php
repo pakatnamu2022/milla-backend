@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models\ap\marketing;
 
@@ -16,6 +16,12 @@ class MktProposal extends BaseModel
   const STATUS_PENDING  = 'pending';
   const STATUS_APPROVED = 'approved';
   const STATUS_REJECTED = 'rejected';
+
+  const STATUS_LABELS = [
+    'pending'  => 'Pendiente',
+    'approved' => 'Aprobado',
+    'rejected' => 'Rechazado',
+  ];
 
   protected $fillable = [
     'activity_id',

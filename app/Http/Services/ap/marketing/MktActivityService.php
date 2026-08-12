@@ -6,6 +6,7 @@ use App\Http\Resources\ap\marketing\MktActivityLocationResource;
 use App\Http\Resources\ap\marketing\MktActivityResource;
 use App\Http\Resources\ap\marketing\MktSupportResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktActivity;
 use App\Models\ap\marketing\MktActivityLocation;
 use App\Models\ap\marketing\MktSupport;
@@ -13,12 +14,12 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MktActivityService extends BaseService
+class MktActivityService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktActivity::class,
+      MktActivity::query()->with(['budget:id,type,plan_id', 'currency:id,name,code,symbol', 'supplier:id,full_name']),
       $request,
       MktActivity::filters,
       MktActivity::sorts,
@@ -26,7 +27,7 @@ class MktActivityService extends BaseService
     );
   }
 
-  private function find(int $id): MktActivity
+  public function find(int $id): MktActivity
   {
     $activity = MktActivity::with(['budget', 'currency', 'supplier', 'locations', 'proposals', 'kpis'])->find($id);
     if (!$activity) {
@@ -40,7 +41,7 @@ class MktActivityService extends BaseService
     DB::beginTransaction();
     try {
       $activity = MktActivity::create($data);
-      $activity->load(['budget', 'currency', 'supplier', 'locations']);
+      $activity->load(['budget', 'currency', 'supplier', 'locations', 'proposals', 'kpis']);
       DB::commit();
       return new MktActivityResource($activity);
     } catch (\Exception $e) {
@@ -60,7 +61,7 @@ class MktActivityService extends BaseService
     DB::beginTransaction();
     try {
       $activity->update($data);
-      $activity->load(['budget', 'currency', 'supplier', 'locations']);
+      $activity->load(['budget', 'currency', 'supplier', 'locations', 'proposals', 'kpis']);
       DB::commit();
       return new MktActivityResource($activity);
     } catch (\Exception $e) {
@@ -69,11 +70,18 @@ class MktActivityService extends BaseService
     }
   }
 
-  public function destroy(int $id)
+  public function destroy(int $id): array
   {
-    $activity = $this->find($id);
-    $activity->delete();
-    return response()->json(['message' => 'Actividad eliminada correctamente']);
+    DB::beginTransaction();
+    try {
+      $activity = $this->find($id);
+      $activity->delete();
+      DB::commit();
+      return ['message' => 'Actividad eliminada correctamente'];
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   public function addLocation(int $activityId, mixed $data): MktActivityLocationResource

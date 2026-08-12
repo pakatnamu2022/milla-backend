@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models\ap\marketing;
 
@@ -23,6 +23,18 @@ class MktPurchaseOrder extends BaseModel
   const STATUS_BILLED          = 'billed';
   const STATUS_CLOSED          = 'closed';
   const STATUS_CANCELLED       = 'cancelled';
+
+  const STATUS_LABELS = [
+    'draft'           => 'Borrador',
+    'sent'            => 'Enviado',
+    'in_execution'    => 'En ejecución',
+    'pending_support' => 'Pendiente de sustento',
+    'supported'       => 'Sustentado',
+    'pending_billing' => 'Pendiente de facturación',
+    'billed'          => 'Facturado',
+    'closed'          => 'Cerrado',
+    'cancelled'       => 'Cancelado',
+  ];
 
   protected $fillable = [
     'activity_id',

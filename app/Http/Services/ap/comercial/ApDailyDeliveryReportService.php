@@ -1714,7 +1714,7 @@ class ApDailyDeliveryReportService
     });
     $deliveriesOnly = $deliveredVehicles->filter(fn($v) => !is_null($v->real_delivery_date));
 
-    $goalsIn  = $this->getGoalsForPeriod($year, $month, 'IN');
+    $goalsIn = $this->getGoalsForPeriod($year, $month, 'IN');
     $goalsOut = $this->getGoalsForPeriod($year, $month, 'OUT');
 
     $brandNames = [];
@@ -1740,26 +1740,26 @@ class ApDailyDeliveryReportService
     // Por Marca: brand → sedes con conteo
     $byBrand = [];
     foreach ($allBrandIds as $brandId) {
-      $brandOrders    = $purchaseOrders->filter(fn($p) => $p->brand_id == $brandId);
+      $brandOrders = $purchaseOrders->filter(fn($p) => $p->brand_id == $brandId);
       $brandDeliveries = $deliveriesOnly->filter(fn($v) => $v->brand_id == $brandId);
-      $brandSellIn    = $goalsIn->where('brand_id', $brandId)->sum('goal');
-      $brandSellOut   = $goalsOut->where('brand_id', $brandId)->sum('goal');
+      $brandSellIn = $goalsIn->where('brand_id', $brandId)->sum('goal');
+      $brandSellOut = $goalsOut->where('brand_id', $brandId)->sum('goal');
 
       $sedeDetail = [];
       foreach ($allShops as $shopId => $shopName) {
-        $shopOrders     = $brandOrders->filter(fn($p) => $p->shop_id == $shopId);
+        $shopOrders = $brandOrders->filter(fn($p) => $p->shop_id == $shopId);
         $shopDeliveries = $brandDeliveries->filter(fn($v) => $v->advisor_shop_id == $shopId);
-        $shopSellIn     = $goalsIn->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
-        $shopSellOut    = $goalsOut->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
+        $shopSellIn = $goalsIn->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
+        $shopSellOut = $goalsOut->where('brand_id', $brandId)->where('shop_id', $shopId)->sum('goal');
 
         if ($shopOrders->count() || $shopDeliveries->count() || $shopSellIn || $shopSellOut) {
           $sedeDetail[] = [
-            'sede_id'          => $shopId,
-            'sede_name'        => $shopName,
-            'compras'          => $shopOrders->count(),
-            'ventas'           => $shopDeliveries->count(),
-            'objetivo_sell_in' => $shopSellIn,
-            'objetivo_sell_out'=> $shopSellOut,
+            'sede_id'           => $shopId,
+            'sede_name'         => $shopName,
+            'compras'           => $shopOrders->count(),
+            'ventas'            => $shopDeliveries->count(),
+            'objetivo_sell_in'  => $shopSellIn,
+            'objetivo_sell_out' => $shopSellOut,
           ];
         }
       }
@@ -1782,10 +1782,10 @@ class ApDailyDeliveryReportService
     // Por Sede: sede → marcas con conteo
     $bySede = [];
     foreach ($allShops as $shopId => $shopName) {
-      $shopOrders     = $purchaseOrders->filter(fn($p) => $p->shop_id == $shopId);
+      $shopOrders = $purchaseOrders->filter(fn($p) => $p->shop_id == $shopId);
       $shopDeliveries = $deliveriesOnly->filter(fn($v) => $v->advisor_shop_id == $shopId);
-      $shopSellIn     = $goalsIn->where('shop_id', $shopId)->sum('goal');
-      $shopSellOut    = $goalsOut->where('shop_id', $shopId)->sum('goal');
+      $shopSellIn = $goalsIn->where('shop_id', $shopId)->sum('goal');
+      $shopSellOut = $goalsOut->where('shop_id', $shopId)->sum('goal');
 
       if ($shopOrders->isEmpty() && $shopDeliveries->isEmpty() && !$shopSellIn && !$shopSellOut) continue;
 
@@ -1798,10 +1798,10 @@ class ApDailyDeliveryReportService
 
       $brandDetail = [];
       foreach ($shopBrandIds as $brandId) {
-        $brandOrders    = $shopOrders->filter(fn($p) => $p->brand_id == $brandId);
+        $brandOrders = $shopOrders->filter(fn($p) => $p->brand_id == $brandId);
         $brandDeliveries = $shopDeliveries->filter(fn($v) => $v->brand_id == $brandId);
-        $brandSellIn    = $goalsIn->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
-        $brandSellOut   = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+        $brandSellIn = $goalsIn->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
+        $brandSellOut = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
 
         $brandDetail[] = [
           'brand_id'          => $brandId,
@@ -2274,7 +2274,7 @@ class ApDailyDeliveryReportService
     'LJ11KDAD6V1300727',
     'LJ11KDAD8V1300728',
     '93YJ62S07VJ563317',
-
+    'MA3YPLCS0VK182594',
   ];
 
   protected function buildCurrentInventory(): array
@@ -2378,15 +2378,15 @@ class ApDailyDeliveryReportService
     // Construir mapa de stock libre para compartir con brand_report
     $libreMap = [];
     foreach ($vehicles as $vehicle) {
-      $enArrayInicial        = $vinsFacturadosIniciales->contains($vehicle->vin);
+      $enArrayInicial = $vinsFacturadosIniciales->contains($vehicle->vin);
       $tieneMovFacturadoFinal = $vehicle->vehicleMovements
         ->contains('ap_vehicle_status_id', ApVehicleStatus::FACTURADO_FINAL);
       $esLibre = !$enArrayInicial && !$tieneMovFacturadoFinal && $vehicle->purchaseRequestQuote === null;
 
       if ($esLibre) {
         $brandId = $vehicle->model?->family?->brand?->id;
-        $sedeId  = $vehicle->warehouse?->sede_id;
-        $shopId  = $sedeToShopMap[$sedeId] ?? null;
+        $sedeId = $vehicle->warehouse?->sede_id;
+        $shopId = $sedeToShopMap[$sedeId] ?? null;
         if ($brandId && $shopId) {
           $libreMap[$shopId][$brandId] = ($libreMap[$shopId][$brandId] ?? 0) + 1;
         }

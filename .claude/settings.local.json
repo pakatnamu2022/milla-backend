@@ -59,7 +59,11 @@
       "Bash(sed -i \"s/{width:2600, header:'Hito'}, {width:2200, header:'Fecha'}, {width:5000, header:'Nota'}/{width:2200, header:'Hito'}, {width:2000, header:'Fecha'}, {width:4200, header:'Nota'}/\" build_rtf.js)",
       "Bash(sed -i \"s/{width:1100,header:'Sprint'},{width:1750,header:'Fechas'},{width:1500,header:'Tipo'},{width:3950,header:'Entregable'},{width:900,header:'Horas'}/{width:1000,header:'Sprint'},{width:1650,header:'Fechas'},{width:1400,header:'Tipo'},{width:3800,header:'Entregable'},{width:900,header:'Horas'}/g\" build_rtf.js)",
       "Bash(node build_rtf.js)",
-      "Bash(awk NR>=1290 && NR<=1360 *)"
+      "Bash(awk NR>=1290 && NR<=1360 *)",
+      "Bash(node parse.js xl/worksheets/sheet1.xml)",
+      "Bash(node parse.js xl/worksheets/sheet2.xml)",
+      "Bash(node parse.js xl/worksheets/sheet3.xml)",
+      "Bash(cd C:/laragon/www/milla-backend && find database/migrations -newer database/migrations -iname \"*.php\" 2>/dev/null | head -1 *)"
     ],
     "deny": [],
     "ask": []

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models\ap\marketing;
 
@@ -18,6 +18,13 @@ class MktActivity extends BaseModel
   const STATUS_IN_PROGRESS = 'in_progress';
   const STATUS_EXECUTED    = 'executed';
   const STATUS_CANCELLED   = 'cancelled';
+
+  const STATUS_LABELS = [
+    'planned'     => 'Planificado',
+    'in_progress' => 'En progreso',
+    'executed'    => 'Ejecutado',
+    'cancelled'   => 'Cancelado',
+  ];
 
   protected $fillable = [
     'budget_id',
