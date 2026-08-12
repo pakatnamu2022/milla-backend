@@ -27,6 +27,7 @@ use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
+use App\Models\ap\comercial\ApVehicleDeliveryRescheduleLog;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\gp\maestroGeneral\Sede;
@@ -105,13 +106,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('El asesor no está asociado a un socio válido');
         }
 
-        if (!$isExtraordinary) {
-          $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
-            ->where('scheduled_delivery_date', $data['scheduled_delivery_date'])
-            ->first();
-          if ($existingDelivery) {
-            throw new Exception('Ya existe una entrega programada para este vehículo en la misma fecha');
-          }
+        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])->exists();
+        if ($existingDelivery) {
+          throw new Exception('Ya existe una entrega registrada para este vehículo.');
         }
 
         // Obtener el documento electrónico y cliente usando el método centralizado
@@ -160,11 +157,27 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
   public function show($id)
   {
-    $vehicleDelivery = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist'])->find($id);
+    $vehicleDelivery = ApVehicleDelivery::with(['ShippingGuide', 'deliveryChecklist', 'rescheduleLogs.rescheduledBy'])->find($id);
     if (!$vehicleDelivery) {
       throw new Exception('Entrega de Vehículo no encontrado');
     }
     return new ApVehicleDeliveryResource($vehicleDelivery);
+  }
+
+  public function rescheduleHistory(int $id): array
+  {
+    $vehicleDelivery = ApVehicleDelivery::with(['rescheduleLogs.rescheduledBy'])->findOrFail($id);
+
+    return $vehicleDelivery->rescheduleLogs->map(fn($log) => [
+      'id'               => $log->id,
+      'previous_date'    => $log->previous_date,
+      'new_date'         => $log->new_date,
+      'is_extraordinary' => $log->is_extraordinary,
+      'observations'     => $log->observations,
+      'rescheduled_by'   => $log->rescheduled_by,
+      'rescheduled_by_name' => $log->rescheduledBy?->name,
+      'created_at'       => $log->created_at,
+    ])->values()->all();
   }
 
   public function update(mixed $data)
@@ -565,6 +578,11 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $vehicle = Vehicles::findOrFail($data['vehicle_id']);
         $isExtraordinary = !empty($data['is_extraordinary']);
 
+        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])->exists();
+        if ($existingDelivery) {
+          throw new Exception('Ya existe una entrega registrada para este vehículo.');
+        }
+
         // Reutilizar el movimiento SOLD_NOT_DELIVERED ya existente
         $vehicleMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
           ->where('movement_type', VehicleMovement::SOLD_NOT_DELIVERED)
@@ -636,6 +654,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       }
     }
 
+    $previousDate = $vehicleDelivery->scheduled_delivery_date;
+
     $updateData = [
       'scheduled_delivery_date' => $data['scheduled_delivery_date'],
       'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
@@ -650,6 +670,15 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $vehicleDelivery->update($updateData);
+
+    ApVehicleDeliveryRescheduleLog::create([
+      'vehicle_delivery_id' => $vehicleDelivery->id,
+      'previous_date'       => $previousDate,
+      'new_date'            => $data['scheduled_delivery_date'],
+      'rescheduled_by'      => auth()->id(),
+      'is_extraordinary'    => $isExtraordinary,
+      'observations'        => $data['observations'] ?? null,
+    ]);
 
     if ($isExtraordinary) {
       $this->sendExtraordinaryApprovalEmail($vehicleDelivery->fresh()->load(['vehicle', 'client', 'sede']));

@@ -38,6 +38,18 @@ class ApVehicleDeliveryResource extends JsonResource
       'shipping_guide'          => $this->whenLoaded('ShippingGuide', function () {
         return new ShippingGuidesResource($this->ShippingGuide);
       }),
+      'reschedule_logs'         => $this->whenLoaded('rescheduleLogs', function () {
+        return $this->rescheduleLogs->map(fn($log) => [
+          'id'               => $log->id,
+          'previous_date'    => $log->previous_date,
+          'new_date'         => $log->new_date,
+          'is_extraordinary' => $log->is_extraordinary,
+          'observations'     => $log->observations,
+          'rescheduled_by'   => $log->rescheduled_by,
+          'rescheduled_by_name' => $log->rescheduledBy?->name,
+          'created_at'       => $log->created_at,
+        ]);
+      }),
       'created_at'              => $this->created_at,
     ];
   }

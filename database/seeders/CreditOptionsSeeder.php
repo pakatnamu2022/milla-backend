@@ -14,10 +14,10 @@ class CreditOptionsSeeder extends Seeder
     // CREDIT_TYPE — sin parent
     $creditTypes = [
       ['code' => 'CREDITO_INCHCAPE', 'description' => 'CREDITO INCHCAPE'],
-      ['code' => 'FONDO_COLECTIVO',  'description' => 'FONDO COLECTIVO'],
-      ['code' => 'CAJAS',            'description' => 'CAJAS'],
-      ['code' => 'CREDITO_PROPIO',   'description' => 'CREDITO PROPIO'],
-      ['code' => 'LEASING',          'description' => 'LEASING'],
+      ['code' => 'FONDO_COLECTIVO', 'description' => 'FONDO COLECTIVO'],
+      ['code' => 'CAJAS', 'description' => 'CAJAS'],
+      ['code' => 'CREDITO_PROPIO', 'description' => 'CREDITO PROPIO'],
+      ['code' => 'LEASING', 'description' => 'LEASING'],
     ];
 
     $typeIds = [];
