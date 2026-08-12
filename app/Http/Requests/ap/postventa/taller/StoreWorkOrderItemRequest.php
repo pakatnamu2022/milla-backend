@@ -23,8 +23,7 @@ class StoreWorkOrderItemRequest extends StoreRequest
       'type_planning_id' => [
         'required',
         'integer',
-        Rule::exists('ap_masters', 'id')
-          ->where('type', 'TIPO_PLANIFICACION'),
+        Rule::exists('type_planning_work_order', 'id'),
       ],
       'type_operation_id' => [
         'required',
