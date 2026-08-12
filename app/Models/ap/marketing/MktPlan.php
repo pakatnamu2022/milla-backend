@@ -2,7 +2,9 @@
 
 namespace App\Models\ap\marketing;
 
+use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
 use App\Models\BaseModel;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,9 +15,9 @@ class MktPlan extends BaseModel
 
   protected $table = 'ap_mkt_plans';
 
-  const STATUS_DRAFT     = 'draft';
-  const STATUS_ACTIVE    = 'active';
-  const STATUS_CLOSED    = 'closed';
+  const STATUS_DRAFT = 'draft';
+  const STATUS_ACTIVE = 'active';
+  const STATUS_CLOSED = 'closed';
   const STATUS_CANCELLED = 'cancelled';
 
   protected $fillable = [
@@ -49,7 +51,7 @@ class MktPlan extends BaseModel
 
   public function brand(): BelongsTo
   {
-    return $this->belongsTo(\App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand::class, 'brand_id');
+    return $this->belongsTo(ApVehicleBrand::class, 'brand_id');
   }
 
   public function budgets(): HasMany
@@ -59,11 +61,11 @@ class MktPlan extends BaseModel
 
   public function createdBy(): BelongsTo
   {
-    return $this->belongsTo(\App\Models\User::class, 'created_by');
+    return $this->belongsTo(User::class, 'created_by');
   }
 
   public function updatedBy(): BelongsTo
   {
-    return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    return $this->belongsTo(User::class, 'updated_by');
   }
 }
