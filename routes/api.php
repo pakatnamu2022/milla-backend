@@ -6,6 +6,7 @@ use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
+use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
@@ -41,6 +42,14 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBran
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
+use App\Http\Controllers\ap\marketing\MktActivityController;
+use App\Http\Controllers\ap\marketing\MktBudgetController;
+use App\Http\Controllers\ap\marketing\MktDashboardController;
+use App\Http\Controllers\ap\marketing\MktKpiController;
+use App\Http\Controllers\ap\marketing\MktPlanController;
+use App\Http\Controllers\ap\marketing\MktProposalController;
+use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
+use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\facturacion\AccountingEntryController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
@@ -1259,6 +1268,41 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
     });
 
+    //      MARKETING
+    Route::group(['prefix' => 'marketing'], function () {
+      // Plans
+      Route::apiResource('plans', MktPlanController::class);
+
+      // Budgets
+      Route::apiResource('budgets', MktBudgetController::class);
+      Route::post('budgets/{id}/fundings', [MktBudgetController::class, 'addFunding']);
+
+      // Activities
+      Route::apiResource('activities', MktActivityController::class);
+      Route::post('activities/{id}/locations', [MktActivityController::class, 'addLocation']);
+      Route::post('activities/{id}/supports', [MktActivityController::class, 'addSupport']);
+      Route::patch('activities/{id}/status', [MktActivityController::class, 'changeStatus']);
+
+      // Proposals
+      Route::apiResource('proposals', MktProposalController::class);
+      Route::post('proposals/{id}/approve', [MktProposalController::class, 'approve']);
+      Route::post('proposals/{id}/reject', [MktProposalController::class, 'reject']);
+
+      // Purchase Orders
+      Route::apiResource('purchase-orders', MktPurchaseOrderController::class);
+      Route::patch('purchase-orders/{id}/status', [MktPurchaseOrderController::class, 'changeStatus']);
+
+      // Supports
+      Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'destroy']);
+
+      // KPIs
+      Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+      // Dashboard
+      Route::get('dashboard', [MktDashboardController::class, 'index']);
+      Route::get('dashboard/monthly', [MktDashboardController::class, 'monthly']);
+    });
+
     //      COMMERCIAL
     Route::group(['prefix' => 'commercial'], function () {
       Route::get('businessPartners/{id}/opportunities', [BusinessPartnersController::class, 'opportunities']);
@@ -1446,6 +1490,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
 
         Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
+      });
+
+      // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
+      Route::prefix('dashboard/unidades')->group(function () {
+        Route::get('resumen', [ApUnidadesDashboardController::class, 'resumen']);
+        Route::get('dashboard', [ApUnidadesDashboardController::class, 'dashboard']);
+        Route::get('vencimientos', [ApUnidadesDashboardController::class, 'vencimientos']);
       });
 
       // Delivery Checklist
