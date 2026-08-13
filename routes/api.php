@@ -81,7 +81,6 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
-use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectiveMasterPvController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectivePeriodPvController;
@@ -1773,15 +1772,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Items - Ítems de Órdenes de Trabajo
       Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Work Order Assign Operators - Asignación de Operadores a Órdenes de Trabajo
-      Route::apiResource('workOrderAssignOperators', ApWorkOrderAssignOperatorController::class)->only([
         'index',
         'show',
         'store',
