@@ -69,27 +69,27 @@ class BusinessPartners extends Model
   ];
 
   protected $casts = [
-    'birth_date' => 'date',
-    'driving_license_issue_date' => 'date',
+    'birth_date'                      => 'date',
+    'driving_license_issue_date'      => 'date',
     'driving_license_expiration_date' => 'date',
-    'is_insurance' => 'boolean',
+    'is_insurance'                    => 'boolean',
   ];
 
   const filters = [
-    'search' => ['full_name', 'paternal_surname', 'maternal_surname', 'num_doc', 'email', 'phone'],
-    'company_id' => '=',
-    'type_person_id' => '=',
-    'document_type_id' => '=',
+    'search'                 => ['full_name', 'paternal_surname', 'maternal_surname', 'num_doc', 'email', 'phone'],
+    'company_id'             => '=',
+    'type_person_id'         => '=',
+    'document_type_id'       => '=',
     'district_iddistrict_id' => '=',
-    'nationality' => '=',
-    'marital_status_id' => '=',
-    'gender_id' => '=',
-    'type' => 'in',
-    'status_gp' => '=',
-    'status_ap' => '=',
-    'status_tp' => '=',
-    'status_dp' => '=',
-    'is_insurance' => '='
+    'nationality'            => '=',
+    'marital_status_id'      => '=',
+    'gender_id'              => '=',
+    'type'                   => 'in_or_equal',
+    'status_gp'              => '=',
+    'status_ap'              => '=',
+    'status_tp'              => '=',
+    'status_dp'              => '=',
+    'is_insurance'           => '='
   ];
 
   const sorts = [

@@ -69,7 +69,8 @@ class MktPurchaseOrderController extends Controller
   {
     try {
       $status = $request->input('status');
-      return $this->success($this->service->changeStatus($id, $status));
+      $extra  = $request->only(['electronic_document_id']);
+      return $this->success($this->service->changeStatus($id, $status, $extra));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
