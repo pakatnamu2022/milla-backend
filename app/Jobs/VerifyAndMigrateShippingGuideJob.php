@@ -213,6 +213,24 @@ class VerifyAndMigrateShippingGuideJob implements ShouldQueue
 
     $isCancelledGuide = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
 
+    // Si está cancelada pero nunca llegó a Dynamics, no hay nada que revertir
+    if ($isCancelledGuide && !$shippingGuide->status_dynamic) {
+      Log::info('Guía cancelada nunca migró a Dynamics, se omite el reversal', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'document_number'   => $shippingGuide->document_number,
+      ]);
+      return;
+    }
+
+    // Si no está cancelada, debe estar aceptada por SUNAT (excepto guías internas)
+    if (!$isCancelledGuide && !$shippingGuide->aceptada_por_sunat && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA) {
+      Log::info('Guía no aceptada por SUNAT, se omite la migración', [
+        'shipping_guide_id' => $shippingGuide->id,
+        'document_number'   => $shippingGuide->document_number,
+      ]);
+      return;
+    }
+
     if (
       $shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_PENDING ||
       ($isCancelledGuide && $shippingGuide->migration_status === VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)
