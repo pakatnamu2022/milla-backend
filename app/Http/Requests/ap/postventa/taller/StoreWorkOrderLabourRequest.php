@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\postventa\taller;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\postventa\taller\WorkOrderLabour;
 
 class StoreWorkOrderLabourRequest extends StoreRequest
 {
@@ -23,6 +24,10 @@ class StoreWorkOrderLabourRequest extends StoreRequest
         'required',
         'string',
         'max:500',
+      ],
+      'labour_type' => [
+        'required',
+        WorkOrderLabour::getLabourTypeValidationRule(),
       ],
       'time_spent' => [
         'required',
@@ -96,6 +101,10 @@ class StoreWorkOrderLabourRequest extends StoreRequest
       'description.required' => 'La descripción es obligatoria.',
       'description.string' => 'La descripción debe ser una cadena de texto.',
       'description.max' => 'La descripción no debe exceder los 500 caracteres.',
+
+      'labour_type.required' => 'El tipo de mano de obra es obligatorio.',
+      'labour_type.string' => 'El tipo de mano de obra debe ser una cadena de texto.',
+      'labour_type.in' => 'El tipo de mano de obra debe ser: labor, material o deductible.',
 
       'time_spent.required' => 'El tiempo empleado es obligatorio.',
       'time_spent.numeric' => 'El tiempo empleado debe ser un número.',

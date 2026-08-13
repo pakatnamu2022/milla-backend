@@ -28,7 +28,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       'item_type' => [
         'sometimes',
         'required',
-        'in:PRODUCT,LABOR',
+        ApOrderQuotationDetails::getItemTypeValidationRule(),
       ],
       'product_id' => [
         'nullable',
@@ -176,7 +176,7 @@ class UpdateApOrderQuotationDetailsRequest extends StoreRequest
       $itemType = $this->input('item_type', $detail->item_type);
 
       // Solo validar stock si es un producto (no mano de obra)
-      if ($itemType !== 'PRODUCT') {
+      if ($itemType !== ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
         return;
       }
 

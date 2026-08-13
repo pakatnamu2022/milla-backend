@@ -5,6 +5,7 @@ namespace App\Http\Services\ap\postventa\Reports;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Support\Collection;
 
@@ -54,7 +55,7 @@ class MesonInvoicingReportService
 
       foreach ($quotation->details as $detail) {
         // Solo incluir productos, no mano de obra
-        if ($detail->item_type !== 'PRODUCT' || !$detail->product_id) {
+        if ($detail->item_type !== ApOrderQuotationDetails::ITEM_TYPE_PRODUCT || !$detail->product_id) {
           continue;
         }
 

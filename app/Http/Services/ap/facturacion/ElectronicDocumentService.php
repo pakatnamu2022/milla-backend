@@ -35,6 +35,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\Sede;
@@ -3503,10 +3504,10 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Intentar buscar como labour
       $labour = $labours->get($itemId);
       if ($labour) {
-        $descripcionNormalizada = trim(strtolower($labour->description ?? ''));
         $unidadMedidaDyn = UnitMeasurement::find(UnitMeasurement::SERVICE_ID)?->dyn_code ?? 'UNS';
 
-        if ($descripcionNormalizada === 'materiales') {
+        // Usar labour_type en lugar de validar por descripción
+        if ($labour->labour_type === WorkOrderLabour::LABOUR_TYPE_MATERIAL) {
           $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code_dynamics ?? 'V0000012';
           $item['codigo'] = $materialsCode;
           $item['dyn_code'] = $materialsCode;

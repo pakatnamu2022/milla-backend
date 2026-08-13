@@ -51,7 +51,8 @@
               </p>
 
               <!-- Datos de la cotización -->
-              <div style="margin:0 0 16px 0;padding:14px 16px;border-left:4px solid #15803d;background:#f0fdf4;border-radius:0 10px 10px 0;">
+              <div
+                style="margin:0 0 16px 0;padding:14px 16px;border-left:4px solid #15803d;background:#f0fdf4;border-radius:0 10px 10px 0;">
                 <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#15803d;margin-bottom:6px;">
                   Datos de la Cotización
                 </div>
@@ -63,14 +64,18 @@
                   <strong>Solicitado por:</strong> {{ $requester_name }}<br>
                   <strong>Aprobado por:</strong> {{ $approver_name }}<br>
                   <strong>Fecha de aprobación:</strong> {{ $approval_date }}<br>
-                  <strong>Tipo de descuento:</strong> {{ $type === 'GLOBAL' ? 'General (toda la cotización)' : 'Parcial (ítem específico)' }}<br>
-                  <strong>Tipo de ítem:</strong> {{ $item_type === 'PRODUCT' ? 'Repuesto / Producto' : 'Mano de obra / Servicio' }}
+                  <strong>Tipo de
+                    descuento:</strong> {{ $type === 'GLOBAL' ? 'General (toda la cotización)' : 'Parcial (ítem específico)' }}
+                  <br>
+                  <strong>Tipo de
+                    ítem:</strong> {{ $item_type === App\Models\ap\postventa\taller\ApOrderQuotationDetails::ITEM_TYPE_PRODUCT ? 'Repuesto / Producto' : 'Mano de obra / Servicio' }}
                 </div>
               </div>
 
               <!-- Detalle del ítem (solo PARTIAL) -->
               @if($type === 'PARTIAL')
-                <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
+                <div
+                  style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #e6e8ee;border-radius:12px;background:#fbfbfe;">
                   <div style="font:600 13px/1.5 Inter,Arial,Helvetica,sans-serif;color:#111827;margin-bottom:6px;">
                     Ítem con Descuento
                   </div>
@@ -86,46 +91,53 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
                      style="border:1px solid #e6e8ee;border-radius:12px;overflow:hidden;margin-bottom:20px;">
                 <thead>
-                  <tr>
-                    <th colspan="2"
-                        style="padding:12px 16px;background:#f9fafc;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;text-transform:uppercase;border-bottom:2px solid #e6e8ee;text-align:left;">
-                      Resumen del Descuento Aprobado
-                    </th>
-                  </tr>
+                <tr>
+                  <th colspan="2"
+                      style="padding:12px 16px;background:#f9fafc;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;text-transform:uppercase;border-bottom:2px solid #e6e8ee;text-align:left;">
+                    Resumen del Descuento Aprobado
+                  </th>
+                </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
-                      Precio original
-                    </td>
-                    <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #e6e8ee;text-align:right;">
-                      S/ {{ number_format($original_price, 2) }}
-                    </td>
-                  </tr>
-                  <tr style="background:#fbfbfe;">
-                    <td style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
-                      Descuento aprobado
-                    </td>
-                    <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#dc2626;border-bottom:1px solid #e6e8ee;text-align:right;">
-                      {{ number_format($discount_percentage, 2) }}% &mdash; S/ {{ number_format($discount_amount, 2) }}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
-                      Precio final
-                    </td>
-                    <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #e6e8ee;text-align:right;">
-                      S/ {{ number_format($final_price, 2) }}
-                    </td>
-                  </tr>
-                  <tr style="background:#f0fdf4;">
-                    <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;">
-                      Ahorro del cliente
-                    </td>
-                    <td style="padding:12px 16px;font:700 15px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;text-align:right;">
-                      S/ {{ number_format($discount_amount, 2) }}
-                    </td>
-                  </tr>
+                <tr>
+                  <td
+                    style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
+                    Precio original
+                  </td>
+                  <td
+                    style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #e6e8ee;text-align:right;">
+                    S/ {{ number_format($original_price, 2) }}
+                  </td>
+                </tr>
+                <tr style="background:#fbfbfe;">
+                  <td
+                    style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
+                    Descuento aprobado
+                  </td>
+                  <td
+                    style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#dc2626;border-bottom:1px solid #e6e8ee;text-align:right;">
+                    {{ number_format($discount_percentage, 2) }}% &mdash; S/ {{ number_format($discount_amount, 2) }}
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">
+                    Precio final
+                  </td>
+                  <td
+                    style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #e6e8ee;text-align:right;">
+                    S/ {{ number_format($final_price, 2) }}
+                  </td>
+                </tr>
+                <tr style="background:#f0fdf4;">
+                  <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;">
+                    Ahorro del cliente
+                  </td>
+                  <td
+                    style="padding:12px 16px;font:700 15px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;text-align:right;">
+                    S/ {{ number_format($discount_amount, 2) }}
+                  </td>
+                </tr>
                 </tbody>
               </table>
 
@@ -154,8 +166,13 @@
 
   <style>
     @media (max-width: 480px) {
-      h1 { font-size: 18px !important; }
-      p, td, div { font-size: 13px !important; }
+      h1 {
+        font-size: 18px !important;
+      }
+
+      p, td, div {
+        font-size: 13px !important;
+      }
     }
   </style>
 @endsection
