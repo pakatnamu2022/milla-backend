@@ -55,7 +55,7 @@ class ApVehicleDelivery extends Model
   const SATURDAY_SLOTS = ['10:00', '11:00', '12:00'];
 
   const filters = [
-    'search'                  => ['vehicle.vin', 'advisor.nombre_completo'],
+    'search'                  => ['vehicle.vin', 'advisor.nombre_completo', 'shippingGuide.document_number', 'vehicle.plate', 'client.full_name'],
     'vehicle_id'              => '=',
     'scheduled_delivery_date' => 'date_between',
     'real_delivery_date'      => 'date_between',
@@ -185,59 +185,59 @@ class ApVehicleDelivery extends Model
   }
 
   protected $reportColumns = [
-    'vehicle.purchaseRequestQuote.holder.documentType.description' => [
+    'vehicle.purchaseRequestQuote.holder.documentType.description'    => [
       'label'    => 'TIPO DOCUMENTO',
       'fallback' => 'client.documentType.description',
     ],
-    'vehicle.purchaseRequestQuote.holder.num_doc'                  => [
+    'vehicle.purchaseRequestQuote.holder.num_doc'                     => [
       'label'    => 'NÚMERO DOCUMENTO',
       'fallback' => 'client.num_doc',
     ],
-    'vehicle.purchaseRequestQuote.holder.full_name'                => [
+    'vehicle.purchaseRequestQuote.holder.full_name'                   => [
       'label'    => 'TITULAR COTIZACIÓN',
       'fallback' => 'client.full_name',
     ],
-    'vehicle.model.family.brand.name'                              => [
+    'vehicle.model.family.brand.name'                                 => [
       'label'     => 'MARCA',
       'formatter' => null,
     ],
-    'vehicle.model.family.description'                             => [
+    'vehicle.model.family.description'                                => [
       'label'     => 'MODELO',
       'formatter' => null,
     ],
-    'vehicle.model.version'                                        => [
+    'vehicle.model.version'                                           => [
       'label'     => 'VERSIÓN',
       'formatter' => null,
     ],
-    'vehicle.vin'                                                  => [
+    'vehicle.vin'                                                     => [
       'label'     => 'VIN',
       'formatter' => null,
     ],
-    'vehicle.plate'                                                => [
+    'vehicle.plate'                                                   => [
       'label'   => 'PLACA',
       'default' => 'S/P',
     ],
-    'vehicle.color.description'                                    => [
+    'vehicle.color.description'                                       => [
       'label'     => 'COLOR',
       'formatter' => null,
     ],
-    'sede.abreviatura'                                             => [
+    'sede.abreviatura'                                                => [
       'label'     => 'SEDE',
       'formatter' => null,
     ],
-    'vehicle.electronicDocumentParent.full_number'                  => [
+    'vehicle.electronicDocumentParent.full_number'                    => [
       'label'   => 'COMPROBANTE VENTA',
       'default' => '-',
     ],
-    'vehicle.electronicDocumentParent.fecha_de_emision'            => [
+    'vehicle.electronicDocumentParent.fecha_de_emision'               => [
       'label'     => 'FECHA FACTURACIÓN',
       'formatter' => 'date',
     ],
-    'vehicle.electronicDocumentParent.cliente_email'               => [
+    'vehicle.electronicDocumentParent.cliente_email'                  => [
       'label'    => 'EMAIL CLIENTE',
       'fallback' => 'client.email',
     ],
-    'vehicle.electronicDocumentParent.client_phone'                => [
+    'vehicle.electronicDocumentParent.client_phone'                   => [
       'label'    => 'TELÉFONO CLIENTE',
       'fallback' => 'client.phone',
     ],
@@ -245,43 +245,43 @@ class ApVehicleDelivery extends Model
       'label'    => 'ASESOR VENTA',
       'fallback' => 'advisor.nombre_completo',
     ],
-    'advisor.nombre_completo'                                      => [
+    'advisor.nombre_completo'                                         => [
       'label'     => 'PERSONAL DE ENTREGA',
       'formatter' => null,
     ],
-    'date_scheduled_delivery_date'                                 => [
+    'date_scheduled_delivery_date'                                    => [
       'label'     => 'FECHA ENTREGA',
       'formatter' => 'date:Y-m-d H:i',
     ],
-    'time_scheduled_delivery_date'                                 => [
+    'time_scheduled_delivery_date'                                    => [
       'label'     => 'HORA ENTREGA',
       'formatter' => 'date:H:i',
     ],
-    'status_delivery_label'                                        => [
+    'status_delivery_label'                                           => [
       'label'     => 'ESTADO',
       'formatter' => null,
     ],
-    'ShippingGuide.document_number'                                => [
+    'ShippingGuide.document_number'                                   => [
       'label'   => 'GUÍA DE REMISIÓN',
       'default' => '-',
     ],
-    'checklist_confirmation'                                       => [
+    'checklist_confirmation'                                          => [
       'label'     => 'CHECKLIST (SERIALES)',
       'formatter' => null,
     ],
-    'is_accounted'                                                 => [
+    'is_accounted'                                                    => [
       'label'       => 'CONTABILIZADO',
       'formatter'   => 'boolean',
       'true_label'  => 'CONTABILIZADO',
       'false_label' => 'EN TRABAJO',
     ],
-    'is_extraordinary'                                             => [
+    'is_extraordinary'                                                => [
       'label'       => 'TIPO ENTREGA',
       'formatter'   => 'boolean',
       'true_label'  => 'EXTRAORDINARIA',
       'false_label' => 'NORMAL',
     ],
-    'cliente_autorizo_datos'                                       => [
+    'cliente_autorizo_datos'                                          => [
       'label' => 'CLIENTE AUTORIZO DATOS',
       'value' => 'SI',
     ],
