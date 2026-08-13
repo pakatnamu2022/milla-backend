@@ -999,8 +999,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $itemSubtotal = $detail->total_cost;
       $itemDiscount = $detail->total_cost - $detail->net_amount;
 
-      // Total mano de obra (LABOR) - sin descuento
-      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+      // Total mano de obra (LABOR + MATERIAL) - sin descuento
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
+          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
@@ -1162,8 +1163,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $itemSubtotal = $detail->total_cost;
       $itemDiscount = $detail->total_cost - $detail->net_amount;
 
-      // Total mano de obra (LABOR) - sin descuento
-      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
+      // Total mano de obra (LABOR + MATERIAL) - sin descuento
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
+          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
