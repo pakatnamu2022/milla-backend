@@ -299,15 +299,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('La sede de origen y destino no pueden ser la misma para una guía interna.');
       }
 
-      $pendingGuide = ShippingGuides::where('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA)
-        ->where('status', true)
+      $pendingGuide = ShippingGuides::where('status', true)
         ->where('is_accounted', false)
         ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $data['ap_vehicle_id']))
         ->first();
 
       if ($pendingGuide) {
         throw new Exception(
-          "El vehículo ya tiene la guía interna {$pendingGuide->document_number} pendiente de contabilizar. " .
+          "El vehículo ya tiene la guía {$pendingGuide->document_number} pendiente de contabilizar. " .
           'Espera a que sea procesada en Dynamics antes de crear una nueva.'
         );
       }
