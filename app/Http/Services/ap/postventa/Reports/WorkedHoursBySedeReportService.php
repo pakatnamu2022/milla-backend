@@ -255,7 +255,7 @@ class WorkedHoursBySedeReportService
       return collect();
     }
 
-    // Consultar WorkOrderLabour con las exclusiones
+    // Consultar WorkOrderLabour con las exclusiones usando labour_type
     $labours = WorkOrderLabour::query()
       ->with([
         'workOrder.sede',
@@ -265,8 +265,8 @@ class WorkedHoursBySedeReportService
         }
       ])
       ->whereIn('work_order_id', $workOrderIds)
-      ->where('description', '!=', 'MATERIALES')
-      ->where('description', 'NOT LIKE', '%DEDUCIBLE%')
+      ->where('labour_type', '!=', WorkOrderLabour::LABOUR_TYPE_MATERIAL)
+      ->where('labour_type', '!=', WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE)
       ->get();
 
     // Estructura para acumular horas por técnico: [sede_id][worker_id][category_type] = horas
@@ -432,7 +432,7 @@ class WorkedHoursBySedeReportService
       return collect();
     }
 
-    // Consultar WorkOrderLabour con las exclusiones
+    // Consultar WorkOrderLabour con las exclusiones usando labour_type
     $labours = WorkOrderLabour::query()
       ->with([
         'workOrder.sede',
@@ -442,8 +442,8 @@ class WorkedHoursBySedeReportService
         }
       ])
       ->whereIn('work_order_id', $workOrderIds)
-      ->where('description', '!=', 'MATERIALES')
-      ->where('description', 'NOT LIKE', '%DEDUCIBLE%')
+      ->where('labour_type', '!=', WorkOrderLabour::LABOUR_TYPE_MATERIAL)
+      ->where('labour_type', '!=', WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE)
       ->get();
 
     $detailData = collect();

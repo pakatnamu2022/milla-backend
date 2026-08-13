@@ -57,7 +57,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       $sedeId = $quotation->sede_id;
 
       // Only validate price for products, not for labor
-      if (isset($data['item_type']) && $data['item_type'] === 'PRODUCT' && isset($data['product_id'])) {
+      if (isset($data['item_type']) && $data['item_type'] === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT && isset($data['product_id'])) {
         // Validar que el producto no esté ya agregado como otro detalle de esta cotización
         $this->validateProductNotAlreadyInQuotation($data['order_quotation_id'], $data['product_id']);
 
@@ -92,7 +92,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       }
 
       // Si es MANO DE OBRA y la cotización está en dólares, convertir el precio de soles a dólares
-      if (isset($data['item_type']) && $data['item_type'] === 'LABOR') {
+      if (isset($data['item_type']) && $data['item_type'] === ApOrderQuotationDetails::ITEM_TYPE_LABOR) {
         if ($quotation->currency_id === TypeCurrency::USD_ID) {
           $data['unit_price'] = $data['unit_price'] / $quotation->exchange_rate;
         }
@@ -169,7 +169,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
       $productId = $data['product_id'] ?? $apOrderQuotationDetails->product_id;
 
       // Only validate price for products, not for labor
-      if ($itemType === 'PRODUCT' && $productId) {
+      if ($itemType === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT && $productId) {
         // Validar que el producto no esté ya agregado como otro detalle de esta cotización
         $this->validateProductNotAlreadyInQuotation(
           $apOrderQuotationDetails->order_quotation_id,
@@ -270,7 +270,7 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
     $seenProductIds = [];
 
     foreach ($details as $detail) {
-      if (($detail['item_type'] ?? 'PRODUCT') !== 'PRODUCT' || !isset($detail['product_id'])) {
+      if (($detail['item_type'] ?? 'PRODUCT') !== ApOrderQuotationDetails::ITEM_TYPE_PRODUCT || !isset($detail['product_id'])) {
         continue;
       }
 

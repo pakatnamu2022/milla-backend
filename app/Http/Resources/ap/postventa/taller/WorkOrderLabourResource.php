@@ -13,6 +13,7 @@ class WorkOrderLabourResource extends JsonResource
       'id' => $this->id,
       'group_number' => $this->group_number,
       'description' => $this->description,
+      'labour_type' => $this->labour_type,
       'time_spent' => $this->time_spent,
       'time_spent_decimal' => $this->time_spent_decimal,
       'hourly_rate' => $this->hourly_rate,

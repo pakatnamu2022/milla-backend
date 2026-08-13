@@ -30,11 +30,11 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
       ],
       'item_type' => [
         'required',
-        'in:PRODUCT,LABOR',
+        ApOrderQuotationDetails::getItemTypeValidationRule(),
       ],
       'product_id' => [
         'nullable',
-        'required_if:item_type,PRODUCT',
+        'required_if:item_type,' . ApOrderQuotationDetails::ITEM_TYPE_PRODUCT,
         'integer',
         'exists:products,id',
       ],
@@ -44,10 +44,10 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
         'max:255',
         // Solo validar unicidad cuando item_type es LABOR
         // Los productos (PRODUCT) pueden tener la misma descripción pero con diferente product_id
-        $this->input('item_type') === 'LABOR'
+        $this->input('item_type') === ApOrderQuotationDetails::ITEM_TYPE_LABOR
           ? Rule::unique('ap_order_quotation_details', 'description')
               ->where('order_quotation_id', $this->input('order_quotation_id'))
-              ->where('item_type', 'LABOR')
+              ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_LABOR)
               ->whereNull('deleted_at')
           : null,
       ]),
@@ -147,7 +147,7 @@ class StoreApOrderQuotationDetailsRequest extends StoreRequest
   {
     $validator->after(function ($validator) {
       // Solo validar stock si es un producto (no mano de obra)
-      if ($this->input('item_type') !== 'PRODUCT') {
+      if ($this->input('item_type') !== ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
         return;
       }
 

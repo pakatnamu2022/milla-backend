@@ -2614,6 +2614,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $deductibleLabour = WorkOrderLabour::create([
         'group_number' => 1,
         'description' => 'Deducible',
+        'labour_type' => WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE,
         'time_spent' => 1,
         'hourly_rate' => $electronicDocument->total_gravada,
         'discount_percentage' => 0,
