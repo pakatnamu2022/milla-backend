@@ -427,8 +427,11 @@
   </thead>
   <tbody>
   @php
-    $laborDetails = collect($quotation['details'])->where('item_type', 'LABOR');
-    $productDetails = collect($quotation['details'])->where('item_type', 'PRODUCT');
+    // Usar las constantes del modelo ApOrderQuotationDetails
+    // Mano de Obra: labor + material
+    $laborDetails = collect($quotation['details'])->whereIn('item_type', ['labor', 'material']);
+    // Repuestos: product
+    $productDetails = collect($quotation['details'])->where('item_type', 'product');
     $laborSubtotal = 0;
     $productSubtotal = 0;
   @endphp
