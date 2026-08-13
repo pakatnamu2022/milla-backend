@@ -63,6 +63,16 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         }
       }
 
+      // Validar que si ya existe un operario asignado a esta orden de trabajo, sea el mismo
+      $existingWorker = ApWorkOrderPlanning::with('worker')
+        ->where('work_order_id', $data['work_order_id'])
+        ->first();
+
+      if ($existingWorker && $existingWorker->worker_id != $data['worker_id']) {
+        $workerName = $existingWorker->worker ? $existingWorker->worker->nombre_completo : 'Desconocido';
+        throw new Exception("Esta orden de trabajo ya tiene asignado un operario diferente: {$workerName}. No se pueden asignar operarios distintos a la misma orden de trabajo.");
+      }
+
       $validateReceipt = $workOrder->shouldValidateReceipt();
 
       $workOrder->ensureCanBeModified();
@@ -430,6 +440,19 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
         throw new Exception('Planificación no encontrada');
       }
 
+      // Verificar si solo está actualizando el técnico (sin fechas)
+      $isOnlyWorkerUpdate = isset($data['worker_id']) &&
+                            !isset($data['planned_start_datetime']) &&
+                            !isset($data['planned_end_datetime']);
+
+      // Si solo está actualizando el técnico, permitirlo incluso si está completado
+      if ($isOnlyWorkerUpdate) {
+        // Solo actualizar el worker_id
+        $planning->update(['worker_id' => $data['worker_id']]);
+        return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions']));
+      }
+
+      // Si está actualizando fechas, validar estados
       if ($planning->status === 'in_progress') {
         throw new Exception('No se puede editar esta planificación porque el técnico ya ha iniciado el trabajo.');
       }
@@ -472,6 +495,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       // Preparar datos finales para actualización
       $updateData = [
+        'worker_id' => $data['worker_id'],
         'planned_start_datetime' => $data['planned_start_datetime'],
         'planned_end_datetime' => $data['planned_end_datetime'],
         'estimated_hours' => $estimatedHours,
