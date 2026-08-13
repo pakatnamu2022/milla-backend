@@ -836,9 +836,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 5. Validar que el usuario sea gerente o jefe
-//    if (!$isManager && !$isBoss) {
-//      throw new Exception('No tiene permisos para aprobar esta solicitud de descuento. Solo el jefe del área o el gerente pueden aprobar.');
-//    }
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para aprobar esta solicitud de descuento. Solo el jefe del área o el gerente pueden aprobar.');
+    }
 
     // 6. Obtener el porcentaje de descuento solicitado (convertir de 30 a 0.30 para comparar)
     $requestedDiscountPercentage = (float)$record->requested_discount_percentage / 100;
@@ -900,8 +900,8 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 5. Validar que el usuario sea gerente o jefe
-//    if (!$isManager && !$isBoss) {
-//      throw new Exception('No tiene permisos para revertir esta solicitud de descuento. Solo el jefe del área o el gerente pueden revertir.');
-//    }
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para revertir esta solicitud de descuento. Solo el jefe del área o el gerente pueden revertir.');
+    }
   }
 }
