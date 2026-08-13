@@ -56,12 +56,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
       // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
       // PRODUCT va separado
       $itemType = strtolower($data['item_type']); // Normalizar a minúsculas
-      if ($itemType === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-        $itemType === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+      if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+        $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
         // Si es LABOR o MATERIAL, buscar si ya existe descuento en cualquiera de los dos
         $itemTypesToCheck = [
-          ApOrderQuotationDetails::ITEM_TYPE_LABOR,
-          ApOrderQuotationDetails::ITEM_TYPE_MATERIAL,
+          DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+          DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
         ];
       } else {
         // Si es PRODUCT, solo buscar productos
@@ -76,8 +76,8 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
         ->first();
 
       if ($existingDiscount) {
-        $existingItemType = $existingDiscount->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ? 'LABOR' :
-          ($existingDiscount->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL ? 'MATERIAL' : 'PRODUCT');
+        $existingItemType = $existingDiscount->item_type === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ? 'LABOR' :
+          ($existingDiscount->item_type === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL ? 'MATERIAL' : 'PRODUCT');
 
         if ($existingDiscount->status === DiscountRequestsOrderQuotation::STATUS_REJECTED) {
           throw new Exception("Ya existe un descuento GLOBAL rechazado para {$existingItemType} en esta cotización. No se puede crear un nuevo descuento.");
@@ -328,12 +328,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     // Determinar qué tipos de items incluir
     // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
     // PRODUCT va separado
-    if ($itemType === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-      $itemType === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+    if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+      $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
       // Si es LABOR o MATERIAL, aplicar a ambos (son servicios)
       $itemTypes = [
-        ApOrderQuotationDetails::ITEM_TYPE_LABOR,
-        ApOrderQuotationDetails::ITEM_TYPE_MATERIAL,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
       ];
     } else {
       // Si es PRODUCT, solo aplicar a productos
@@ -420,12 +420,12 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     // Determinar qué tipos de items incluir (misma lógica que applyGlobalDiscount)
     // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
     // PRODUCT va separado
-    if ($itemType === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-      $itemType === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+    if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+      $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
       // Si es LABOR o MATERIAL, revertir ambos (son servicios)
       $itemTypes = [
-        ApOrderQuotationDetails::ITEM_TYPE_LABOR,
-        ApOrderQuotationDetails::ITEM_TYPE_MATERIAL,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
       ];
     } else {
       // Si es PRODUCT, solo revertir productos
@@ -836,9 +836,9 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 5. Validar que el usuario sea gerente o jefe
-//    if (!$isManager && !$isBoss) {
-//      throw new Exception('No tiene permisos para aprobar esta solicitud de descuento. Solo el jefe del área o el gerente pueden aprobar.');
-//    }
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para aprobar esta solicitud de descuento. Solo el jefe del área o el gerente pueden aprobar.');
+    }
 
     // 6. Obtener el porcentaje de descuento solicitado (convertir de 30 a 0.30 para comparar)
     $requestedDiscountPercentage = (float)$record->requested_discount_percentage / 100;
@@ -900,8 +900,8 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 5. Validar que el usuario sea gerente o jefe
-//    if (!$isManager && !$isBoss) {
-//      throw new Exception('No tiene permisos para revertir esta solicitud de descuento. Solo el jefe del área o el gerente pueden revertir.');
-//    }
+    if (!$isManager && !$isBoss) {
+      throw new Exception('No tiene permisos para revertir esta solicitud de descuento. Solo el jefe del área o el gerente pueden revertir.');
+    }
   }
 }

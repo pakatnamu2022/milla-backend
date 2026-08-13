@@ -66,6 +66,30 @@ class DiscountRequestsOrderQuotation extends Model
   const STATUS_APPROVED = 'approved';
   const STATUS_REJECTED = 'rejected';
 
+  const ITEM_TYPE_PRODUCT = 'product';
+  const ITEM_TYPE_LABOR = 'labor';
+  const ITEM_TYPE_MATERIAL = 'material';
+
+  /**
+   * Get all available item types
+   */
+  public static function getItemTypes(): array
+  {
+    return [
+      self::ITEM_TYPE_PRODUCT,
+      self::ITEM_TYPE_LABOR,
+      self::ITEM_TYPE_MATERIAL,
+    ];
+  }
+
+  /**
+   * Get validation rule for item_type
+   */
+  public static function getItemTypeValidationRule(): string
+  {
+    return 'in:' . implode(',', self::getItemTypes());
+  }
+
   public function scopeNotApproved(Builder $query): Builder
   {
     return $query->where('status', self::STATUS_PENDING);
