@@ -316,6 +316,7 @@ class SyncAccountingStatusJob implements ShouldQueue
         'is_invoiced' => true,
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
         'output_generation_warehouse' => true,
+        'official_closing_date' => $finalInvoice->fecha_de_emision,
       ]);
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para orden de trabajo', [
