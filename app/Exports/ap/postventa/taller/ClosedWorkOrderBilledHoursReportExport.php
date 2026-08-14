@@ -4,7 +4,7 @@ namespace App\Exports\ap\postventa\taller;
 
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class WorkedHoursBySedeReportExport implements WithMultipleSheets
+class ClosedWorkOrderBilledHoursReportExport implements WithMultipleSheets
 {
   protected array $data;
 
@@ -16,8 +16,8 @@ class WorkedHoursBySedeReportExport implements WithMultipleSheets
   public function sheets(): array
   {
     return [
-      new WorkedHoursSummarySheet($this->data['summary']),
-      new WorkedHoursDetailSheet($this->data['detail']),
+      new ClosedWorkOrderBilledHoursSummarySheet($this->data['summary']),
+      new BilledHoursDetailSheet($this->data['detail']),
     ];
   }
 }

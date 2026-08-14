@@ -73,6 +73,7 @@ use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
 use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
 use App\Http\Controllers\ap\postventa\Reports\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
+use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
 use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
@@ -1757,6 +1758,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
       Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
+      Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
 

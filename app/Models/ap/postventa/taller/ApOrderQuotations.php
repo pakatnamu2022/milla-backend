@@ -696,7 +696,7 @@ class ApOrderQuotations extends Model
 
     // Get all product details from quotation
     $productDetails = $this->details
-      ->where('item_type', 'PRODUCT')
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
       ->where('product_id', '!=', null);
 
     // If no products, return true

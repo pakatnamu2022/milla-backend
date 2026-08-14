@@ -13,28 +13,28 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class WorkedHoursSummarySheet implements
+class ClosedWorkOrderBilledHoursSummarySheet implements
   FromCollection,
   WithStyles,
   ShouldAutoSize,
   WithTitle,
   WithEvents
 {
-  protected Collection $workedData;
+  protected Collection $billedData;
 
-  public function __construct(Collection $workedData)
+  public function __construct(Collection $billedData)
   {
-    $this->workedData = $workedData;
+    $this->billedData = $billedData;
   }
 
   public function collection()
   {
     $rows = collect();
 
-    // Subtítulo: Horas Trabajadas
-    $rows->push(['HORAS TRABAJADAS', '', '', '', '', '', '']);
+    // Subtítulo: Horas Facturadas de OTs Cerradas
+    $rows->push(['HORAS FACTURADAS - ÓRDENES CERRADAS', '', '', '', '', '', '']);
 
-    // Encabezados para Horas Trabajadas
+    // Encabezados para Horas Facturadas
     $rows->push([
       'SEDE',
       'DNI TÉCNICO',
@@ -45,8 +45,8 @@ class WorkedHoursSummarySheet implements
       'TOTAL HORAS',
     ]);
 
-    // Datos de Horas Trabajadas
-    foreach ($this->workedData as $row) {
+    // Datos de Horas Facturadas
+    foreach ($this->billedData as $row) {
       $rows->push([
         $row['sede'],
         $row['dni_tecnico'],
@@ -76,7 +76,7 @@ class WorkedHoursSummarySheet implements
         $subtitleRow = 1;
         $headerRow = 2;
         $dataStartRow = 3;
-        $dataEndRow = 2 + $this->workedData->count();
+        $dataEndRow = 2 + $this->billedData->count();
         $totalRow = $dataEndRow;
 
         // Estilo para subtítulo
@@ -88,7 +88,7 @@ class WorkedHoursSummarySheet implements
           ],
           'fill' => [
             'fillType' => Fill::FILL_SOLID,
-            'startColor' => ['rgb' => '2F5496'],
+            'startColor' => ['rgb' => '70AD47'],
           ],
           'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_LEFT,
@@ -105,7 +105,7 @@ class WorkedHoursSummarySheet implements
           ],
           'fill' => [
             'fillType' => Fill::FILL_SOLID,
-            'startColor' => ['rgb' => '4472C4'],
+            'startColor' => ['rgb' => '70AD47'],
           ],
           'alignment' => [
             'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -151,6 +151,6 @@ class WorkedHoursSummarySheet implements
 
   public function title(): string
   {
-    return 'Resumen';
+    return 'Resumen Horas Facturadas';
   }
 }
