@@ -3,12 +3,14 @@
 namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ClosedWorkOrderBilledHoursReportService
 {
@@ -20,49 +22,157 @@ class ClosedWorkOrderBilledHoursReportService
    */
   public function getClosedWorkOrderBilledHoursReport(array $filters = []): array
   {
+    // Extract date range and sede_id from filters
+    $startDate = null;
+    $endDate = null;
+    $sedeId = null;
+
+    foreach ($filters as $filter) {
+      if (($filter['column'] ?? null) === 'actual_end_datetime' && ($filter['operator'] ?? null) === 'date_between') {
+        $startDate = $filter['value'][0] ?? null;
+        $endDate = $filter['value'][1] ?? null;
+      }
+      if (($filter['column'] ?? null) === 'sede_id' && ($filter['operator'] ?? null) === '=') {
+        $sedeId = $filter['value'] ?? null;
+      }
+    }
+
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
 
-    // Consultar órdenes de trabajo CERRADAS
-    $queryWorkOrders = ApWorkOrder::query()
+    // Collect all work orders using the same logic as WorkShopReportService
+    $workOrders = collect();
+
+    // 1. Get work orders from electronic documents (SIMPLE and MASSIVE invoicing)
+    $queryDocuments = ElectronicDocument::query()
+      ->with([
+        'workOrder.sede',
+        'workOrder.items.typePlanning',
+        'workOrder.plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        },
+        'internalNotes.workOrder.sede',
+        'internalNotes.workOrder.items.typePlanning',
+        'internalNotes.workOrder.plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        }
+      ])
+      ->where('anulado', false)
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+      ->where('is_advance_payment', false) // Only final invoices
+      ->where(function ($q) {
+        $q->whereNotNull('work_order_id')
+          ->orWhereHas('internalNotes', function ($subQ) {
+            $subQ->where('status', 'invoiced');
+          });
+      });
+
+    // Filter by user sedes
+    if (!empty($userSedeIds)) {
+      $queryDocuments->where(function ($q) use ($userSedeIds) {
+        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        });
+      });
+    }
+
+    // Filter by fecha_de_emision (invoice date)
+    if ($startDate && $endDate) {
+      $queryDocuments->whereBetween('fecha_de_emision', [$startDate, $endDate]);
+    }
+
+    // Filter by sede if specified
+    if ($sedeId) {
+      $queryDocuments->where(function ($q) use ($sedeId) {
+        $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
+          $subQ->where('sede_id', $sedeId);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId) {
+          $subQ->where('sede_id', $sedeId);
+        });
+      });
+    }
+
+    $documents = $queryDocuments->get();
+
+    // Extract work orders from documents
+    foreach ($documents as $document) {
+      // SIMPLE invoicing
+      if ($document->workOrder) {
+        $workOrders->push($document->workOrder);
+      }
+
+      // MASSIVE invoicing
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        foreach ($document->internalNotes as $internalNote) {
+          if ($internalNote->workOrder) {
+            $workOrders->push($internalNote->workOrder);
+          }
+        }
+      }
+    }
+
+    // 2. Get work orders with internal note WITHOUT invoice
+    $queryInternalNoteWorkOrders = ApWorkOrder::query()
       ->with([
         'sede',
         'items.typePlanning',
         'plannings' => function ($query) {
           $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
-        }
+        },
+        'internalNotes'
       ])
-      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID); // Solo OTs cerradas
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+      ->whereHas('internalNotes', function ($q) {
+        $q->whereNotNull('number');
+      })
+      ->whereHas('items', function ($q) {
+        $q->whereHas('typePlanning', function ($subQ) {
+          $subQ->whereIn('type_document', [
+            TypePlanningWorkOrder::INTERNA_SC,
+            TypePlanningWorkOrder::INTERNA_CC,
+          ])
+            ->whereNotIn('id', [
+              TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+            ]);
+        });
+      })
+      ->whereNotExists(function ($query) {
+        $query->select(DB::raw(1))
+          ->from('ap_billing_electronic_documents')
+          ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
+          ->where('ap_billing_electronic_documents.anulado', false);
+      })
+      ->whereDoesntHave('internalNotes', function ($q) {
+        $q->whereHas('electronicDocuments');
+      });
 
-    // Filtrar por sedes del usuario
+    // Filter by user sedes
     if (!empty($userSedeIds)) {
-      $queryWorkOrders->whereIn('sede_id', $userSedeIds);
+      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
     }
 
-    // Aplicar filtros adicionales (sede, fecha)
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
-
-      if (!$column || $value === null) {
-        continue;
-      }
-
-      if ($column === 'sede_id' && $operator === '=') {
-        $queryWorkOrders->where('sede_id', $value);
-      } elseif ($column === 'actual_end_datetime' && $operator === 'date_between') {
-        // Filtrar por fecha de finalización de las planificaciones
-        if (is_array($value) && count($value) === 2) {
-          $queryWorkOrders->whereHas('plannings', function ($q) use ($value) {
-            $q->where('status', 'completed')
-              ->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
-          });
-        }
-      }
+    // Filter by sede if specified
+    if ($sedeId) {
+      $queryInternalNoteWorkOrders->where('sede_id', $sedeId);
     }
 
-    $workOrderIds = $queryWorkOrders->pluck('id')->toArray();
+    // Filter by internal note created_date
+    if ($startDate && $endDate) {
+      $queryInternalNoteWorkOrders->whereHas('internalNotes', function ($q) use ($startDate, $endDate) {
+        $q->whereBetween('created_date', [$startDate, $endDate]);
+      });
+    }
+
+    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
+    $workOrders = $workOrders->merge($internalNoteWorkOrders);
+
+    // Remove duplicates by work order ID
+    $workOrders = $workOrders->unique('id');
+
+    $workOrderIds = $workOrders->pluck('id')->toArray();
 
     if (empty($workOrderIds)) {
       return [
