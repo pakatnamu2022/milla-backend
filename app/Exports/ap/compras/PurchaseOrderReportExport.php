@@ -26,16 +26,18 @@ class PurchaseOrderReportExport implements
   protected Collection $data;
   protected string $fechaInicio;
   protected string $fechaFin;
+  protected array $cuentasPorPagar;
 
   // Total de columnas del reporte
   private const LAST_COL = 'R';
   private const TOTAL_COLS = 18;
 
-  public function __construct(Collection $data, string $fechaInicio, string $fechaFin)
+  public function __construct(Collection $data, string $fechaInicio, string $fechaFin, array $cuentasPorPagar = [])
   {
-    $this->data       = $data;
-    $this->fechaInicio = $fechaInicio;
-    $this->fechaFin   = $fechaFin;
+    $this->data            = $data;
+    $this->fechaInicio     = $fechaInicio;
+    $this->fechaFin        = $fechaFin;
+    $this->cuentasPorPagar = $cuentasPorPagar;
   }
 
   public function collection(): Collection
@@ -62,7 +64,7 @@ class PurchaseOrderReportExport implements
       'SEDE',
       'DIAS DE VENCIDO',
       'RENOVACIONES',
-      'PAGADO',
+      'SALDO PENDIENTE (CXP)',
       'ESTATUS',
     ];
   }
@@ -71,6 +73,12 @@ class PurchaseOrderReportExport implements
   {
     $emisDate    = $row->emission_date ? Carbon::parse($row->emission_date) : null;
     $diasVencido = $emisDate ? (int) $emisDate->diffInDays(Carbon::today(), false) : 0;
+
+    $series = trim($row->invoice_series ?? '');
+    $number = trim($row->invoice_number ?? '');
+    $docKey = $series !== '' && $number !== '' ? "{$series}-{$number}" : '';
+    $cxpEntry    = $docKey !== '' ? ($this->cuentasPorPagar[$docKey] ?? null) : null;
+    $montoPendiente = $cxpEntry !== null ? $cxpEntry['montoSinAplicar'] : 0;
 
     return [
       $row->number ?? '',
@@ -89,7 +97,7 @@ class PurchaseOrderReportExport implements
       $row->sede->suc_abrev ?? '',
       $diasVencido,
       $this->calcRenovaciones($diasVencido),
-      '',
+      $montoPendiente,
       $this->getEstatus($row),
     ];
   }
@@ -150,7 +158,7 @@ class PurchaseOrderReportExport implements
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
 
-        // Color de ESTATUS según valor
+        // Color de ESTATUS según valor y color de PAGADO (saldo pendiente CXP)
         for ($i = 3; $i <= $lastRow; $i++) {
           $estatus = $sheet->getCell('R' . $i)->getValue();
           $color   = match ($estatus) {
@@ -167,6 +175,17 @@ class PurchaseOrderReportExport implements
               'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
           }
+
+          $pendiente = (float)$sheet->getCell('Q' . $i)->getValue();
+          $cxpColor  = $pendiente > 0
+            ? ['bg' => 'FFCDD2', 'text' => 'B71C1C']
+            : ['bg' => 'C8E6C9', 'text' => '1B5E20'];
+
+          $sheet->getStyle('Q' . $i)->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => $cxpColor['text']]],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $cxpColor['bg']]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+          ]);
         }
 
         $sheet->freezePane('A3');
