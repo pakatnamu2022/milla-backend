@@ -178,6 +178,24 @@ class ClosedWorkOrderBilledHoursReportService
         $horasInterna = $data[TypePlanningWorkOrder::INTERNA];
         $horasEstandar = $data[TypePlanningWorkOrder::ESTANDAR];
         $horasGarantiaRecall = $data[TypePlanningWorkOrder::GARANTIA_RECALL];
+        $totalHorasFacturadas = $horasInterna + $horasEstandar + $horasGarantiaRecall;
+
+        // Horas estándar fijas: 8 horas × 6 días × 4 semanas = 192
+        $horasEstandarFijas = 192;
+
+        // Costo por hora fijo
+        $costoPorHora = 8;
+
+        // Horas de productividad: Total facturado - Horas estándar
+        $horasProductividad = $totalHorasFacturadas - $horasEstandarFijas;
+
+        // Porcentaje de productividad: (Total facturado / Horas estándar) * 100
+        $porcentajeProductividad = $horasEstandarFijas > 0
+          ? ($totalHorasFacturadas / $horasEstandarFijas) * 100
+          : 0;
+
+        // Comisión: Solo horas de productividad positivas × costo por hora
+        $comision = max(0, $horasProductividad) * $costoPorHora;
 
         $reportData->push([
           'sede' => $sede ? $sede->abreviatura : 'SIN SEDE',
@@ -187,7 +205,12 @@ class ClosedWorkOrderBilledHoursReportService
           'horas_interna' => number_format($horasInterna, 2, '.', ''),
           'horas_estandar' => number_format($horasEstandar, 2, '.', ''),
           'horas_garantia_recall' => number_format($horasGarantiaRecall, 2, '.', ''),
-          'total_horas' => number_format($horasInterna + $horasEstandar + $horasGarantiaRecall, 2, '.', ''),
+          'total_horas' => number_format($totalHorasFacturadas, 2, '.', ''),
+          'horas_estandar_fijas' => number_format($horasEstandarFijas, 2, '.', ''),
+          'costo_por_hora' => number_format($costoPorHora, 2, '.', ''),
+          'horas_productividad' => number_format($horasProductividad, 2, '.', ''),
+          'porcentaje_productividad' => number_format($porcentajeProductividad, 2, '.', ''),
+          'comision' => number_format($comision, 2, '.', ''),
         ]);
       }
     }
@@ -202,7 +225,20 @@ class ClosedWorkOrderBilledHoursReportService
     $totalInterna = $reportData->sum(fn($row) => (float)$row['horas_interna']);
     $totalEstandar = $reportData->sum(fn($row) => (float)$row['horas_estandar']);
     $totalGarantiaRecall = $reportData->sum(fn($row) => (float)$row['horas_garantia_recall']);
-    $totalGeneral = $totalInterna + $totalEstandar + $totalGarantiaRecall;
+    $totalHorasFacturadas = $totalInterna + $totalEstandar + $totalGarantiaRecall;
+
+    // Total de técnicos (excluyendo la fila de totales)
+    $cantidadTecnicos = $reportData->count();
+    $totalHorasEstandarFijas = $cantidadTecnicos * 192;
+    $totalHorasProductividad = $totalHorasFacturadas - $totalHorasEstandarFijas;
+
+    // Porcentaje total de productividad
+    $porcentajeTotalProductividad = $totalHorasEstandarFijas > 0
+      ? ($totalHorasFacturadas / $totalHorasEstandarFijas) * 100
+      : 0;
+
+    // Comisión total: Sumar las comisiones de todos los técnicos
+    $totalComision = $reportData->sum(fn($row) => (float)$row['comision']);
 
     // Agregar fila de totales al final
     $reportData->push([
@@ -213,7 +249,12 @@ class ClosedWorkOrderBilledHoursReportService
       'horas_interna' => number_format($totalInterna, 2, '.', ''),
       'horas_estandar' => number_format($totalEstandar, 2, '.', ''),
       'horas_garantia_recall' => number_format($totalGarantiaRecall, 2, '.', ''),
-      'total_horas' => number_format($totalGeneral, 2, '.', ''),
+      'total_horas' => number_format($totalHorasFacturadas, 2, '.', ''),
+      'horas_estandar_fijas' => number_format($totalHorasEstandarFijas, 2, '.', ''),
+      'costo_por_hora' => '8.00',
+      'horas_productividad' => number_format($totalHorasProductividad, 2, '.', ''),
+      'porcentaje_productividad' => number_format($porcentajeTotalProductividad, 2, '.', ''),
+      'comision' => number_format($totalComision, 2, '.', ''),
     ]);
 
     return $reportData;
