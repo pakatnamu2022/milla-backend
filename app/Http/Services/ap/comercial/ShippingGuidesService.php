@@ -105,6 +105,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       // Crear el movimiento de vehículo SOLO si hay un vehículo (no para transferencias de productos)
       $vehicleMovement = null;
       if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+        $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
         $vehicle = Vehicles::findOrFail($data['ap_vehicle_id']);
 
         if (
@@ -390,6 +391,8 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       if (empty($data['ap_vehicle_id'])) {
         throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
       }
+
+      $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
@@ -1503,5 +1506,20 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       'deleted_logs'              => $deletedLogs,
       'shipping_guide'            => new ShippingGuidesResource($guide->fresh()),
     ];
+  }
+
+  private function ensureNoPendingGuide(int $vehicleId): void
+  {
+    $pending = ShippingGuides::where('status', true)
+      ->where('is_accounted', false)
+      ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $vehicleId))
+      ->first();
+
+    if ($pending) {
+      throw new Exception(
+        "El vehículo ya tiene la guía {$pending->document_number} pendiente de contabilizar. " .
+        'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+      );
+    }
   }
 }
