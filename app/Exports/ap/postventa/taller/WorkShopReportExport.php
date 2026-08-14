@@ -13,7 +13,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class WorkOrderReportExport implements
+class WorkShopReportExport implements
   FromCollection,
   WithHeadings,
   WithMapping,

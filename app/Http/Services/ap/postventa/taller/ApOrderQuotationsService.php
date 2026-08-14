@@ -605,7 +605,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
           throw new Exception('No se puede cambiar el tipo de moneda porque ya existe una factura final en borrador para esta cotización.');
         }
 
-        if ($quotation->getActiveAdvances()->count() > 0) {
+        if ($quotation->hasAdvances()) {
           throw new Exception('No se puede cambiar el tipo de moneda porque ya existen pagos contabilizados para esta cotización.');
         }
 
@@ -771,7 +771,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       throw new Exception('No se puede eliminar una cotización que tiene una factura final generada.');
     }
 
-    if ($quotation->getActiveAdvances()->count() > 0) {
+    if ($quotation->hasAdvances()) {
       throw new Exception('No se puede eliminar una cotización que tiene anticipos registrados');
     }
 
@@ -827,7 +827,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede descartar una cotización que tiene una factura final generada.');
       }
 
-      if ($quotation->getActiveAdvances()->count() > 0) {
+      if ($quotation->hasAdvances()) {
         throw new Exception('No se puede anular una cotización que tiene anticipos registrados');
       }
 
@@ -999,13 +999,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $itemSubtotal = $detail->total_cost;
       $itemDiscount = $detail->total_cost - $detail->net_amount;
 
-      // Total mano de obra (LABOR) - sin descuento
-      if ($detail->item_type === 'LABOR') {
+      // Total mano de obra (LABOR + MATERIAL) - sin descuento
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
+          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
       // Total recambios/repuestos (PRODUCT) - sin descuento
-      if ($detail->item_type === 'PRODUCT') {
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
         $totalParts += $itemSubtotal;
       }
 
@@ -1162,13 +1163,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $itemSubtotal = $detail->total_cost;
       $itemDiscount = $detail->total_cost - $detail->net_amount;
 
-      // Total mano de obra (LABOR) - sin descuento
-      if ($detail->item_type === 'LABOR') {
+      // Total mano de obra (LABOR + MATERIAL) - sin descuento
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
+          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
       // Total recambios/repuestos (PRODUCT) - sin descuento
-      if ($detail->item_type === 'PRODUCT') {
+      if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT) {
         $totalParts += $itemSubtotal;
       }
 
@@ -1490,7 +1492,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ApMasters::STATUS_ORDER_QUOTE_APROBADO,
       ], 'confirmar');
 
-      if ($quotation->getActiveAdvances()->count() > 0) {
+      if ($quotation->hasAdvances()) {
         throw new Exception('No se puede confirmar una cotización que tiene anticipos registrados');
       }
 
@@ -2271,7 +2273,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception('No se puede modificar el destinatario de factura porque ya existe una factura final en borrador para esta cotización');
       }
 
-      if ($apOrderQuotations->getActiveAdvances()->count() > 0) {
+      if ($apOrderQuotations->hasAdvances()) {
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta cotización');
       }
 
@@ -2543,7 +2545,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       }
 
       // Validar que no tenga anticipos activos
-      if ($quotation->getActiveAdvances()->count() > 0) {
+      if ($quotation->hasAdvances()) {
         throw new Exception("Esta cotización no puede cambiar de moneda. Ya se han registrado anticipos para esta cotización.");
       }
 

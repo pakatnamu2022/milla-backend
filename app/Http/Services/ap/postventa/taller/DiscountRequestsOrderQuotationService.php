@@ -52,18 +52,37 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     $type = $data['type'];
 
     if ($type === DiscountRequestsOrderQuotation::TYPE_GLOBAL) {
+      // Determinar qué tipos de items buscar
+      // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
+      // PRODUCT va separado
+      $itemType = strtolower($data['item_type']); // Normalizar a minúsculas
+      if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+        $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
+        // Si es LABOR o MATERIAL, buscar si ya existe descuento en cualquiera de los dos
+        $itemTypesToCheck = [
+          DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+          DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
+        ];
+      } else {
+        // Si es PRODUCT, solo buscar productos
+        $itemTypesToCheck = [$itemType];
+      }
+
       $existingDiscount = DiscountRequestsOrderQuotation::where('ap_order_quotation_id', $data['ap_order_quotation_id'])
         ->where('type', DiscountRequestsOrderQuotation::TYPE_GLOBAL)
-        ->where('item_type', $data['item_type'])
+        ->whereIn('item_type', $itemTypesToCheck)
         ->whereIn('status', [DiscountRequestsOrderQuotation::STATUS_REJECTED, DiscountRequestsOrderQuotation::STATUS_PENDING])
-        ->select('status')
+        ->select('status', 'item_type')
         ->first();
 
       if ($existingDiscount) {
+        $existingItemType = $existingDiscount->item_type === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ? 'LABOR' :
+          ($existingDiscount->item_type === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL ? 'MATERIAL' : 'PRODUCT');
+
         if ($existingDiscount->status === DiscountRequestsOrderQuotation::STATUS_REJECTED) {
-          throw new Exception('Ya existe un descuento GLOBAL rechazado para esta cotización. No se puede crear un nuevo descuento.');
+          throw new Exception("Ya existe un descuento GLOBAL rechazado para {$existingItemType} en esta cotización. No se puede crear un nuevo descuento.");
         }
-        throw new Exception('Ya existe un descuento GLOBAL activo para esta cotización. Debe eliminarlo antes de crear uno nuevo.');
+        throw new Exception("Ya existe un descuento GLOBAL activo para {$existingItemType} en esta cotización. Debe eliminarlo antes de crear uno nuevo.");
       }
     }
 
@@ -303,16 +322,32 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function applyGlobalDiscount(DiscountRequestsOrderQuotation $discountRequest): void
   {
     $quotation = $discountRequest->apOrderQuotation;
-    $itemType = $discountRequest->item_type;
+    $itemType = strtolower($discountRequest->item_type); // Normalizar a minúsculas
     $discountPercentage = $discountRequest->requested_discount_percentage;
 
-    // Obtener todos los detalles del tipo de item especificado
+    // Determinar qué tipos de items incluir
+    // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
+    // PRODUCT va separado
+    if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+      $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
+      // Si es LABOR o MATERIAL, aplicar a ambos (son servicios)
+      $itemTypes = [
+        DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
+      ];
+    } else {
+      // Si es PRODUCT, solo aplicar a productos
+      $itemTypes = [$itemType];
+    }
+
+    // Obtener todos los detalles de los tipos especificados
     $details = $quotation->details()
-      ->where('item_type', $itemType)
+      ->whereIn('item_type', $itemTypes)
       ->get();
 
     if ($details->isEmpty()) {
-      throw new Exception('No se encontraron detalles del tipo ' . $itemType . ' en la cotización.');
+      $typesText = count($itemTypes) > 1 ? implode(' y ', $itemTypes) : $itemTypes[0];
+      throw new Exception('No se encontraron detalles del tipo ' . $typesText . ' en la cotización.');
     }
 
     // Aplicar el descuento a cada detalle
@@ -380,15 +415,31 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
   private function revertGlobalDiscount(DiscountRequestsOrderQuotation $discountRequest): void
   {
     $quotation = $discountRequest->apOrderQuotation;
-    $itemType = $discountRequest->item_type;
+    $itemType = strtolower($discountRequest->item_type); // Normalizar a minúsculas
 
-    // Obtener todos los detalles del tipo de item especificado
+    // Determinar qué tipos de items incluir (misma lógica que applyGlobalDiscount)
+    // LABOR y MATERIAL se tratan como un grupo (servicios/mano de obra)
+    // PRODUCT va separado
+    if ($itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR ||
+      $itemType === DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL) {
+      // Si es LABOR o MATERIAL, revertir ambos (son servicios)
+      $itemTypes = [
+        DiscountRequestsOrderQuotation::ITEM_TYPE_LABOR,
+        DiscountRequestsOrderQuotation::ITEM_TYPE_MATERIAL,
+      ];
+    } else {
+      // Si es PRODUCT, solo revertir productos
+      $itemTypes = [$itemType];
+    }
+
+    // Obtener todos los detalles de los tipos especificados
     $details = $quotation->details()
-      ->where('item_type', $itemType)
+      ->whereIn('item_type', $itemTypes)
       ->get();
 
     if ($details->isEmpty()) {
-      throw new Exception('No se encontraron detalles del tipo ' . $itemType . ' en la cotización.');
+      $typesText = count($itemTypes) > 1 ? implode(' y ', $itemTypes) : $itemTypes[0];
+      throw new Exception('No se encontraron detalles del tipo ' . $typesText . ' en la cotización.');
     }
 
     // Resetear el descuento a 0

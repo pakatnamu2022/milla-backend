@@ -114,6 +114,6 @@ class WorkedHoursDetailSheet implements
 
   public function title(): string
   {
-    return 'Detalle';
+    return 'Detalle Horas Trabajadas';
   }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\postventa\taller;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\postventa\taller\BulkGenerateObjectiveSedePeriodPvRequest;
 use App\Http\Requests\ap\postventa\taller\IndexObjectiveSedePeriodPvRequest;
 use App\Http\Requests\ap\postventa\taller\StoreObjectiveSedePeriodPvRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateObjectiveSedePeriodPvRequest;
@@ -59,6 +60,16 @@ class ObjectiveSedePeriodPvController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function bulkGenerate(BulkGenerateObjectiveSedePeriodPvRequest $request)
+  {
+    try {
+      $result = $this->service->bulkGenerate($request->validated());
+      return $this->success($result);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

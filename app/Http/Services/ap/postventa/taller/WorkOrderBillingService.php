@@ -229,7 +229,7 @@ class WorkOrderBillingService
    */
   private function buildLabourInvoiceItem(WorkOrderLabour $labour): array
   {
-    $isMaterial = trim(strtolower($labour->description ?? '')) === 'materiales';
+    $isMaterial = $labour->labour_type === WorkOrderLabour::LABOUR_TYPE_MATERIAL;
 
     $billing = $this->calculateInvoiceItemAmounts(
       (float)$labour->hourly_rate,

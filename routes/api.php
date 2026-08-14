@@ -66,11 +66,15 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockCont
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
-use App\Http\Controllers\ap\postventa\Reports\InvoicingReportController;
+use App\Http\Controllers\ap\postventa\Reports\InvoicingWorkOrderReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
-use App\Http\Controllers\ap\postventa\Reports\TallerReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
+use App\Http\Controllers\ap\postventa\Reports\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
+use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
+use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
@@ -79,7 +83,6 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
-use App\Http\Controllers\ap\postventa\taller\ApWorkOrderAssignOperatorController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectiveMasterPvController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectivePeriodPvController;
@@ -1690,6 +1693,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Objective Sede Period PV - Objetivos por Sede y Período PV
       Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
       Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+      Route::post('objectiveSedePeriodPv/bulk-generate', [ObjectiveSedePeriodPvController::class, 'bulkGenerate']);
       Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
       Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
       Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
@@ -1750,11 +1754,22 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       // Reports - Reportes de Taller
-      Route::post('reports/work-orders/export', [TallerReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
       Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
-      Route::post('reports/invoicing/export', [InvoicingReportController::class, 'exportInvoicing']);
+      Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
+      Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
+
+      // Objectives Dashboard - Dashboard de Objetivos Postventa
+      Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
+      Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
+      Route::post('reports/objectives/dashboard/export', [ObjectiveDashboardController::class, 'exportExcel']);
+
+      // Productivity Dashboard - Dashboard de Productividad de Técnicos
+      Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
+      Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
 
       // Reports - Reportes de Mesón
       Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);
@@ -1764,15 +1779,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Work Order Items - Ítems de Órdenes de Trabajo
       Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Work Order Assign Operators - Asignación de Operadores a Órdenes de Trabajo
-      Route::apiResource('workOrderAssignOperators', ApWorkOrderAssignOperatorController::class)->only([
         'index',
         'show',
         'store',
@@ -1964,6 +1970,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Sincronización con Dynamics 365
       Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
+      Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
       Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
 

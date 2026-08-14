@@ -3,6 +3,7 @@
 namespace App\Models\ap\postventa\taller;
 
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,6 +17,7 @@ class WorkOrderLabour extends Model
   protected $fillable = [
     'group_number',
     'description',
+    'labour_type',
     'time_spent',
     'hourly_rate',
     'discount_percentage',
@@ -25,7 +27,33 @@ class WorkOrderLabour extends Model
     'worker_id',
     'work_order_id',
     'is_deductible',
+    'registered_by'
   ];
+
+  // Tipos de mano de obra
+  const LABOUR_TYPE_LABOR = 'labor';
+  const LABOUR_TYPE_MATERIAL = 'material';
+  const LABOUR_TYPE_DEDUCTIBLE = 'deductible';
+
+  /**
+   * Get all labour types
+   */
+  public static function getLabourTypes(): array
+  {
+    return [
+      self::LABOUR_TYPE_LABOR,
+      self::LABOUR_TYPE_MATERIAL,
+      self::LABOUR_TYPE_DEDUCTIBLE,
+    ];
+  }
+
+  /**
+   * Get validation rule for labour_type
+   */
+  public static function getLabourTypeValidationRule(): string
+  {
+    return 'in:' . implode(',', self::getLabourTypes());
+  }
 
   const filters = [
     'search' => ['description', 'worker.worker_id'],
@@ -41,6 +69,7 @@ class WorkOrderLabour extends Model
     'total_cost',
     'net_amount',
     'worker_id',
+    'registered_by',
     'created_at',
   ];
 
@@ -106,5 +135,10 @@ class WorkOrderLabour extends Model
   public function workOrder(): BelongsTo
   {
     return $this->belongsTo(ApWorkOrder::class, 'work_order_id');
+  }
+
+  public function registeredBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'registered_by');
   }
 }

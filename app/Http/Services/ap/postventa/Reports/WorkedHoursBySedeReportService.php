@@ -4,11 +4,9 @@ namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
-use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class WorkedHoursBySedeReportService
 {
@@ -153,13 +151,9 @@ class WorkedHoursBySedeReportService
       'total_horas' => number_format($totalGeneral, 2, '.', ''),
     ]);
 
-    // Obtener horas facturadas
-    $billedData = $this->getBilledHoursBySedeReport($filters, $userSedeIds);
-
     return [
       'summary' => $reportData,
       'detail' => $detailData,
-      'billed' => $billedData
     ];
   }
 
@@ -201,187 +195,6 @@ class WorkedHoursBySedeReportService
       ['sede', 'asc'],
       ['numero_ot', 'asc']
     ])->values();
-  }
-
-  /**
-   * Obtiene el reporte de Horas Facturadas por Sede
-   * Distribuye las horas facturadas proporcionalmente entre los técnicos que trabajaron en la OT
-   *
-   * @param array $filters
-   * @param array $userSedeIds
-   * @return Collection
-   */
-  private function getBilledHoursBySedeReport(array $filters, array $userSedeIds): Collection
-  {
-    // Primero obtener los IDs de work orders que tienen planificaciones completadas
-    $workOrderIdsQuery = ApWorkOrderPlanning::query()
-      ->where('status', 'completed')
-      ->select('work_order_id');
-
-    // Filtrar por sedes del usuario
-    if (!empty($userSedeIds)) {
-      $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($userSedeIds) {
-        $q->whereIn('sede_id', $userSedeIds);
-      });
-    }
-
-    // Aplicar filtros de fecha
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
-
-      if (!$column || $value === null) {
-        continue;
-      }
-
-      if ($column === 'sede_id' && $operator === '=') {
-        $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($value) {
-          $q->where('sede_id', $value);
-        });
-      } elseif ($column === 'actual_end_datetime' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $workOrderIdsQuery->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
-        }
-      }
-    }
-
-    $workOrderIds = $workOrderIdsQuery->pluck('work_order_id')->unique()->toArray();
-
-    if (empty($workOrderIds)) {
-      return collect();
-    }
-
-    // Consultar WorkOrderLabour con las exclusiones
-    $labours = WorkOrderLabour::query()
-      ->with([
-        'workOrder.sede',
-        'workOrder.items.typePlanning',
-        'workOrder.plannings' => function ($query) {
-          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
-        }
-      ])
-      ->whereIn('work_order_id', $workOrderIds)
-      ->where('description', '!=', 'MATERIALES')
-      ->where('description', 'NOT LIKE', '%DEDUCIBLE%')
-      ->get();
-
-    // Estructura para acumular horas por técnico: [sede_id][worker_id][category_type] = horas
-    $workerHours = [];
-
-    // Procesar cada labour (horas facturadas)
-    foreach ($labours as $labour) {
-      $workOrder = $labour->workOrder;
-      $workOrderItem = $workOrder->items->first();
-
-      if (!$workOrderItem || !$workOrderItem->typePlanning) {
-        continue;
-      }
-
-      $categoryType = $workOrderItem->typePlanning->category_type;
-      $billedHours = $labour->time_spent_decimal; // Horas facturadas al cliente
-      $sedeId = $workOrder->sede_id ?? 'SIN_SEDE';
-
-      // Obtener todos los técnicos que trabajaron en esta OT
-      $plannings = $workOrder->plannings;
-
-      if ($plannings->isEmpty()) {
-        continue;
-      }
-
-      // Calcular el total de horas reales trabajadas por todos los técnicos en esta OT
-      $totalWorkedHours = $plannings->sum(function ($planning) {
-        return (float)$planning->actual_hours;
-      });
-
-      // Si no hay horas trabajadas, no podemos distribuir
-      if ($totalWorkedHours <= 0) {
-        continue;
-      }
-
-      // Distribuir las horas facturadas proporcionalmente entre los técnicos
-      foreach ($plannings as $planning) {
-        $worker = $planning->worker;
-
-        if (!$worker) {
-          continue;
-        }
-
-        $workedHours = (float)$planning->actual_hours;
-
-        // Calcular la proporción: (horas trabajadas por el técnico / total horas trabajadas) × horas facturadas
-        $proportionalBilledHours = ($workedHours / $totalWorkedHours) * $billedHours;
-
-        // Inicializar estructura si no existe
-        if (!isset($workerHours[$sedeId])) {
-          $workerHours[$sedeId] = [];
-        }
-
-        if (!isset($workerHours[$sedeId][$worker->id])) {
-          $workerHours[$sedeId][$worker->id] = [
-            'worker' => $worker,
-            'sede' => $workOrder->sede,
-            TypePlanningWorkOrder::INTERNA => 0,
-            TypePlanningWorkOrder::ESTANDAR => 0,
-            TypePlanningWorkOrder::GARANTIA_RECALL => 0,
-          ];
-        }
-
-        // Acumular las horas proporcionales por categoría
-        $workerHours[$sedeId][$worker->id][$categoryType] += $proportionalBilledHours;
-      }
-    }
-
-    // Convertir la estructura a Collection para el reporte
-    $reportData = collect();
-
-    foreach ($workerHours as $sedeId => $workers) {
-      foreach ($workers as $workerId => $data) {
-        $worker = $data['worker'];
-        $sede = $data['sede'];
-
-        $horasInterna = $data[TypePlanningWorkOrder::INTERNA];
-        $horasEstandar = $data[TypePlanningWorkOrder::ESTANDAR];
-        $horasGarantiaRecall = $data[TypePlanningWorkOrder::GARANTIA_RECALL];
-
-        $reportData->push([
-          'sede' => $sede ? $sede->abreviatura : 'SIN SEDE',
-          'sede_id' => $sedeId,
-          'dni_tecnico' => $worker->vat ?? '',
-          'nombre_tecnico' => $worker->nombre_completo ?? '',
-          'horas_interna' => number_format($horasInterna, 2, '.', ''),
-          'horas_estandar' => number_format($horasEstandar, 2, '.', ''),
-          'horas_garantia_recall' => number_format($horasGarantiaRecall, 2, '.', ''),
-          'total_horas' => number_format($horasInterna + $horasEstandar + $horasGarantiaRecall, 2, '.', ''),
-        ]);
-      }
-    }
-
-    // Ordenar por sede y luego por nombre de técnico
-    $reportData = $reportData->sortBy([
-      ['sede', 'asc'],
-      ['nombre_tecnico', 'asc']
-    ])->values();
-
-    // Calcular acumulado total
-    $totalInterna = $reportData->sum(fn($row) => (float)$row['horas_interna']);
-    $totalEstandar = $reportData->sum(fn($row) => (float)$row['horas_estandar']);
-    $totalGarantiaRecall = $reportData->sum(fn($row) => (float)$row['horas_garantia_recall']);
-    $totalGeneral = $totalInterna + $totalEstandar + $totalGarantiaRecall;
-
-    // Agregar fila de totales al final
-    $reportData->push([
-      'sede' => 'TOTAL GENERAL',
-      'sede_id' => null,
-      'dni_tecnico' => '',
-      'nombre_tecnico' => '',
-      'horas_interna' => number_format($totalInterna, 2, '.', ''),
-      'horas_estandar' => number_format($totalEstandar, 2, '.', ''),
-      'horas_garantia_recall' => number_format($totalGarantiaRecall, 2, '.', ''),
-      'total_horas' => number_format($totalGeneral, 2, '.', ''),
-    ]);
-
-    return $reportData;
   }
 
   /**

@@ -10,13 +10,18 @@ class UpdateWorkOrderPlanningRequest extends StoreRequest
   {
     return [
       'planned_start_datetime' => [
-        'required',
+        'sometimes',
         'date',
       ],
       'planned_end_datetime' => [
-        'required',
+        'sometimes',
         'date',
         'after:planned_start_datetime',
+      ],
+      'worker_id' => [
+        'required',
+        'integer',
+        'exists:rrhh_persona,id',
       ],
     ];
   }
@@ -29,6 +34,9 @@ class UpdateWorkOrderPlanningRequest extends StoreRequest
       'planned_end_datetime.required' => 'La fecha de fin planificada es requerida.',
       'planned_end_datetime.date' => 'La fecha de fin planificada debe ser una fecha válida.',
       'planned_end_datetime.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+      'worker_id.required' => 'El trabajador es requerido.',
+      'worker_id.integer' => 'El trabajador debe ser un número entero.',
+      'worker_id.exists' => 'El trabajador seleccionado no existe.',
     ];
   }
 }

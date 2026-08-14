@@ -693,7 +693,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Orden de trabajo no encontrada');
       }
 
-      if ($workOrder->getActiveAdvances()->count() > 0) {
+      if ($workOrder->hasAdvances()) {
         throw new Exception('No se puede modificar el destinatario de factura porque ya se han registrado anticipos para esta orden de trabajo');
       }
 
@@ -855,6 +855,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'items.typePlanning',
       'items.typeOperation'
     ]);
+
+    // Validar que existan los datos de entrega
+    if (empty($workOrder->full_pickup_name) || empty($workOrder->num_doc_pickup) || empty($workOrder->phone_pickup)) {
+      throw new Exception('Debe ingresar los datos de la persona a quien se le está entregando el vehículo (nombre completo, documento y teléfono) antes de generar el reporte de entrega.');
+    }
 
     $inspection = $workOrder->vehicleInspection;
 
@@ -1705,7 +1710,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Validar que no tenga anticipos activos
-      if ($workOrder->getActiveAdvances()->count() > 0) {
+      if ($workOrder->hasAdvances()) {
         throw new Exception("Esta orden de trabajo no puede cambiar de moneda. Ya se han registrado anticipos para esta orden de trabajo.");
       }
 
@@ -1911,7 +1916,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ApMasters::CLOSED_WORK_ORDER_ID,
       ], 'cancelar');
 
-      if ($workOrder->getActiveAdvances()->count() > 0) {
+      if ($workOrder->hasAdvances()) {
         throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
       }
 
@@ -2334,6 +2339,24 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('Item con ID ' . $data['id'] . ' no encontrado en esta orden de trabajo o no pertenece al grupo 1');
       }
 
+      // Validar cambio de tipo de planificación si hay repuestos de travesía
+      $oldTypePlanningId = $item->type_planning_id;
+      $newTypePlanningId = $data['type_planning_id'];
+
+      if ($oldTypePlanningId != $newTypePlanningId) {
+        // Verificar si el nuevo tipo es INTERNA_SC
+        $newTypePlanning = TypePlanningWorkOrder::find($newTypePlanningId);
+
+        if ($newTypePlanning && $newTypePlanning->type_document === TypePlanningWorkOrder::INTERNA_SC) {
+          // Verificar si hay repuestos de travesía en la orden de trabajo
+          $hasTraverseParts = $workOrder->parts()->where('is_traverse', true)->exists();
+
+          if ($hasTraverseParts) {
+            throw new Exception('No se puede cambiar a tipo INTERNA_SC porque la orden de trabajo tiene repuestos de travesía. Debe eliminar los repuestos de travesía antes de cambiar el tipo de operación.');
+          }
+        }
+      }
+
       // Actualizar el item
       $item->update([
         'type_planning_id' => $data['type_planning_id'],
@@ -2591,6 +2614,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $deductibleLabour = WorkOrderLabour::create([
         'group_number' => 1,
         'description' => 'Deducible',
+        'labour_type' => WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE,
         'time_spent' => 1,
         'hourly_rate' => $electronicDocument->total_gravada,
         'discount_percentage' => 0,

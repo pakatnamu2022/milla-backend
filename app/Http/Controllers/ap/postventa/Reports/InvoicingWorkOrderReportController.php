@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\InvoicingReportExport;
+use App\Exports\ap\postventa\taller\InvoicingWorkOrderReportExport;
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\Reports\InvoicingReportService;
+use App\Http\Services\ap\postventa\Reports\InvoicingWorkOrderReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
-class InvoicingReportController extends Controller
+class InvoicingWorkOrderReportController extends Controller
 {
-  protected InvoicingReportService $service;
+  protected InvoicingWorkOrderReportService $service;
 
-  public function __construct(InvoicingReportService $service)
+  public function __construct(InvoicingWorkOrderReportService $service)
   {
     $this->service = $service;
   }
@@ -51,7 +51,7 @@ class InvoicingReportController extends Controller
 
     // Exportar a Excel
     return Excel::download(
-      new InvoicingReportExport(
+      new InvoicingWorkOrderReportExport(
         $reportData['final_documents'],
         $reportData['advance_documents'],
         $reportData['summary'],

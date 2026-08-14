@@ -25,7 +25,7 @@ class  StoreDiscountRequestsOrderQuotationRequest extends StoreRequest
         'integer',
         'exists:ap_order_quotation_details,id',
       ],
-      'item_type' => ['required', 'string', 'in:PRODUCT,LABOR'],
+      'item_type' => ['required', 'string', DiscountRequestsOrderQuotation::getItemTypeValidationRule()],
     ];
   }
 
@@ -46,7 +46,7 @@ class  StoreDiscountRequestsOrderQuotationRequest extends StoreRequest
       'ap_order_quotation_detail_id.required' => 'El detalle de cotización es obligatorio para descuentos de tipo PARTIAL.',
       'ap_order_quotation_detail_id.exists' => 'El detalle de cotización especificado no existe.',
       'item_type.required' => 'El tipo de ítem es obligatorio.',
-      'item_type.in' => 'El tipo de ítem debe ser PRODUCT o LABOR.',
+      'item_type.in' => 'El tipo de ítem debe ser ' . implode(', ', DiscountRequestsOrderQuotation::getItemTypes()) . '.',
     ];
   }
 }

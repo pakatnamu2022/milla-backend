@@ -525,6 +525,26 @@ class ApOrderQuotations extends Model
   }
 
   /**
+   * Check if there's a draft final invoice for this quotation.
+   *
+   * @return bool
+   */
+  public function hasDraftFinalInvoice(): bool
+  {
+    return $this->documentService()->hasDraftFinalInvoice($this);
+  }
+
+  /**
+   * Check if there's a draft advance payment for this quotation.
+   *
+   * @return bool
+   */
+  public function hasDraftAdvance(): bool
+  {
+    return $this->documentService()->hasDraftAdvance($this);
+  }
+
+  /**
    * Get active advances for this quotation.
    *
    * @return \Illuminate\Database\Eloquent\Collection
@@ -555,26 +575,6 @@ class ApOrderQuotations extends Model
   }
 
   /**
-   * Check if there's a draft final invoice for this quotation.
-   *
-   * @return bool
-   */
-  public function hasDraftFinalInvoice(): bool
-  {
-    return $this->documentService()->hasDraftFinalInvoice($this);
-  }
-
-  /**
-   * Check if there's a draft advance payment for this quotation.
-   *
-   * @return bool
-   */
-  public function hasDraftAdvance(): bool
-  {
-    return $this->documentService()->hasDraftAdvance($this);
-  }
-
-  /**
    * Check if there's a final invoice already generated and accepted.
    *
    * @return bool
@@ -582,6 +582,17 @@ class ApOrderQuotations extends Model
   public function hasFinalInvoice(): bool
   {
     return $this->getFinalInvoice() !== null;
+  }
+
+  /**
+   * Check if there are any active advances for this quotation.
+   * Optimized for validation - uses exists() instead of loading all records.
+   *
+   * @return bool
+   */
+  public function hasAdvances(): bool
+  {
+    return $this->documentService()->hasActiveAdvances($this);
   }
 
   /**
@@ -685,7 +696,7 @@ class ApOrderQuotations extends Model
 
     // Get all product details from quotation
     $productDetails = $this->details
-      ->where('item_type', 'PRODUCT')
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
       ->where('product_id', '!=', null);
 
     // If no products, return true

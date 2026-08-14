@@ -21,12 +21,10 @@ class WorkedHoursSummarySheet implements
   WithEvents
 {
   protected Collection $workedData;
-  protected Collection $billedData;
 
-  public function __construct(Collection $workedData, Collection $billedData)
+  public function __construct(Collection $workedData)
   {
     $this->workedData = $workedData;
-    $this->billedData = $billedData;
   }
 
   public function collection()
@@ -60,36 +58,6 @@ class WorkedHoursSummarySheet implements
       ]);
     }
 
-    // Fila vacía de separación
-    $rows->push(['', '', '', '', '', '', '']);
-
-    // Subtítulo: Horas Facturadas
-    $rows->push(['HORAS FACTURADAS', '', '', '', '', '', '']);
-
-    // Encabezados para Horas Facturadas
-    $rows->push([
-      'SEDE',
-      'DNI TÉCNICO',
-      'NOMBRE TÉCNICO',
-      'HORAS INTERNA',
-      'HORAS ESTÁNDAR',
-      'HORAS GARANTÍA/RECALL',
-      'TOTAL HORAS',
-    ]);
-
-    // Datos de Horas Facturadas
-    foreach ($this->billedData as $row) {
-      $rows->push([
-        $row['sede'],
-        $row['dni_tecnico'],
-        $row['nombre_tecnico'],
-        $row['horas_interna'],
-        $row['horas_estandar'],
-        $row['horas_garantia_recall'],
-        $row['total_horas'],
-      ]);
-    }
-
     return $rows;
   }
 
@@ -105,21 +73,13 @@ class WorkedHoursSummarySheet implements
         $sheet = $event->sheet->getDelegate();
 
         // Calcular posiciones de filas
-        $workedSubtitleRow = 1;
-        $workedHeaderRow = 2;
-        $workedDataStartRow = 3;
-        $workedDataEndRow = 2 + $this->workedData->count();
-        $workedTotalRow = $workedDataEndRow;
+        $subtitleRow = 1;
+        $headerRow = 2;
+        $dataStartRow = 3;
+        $dataEndRow = 2 + $this->workedData->count();
+        $totalRow = $dataEndRow;
 
-        $emptyRow = $workedDataEndRow + 1;
-
-        $billedSubtitleRow = $emptyRow + 1;
-        $billedHeaderRow = $billedSubtitleRow + 1;
-        $billedDataStartRow = $billedHeaderRow + 1;
-        $billedDataEndRow = $billedHeaderRow + $this->billedData->count();
-        $billedTotalRow = $billedDataEndRow;
-
-        // Estilo para subtítulos
+        // Estilo para subtítulo
         $subtitleStyle = [
           'font' => [
             'bold' => true,
@@ -136,7 +96,7 @@ class WorkedHoursSummarySheet implements
           ],
         ];
 
-        // Estilo para encabezados
+        // Estilo para encabezado
         $headerStyle = [
           'font' => [
             'bold' => true,
@@ -153,7 +113,7 @@ class WorkedHoursSummarySheet implements
           ],
         ];
 
-        // Estilo para filas de totales
+        // Estilo para fila de totales
         $totalRowStyle = [
           'font' => [
             'bold' => true,
@@ -168,34 +128,19 @@ class WorkedHoursSummarySheet implements
           ],
         ];
 
-        // Aplicar estilos - Subtítulo Horas Trabajadas
-        $sheet->getStyle('A' . $workedSubtitleRow . ':G' . $workedSubtitleRow)->applyFromArray($subtitleStyle);
-        $sheet->mergeCells('A' . $workedSubtitleRow . ':G' . $workedSubtitleRow);
+        // Aplicar estilos - Subtítulo
+        $sheet->getStyle('A' . $subtitleRow . ':G' . $subtitleRow)->applyFromArray($subtitleStyle);
+        $sheet->mergeCells('A' . $subtitleRow . ':G' . $subtitleRow);
 
-        // Aplicar estilos - Encabezado Horas Trabajadas
-        $sheet->getStyle('A' . $workedHeaderRow . ':G' . $workedHeaderRow)->applyFromArray($headerStyle);
-        $sheet->setAutoFilter('A' . $workedHeaderRow . ':G' . $workedHeaderRow);
+        // Aplicar estilos - Encabezado
+        $sheet->getStyle('A' . $headerRow . ':G' . $headerRow)->applyFromArray($headerStyle);
+        $sheet->setAutoFilter('A' . $headerRow . ':G' . $headerRow);
 
-        // Aplicar estilos - Fila de totales Horas Trabajadas
-        $sheet->getStyle('A' . $workedTotalRow . ':G' . $workedTotalRow)->applyFromArray($totalRowStyle);
+        // Aplicar estilos - Fila de totales
+        $sheet->getStyle('A' . $totalRow . ':G' . $totalRow)->applyFromArray($totalRowStyle);
 
-        // Aplicar estilos - Subtítulo Horas Facturadas
-        $sheet->getStyle('A' . $billedSubtitleRow . ':G' . $billedSubtitleRow)->applyFromArray($subtitleStyle);
-        $sheet->mergeCells('A' . $billedSubtitleRow . ':G' . $billedSubtitleRow);
-
-        // Aplicar estilos - Encabezado Horas Facturadas
-        $sheet->getStyle('A' . $billedHeaderRow . ':G' . $billedHeaderRow)->applyFromArray($headerStyle);
-        $sheet->setAutoFilter('A' . $billedHeaderRow . ':G' . $billedHeaderRow);
-
-        // Aplicar estilos - Fila de totales Horas Facturadas
-        $sheet->getStyle('A' . $billedTotalRow . ':G' . $billedTotalRow)->applyFromArray($totalRowStyle);
-
-        // Aplicar formato numérico a las columnas de horas (D, E, F, G) para ambas tablas
-        $sheet->getStyle('D' . $workedDataStartRow . ':G' . $workedDataEndRow)
-          ->getNumberFormat()
-          ->setFormatCode('0.00');
-
-        $sheet->getStyle('D' . $billedDataStartRow . ':G' . $billedDataEndRow)
+        // Aplicar formato numérico a las columnas de horas (D, E, F, G)
+        $sheet->getStyle('D' . $dataStartRow . ':G' . $dataEndRow)
           ->getNumberFormat()
           ->setFormatCode('0.00');
 

@@ -62,8 +62,29 @@ class ApOrderQuotationDetails extends Model
     'is_traverse' => 'boolean',
   ];
 
-  const ITEM_TYPE_PRODUCT = 'PRODUCT';
-  const ITEM_TYPE_LABOR = 'LABOR';
+  const ITEM_TYPE_PRODUCT = 'product';
+  const ITEM_TYPE_LABOR = 'labor';
+  const ITEM_TYPE_MATERIAL = 'material';
+
+  /**
+   * Get all item types
+   */
+  public static function getItemTypes(): array
+  {
+    return [
+      self::ITEM_TYPE_PRODUCT,
+      self::ITEM_TYPE_LABOR,
+      self::ITEM_TYPE_MATERIAL,
+    ];
+  }
+
+  /**
+   * Get validation rule for item_type
+   */
+  public static function getItemTypeValidationRule(): string
+  {
+    return 'in:' . implode(',', self::getItemTypes());
+  }
 
   //Constants status
   const STATUS_PENDING = 'pending';
@@ -101,7 +122,7 @@ class ApOrderQuotationDetails extends Model
   {
     return 'in:' . implode(',', self::getSupplyTypes());
   }
-  
+
   public function setDescriptionAttribute($value): void
   {
     if ($value) {
