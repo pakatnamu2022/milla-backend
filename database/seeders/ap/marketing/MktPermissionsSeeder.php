@@ -77,7 +77,7 @@ class MktPermissionsSeeder extends Seeder
           'actions'     => ['view', 'create', 'update', 'delete'],
         ],
         [
-          'descripcion' => 'Órdenes de Com',
+          'descripcion' => 'Órdenes de Compra',
           'route'       => 'ordenes-compra',
           'slug'        => 'ordenes-compra',
           'icon'        => 'ShoppingCart',

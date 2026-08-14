@@ -110,6 +110,21 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $hasReceivable = $doc->receivableAccounts->isNotEmpty();
       $isCancelled = $hasReceivable && $totalBalance == 0;
 
+      $docTotal = (float)($doc->total
+        ?? ($doc->total_gravada + $doc->total_igv + $doc->total_inafecta + $doc->total_exonerada)
+        ?? 0);
+
+      if (!$hasReceivable) {
+        $estado = 'NO CONTABILIZADO';
+        $pendiente = $docTotal;
+      } elseif ($totalBalance > 0) {
+        $estado = 'PENDIENTE';
+        $pendiente = (float)$totalBalance;
+      } else {
+        $estado = 'CANCELADO';
+        $pendiente = 0.0;
+      }
+
       return [
         'solicitud'        => $prq?->correlative,
         'sede'             => $prq?->sede?->abreviatura,
@@ -125,10 +140,10 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
         'pct_beneficio'    => $prq?->margin_pct,
         'beneficio'        => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
-        'total_factura'    => is_numeric($doc->total) ? (float)$doc->total : null,
-        'pendiente'        => $hasReceivable ? (float)$totalBalance : null,
+        'total_factura'    => $docTotal,
+        'pendiente'        => $pendiente,
         'ref_cancelacion'  => $isCancelled ? $receivable?->document_number : null,
-        'estado'           => ($hasReceivable && $totalBalance > 0) ? 'PENDIENTE' : 'CANCELADO',
+        'estado'           => $estado,
         'forma_pago'       => $doc->condiciones_de_pago,
         'banco'            => $doc->bank?->description,
         'aceptada_sunat'   => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
@@ -140,8 +155,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $cellColorRules = [
       'estado' => [
-        'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
-        'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+        'CANCELADO'        => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
+        'PENDIENTE'        => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+        'NO CONTABILIZADO' => ['bg' => 'F3F4F6', 'text' => '6B7280', 'bold' => true],
       ],
     ];
 
