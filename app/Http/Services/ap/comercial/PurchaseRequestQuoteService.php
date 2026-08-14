@@ -281,13 +281,19 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote->save();
 
       $movementService = new VehicleMovementService();
-      $isInInventory = $vehicle->vehicleMovements()
-        ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
-        ->whereNull('deleted_at')
-        ->exists();
 
-      if ($isInInventory) {
-        $movementService->storeInventoryVehicleMovement($vehicle->id);
+      if (ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)) {
+        // Vehicle was invoiced (e.g. by an advance payment anticipo) — revert to best prior warehouse state
+        $movementService->storeUnassignRevertMovement($vehicle);
+      } else {
+        $isInInventory = $vehicle->vehicleMovements()
+          ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
+          ->whereNull('deleted_at')
+          ->exists();
+
+        if ($isInInventory) {
+          $movementService->storeInventoryVehicleMovement($vehicle->id);
+        }
       }
 
       DB::commit();

@@ -747,6 +747,67 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Reverts a vehicle's status when it is unassigned from a quote while in a sale state (e.g. FACTURADO by anticipo).
+   * Uses the same priority logic as storeInvoiceCancellationRevertMovement but records a DESASIGNACION movement.
+   *
+   * @throws Throwable
+   */
+  public function storeUnassignRevertMovement(Vehicles $vehicle): VehicleMovement
+  {
+    $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
+
+    $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+      ->whereIn('new_status_id', array_keys($priorityMap))
+      ->whereNull('deleted_at')
+      ->pluck('new_status_id')
+      ->unique()
+      ->toArray();
+
+    // Also consider the status stored just before the FACTURADO movement
+    $invoicedMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+      ->where('new_status_id', ApVehicleStatus::FACTURADO)
+      ->whereNull('deleted_at')
+      ->latest('id')
+      ->first();
+
+    if ($invoicedMovement?->previous_status_id && isset($priorityMap[$invoicedMovement->previous_status_id])) {
+      $historicalStatuses[] = $invoicedMovement->previous_status_id;
+    }
+
+    $bestStatusId = null;
+    $bestWeight   = -1;
+    foreach ($historicalStatuses as $statusId) {
+      $weight = $priorityMap[$statusId] ?? 0;
+      if ($weight > $bestWeight) {
+        $bestWeight   = $weight;
+        $bestStatusId = $statusId;
+      }
+    }
+
+    if ($bestStatusId === null) {
+      throw new Exception(
+        'No se puede desasignar el vehículo: no se encontró un estado de almacén previo al cual revertir. Revise el historial de movimientos del vehículo.'
+      );
+    }
+
+    $vehicleMovement = VehicleMovement::create([
+      'movement_type'        => VehicleMovement::UNASSIGN_REVERT,
+      'ap_vehicle_id'        => $vehicle->id,
+      'ap_vehicle_status_id' => $bestStatusId,
+      'movement_date'        => now(),
+      'confirmed_at'         => now(),
+      'observation'          => 'Reversión de estado por desasignación de vehículo desde cotización',
+      'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+      'new_status_id'        => $bestStatusId,
+      'created_by'           => auth()->id(),
+    ]);
+
+    $vehicle->update(['ap_vehicle_status_id' => $bestStatusId]);
+
+    return $vehicleMovement;
+  }
+
+  /**
    * Show details of a specific vehicle movement
    * @throws Exception
    */
