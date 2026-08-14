@@ -9,6 +9,7 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Company;
 use App\Services\Dynamics\SalesDynamicsBuilder;
@@ -508,8 +509,9 @@ class SyncSalesDocumentJob implements ShouldQueue
     // Obtener el código de cuenta contable para materiales
     $materialsCode = ApAccountingAccountPlan::find(ApAccountingAccountPlan::LABOUR_ACCOUNT_MATERIAL_ID)?->code_dynamics ?? 'V0000012';
 
-    // Obtener el almacén del documento
-    $warehouse = $document->warehouse();
+    // Obtener el almacén según la sede de la orden de trabajo
+    // Esto permite manejar consolidaciones masivas con órdenes de trabajo de distintas sedes
+    $warehouse = $this->getWarehouseForWorkOrder($workOrder);
 
     // Variable para acumular el monto total de repuestos en travesía (solo para consolidación simple)
     $traversePartsTotal = 0;
@@ -798,6 +800,45 @@ class SyncSalesDocumentJob implements ShouldQueue
     ];
 
     return $mapping[$sedeId] ?? null;
+  }
+
+  /**
+   * Obtiene el código de almacén (SitioId) para una orden de trabajo
+   * basado en su sede_id
+   *
+   * @param ApWorkOrder $workOrder Orden de trabajo
+   * @return string Código de almacén en Dynamics
+   * @throws \Exception Si no se encuentra el almacén
+   */
+  private function getWarehouseForWorkOrder(ApWorkOrder $workOrder): string
+  {
+    // Obtener el sede_id de la orden de trabajo
+    $sedeId = $workOrder->sede_id;
+
+    if (!$sedeId) {
+      Log::warning('Orden de trabajo sin sede_id, usando almacén por defecto', [
+        'work_order_id' => $workOrder->id
+      ]);
+      // Si no tiene sede_id, intentar obtenerlo del documento
+      throw new \Exception("Orden de trabajo ID {$workOrder->id} sin sede_id definida");
+    }
+
+    // Buscar el almacén de postventa activo y recibido para esta sede
+    $warehouse = Warehouse::where('sede_id', $sedeId)
+      ->postSale()
+      ->active()
+      ->received()
+      ->first();
+
+    if (!$warehouse || !$warehouse->dyn_code) {
+      Log::error('No se encontró almacén para la sede de la orden de trabajo', [
+        'work_order_id' => $workOrder->id,
+        'sede_id'       => $sedeId
+      ]);
+      throw new \Exception("No se encontró almacén de postventa para sede_id: {$sedeId}");
+    }
+
+    return $warehouse->dyn_code;
   }
 
   /**

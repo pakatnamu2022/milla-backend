@@ -18,6 +18,7 @@ use App\Http\Requests\ap\facturacion\StoreHistoricalAdvancePaymentRequest;
 use App\Http\Requests\ap\facturacion\ExportElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreHistoricalFinalSaleRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
+use App\Http\Resources\Dynamics\SalesDocumentPreviewResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
 use App\Jobs\SyncAccountingStatusJob;
 use App\Http\Traits\HasApiResponse;
@@ -700,6 +701,36 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->service->export($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Previsualiza los datos que se enviarían a Dynamics
+   * Funciona para facturas SIMPLES y MASIVAS:
+   *
+   * - SIMPLE: Usa los items del documento directamente (ap_billing_electronic_document_items)
+   *           Incluye accesorios de postventa, deducibles y repuestos en travesía consolidados
+   *
+   * - MASSIVE: Usa las órdenes de trabajo vinculadas a través de electronic_document_internal_notes
+   *            Procesa parts y labours de cada work order
+   *
+   * @param int $id ID del comprobante electrónico
+   * @return JsonResponse
+   */
+  public function previewDynamicsPayload(int $id): JsonResponse
+  {
+    try {
+      $document = ElectronicDocument::find($id);
+
+      if (!$document) {
+        return $this->error('Documento electrónico no encontrado', 404);
+      }
+
+      $preview = new SalesDocumentPreviewResource($document);
+
+      return response()->json($preview);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
