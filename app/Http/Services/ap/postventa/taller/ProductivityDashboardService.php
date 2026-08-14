@@ -2,7 +2,9 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Models\ap\ApMasters;
 use App\Models\GeneralMaster;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
@@ -54,7 +56,7 @@ class ProductivityDashboardService
         ];
       }
 
-      // Get billed hours by technician (from WorkedHoursBySedeReportService logic)
+      // Get billed hours by technician (ONLY from CLOSED work orders)
       $billedData = $this->getBilledHoursByTechnician($filters, $userSedeIds);
 
       if ($billedData->isEmpty()) {
@@ -154,21 +156,24 @@ class ProductivityDashboardService
   }
 
   /**
-   * Get billed hours by technician
-   * Adapted from WorkedHoursBySedeReportService::getBilledHoursBySedeReport
+   * Get billed hours by technician (ONLY from CLOSED work orders)
+   * Uses the same logic as ClosedWorkOrderBilledHoursReportService
    */
   private function getBilledHoursByTechnician(array $filters, array $userSedeIds): \Illuminate\Support\Collection
   {
-    // Get work order IDs with completed plannings
-    $workOrderIdsQuery = ApWorkOrderPlanning::query()
-      ->where('status', 'completed')
-      ->select('work_order_id');
+    // Consultar órdenes de trabajo CERRADAS
+    $queryWorkOrders = ApWorkOrder::query()
+      ->with([
+        'sede',
+        'plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        }
+      ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID); // Solo OTs cerradas
 
     // Filter by user sedes
     if (!empty($userSedeIds)) {
-      $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($userSedeIds) {
-        $q->whereIn('sede_id', $userSedeIds);
-      });
+      $queryWorkOrders->whereIn('sede_id', $userSedeIds);
     }
 
     // Apply filters
@@ -182,17 +187,19 @@ class ProductivityDashboardService
       }
 
       if ($column === 'sede_id' && $operator === '=') {
-        $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($value) {
-          $q->where('sede_id', $value);
-        });
+        $queryWorkOrders->where('sede_id', $value);
       } elseif ($column === 'actual_end_datetime' && $operator === 'date_between') {
+        // Filtrar por fecha de finalización de las planificaciones
         if (is_array($value) && count($value) === 2) {
-          $workOrderIdsQuery->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
+          $queryWorkOrders->whereHas('plannings', function ($q) use ($value) {
+            $q->where('status', 'completed')
+              ->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
+          });
         }
       }
     }
 
-    $workOrderIds = $workOrderIdsQuery->pluck('work_order_id')->unique()->toArray();
+    $workOrderIds = $queryWorkOrders->pluck('id')->toArray();
 
     if (empty($workOrderIds)) {
       return collect();
@@ -306,8 +313,8 @@ class ProductivityDashboardService
     $technicianDetail = [];
 
     foreach ($billedData as $technician) {
-      // Calculate standard hours for the period
-      $standardHours = $period['working_days'] * $workingHoursPerDay;
+      // Standard hours: 8 horas × 6 días × 4 semanas = 192 horas fijas
+      $standardHours = 192;
 
       // Get billed hours
       $billedHours = $technician['billed_hours'];

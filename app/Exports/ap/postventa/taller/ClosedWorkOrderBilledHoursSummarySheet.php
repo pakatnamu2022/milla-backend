@@ -32,7 +32,7 @@ class ClosedWorkOrderBilledHoursSummarySheet implements
     $rows = collect();
 
     // Subtítulo: Horas Facturadas de OTs Cerradas
-    $rows->push(['HORAS FACTURADAS - ÓRDENES CERRADAS', '', '', '', '', '', '']);
+    $rows->push(['HORAS FACTURADAS - ÓRDENES CERRADAS', '', '', '', '', '', '', '', '', '', '', '']);
 
     // Encabezados para Horas Facturadas
     $rows->push([
@@ -42,7 +42,12 @@ class ClosedWorkOrderBilledHoursSummarySheet implements
       'HORAS INTERNA',
       'HORAS ESTÁNDAR',
       'HORAS GARANTÍA/RECALL',
-      'TOTAL HORAS',
+      'TOTAL HORAS FACTURADAS',
+      'HORAS ESTÁNDAR (192)',
+      'COSTO X HORA (S/)',
+      'HORAS PRODUCTIVIDAD',
+      '% PRODUCTIVIDAD',
+      'COMISIÓN (S/)',
     ]);
 
     // Datos de Horas Facturadas
@@ -55,6 +60,11 @@ class ClosedWorkOrderBilledHoursSummarySheet implements
         $row['horas_estandar'],
         $row['horas_garantia_recall'],
         $row['total_horas'],
+        $row['horas_estandar_fijas'],
+        $row['costo_por_hora'],
+        $row['horas_productividad'],
+        $row['porcentaje_productividad'],
+        $row['comision'],
       ]);
     }
 
@@ -129,18 +139,18 @@ class ClosedWorkOrderBilledHoursSummarySheet implements
         ];
 
         // Aplicar estilos - Subtítulo
-        $sheet->getStyle('A' . $subtitleRow . ':G' . $subtitleRow)->applyFromArray($subtitleStyle);
-        $sheet->mergeCells('A' . $subtitleRow . ':G' . $subtitleRow);
+        $sheet->getStyle('A' . $subtitleRow . ':L' . $subtitleRow)->applyFromArray($subtitleStyle);
+        $sheet->mergeCells('A' . $subtitleRow . ':L' . $subtitleRow);
 
         // Aplicar estilos - Encabezado
-        $sheet->getStyle('A' . $headerRow . ':G' . $headerRow)->applyFromArray($headerStyle);
-        $sheet->setAutoFilter('A' . $headerRow . ':G' . $headerRow);
+        $sheet->getStyle('A' . $headerRow . ':L' . $headerRow)->applyFromArray($headerStyle);
+        $sheet->setAutoFilter('A' . $headerRow . ':L' . $headerRow);
 
         // Aplicar estilos - Fila de totales
-        $sheet->getStyle('A' . $totalRow . ':G' . $totalRow)->applyFromArray($totalRowStyle);
+        $sheet->getStyle('A' . $totalRow . ':L' . $totalRow)->applyFromArray($totalRowStyle);
 
-        // Aplicar formato numérico a las columnas de horas (D, E, F, G)
-        $sheet->getStyle('D' . $dataStartRow . ':G' . $dataEndRow)
+        // Aplicar formato numérico a las columnas de horas (D, E, F, G, H, I, J, K, L)
+        $sheet->getStyle('D' . $dataStartRow . ':L' . $dataEndRow)
           ->getNumberFormat()
           ->setFormatCode('0.00');
 
