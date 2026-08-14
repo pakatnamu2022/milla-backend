@@ -89,6 +89,23 @@ class EvaluationPersonController extends Controller
   }
 
   /**
+   * Recalcular resultados de una sola persona en una evaluación
+   */
+  public function recalculatePersonResults(int $evaluationId, int $personId)
+  {
+    try {
+      $this->service->recalculatePersonResults($evaluationId, $personId);
+      return $this->success([
+        'message' => 'Resultados recalculados exitosamente',
+        'evaluation_id' => $evaluationId,
+        'person_id' => $personId,
+      ]);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
    * Obtener estadísticas de una evaluación
    */
   public function getEvaluationStats(int $evaluationId)

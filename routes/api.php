@@ -997,6 +997,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         // Rutas adicionales para recálculo de resultados
         Route::post('/evaluation/{evaluation}/recalculateResults', [EvaluationPersonController::class, 'recalculateAllResults']);
+        Route::post('/evaluation/{evaluation}/person/{person}/recalculate', [EvaluationPersonController::class, 'recalculatePersonResults']);
         Route::get('/evaluation/{evaluation}/stats', [EvaluationPersonController::class, 'getEvaluationStats']);
 
         // Ruta para crear competencias en lote
