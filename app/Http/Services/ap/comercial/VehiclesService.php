@@ -105,10 +105,15 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $rows = $documents->map(function ($doc) {
       $prq = $doc->purchaseRequestQuote;
-      $receivable = $doc->receivableAccounts->first();
       $totalBalance = $doc->receivableAccounts->sum('balance');
       $hasReceivable = $doc->receivableAccounts->isNotEmpty();
       $isCancelled = $hasReceivable && $totalBalance == 0;
+
+      $collectionRefs = $doc->receivableAccounts
+        ->whereNotNull('collection_reference')
+        ->pluck('collection_reference')
+        ->unique()
+        ->implode("\n");
 
       $docTotal = (float)($doc->total
         ?? ($doc->total_gravada + $doc->total_igv + $doc->total_inafecta + $doc->total_exonerada)
@@ -142,7 +147,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'beneficio'        => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
         'total_factura'    => $docTotal,
         'pendiente'        => $pendiente,
-        'ref_cancelacion'  => $isCancelled ? $receivable?->document_number : null,
+        'ref_cancelacion'  => $collectionRefs ?: null,
         'estado'           => $estado,
         'forma_pago'       => $doc->condiciones_de_pago,
         'banco'            => $doc->bank?->description,
@@ -169,7 +174,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     ];
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats),
+      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats, ['ref_cancelacion']),
       $filename
     );
   }
