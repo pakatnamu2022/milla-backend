@@ -74,7 +74,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           $document->update([
             'is_accounted' => true,
-            'is_annulled'  => $isAnnulled,
+            'is_annulled' => $isAnnulled,
           ]);
 
           if (!$wasAccounted && !$isAnnulled) {
@@ -99,14 +99,14 @@ class SyncAccountingStatusJob implements ShouldQueue
         } else {
           $document->update([
             'is_accounted' => false,
-            'is_annulled'  => false,
+            'is_annulled' => false,
           ]);
         }
       } catch (Throwable $e) {
         Log::error('Error al sincronizar estado contable desde Dynamics', [
           'document_id' => $document->id,
           'full_number' => $document->full_number,
-          'error'       => $e->getMessage(),
+          'error' => $e->getMessage(),
         ]);
       }
     }
@@ -171,6 +171,16 @@ class SyncAccountingStatusJob implements ShouldQueue
     if ($document->work_order_id) {
       $this->createInventoryMovementForWorkOrder($document->work_order_id);
     }
+
+    // Procesar masivas - buscar work_order_id en internal_notes (pueden ser varias OTs)
+    if ($document->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+      $internalNotes = $document->internalNotes()->get();
+      foreach ($internalNotes as $internalNote) {
+        if ($internalNote->work_order_id) {
+          $this->createInventoryMovementForWorkOrder($internalNote->work_order_id, $document);
+        }
+      }
+    }
   }
 
   /**
@@ -225,8 +235,8 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la cotización como totalmente pagada y facturada (con o sin repuestos)
       $quotation->update([
-        'is_fully_paid'               => true,
-        'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
+        'is_fully_paid' => true,
+        'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
         'output_generation_warehouse' => true,
       ]);
 
@@ -239,7 +249,7 @@ class SyncAccountingStatusJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,
-        'error'        => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -251,9 +261,10 @@ class SyncAccountingStatusJob implements ShouldQueue
    * de una OT es contabilizada en Dynamics (is_accounted = true).
    *
    * @param int $workOrderId
+   * @param ElectronicDocument|null $invoice Para masivas, se pasa el documento directamente
    * @return void
    */
-  private function createInventoryMovementForWorkOrder(int $workOrderId): void
+  private function createInventoryMovementForWorkOrder(int $workOrderId, ?ElectronicDocument $invoice = null): void
   {
     try {
       $workOrder = ApWorkOrder::with(['advancesWorkOrder', 'parts'])->find($workOrderId);
@@ -267,16 +278,22 @@ class SyncAccountingStatusJob implements ShouldQueue
         return;
       }
 
-      // Verificar si existe una factura final (is_advance_payment = 0) contabilizada
-      $finalInvoice = $workOrder->getFinalInvoice();
+      // Determinar la factura a usar
+      if ($invoice) {
+        // Es masiva - usar el documento pasado directamente (sin validaciones adicionales)
+        $finalInvoice = $invoice;
+      } else {
+        // Es simple - validar que exista factura final contabilizada
+        $finalInvoice = $workOrder->getFinalInvoice();
 
-      if (!$finalInvoice) {
-        return; // No hay factura final aún
-      }
+        if (!$finalInvoice) {
+          return; // No hay factura final aún
+        }
 
-      // Verificar que la factura final esté contabilizada en Dynamics
-      if (!$finalInvoice->is_accounted) {
-        return; // La factura final aún no está contabilizada
+        // Verificar que la factura final esté contabilizada en Dynamics
+        if (!$finalInvoice->is_accounted) {
+          return; // La factura final aún no está contabilizada
+        }
       }
 
       // Verificar si la orden tiene repuestos (productos) que NO sean travesía
@@ -296,14 +313,14 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la OT como facturada y cerrada (con o sin repuestos)
       $workOrder->update([
-        'is_invoiced'                 => true,
-        'status_id'                   => ApMasters::CLOSED_WORK_ORDER_ID,
+        'is_invoiced' => true,
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
         'output_generation_warehouse' => true,
       ]);
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para orden de trabajo', [
         'work_order_id' => $workOrderId,
-        'error'         => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -357,8 +374,8 @@ class SyncAccountingStatusJob implements ShouldQueue
       default:
         // Otros tipos de NC (descuentos, bonificaciones, etc.) no requieren reversión de estados/inventario
         Log::info('NC contabilizada sin reversión de estados', [
-          'credit_note_id'       => $document->id,
-          'credit_note_type_id'  => $creditNoteType,
+          'credit_note_id' => $document->id,
+          'credit_note_type_id' => $creditNoteType,
           'original_document_id' => $originalDocument->id,
         ]);
         break;
@@ -383,6 +400,16 @@ class SyncAccountingStatusJob implements ShouldQueue
     // Revertir orden de trabajo si existe
     if ($originalDocument->work_order_id) {
       $this->reverseWorkOrderStatus($originalDocument->work_order_id, $creditNote);
+    }
+
+    // Revertir masivas - buscar work_order_id en internal_notes (pueden ser varias OTs)
+    if ($originalDocument->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+      $internalNotes = $originalDocument->internalNotes()->get();
+      foreach ($internalNotes as $internalNote) {
+        if ($internalNote->work_order_id) {
+          $this->reverseWorkOrderStatus($internalNote->work_order_id, $creditNote);
+        }
+      }
     }
   }
 
@@ -439,95 +466,111 @@ class SyncAccountingStatusJob implements ShouldQueue
    */
   private function reverseForDevolucionParcial(ElectronicDocument $creditNote, ElectronicDocument $originalDocument): void
   {
+    // Obtener IDs de órdenes de trabajo (pueden ser varias en masivas)
+    $workOrderIds = [];
+
+    if ($originalDocument->work_order_id) {
+      $workOrderIds[] = $originalDocument->work_order_id;
+    }
+
+    if ($originalDocument->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+      $internalNotes = $originalDocument->internalNotes()->get();
+      foreach ($internalNotes as $internalNote) {
+        if ($internalNote->work_order_id && !in_array($internalNote->work_order_id, $workOrderIds)) {
+          $workOrderIds[] = $internalNote->work_order_id;
+        }
+      }
+    }
+
     // Solo para órdenes de trabajo (cotizaciones tienen lógica diferente)
-    if (!$originalDocument->work_order_id) {
+    if (empty($workOrderIds)) {
       return;
     }
 
     try {
-      $workOrder = ApWorkOrder::find($originalDocument->work_order_id);
-
-      if (!$workOrder) {
-        return;
-      }
-
       // Obtener los ítems de la NC para saber qué repuestos devolver
       $creditNoteItems = $creditNote->items; // ElectronicDocumentItem
-      $itemsToReturn = [];
 
-      foreach ($creditNoteItems as $item) {
-        // Buscar el repuesto correspondiente en la OT
-        $workOrderPart = ApWorkOrderParts::where('work_order_id', $workOrder->id)
-          ->where('product_id', $item->product_id)
-          ->first();
+      // Procesar cada OT
+      foreach ($workOrderIds as $workOrderId) {
+        $workOrder = ApWorkOrder::find($workOrderId);
 
-        if (!$workOrderPart) {
-          Log::warning('Repuesto no encontrado en OT para NC parcial', [
-            'credit_note_id' => $creditNote->id,
-            'work_order_id'  => $workOrder->id,
-            'product_id'     => $item->product_id,
-          ]);
+        if (!$workOrder) {
           continue;
         }
 
-        // Si el repuesto es travesía, no debe devolverse porque nunca salió del inventario
-        if ($workOrderPart->is_traverse) {
-          Log::info('Repuesto de travesía ignorado en NC parcial (no afecta inventario)', [
-            'credit_note_id' => $creditNote->id,
-            'work_order_id'  => $workOrder->id,
-            'product_id'     => $item->product_id,
-          ]);
-          continue;
-        }
+        $itemsToReturn = [];
 
-        // Cantidad a devolver
-        $quantityToReturn = $item->quantity;
+        foreach ($creditNoteItems as $item) {
+          // Buscar el repuesto correspondiente en esta OT específica
+          $workOrderPart = ApWorkOrderParts::where('work_order_id', $workOrder->id)
+            ->where('product_id', $item->product_id)
+            ->first();
 
-        // Guardar para el movimiento de inventario
-        $itemsToReturn[] = [
-          'product_id' => $item->product_id,
-          'quantity'   => $quantityToReturn,
-        ];
-
-        // Actualizar la cantidad en ApWorkOrderParts
-        $newQuantity = $workOrderPart->quantity_used - $quantityToReturn;
-
-        if ($newQuantity <= 0) {
-          // Si la devolución es total de este ítem, eliminarlo
-          $workOrderPart->delete();
-        } else {
-          // Actualizar cantidad y recalcular montos
-          $workOrderPart->quantity_used = $newQuantity;
-          $workOrderPart->total_cost = $workOrderPart->unit_price * $newQuantity;
-
-          if ($workOrderPart->discount_percentage > 0) {
-            $discountAmount = $workOrderPart->total_cost * ($workOrderPart->discount_percentage / 100);
-            $workOrderPart->net_amount = $workOrderPart->total_cost - $discountAmount;
-          } else {
-            $workOrderPart->net_amount = $workOrderPart->total_cost;
+          if (!$workOrderPart) {
+            // El producto no está en esta OT, continuar buscando en otras
+            continue;
           }
 
-          $workOrderPart->save();
+          // Si el repuesto es travesía, no debe devolverse porque nunca salió del inventario
+          if ($workOrderPart->is_traverse) {
+            Log::info('Repuesto de travesía ignorado en NC parcial (no afecta inventario)', [
+              'credit_note_id' => $creditNote->id,
+              'work_order_id' => $workOrder->id,
+              'product_id' => $item->product_id,
+            ]);
+            continue;
+          }
+
+          // Cantidad a devolver
+          $quantityToReturn = $item->quantity;
+
+          // Guardar para el movimiento de inventario
+          $itemsToReturn[] = [
+            'product_id' => $item->product_id,
+            'quantity' => $quantityToReturn,
+          ];
+
+          // Actualizar la cantidad en ApWorkOrderParts
+          $newQuantity = $workOrderPart->quantity_used - $quantityToReturn;
+
+          if ($newQuantity <= 0) {
+            // Si la devolución es total de este ítem, eliminarlo
+            $workOrderPart->delete();
+          } else {
+            // Actualizar cantidad y recalcular montos
+            $workOrderPart->quantity_used = $newQuantity;
+            $workOrderPart->total_cost = $workOrderPart->unit_price * $newQuantity;
+
+            if ($workOrderPart->discount_percentage > 0) {
+              $discountAmount = $workOrderPart->total_cost * ($workOrderPart->discount_percentage / 100);
+              $workOrderPart->net_amount = $workOrderPart->total_cost - $discountAmount;
+            } else {
+              $workOrderPart->net_amount = $workOrderPart->total_cost;
+            }
+
+            $workOrderPart->save();
+          }
         }
-      }
 
-      // Recalcular totales de la OT
-      $workOrder->calculateTotals();
+        // Recalcular totales de la OT
+        $workOrder->calculateTotals();
 
-      // Crear movimiento de inventario de devolución parcial
-      if (!empty($itemsToReturn)) {
-        $inventoryService = app(InventoryMovementService::class);
-        $returnMovement = $inventoryService->createReturnMovementForWorkOrder(
-          $creditNote,
-          $workOrder,
-          $itemsToReturn // Array de ítems a devolver
-        );
+        // Crear movimiento de inventario de devolución parcial para esta OT
+        if (!empty($itemsToReturn)) {
+          $inventoryService = app(InventoryMovementService::class);
+          $returnMovement = $inventoryService->createReturnMovementForWorkOrder(
+            $creditNote,
+            $workOrder,
+            $itemsToReturn // Array de ítems a devolver
+          );
+        }
       }
     } catch (Exception $e) {
       Log::error('Error al procesar NC por ítem', [
-        'credit_note_id'       => $creditNote->id,
+        'credit_note_id' => $creditNote->id,
         'original_document_id' => $originalDocument->id,
-        'error'                => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
