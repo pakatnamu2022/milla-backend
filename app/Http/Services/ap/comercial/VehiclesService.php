@@ -105,10 +105,30 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $rows = $documents->map(function ($doc) {
       $prq = $doc->purchaseRequestQuote;
-      $receivable = $doc->receivableAccounts->first();
       $totalBalance = $doc->receivableAccounts->sum('balance');
       $hasReceivable = $doc->receivableAccounts->isNotEmpty();
       $isCancelled = $hasReceivable && $totalBalance == 0;
+
+      $collectionRefs = $doc->receivableAccounts
+        ->whereNotNull('collection_reference')
+        ->pluck('collection_reference')
+        ->unique()
+        ->implode("\n");
+
+      $docTotal = (float)($doc->total
+        ?? ($doc->total_gravada + $doc->total_igv + $doc->total_inafecta + $doc->total_exonerada)
+        ?? 0);
+
+      if (!$hasReceivable) {
+        $estado = 'NO CONTABILIZADO';
+        $pendiente = $docTotal;
+      } elseif ($totalBalance > 0) {
+        $estado = 'PENDIENTE';
+        $pendiente = (float)$totalBalance;
+      } else {
+        $estado = 'CANCELADO';
+        $pendiente = 0.0;
+      }
 
       return [
         'solicitud' => $prq?->correlative,
@@ -122,16 +142,16 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'vin' => $prq?->vehicle?->vin,
         'color' => $prq?->vehicle?->color?->description,
         'numero_documento' => $doc->full_number,
-        'fecha_factura' => $doc->fecha_de_emision?->format('d/m/Y'),
-        'pct_beneficio' => $prq?->margin_pct,
-        'beneficio' => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
-        'total_factura' => is_numeric($doc->total) ? (float)$doc->total : null,
-        'pendiente' => $hasReceivable ? (float)$totalBalance : null,
-        'ref_cancelacion' => $isCancelled ? $receivable?->document_number : null,
-        'estado' => ($hasReceivable && $totalBalance > 0) ? 'PENDIENTE' : 'CANCELADO',
-        'forma_pago' => $doc->condiciones_de_pago,
-        'banco' => $doc->bank?->description,
-        'aceptada_sunat' => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
+        'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
+        'pct_beneficio'    => $prq?->margin_pct,
+        'beneficio'        => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
+        'total_factura'    => $docTotal,
+        'pendiente'        => $pendiente,
+        'ref_cancelacion'  => $collectionRefs ?: null,
+        'estado'           => $estado,
+        'forma_pago'       => $doc->condiciones_de_pago,
+        'banco'            => $doc->bank?->description,
+        'aceptada_sunat'   => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
       ];
     });
 
@@ -140,8 +160,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $cellColorRules = [
       'estado' => [
-        'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
-        'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+        'CANCELADO'        => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
+        'PENDIENTE'        => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+        'NO CONTABILIZADO' => ['bg' => 'F3F4F6', 'text' => '6B7280', 'bold' => true],
       ],
     ];
 
@@ -153,7 +174,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     ];
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats),
+      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats, ['ref_cancelacion']),
       $filename
     );
   }

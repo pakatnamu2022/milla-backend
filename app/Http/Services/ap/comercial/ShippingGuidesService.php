@@ -170,6 +170,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         $series = $data['series'];
         $correlative = $data['correlative'];
         $documentNumber = $series . '-' . $correlative;
+
+        if (ShippingGuides::where('document_number', $documentNumber)
+          ->where('migration_status', '!=', VehiclePurchaseOrderMigrationLog::STATUS_FAILED)
+          ->exists()) {
+          throw new Exception("Ya existe una guía de remisión con el número {$documentNumber}. No se puede registrar duplicados.");
+        }
       }
 
       // 4. Manejar type_voucher_id para guías de remisión

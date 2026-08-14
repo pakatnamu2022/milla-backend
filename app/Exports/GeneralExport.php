@@ -27,8 +27,9 @@ class GeneralExport implements
   protected $styles;
   protected $cellColorRules;
   protected $columnFormats;
+  protected $wrapTextColumns;
 
-  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [], $columnFormats = [])
+  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [], $columnFormats = [], $wrapTextColumns = [])
   {
     $this->data = collect($data);
     $this->columns = $columns;
@@ -36,6 +37,7 @@ class GeneralExport implements
     $this->styles = !empty($styles) ? $styles : $this->getDefaultStyles();
     $this->cellColorRules = $cellColorRules;
     $this->columnFormats = $columnFormats;
+    $this->wrapTextColumns = $wrapTextColumns;
   }
 
   public function collection()
@@ -264,6 +266,20 @@ class GeneralExport implements
                   $sheet->getStyle("{$colLetter}{$rowIndex}")->getFont()->setBold(true);
                 }
               }
+            }
+          }
+        }
+
+        // Aplicar wrap text a columnas específicas
+        if (!empty($this->wrapTextColumns)) {
+          $columnKeys = array_keys($this->columns);
+          foreach ($this->wrapTextColumns as $columnKey) {
+            $colIdx = array_search($columnKey, $columnKeys);
+            if ($colIdx === false) continue;
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx + 1);
+            if ($lastRow >= 2) {
+              $sheet->getStyle("{$colLetter}2:{$colLetter}{$lastRow}")
+                ->getAlignment()->setWrapText(true);
             }
           }
         }

@@ -859,6 +859,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     // ── 4. Guía de compra y recepción ────────────────────────────────────────
+    // Resolver la orden de compra aquí para usarla también en el paso 6
+    $purchaseOrder = $vehicle->purchaseOrders()->orderByDesc('id')->first();
+    $isStockInicial = $purchaseOrder && str_contains($purchaseOrder->number ?? '', 'SI-');
+
     // Buscamos la guía de remisión de compra (la que tiene checklist de recepción)
     $receptionGuide = $vehicle->vehicleMovements()
       ->with(['shippingGuides' => function ($q) {
@@ -869,7 +873,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ->first();
 
     if (!$receptionGuide) {
-      // Buscar si hay alguna guía de tránsito sin recepción
+      // Buscar si hay alguna guía de tránsito (EN TRAVESIA) sin recepción
       $transitGuide = $vehicle->vehicleMovements()
         ->where('movement_type', VehicleMovement::IN_TRANSIT)
         ->with('shippingGuides')
@@ -885,8 +889,17 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'action'  => 'Completa el checklist de recepción del vehículo para registrar su ingreso al almacén.',
         ];
         $canGenerate = false;
+      } elseif ($purchaseOrder) {
+        // Tiene orden de compra (vino de proveedor) → la recepción es obligatoria aunque no se detecte guía de tránsito
+        $checks[] = [
+          'step'    => 'Recepción en almacén',
+          'status'  => 'fail',
+          'message' => "El vehículo ingresó por orden de compra (N° {$purchaseOrder->number}) pero no tiene una guía de recepción registrada en el sistema.",
+          'action'  => 'Debe registrarse la recepción del vehículo (checklist de recepción) antes de generar la entrega.',
+        ];
+        $canGenerate = false;
       } else {
-        // Es posible que sea stock inicial o que no haya guía de proveedor
+        // Sin orden de compra ni guía de tránsito: podría ser stock inicial manual
         $checks[] = [
           'step'    => 'Recepción en almacén',
           'status'  => 'warning',
@@ -937,8 +950,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     // ── 6. Stock inicial (orden de compra con prefijo SI-) ───────────────────
-    $purchaseOrder = $vehicle->purchaseOrders()->orderByDesc('id')->first();
-    $isStockInicial = $purchaseOrder && str_contains($purchaseOrder->number ?? '', 'SI-');
+    // $purchaseOrder e $isStockInicial ya están resueltos en el paso 4
 
     if ($isStockInicial) {
       // Si ya tiene un movimiento con estado FACTURADO_FINAL, fue procesado en el sistema → flujo normal
