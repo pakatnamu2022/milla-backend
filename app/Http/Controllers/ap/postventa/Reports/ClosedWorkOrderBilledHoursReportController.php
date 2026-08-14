@@ -62,9 +62,9 @@ class ClosedWorkOrderBilledHoursReportController extends Controller
     // Generar nombre del archivo
     $filename = 'reporte_horas_facturadas_ot_cerradas_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-    // Exportar a Excel con dos hojas
+    // Exportar a Excel con tres hojas (summary, detail, consolidado OTs)
     return Excel::download(
-      new ClosedWorkOrderBilledHoursReportExport($data),
+      new ClosedWorkOrderBilledHoursReportExport($data, $filters),
       $filename
     );
   }
