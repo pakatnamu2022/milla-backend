@@ -186,8 +186,10 @@ class ApModelsVnService extends BaseService implements BaseServiceInterface
   {
     $modelVn = $this->find($data['id']);
 
-    // Los campos inmutables (code, family_id, model_year, type_operation_id)
-    // ya están bloqueados en el Request y no llegarán aquí
+    if ($modelVn->type_operation_id !== ApMasters::TIPO_OPERACION_POSTVENTA) {
+      unset($data['code'], $data['family_id'], $data['model_year'], $data['type_operation_id']);
+    }
+
     $modelVn->update($data);
 
     // Invalidar caché
