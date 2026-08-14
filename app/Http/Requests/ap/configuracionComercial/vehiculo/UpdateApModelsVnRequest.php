@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ap\configuracionComercial\vehiculo;
 
 use App\Http\Requests\StoreRequest;
+use App\Models\ap\ApMasters;
 use Illuminate\Validation\Rule;
 
 class UpdateApModelsVnRequest extends StoreRequest
@@ -10,6 +11,30 @@ class UpdateApModelsVnRequest extends StoreRequest
   public function rules(): array
   {
     return [
+      'code' => [
+        'nullable',
+        'max:50',
+        Rule::unique('ap_models_vn', 'code')
+          ->ignore($this->route('id'))
+          ->where('type_operation_id', $this->input('type_operation_id'))
+          ->whereNull('deleted_at'),
+      ],
+      'family_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_families,id',
+      ],
+      'model_year' => [
+        'nullable',
+        'integer',
+        'min:1900',
+        'max:' . (date('Y') + 5),
+      ],
+      'type_operation_id' => [
+        'nullable',
+        'integer',
+        'exists:ap_masters,id',
+      ],
       'power' => [
         'nullable',
         'max:50',
@@ -166,6 +191,10 @@ class UpdateApModelsVnRequest extends StoreRequest
       'sale_price' => 'precio de venta',
       'margin' => 'margen',
       // Relaciones
+      'code' => 'código',
+      'family_id' => 'familia',
+      'model_year' => 'año del modelo',
+      'type_operation_id' => 'tipo de operación',
       'class_id' => 'clase',
       'currency_type_id' => 'tipo de moneda',
     ];
