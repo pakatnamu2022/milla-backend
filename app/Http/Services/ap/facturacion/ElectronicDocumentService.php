@@ -4799,6 +4799,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'orden_compra_servicio' => $data['orden_compra_servicio'] ?? null,
 
         // ESTADO Y METADATA - YA MARCADO COMO ACEPTADO
+        'is_accounted' => true,
         'status' => ElectronicDocument::STATUS_ACCEPTED, // Aceptado
         'aceptada_por_sunat' => 1, // Ya aceptada por SUNAT
         'migration_status' => 'completed', // Migración completada
