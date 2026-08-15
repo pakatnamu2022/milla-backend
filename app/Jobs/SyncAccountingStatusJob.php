@@ -8,6 +8,7 @@ use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -407,8 +408,28 @@ class SyncAccountingStatusJob implements ShouldQueue
     if ($originalDocument->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
       $internalNotes = $originalDocument->internalNotes()->get();
       foreach ($internalNotes as $internalNote) {
-        if ($internalNote->work_order_id) {
-          $this->reverseWorkOrderStatus($internalNote->work_order_id, $creditNote);
+        if (!$internalNote->work_order_id) {
+          continue;
+        }
+
+        $workOrder = ApWorkOrder::find($internalNote->work_order_id);
+        if (!$workOrder) {
+          continue;
+        }
+
+        // Para comprobantes masivos con NC:
+        // 1. Revertir SOLO el inventario (sin cambiar estados de la OT)
+        if ($workOrder->output_generation_warehouse) {
+          $reversalService = app(ApWorkOrderReversalService::class);
+          $reversalService->reverseInventoryForWorkOrder($workOrder, $creditNote);
+        }
+
+        // 2. Cambiar el status de la internal_note de 'invoiced' a 'pending'
+        if ($internalNote->status === ApInternalNote::STATUS_INVOICED) {
+          $internalNote->update([
+            'status' => ApInternalNote::STATUS_PENDING,
+            'closed_date' => null,
+          ]);
         }
       }
     }
