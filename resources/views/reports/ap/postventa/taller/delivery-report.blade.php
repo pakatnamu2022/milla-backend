@@ -1086,6 +1086,13 @@
                 </td>
               </tr>
               <tr>
+                <td colspan="2" style="padding: 5px 8px; font-size: 8px; border-top: 0.5px solid #ddd;">
+                  <span class="mini-checkbox {{ $inspection->tire_rotation ? 'checked' : '' }}"
+                        style="float: none; margin-right: 5px;"></span>
+                  <span>Rotación de llantas</span>
+                </td>
+              </tr>
+              <tr>
                 <td
                   style="width: 50%; padding: 5px 8px; font-size: 8px; border-right: 0.5px solid #ddd; border-top: 0.5px solid #ddd;">
                   <span class="mini-checkbox {{ $inspection->general_lubrication ? 'checked' : '' }}"
@@ -1394,10 +1401,13 @@
 
         @if($workshopCoordinator && $workshopCoordinator->nombre_completo && $workshopCoordinatorSignature)
           <div class="coordinator-signature">
-            <img src="{{ $workshopCoordinatorSignature }}" alt="Firma {{ $isWorkshopCoordinator ? 'Coordinador de Taller' : 'Jefe de Taller' }}"
+            <img src="{{ $workshopCoordinatorSignature }}"
+                 alt="Firma {{ $isWorkshopCoordinator ? 'Coordinador de Taller' : 'Jefe de Taller' }}"
                  class="coordinator-signature-img">
             <div class="coordinator-signature-name">{{ $workshopCoordinator->nombre_completo }}</div>
-            <div class="coordinator-signature-subtitle">(Visto Bueno de {{ $isWorkshopCoordinator ? 'Técnico' : 'Jefe de Taller' }})</div>
+            <div class="coordinator-signature-subtitle">(Visto Bueno
+              de {{ $isWorkshopCoordinator ? 'Técnico' : 'Jefe de Taller' }})
+            </div>
           </div>
         @endif
       </div>
