@@ -41,8 +41,6 @@ class ReserveWorkOrderPartsStock extends Command
     }
 
     $this->info("✅ Orden de trabajo encontrada: {$workOrder->correlative}");
-    $this->info("   Cliente: {$workOrder->client->business_name ?? 'N/A'}");
-    $this->info("   Sede: {$workOrder->sede->name ?? 'N/A'}");
 
     // Buscar el almacén de la sede
     $warehouse = $workOrder->sede->warehouses()
