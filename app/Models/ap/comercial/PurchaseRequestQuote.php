@@ -8,16 +8,16 @@ use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class PurchaseRequestQuote extends Model
+class PurchaseRequestQuote extends BaseModel
 {
   use SoftDeletes, Reportable;
 

@@ -99,7 +99,7 @@ class ApVehicleDeliveryController extends Controller
     try {
       return $this->success($this->service->approveExtraordinary((int) $id));
     } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
+      return $this->errorValidation($th->getMessage());
     }
   }
 
@@ -108,7 +108,7 @@ class ApVehicleDeliveryController extends Controller
     try {
       return $this->success($this->service->rejectExtraordinary((int) $id));
     } catch (\Throwable $th) {
-      return $this->error($th->getMessage());
+      return $this->errorValidation($th->getMessage());
     }
   }
 
