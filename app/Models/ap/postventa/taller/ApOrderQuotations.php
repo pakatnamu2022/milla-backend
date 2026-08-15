@@ -898,7 +898,9 @@ class ApOrderQuotations extends Model
       'typeCurrency',
       'invoiceTo',
       'details',
-      'advancesOrderQuotation'
+      'advancesOrderQuotation',
+      'discardReason',
+      'discardedBy'
     ]);
 
     // Apply filters
@@ -968,7 +970,7 @@ class ApOrderQuotations extends Model
       // Obtener el documento electrónico final (factura/boleta)
       $electronicDocument = $quotation->getFinalInvoice();
 
-      return [
+      $data = [
         'sede' => $quotation->sede ? $quotation->sede->abreviatura : '',
         'numero_cotizacion' => $quotation->quotation_number,
         'area' => $quotation->area ? $quotation->area->description : '',
@@ -991,6 +993,16 @@ class ApOrderQuotations extends Model
         'estado_sunat' => $electronicDocument ? ($electronicDocument->aceptada_por_sunat ? 'SI' : 'NO') : '-',
         'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
       ];
+
+      // Si es descartado, agregar columnas de descarte
+      if ($quotation->status_id == ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
+        $data['motivo_descarte'] = $quotation->discardReason ? $quotation->discardReason->description : '-';
+        $data['nota_descarte'] = $quotation->discarded_note ?? '-';
+        $data['descartado_por'] = $quotation->discardedBy ? $quotation->discardedBy->name : '-';
+        $data['fecha_descarte'] = $quotation->discarded_at ? $quotation->discarded_at->format('Y-m-d H:i:s') : '-';
+      }
+
+      return $data;
     });
   }
 
@@ -1018,7 +1030,62 @@ class ApOrderQuotations extends Model
       'comprobante_final' => 'Comprobante Final',
       'estado_sunat' => 'Estado SUNAT',
       'contabilizada' => 'Contabilizada',
+      'motivo_descarte' => 'Motivo Descarte',
+      'nota_descarte' => 'Nota Descarte',
+      'descartado_por' => 'Descartado Por',
+      'fecha_descarte' => 'Fecha Descarte',
     ];
+  }
+
+  /**
+   * Filtra las columnas del reporte según el contexto (filtros aplicados)
+   *
+   * Lógica:
+   * - Si SOLO se filtra por DESCARTADO: ocultar columnas de anticipos/facturación
+   * - Si NO incluye descartados: ocultar columnas de descarte
+   * - Si incluye múltiples estados: mostrar todas las columnas relevantes
+   */
+  public static function filterReportColumns($columns, $context = [])
+  {
+    $statusId = $context['status_id'] ?? null;
+
+    // Si no hay filtro de status, mostrar todas las columnas menos las de descarte
+    if (!$statusId) {
+      unset($columns['motivo_descarte']);
+      unset($columns['nota_descarte']);
+      unset($columns['descartado_por']);
+      unset($columns['fecha_descarte']);
+      return $columns;
+    }
+
+    // Normalizar status_id a array
+    $statusIds = is_array($statusId) ? $statusId : [$statusId];
+
+    $onlyDescartado = count($statusIds) === 1 && in_array(ApMasters::STATUS_ORDER_QUOTE_DESCARTADO, $statusIds);
+    $includesDescartado = in_array(ApMasters::STATUS_ORDER_QUOTE_DESCARTADO, $statusIds);
+
+    // Caso 1: SOLO descartadas - ocultar columnas de anticipos/facturación, mostrar columnas de descarte
+    if ($onlyDescartado) {
+      unset($columns['tiene_anticipo']);
+      unset($columns['anticipos']);
+      unset($columns['total_anticipos']);
+      unset($columns['comprobante_final']);
+      unset($columns['estado_sunat']);
+      unset($columns['contabilizada']);
+      return $columns;
+    }
+
+    // Caso 2: NO incluye descartadas - ocultar columnas de descarte
+    if (!$includesDescartado) {
+      unset($columns['motivo_descarte']);
+      unset($columns['nota_descarte']);
+      unset($columns['descartado_por']);
+      unset($columns['fecha_descarte']);
+      return $columns;
+    }
+
+    // Caso 3: Incluye descartadas Y otros estados - mostrar todas las columnas
+    return $columns;
   }
 
   public static function getReportStyles()
