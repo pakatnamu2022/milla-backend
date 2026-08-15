@@ -87,6 +87,7 @@ class ApVehicleInspectionResource extends JsonResource
       'tire_pressure_inflation_check' => $this->tire_pressure_inflation_check,
       'alignment_balancing' => $this->alignment_balancing,
       'pad_replace_disc_resurface' => $this->pad_replace_disc_resurface,
+      'tire_rotation' => $this->tire_rotation,
       'other_work_details' => $this->other_work_details,
       // Requerimiento del cliente
       'customer_requirement' => $this->customer_requirement,

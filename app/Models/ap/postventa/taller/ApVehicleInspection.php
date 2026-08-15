@@ -66,6 +66,7 @@ class ApVehicleInspection extends Model
     'tire_pressure_inflation_check',
     'alignment_balancing',
     'pad_replace_disc_resurface',
+    'tire_rotation',
     'other_work_details',
     // Requerimiento del cliente
     'customer_requirement',
@@ -124,6 +125,7 @@ class ApVehicleInspection extends Model
     'tire_pressure_inflation_check' => 'boolean',
     'alignment_balancing' => 'boolean',
     'pad_replace_disc_resurface' => 'boolean',
+    'tire_rotation' => 'boolean',
     // Explicación de resultados
     'confirm_additional_work' => 'boolean',
     'clarification_customer_concerns' => 'boolean',
