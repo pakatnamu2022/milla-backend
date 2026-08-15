@@ -82,6 +82,29 @@ class FixCreditNoteStockReturn extends Command
       return 1;
     }
 
+    // ==========================================
+    // VERIFICAR SI YA SE EJECUTÓ ESTE COMANDO ANTES
+    // ==========================================
+    // Verificamos si algún movimiento tiene una marca en 'notes' indicando que ya se procesó
+    $alreadyProcessed = $movements->first(function ($movement) {
+      return str_contains($movement->notes ?? '', '[STOCK_RETORNADO_MANUALMENTE]');
+    });
+
+    if ($alreadyProcessed) {
+      $this->warn("⚠️  ADVERTENCIA: Esta NC ya fue procesada anteriormente");
+      $this->info("   El movimiento {$alreadyProcessed->movement_number} tiene la marca [STOCK_RETORNADO_MANUALMENTE]");
+      $this->newLine();
+
+      if (!$this->confirm("¿Estás SEGURO que quieres volver a ejecutar? Esto DUPLICARÁ el stock retornado")) {
+        $this->warn("❌ Operación cancelada por seguridad");
+        $this->info("   Si necesitas revertir, primero resta manualmente el stock antes de volver a ejecutar");
+        return 1;
+      }
+
+      $this->warn("⚠️  CONTINUANDO BAJO TU RESPONSABILIDAD - El stock se sumará NUEVAMENTE");
+      $this->newLine();
+    }
+
     $this->info("📦 Movimientos RETURN_IN encontrados: {$movements->count()}");
     $this->newLine();
 
@@ -98,9 +121,11 @@ class FixCreditNoteStockReturn extends Command
     $totalQuantityToReturn = 0;
 
     foreach ($movements as $movement) {
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       $this->info("📋 Movimiento: {$movement->movement_number}");
-      $this->info("   Almacén: {$movement->warehouse->name}");
-      $this->info("   Fecha: {$movement->movement_date->format('d/m/Y H:i')}");
+      $this->info("📍 Almacén DESTINO: {$movement->warehouse->name}");
+      $this->info("📅 Fecha: {$movement->movement_date->format('d/m/Y H:i')}");
+      $this->info("📦 Total productos: {$movement->total_items}");
       $this->newLine();
 
       $movementPreview = [];
@@ -118,9 +143,8 @@ class FixCreditNoteStockReturn extends Command
           'Producto' => $detail->product->name ?? 'N/A',
           'Código' => $detail->product->code ?? 'N/A',
           'Stock Actual' => number_format($currentQuantity, 2),
-          'Retornar' => '+' . number_format($detail->quantity, 2),
+          'A Retornar' => '+' . number_format($detail->quantity, 2),
           'Stock Final' => number_format($newQuantity, 2),
-          'Almacén' => $movement->warehouse->name,
         ];
 
         $totalProductsToUpdate++;
@@ -137,10 +161,11 @@ class FixCreditNoteStockReturn extends Command
       }
 
       $this->table(
-        ['Producto', 'Código', 'Stock Actual', 'Retornar', 'Stock Final', 'Almacén'],
+        ['Producto', 'Código', 'Stock Actual', 'A Retornar', 'Stock Final'],
         $movementPreview
       );
 
+      $this->comment("💡 Todos estos productos retornarán al almacén: {$movement->warehouse->name}");
       $this->newLine();
     }
 
@@ -170,36 +195,91 @@ class FixCreditNoteStockReturn extends Command
     $this->newLine();
 
     // ==========================================
-    // PASO 3: EJECUTAR ACTUALIZACIÓN
+    // PASO 3: EJECUTAR ACTUALIZACIÓN DIRECTA
     // ==========================================
-    $stockService = app(ProductWarehouseStockService::class);
     $processedCount = 0;
     $errorCount = 0;
     $totalProductsUpdated = 0;
 
+    // Agrupar todos los detalles por producto-almacén para actualizar una sola vez
+    $stockUpdates = [];
+
     foreach ($movements as $movement) {
-      $this->info("🔄 Procesando movimiento: {$movement->movement_number}");
+      foreach ($movement->details as $detail) {
+        $key = $detail->product_id . '-' . $movement->warehouse_id;
 
-      try {
-        // Actualizar stock desde el movimiento
-        $updatedStocks = $stockService->updateStockFromMovement($movement);
-
-        $this->info("✅ Stock actualizado correctamente para {$movement->total_items} productos");
-
-        // Mostrar resumen del stock actualizado
-        foreach ($updatedStocks as $stock) {
-          $this->info("   ✓ {$stock->product->code}: Stock actualizado a {$stock->quantity} (Disponible: {$stock->available_quantity})");
-          $totalProductsUpdated++;
+        if (!isset($stockUpdates[$key])) {
+          $stockUpdates[$key] = [
+            'product_id' => $detail->product_id,
+            'warehouse_id' => $movement->warehouse_id,
+            'total_quantity' => 0,
+            'product' => $detail->product,
+          ];
         }
 
+        $stockUpdates[$key]['total_quantity'] += $detail->quantity;
+      }
+    }
+
+    // Ahora actualizar el stock de cada producto
+    foreach ($stockUpdates as $update) {
+      $productCode = $update['product']->code ?? 'N/A';
+      $productName = $update['product']->name ?? 'N/A';
+
+      $this->info("🔄 Actualizando stock: {$productCode} - {$productName}");
+      $this->info("   Cantidad a retornar: " . number_format($update['total_quantity'], 2));
+
+      try {
+        // Buscar el registro de stock
+        $stock = \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::where('product_id', $update['product_id'])
+          ->where('warehouse_id', $update['warehouse_id'])
+          ->first();
+
+        if (!$stock) {
+          $this->error("❌ No se encontró registro de stock para producto {$productCode}");
+          $errorCount++;
+          continue;
+        }
+
+        $stockBefore = $stock->quantity;
+        $availableBefore = $stock->available_quantity;
+
+        // ACTUALIZACIÓN DIRECTA como lo hace el usuario manualmente
+        $stock->quantity += $update['total_quantity'];
+        $stock->available_quantity += $update['total_quantity'];
+        $stock->last_movement_date = now();
+        $stock->save();
+
+        $this->info("✅ Stock actualizado correctamente");
+        $this->info("   Cantidad: {$stockBefore} → {$stock->quantity}");
+        $this->info("   Disponible: {$availableBefore} → {$stock->available_quantity}");
+
+        $totalProductsUpdated++;
         $processedCount++;
 
       } catch (\Exception $e) {
-        $this->error("❌ Error al procesar movimiento {$movement->movement_number}:");
+        $this->error("❌ Error al actualizar stock de {$productCode}:");
         $this->error("   {$e->getMessage()}");
         $errorCount++;
       }
 
+      $this->newLine();
+    }
+
+    // ==========================================
+    // PASO 4: MARCAR MOVIMIENTOS COMO PROCESADOS
+    // ==========================================
+    if ($errorCount === 0 && $totalProductsUpdated > 0) {
+      $this->info("🏷️  Marcando movimientos como procesados...");
+
+      foreach ($movements as $movement) {
+        $existingNotes = $movement->notes ?? '';
+        $newNotes = trim($existingNotes . "\n[STOCK_RETORNADO_MANUALMENTE] Procesado con comando fix:credit-note-stock-return el " . now()->format('Y-m-d H:i:s'));
+
+        $movement->update(['notes' => $newNotes]);
+      }
+
+      $this->info("✅ Movimientos marcados correctamente");
       $this->newLine();
     }
 
