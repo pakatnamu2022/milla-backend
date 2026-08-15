@@ -519,19 +519,24 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       $workOrder->ensureCanBeModified();
 
-      if ($planning->status === 'in_progress') {
-        throw new Exception('No se puede eliminar esta planificación porque el técnico ya ha iniciado el trabajo.');
-      }
-
-      if ($planning->status === 'completed') {
-        throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido completado.');
-      }
-
       if ($planning->status === 'canceled') {
         throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
       }
 
+      // Si la planificación está en 'completed' o 'in_progress', desasignar todos los repuestos del técnico
+      if (in_array($planning->status, ['completed', 'in_progress'])) {
+        // Obtener el user_id del worker
+        if ($planning->worker && $planning->worker->user) {
+          $userId = $planning->worker->user->id;
+
+          // Desasignar todos los repuestos del técnico en esta orden de trabajo
+          $partsService = app(ApWorkOrderPartsService::class);
+          $partsService->unassignAllFromTechnicianByWorkOrder($workOrder->id, $userId);
+        }
+      }
+
       // Validar que el técnico no tenga asignaciones de repuestos pendientes por confirmar
+      // (esto ya no debería fallar después de desasignar, pero se mantiene por seguridad)
       $this->validatePartDeliveries($planning, true);
 
       $planning->delete();
