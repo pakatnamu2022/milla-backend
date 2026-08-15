@@ -261,12 +261,12 @@ class EvaluationService extends BaseService
 
     foreach ($competenciasData as $competenciaData) {
       // Solo crear para el líder directo en evaluación 180°
-      if ($persona->jefe_id) {
+      if ($persona->supervisor_id) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
           $competenciaData,
-          $persona->jefe_id,
+          $persona->supervisor_id,
           self::TIPO_EVALUADOR_JEFE
         );
         $competenciasCreadas++;
@@ -297,7 +297,7 @@ class EvaluationService extends BaseService
     }
 
     // Determinar la estructura jerárquica de la persona
-    $tieneJefe = !is_null($persona->jefe_id);
+    $tieneJefe = !is_null($persona->supervisor_id);
     $tieneSubordinados = $this->tieneSubordinados($persona->id);
 
     // Obtener competencias según tu estructura de categorías jerárquicas
@@ -322,7 +322,7 @@ class EvaluationService extends BaseService
           $evaluacion->id,
           $persona,
           $competenciaData,
-          $persona->jefe_id,
+          $persona->supervisor_id,
           self::TIPO_EVALUADOR_JEFE
         );
         $competenciasCreadas++;
@@ -372,6 +372,12 @@ class EvaluationService extends BaseService
     if (!$evaluador || !$competenciaData) {
       return;
     }
+
+    EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluacionId)
+      ->where('person_id', $persona->id)
+      ->where('sub_competence_id', $competenciaData['sub_competence_id'])
+      ->where('evaluatorType', $tipoEvaluador)
+      ->delete();
 
     EvaluationPersonCompetenceDetail::create([
       'evaluation_id'     => $evaluacionId,

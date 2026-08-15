@@ -286,6 +286,17 @@ class WorkerService extends BaseService
     return WorkerResource::collection($workers);
   }
 
+  public function getWorkersWithoutEvaluator()
+  {
+    $workers = Worker::where('status_id', 22)
+      ->where('status_deleted', 1)
+      ->whereNull('supervisor_id')
+      ->with(['position.hierarchicalCategory'])
+      ->get();
+
+    return WorkerResource::collection($workers);
+  }
+
   public function assignObjectivesToWorkers()
   {
     DB::beginTransaction();

@@ -1089,6 +1089,12 @@ class EvaluationPersonResultService extends BaseService
       return;
     }
 
+    EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluacionId)
+      ->where('person_id', $persona->id)
+      ->where('sub_competence_id', $competenciaData['sub_competence_id'])
+      ->where('evaluatorType', $tipoEvaluador)
+      ->delete();
+
     EvaluationPersonCompetenceDetail::create([
       'evaluation_id'     => $evaluacionId,
       'evaluator_id'      => $evaluador->id,

@@ -10,31 +10,25 @@ class UpdateApModelsVnRequest extends StoreRequest
 {
   public function rules(): array
   {
-    return [
-      'code' => [
+    $isPostventa = (int) $this->input('type_operation_id') === ApMasters::TIPO_OPERACION_POSTVENTA;
+
+    $rules = [];
+
+    if ($isPostventa) {
+      $rules['code'] = [
         'nullable',
         'max:50',
         Rule::unique('ap_models_vn', 'code')
           ->ignore($this->route('id'))
           ->where('type_operation_id', $this->input('type_operation_id'))
           ->whereNull('deleted_at'),
-      ],
-      'family_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_families,id',
-      ],
-      'model_year' => [
-        'nullable',
-        'integer',
-        'min:1900',
-        'max:' . (date('Y') + 5),
-      ],
-      'type_operation_id' => [
-        'nullable',
-        'integer',
-        'exists:ap_masters,id',
-      ],
+      ];
+      $rules['family_id'] = ['nullable', 'integer', 'exists:ap_families,id'];
+      $rules['model_year'] = ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 5)];
+      $rules['type_operation_id'] = ['nullable', 'integer', 'exists:ap_masters,id'];
+    }
+
+    return array_merge($rules, [
       'power' => [
         'nullable',
         'max:50',
@@ -160,7 +154,7 @@ class UpdateApModelsVnRequest extends StoreRequest
         'exists:type_currency,id',
       ],
       'status' => ['nullable', 'boolean']
-    ];
+    ]);
   }
 
   public function attributes()
