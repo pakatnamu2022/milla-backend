@@ -130,7 +130,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if ($isExtraordinary) {
           $data['extraordinary_approved'] = null;
           $data['extraordinary_sent_by'] = auth()->id();
-          $data['extraordinary_token'] = Str::random(64);
         }
 
         $vehicleDelivery = ApVehicleDelivery::create($data);
@@ -607,7 +606,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if ($isExtraordinary) {
           $deliveryData['extraordinary_approved'] = null;
           $deliveryData['extraordinary_sent_by'] = auth()->id();
-          $deliveryData['extraordinary_token'] = Str::random(64);
         }
 
         $vehicleDelivery = ApVehicleDelivery::create($deliveryData);
@@ -664,9 +662,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     ];
 
     if ($isExtraordinary) {
-      $updateData['extraordinary_approved']    = null;
-      $updateData['extraordinary_sent_by']     = auth()->id();
-      $updateData['extraordinary_token']       = Str::random(64);
+      $updateData['extraordinary_approved'] = null;
+      $updateData['extraordinary_sent_by']  = auth()->id();
     }
 
     $vehicleDelivery->update($updateData);
@@ -687,26 +684,46 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
 
-  public function approveExtraordinary(string $token): array
+  public function approveExtraordinary(int $id): array
   {
-    $delivery = ApVehicleDelivery::where('extraordinary_token', $token)
-      ->whereNull('deleted_at')
-      ->first();
-
-    if (!$delivery) {
-      throw new Exception('Token de aprobación inválido o expirado.');
-    }
+    $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
     if ($delivery->extraordinary_approved === true) {
       return ['already_approved' => true, 'delivery_id' => $delivery->id];
     }
 
+    if ($delivery->extraordinary_approved === false) {
+      throw new Exception('Esta entrega ya fue rechazada.');
+    }
+
     $delivery->update([
       'extraordinary_approved'    => true,
       'extraordinary_approved_at' => now(),
+      'extraordinary_approved_by' => auth()->user()->name,
     ]);
 
     return ['already_approved' => false, 'delivery_id' => $delivery->id];
+  }
+
+  public function rejectExtraordinary(int $id): array
+  {
+    $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
+
+    if ($delivery->extraordinary_approved === true) {
+      throw new Exception('Esta entrega ya fue aprobada.');
+    }
+
+    if ($delivery->extraordinary_approved === false) {
+      return ['already_rejected' => true, 'delivery_id' => $delivery->id];
+    }
+
+    $delivery->update([
+      'extraordinary_approved'    => false,
+      'extraordinary_approved_at' => now(),
+      'extraordinary_approved_by' => auth()->user()->name,
+    ]);
+
+    return ['already_rejected' => false, 'delivery_id' => $delivery->id];
   }
 
   public function resendExtraordinaryApproval(int $id): ApVehicleDeliveryResource
@@ -722,7 +739,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $delivery->update([
       'extraordinary_approved' => null,
       'extraordinary_sent_by'  => auth()->id(),
-      'extraordinary_token'    => Str::random(64),
     ]);
 
     $this->sendExtraordinaryApprovalEmail($delivery->fresh()->load(['vehicle', 'client', 'sede']));
@@ -1146,7 +1162,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $sentBy = \App\Models\User::find($delivery->extraordinary_sent_by);
-    $approveUrl = config('app.url') . '/api/vehiclesDelivery/extraordinary/' . $delivery->extraordinary_token . '/approve';
+    $approveUrl = rtrim(config('app.frontend_url'), '/') . '/ap/comercial/entrega-vehiculo/' . $delivery->id . '/aprobacion';
 
     $this->emailService->queue([
       'to'       => $approvalEmail,

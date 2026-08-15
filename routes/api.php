@@ -210,9 +210,6 @@ use Illuminate\Support\Facades\Route;
 
 //TP - Controller
 
-// Vehicle Delivery - public approval endpoint (no auth required)
-Route::get('vehiclesDelivery/extraordinary/{token}/approve', [ApVehicleDeliveryController::class, 'approveExtraordinary'])
-  ->name('vehiclesDelivery.extraordinary.approve');
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
@@ -1536,8 +1533,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
       Route::get('vehiclesDelivery/{id}/reschedule-history', [ApVehicleDeliveryController::class, 'rescheduleHistory']);
 
-      // Vehicles Delivery - Reenviar aprobación extraordinaria
+      // Vehicles Delivery - Aprobación extraordinaria
       Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
+      Route::post('vehiclesDelivery/{id}/approve-extraordinary', [ApVehicleDeliveryController::class, 'approveExtraordinary']);
+      Route::post('vehiclesDelivery/{id}/reject-extraordinary', [ApVehicleDeliveryController::class, 'rejectExtraordinary']);
 
       // Vehicles Delivery
       Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
