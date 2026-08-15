@@ -98,9 +98,11 @@ class FixCreditNoteStockReturn extends Command
     $totalQuantityToReturn = 0;
 
     foreach ($movements as $movement) {
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       $this->info("📋 Movimiento: {$movement->movement_number}");
-      $this->info("   Almacén: {$movement->warehouse->name}");
-      $this->info("   Fecha: {$movement->movement_date->format('d/m/Y H:i')}");
+      $this->info("📍 Almacén DESTINO: {$movement->warehouse->name}");
+      $this->info("📅 Fecha: {$movement->movement_date->format('d/m/Y H:i')}");
+      $this->info("📦 Total productos: {$movement->total_items}");
       $this->newLine();
 
       $movementPreview = [];
@@ -118,9 +120,8 @@ class FixCreditNoteStockReturn extends Command
           'Producto' => $detail->product->name ?? 'N/A',
           'Código' => $detail->product->code ?? 'N/A',
           'Stock Actual' => number_format($currentQuantity, 2),
-          'Retornar' => '+' . number_format($detail->quantity, 2),
+          'A Retornar' => '+' . number_format($detail->quantity, 2),
           'Stock Final' => number_format($newQuantity, 2),
-          'Almacén' => $movement->warehouse->name,
         ];
 
         $totalProductsToUpdate++;
@@ -137,10 +138,11 @@ class FixCreditNoteStockReturn extends Command
       }
 
       $this->table(
-        ['Producto', 'Código', 'Stock Actual', 'Retornar', 'Stock Final', 'Almacén'],
+        ['Producto', 'Código', 'Stock Actual', 'A Retornar', 'Stock Final'],
         $movementPreview
       );
 
+      $this->comment("💡 Todos estos productos retornarán al almacén: {$movement->warehouse->name}");
       $this->newLine();
     }
 
