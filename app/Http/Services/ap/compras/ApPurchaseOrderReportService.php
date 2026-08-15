@@ -3,9 +3,9 @@
 namespace App\Http\Services\ap\compras;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\compras\AccountPayable;
 use App\Models\ap\compras\PurchaseOrder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class ApPurchaseOrderReportService
 {
@@ -32,43 +32,24 @@ class ApPurchaseOrderReportService
 
     return [
       'orders'          => $orders,
-      'cuentasPorPagar' => $this->fetchCuentasPorPagar(),
+      'cuentasPorPagar' => $this->buildCxpMap(),
     ];
   }
 
-  private function fetchCuentasPorPagar(): array
+  private function buildCxpMap(): array
   {
-    try {
-      $pdo  = DB::connection('dbtp3')->getPdo();
-      $stmt = $pdo->prepare('EXEC SP_GP_ReporteDocumentosNoAplicadosCuentaPorPagar');
-      $stmt->execute();
+    return AccountPayable::where('monto_sin_aplicar', '>', 0)
+      ->get(['documento', 'monto', 'monto_sin_aplicar'])
+      ->mapWithKeys(function ($row) {
+        // Documento: "F004-00000329-FAC" → clave: "F004-00000329"
+        $parts = explode('-', $row->documento);
+        $key   = count($parts) >= 3 ? $parts[0] . '-' . $parts[1] : $row->documento;
 
-      $rows = [];
-      do {
-        if ($stmt->columnCount() > 0) {
-          $rows = $stmt->fetchAll(\PDO::FETCH_OBJ);
-          break;
-        }
-      } while ($stmt->nextRowset());
-
-      $map = [];
-      foreach ($rows as $row) {
-        $doc    = trim((string)($row->Documento ?? ''));
-        $parts  = explode('-', $doc);
-        // Documento formato: "F004-00000329-FAC" → clave: "F004-00000329"
-        $key    = count($parts) >= 3
-          ? $parts[0] . '-' . $parts[1]
-          : $doc;
-
-        $map[$key] = [
-          'monto'           => (float)($row->Monto ?? 0),
-          'montoSinAplicar' => (float)($row->MontoSinAplicar ?? 0),
-        ];
-      }
-
-      return $map;
-    } catch (\Throwable) {
-      return [];
-    }
+        return [$key => [
+          'monto'           => (float)$row->monto,
+          'montoSinAplicar' => (float)$row->monto_sin_aplicar,
+        ]];
+      })
+      ->toArray();
   }
 }

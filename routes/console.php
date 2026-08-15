@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\SyncAccountsReceivableJob;
+use App\Jobs\SyncAccountsPayableJob;
 use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -167,6 +168,12 @@ Schedule::job(new SyncAccountsReceivableJob('deposito'))
   ->withoutOverlapping();
 
 Schedule::job(new SyncAccountsReceivableJob('automotores'))
+  ->everyFiveMinutes()
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
+
+// Sincronizar cuentas por pagar (AP) desde Dynamics cada 5 minutos
+Schedule::job(new SyncAccountsPayableJob())
   ->everyFiveMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping();

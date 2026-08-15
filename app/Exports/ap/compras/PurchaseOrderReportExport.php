@@ -29,8 +29,8 @@ class PurchaseOrderReportExport implements
   protected array $cuentasPorPagar;
 
   // Total de columnas del reporte
-  private const LAST_COL = 'R';
-  private const TOTAL_COLS = 18;
+  private const LAST_COL = 'S';
+  private const TOTAL_COLS = 19;
 
   public function __construct(Collection $data, string $fechaInicio, string $fechaFin, array $cuentasPorPagar = [])
   {
@@ -65,6 +65,7 @@ class PurchaseOrderReportExport implements
       'DIAS DE VENCIDO',
       'RENOVACIONES',
       'SALDO PENDIENTE (CXP)',
+      'ESTADO CXP',
       'ESTATUS',
     ];
   }
@@ -98,6 +99,7 @@ class PurchaseOrderReportExport implements
       $diasVencido,
       $this->calcRenovaciones($diasVencido),
       $montoPendiente,
+      $montoPendiente > 0 ? 'PENDIENTE' : 'PAGADO',
       $this->getEstatus($row),
     ];
   }
@@ -151,16 +153,17 @@ class PurchaseOrderReportExport implements
         ]);
 
         // Alineación centrada para columnas numéricas y de fecha
-        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R'];
+        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R', 'S'];
         foreach ($centeredCols as $col) {
           $sheet->getStyle($col . '3:' . $col . $lastRow)
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
 
-        // Color de ESTATUS según valor y color de PAGADO (saldo pendiente CXP)
+        // Color de ESTATUS (col S), ESTADO CXP (col R) y SALDO PENDIENTE (col Q)
         for ($i = 3; $i <= $lastRow; $i++) {
-          $estatus = $sheet->getCell('R' . $i)->getValue();
+          // ESTATUS → columna S
+          $estatus = $sheet->getCell('S' . $i)->getValue();
           $color   = match ($estatus) {
             'LIBRE'   => ['bg' => '43A047', 'text' => 'FFFFFF'],
             'CONTADO' => ['bg' => '1E88E5', 'text' => 'FFFFFF'],
@@ -169,13 +172,14 @@ class PurchaseOrderReportExport implements
           };
 
           if ($color) {
-            $sheet->getStyle('R' . $i)->applyFromArray([
+            $sheet->getStyle('S' . $i)->applyFromArray([
               'font' => ['bold' => true, 'color' => ['rgb' => $color['text']]],
               'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $color['bg']]],
               'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
           }
 
+          // SALDO PENDIENTE → columna Q (monto numérico)
           $pendiente = (float)$sheet->getCell('Q' . $i)->getValue();
           $cxpColor  = $pendiente > 0
             ? ['bg' => 'FFCDD2', 'text' => 'B71C1C']
@@ -184,6 +188,18 @@ class PurchaseOrderReportExport implements
           $sheet->getStyle('Q' . $i)->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => $cxpColor['text']]],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $cxpColor['bg']]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+          ]);
+
+          // ESTADO CXP → columna R (PAGADO / PENDIENTE)
+          $estadoCxp      = $sheet->getCell('R' . $i)->getValue();
+          $estadoCxpColor = $estadoCxp === 'PENDIENTE'
+            ? ['bg' => 'FFCDD2', 'text' => 'B71C1C']
+            : ['bg' => 'C8E6C9', 'text' => '1B5E20'];
+
+          $sheet->getStyle('R' . $i)->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => $estadoCxpColor['text']]],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $estadoCxpColor['bg']]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
           ]);
         }

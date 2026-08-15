@@ -1292,8 +1292,12 @@ class EvaluationService extends BaseService
     $cycle = EvaluationCycle::findOrFail($evaluation->cycle_id);
     $isObjectivesCycle = $cycle->typeEvaluation == 0;
 
-    $currentPersonIds = EvaluationPersonResult::where('evaluation_id', $evaluationId)
-      ->pluck('person_id')->toArray();
+    // Para ciclos de objetivos: "ya agregado" = tiene EvaluationPerson (detalles del ciclo).
+    // Para ciclos 180/360: "ya agregado" = tiene EvaluationPersonResult.
+    // Así, trabajadores con EvaluationPersonResult pero sin detalles del ciclo siguen siendo elegibles.
+    $fullyAddedPersonIds = $isObjectivesCycle
+      ? EvaluationPerson::where('evaluation_id', $evaluationId)->distinct()->pluck('person_id')->toArray()
+      : EvaluationPersonResult::where('evaluation_id', $evaluationId)->pluck('person_id')->toArray();
 
     $excludedPersonIds = EvaluationPersonDetail::whereNull('deleted_at')
       ->pluck('person_id')->toArray();
@@ -1304,7 +1308,7 @@ class EvaluationService extends BaseService
       ->toArray();
 
     $workers = Worker::query()
-      ->whereNotIn('id', array_merge($currentPersonIds, $excludedPersonIds))
+      ->whereNotIn('id', array_merge($fullyAddedPersonIds, $excludedPersonIds))
       ->where('status_deleted', 1)
       ->where('b_empleado', 1)
       ->where('status_id', 22)
@@ -1390,28 +1394,50 @@ class EvaluationService extends BaseService
 
     foreach ($workerIds as $workerId) {
       try {
-        $alreadyIn = EvaluationPersonResult::where('evaluation_id', $evaluationId)
-          ->where('person_id', $workerId)
-          ->exists();
+        // Saltar si ya tiene detalles completos (EvaluationPerson para objetivos, o result+competencias para 180/360)
+        $alreadyHasDetails = $isObjectivesCycle
+          ? EvaluationPerson::where('evaluation_id', $evaluationId)->where('person_id', $workerId)->exists()
+          : EvaluationPersonResult::where('evaluation_id', $evaluationId)->where('person_id', $workerId)->exists();
 
-        if ($alreadyIn) {
+        if ($alreadyHasDetails) {
           $skipped[] = $workerId;
           continue;
         }
 
-        DB::transaction(function () use ($evaluation, $cycle, $workerId, $isObjectivesCycle, $personCycleDetailService, &$added) {
+        $alreadyInResults = EvaluationPersonResult::where('evaluation_id', $evaluationId)
+          ->where('person_id', $workerId)
+          ->exists();
+
+        DB::transaction(function () use ($evaluation, $cycle, $workerId, $isObjectivesCycle, $personCycleDetailService, $alreadyInResults, &$added) {
           if ($isObjectivesCycle) {
+            // storeByWorkerAndCycle crea EvaluationPersonCycleDetail y EvaluationPerson automáticamente
             $personCycleDetailService->storeByWorkerAndCycle($cycle->id, $workerId);
           }
 
-          $personAdded = $this->createPersonResultsForSpecific($evaluation, [$workerId]);
+          if (!$alreadyInResults) {
+            // Nuevo en la evaluación: crear EvaluationPersonResult y competencias
+            $personAdded = $this->createPersonResultsForSpecific($evaluation, [$workerId]);
 
-          if (!$isObjectivesCycle && !empty($personAdded)) {
-            $this->createCompetencesForSpecificPersons($evaluation, [$workerId]);
-          }
+            if (!$isObjectivesCycle && !empty($personAdded)) {
+              $this->createCompetencesForSpecificPersons($evaluation, [$workerId]);
+            }
 
-          if (!empty($personAdded)) {
-            $added[] = $personAdded[0];
+            if (!empty($personAdded)) {
+              $added[] = $personAdded[0];
+            }
+          } else {
+            // Ya tiene EvaluationPersonResult pero le faltan detalles del ciclo
+            if (!$isObjectivesCycle) {
+              $this->createCompetencesForSpecificPersons($evaluation, [$workerId]);
+            }
+            // Para objetivos, storeByWorkerAndCycle ya creó los EvaluationPerson arriba
+
+            $person = Worker::find($workerId);
+            $added[] = [
+              'id'     => $workerId,
+              'name'   => $person?->nombre_completo ?? '',
+              'reason' => 'Detalles del ciclo creados para persona ya existente en la evaluación',
+            ];
           }
         });
       } catch (\Exception $e) {
@@ -1422,7 +1448,7 @@ class EvaluationService extends BaseService
     if (!empty($added)) {
       EvaluationDashboard::where('evaluation_id', $evaluationId)->get()->each->resetStats();
       EvaluationPersonDashboard::where('evaluation_id', $evaluationId)->delete();
-      UpdateEvaluationDashboards::dispatch($evaluationId, true)->onQueue('evaluation-dashboards');
+      UpdateEvaluationDashboards::dispatchSync($evaluationId, false);
     }
 
     return [
