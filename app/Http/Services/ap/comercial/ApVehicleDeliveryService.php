@@ -127,10 +127,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('La cuenta por cobrar del vehículo está vencida. Regularice el pago antes de programar la entrega.');
         }
 
+        $scheduledDate = Carbon::parse($data['scheduled_delivery_date']);
+        if ($scheduledDate->isPast()) {
+          throw new Exception('No se puede programar una entrega en una fecha y hora pasada.');
+        }
+
         if ($isExtraordinary) {
           $data['extraordinary_approved'] = null;
           $data['extraordinary_sent_by'] = auth()->id();
-          $data['extraordinary_token'] = Str::random(64);
         }
 
         $vehicleDelivery = ApVehicleDelivery::create($data);
@@ -607,7 +611,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if ($isExtraordinary) {
           $deliveryData['extraordinary_approved'] = null;
           $deliveryData['extraordinary_sent_by'] = auth()->id();
-          $deliveryData['extraordinary_token'] = Str::random(64);
         }
 
         $vehicleDelivery = ApVehicleDelivery::create($deliveryData);
@@ -638,6 +641,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     $newDate = Carbon::parse($data['scheduled_delivery_date']);
 
+    if ($newDate->isPast()) {
+      throw new Exception('No se puede reprogramar a una fecha y hora pasada.');
+    }
+
     if (!$isExtraordinary) {
       $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
         ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
@@ -664,9 +671,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     ];
 
     if ($isExtraordinary) {
-      $updateData['extraordinary_approved']    = null;
-      $updateData['extraordinary_sent_by']     = auth()->id();
-      $updateData['extraordinary_token']       = Str::random(64);
+      $updateData['extraordinary_approved'] = null;
+      $updateData['extraordinary_sent_by']  = auth()->id();
     }
 
     $vehicleDelivery->update($updateData);
@@ -687,26 +693,54 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
 
-  public function approveExtraordinary(string $token): array
+  public function approveExtraordinary(int $id): ApVehicleDeliveryResource
   {
-    $delivery = ApVehicleDelivery::where('extraordinary_token', $token)
-      ->whereNull('deleted_at')
-      ->first();
+    $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
-    if (!$delivery) {
-      throw new Exception('Token de aprobación inválido o expirado.');
+    if (!$delivery->is_extraordinary) {
+      throw new Exception('Esta entrega no es extraordinaria.');
     }
 
     if ($delivery->extraordinary_approved === true) {
-      return ['already_approved' => true, 'delivery_id' => $delivery->id];
+      throw new Exception('Esta entrega ya fue aprobada.');
+    }
+
+    if ($delivery->extraordinary_approved === false) {
+      throw new Exception('Esta entrega ya fue rechazada.');
     }
 
     $delivery->update([
       'extraordinary_approved'    => true,
       'extraordinary_approved_at' => now(),
+      'extraordinary_approved_by' => auth()->user()->name,
     ]);
 
-    return ['already_approved' => false, 'delivery_id' => $delivery->id];
+    return new ApVehicleDeliveryResource($delivery->fresh());
+  }
+
+  public function rejectExtraordinary(int $id): ApVehicleDeliveryResource
+  {
+    $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
+
+    if (!$delivery->is_extraordinary) {
+      throw new Exception('Esta entrega no es extraordinaria.');
+    }
+
+    if ($delivery->extraordinary_approved === true) {
+      throw new Exception('Esta entrega ya fue aprobada.');
+    }
+
+    if ($delivery->extraordinary_approved === false) {
+      throw new Exception('Esta entrega ya fue rechazada.');
+    }
+
+    $delivery->update([
+      'extraordinary_approved'    => false,
+      'extraordinary_approved_at' => now(),
+      'extraordinary_approved_by' => auth()->user()->name,
+    ]);
+
+    return new ApVehicleDeliveryResource($delivery->fresh());
   }
 
   public function resendExtraordinaryApproval(int $id): ApVehicleDeliveryResource
@@ -722,7 +756,6 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $delivery->update([
       'extraordinary_approved' => null,
       'extraordinary_sent_by'  => auth()->id(),
-      'extraordinary_token'    => Str::random(64),
     ]);
 
     $this->sendExtraordinaryApprovalEmail($delivery->fresh()->load(['vehicle', 'client', 'sede']));
@@ -1146,9 +1179,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $sentBy = \App\Models\User::find($delivery->extraordinary_sent_by);
-    $approveUrl = config('app.url') . '/api/vehiclesDelivery/extraordinary/' . $delivery->extraordinary_token . '/approve';
+    $approveUrl = rtrim(config('app.frontend_url'), '/') . '/ap/comercial/entrega-vehiculo/' . $delivery->id . '/aprobacion';
 
-    $this->emailService->queue([
+    $this->emailService->send([
       'to'       => $approvalEmail,
       'subject'  => 'Entrega extraordinaria pendiente de aprobación — ' . ($delivery->vehicle->vin ?? 'VIN no disponible'),
       'template' => 'emails.vehicle-delivery-extraordinary-approval',
@@ -1209,11 +1242,23 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ->map(fn($dt) => Carbon::parse($dt)->format('H:i'))
       ->toArray();
 
-    $result = array_map(fn($time) => [
-      'time'      => $time,
-      'datetime'  => $date . ' ' . $time . ':00',
-      'available' => !in_array($time, $takenDatetimes, true),
-    ], $slots);
+    $now = now();
+    $isToday = $day->isSameDay($now);
+
+    $result = [];
+    foreach ($slots as $time) {
+      $slotTime = Carbon::parse($date . ' ' . $time . ':00');
+
+      if ($isToday && !$slotTime->isAfter($now)) {
+        continue;
+      }
+
+      $result[] = [
+        'time'      => $time,
+        'datetime'  => $date . ' ' . $time . ':00',
+        'available' => !in_array($time, $takenDatetimes, true),
+      ];
+    }
 
     return ['date' => $date, 'slots' => $result];
   }

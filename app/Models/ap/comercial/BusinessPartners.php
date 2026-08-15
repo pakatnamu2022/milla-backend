@@ -4,13 +4,13 @@ namespace App\Models\ap\comercial;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TaxClassTypes;
+use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\gestionsistema\District;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class BusinessPartners extends Model
+class BusinessPartners extends BaseModel
 {
   use SoftDeletes;
 
