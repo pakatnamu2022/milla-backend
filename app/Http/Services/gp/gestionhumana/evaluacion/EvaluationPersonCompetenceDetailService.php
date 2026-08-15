@@ -578,12 +578,12 @@ class EvaluationPersonCompetenceDetailService extends BaseService
 
     foreach ($competenciasData as $competenciaData) {
       // Solo crear para el líder directo en evaluación 180°
-      if ($persona->jefe_id) {
+      if ($persona->supervisor_id) {
         $this->crearDetalleCompetencia(
           $evaluacion->id,
           $persona,
           $competenciaData,
-          $persona->jefe_id,
+          $persona->supervisor_id,
           self::TIPO_EVALUADOR_JEFE
         );
         $competenciasCreadas++;
@@ -601,7 +601,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     $competenciasCreadas = 0;
 
     // Determinar la estructura jerárquica de la persona
-    $tieneJefe = !is_null($persona->jefe_id);
+    $tieneJefe = !is_null($persona->supervisor_id);
     $tieneSubordinados = $this->tieneSubordinados($persona->id);
 
     // Obtener competencias según tu estructura de categorías jerárquicas
@@ -626,7 +626,7 @@ class EvaluationPersonCompetenceDetailService extends BaseService
           $evaluacion->id,
           $persona,
           $competenciaData,
-          $persona->jefe_id,
+          $persona->supervisor_id,
           self::TIPO_EVALUADOR_JEFE
         );
         $competenciasCreadas++;
@@ -676,6 +676,12 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     if (!$evaluador || !$competenciaData) {
       return;
     }
+
+    EvaluationPersonCompetenceDetail::where('evaluation_id', $evaluacionId)
+      ->where('person_id', $persona->id)
+      ->where('sub_competence_id', $competenciaData['sub_competence_id'])
+      ->where('evaluatorType', $tipoEvaluador)
+      ->delete();
 
     EvaluationPersonCompetenceDetail::create([
       'evaluation_id' => $evaluacionId,
@@ -1013,17 +1019,17 @@ class EvaluationPersonCompetenceDetailService extends BaseService
     $candidates = [];
 
     if ($evaluation->typeEvaluation == self::EVALUACION_180) {
-      if ($persona->jefe_id) {
-        $candidates[] = ['evaluator_id' => $persona->jefe_id, 'type' => self::TIPO_EVALUADOR_JEFE];
+      if ($persona->supervisor_id) {
+        $candidates[] = ['evaluator_id' => $persona->supervisor_id, 'type' => self::TIPO_EVALUADOR_JEFE];
       }
     } else {
       if ($evaluation->selfEvaluation) {
         $candidates[] = ['evaluator_id' => $persona->id, 'type' => self::TIPO_EVALUADOR_AUTOEVALUACION];
       }
-      if ($persona->jefe_id) {
-        $candidates[] = ['evaluator_id' => $persona->jefe_id, 'type' => self::TIPO_EVALUADOR_JEFE];
+      if ($persona->supervisor_id) {
+        $candidates[] = ['evaluator_id' => $persona->supervisor_id, 'type' => self::TIPO_EVALUADOR_JEFE];
       }
-      if ($evaluation->partnersEvaluation && $persona->jefe_id) {
+      if ($evaluation->partnersEvaluation && $persona->supervisor_id) {
         foreach ($this->obtenerCompaneros($persona) as $companero) {
           $candidates[] = ['evaluator_id' => $companero->id, 'type' => self::TIPO_EVALUADOR_COMPANEROS];
         }

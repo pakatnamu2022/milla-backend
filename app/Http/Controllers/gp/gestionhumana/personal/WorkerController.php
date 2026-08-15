@@ -109,6 +109,15 @@ class WorkerController extends Controller
     }
   }
 
+  public function getWorkersWithoutEvaluator()
+  {
+    try {
+      return $this->service->getWorkersWithoutEvaluator();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function assignObjectivesToWorkers()
   {
     try {

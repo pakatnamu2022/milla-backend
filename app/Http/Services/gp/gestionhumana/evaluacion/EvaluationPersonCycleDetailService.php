@@ -83,7 +83,7 @@ class EvaluationPersonCycleDetailService extends BaseService
         ->first();
 
       if (!$exists) {
-        $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+        $evaluatorId = $person->supervisor_id;
         $chief = Worker::find($evaluatorId);
         $objectives = $category->objectives()->get();
 
@@ -213,8 +213,8 @@ class EvaluationPersonCycleDetailService extends BaseService
         throw new Exception('La persona ' . $person->nombre_completo . ' no tiene una categoría jerárquica asignada.');
       }
 
-      // 4. Validar que la persona tiene evaluador (supervisor_id o jefe_id)
-      $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+      // 4. Validar que la persona tiene evaluador (supervisor_id)
+      $evaluatorId = $person->supervisor_id;
       if (!$evaluatorId) {
         throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $hierarchicalCategory->name . ' no tiene un evaluador asignado.');
       }
@@ -581,7 +581,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       }
     }
 
-    // Validación 7: Debe tener un evaluador asignado (supervisor_id o jefe_id)
+    // Validación 7: Debe tener un evaluador asignado (supervisor_id)
     if (!$person->supervisor_id) {
       return false;
     }
@@ -640,7 +640,7 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function createPersonObjectiveDetail($person, $cycle, $category, $objective, $allObjectives)
   {
-    $chief = Worker::find($person->supervisor_id ?? $person->jefe_id);
+    $chief = Worker::find($person->supervisor_id);
 
     if (!$chief) {
       throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
@@ -690,7 +690,7 @@ class EvaluationPersonCycleDetailService extends BaseService
 
     $data = [
       'person_id'           => $person->id,
-      'chief_id'            => $person->supervisor_id ?? $person->jefe_id ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
+      'chief_id'            => $person->supervisor_id ?? throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.'),
       'position_id'         => $person->cargo_id,
       'sede_id'             => $person->sede_id,
       'area_id'             => $person->area_id,
@@ -719,7 +719,7 @@ class EvaluationPersonCycleDetailService extends BaseService
    */
   private function updatePersonBasicInfo($detail, $person, $category)
   {
-    $chief = Worker::find($person->supervisor_id ?? $person->jefe_id);
+    $chief = Worker::find($person->supervisor_id);
     if (!$chief) {
       throw new Exception('La persona ' . $person->nombre_completo . ' de la categoría ' . $category->name . ' no tiene un evaluador asignado.');
     }
@@ -1525,7 +1525,7 @@ class EvaluationPersonCycleDetailService extends BaseService
       throw new Exception("La categoría '{$hierarchicalCategory->name}' no está configurada en este ciclo. Agregue la categoría al ciclo antes de asignar colaboradores.");
     }
 
-    $evaluatorId = $person->supervisor_id ?? $person->jefe_id;
+    $evaluatorId = $person->supervisor_id;
     if (!$evaluatorId) {
       throw new Exception("La persona {$person->nombre_completo} no tiene un evaluador asignado.");
     }
