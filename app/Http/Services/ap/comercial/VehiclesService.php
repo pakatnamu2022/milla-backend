@@ -119,15 +119,15 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         ?? ($doc->total_gravada + $doc->total_igv + $doc->total_inafecta + $doc->total_exonerada)
         ?? 0);
 
-      if (!$hasReceivable) {
+      if (!$doc->is_accounted) {
         $estado = 'NO CONTABILIZADO';
         $pendiente = $docTotal;
-      } elseif ($totalBalance > 0) {
-        $estado = 'PENDIENTE';
-        $pendiente = (float)$totalBalance;
-      } else {
+      } elseif (!$hasReceivable || $totalBalance == 0) {
         $estado = 'CANCELADO';
         $pendiente = 0.0;
+      } else {
+        $estado = 'PENDIENTE';
+        $pendiente = (float)$totalBalance;
       }
 
       return [
