@@ -381,8 +381,12 @@ class PermissionService extends BaseService
       $codesToDelete = array_diff($existingCodes, $expectedCodes);
 
       if (!empty($codesToDelete)) {
-        $deleted = Permission::whereIn('code', $codesToDelete)->delete();
-        $deletedCount = $deleted;
+        $permissionsToDelete = Permission::whereIn('code', $codesToDelete)->get();
+        foreach ($permissionsToDelete as $perm) {
+          $perm->roles()->detach();
+          $perm->delete();
+        }
+        $deletedCount = $permissionsToDelete->count();
       }
 
       DB::commit();

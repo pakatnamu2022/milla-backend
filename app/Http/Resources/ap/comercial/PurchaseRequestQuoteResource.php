@@ -85,6 +85,9 @@ class PurchaseRequestQuoteResource extends JsonResource
       'updated_at'                   => $this->updated_at,
     ];
 
+    /**
+     * Attempt to read property "full_name" on null
+     */
     if ($this->showExtra) {
       $response['ap_vehicle'] = $this->ap_vehicle_id ? VehiclesResource::make($this->vehicle) : null;
       $response['model'] = $this->apModelsVn ? ApModelsVnResource::make($this->apModelsVn) : null;
