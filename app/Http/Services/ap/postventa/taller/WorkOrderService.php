@@ -27,6 +27,7 @@ use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\WorkOrderVehicleInspection;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -213,9 +214,27 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // If existe $data['vehicle_inspection_id']
       if (isset($data['vehicle_inspection_id'])) {
+        $vehicleInspection = ApVehicleInspection::find($data['vehicle_inspection_id']);
+
+        if (!$vehicleInspection) {
+          throw new Exception('Recepción no encontrada');
+        }
+
         $workOrder->update([
+          'mileage' => $vehicleInspection->mileage,
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $workOrder->id,
+            'vehicle_inspection_id' => $data['vehicle_inspection_id'],
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       // Create items
@@ -346,8 +365,34 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // If existe $data['vehicle_inspection_id']
       if (isset($data['vehicle_inspection_id'])) {
+        $vehicleInspection = ApVehicleInspection::find($data['vehicle_inspection_id']);
+
+        if (!$vehicleInspection) {
+          throw new Exception('Recepción no encontrada');
+        }
+
+        // Verificar si existe una relación ACTIVA (no anulada) en la tabla pivot para esta orden de trabajo y esta inspección
+        $activePivot = WorkOrderVehicleInspection::where('work_order_id', $workOrder->id)
+          ->where('vehicle_inspection_id', $data['vehicle_inspection_id'])
+          ->where('is_cancelled', false)
+          ->first();
+
+        // Si existe una relación activa, no permitir crear otra
+        if ($activePivot) {
+          throw new Exception('Ya existe una recepción activa para esta orden de trabajo con esta inspección.');
+        }
+
+        // Si no existe relación activa, crear una nueva relación (puede que haya una anulada anterior, pero no importa)
         $workOrder->update([
+          'mileage' => $vehicleInspection->mileage,
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
+
+        // Crear un NUEVO registro en la tabla pivot (aunque exista uno anulado)
+        WorkOrderVehicleInspection::create([
+          'work_order_id' => $workOrder->id,
+          'vehicle_inspection_id' => $data['vehicle_inspection_id'],
+          'is_cancelled' => false,
         ]);
       }
 
@@ -1475,6 +1520,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $apWorkOrder->update([
           'vehicle_inspection_id' => $vehicleInspection->id,
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $apWorkOrder->id,
+            'vehicle_inspection_id' => $vehicleInspection->id,
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       $apWorkOrder->update([
@@ -1629,6 +1685,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         $apWorkOrder->update([
           'vehicle_inspection_id' => $vehicleInspection->id,
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $apWorkOrder->id,
+            'vehicle_inspection_id' => $vehicleInspection->id,
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       $apWorkOrder->update([
@@ -2430,6 +2497,17 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'vehicle_inspection_id' => $vehicleInspection->id,
       'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
     ]);
+
+    // Crear registro en la tabla pivot work_order_vehicle_inspection
+    WorkOrderVehicleInspection::firstOrCreate(
+      [
+        'work_order_id' => $workOrder->id,
+        'vehicle_inspection_id' => $vehicleInspection->id,
+      ],
+      [
+        'is_cancelled' => false,
+      ]
+    );
   }
 
   /**

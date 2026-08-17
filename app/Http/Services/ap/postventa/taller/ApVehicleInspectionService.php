@@ -11,6 +11,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\WorkOrderVehicleInspection;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
 use Carbon\Carbon;
@@ -99,6 +100,13 @@ class ApVehicleInspectionService extends BaseService
         'mileage' => $data['mileage'] ?? $workOrder->mileage,
         'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+      ]);
+
+      // Crear registro en la tabla pivot work_order_vehicle_inspection
+      WorkOrderVehicleInspection::create([
+        'work_order_id' => $workOrder->id,
+        'vehicle_inspection_id' => $inspection->id,
+        'is_cancelled' => false,
       ]);
 
       // Actualizar el kilometraje del vehículo si el nuevo kilometraje es mayor
@@ -435,7 +443,7 @@ class ApVehicleInspectionService extends BaseService
     ];
 
     // Generar PDF
-    $pdf = \PDF::loadView('reports.ap.postventa.taller.reception-report', $data);
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.rec  eption-report', $data);
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
@@ -550,79 +558,111 @@ class ApVehicleInspectionService extends BaseService
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
   }
 
-  public function requestCancellation(int $id, string $reason)
+  /**
+   * Solicita la anulación de una inspección para una orden de trabajo específica
+   * usando la tabla pivot work_order_vehicle_inspection
+   */
+  public function requestCancellation(int $workOrderId, int $inspectionId, string $reason)
   {
-    $inspection = $this->find($id);
+    return DB::transaction(function () use ($workOrderId, $inspectionId, $reason) {
+      $workOrder = ApWorkOrder::findOrFail($workOrderId);
+      $inspection = $this->find($inspectionId);
 
-    if ($inspection->is_cancelled) {
-      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
-    }
+      // Validar estados de la orden de trabajo
+      if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
+        return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo anulada'], 422);
+      }
 
-    if ($inspection->cancellation_requested_by) {
-      return response()->json(['message' => 'Ya existe una solicitud de anulación pendiente'], 422);
-    }
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
+      }
 
-    $workOrder = $inspection->createdByWorkOrder;
+      // Buscar o crear el registro en la tabla pivot
+      $pivot = WorkOrderVehicleInspection::firstOrCreate(
+        [
+          'work_order_id' => $workOrderId,
+          'vehicle_inspection_id' => $inspectionId,
+        ],
+        [
+          'is_cancelled' => false,
+        ]
+      );
 
-    if (!$workOrder) {
-      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
-    }
+      // Validar que no esté ya anulada
+      if ($pivot->is_cancelled) {
+        return response()->json(['message' => 'Esta inspección ya está anulada para esta orden de trabajo'], 422);
+      }
 
-    if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
-      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo anulada'], 422);
-    }
+      // Validar que no exista ya una solicitud pendiente
+      if ($pivot->cancellation_requested_by && !$pivot->cancellation_confirmed_by) {
+        return response()->json(['message' => 'Ya existe una solicitud de anulación pendiente para esta orden de trabajo'], 422);
+      }
 
-    if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
-    }
+      // Registrar la solicitud de anulación
+      $pivot->update([
+        'cancellation_requested_by' => auth()->id(),
+        'cancellation_requested_at' => now(),
+        'cancellation_reason' => $reason,
+      ]);
 
-    $inspection->update([
-      'cancellation_requested_by' => auth()->id(),
-      'cancellation_requested_at' => now(),
-      'cancellation_reason' => $reason,
-    ]);
-
-    return response()->json([
-      'message' => 'Solicitud de anulación registrada exitosamente',
-      'data' => $inspection->fresh()
-    ]);
+      return response()->json([
+        'message' => 'Solicitud de anulación registrada exitosamente',
+        'data' => $pivot->fresh()
+      ]);
+    });
   }
 
-  public function confirmCancellation(int $id)
+  /**
+   * Confirma la anulación de una inspección para una orden de trabajo específica
+   * usando la tabla pivot work_order_vehicle_inspection
+   */
+  public function confirmCancellation(int $workOrderId, int $inspectionId)
   {
-    $inspection = $this->find($id);
+    return DB::transaction(function () use ($workOrderId, $inspectionId) {
+      $workOrder = ApWorkOrder::findOrFail($workOrderId);
+      $inspection = $this->find($inspectionId);
 
-    if ($inspection->is_cancelled) {
-      return response()->json(['message' => 'Esta recepción ya está anulada'], 422);
-    }
+      // Buscar el registro en la tabla pivot
+      $pivot = WorkOrderVehicleInspection::where('work_order_id', $workOrderId)
+        ->where('vehicle_inspection_id', $inspectionId)
+        ->first();
 
-    if (!$inspection->cancellation_requested_by) {
-      return response()->json(['message' => 'No existe solicitud de anulación para esta recepción'], 422);
-    }
+      if (!$pivot) {
+        return response()->json(['message' => 'No se encontró la relación entre la orden de trabajo y la inspección'], 422);
+      }
 
-    if ($inspection->createdByWorkOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
-      return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
-    }
+      // Validar que no esté ya anulada
+      if ($pivot->is_cancelled) {
+        return response()->json(['message' => 'Esta inspección ya está anulada para esta orden de trabajo'], 422);
+      }
 
-    $inspection->update([
-      'cancellation_confirmed_by' => auth()->id(),
-      'cancellation_confirmed_at' => now(),
-      'is_cancelled' => true,
-    ]);
+      // Validar que exista una solicitud de anulación
+      if (!$pivot->cancellation_requested_by) {
+        return response()->json(['message' => 'No existe solicitud de anulación para esta inspección en esta orden de trabajo'], 422);
+      }
 
-    $workOrder = $inspection->createdByWorkOrder;
-    if (!$workOrder) {
-      return response()->json(['message' => 'No se encontró la orden de trabajo asociada a esta recepción'], 422);
-    }
+      // Validar el estado de la orden de trabajo
+      if ($workOrder->status_id === ApMasters::CLOSED_WORK_ORDER_ID) {
+        return response()->json(['message' => 'No se puede confirmar anulación para una orden de trabajo cerrada'], 422);
+      }
 
-    $workOrder->update([
-      'vehicle_inspection_id' => null,
-      'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
-    ]);
+      // Confirmar la anulación en la tabla pivot
+      $pivot->update([
+        'cancellation_confirmed_by' => auth()->id(),
+        'cancellation_confirmed_at' => now(),
+        'is_cancelled' => true,
+      ]);
 
-    return response()->json([
-      'message' => 'Anulación confirmada exitosamente',
-      'data' => $inspection->fresh()
-    ]);
+      // Actualizar la orden de trabajo: quitar la inspección y volver a estado APERTURADO
+      $workOrder->update([
+        'vehicle_inspection_id' => null,
+        'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
+      ]);
+
+      return response()->json([
+        'message' => 'Anulación confirmada exitosamente',
+        'data' => $pivot->fresh()
+      ]);
+    });
   }
 }

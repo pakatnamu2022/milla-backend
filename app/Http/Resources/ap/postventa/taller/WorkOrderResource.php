@@ -23,14 +23,14 @@ class WorkOrderResource extends JsonResource
       'correlative' => $this->correlative,
       'order_quotation_id' => $this->order_quotation_id,
       'appointment_planning_id' => $this->appointment_planning_id,
-      'vehicle_inspection_id' => $this->vehicle_inspection_id,
+      'vehicle_inspection_id' => $this->getActiveVehicleInspection()?->id,
       'vehicle_id' => $this->vehicle_id,
       'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,
       'vehicle_vin' => $this->vehicle_vin,
       'currency_id' => $this->currency_id,
       'type_currency' => $this->typeCurrency,
-      'mileage' => $this->vehicleInspection->mileage ?? null,
+      'mileage' => $this->mileage,
       'status_id' => $this->status_id,
       'status_name' => $this->status ? $this->status->description : null,
       'advisor_id' => $this->advisor_id,
@@ -75,7 +75,6 @@ class WorkOrderResource extends JsonResource
       'type_recall' => $this->type_recall,
       'created_by' => $this->created_by,
       'created_by_name' => $this->creator ? $this->creator->name : null,
-      'is_inspection_completed' => $this->vehicleInspection && !$this->vehicleInspection->is_cancelled,
       'allow_remove_associated_quote' => (bool)$this->allow_remove_associated_quote,
       'allow_editing_inspection' => (bool)$this->allow_editing_inspection,
       'is_delivery' => (bool)$this->is_delivery,
@@ -102,13 +101,26 @@ class WorkOrderResource extends JsonResource
       'discarded_by_name' => $this->discardedBy?->name,
       'discarded_at' => $this->discarded_at,
       'exchange_rate' => (float)$this->exchange_rate,
+      'is_inspection_completed' => $this->hasActiveInspection(),
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
       'parts' => ApWorkOrderPartsResource::collection($this->whenLoaded('parts')),
       'items_invoice' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['items_invoice']),
       'invoice_preview' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['invoice_preview']),
-      'vehicle_inspection' => new ApVehicleInspectionResource($this->whenLoaded('vehicleInspection')),
+      'vehicle_inspection' => $this->when(
+        $this->hasActiveInspection(),
+        function () {
+          // Crear el resource y pasar el ID de esta orden de trabajo
+          $inspection = $this->getActiveVehicleInspection();
+          if ($inspection) {
+            $resource = new ApVehicleInspectionResource($inspection);
+            $resource->workOrderId = $this->id;
+            return $resource;
+          }
+          return null;
+        }
+      ),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
       'order_quotation' => new ApOrderQuotationsResource($this->whenLoaded('orderQuotation')),
       'vouchers' => $this->when(

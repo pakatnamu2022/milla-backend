@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -40,7 +41,6 @@ class ApWorkOrder extends Model
     'correlative',
     'appointment_planning_id',
     'order_quotation_id',
-    'vehicle_inspection_id',
     'vehicle_id',
     'currency_id',
     'vehicle_plate',
@@ -324,15 +324,57 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): BelongsTo
+  /**
+   * Obtiene todos los registros pivot de inspecciones de esta orden
+   */
+  public function vehicleInspectionPivots(): HasMany
   {
-    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id')
-      ->where('is_cancelled', false);
+    return $this->hasMany(WorkOrderVehicleInspection::class, 'work_order_id');
   }
 
-  public function createdVehicleInspection(): HasOne
+  /**
+   * Relación para obtener la inspección vehicular activa (no cancelada)
+   * Usa hasOneThrough para soportar eager loading
+   */
+  public function vehicleInspection(): HasOneThrough
   {
-    return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id');
+    return $this->hasOneThrough(
+      ApVehicleInspection::class,
+      WorkOrderVehicleInspection::class,
+      'work_order_id',      // Foreign key en work_order_vehicle_inspection
+      'id',                 // Foreign key en ap_vehicle_inspections
+      'id',                 // Local key en ap_work_orders
+      'vehicle_inspection_id' // Local key en work_order_vehicle_inspection
+    )->where('work_order_vehicle_inspection.is_cancelled', false)
+      ->latest('work_order_vehicle_inspection.id');
+  }
+
+  /**
+   * Método helper para obtener la inspección activa (backward compatibility)
+   * @deprecated Usar la relación vehicleInspection() directamente
+   * @return ApVehicleInspection|null
+   */
+  public function getActiveVehicleInspection(): ?ApVehicleInspection
+  {
+    return $this->vehicleInspection;
+  }
+
+  /**
+   * Verifica si tiene al menos una inspección activa (no cancelada)
+   * @param int|null $vehicleInspectionId ID de inspección específica para validar (opcional)
+   * @return bool
+   */
+  public function hasActiveInspection(?int $vehicleInspectionId = null): bool
+  {
+    $query = $this->vehicleInspectionPivots()
+      ->where('is_cancelled', false);
+
+    // Si se especifica un ID de inspección, filtrar por ese
+    if ($vehicleInspectionId !== null) {
+      $query->where('vehicle_inspection_id', $vehicleInspectionId);
+    }
+
+    return $query->exists();
   }
 
   public function exchangeRate(): BelongsTo

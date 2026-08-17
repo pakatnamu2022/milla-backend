@@ -10,6 +10,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ApVehicleInspectionResource extends JsonResource
 {
+  // Propiedad para recibir el ID de la orden de trabajo
+  public $workOrderId = null;
+
   /**
    * Transform the resource into an array.
    *
@@ -17,13 +20,45 @@ class ApVehicleInspectionResource extends JsonResource
    */
   public function toArray(Request $request): array
   {
+    // Obtener el pivot y la orden de trabajo activa
+    $pivot = null;
+    $workOrder = null;
+
+    // Si se pasó el workOrderId, buscar ese pivot específico (solo los activos, no cancelados)
+    if ($this->workOrderId) {
+      $pivot = $this->workOrderPivots()
+        ->with(['cancellationRequestedBy', 'cancellationConfirmedBy', 'workOrder.vehicle'])
+        ->where('work_order_id', $this->workOrderId)
+        ->where('is_cancelled', false)
+        ->latest('id')
+        ->first();
+      $workOrder = $pivot?->workOrder;
+    } // Si no hay contexto específico, obtener la orden activa
+    else {
+      $workOrder = $this->getActiveWorkOrder();
+      if ($workOrder) {
+        $pivot = $this->workOrderPivots()
+          ->with(['cancellationRequestedBy', 'cancellationConfirmedBy'])
+          ->where('work_order_id', $workOrder->id)
+          ->where('is_cancelled', false)
+          ->latest('id')
+          ->first();
+      }
+    }
+
     return [
       'id' => $this->id,
-      'ap_work_order_id' => $this->ap_work_order_id,
-      'vehicle_id' => $this->createdByWorkOrder?->vehicle_id,
-      'vehicle_plate' => $this->createdByWorkOrder?->vehicle->plate,
-      'vehicle_vin' => $this->createdByWorkOrder?->vehicle->vin,
-      'work_order_correlative' => $this->createdByWorkOrder ? $this->createdByWorkOrder->correlative : null,
+      'ap_work_order_id' => $workOrder?->id,
+      'vehicle_id' => $workOrder?->vehicle_id,
+      'vehicle_plate' => $workOrder?->vehicle?->plate,
+      'vehicle_vin' => $workOrder?->vehicle?->vin,
+      'vehicle_model' => $workOrder?->vehicle?->model?->family?->description,
+      'vehicle_brand' => $workOrder?->vehicle?->model?->family?->brand?->name,
+      'vehicle_year' => $workOrder?->vehicle?->year,
+      'vehicle_color' => $workOrder?->vehicle?->color?->description,
+      'engine_type' => $workOrder?->vehicle?->engineType?->description,
+      'engine_number' => $workOrder?->vehicle?->engine_number,
+      'work_order_correlative' => $workOrder?->correlative,
       'mileage' => $this->mileage,
       'fuel_level' => $this->fuel_level,
       'oil_level' => $this->oil_level,
@@ -57,14 +92,14 @@ class ApVehicleInspectionResource extends JsonResource
       'signed_by' => [
         'signer_type' => $this->signer_type,
         'name' => $this->signer_type === 'OWNER'
-          ? $this->createdByWorkOrder?->vehicle?->customer?->full_name
+          ? $this->$workOrder?->vehicle?->customer?->full_name
           : ($this->signer_type === 'CONTACT'
-            ? $this->createdByWorkOrder?->full_contact_name
+            ? $this->$workOrder?->full_contact_name
             : null),
         'num_doc' => $this->signer_type === 'OWNER'
-          ? $this->createdByWorkOrder?->vehicle?->customer?->num_doc
+          ? $this->$workOrder?->vehicle?->customer?->num_doc
           : ($this->signer_type === 'CONTACT'
-            ? $this->createdByWorkOrder?->num_doc_contact
+            ? $this->$workOrder?->num_doc_contact
             : null),
       ],
       'washed' => $this->washed,
@@ -103,15 +138,16 @@ class ApVehicleInspectionResource extends JsonResource
       // Items de cortesía
       'courtesy_seat_cover' => $this->courtesy_seat_cover,
       'paper_floor' => $this->paper_floor,
-      // Cancellation fields
-      'is_cancelled' => $this->is_cancelled,
-      'cancellation_requested_by' => $this->cancellation_requested_by,
-      'cancellation_requested_by_name' => $this->cancellationRequestedBy ? $this->cancellationRequestedBy->name : null,
-      'cancellation_confirmed_by' => $this->cancellation_confirmed_by,
-      'cancellation_confirmed_by_name' => $this->cancellationConfirmedBy ? $this->cancellationConfirmedBy->name : null,
-      'cancellation_requested_at' => $this->cancellation_requested_at,
-      'cancellation_confirmed_at' => $this->cancellation_confirmed_at,
-      'cancellation_reason' => $this->cancellation_reason,
+
+      // Campos de cancelación desde el pivot (work_order_vehicle_inspection)
+      'is_cancelled' => $pivot ? (bool)$pivot->is_cancelled : false,
+      'cancellation_requested_by' => $pivot?->cancellation_requested_by,
+      'cancellation_requested_by_name' => $pivot && $pivot->cancellationRequestedBy ? $pivot->cancellationRequestedBy->name : null,
+      'cancellation_confirmed_by' => $pivot?->cancellation_confirmed_by,
+      'cancellation_confirmed_by_name' => $pivot && $pivot->cancellationConfirmedBy ? $pivot->cancellationConfirmedBy->name : null,
+      'cancellation_requested_at' => $pivot?->cancellation_requested_at,
+      'cancellation_confirmed_at' => $pivot?->cancellation_confirmed_at,
+      'cancellation_reason' => $pivot?->cancellation_reason,
 
       // Relationships
       'damages' => ApVehicleInspectionDamagesResource::collection($this->whenLoaded('damages')),
