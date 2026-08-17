@@ -47,6 +47,7 @@ class UpdateApVehicleInspectionRequest extends StoreRequest
       'tire_pressure_inflation_check' => 'nullable|boolean',
       'alignment_balancing' => 'nullable|boolean',
       'pad_replace_disc_resurface' => 'nullable|boolean',
+      'tire_rotation' => 'nullable|boolean',
       'other_work_details' => 'nullable|string',
       // Requerimiento del cliente
       'customer_requirement' => 'nullable|string',

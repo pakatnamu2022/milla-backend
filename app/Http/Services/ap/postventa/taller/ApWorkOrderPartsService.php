@@ -972,6 +972,65 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     });
   }
 
+  /**
+   * Desasigna todos los repuestos asignados a un técnico en una orden de trabajo específica
+   *
+   * @param int $workOrderId ID de la orden de trabajo
+   * @param int $userId ID del usuario (técnico)
+   * @return array
+   */
+  public function unassignAllFromTechnicianByWorkOrder(int $workOrderId, int $userId)
+  {
+    return DB::transaction(function () use ($workOrderId, $userId) {
+      // Obtener todas las entregas del técnico en esta orden de trabajo
+      $deliveries = ApWorkOrderPartDelivery::whereHas('workOrderPart', function ($query) use ($workOrderId) {
+        $query->where('work_order_id', $workOrderId);
+      })
+        ->where('delivered_to', $userId)
+        ->with('workOrderPart')
+        ->get();
+
+      if ($deliveries->isEmpty()) {
+        return [
+          'message' => 'No se encontraron asignaciones de repuestos para este técnico en esta orden de trabajo',
+          'total_unassigned' => 0
+        ];
+      }
+
+      $unassignedCount = 0;
+      $affectedParts = [];
+
+      foreach ($deliveries as $delivery) {
+        // Obtener el repuesto asociado
+        $workOrderPart = $delivery->workOrderPart;
+
+        if (!$workOrderPart) {
+          continue;
+        }
+
+        // Restar la cantidad asignada
+        $workOrderPart->assigned_quantity = ($workOrderPart->assigned_quantity ?? 0) - $delivery->delivered_quantity;
+        $workOrderPart->save();
+
+        // Guardar el ID del repuesto afectado
+        if (!in_array($workOrderPart->id, $affectedParts)) {
+          $affectedParts[] = $workOrderPart->id;
+        }
+
+        // Eliminar el registro de entrega
+        $delivery->delete();
+
+        $unassignedCount++;
+      }
+
+      return [
+        'message' => 'Todas las asignaciones de repuestos fueron eliminadas correctamente',
+        'total_unassigned' => $unassignedCount,
+        'affected_parts_count' => count($affectedParts)
+      ];
+    });
+  }
+
   public function assignToTechnicianBulk(array $data)
   {
     return DB::transaction(function () use ($data) {

@@ -2,13 +2,17 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Models\ap\ApMasters;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\GeneralMaster;
+use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ApWorkOrderPlanning;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ProductivityDashboardService
@@ -37,25 +41,8 @@ class ProductivityDashboardService
       // Get user sede IDs
       $userSedeIds = $this->getUserSedeIds();
 
-      // Build filters for billed hours
-      $filters = [
-        [
-          'column' => 'actual_end_datetime',
-          'operator' => 'date_between',
-          'value' => [$startDate, $endDate],
-        ]
-      ];
-
-      if ($sedeId) {
-        $filters[] = [
-          'column' => 'sede_id',
-          'operator' => '=',
-          'value' => $sedeId,
-        ];
-      }
-
-      // Get billed hours by technician (from WorkedHoursBySedeReportService logic)
-      $billedData = $this->getBilledHoursByTechnician($filters, $userSedeIds);
+      // Get billed hours by technician (using invoice date logic)
+      $billedData = $this->getBilledHoursByTechnician($startDate, $endDate, $sedeId, $userSedeIds);
 
       if ($billedData->isEmpty()) {
         return [
@@ -154,45 +141,137 @@ class ProductivityDashboardService
   }
 
   /**
-   * Get billed hours by technician
-   * Adapted from WorkedHoursBySedeReportService::getBilledHoursBySedeReport
+   * Get billed hours by technician (using invoice date logic)
+   * Uses the same logic as ClosedWorkOrderBilledHoursReportService and WorkShopReportService
    */
-  private function getBilledHoursByTechnician(array $filters, array $userSedeIds): \Illuminate\Support\Collection
+  private function getBilledHoursByTechnician(string $startDate, string $endDate, ?int $sedeId, array $userSedeIds): \Illuminate\Support\Collection
   {
-    // Get work order IDs with completed plannings
-    $workOrderIdsQuery = ApWorkOrderPlanning::query()
-      ->where('status', 'completed')
-      ->select('work_order_id');
+    // Collect all work orders using the same logic as ClosedWorkOrderBilledHoursReportService
+    $workOrders = collect();
+
+    // 1. Get work orders from electronic documents (SIMPLE and MASSIVE invoicing)
+    $queryDocuments = ElectronicDocument::query()
+      ->with([
+        'workOrder.sede',
+        'workOrder.plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        },
+        'internalNotes.workOrder.sede',
+        'internalNotes.workOrder.plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        }
+      ])
+      ->where('anulado', false)
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+      ->where('is_advance_payment', false) // Only final invoices
+      ->where(function ($q) {
+        $q->whereNotNull('work_order_id')
+          ->orWhereHas('internalNotes', function ($subQ) {
+            $subQ->where('status', 'invoiced');
+          });
+      });
 
     // Filter by user sedes
     if (!empty($userSedeIds)) {
-      $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($userSedeIds) {
-        $q->whereIn('sede_id', $userSedeIds);
+      $queryDocuments->where(function ($q) use ($userSedeIds) {
+        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
+          $subQ->whereIn('sede_id', $userSedeIds);
+        });
       });
     }
 
-    // Apply filters
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
+    // Filter by fecha_de_emision (invoice date)
+    $queryDocuments->whereBetween('fecha_de_emision', [$startDate, $endDate]);
 
-      if (!$column || $value === null) {
-        continue;
+    // Filter by sede if specified
+    if ($sedeId) {
+      $queryDocuments->where(function ($q) use ($sedeId) {
+        $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
+          $subQ->where('sede_id', $sedeId);
+        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId) {
+          $subQ->where('sede_id', $sedeId);
+        });
+      });
+    }
+
+    $documents = $queryDocuments->get();
+
+    // Extract work orders from documents
+    foreach ($documents as $document) {
+      // SIMPLE invoicing
+      if ($document->workOrder) {
+        $workOrders->push($document->workOrder);
       }
 
-      if ($column === 'sede_id' && $operator === '=') {
-        $workOrderIdsQuery->whereHas('workOrder', function ($q) use ($value) {
-          $q->where('sede_id', $value);
-        });
-      } elseif ($column === 'actual_end_datetime' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $workOrderIdsQuery->whereRaw('DATE(actual_end_datetime) BETWEEN ? AND ?', [$value[0], $value[1]]);
+      // MASSIVE invoicing
+      if ($document->internalNotes && $document->internalNotes->count() > 0) {
+        foreach ($document->internalNotes as $internalNote) {
+          if ($internalNote->workOrder) {
+            $workOrders->push($internalNote->workOrder);
+          }
         }
       }
     }
 
-    $workOrderIds = $workOrderIdsQuery->pluck('work_order_id')->unique()->toArray();
+    // 2. Get work orders with internal note WITHOUT invoice
+    $queryInternalNoteWorkOrders = ApWorkOrder::query()
+      ->with([
+        'sede',
+        'plannings' => function ($query) {
+          $query->where('status', 'completed')->whereNotNull('worker_id')->with('worker');
+        },
+        'internalNotes'
+      ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+      ->whereHas('internalNotes', function ($q) {
+        $q->whereNotNull('number');
+      })
+      ->whereHas('items', function ($q) {
+        $q->whereHas('typePlanning', function ($subQ) {
+          $subQ->whereIn('type_document', [
+            TypePlanningWorkOrder::INTERNA_SC,
+            TypePlanningWorkOrder::INTERNA_CC,
+          ])
+            ->whereNotIn('id', [
+              TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+              TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+            ]);
+        });
+      })
+      ->whereNotExists(function ($query) {
+        $query->select(DB::raw(1))
+          ->from('ap_billing_electronic_documents')
+          ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
+          ->where('ap_billing_electronic_documents.anulado', false);
+      })
+      ->whereDoesntHave('internalNotes', function ($q) {
+        $q->whereHas('electronicDocuments');
+      });
+
+    // Filter by user sedes
+    if (!empty($userSedeIds)) {
+      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
+    }
+
+    // Filter by sede if specified
+    if ($sedeId) {
+      $queryInternalNoteWorkOrders->where('sede_id', $sedeId);
+    }
+
+    // Filter by internal note created_date
+    $queryInternalNoteWorkOrders->whereHas('internalNotes', function ($q) use ($startDate, $endDate) {
+      $q->whereBetween('created_date', [$startDate, $endDate]);
+    });
+
+    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
+    $workOrders = $workOrders->merge($internalNoteWorkOrders);
+
+    // Remove duplicates by work order ID
+    $workOrders = $workOrders->unique('id');
+
+    $workOrderIds = $workOrders->pluck('id')->toArray();
 
     if (empty($workOrderIds)) {
       return collect();
@@ -277,7 +356,7 @@ class ProductivityDashboardService
 
         $reportData->push([
           'sede_id' => $sedeId,
-          'sede_name' => $sede ? $sede->description : 'SIN SEDE',
+          'sede_name' => $sede ? $sede->abreviatura : 'SIN SEDE',
           'sede_abbreviation' => $sede ? $sede->abreviatura : 'SIN SEDE',
           'worker_id' => $workerId,
           'worker_dni' => $worker->vat ?? '',
@@ -299,15 +378,16 @@ class ProductivityDashboardService
    */
   private function calculateTechnicianDetail(
     \Illuminate\Support\Collection $billedData,
-    array $period,
-    float $workingHoursPerDay,
-    float $earningsPerHour
-  ): array {
+    array                          $period,
+    float                          $workingHoursPerDay,
+    float                          $earningsPerHour
+  ): array
+  {
     $technicianDetail = [];
 
     foreach ($billedData as $technician) {
-      // Calculate standard hours for the period
-      $standardHours = $period['working_days'] * $workingHoursPerDay;
+      // Standard hours: 8 horas × 6 días × 4 semanas = 192 horas fijas
+      $standardHours = 192;
 
       // Get billed hours
       $billedHours = $technician['billed_hours'];
@@ -315,8 +395,8 @@ class ProductivityDashboardService
       // Calculate productivity (can be negative)
       $productivityHours = $billedHours - $standardHours;
 
-      // Calculate earnings
-      $earnings = $productivityHours * $earningsPerHour;
+      // Calculate earnings (if negative, set to 0)
+      $earnings = max(0, $productivityHours * $earningsPerHour);
 
       // Calculate productivity percentage
       $productivityPercentage = $standardHours > 0

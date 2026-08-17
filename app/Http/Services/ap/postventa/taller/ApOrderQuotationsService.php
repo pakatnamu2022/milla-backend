@@ -2922,10 +2922,17 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
     $title = $request->get('title', 'Reporte de Cotizaciones');
 
+    // Pasar los status_id en el contexto para filtrado condicional de columnas
+    $context = [];
+    if ($request->filled('status_id')) {
+      $context['status_id'] = $request->status_id;
+    }
+
     $options = [
       'title' => $title,
       'filters' => $filters,
       'format' => $request->get('format', 'excel'),
+      'context' => $context,
     ];
 
     return $this->exportService->exportToExcel(ApOrderQuotations::class, $options);

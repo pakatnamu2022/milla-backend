@@ -6,6 +6,7 @@ use App\Exports\ap\postventa\taller\ClosedWorkOrderBilledHoursReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ClosedWorkOrderBilledHoursReportController extends Controller
@@ -51,15 +52,19 @@ class ClosedWorkOrderBilledHoursReportController extends Controller
       ];
     }
 
+    // TEMPORAL: Ejecutar comando para actualizar fechas de entrega antes de generar el reporte
+    // TODO: Remover esto cuando se arregle la reportería
+    Artisan::call('work-orders:update-delivery-dates', ['--force' => true]);
+
     // Obtener datos del reporte
     $data = $this->service->getClosedWorkOrderBilledHoursReport($filters);
 
     // Generar nombre del archivo
     $filename = 'reporte_horas_facturadas_ot_cerradas_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-    // Exportar a Excel con dos hojas
+    // Exportar a Excel con tres hojas (summary, detail, consolidado OTs)
     return Excel::download(
-      new ClosedWorkOrderBilledHoursReportExport($data),
+      new ClosedWorkOrderBilledHoursReportExport($data, $filters),
       $filename
     );
   }
