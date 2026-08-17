@@ -213,10 +213,10 @@ class InvoicingWorkOrderReportService
         // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
         // porque la NC referencia a la factura completa
         if ($document->internalNotes && $document->internalNotes->count() > 0) {
-          $document->internalNotes->each(function ($internalNote) use ($creditNote, $rows) {
+          $document->internalNotes->each(function ($internalNote) use ($creditNote, $document, $rows) {
             if ($internalNote->workOrder) {
-              // Pasar la nota de crédito como documento para que aplique el multiplicador -1
-              $rows->push($this->transformDocumentForReport($creditNote, $internalNote->workOrder));
+              // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
+              $rows->push($this->transformDocumentForReport($creditNote, $internalNote->workOrder, $document));
             }
           });
         }
@@ -277,9 +277,10 @@ class InvoicingWorkOrderReportService
    *
    * @param ElectronicDocument $document
    * @param ApWorkOrder $workOrder
+   * @param ElectronicDocument|null $originalDocument Documento original (factura) cuando $document es una NC
    * @return array
    */
-  private function transformDocumentForReport(ElectronicDocument $document, ApWorkOrder $workOrder): array
+  private function transformDocumentForReport(ElectronicDocument $document, ApWorkOrder $workOrder, ?ElectronicDocument $originalDocument = null): array
   {
     // Obtener técnicos únicos consolidados
     $technicians = $this->getConsolidatedTechnicians($workOrder);
@@ -291,17 +292,19 @@ class InvoicingWorkOrderReportService
     $finalInvoice = $workOrder->getFinalInvoice();
     $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
 
-    // Determinar moneda original y tasa de cambio
-    $currencyId = $document->sunat_concept_currency_id;
-    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
-    $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
-
-    // Moneda original del comprobante
-    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
-
     // Verificar si es Nota de Crédito
     $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
     $multiplier = $isCreditNote ? -1 : 1;
+
+    // Determinar moneda original y tasa de cambio
+    // Si es una NC y tenemos el documento original, usar el tipo de cambio del original para que los montos se cancelen exactamente
+    $documentForExchangeRate = ($isCreditNote && $originalDocument) ? $originalDocument : $document;
+    $currencyId = $documentForExchangeRate->sunat_concept_currency_id;
+    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
+    $exchangeRate = $isUSD ? ($documentForExchangeRate->exchangeRate?->rate ?? 1) : 1;
+
+    // Moneda original del comprobante (usar siempre la del documento actual para mostrar correctamente)
+    $monedaOriginal = ($document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD) ? 'USD' : 'PEN';
 
     // Verificar si la OT tiene tipo DERCO_WARRANTY u ODEBRECHT_MAINTENANCE
     $hasInternalNoteWithMassiveInvoice = $workOrder->items->contains(function ($item) {
