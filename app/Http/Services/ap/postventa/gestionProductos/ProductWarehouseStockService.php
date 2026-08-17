@@ -1247,15 +1247,13 @@ class ProductWarehouseStockService extends BaseService
                 ->where('warehouse_destination_id', $warehouseId);
             })
             // Todos los demás tipos de movimientos (no transferencias)
+            // Solo filtrar por warehouse_id porque warehouse_destination_id es NULL para estos movimientos
             ->orWhere(function ($subQ) use ($warehouseId) {
               $subQ->whereNotIn('movement_type', [
                 InventoryMovement::TYPE_TRANSFER_OUT,
                 InventoryMovement::TYPE_TRANSFER_IN
               ])
-                ->where(function ($q2) use ($warehouseId) {
-                  $q2->where('warehouse_id', $warehouseId)
-                    ->orWhere('warehouse_destination_id', $warehouseId);
-                });
+                ->where('warehouse_id', $warehouseId);
             });
         })
         ->where('status', InventoryMovement::STATUS_APPROVED);
@@ -1266,6 +1264,7 @@ class ProductWarehouseStockService extends BaseService
         InventoryMovement::TYPE_PURCHASE_RECEPTION,
         InventoryMovement::TYPE_ADJUSTMENT_IN,
         InventoryMovement::TYPE_TRANSFER_IN,
+        InventoryMovement::TYPE_RETURN_IN,  // Devoluciones por NC (retorno a almacén)
 
         // OUTBOUND (Salidas) - NO afectan costo promedio, solo reducen stock
         InventoryMovement::TYPE_SALE,
@@ -1305,6 +1304,10 @@ class ProductWarehouseStockService extends BaseService
 
         // TRANSFER_OUT: No additional filter needed, already filtered by status APPROVED above
         $q->orWhere('movement_type', InventoryMovement::TYPE_TRANSFER_OUT);
+
+        // RETURN_IN: No additional filter needed, already filtered by status APPROVED above
+        // Devoluciones por NC (retorno a almacén)
+        $q->orWhere('movement_type', InventoryMovement::TYPE_RETURN_IN);
 
         // RETURN_OUT: must have APPROVED SupplierCreditNote with active PurchaseOrder
         if (self::INCLUDE_RETURN_OUT_IN_HISTORY === 1) {

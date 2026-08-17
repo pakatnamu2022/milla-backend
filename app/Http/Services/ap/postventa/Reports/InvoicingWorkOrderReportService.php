@@ -44,6 +44,14 @@ class InvoicingWorkOrderReportService
         'internalNotes.workOrder.plannings.worker',
         'currency',
         'exchangeRate',
+        'creditNote.currency',
+        'creditNote.exchangeRate',
+        'creditNote.internalNotes.workOrder.sede',
+        'creditNote.internalNotes.workOrder.advisor',
+        'creditNote.internalNotes.workOrder.status',
+        'creditNote.internalNotes.workOrder.vehicle.model.family.brand',
+        'creditNote.internalNotes.workOrder.items.typePlanning',
+        'creditNote.internalNotes.workOrder.plannings.worker',
       ])
       ->where('anulado', false)
       ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
@@ -182,22 +190,39 @@ class InvoicingWorkOrderReportService
 
     // Transformar documentos finales para el reporte (Primera página)
     $reportDataFinal = $finalDocuments->flatMap(function ($document) {
+      $rows = collect();
+
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        return [$this->transformDocumentForReport($document, $document->workOrder)];
+        $rows->push($this->transformDocumentForReport($document, $document->workOrder));
       }
-
       // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
-      if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        return $document->internalNotes->map(function ($internalNote) use ($document) {
+      elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
+        $document->internalNotes->each(function ($internalNote) use ($document, $rows) {
           if ($internalNote->workOrder) {
-            return $this->transformDocumentForReport($document, $internalNote->workOrder);
+            $rows->push($this->transformDocumentForReport($document, $internalNote->workOrder));
           }
-          return null;
-        })->filter();
+        });
       }
 
-      return []; // Sin OT, skip
+      // NOTA DE CRÉDITO ASOCIADA: Si el documento tiene credit_note_id, mapear también la nota de crédito
+      // usando las MISMAS notas internas de la factura original, pero con montos en negativo
+      if ($document->credit_note_id && $document->creditNote) {
+        $creditNote = $document->creditNote;
+
+        // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
+        // porque la NC referencia a la factura completa
+        if ($document->internalNotes && $document->internalNotes->count() > 0) {
+          $document->internalNotes->each(function ($internalNote) use ($creditNote, $document, $rows) {
+            if ($internalNote->workOrder) {
+              // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
+              $rows->push($this->transformDocumentForReport($creditNote, $internalNote->workOrder, $document));
+            }
+          });
+        }
+      }
+
+      return $rows;
     })->values();
 
     // Transformar OTs con nota interna SIN factura (agregar a primera página)
@@ -252,9 +277,10 @@ class InvoicingWorkOrderReportService
    *
    * @param ElectronicDocument $document
    * @param ApWorkOrder $workOrder
+   * @param ElectronicDocument|null $originalDocument Documento original (factura) cuando $document es una NC
    * @return array
    */
-  private function transformDocumentForReport(ElectronicDocument $document, ApWorkOrder $workOrder): array
+  private function transformDocumentForReport(ElectronicDocument $document, ApWorkOrder $workOrder, ?ElectronicDocument $originalDocument = null): array
   {
     // Obtener técnicos únicos consolidados
     $technicians = $this->getConsolidatedTechnicians($workOrder);
@@ -266,17 +292,19 @@ class InvoicingWorkOrderReportService
     $finalInvoice = $workOrder->getFinalInvoice();
     $estado = $finalInvoice ? 'CERRADO' : ($workOrder->status?->description ?? '');
 
-    // Determinar moneda original y tasa de cambio
-    $currencyId = $document->sunat_concept_currency_id;
-    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
-    $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
-
-    // Moneda original del comprobante
-    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
-
     // Verificar si es Nota de Crédito
     $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
     $multiplier = $isCreditNote ? -1 : 1;
+
+    // Determinar moneda original y tasa de cambio
+    // Si es una NC y tenemos el documento original, usar el tipo de cambio del original para que los montos se cancelen exactamente
+    $documentForExchangeRate = ($isCreditNote && $originalDocument) ? $originalDocument : $document;
+    $currencyId = $documentForExchangeRate->sunat_concept_currency_id;
+    $isUSD = $currencyId === SunatConcepts::CURRENCY_USD;
+    $exchangeRate = $isUSD ? ($documentForExchangeRate->exchangeRate?->rate ?? 1) : 1;
+
+    // Moneda original del comprobante (usar siempre la del documento actual para mostrar correctamente)
+    $monedaOriginal = ($document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD) ? 'USD' : 'PEN';
 
     // Verificar si la OT tiene tipo DERCO_WARRANTY u ODEBRECHT_MAINTENANCE
     $hasInternalNoteWithMassiveInvoice = $workOrder->items->contains(function ($item) {
