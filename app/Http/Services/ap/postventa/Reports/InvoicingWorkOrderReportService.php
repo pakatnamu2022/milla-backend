@@ -44,6 +44,14 @@ class InvoicingWorkOrderReportService
         'internalNotes.workOrder.plannings.worker',
         'currency',
         'exchangeRate',
+        'creditNote.currency',
+        'creditNote.exchangeRate',
+        'creditNote.internalNotes.workOrder.sede',
+        'creditNote.internalNotes.workOrder.advisor',
+        'creditNote.internalNotes.workOrder.status',
+        'creditNote.internalNotes.workOrder.vehicle.model.family.brand',
+        'creditNote.internalNotes.workOrder.items.typePlanning',
+        'creditNote.internalNotes.workOrder.plannings.worker',
       ])
       ->where('anulado', false)
       ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
@@ -182,22 +190,39 @@ class InvoicingWorkOrderReportService
 
     // Transformar documentos finales para el reporte (Primera página)
     $reportDataFinal = $finalDocuments->flatMap(function ($document) {
+      $rows = collect();
+
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        return [$this->transformDocumentForReport($document, $document->workOrder)];
+        $rows->push($this->transformDocumentForReport($document, $document->workOrder));
       }
-
       // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
-      if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        return $document->internalNotes->map(function ($internalNote) use ($document) {
+      elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
+        $document->internalNotes->each(function ($internalNote) use ($document, $rows) {
           if ($internalNote->workOrder) {
-            return $this->transformDocumentForReport($document, $internalNote->workOrder);
+            $rows->push($this->transformDocumentForReport($document, $internalNote->workOrder));
           }
-          return null;
-        })->filter();
+        });
       }
 
-      return []; // Sin OT, skip
+      // NOTA DE CRÉDITO ASOCIADA: Si el documento tiene credit_note_id, mapear también la nota de crédito
+      // usando las MISMAS notas internas de la factura original, pero con montos en negativo
+      if ($document->credit_note_id && $document->creditNote) {
+        $creditNote = $document->creditNote;
+
+        // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
+        // porque la NC referencia a la factura completa
+        if ($document->internalNotes && $document->internalNotes->count() > 0) {
+          $document->internalNotes->each(function ($internalNote) use ($creditNote, $rows) {
+            if ($internalNote->workOrder) {
+              // Pasar la nota de crédito como documento para que aplique el multiplicador -1
+              $rows->push($this->transformDocumentForReport($creditNote, $internalNote->workOrder));
+            }
+          });
+        }
+      }
+
+      return $rows;
     })->values();
 
     // Transformar OTs con nota interna SIN factura (agregar a primera página)
