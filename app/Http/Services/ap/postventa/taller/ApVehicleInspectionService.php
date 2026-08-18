@@ -103,7 +103,6 @@ class ApVehicleInspectionService extends BaseService
 
       $workOrder->update([
         'mileage' => $data['mileage'] ?? $workOrder->mileage,
-        'vehicle_inspection_id' => $inspection->id,
         'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
       ]);
 
@@ -652,7 +651,7 @@ class ApVehicleInspectionService extends BaseService
 
       // Actualizar la orden de trabajo: quitar la inspección y volver a estado APERTURADO
       $workOrder->update([
-        'vehicle_inspection_id' => null,
+        'mileage' => 0,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
       ]);
 

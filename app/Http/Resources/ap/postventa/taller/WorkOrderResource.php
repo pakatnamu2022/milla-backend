@@ -27,8 +27,6 @@ class WorkOrderResource extends JsonResource
       'vehicle_inspection_id' => $activeInspection?->id,
       'vehicle_id' => $this->vehicle_id,
       'vehicle' => new VehiclesResource($this->vehicle),
-      'vehicle_plate' => $this->vehicle_plate,
-      'vehicle_vin' => $this->vehicle_vin,
       'currency_id' => $this->currency_id,
       'type_currency' => $this->typeCurrency,
       'mileage' => $this->mileage,

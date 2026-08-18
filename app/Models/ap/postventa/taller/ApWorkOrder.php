@@ -43,8 +43,6 @@ class ApWorkOrder extends Model
     'order_quotation_id',
     'vehicle_id',
     'currency_id',
-    'vehicle_plate',
-    'vehicle_vin',
     'mileage',
     'status_id',
     'advisor_id',
@@ -131,14 +129,12 @@ class ApWorkOrder extends Model
   ];
 
   const filters = [
-    'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations', 'internalNotes.number'],
+    'search' => ['correlative', 'vehicle.plate', 'vehicle.vin', 'observations', 'internalNotes.number'],
     'correlative' => '=',
     'currency_id' => '=',
     'appointment_planning_id' => '=',
     'order_quotation_id' => '=',
     'vehicle_id' => '=',
-    'vehicle_plate' => 'like',
-    'vehicle_vin' => 'like',
     'status_id' => 'in_or_equal',
     'advisor_id' => '=',
     'sede_id' => '=',
@@ -194,20 +190,6 @@ class ApWorkOrder extends Model
   {
     if ($value) {
       $this->attributes['observations'] = Str::upper($value);
-    }
-  }
-
-  public function setVehiclePlateAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['vehicle_plate'] = Str::upper($value);
-    }
-  }
-
-  public function setVehicleVinAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['vehicle_vin'] = Str::upper($value);
     }
   }
 
@@ -364,8 +346,8 @@ class ApWorkOrder extends Model
 
   /**
    * Método helper para obtener la inspección activa (backward compatibility)
-   * @deprecated Usar la relación vehicleInspection() directamente
    * @return ApVehicleInspection|null
+   * @deprecated Usar la relación vehicleInspection() directamente
    */
   public function getActiveVehicleInspection(): ?ApVehicleInspection
   {
@@ -1093,8 +1075,6 @@ class ApWorkOrder extends Model
         $query->where('is_invoiced', $value);
       } elseif ($column === 'currency_id' && $operator === '=') {
         $query->where('currency_id', $value);
-      } elseif ($column === 'vehicle_plate' && $operator === 'like') {
-        $query->where('vehicle_plate', 'like', '%' . $value . '%');
       }
     }
 
@@ -1145,8 +1125,8 @@ class ApWorkOrder extends Model
         'estado' => $workOrder->status ? $workOrder->status->description : '',
         'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
         'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
-        'placa_vehiculo' => $workOrder->vehicle_plate,
-        'vin_vehiculo' => $workOrder->vehicle_vin,
+        'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
+        'vin_vehiculo' => $workOrder->vehicle?->vin ?? '',
         'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
         'modelo' => $workOrder->vehicle?->model?->version ?? '',
         'km' => $workOrder->mileage ?? '',
