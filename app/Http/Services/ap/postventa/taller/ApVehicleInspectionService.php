@@ -93,6 +93,11 @@ class ApVehicleInspectionService extends BaseService
         throw new Exception('No se puede crear una recepción para esta orden de trabajo, el estado de la orden de trabajo no es APERTURADO');
       }
 
+      // Solo puede existir una recepción activa (no anulada) por orden de trabajo
+      if ($workOrder->activeVehicleInspectionPivot()->lockForUpdate()->exists()) {
+        throw new Exception('Ya existe una recepción activa para esta orden de trabajo');
+      }
+
       // Crear la recepción
       $inspection = ApVehicleInspection::create($data);
 
@@ -443,7 +448,7 @@ class ApVehicleInspectionService extends BaseService
     ];
 
     // Generar PDF
-    $pdf = \PDF::loadView('reports.ap.postventa.taller.rec  eption-report', $data);
+    $pdf = \PDF::loadView('reports.ap.postventa.taller.reception-report', $data);
     $pdf->setPaper('a4', 'portrait');
 
     return $pdf->stream("reporte-recepcion-{$workOrder->correlative}.pdf");
@@ -559,14 +564,13 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Solicita la anulación de una inspección para una orden de trabajo específica
+   * Solicita la anulación de la recepción (inspección) activa de una orden de trabajo
    * usando la tabla pivot work_order_vehicle_inspection
    */
   public function requestCancellation(int $workOrderId, int $inspectionId, string $reason)
   {
     return DB::transaction(function () use ($workOrderId, $inspectionId, $reason) {
       $workOrder = ApWorkOrder::findOrFail($workOrderId);
-      $inspection = $this->find($inspectionId);
 
       // Validar estados de la orden de trabajo
       if ($workOrder->status_id === ApMasters::CANCELED_WORK_ORDER_ID) {
@@ -577,20 +581,15 @@ class ApVehicleInspectionService extends BaseService
         return response()->json(['message' => 'No se puede solicitar anulación para una orden de trabajo cerrada'], 422);
       }
 
-      // Buscar o crear el registro en la tabla pivot
-      $pivot = WorkOrderVehicleInspection::firstOrCreate(
-        [
-          'work_order_id' => $workOrderId,
-          'vehicle_inspection_id' => $inspectionId,
-        ],
-        [
-          'is_cancelled' => false,
-        ]
-      );
+      // Buscar la relación activa (no anulada). Una relación anulada se considera inexistente.
+      $pivot = $workOrder->activeVehicleInspectionPivot()->lockForUpdate()->first();
 
-      // Validar que no esté ya anulada
-      if ($pivot->is_cancelled) {
-        return response()->json(['message' => 'Esta inspección ya está anulada para esta orden de trabajo'], 422);
+      if (!$pivot) {
+        return response()->json(['message' => 'No existe una recepción activa para esta orden de trabajo, no se puede solicitar la anulación'], 422);
+      }
+
+      if ($pivot->vehicle_inspection_id !== $inspectionId) {
+        return response()->json(['message' => 'La inspección enviada no coincide con la recepción activa de esta orden de trabajo'], 422);
       }
 
       // Validar que no exista ya una solicitud pendiente
@@ -602,6 +601,8 @@ class ApVehicleInspectionService extends BaseService
       $pivot->update([
         'cancellation_requested_by' => auth()->id(),
         'cancellation_requested_at' => now(),
+        'cancellation_confirmed_by' => null,
+        'cancellation_confirmed_at' => null,
         'cancellation_reason' => $reason,
       ]);
 
@@ -613,27 +614,23 @@ class ApVehicleInspectionService extends BaseService
   }
 
   /**
-   * Confirma la anulación de una inspección para una orden de trabajo específica
+   * Confirma la anulación de la recepción (inspección) activa de una orden de trabajo
    * usando la tabla pivot work_order_vehicle_inspection
    */
   public function confirmCancellation(int $workOrderId, int $inspectionId)
   {
     return DB::transaction(function () use ($workOrderId, $inspectionId) {
       $workOrder = ApWorkOrder::findOrFail($workOrderId);
-      $inspection = $this->find($inspectionId);
 
-      // Buscar el registro en la tabla pivot
-      $pivot = WorkOrderVehicleInspection::where('work_order_id', $workOrderId)
-        ->where('vehicle_inspection_id', $inspectionId)
-        ->first();
+      // Buscar la relación activa (no anulada). Una relación anulada se considera inexistente.
+      $pivot = $workOrder->activeVehicleInspectionPivot()->lockForUpdate()->first();
 
       if (!$pivot) {
-        return response()->json(['message' => 'No se encontró la relación entre la orden de trabajo y la inspección'], 422);
+        return response()->json(['message' => 'No existe una recepción activa para esta orden de trabajo, no se puede confirmar la anulación'], 422);
       }
 
-      // Validar que no esté ya anulada
-      if ($pivot->is_cancelled) {
-        return response()->json(['message' => 'Esta inspección ya está anulada para esta orden de trabajo'], 422);
+      if ($pivot->vehicle_inspection_id !== $inspectionId) {
+        return response()->json(['message' => 'La inspección enviada no coincide con la recepción activa de esta orden de trabajo'], 422);
       }
 
       // Validar que exista una solicitud de anulación

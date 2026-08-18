@@ -333,6 +333,19 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Relación con el registro pivot activo (no anulado) de inspección vehicular.
+   * Una vez anulado (is_cancelled = true), un pivot se considera inexistente:
+   * solo puede haber uno activo por orden de trabajo. Única fuente de verdad
+   * para "cuál es la recepción activa de esta OT".
+   */
+  public function activeVehicleInspectionPivot(): HasOne
+  {
+    return $this->hasOne(WorkOrderVehicleInspection::class, 'work_order_id')
+      ->where('is_cancelled', false)
+      ->latest('id');
+  }
+
+  /**
    * Relación para obtener la inspección vehicular activa (no cancelada)
    * Usa hasOneThrough para soportar eager loading
    */
@@ -366,8 +379,7 @@ class ApWorkOrder extends Model
    */
   public function hasActiveInspection(?int $vehicleInspectionId = null): bool
   {
-    $query = $this->vehicleInspectionPivots()
-      ->where('is_cancelled', false);
+    $query = $this->activeVehicleInspectionPivot();
 
     // Si se especifica un ID de inspección, filtrar por ese
     if ($vehicleInspectionId !== null) {

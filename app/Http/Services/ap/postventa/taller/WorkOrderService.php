@@ -371,20 +371,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           throw new Exception('Recepción no encontrada');
         }
 
-        // Verificar si existe una relación ACTIVA (no anulada) en la tabla pivot para esta orden de trabajo y esta inspección
-        $activePivot = WorkOrderVehicleInspection::where('work_order_id', $workOrder->id)
-          ->where('vehicle_inspection_id', $data['vehicle_inspection_id'])
-          ->where('is_cancelled', false)
-          ->first();
-
-        // Si existe una relación activa, no permitir crear otra
-        if ($activePivot) {
-          throw new Exception('Ya existe una recepción activa para esta orden de trabajo con esta inspección.');
+        // Solo puede existir una recepción activa (no anulada) por orden de trabajo
+        if ($workOrder->activeVehicleInspectionPivot()->lockForUpdate()->exists()) {
+          throw new Exception('Ya existe una recepción activa para esta orden de trabajo.');
         }
 
         // Si no existe relación activa, crear una nueva relación (puede que haya una anulada anterior, pero no importa)
         $workOrder->update([
           'mileage' => $vehicleInspection->mileage,
+          'vehicle_inspection_id' => $vehicleInspection->id,
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
         ]);
 

@@ -17,13 +17,14 @@ class WorkOrderResource extends JsonResource
   {
     $includeInvoicePreview = $this->relationLoaded('labours') && $this->relationLoaded('parts');
     $invoicePreviewData = $includeInvoicePreview ? $this->getInvoicePreview() : null;
+    $activeInspection = $this->getActiveVehicleInspection();
 
     return [
       'id' => $this->id,
       'correlative' => $this->correlative,
       'order_quotation_id' => $this->order_quotation_id,
       'appointment_planning_id' => $this->appointment_planning_id,
-      'vehicle_inspection_id' => $this->getActiveVehicleInspection()?->id,
+      'vehicle_inspection_id' => $activeInspection?->id,
       'vehicle_id' => $this->vehicle_id,
       'vehicle' => new VehiclesResource($this->vehicle),
       'vehicle_plate' => $this->vehicle_plate,
@@ -101,7 +102,7 @@ class WorkOrderResource extends JsonResource
       'discarded_by_name' => $this->discardedBy?->name,
       'discarded_at' => $this->discarded_at,
       'exchange_rate' => (float)$this->exchange_rate,
-      'is_inspection_completed' => $this->hasActiveInspection(),
+      'is_inspection_completed' => $activeInspection !== null,
 
       // Loaded Relationships
       'labours' => WorkOrderLabourResource::collection($this->whenLoaded('labours')),
@@ -109,16 +110,12 @@ class WorkOrderResource extends JsonResource
       'items_invoice' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['items_invoice']),
       'invoice_preview' => $this->when($includeInvoicePreview, fn() => $invoicePreviewData['invoice_preview']),
       'vehicle_inspection' => $this->when(
-        $this->hasActiveInspection(),
-        function () {
+        $activeInspection !== null,
+        function () use ($activeInspection) {
           // Crear el resource y pasar el ID de esta orden de trabajo
-          $inspection = $this->getActiveVehicleInspection();
-          if ($inspection) {
-            $resource = new ApVehicleInspectionResource($inspection);
-            $resource->workOrderId = $this->id;
-            return $resource;
-          }
-          return null;
+          $resource = new ApVehicleInspectionResource($activeInspection);
+          $resource->workOrderId = $this->id;
+          return $resource;
         }
       ),
       'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),

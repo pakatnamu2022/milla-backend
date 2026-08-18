@@ -198,7 +198,8 @@ class ApVehicleInspection extends Model
   public function activeWorkOrderPivots(): HasMany
   {
     return $this->hasMany(WorkOrderVehicleInspection::class, 'vehicle_inspection_id')
-      ->where('is_cancelled', false);
+      ->where('is_cancelled', false)
+      ->latest('id');
   }
 
   /**

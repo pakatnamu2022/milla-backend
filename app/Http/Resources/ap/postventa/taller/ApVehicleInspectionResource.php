@@ -26,22 +26,18 @@ class ApVehicleInspectionResource extends JsonResource
 
     // Si se pasó el workOrderId, buscar ese pivot específico (solo los activos, no cancelados)
     if ($this->workOrderId) {
-      $pivot = $this->workOrderPivots()
+      $pivot = $this->activeWorkOrderPivots()
         ->with(['cancellationRequestedBy', 'cancellationConfirmedBy', 'workOrder.vehicle'])
         ->where('work_order_id', $this->workOrderId)
-        ->where('is_cancelled', false)
-        ->latest('id')
         ->first();
       $workOrder = $pivot?->workOrder;
     } // Si no hay contexto específico, obtener la orden activa
     else {
-      $workOrder = $this->getActiveWorkOrder();
+      $workOrder = $this->createdByWorkOrder;
       if ($workOrder) {
-        $pivot = $this->workOrderPivots()
+        $pivot = $this->activeWorkOrderPivots()
           ->with(['cancellationRequestedBy', 'cancellationConfirmedBy'])
           ->where('work_order_id', $workOrder->id)
-          ->where('is_cancelled', false)
-          ->latest('id')
           ->first();
       }
     }
