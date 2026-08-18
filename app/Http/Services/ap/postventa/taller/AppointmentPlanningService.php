@@ -209,6 +209,118 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
     return response()->json($availableSlots);
   }
 
+  public function getAvailableSlotsBySede(Request $request)
+  {
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+    $sede_id = $request->input('sede_id');
+    $advisor_id = $request->input('advisor_id'); // Opcional
+
+    if (!$startDate || !$endDate) {
+      throw new Exception('Se requieren start_date y end_date');
+    }
+
+    if (!$sede_id) {
+      throw new Exception('Se requiere sede_id');
+    }
+
+    // Query para obtener las citas
+    $query = AppointmentPlanning::with([
+      'advisor:id,nombre_completo',
+      'typePlanning:id,description',
+      'typeOperationAppointment:id,description',
+      'vehicle:id,plate',
+      'workOrder:id,correlative,appointment_planning_id'
+    ])
+      ->where('sede_id', $sede_id)
+      ->where(function ($q) use ($startDate, $endDate) {
+        // Buscar por fecha de cita O por fecha de entrega
+        $q->whereBetween('date_appointment', [$startDate, $endDate])
+          ->orWhereBetween('delivery_date', [$startDate, $endDate]);
+      });
+
+    // Filtrar por asesor específico si se proporciona
+    if ($advisor_id) {
+      $query->where('advisor_id', $advisor_id);
+    }
+
+    $appointments = $query->orderBy('date_appointment')
+      ->orderBy('time_appointment')
+      ->get();
+
+    if ($appointments->isEmpty()) {
+      return response()->json([
+        'sede_id' => $sede_id,
+        'total' => 0,
+        'statistics' => [
+          'total_taken' => 0,
+          'total_not_taken' => 0,
+          'percentage_taken' => 0,
+          'percentage_not_taken' => 0,
+        ],
+        'consolidated_by_type_planning' => [],
+        'appointments' => [],
+      ]);
+    }
+
+    // Calcular estadísticas de is_taken
+    $total = $appointments->count();
+    $totalTaken = $appointments->where('is_taken', true)->count();
+    $totalNotTaken = $appointments->where('is_taken', false)->count();
+
+    $statistics = [
+      'total_taken' => $totalTaken,
+      'total_not_taken' => $totalNotTaken,
+      'percentage_taken' => $total > 0 ? round(($totalTaken / $total) * 100, 2) : 0,
+      'percentage_not_taken' => $total > 0 ? round(($totalNotTaken / $total) * 100, 2) : 0,
+    ];
+
+    // Consolidado por tipo de planificación
+    $consolidatedByTypePlanning = $appointments
+      ->groupBy('type_planning_id')
+      ->map(function ($group, $typePlanningId) use ($total) {
+        $count = $group->count();
+        return [
+          'type_planning_id' => $typePlanningId,
+          'type_planning' => $group->first()->typePlanning?->description ?? 'Sin tipo',
+          'count' => $count,
+          'percentage' => $total > 0 ? round(($count / $total) * 100, 2) : 0,
+        ];
+      })
+      ->values();
+
+    // Formatear las citas para el reporte
+    $formattedAppointments = $appointments->map(function ($appointment) {
+      return [
+        'id' => $appointment->id,
+        'advisor_id' => $appointment->advisor_id,
+        'advisor_name' => $appointment->advisor?->nombre_completo,
+        'date_appointment' => $appointment->date_appointment?->format('Y-m-d'),
+        'time_appointment' => $appointment->time_appointment,
+        'delivery_date' => $appointment->delivery_date?->format('Y-m-d'),
+        'delivery_time' => $appointment->delivery_time,
+        'full_name_client' => $appointment->full_name_client,
+        'email_client' => $appointment->email_client,
+        'phone_client' => $appointment->phone_client,
+        'plate' => $appointment->vehicle?->plate,
+        'type_planning_id' => $appointment->type_planning_id,
+        'type_planning' => $appointment->typePlanning?->description,
+        'type_operation' => $appointment->typeOperationAppointment?->description,
+        'description' => $appointment->description,
+        'is_taken' => $appointment->is_taken,
+        'work_order_number' => $appointment->workOrder?->correlative,
+      ];
+    });
+
+    return response()->json([
+      'sede_id' => $sede_id,
+      'total' => $total,
+      'statistics' => $statistics,
+      'consolidated_by_type_planning' => $consolidatedByTypePlanning,
+      'appointments' => $formattedAppointments,
+    ]);
+  }
+
   public function generateAppointmentPDF($id)
   {
     $appointmentPlanning = AppointmentPlanning::with([
@@ -226,7 +338,7 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
     // Preparar datos del cliente
     $clientDocument = 'N/A';
-    $clientName  =  'N/A';
+    $clientName = 'N/A';
     $clientAddress = 'N/A';
     $clientUbigeo = 'N/A';
     $clientCity = 'N/A';
