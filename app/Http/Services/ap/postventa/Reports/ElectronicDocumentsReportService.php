@@ -2,92 +2,93 @@
 
 namespace App\Http\Services\ap\postventa\Reports;
 
-use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Illuminate\Support\Collection;
 
 class ElectronicDocumentsReportService
 {
   /**
-   * Obtiene el reporte de documentos electrónicos
+   * Obtiene el reporte de Documentos Electrónicos (solo cabecera con totales)
    *
    * @param array $filters
    * @return Collection
    */
-  public function getElectronicDocumentsReport(array $filters = []): Collection
+  public function getElectronicDocumentReport(array $filters = []): Collection
   {
+    // Consultar ElectronicDocuments con sus relaciones
     $query = ElectronicDocument::query()
       ->with([
-        'items',
         'documentType',
+        'identityDocumentType',
         'currency',
         'seriesModel.sede',
+        'client',
+        'area',
+        'creator',
       ])
-      ->where('area_id', ApMasters::AREA_POSVENTA)
-      ->where('aceptada_por_sunat', true)
       ->where('anulado', false);
 
     // Aplicar filtros
     $this->applyFilters($query, $filters);
 
-    $documents = $query->orderBy('fecha_de_emision')->get();
+    // Obtener documentos ordenados por fecha de emisión
+    $documents = $query->orderBy('fecha_de_emision', 'desc')
+      ->orderBy('full_number', 'desc')
+      ->get();
 
     // Transformar documentos para el reporte
-    return $documents->map(function ($document) {
+    $reportData = $documents->flatMap(function ($document) {
       return $this->transformDocumentForReport($document);
-    });
+    })->values();
+
+    return $reportData;
   }
 
   /**
-   * Transforma un documento electrónico en el formato del reporte
+   * Transforma un documento electrónico en filas del reporte
+   * Retorna solo la fila de cabecera con totales
    *
    * @param ElectronicDocument $document
-   * @return array
+   * @return Collection
    */
-  private function transformDocumentForReport(ElectronicDocument $document): array
+  private function transformDocumentForReport(ElectronicDocument $document): Collection
   {
-    // Obtener tipo de comprobante
-    $tipo = $this->getDocumentTypeName($document->sunat_concept_document_type_id);
+    $rows = collect();
 
-    // Concatenar descripciones de items
-    $descripcion = $document->items
-      ->pluck('descripcion')
-      ->filter()
-      ->implode(', ');
-
-    // Obtener moneda
-    $moneda = $document->currency?->description ?? '';
-
-    return [
-      'sede' => $document->seriesModel?->sede?->abreviatura ?? '',
-      'tipo' => $tipo,
-      'fecha' => $document->fecha_de_emision ? $document->fecha_de_emision->format('d/m/Y') : '',
-      'cliente' => $document->cliente_denominacion ?? '',
-      'descripcion' => $descripcion,
-      'serie' => $document->serie ?? '',
-      'numero' => $document->numero ?? '',
-      'total' => number_format($document->total ?? 0, 2, '.', ''),
-      'moneda' => $moneda,
+    // Solo retornar la fila de cabecera del documento con totales
+    $headerRow = [
+      'documento_id' => $document->id,
+      'full_number' => $document->full_number,
+      'tipo_documento' => $document->documentType?->description ?? '',
+      'fecha_emision' => $document->fecha_de_emision?->format('d/m/Y') ?? '',
+      'fecha_vencimiento' => $document->fecha_de_vencimiento?->format('d/m/Y') ?? '',
+      'cliente_documento' => $document->cliente_numero_de_documento ?? '',
+      'tipo_doc_cliente' => $document->identityDocumentType?->description ?? '',
+      'cliente_nombre' => $document->cliente_denominacion ?? '',
+      'cliente_direccion' => $document->cliente_direccion ?? '',
+      'cliente_email' => $document->cliente_email ?? '',
+      'moneda' => $document->currency?->description ?? '',
+      'tipo_cambio' => number_format((float)$document->tipo_de_cambio, 3, '.', ''),
+      'total_gravada' => number_format((float)$document->total_gravada, 2, '.', ''),
+      'total_inafecta' => number_format((float)$document->total_inafecta, 2, '.', ''),
+      'total_exonerada' => number_format((float)$document->total_exonerada, 2, '.', ''),
+      'total_igv' => number_format((float)$document->total_igv, 2, '.', ''),
+      'total' => number_format((float)$document->total, 2, '.', ''),
+      'area' => $document->area?->description ?? '',
+      'sede' => $document->seriesModel?->sede?->suc_abrev ?? '',
+      'estado' => $document->status_label ?? '',
+      'aceptada_sunat' => $document->aceptada_por_sunat ? 'SI' : 'NO',
+      'creado_por' => $document->creator?->name ?? '',
+      'fecha_creacion' => $document->created_at?->format('d/m/Y H:i:s') ?? '',
     ];
+
+    $rows->push($headerRow);
+
+    return $rows;
   }
 
   /**
-   * Obtiene el nombre del tipo de documento
-   *
-   * @param int|null $documentTypeId
-   * @return string
-   */
-  private function getDocumentTypeName(?int $documentTypeId): string
-  {
-    return match ($documentTypeId) {
-      29 => 'FACTURA',
-      30 => 'BOLETA',
-      default => '',
-    };
-  }
-
-  /**
-   * Aplica filtros a la query
+   * Aplica filtros a la query de ElectronicDocument
    *
    * @param $query
    * @param array $filters
@@ -105,14 +106,43 @@ class ElectronicDocumentsReportService
       }
 
       switch ($operator) {
-        case 'date_between':
-          // Filtro de rango de fechas
+        case 'in':
+          if (is_array($value)) {
+            $query->whereIn($column, $value);
+          }
+          break;
+
+        case 'between':
           if (is_array($value) && count($value) === 2) {
             $query->whereBetween($column, [$value[0], $value[1]]);
           }
           break;
+
+        case 'dateRange':
+          // Filtrar por rango de fechas usando whereDate para ignorar la hora
+          if (is_array($value) && count($value) === 2) {
+            $query->whereDate($column, '>=', $value[0])
+              ->whereDate($column, '<=', $value[1]);
+          }
+          break;
+
         case '=':
-          $query->where($column, $value);
+          // Para relaciones con punto (ej: seriesModel.sede_id)
+          if (str_contains($column, '.')) {
+            $parts = explode('.', $column);
+            $relation = $parts[0];
+            $relationColumn = $parts[1];
+
+            $query->whereHas($relation, function ($q) use ($relationColumn, $value) {
+              $q->where($relationColumn, $value);
+            });
+          } else {
+            $query->where($column, $value);
+          }
+          break;
+
+        case 'like':
+          $query->where($column, 'like', '%' . $value . '%');
           break;
       }
     }

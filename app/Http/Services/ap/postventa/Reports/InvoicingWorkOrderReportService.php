@@ -12,7 +12,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use ReflectionClass;
-use ReflectionMethod;
 
 class InvoicingWorkOrderReportService
 {
@@ -195,8 +194,7 @@ class InvoicingWorkOrderReportService
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
         $rows->push($this->transformDocumentForReport($document, $document->workOrder));
-      }
-      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
+      } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
         $document->internalNotes->each(function ($internalNote) use ($document, $rows) {
           if ($internalNote->workOrder) {

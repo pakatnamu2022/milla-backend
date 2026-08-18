@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 

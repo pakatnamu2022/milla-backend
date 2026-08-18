@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -10,11 +10,11 @@ use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 

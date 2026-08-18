@@ -123,19 +123,28 @@ class ApVehicleInspectionController extends Controller
   {
     try {
       $request->validate([
+        'work_order_id' => 'required|integer|exists:ap_work_orders,id',
         'cancellation_reason' => 'required|string',
       ]);
 
-      return $this->service->requestCancellation($id, $request->cancellation_reason);
+      return $this->service->requestCancellation(
+        $request->work_order_id,
+        $id,
+        $request->cancellation_reason
+      );
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
   }
 
-  public function confirmCancellation($id)
+  public function confirmCancellation(Request $request, $id)
   {
     try {
-      return $this->service->confirmCancellation($id);
+      $request->validate([
+        'work_order_id' => 'required|integer|exists:ap_work_orders,id',
+      ]);
+
+      return $this->service->confirmCancellation($request->work_order_id, $id);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

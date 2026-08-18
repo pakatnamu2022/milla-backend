@@ -273,6 +273,53 @@ class ProductWarehouseStock extends Model
   }
 
   /**
+   * Valida que el stock reservado sea suficiente para una cantidad requerida.
+   * Considera si el producto es de travesía (bypass de validación).
+   *
+   * @param int $productId ID del producto
+   * @param int $warehouseId ID del almacén
+   * @param float $requiredQuantity Cantidad requerida
+   * @param bool $isTraverse Si es producto de travesía (default: false)
+   * @return void
+   * @throws \Exception Si no hay suficiente stock reservado
+   */
+  public static function validateReservedStock(
+    int $productId,
+    int $warehouseId,
+    float $requiredQuantity,
+    bool $isTraverse = false
+  ): void {
+    // Si es producto de travesía, no validamos stock reservado
+    if ($isTraverse) {
+      return;
+    }
+
+    // Obtener registro de stock para este producto en el almacén
+    $stock = self::where('warehouse_id', $warehouseId)
+      ->where('product_id', $productId)
+      ->first();
+
+    // Validar que exista registro de stock
+    if (!$stock) {
+      $product = Products::find($productId);
+      $productName = $product ? $product->description : "ID {$productId}";
+      throw new \Exception(
+        "No se encontró registro de stock para el producto: {$productName}"
+      );
+    }
+
+    // Validar que el stock reservado sea suficiente
+    if ($stock->reserved_quantity < $requiredQuantity) {
+      $product = Products::find($productId);
+      $productName = $product ? $product->description : "ID {$productId}";
+      throw new \Exception(
+        "Stock reservado insuficiente para el producto: {$productName}. " .
+        "Stock reservado: {$stock->reserved_quantity}, Cantidad requerida: {$requiredQuantity}"
+      );
+    }
+  }
+
+  /**
    * Obtiene el precio de venta mínimo (sale_price_min) actual para un producto en una sede.
    * Método centralizado para guardar el precio histórico en los detalles.
    *

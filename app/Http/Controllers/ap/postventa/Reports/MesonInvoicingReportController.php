@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\meson\MesonInvoicingReportExport;
+use App\Exports\ap\postventa\Reports\MesonInvoicingReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\MesonInvoicingReportService;
 use Illuminate\Http\Request;

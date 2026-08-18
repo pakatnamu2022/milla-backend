@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Exports\ap\postventa;
+namespace App\Exports\ap\postventa\Reports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class InventoryOutputReportExport implements
+class PurchaseOrderReceiptsReportExport implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -25,7 +25,7 @@ class InventoryOutputReportExport implements
   protected Collection $data;
   protected string $title;
 
-  public function __construct(Collection $data, string $title = 'Reporte Salidas de Productos')
+  public function __construct(Collection $data, string $title = 'Reporte de Documentos Electrónicos')
   {
     $this->data = $data;
     $this->title = $title;
@@ -39,32 +39,30 @@ class InventoryOutputReportExport implements
   public function headings(): array
   {
     return [
-      'FECHA FACTURA FINAL',
-      'CODIGO AFS',
-      'CONCESIONARIO',
-      'CODIGO PRODUCTO',
-      'NUMERO',
-      'PVP',
-      'MARGEN',
-      'AREA',
-      'DOCUMENTO',
-      'NOMBRE CLIENTE',
+      'SEDE',
+      'TIPO',
+      'FECHA',
+      'CLIENTE',
+      'DESCRIPCIÓN',
+      'SERIE',
+      'NÚMERO',
+      'IMPORTE TOTAL',
+      'MONEDA',
     ];
   }
 
   public function map($row): array
   {
     return [
-      $row['fecha_factura_final'],
-      $row['codigo_afs'],
-      $row['concesionario'],
-      $row['codigo_producto'],
+      $row['sede'],
+      $row['tipo'],
+      $row['fecha'],
+      $row['cliente'],
+      $row['descripcion'],
+      $row['serie'],
       $row['numero'],
-      $row['pvp'],
-      $row['margen'],
-      $row['area'],
-      $row['documento'],
-      $row['nombre_cliente'],
+      $row['total'],
+      $row['moneda'],
     ];
   }
 
@@ -95,7 +93,7 @@ class InventoryOutputReportExport implements
     return [
       AfterSheet::class => function (AfterSheet $event) {
         $sheet = $event->sheet->getDelegate();
-        $sheet->setAutoFilter('A1:J1');
+        $sheet->setAutoFilter('A1:I1');
         $sheet->setSelectedCells('A1');
       },
     ];
@@ -103,6 +101,6 @@ class InventoryOutputReportExport implements
 
   public function title(): string
   {
-    return 'Salidas Inventario';
+    return $this->title;
   }
 }

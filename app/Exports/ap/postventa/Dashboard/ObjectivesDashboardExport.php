@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Dashboard;
 
-use App\Exports\ap\postventa\taller\ObjectivesDashboard\ExecutiveSummarySheet;
-use App\Exports\ap\postventa\taller\ObjectivesDashboard\HeadquartersRankingSheet;
-use App\Exports\ap\postventa\taller\ObjectivesDashboard\HeadquarterDetailSheet;
+use App\Exports\ap\postventa\Dashboard\ObjectivesDashboard\ExecutiveSummarySheet;
+use App\Exports\ap\postventa\Dashboard\ObjectivesDashboard\HeadquarterDetailSheet;
+use App\Exports\ap\postventa\Dashboard\ObjectivesDashboard\HeadquartersRankingSheet;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class ObjectivesDashboardExport implements WithMultipleSheets

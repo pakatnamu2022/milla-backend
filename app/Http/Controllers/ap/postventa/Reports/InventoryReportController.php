@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\InventoryOutputReportExport;
+use App\Exports\ap\postventa\Reports\InventoryOutputReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\InventoryOutputReportService;
 use Illuminate\Http\Request;

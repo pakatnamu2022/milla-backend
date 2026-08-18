@@ -10,7 +10,7 @@ class UpdateBusinessPartnersRequest extends StoreRequest
   public function rules(): array
   {
     return [
-      'first_name' => 'required|string|max:255',
+      'first_name' => 'nullable|string|max:255',
       'middle_name' => 'nullable|string|max:255',
       'paternal_surname' => 'nullable|string|max:255',
       'maternal_surname' => 'nullable|string|max:255',

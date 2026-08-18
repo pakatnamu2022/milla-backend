@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApVehicleInspection extends Model
@@ -15,7 +16,6 @@ class ApVehicleInspection extends Model
   protected $table = 'ap_vehicle_inspection';
 
   protected $fillable = [
-    'ap_work_order_id',
     'inspection_date',
     'mileage',
     'fuel_level',
@@ -82,13 +82,6 @@ class ApVehicleInspection extends Model
     // Items de cortesía
     'courtesy_seat_cover',
     'paper_floor',
-    //campos de cancelar
-    'is_cancelled',
-    'cancellation_requested_by',
-    'cancellation_confirmed_by',
-    'cancellation_requested_at',
-    'cancellation_confirmed_at',
-    'cancellation_reason',
   ];
 
   protected $casts = [
@@ -136,21 +129,17 @@ class ApVehicleInspection extends Model
     // Items de cortesía
     'courtesy_seat_cover' => 'boolean',
     'paper_floor' => 'boolean',
-    // Campos de cancelación
-    'is_cancelled' => 'boolean',
-    'cancellation_requested_at' => 'datetime',
-    'cancellation_confirmed_at' => 'datetime',
   ];
 
   const filters = [
     'search' => ['general_observations', 'createdByWorkOrder.vehicle.plate'],
     'fuel_level' => 'between',
     'inspected_by' => '=',
-    'ap_work_order_id' => '=',
+    'inspection_date' => 'date_between',
+    'is_cancelled' => 'scope',
     'createdByWorkOrder.sede_id' => '=',
     'createdByWorkOrder.vehicle_id' => '=',
     'createdByWorkOrder.is_delivery' => '=',
-    'is_cancelled' => '=',
   ];
 
   const sorts = [
@@ -175,11 +164,6 @@ class ApVehicleInspection extends Model
     $this->attributes['general_observations'] = strtoupper($value);
   }
 
-  public function setCancellationReasonAttribute($value)
-  {
-    $this->attributes['cancellation_reason'] = strtoupper($value);
-  }
-
   public function setOtherWorkDetailsAttribute($value)
   {
     $this->attributes['other_work_details'] = strtoupper($value);
@@ -200,23 +184,62 @@ class ApVehicleInspection extends Model
     return $this->belongsTo(User::class, 'inspected_by');
   }
 
-  public function cancellationRequestedBy(): BelongsTo
+  /**
+   * Obtiene todos los registros pivot de órdenes que usan esta inspección
+   */
+  public function workOrderPivots(): HasMany
   {
-    return $this->belongsTo(User::class, 'cancellation_requested_by');
+    return $this->hasMany(WorkOrderVehicleInspection::class, 'vehicle_inspection_id');
   }
 
-  public function cancellationConfirmedBy(): BelongsTo
+  /**
+   * Obtiene solo los pivots NO anulados
+   */
+  public function activeWorkOrderPivots(): HasMany
   {
-    return $this->belongsTo(User::class, 'cancellation_confirmed_by');
+    return $this->hasMany(WorkOrderVehicleInspection::class, 'vehicle_inspection_id')
+      ->where('is_cancelled', false)
+      ->latest('id');
   }
 
-  public function createdByWorkOrder(): BelongsTo
+  /**
+   * Relación para obtener la orden de trabajo activa (no cancelada)
+   * Usa hasOneThrough para soportar eager loading y filtros
+   */
+  public function createdByWorkOrder(): HasOneThrough
   {
-    return $this->belongsTo(ApWorkOrder::class, 'ap_work_order_id');
+    return $this->hasOneThrough(
+      ApWorkOrder::class,
+      WorkOrderVehicleInspection::class,
+      'vehicle_inspection_id', // Foreign key en work_order_vehicle_inspection
+      'id',                     // Foreign key en ap_work_orders
+      'id',                     // Local key en ap_vehicle_inspection
+      'work_order_id'           // Local key en work_order_vehicle_inspection
+    )->where('work_order_vehicle_inspection.is_cancelled', false)
+      ->latest('work_order_vehicle_inspection.id');
   }
 
-  public function workOrders(): HasMany
+  /**
+   * Obtiene la orden de trabajo activa (no cancelada) asociada a esta inspección
+   * Normalmente debería haber solo una activa
+   * @return ApWorkOrder|null
+   * @deprecated Usar la relación createdByWorkOrder() directamente
+   */
+  public function getActiveWorkOrder(): ?ApWorkOrder
   {
-    return $this->hasMany(ApWorkOrder::class, 'vehicle_inspection_id');
+    return $this->createdByWorkOrder;
+  }
+
+  /**
+   * Scope para filtrar inspecciones por estado de cancelación
+   * Filtra según el campo is_cancelled en la tabla pivot
+   */
+  public function scopeIsCancelled($query, $value)
+  {
+    $isCancelled = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+
+    return $query->whereHas('workOrderPivots', function ($q) use ($isCancelled) {
+      $q->where('is_cancelled', $isCancelled);
+    });
   }
 }

@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ElectronicDocumentsReportExport implements
+class WorkOrderOpeningReportExport implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -25,7 +25,7 @@ class ElectronicDocumentsReportExport implements
   protected Collection $data;
   protected string $title;
 
-  public function __construct(Collection $data, string $title = 'Reporte de Documentos Electrónicos')
+  public function __construct(Collection $data, string $title = 'Reporte Apertura Órdenes de Trabajo')
   {
     $this->data = $data;
     $this->title = $title;
@@ -39,14 +39,21 @@ class ElectronicDocumentsReportExport implements
   public function headings(): array
   {
     return [
-      'SEDE',
-      'TIPO',
-      'FECHA',
-      'CLIENTE',
-      'DESCRIPCIÓN',
-      'SERIE',
-      'NÚMERO',
-      'IMPORTE TOTAL',
+      'TALLER',
+      'MARCA',
+      'MODELO DEL VEHICULO',
+      'KILOMETRAJE',
+      'PLACA',
+      'VIN',
+      'TIPO DE INGRESO',
+      'NÚMERO DE OT',
+      'TIPO DE SERVICIO',
+      'TIPO DE OPERACIÓN',
+      'ASESOR DE SERVICIO',
+      'NOMBRE DEL TÉCNICO',
+      'FECHA DE APERTURA OT',
+      'FECHA DE CIERRE OT',
+      'PRECIO TOTAL',
       'MONEDA',
     ];
   }
@@ -54,14 +61,21 @@ class ElectronicDocumentsReportExport implements
   public function map($row): array
   {
     return [
-      $row['sede'],
-      $row['tipo'],
-      $row['fecha'],
-      $row['cliente'],
-      $row['descripcion'],
-      $row['serie'],
-      $row['numero'],
-      $row['total'],
+      $row['taller'],
+      $row['marca'],
+      $row['modelo_vehiculo'],
+      $row['kilometraje'],
+      $row['placa'],
+      $row['vin'],
+      $row['tipo_ingreso'],
+      $row['numero_ot'],
+      $row['tipo_servicio'],
+      $row['tipo_operacion'],
+      $row['asesor_servicio'],
+      $row['nombre_tecnico'],
+      $row['fecha_apertura_ot'],
+      $row['fecha_cierre_ot'],
+      $row['precio_total'],
       $row['moneda'],
     ];
   }
@@ -92,8 +106,10 @@ class ElectronicDocumentsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
+        // Habilitar filtros en la fila de encabezado (columnas A-P, 16 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:P1');
+
         $sheet = $event->sheet->getDelegate();
-        $sheet->setAutoFilter('A1:I1');
         $sheet->setSelectedCells('A1');
       },
     ];
@@ -101,6 +117,6 @@ class ElectronicDocumentsReportExport implements
 
   public function title(): string
   {
-    return $this->title;
+    return 'Reporte Apertura OT';
   }
 }

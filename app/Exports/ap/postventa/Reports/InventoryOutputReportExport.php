@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class WorkOrderOpeningReportExport implements
+class InventoryOutputReportExport implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -25,7 +25,7 @@ class WorkOrderOpeningReportExport implements
   protected Collection $data;
   protected string $title;
 
-  public function __construct(Collection $data, string $title = 'Reporte Apertura Órdenes de Trabajo')
+  public function __construct(Collection $data, string $title = 'Reporte Salidas de Productos')
   {
     $this->data = $data;
     $this->title = $title;
@@ -39,44 +39,32 @@ class WorkOrderOpeningReportExport implements
   public function headings(): array
   {
     return [
-      'TALLER',
-      'MARCA',
-      'MODELO DEL VEHICULO',
-      'KILOMETRAJE',
-      'PLACA',
-      'VIN',
-      'TIPO DE INGRESO',
-      'NÚMERO DE OT',
-      'TIPO DE SERVICIO',
-      'TIPO DE OPERACIÓN',
-      'ASESOR DE SERVICIO',
-      'NOMBRE DEL TÉCNICO',
-      'FECHA DE APERTURA OT',
-      'FECHA DE CIERRE OT',
-      'PRECIO TOTAL',
-      'MONEDA',
+      'FECHA FACTURA FINAL',
+      'CODIGO AFS',
+      'CONCESIONARIO',
+      'CODIGO PRODUCTO',
+      'NUMERO',
+      'PVP',
+      'MARGEN',
+      'AREA',
+      'DOCUMENTO',
+      'NOMBRE CLIENTE',
     ];
   }
 
   public function map($row): array
   {
     return [
-      $row['taller'],
-      $row['marca'],
-      $row['modelo_vehiculo'],
-      $row['kilometraje'],
-      $row['placa'],
-      $row['vin'],
-      $row['tipo_ingreso'],
-      $row['numero_ot'],
-      $row['tipo_servicio'],
-      $row['tipo_operacion'],
-      $row['asesor_servicio'],
-      $row['nombre_tecnico'],
-      $row['fecha_apertura_ot'],
-      $row['fecha_cierre_ot'],
-      $row['precio_total'],
-      $row['moneda'],
+      $row['fecha_factura_final'],
+      $row['codigo_afs'],
+      $row['concesionario'],
+      $row['codigo_producto'],
+      $row['numero'],
+      $row['pvp'],
+      $row['margen'],
+      $row['area'],
+      $row['documento'],
+      $row['nombre_cliente'],
     ];
   }
 
@@ -106,10 +94,8 @@ class WorkOrderOpeningReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-P, 16 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:P1');
-
         $sheet = $event->sheet->getDelegate();
+        $sheet->setAutoFilter('A1:J1');
         $sheet->setSelectedCells('A1');
       },
     ];
@@ -117,6 +103,6 @@ class WorkOrderOpeningReportExport implements
 
   public function title(): string
   {
-    return 'Reporte Apertura OT';
+    return 'Salidas Inventario';
   }
 }

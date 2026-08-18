@@ -13,6 +13,7 @@ use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApReceivingChecklist;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ApInternalNote;
@@ -27,6 +28,7 @@ use App\Models\ap\postventa\taller\AppointmentPlanning;
 use App\Models\ap\postventa\taller\ApVehicleInspection;
 use App\Models\ap\postventa\taller\ApVehicleInspectionDamages;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\WorkOrderVehicleInspection;
 use App\Models\ap\postventa\taller\ApWorkOrderItem;
 use App\Models\ap\postventa\taller\ApWorkOrderParts;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -137,10 +139,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       //Plate, vin del vehiculo
       $vehicle = Vehicles::find($data['vehicle_id']);
-      if ($vehicle) {
-        $data['vehicle_plate'] = $vehicle->plate;
-        $data['vehicle_vin'] = $vehicle->vin;
-      }
 
       if (isset($data['vehicle_inspection_id']) && isset($data['appointment_planning_id'])) {
         $vehicleIdInspection = ApVehicleInspection::find($data['vehicle_inspection_id'])->createdByWorkOrder->vehicle_id ?? null;
@@ -213,9 +211,27 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // If existe $data['vehicle_inspection_id']
       if (isset($data['vehicle_inspection_id'])) {
+        $vehicleInspection = ApVehicleInspection::find($data['vehicle_inspection_id']);
+
+        if (!$vehicleInspection) {
+          throw new Exception('Recepción no encontrada');
+        }
+
         $workOrder->update([
+          'mileage' => $vehicleInspection->mileage,
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $workOrder->id,
+            'vehicle_inspection_id' => $data['vehicle_inspection_id'],
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       // Create items
@@ -346,8 +362,28 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // If existe $data['vehicle_inspection_id']
       if (isset($data['vehicle_inspection_id'])) {
+        $vehicleInspection = ApVehicleInspection::find($data['vehicle_inspection_id']);
+
+        if (!$vehicleInspection) {
+          throw new Exception('Recepción no encontrada');
+        }
+
+        // Solo puede existir una recepción activa (no anulada) por orden de trabajo
+        if ($workOrder->activeVehicleInspectionPivot()->lockForUpdate()->exists()) {
+          throw new Exception('Ya existe una recepción activa para esta orden de trabajo.');
+        }
+
+        // Si no existe relación activa, crear una nueva relación (puede que haya una anulada anterior, pero no importa)
         $workOrder->update([
+          'mileage' => $vehicleInspection->mileage,
           'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID
+        ]);
+
+        // Crear un NUEVO registro en la tabla pivot (aunque exista uno anulado)
+        WorkOrderVehicleInspection::create([
+          'work_order_id' => $workOrder->id,
+          'vehicle_inspection_id' => $data['vehicle_inspection_id'],
+          'is_cancelled' => false,
         ]);
       }
 
@@ -1050,8 +1086,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     return [
       'vehicle_id' => $vehicleId,
-      'vehicle_plate' => $vehicle->plate,
-      'vehicle_vin' => $vehicle->vin,
       'data' => $history->values()->toArray()
     ];
   }
@@ -1395,8 +1429,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
-        'vehicle_plate' => $vehicle->plate,
-        'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
         'advisor_id' => auth()->user()->person->id,
         'invoice_to' => $hasVehiclePdi ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID : $shippingGuide->transmitter_id,
@@ -1444,9 +1476,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if ($shippingGuide && $shippingGuide->receivingInspection) {
         $receivingInspection = $shippingGuide->receivingInspection;
 
+        // Buscar el kilometraje en ApReceivingChecklist usando el shipping_guide_id
+        $receivingChecklist = ApReceivingChecklist::where('shipping_guide_id', $receivingInspection->shipping_guide_id)
+          ->whereNull('deleted_at')
+          ->first();
+
+        $mileage = $receivingChecklist?->kilometers ?? 0;
+
         // Crear ApVehicleInspection copiando datos de ApReceivingInspection
         $vehicleInspection = ApVehicleInspection::create([
-          'ap_work_order_id' => $apWorkOrder->id,
           'photo_front_url' => $receivingInspection->photo_front_url,
           'photo_back_url' => $receivingInspection->photo_back_url,
           'photo_left_url' => $receivingInspection->photo_left_url,
@@ -1454,7 +1492,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           'general_observations' => $receivingInspection->general_observations,
           'inspected_by' => $receivingInspection->inspected_by,
           'inspection_date' => now(),
-          'mileage' => 0,
+          'mileage' => $mileage,
           'fuel_level' => '0',
           'oil_level' => '0',
         ]);
@@ -1471,10 +1509,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           ]);
         }
 
-        // Actualizar la OT con el vehicle_inspection_id
+        // Actualizar la OT con el mileage
         $apWorkOrder->update([
-          'vehicle_inspection_id' => $vehicleInspection->id,
+          'mileage' => $mileage,
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $apWorkOrder->id,
+            'vehicle_inspection_id' => $vehicleInspection->id,
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       $apWorkOrder->update([
@@ -1546,8 +1595,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'correlative' => $this->generateCorrelative(),
         'vehicle_id' => $vehicle->id,
         'currency_id' => $typeCurrency,
-        'vehicle_plate' => $vehicle->plate,
-        'vehicle_vin' => $vehicle->vin,
         'status_id' => ApMasters::OPENING_WORK_ORDER_ID,
         'advisor_id' => auth()->user()->person->id,
         'invoice_to' => $hasVehiclePdi
@@ -1598,9 +1645,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       if ($shippingGuide && $shippingGuide->receivingInspection) {
         $receivingInspection = $shippingGuide->receivingInspection;
 
+        // Buscar el kilometraje en ApReceivingChecklist usando el shipping_guide_id
+        $receivingChecklist = ApReceivingChecklist::where('shipping_guide_id', $receivingInspection->shipping_guide_id)
+          ->whereNull('deleted_at')
+          ->first();
+
+        $mileage = $receivingChecklist?->kilometers ?? 0;
+
         // Crear ApVehicleInspection copiando datos de ApReceivingInspection
         $vehicleInspection = ApVehicleInspection::create([
-          'ap_work_order_id' => $apWorkOrder->id,
           'photo_front_url' => $receivingInspection->photo_front_url,
           'photo_back_url' => $receivingInspection->photo_back_url,
           'photo_left_url' => $receivingInspection->photo_left_url,
@@ -1608,7 +1661,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           'general_observations' => $receivingInspection->general_observations,
           'inspected_by' => $receivingInspection->inspected_by,
           'inspection_date' => now(),
-          'mileage' => 0,
+          'mileage' => $mileage,
           'fuel_level' => '0',
           'oil_level' => '0',
         ]);
@@ -1625,10 +1678,21 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
           ]);
         }
 
-        // Actualizar la OT con el vehicle_inspection_id
+        // Actualizar la OT con el mileage
         $apWorkOrder->update([
-          'vehicle_inspection_id' => $vehicleInspection->id,
+          'mileage' => $mileage,
         ]);
+
+        // Crear registro en la tabla pivot work_order_vehicle_inspection
+        WorkOrderVehicleInspection::firstOrCreate(
+          [
+            'work_order_id' => $apWorkOrder->id,
+            'vehicle_inspection_id' => $vehicleInspection->id,
+          ],
+          [
+            'is_cancelled' => false,
+          ]
+        );
       }
 
       $apWorkOrder->update([
@@ -2080,14 +2144,6 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ];
     }
 
-    if ($request->filled('vehicle_plate')) {
-      $filters[] = [
-        'column' => 'vehicle_plate',
-        'operator' => 'like',
-        'value' => $request->vehicle_plate
-      ];
-    }
-
     $title = $request->get('title', 'Reporte de Órdenes de Trabajo');
 
     $options = [
@@ -2398,9 +2454,15 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     $receivingInspection = $shippingGuide->receivingInspection;
 
+    // Buscar el kilometraje en ApReceivingChecklist usando el shipping_guide_id
+    $receivingChecklist = ApReceivingChecklist::where('shipping_guide_id', $receivingInspection->shipping_guide_id)
+      ->whereNull('deleted_at')
+      ->first();
+
+    $mileage = $receivingChecklist?->kilometers ?? 0;
+
     // Crear ApVehicleInspection copiando datos de ApReceivingInspection
     $vehicleInspection = ApVehicleInspection::create([
-      'ap_work_order_id' => $workOrder->id,
       'photo_front_url' => $receivingInspection->photo_front_url,
       'photo_back_url' => $receivingInspection->photo_back_url,
       'photo_left_url' => $receivingInspection->photo_left_url,
@@ -2408,7 +2470,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'general_observations' => $receivingInspection->general_observations,
       'inspected_by' => $receivingInspection->inspected_by,
       'inspection_date' => now(),
-      'mileage' => 0,
+      'mileage' => $mileage,
       'fuel_level' => '0',
       'oil_level' => '0',
     ]);
@@ -2425,11 +2487,22 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       ]);
     }
 
-    // Actualizar la OT con el vehicle_inspection_id y cambiar el estado a RECEIVED
+    // Actualizar la OT al estado RECEIVED
     $workOrder->update([
-      'vehicle_inspection_id' => $vehicleInspection->id,
+      'mileage' => $mileage,
       'status_id' => ApMasters::RECEIVED_WORK_ORDER_ID,
     ]);
+
+    // Crear registro en la tabla pivot work_order_vehicle_inspection
+    WorkOrderVehicleInspection::firstOrCreate(
+      [
+        'work_order_id' => $workOrder->id,
+        'vehicle_inspection_id' => $vehicleInspection->id,
+      ],
+      [
+        'is_cancelled' => false,
+      ]
+    );
   }
 
   /**
