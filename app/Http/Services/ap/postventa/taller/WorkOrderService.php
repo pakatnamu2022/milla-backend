@@ -1854,6 +1854,26 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ->whereNull('deleted_at')
         ->count();
 
+      // Validar que todos los trabajos estén completados antes de generar la factura final
+      if ($activePlannings > 0) {
+        $incompletePlannings = $workOrder->plannings()
+          ->whereIn('status', ['planned', 'in_progress'])
+          ->whereNull('deleted_at')
+          ->get();
+
+        if ($incompletePlannings->count() > 0) {
+          $planningList = $incompletePlannings->map(function ($planning) {
+            $workerName = $planning->worker ? $planning->worker->name : 'Sin asignar';
+            $statusText = $planning->status === 'planned' ? 'Planeado' : 'En curso';
+            return sprintf('%s - %s (%s)', $planning->code, $workerName, $statusText);
+          })->implode('; ');
+
+          throw new Exception(
+            'No se puede finalizar la orden de trabajo. Los siguientes trabajos aún no han sido completados por los técnicos: ' . $planningList
+          );
+        }
+      }
+
       // Validate that all parts are fully delivered and received by technician if work order has parts
       // SOLO si hay planificaciones activas
       if ($workOrder->parts->count() > 0 && $validateLabor && $activePlannings > 0) {
