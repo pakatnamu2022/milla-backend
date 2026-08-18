@@ -68,6 +68,7 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockCont
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
 use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
+use App\Http\Controllers\ap\postventa\Reports\PurchaseOrderReceiptsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\ap\postventa\Reports\InvoicingWorkOrderReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
@@ -1761,8 +1762,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
       Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
-      Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
-
+      Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
+      Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
+      
       // Objectives Dashboard - Dashboard de Objetivos Postventa
       Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
       Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);

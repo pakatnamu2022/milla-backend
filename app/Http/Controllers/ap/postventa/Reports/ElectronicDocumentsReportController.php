@@ -18,25 +18,27 @@ class ElectronicDocumentsReportController extends Controller
   }
 
   /**
-   * Exporta el reporte de documentos electrónicos
+   * Exporta el reporte de Documentos Electrónicos (solo cabecera con totales)
    *
    * @param Request $request
    * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
    */
-  public function exportElectronicDocuments(Request $request)
+  public function export(Request $request)
   {
     // Validar parámetros
     $validated = $request->validate([
-      'fecha_emision' => 'required|array|size:2',
-      'fecha_emision.*' => 'required|date',
-      'sunat_concept_currency_id' => 'nullable|integer',
+      'area_id' => 'required|array|min:1',
+      'area_id.*' => 'required|integer',
+      'fecha_de_emision' => 'required|array|size:2',
+      'fecha_de_emision.*' => 'required|date',
+      'seriesModel$sede_id' => 'nullable|integer',
     ]);
 
     // Construir filtros
     $filters = $this->buildFilters($validated);
 
     // Obtener datos del reporte
-    $data = $this->service->getElectronicDocumentsReport($filters);
+    $data = $this->service->getElectronicDocumentReport($filters);
 
     // Generar nombre del archivo
     $filename = 'reporte_documentos_electronicos_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
@@ -58,19 +60,29 @@ class ElectronicDocumentsReportController extends Controller
   {
     $filters = [];
 
-    // Filtro requerido: rango de fechas de emisión
+    // Filtro requerido: áreas
     $filters[] = [
-      'column' => 'fecha_de_emision',
-      'operator' => 'date_between',
-      'value' => $validated['fecha_emision'],
+      'column' => 'area_id',
+      'operator' => 'in',
+      'value' => $validated['area_id'],
     ];
 
-    // Filtro opcional: moneda
-    if (isset($validated['sunat_concept_currency_id'])) {
+    // Filtro requerido: rango de fechas de emisión
+    // Usar whereDate para filtrar por fecha sin hora
+    if (isset($validated['fecha_de_emision']) && count($validated['fecha_de_emision']) === 2) {
       $filters[] = [
-        'column' => 'sunat_concept_currency_id',
+        'column' => 'fecha_de_emision',
+        'operator' => 'dateRange',
+        'value' => $validated['fecha_de_emision'],
+      ];
+    }
+
+    // Filtro opcional: sede (el frontend envía seriesModel$sede_id)
+    if (isset($validated['seriesModel$sede_id'])) {
+      $filters[] = [
+        'column' => 'seriesModel.sede_id',
         'operator' => '=',
-        'value' => $validated['sunat_concept_currency_id'],
+        'value' => $validated['seriesModel$sede_id'],
       ];
     }
 
