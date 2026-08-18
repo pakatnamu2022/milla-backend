@@ -3,12 +3,12 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
@@ -17,8 +17,8 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -1001,7 +1001,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Total mano de obra (LABOR + MATERIAL) - sin descuento
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+        $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
@@ -1165,7 +1165,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Total mano de obra (LABOR + MATERIAL) - sin descuento
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+        $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
@@ -1211,7 +1211,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $fileName = 'Cotizacion_Taller_' . $quotation->quotation_number . '.xlsx';
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new \App\Exports\ap\postventa\taller\OrderQuotationExport($data),
+      new \App\Exports\ap\postventa\Reports\OrderQuotationExport($data),
       $fileName
     );
   }
@@ -1338,7 +1338,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $fileName = 'Cotizacion_Repuestos_' . $quotation->quotation_number . '.xlsx';
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new \App\Exports\ap\postventa\taller\OrderQuotationExport($data),
+      new \App\Exports\ap\postventa\Reports\OrderQuotationExport($data),
       $fileName
     );
   }

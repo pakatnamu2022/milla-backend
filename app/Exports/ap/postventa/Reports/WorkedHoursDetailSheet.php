@@ -1,21 +1,21 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class BilledHoursDetailSheet implements
+class WorkedHoursDetailSheet implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -41,14 +41,14 @@ class BilledHoursDetailSheet implements
     return [
       'SEDE',
       'NÚMERO OT',
-      'DESCRIPCIÓN LABOUR',
-      'CATEGORÍA',
-      'HORAS FACTURADAS TOTAL',
-      'CANTIDAD TÉCNICOS',
       'DNI TÉCNICO',
       'NOMBRE TÉCNICO',
+      'TIPO PLANIFICACIÓN',
+      'CATEGORÍA',
+      'DESCRIPCIÓN',
       'HORAS TRABAJADAS',
-      'HORAS ASIGNADAS (IGUAL)',
+      'FECHA INICIO',
+      'FECHA FINALIZACIÓN',
     ];
   }
 
@@ -57,14 +57,14 @@ class BilledHoursDetailSheet implements
     return [
       $row['sede'],
       $row['numero_ot'],
-      $row['descripcion_labour'],
-      $row['categoria_tipo'],
-      $row['horas_facturadas_total'],
-      $row['cantidad_tecnicos'],
       $row['dni_tecnico'],
       $row['nombre_tecnico'],
+      $row['tipo_planificacion'],
+      $row['categoria_tipo'],
+      $row['descripcion_item'],
       $row['horas_trabajadas'],
-      $row['horas_asignadas'],
+      $row['fecha_inicio'],
+      $row['fecha_finalizacion'],
     ];
   }
 
@@ -80,7 +80,7 @@ class BilledHoursDetailSheet implements
         ],
         'fill' => [
           'fillType' => Fill::FILL_SOLID,
-          'startColor' => ['rgb' => '70AD47'],
+          'startColor' => ['rgb' => '2E75B6'],
         ],
         'alignment' => [
           'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -100,13 +100,9 @@ class BilledHoursDetailSheet implements
         // Habilitar filtros en la fila de encabezado
         $sheet->setAutoFilter('A1:J1');
 
-        // Aplicar formato numérico a las columnas de horas (E, I, J)
+        // Aplicar formato numérico a la columna de horas trabajadas (H)
         if ($highestRow > 1) {
-          $sheet->getStyle('E2:E' . $highestRow)
-            ->getNumberFormat()
-            ->setFormatCode('0.00');
-
-          $sheet->getStyle('I2:J' . $highestRow)
+          $sheet->getStyle('H2:H' . $highestRow)
             ->getNumberFormat()
             ->setFormatCode('0.00');
         }
@@ -118,6 +114,6 @@ class BilledHoursDetailSheet implements
 
   public function title(): string
   {
-    return 'Detalle Horas Facturadas';
+    return 'Detalle Horas Trabajadas';
   }
 }

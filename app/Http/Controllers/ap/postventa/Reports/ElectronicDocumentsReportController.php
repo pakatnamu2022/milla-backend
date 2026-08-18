@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\ElectronicDocumentsReportExport;
+use App\Exports\ap\postventa\Reports\ElectronicDocumentsReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\ElectronicDocumentsReportService;
 use Illuminate\Http\Request;

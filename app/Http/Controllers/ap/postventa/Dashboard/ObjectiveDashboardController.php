@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\ap\postventa\Reports;
+namespace App\Http\Controllers\ap\postventa\Dashboard;
 
-use App\Exports\ap\postventa\taller\ObjectivesDashboardExport;
+use App\Exports\ap\postventa\Dashboard\ObjectivesDashboardExport;
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\taller\ObjectiveDashboardService;
-use Illuminate\Http\Request;
+use App\Http\Services\ap\postventa\Dashboard\ObjectiveDashboardService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ObjectiveDashboardController extends Controller

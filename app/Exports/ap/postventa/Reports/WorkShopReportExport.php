@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Exports\ap\postventa\taller;
+namespace App\Exports\ap\postventa\Reports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PartsReportExport implements
+class WorkShopReportExport implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -26,7 +26,7 @@ class PartsReportExport implements
   protected string $title;
   protected bool $amountsInSoles;
 
-  public function __construct(Collection $data, string $title = 'Reporte Repuestos OT', bool $amountsInSoles = false)
+  public function __construct(Collection $data, string $title = 'Reporte Órdenes de Trabajo', bool $amountsInSoles = false)
   {
     $this->data = $data;
     $this->title = $title;
@@ -43,20 +43,36 @@ class PartsReportExport implements
     $currency = $this->amountsInSoles ? 'S/' : '$';
 
     return [
-      'SEDE',
+      'TIPO DE DOCUMENTO',
+      'NÚMERO DE DOCUMENTO',
+      'NOMBRE COMPLETO O RAZON SOCIAL',
+      'TIPO DE CLIENTE',
+      'EMAIL',
+      'NÚMERO TELEFONICO',
+      'MARCA',
+      'MODELO DEL VEHICULO',
+      'KILOMETRAJE',
+      'PLACA',
+      'VIN',
+      'CONCESIONARIO',
+      'TIPO DE INGRESO',
       'NÚMERO DE OT',
-      'FECHA DE APERTURA OT',
-      'FECHA DE CIERRE OT',
       'TIPO DE SERVICIO',
-      'CATEGORÍA',
-      'COD REPUESTO',
-      'NOMBRE REPUESTO',
-      'CANTIDAD',
-      "PVP ({$currency})",
-      'DESC (%)',
-      "NETO ({$currency})",
-      "COSTO ({$currency})",
-      "BENEFICIO ({$currency})",
+      'OT INICIAL (REINGRESO)',
+      'DETALLE',
+      'ASESOR DE SERVICIO',
+      'NOMBRE DEL TÉCNICO',
+      'FECHA DE APERTURA OT',
+      'HORA APERTURA OT',
+      'FECHA DE CIERRE OT',
+      'HORA DE CIERRE OT',
+      "PRECIO M. OBRA ({$currency})",
+      "PRECIO REPUESTO ({$currency})",
+      "PRECIO LUBRICANTES ({$currency})",
+      "PRECIO TRABAJO EXTERNO ({$currency})",
+      "PRECIO INSUMO ({$currency})",
+      "PRECIO TOTAL ({$currency})",
+      'AUTORIZACION DE DATOS PERSONALES',
       'NUM. DOCUMENTO',
       'FECHA DOCUMENTO',
       'ESTADO SUNAT',
@@ -66,20 +82,36 @@ class PartsReportExport implements
   public function map($row): array
   {
     return [
-      $row['sede'],
+      $row['tipo_documento'],
+      $row['numero_documento'],
+      $row['nombre_completo_razon_social'],
+      $row['tipo_cliente'],
+      $row['email'],
+      $row['numero_telefonico'],
+      $row['marca'],
+      $row['modelo_vehiculo'],
+      $row['kilometraje'],
+      $row['placa'],
+      $row['vin'],
+      $row['concesionario'],
+      $row['tipo_ingreso'],
       $row['numero_ot'],
-      $row['fecha_apertura_ot'],
-      $row['fecha_cierre_ot'],
       $row['tipo_servicio'],
-      $row['categoria'],
-      $row['codigo_repuesto'],
-      $row['nombre_repuesto'],
-      $row['cantidad'],
-      $row['pvp'],
-      $row['descuento'],
-      $row['neto'],
-      $row['costo'],
-      $row['beneficio'],
+      $row['ot_inicial_reingreso'],
+      $row['detalle'],
+      $row['asesor_servicio'],
+      $row['nombre_tecnico'],
+      $row['fecha_apertura_ot'],
+      $row['hora_apertura_ot'],
+      $row['fecha_cierre_ot'],
+      $row['hora_cierre_ot'],
+      $row['precio_mano_obra'],
+      $row['precio_repuesto'],
+      $row['precio_lubricantes'],
+      $row['precio_trabajo_externo'],
+      $row['precio_insumo'],
+      $row['precio_total'],
+      $row['autorizacion_datos_personales'],
       $row['num_documento_electronico'],
       $row['fecha_documento_electronico'],
       $row['estado_sunat'],
@@ -112,35 +144,12 @@ class PartsReportExport implements
   {
     return [
       AfterSheet::class => function (AfterSheet $event) {
-        // Habilitar filtros en la fila de encabezado (columnas A-Q, 17 columnas)
-        $event->sheet->getDelegate()->setAutoFilter('A1:Q1');
+        // Habilitar filtros en la fila de encabezado (columnas A-AG, 33 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:AG1');
 
-        // Aplicar formato de número a las columnas de moneda
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna AG)
         $sheet = $event->sheet->getDelegate();
         $highestRow = $sheet->getHighestRow();
-
-        // Formato de número para las columnas J (PVP), L (NETO), M (COSTO), N (BENEFICIO)
-        $currencyColumns = ['J', 'L', 'M', 'N'];
-        foreach ($currencyColumns as $column) {
-          $sheet->getStyle($column . '2:' . $column . $highestRow)
-            ->getNumberFormat()
-            ->setFormatCode('#,##0.00');
-        }
-
-        // Formato de número para CANTIDAD (columna I)
-        $sheet->getStyle('I2:I' . $highestRow)
-          ->getNumberFormat()
-          ->setFormatCode('#,##0.00');
-
-        // Formato de porcentaje para DESC (columna K)
-        $sheet->getStyle('K2:K' . $highestRow)
-          ->getNumberFormat()
-          ->setFormatCode('0.00');
-
-        // Alineación central para todas las columnas
-        $sheet->getStyle('A2:Q' . $highestRow)
-          ->getAlignment()
-          ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
         // Estilos para SI (verde con letra blanca)
         $styleGreen = [
@@ -172,14 +181,14 @@ class PartsReportExport implements
           ],
         ];
 
-        // Aplicar estilos condicionales a la columna Estado SUNAT (columna Q)
+        // Aplicar estilos desde la fila 2 hasta la última fila
         for ($row = 2; $row <= $highestRow; $row++) {
-          $cellValue = $sheet->getCell('Q' . $row)->getValue();
+          $cellValue = $sheet->getCell('AG' . $row)->getValue();
 
           if ($cellValue === 'SI') {
-            $sheet->getStyle('Q' . $row)->applyFromArray($styleGreen);
+            $sheet->getStyle('AG' . $row)->applyFromArray($styleGreen);
           } elseif ($cellValue === 'NO') {
-            $sheet->getStyle('Q' . $row)->applyFromArray($styleRed);
+            $sheet->getStyle('AG' . $row)->applyFromArray($styleRed);
           }
         }
 
@@ -190,6 +199,6 @@ class PartsReportExport implements
 
   public function title(): string
   {
-    return 'Reporte Repuestos';
+    return 'Reporte OT';
   }
 }
