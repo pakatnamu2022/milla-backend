@@ -73,6 +73,15 @@ class AppointmentPlanningController extends Controller
     }
   }
 
+  public function availableSlotsBySede(IndexAppointmentPlanningRequest $request)
+  {
+    try {
+      return $this->service->getAvailableSlotsBySede($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function downloadPDF($id)
   {
     try {

@@ -1667,6 +1667,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/available-slots-by-sede', [AppointmentPlanningController::class, 'availableSlotsBySede']);
       Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
       Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
