@@ -200,6 +200,15 @@ class ApWorkOrder extends Model
     }
   }
 
+  public function getDeductibleAmountWithoutTaxAttribute()
+  {
+    if (!$this->deductible_amount) {
+      return 0;
+    }
+
+    return (float)($this->deductible_amount / (1 + Constants::VAT_TAX / 100));
+  }
+
   // Service Helpers (lazy-loaded singletons per instance)
   protected function documentService(): WorkOrderDocumentService
   {
@@ -223,16 +232,6 @@ class ApWorkOrder extends Model
       $this->billingService = app(WorkOrderBillingService::class);
     }
     return $this->billingService;
-  }
-
-  // Accessors
-  public function getDeductibleAmountWithoutTaxAttribute()
-  {
-    if (!$this->deductible_amount) {
-      return 0;
-    }
-
-    return (float)($this->deductible_amount / (1 + Constants::VAT_TAX / 100));
   }
 
   // Relations

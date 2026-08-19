@@ -2665,6 +2665,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ApMasters::CLOSED_WORK_ORDER_ID,
       ];
 
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una orden de trabajo con factura borrador final');
+      }
+
+      if ($workOrder->hasFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una orden de trabajo con factura final');
+      }
+
       if (in_array($workOrder->status_id, $forbiddenStatuses)) {
         throw new Exception('No se puede agregar un deducible a una orden de trabajo cerrada, finalizada o anulada');
       }
@@ -2769,6 +2777,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ApMasters::FINISHED_WORK_ORDER_ID,
         ApMasters::CLOSED_WORK_ORDER_ID,
       ];
+
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una orden de trabajo con factura borrador final');
+      }
+
+      if ($workOrder->hasFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una orden de trabajo con factura final');
+      }
 
       if (in_array($workOrder->status_id, $forbiddenStatuses)) {
         throw new Exception('No se puede eliminar un deducible de una orden de trabajo cerrada, finalizada o anulada');

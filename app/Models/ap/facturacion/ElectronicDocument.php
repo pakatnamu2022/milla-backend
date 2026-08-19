@@ -139,68 +139,68 @@ class ElectronicDocument extends BaseModel
   ];
 
   protected $casts = [
-    'fecha_de_emision'                  => 'date',
-    'fecha_nota_debito'                 => 'date',
-    'fecha_de_vencimiento'              => 'date',
-    'tipo_de_cambio'                    => 'decimal:3',
-    'porcentaje_de_igv'                 => 'decimal:2',
-    'descuento_global'                  => 'decimal:2',
-    'total_descuento'                   => 'decimal:2',
-    'total_anticipo'                    => 'decimal:2',
-    'total_gravada'                     => 'decimal:2',
-    'total_inafecta'                    => 'decimal:2',
-    'total_exonerada'                   => 'decimal:2',
-    'total_igv'                         => 'decimal:2',
-    'total_gratuita'                    => 'decimal:2',
-    'total_otros_cargos'                => 'decimal:2',
-    'total_isc'                         => 'decimal:2',
-    'total'                             => 'decimal:2',
-    'percepcion_base_imponible'         => 'decimal:2',
-    'total_percepcion'                  => 'decimal:2',
-    'total_incluido_percepcion'         => 'decimal:2',
-    'retencion_base_imponible'          => 'decimal:2',
-    'total_retencion'                   => 'decimal:2',
-    'detraccion'                        => 'boolean',
-    'detraccion_total'                  => 'decimal:10',
-    'detraccion_porcentaje'             => 'decimal:5',
+    'fecha_de_emision' => 'date',
+    'fecha_nota_debito' => 'date',
+    'fecha_de_vencimiento' => 'date',
+    'tipo_de_cambio' => 'decimal:3',
+    'porcentaje_de_igv' => 'decimal:2',
+    'descuento_global' => 'decimal:2',
+    'total_descuento' => 'decimal:2',
+    'total_anticipo' => 'decimal:2',
+    'total_gravada' => 'decimal:2',
+    'total_inafecta' => 'decimal:2',
+    'total_exonerada' => 'decimal:2',
+    'total_igv' => 'decimal:2',
+    'total_gratuita' => 'decimal:2',
+    'total_otros_cargos' => 'decimal:2',
+    'total_isc' => 'decimal:2',
+    'total' => 'decimal:2',
+    'percepcion_base_imponible' => 'decimal:2',
+    'total_percepcion' => 'decimal:2',
+    'total_incluido_percepcion' => 'decimal:2',
+    'retencion_base_imponible' => 'decimal:2',
+    'total_retencion' => 'decimal:2',
+    'detraccion' => 'boolean',
+    'detraccion_total' => 'decimal:10',
+    'detraccion_porcentaje' => 'decimal:5',
     'enviar_automaticamente_a_la_sunat' => 'boolean',
     'enviar_automaticamente_al_cliente' => 'boolean',
-    'generado_por_contingencia'         => 'boolean',
-    'aceptada_por_sunat'                => 'boolean',
-    'was_dyn_requested'                 => 'boolean',
-    'is_accounted'                      => 'boolean',
-    'is_annulled'                       => 'boolean',
-    'sent_at'                           => 'datetime',
-    'accepted_at'                       => 'datetime',
-    'migrated_at'                       => 'datetime',
-    'cancelled_at'                      => 'datetime',
+    'generado_por_contingencia' => 'boolean',
+    'aceptada_por_sunat' => 'boolean',
+    'was_dyn_requested' => 'boolean',
+    'is_accounted' => 'boolean',
+    'is_annulled' => 'boolean',
+    'sent_at' => 'datetime',
+    'accepted_at' => 'datetime',
+    'migrated_at' => 'datetime',
+    'cancelled_at' => 'datetime',
   ];
 
   const array filters = [
-    'search'                         => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento', 'vehicleMovement.vehicle.vin', 'workOrder.correlative', 'orderQuotation.quotation_number'],
-    'original_document_id'           => '=',
-    'is_advance_payment'             => '=',
+    'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento', 'vehicleMovement.vehicle.vin', 'workOrder.correlative', 'orderQuotation.quotation_number'],
+    'original_document_id' => '=',
+    'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
-    'serie'                          => '=',
-    'numero'                         => '=',
-    'area_id'                        => 'in_or_equal',
-    'origin_entity_type'             => '=',
-    'origin_entity_id'               => '=',
-    'ap_vehicle_movement_id'         => '=',
-    'purchase_request_quote_id'      => '=',
-    'order_quotation_id'             => '=',
-    'work_order_id'                  => '=',
-    'cliente_numero_de_documento'    => '=',
-    'sunat_concept_currency_id'      => '=',
-    'status'                         => '=',
-    'aceptada_por_sunat'             => '=',
-    'anulado'                        => '=',
-    'fecha_de_emision'               => 'date_between',
-    'created_by'                     => '=',
-    'seriesModel.sede_id'            => '=',
-    'consolidation_type'             => '=',
-    'workOrder.vehicle_plate'        => '=',
-    'migration_status'               => '=',
+    'serie' => '=',
+    'numero' => '=',
+    'area_id' => 'in_or_equal',
+    'origin_entity_type' => '=',
+    'origin_entity_id' => '=',
+    'ap_vehicle_movement_id' => '=',
+    'purchase_request_quote_id' => '=',
+    'order_quotation_id' => '=',
+    'work_order_id' => '=',
+    'cliente_numero_de_documento' => '=',
+    'sunat_concept_currency_id' => '=',
+    'status' => '=',
+    'aceptada_por_sunat' => '=',
+    'anulado' => '=',
+    'fecha_de_emision' => 'date_between',
+    'created_by' => '=',
+    'workOrder.vehicle.plate' => '=',
+    'seriesModel.sede_id' => '=',
+    'consolidation_type' => '=',
+    'migration_status' => '=',
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
@@ -488,24 +488,24 @@ class ElectronicDocument extends BaseModel
 
   public function getStatusLabelAttribute(): string
   {
-    return match($this->status) {
-      self::STATUS_DRAFT     => 'BORRADOR',
-      self::STATUS_SENT      => 'ENVIADO',
-      self::STATUS_ACCEPTED  => 'ACEPTADO',
-      self::STATUS_REJECTED  => 'RECHAZADO',
+    return match ($this->status) {
+      self::STATUS_DRAFT => 'BORRADOR',
+      self::STATUS_SENT => 'ENVIADO',
+      self::STATUS_ACCEPTED => 'ACEPTADO',
+      self::STATUS_REJECTED => 'RECHAZADO',
       self::STATUS_CANCELLED => 'CANCELADO',
-      default                => strtoupper($this->status ?? ''),
+      default => strtoupper($this->status ?? ''),
     };
   }
 
   public function getMigrationStatusLabelAttribute(): string
   {
-    return match($this->migration_status) {
-      VehiclePurchaseOrderMigrationLog::STATUS_PENDING     => 'PENDIENTE',
+    return match ($this->migration_status) {
+      VehiclePurchaseOrderMigrationLog::STATUS_PENDING => 'PENDIENTE',
       VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS => 'EN PROGRESO',
-      VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED   => 'COMPLETADO',
-      VehiclePurchaseOrderMigrationLog::STATUS_FAILED      => 'FALLIDO',
-      default                                              => strtoupper($this->migration_status ?? ''),
+      VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED => 'COMPLETADO',
+      VehiclePurchaseOrderMigrationLog::STATUS_FAILED => 'FALLIDO',
+      default => strtoupper($this->migration_status ?? ''),
     };
   }
 
@@ -631,7 +631,7 @@ class ElectronicDocument extends BaseModel
   public function markAsSent(): void
   {
     $this->update([
-      'status'  => self::STATUS_SENT,
+      'status' => self::STATUS_SENT,
       'sent_at' => now(),
     ]);
   }
@@ -639,38 +639,38 @@ class ElectronicDocument extends BaseModel
   public function markAsAccepted(array $sunatResponse): void
   {
     $this->update([
-      'status'                => self::STATUS_ACCEPTED,
-      'aceptada_por_sunat'    => true,
-      'accepted_at'           => now(),
-      'sunat_responsecode'    => $sunatResponse['sunat_responsecode'] ?? null,
-      'sunat_description'     => $sunatResponse['sunat_description'] ?? null,
-      'sunat_note'            => $sunatResponse['sunat_note'] ?? null,
-      'enlace'                => $sunatResponse['enlace'] ?? null,
-      'enlace_del_pdf'        => $sunatResponse['enlace_del_pdf'] ?? null,
-      'enlace_del_xml'        => $sunatResponse['enlace_del_xml'] ?? null,
-      'enlace_del_cdr'        => $sunatResponse['enlace_del_cdr'] ?? null,
+      'status' => self::STATUS_ACCEPTED,
+      'aceptada_por_sunat' => true,
+      'accepted_at' => now(),
+      'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
+      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
+      'enlace' => $sunatResponse['enlace'] ?? null,
+      'enlace_del_pdf' => $sunatResponse['enlace_del_pdf'] ?? null,
+      'enlace_del_xml' => $sunatResponse['enlace_del_xml'] ?? null,
+      'enlace_del_cdr' => $sunatResponse['enlace_del_cdr'] ?? null,
       'cadena_para_codigo_qr' => $sunatResponse['cadena_para_codigo_qr'] ?? null,
-      'codigo_hash'           => $sunatResponse['codigo_hash'] ?? null,
+      'codigo_hash' => $sunatResponse['codigo_hash'] ?? null,
     ]);
   }
 
   public function markAsRejected(string $errorMessage, array $sunatResponse = []): void
   {
     $this->update([
-      'status'             => self::STATUS_REJECTED,
+      'status' => self::STATUS_REJECTED,
       'aceptada_por_sunat' => false,
-      'error_message'      => $errorMessage,
+      'error_message' => $errorMessage,
       'sunat_responsecode' => $sunatResponse['sunat_responsecode'] ?? null,
-      'sunat_description'  => $sunatResponse['sunat_description'] ?? null,
-      'sunat_note'         => $sunatResponse['sunat_note'] ?? null,
-      'sunat_soap_error'   => $sunatResponse['sunat_soap_error'] ?? null,
+      'sunat_description' => $sunatResponse['sunat_description'] ?? null,
+      'sunat_note' => $sunatResponse['sunat_note'] ?? null,
+      'sunat_soap_error' => $sunatResponse['sunat_soap_error'] ?? null,
     ]);
   }
 
   public function markAsCancelled(): void
   {
     $this->update([
-      'anulado'      => true,
+      'anulado' => true,
       'cancelled_at' => now(),
     ]);
   }
@@ -707,7 +707,7 @@ class ElectronicDocument extends BaseModel
   public function markAsLocalCancelled(string $reason = null): void
   {
     $this->update([
-      'status'        => self::STATUS_CANCELLED,
+      'status' => self::STATUS_CANCELLED,
       'observaciones' => $reason ? $this->observaciones . "\n\nAnulado: " . $reason : $this->observaciones,
     ]);
   }
@@ -805,180 +805,180 @@ class ElectronicDocument extends BaseModel
    * Columnas para reportes con Reportable trait
    */
   protected $reportColumns = [
-    'id'                                                      => [
-      'label'     => 'ID',
+    'id' => [
+      'label' => 'ID',
       'formatter' => null,
     ],
-    'full_number'                                             => [
-      'label'     => 'NÚMERO DOCUMENTO',
+    'full_number' => [
+      'label' => 'NÚMERO DOCUMENTO',
       'formatter' => null,
     ],
-    'documentType.description'                                => [
-      'label'     => 'TIPO DOCUMENTO',
+    'documentType.description' => [
+      'label' => 'TIPO DOCUMENTO',
       'formatter' => null,
     ],
-    'fecha_de_emision'                                        => [
-      'label'     => 'FECHA EMISIÓN',
+    'fecha_de_emision' => [
+      'label' => 'FECHA EMISIÓN',
       'formatter' => 'date',
     ],
-    'fecha_de_vencimiento'                                    => [
-      'label'     => 'FECHA VENCIMIENTO',
+    'fecha_de_vencimiento' => [
+      'label' => 'FECHA VENCIMIENTO',
       'formatter' => 'date',
     ],
-    'cliente_numero_de_documento'                             => [
-      'label'     => 'NRO DOCUMENTO CLIENTE',
+    'cliente_numero_de_documento' => [
+      'label' => 'NRO DOCUMENTO CLIENTE',
       'formatter' => null,
     ],
-    'identityDocumentType.description'                        => [
-      'label'     => 'TIPO DOC. CLIENTE',
+    'identityDocumentType.description' => [
+      'label' => 'TIPO DOC. CLIENTE',
       'formatter' => null,
     ],
-    'cliente_denominacion'                                    => [
-      'label'     => 'CLIENTE',
+    'cliente_denominacion' => [
+      'label' => 'CLIENTE',
       'formatter' => null,
     ],
-    'cliente_direccion'                                       => [
-      'label'     => 'DIRECCIÓN CLIENTE',
+    'cliente_direccion' => [
+      'label' => 'DIRECCIÓN CLIENTE',
       'formatter' => null,
     ],
-    'cliente_email'                                           => [
-      'label'     => 'EMAIL CLIENTE',
+    'cliente_email' => [
+      'label' => 'EMAIL CLIENTE',
       'formatter' => null,
     ],
-    'currency.description'                                    => [
-      'label'     => 'MONEDA',
+    'currency.description' => [
+      'label' => 'MONEDA',
       'formatter' => null,
     ],
-    'tipo_de_cambio'                                          => [
-      'label'     => 'TIPO CAMBIO',
+    'tipo_de_cambio' => [
+      'label' => 'TIPO CAMBIO',
       'formatter' => null,
     ],
-    'total_gravada'                                           => [
-      'label'     => 'TOTAL GRAVADA',
+    'total_gravada' => [
+      'label' => 'TOTAL GRAVADA',
       'formatter' => null,
     ],
-    'total_inafecta'                                          => [
-      'label'     => 'TOTAL INAFECTA',
+    'total_inafecta' => [
+      'label' => 'TOTAL INAFECTA',
       'formatter' => null,
     ],
-    'total_exonerada'                                         => [
-      'label'     => 'TOTAL EXONERADA',
+    'total_exonerada' => [
+      'label' => 'TOTAL EXONERADA',
       'formatter' => null,
     ],
-    'total_igv'                                               => [
-      'label'     => 'TOTAL IGV',
+    'total_igv' => [
+      'label' => 'TOTAL IGV',
       'formatter' => null,
     ],
-    'total'                                                   => [
-      'label'     => 'TOTAL',
+    'total' => [
+      'label' => 'TOTAL',
       'formatter' => null,
     ],
-    'purchaseRequestQuote.internal_code'                      => [
-      'label'     => 'CÓDIGO COTIZACIÓN',
+    'purchaseRequestQuote.internal_code' => [
+      'label' => 'CÓDIGO COTIZACIÓN',
       'formatter' => null,
     ],
-    'purchaseRequestQuote.opportunity.opportunity_code'       => [
-      'label'     => 'CÓDIGO OPORTUNIDAD',
+    'purchaseRequestQuote.opportunity.opportunity_code' => [
+      'label' => 'CÓDIGO OPORTUNIDAD',
       'formatter' => null,
     ],
     'purchaseRequestQuote.opportunity.worker.nombre_completo' => [
-      'label'     => 'ASESOR',
+      'label' => 'ASESOR',
       'formatter' => null,
     ],
-    'vehicle.vin'                                             => [
-      'label'     => 'VIN',
+    'vehicle.vin' => [
+      'label' => 'VIN',
       'formatter' => null,
     ],
-    'vehicle.plate'                                           => [
-      'label'     => 'PLACA',
+    'vehicle.plate' => [
+      'label' => 'PLACA',
       'formatter' => null,
     ],
-    'vehicle.engine_number'                                   => [
-      'label'     => 'NRO MOTOR',
+    'vehicle.engine_number' => [
+      'label' => 'NRO MOTOR',
       'formatter' => null,
     ],
-    'vehicle.year'                                            => [
-      'label'     => 'AÑO',
+    'vehicle.year' => [
+      'label' => 'AÑO',
       'formatter' => null,
     ],
-    'vehicle.model.family.brand.name'                         => [
-      'label'     => 'MARCA',
+    'vehicle.model.family.brand.name' => [
+      'label' => 'MARCA',
       'formatter' => null,
     ],
-    'vehicle.model.family.description'                        => [
-      'label'     => 'MODELO',
+    'vehicle.model.family.description' => [
+      'label' => 'MODELO',
       'formatter' => null,
     ],
-    'vehicle.model.version'                                   => [
-      'label'     => 'VERSIÓN',
+    'vehicle.model.version' => [
+      'label' => 'VERSIÓN',
       'formatter' => null,
     ],
-    'vehicle.color.description'                               => [
-      'label'     => 'COLOR',
+    'vehicle.color.description' => [
+      'label' => 'COLOR',
       'formatter' => null,
     ],
-    'vehicleMovement.vehicle.warehousePhysical.dyn_code'      => [
-      'label'     => 'ALMACÉN',
+    'vehicleMovement.vehicle.warehousePhysical.dyn_code' => [
+      'label' => 'ALMACÉN',
       'formatter' => null,
     ],
-    'vehicleMovement.vehicle.warehousePhysical.description'   => [
-      'label'     => 'DESCRIPCIÓN ALMACÉN',
+    'vehicleMovement.vehicle.warehousePhysical.description' => [
+      'label' => 'DESCRIPCIÓN ALMACÉN',
       'formatter' => null,
     ],
-    'seriesModel.sede.shop.description'                       => [
-      'label'     => 'TIENDA',
+    'seriesModel.sede.shop.description' => [
+      'label' => 'TIENDA',
       'formatter' => null,
     ],
-    'orderQuotation.code'                                     => [
-      'label'     => 'CÓDIGO COTIZACIÓN POSVENTA',
+    'orderQuotation.code' => [
+      'label' => 'CÓDIGO COTIZACIÓN POSVENTA',
       'formatter' => null,
     ],
-    'workOrder.workorder_number'                              => [
-      'label'     => 'ORDEN DE TRABAJO',
+    'workOrder.workorder_number' => [
+      'label' => 'ORDEN DE TRABAJO',
       'formatter' => null,
     ],
-    'condiciones_de_pago'                                     => [
-      'label'     => 'CONDICIONES DE PAGO',
+    'condiciones_de_pago' => [
+      'label' => 'CONDICIONES DE PAGO',
       'formatter' => null,
     ],
-    'observaciones'                                           => [
-      'label'     => 'OBSERVACIONES',
+    'observaciones' => [
+      'label' => 'OBSERVACIONES',
       'formatter' => null,
     ],
-    'creator.name'                                            => [
-      'label'     => 'CREADO POR',
+    'creator.name' => [
+      'label' => 'CREADO POR',
       'formatter' => null,
     ],
-    'created_at'                                              => [
-      'label'     => 'FECHA CREACIÓN',
+    'created_at' => [
+      'label' => 'FECHA CREACIÓN',
       'formatter' => 'datetime',
     ],
-    'status_label'                                            => [
-      'label'     => 'ESTADO',
+    'status_label' => [
+      'label' => 'ESTADO',
       'formatter' => null,
     ],
-    'aceptada_por_sunat'                                      => [
-      'label'     => 'ACEPTADO',
+    'aceptada_por_sunat' => [
+      'label' => 'ACEPTADO',
       'formatter' => 'boolean',
     ],
-    'migration_status_label'                                  => [
-      'label'     => 'MIGRACIÓN',
+    'migration_status_label' => [
+      'label' => 'MIGRACIÓN',
       'formatter' => null,
     ],
-    'is_accounted'                                            => [
-      'label'     => 'CONTABILIZADO',
+    'is_accounted' => [
+      'label' => 'CONTABILIZADO',
       'formatter' => 'boolean',
     ],
-    'anulado'                                                 => [
-      'label'     => 'ANULADO',
+    'anulado' => [
+      'label' => 'ANULADO',
       'formatter' => 'boolean',
     ],
-    'was_dyn_requested'                                       => [
-      'label'     => 'ANULADO DYN',
+    'was_dyn_requested' => [
+      'label' => 'ANULADO DYN',
       'formatter' => 'boolean',
     ],
-    'seriesModel.sede.suc_abrev'                              => [
-      'label'     => 'SEDE',
+    'seriesModel.sede.suc_abrev' => [
+      'label' => 'SEDE',
       'formatter' => null,
     ],
   ];
@@ -1001,26 +1001,26 @@ class ElectronicDocument extends BaseModel
   ];
 
   protected $reportStyles = [
-    'headerBold'            => true,
-    'headerFontSize'        => 11,
-    'headerFontColor'       => 'FFFFFF',
+    'headerBold' => true,
+    'headerFontSize' => 11,
+    'headerFontColor' => 'FFFFFF',
     'headerBackgroundColor' => '1B5E20',
-    'bodyFontSize'          => 9,
+    'bodyFontSize' => 9,
   ];
 
   protected $reportColorRules = [
     'status_label' => [
-      'BORRADOR'  => ['bg' => 'BDBDBD', 'text' => '212121'],
-      'ENVIADO'   => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
-      'ACEPTADO'  => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
+      'BORRADOR' => ['bg' => 'BDBDBD', 'text' => '212121'],
+      'ENVIADO' => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
+      'ACEPTADO' => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
       'RECHAZADO' => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
       'CANCELADO' => ['bg' => 'FFE0B2', 'text' => 'E65100'],
     ],
     'migration_status_label' => [
-      'PENDIENTE'   => ['bg' => 'FFF9C4', 'text' => 'F57F17'],
+      'PENDIENTE' => ['bg' => 'FFF9C4', 'text' => 'F57F17'],
       'EN PROGRESO' => ['bg' => 'BBDEFB', 'text' => '0D47A1'],
-      'COMPLETADO'  => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
-      'FALLIDO'     => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
+      'COMPLETADO' => ['bg' => 'C8E6C9', 'text' => '1B5E20'],
+      'FALLIDO' => ['bg' => 'FFCDD2', 'text' => 'B71C1C'],
     ],
   ];
 }
