@@ -1852,6 +1852,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
       Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
       Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
+      Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
+      Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

@@ -14,16 +14,19 @@ use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\taller\ApDeductibleOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -442,7 +445,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function show($id)
   {
     $quotation = $this->find($id);
-    $quotation->load('advancesOrderQuotation');
+    $quotation->load('advancesOrderQuotation', 'deductibles');
 
     $additionalData = [
       'checkStock' => true,
@@ -2936,5 +2939,130 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     ];
 
     return $this->exportService->exportToExcel(ApOrderQuotations::class, $options);
+  }
+
+  /**
+   * Asocia un deducible a una cotización
+   * - Valida que la cotización no esté descartada/anulada
+   * - Valida que la cotización no tenga ya un deducible
+   * - Valida que la moneda del comprobante coincida con la de la cotización
+   */
+  public function storeDeductible(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $orderQuotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+      if (!$orderQuotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización no esté descartada o anulada
+      $forbiddenStatuses = [
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_ANULADO,
+      ];
+
+      if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede agregar un deducible a una cotización descartada o anulada');
+      }
+
+      // Una cotización solo puede tener un deducible activo a la vez
+      $alreadyHasDeductible = ApDeductibleOrderQuotation::where('order_quotation_id', $data['order_quotation_id'])
+        ->exists();
+
+      if ($alreadyHasDeductible) {
+        throw new Exception('La cotización ya tiene un deducible asociado');
+      }
+
+      // Obtener el comprobante electrónico
+      $electronicDocument = ElectronicDocument::find($data['electronic_document_id']);
+
+      if (!$electronicDocument) {
+        throw new Exception('Comprobante electrónico no encontrado');
+      }
+
+      // Validar que la moneda de la cotización coincida con la moneda del comprobante
+      $quotationCurrencyId = $orderQuotation->currency_id;
+      $documentCurrencyId = $electronicDocument->sunat_concept_currency_id;
+
+      // Traducir moneda del comprobante a sistema de TypeCurrency
+      $documentCurrencyInQuotationSystem = null;
+      if ($documentCurrencyId == SunatConcepts::CURRENCY_PEN) {
+        $documentCurrencyInQuotationSystem = TypeCurrency::PEN_ID;
+      } elseif ($documentCurrencyId == SunatConcepts::CURRENCY_USD) {
+        $documentCurrencyInQuotationSystem = TypeCurrency::USD_ID;
+      }
+
+      if ($quotationCurrencyId !== $documentCurrencyInQuotationSystem) {
+        $quotationCurrencyName = $quotationCurrencyId == TypeCurrency::PEN_ID ? 'PEN' : 'USD';
+        $documentCurrencyName = $documentCurrencyId == SunatConcepts::CURRENCY_PEN ? 'PEN' : 'USD';
+        throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la cotización ({$quotationCurrencyName})");
+      }
+
+      // Crear el registro del deducible
+      ApDeductibleOrderQuotation::create([
+        'order_quotation_id' => $data['order_quotation_id'],
+        'electronic_document_id' => $data['electronic_document_id'],
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el campo deductible_amount en ap_order_quotations (sumando el total del comprobante)
+      $currentDeductibleAmount = $orderQuotation->deductible_amount ?? 0;
+      $newDeductibleAmount = $currentDeductibleAmount + $electronicDocument->total;
+
+      $orderQuotation->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Recargar la cotización con los deducibles y su comprobante electrónico
+      $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new ApOrderQuotationsResource($orderQuotation);
+    });
+  }
+
+  /**
+   * Elimina un deducible de una cotización
+   * - Valida que la cotización pueda ser modificada
+   */
+  public function deleteDeductible(int $deductibleId)
+  {
+    return DB::transaction(function () use ($deductibleId) {
+      // Buscar el deducible con sus relaciones
+      $deductible = ApDeductibleOrderQuotation::with('electronicDocument')
+        ->find($deductibleId);
+
+      if (!$deductible) {
+        throw new Exception('Deducible no encontrado');
+      }
+
+      // Validar que la cotización pueda ser modificada
+      $orderQuotation = ApOrderQuotations::find($deductible->order_quotation_id);
+
+      $forbiddenStatuses = [
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_ANULADO,
+      ];
+
+      if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede eliminar un deducible de una cotización descartada o anulada');
+      }
+
+      // Restar el monto del comprobante del deductible_amount
+      $currentDeductibleAmount = $orderQuotation->deductible_amount ?? 0;
+      $newDeductibleAmount = max(0, $currentDeductibleAmount - $deductible->electronicDocument->total);
+
+      $orderQuotation->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Eliminar el deducible (soft delete)
+      $deductible->delete();
+
+      // Recargar la cotización
+      $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new ApOrderQuotationsResource($orderQuotation);
+    });
   }
 }

@@ -49,6 +49,7 @@ class ApOrderQuotations extends Model
     'discount_amount',
     'tax_amount',
     'total_amount',
+    'deductible_amount',
     'validity_days',
     'quotation_date',
     'expiration_date',
@@ -298,6 +299,11 @@ class ApOrderQuotations extends Model
   public function shippingGuide(): BelongsTo
   {
     return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
+  }
+
+  public function deductibles(): HasMany
+  {
+    return $this->hasMany(ApDeductibleOrderQuotation::class, 'order_quotation_id');
   }
 
   /**

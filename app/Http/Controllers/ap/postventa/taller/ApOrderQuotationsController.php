@@ -11,6 +11,7 @@ use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequ
 use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\StoreDeductibleOrderQuotationRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
@@ -389,6 +390,24 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->service->exportOrderQuotations($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function storeDeductible(StoreDeductibleOrderQuotationRequest $request)
+  {
+    try {
+      return $this->success($this->service->storeDeductible($request->validated()));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function deleteDeductible($id)
+  {
+    try {
+      return $this->success($this->service->deleteDeductible($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
