@@ -17,6 +17,7 @@ class ApDeductibleOrderQuotation extends Model
   protected $fillable = [
     'order_quotation_id',
     'electronic_document_id',
+    'order_quotation_detail_id',
     'created_by',
   ];
 
@@ -39,6 +40,11 @@ class ApDeductibleOrderQuotation extends Model
   public function electronicDocument(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
+  }
+
+  public function detail(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotationDetails::class, 'order_quotation_detail_id');
   }
 
   public function creator(): BelongsTo

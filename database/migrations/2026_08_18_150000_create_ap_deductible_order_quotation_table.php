@@ -14,6 +14,7 @@ return new class extends Migration {
       $table->id();
       $table->unsignedBigInteger('order_quotation_id');
       $table->unsignedBigInteger('electronic_document_id');
+      $table->unsignedBigInteger('order_quotation_detail_id');
       $table->integer('created_by')->nullable();
       $table->timestamps();
       $table->softDeletes();
@@ -28,12 +29,18 @@ return new class extends Migration {
         ->on('ap_billing_electronic_documents')
         ->onDelete('cascade');
 
+      $table->foreign('order_quotation_detail_id')
+        ->references('id')
+        ->on('ap_order_quotation_details')
+        ->onDelete('cascade');
+
       $table->foreign('created_by')
         ->references('id')
         ->on('usr_users')
         ->onDelete('set null');
 
       $table->index('order_quotation_id');
+      $table->index('order_quotation_detail_id');
       $table->index('electronic_document_id');
     });
   }

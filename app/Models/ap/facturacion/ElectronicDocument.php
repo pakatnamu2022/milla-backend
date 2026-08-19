@@ -197,6 +197,7 @@ class ElectronicDocument extends BaseModel
     'anulado' => '=',
     'fecha_de_emision' => 'date_between',
     'created_by' => '=',
+    'workOrder.vehicle.plate' => '=',
     'seriesModel.sede_id' => '=',
     'consolidation_type' => '=',
     'migration_status' => '=',

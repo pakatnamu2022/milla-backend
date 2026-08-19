@@ -36,6 +36,7 @@ class ApOrderQuotationDetails extends Model
     'supply_type',
     'status',
     'is_traverse',
+    'is_deductible',
   ];
 
   const filters = [
@@ -60,6 +61,7 @@ class ApOrderQuotationDetails extends Model
     'tax_amount' => 'decimal:2',
     'sale_price_min_original' => 'decimal:2',
     'is_traverse' => 'boolean',
+    'is_deductible' => 'boolean',
   ];
 
   const ITEM_TYPE_PRODUCT = 'product';

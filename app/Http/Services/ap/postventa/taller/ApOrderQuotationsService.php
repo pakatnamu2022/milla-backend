@@ -2962,6 +2962,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ApMasters::STATUS_ORDER_QUOTE_ANULADO,
       ];
 
+      if ($orderQuotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una cotización con factura borrador final');
+      }
+
+      if ($orderQuotation->hasFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una cotización con factura final');
+      }
+
       if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
         throw new Exception('No se puede agregar un deducible a una cotización descartada o anulada');
       }
@@ -2999,10 +3007,27 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la cotización ({$quotationCurrencyName})");
       }
 
-      // Crear el registro del deducible
+      // Crear el detalle de cotización "Deducible" en negativo (resta del total)
+      $deductibleDetail = ApOrderQuotationDetails::create([
+        'order_quotation_id' => $data['order_quotation_id'],
+        'item_type' => ApOrderQuotationDetails::ITEM_TYPE_LABOR,
+        'description' => 'Deducible',
+        'quantity' => 1,
+        'unit_price' => $electronicDocument->total_gravada,
+        'discount_percentage' => 0,
+        'total_cost' => -$electronicDocument->total_gravada,
+        'net_amount' => -$electronicDocument->total_gravada,
+        'tax_amount' => -$electronicDocument->total_igv,
+        'is_deductible' => true,
+        'status' => ApOrderQuotationDetails::STATUS_PENDING,
+        'created_by' => auth()->id(),
+      ]);
+
+      // Crear el registro de auditoría del deducible, ligado al detalle creado
       ApDeductibleOrderQuotation::create([
         'order_quotation_id' => $data['order_quotation_id'],
         'electronic_document_id' => $data['electronic_document_id'],
+        'order_quotation_detail_id' => $deductibleDetail->id,
         'created_by' => auth()->id(),
       ]);
 
@@ -3013,6 +3038,10 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $orderQuotation->update([
         'deductible_amount' => $newDeductibleAmount,
       ]);
+
+      // Recalcular totales de la cotización
+      $orderQuotation->calculateTotals();
+      $orderQuotation->save();
 
       // Recargar la cotización con los deducibles y su comprobante electrónico
       $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
@@ -3044,6 +3073,14 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         ApMasters::STATUS_ORDER_QUOTE_ANULADO,
       ];
 
+      if ($orderQuotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una cotización con factura borrador final');
+      }
+
+      if ($orderQuotation->hasFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una cotización con factura final');
+      }
+
       if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
         throw new Exception('No se puede eliminar un deducible de una cotización descartada o anulada');
       }
@@ -3056,8 +3093,19 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         'deductible_amount' => $newDeductibleAmount,
       ]);
 
+      // Eliminar en espejo el detalle "Deducible" ligado a este registro
+      if ($deductible->order_quotation_detail_id) {
+        ApOrderQuotationDetails::where('id', $deductible->order_quotation_detail_id)
+          ->where('is_deductible', true)
+          ->delete();
+      }
+
       // Eliminar el deducible (soft delete)
       $deductible->delete();
+
+      // Recalcular totales de la cotización
+      $orderQuotation->calculateTotals();
+      $orderQuotation->save();
 
       // Recargar la cotización
       $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');

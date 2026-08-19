@@ -10,8 +10,8 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->decimal('deductible_amount', 10, 2)->default(0)->after('total_amount');
+    Schema::table('ap_order_quotation_details', function (Blueprint $table) {
+      $table->boolean('is_deductible')->default(false)->after('tax_amount');
     });
   }
 
@@ -20,8 +20,8 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('ap_order_quotations', function (Blueprint $table) {
-      $table->dropColumn('deductible_amount');
+    Schema::table('ap_order_quotation_details', function (Blueprint $table) {
+      $table->dropColumn('is_deductible');
     });
   }
 };
