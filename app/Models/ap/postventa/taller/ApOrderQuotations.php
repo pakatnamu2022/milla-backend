@@ -164,6 +164,15 @@ class ApOrderQuotations extends Model
     $this->attributes['notes'] = strtoupper($value);
   }
 
+  public function getDeductibleAmountWithoutTaxAttribute()
+  {
+    if (!$this->deductible_amount) {
+      return 0;
+    }
+
+    return (float)($this->deductible_amount / (1 + Constants::VAT_TAX / 100));
+  }
+
   // Service Helpers (lazy-loaded singletons per instance)
   protected function documentService(): OrderQuotationDocumentService
   {

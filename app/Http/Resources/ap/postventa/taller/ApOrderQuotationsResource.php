@@ -37,6 +37,7 @@ class ApOrderQuotationsResource extends JsonResource
       'tax_amount' => (float)$this->tax_amount,
       'total_amount' => (float)$this->total_amount,
       'deductible_amount' => (float)$this->deductible_amount,
+      'deductible_amount_without_tax' => round((float)$this->deductible_amount_without_tax, 2),
       'deductible' => $this->whenLoaded('deductibles', function () {
         $document = $this->deductibles->first()?->electronicDocument;
 
