@@ -567,6 +567,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * Crear el documento principal
        */
 
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($data['fecha_de_vencimiento'])) {
+        $data['fecha_de_vencimiento'] = $data['fecha_de_emision'];
+      }
+
       $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
@@ -777,6 +782,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear el documento principal
        */
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($data['fecha_de_vencimiento'])) {
+        $data['fecha_de_vencimiento'] = $data['fecha_de_emision'];
+      }
 
       $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
@@ -4433,6 +4443,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
       }
 
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($invoiceData['fecha_de_vencimiento'])) {
+        $invoiceData['fecha_de_vencimiento'] = $invoiceData['fecha_de_emision'];
+      }
+
       // 12. Create invoice
       $invoice = ElectronicDocument::create($invoiceData);
 
@@ -4893,6 +4908,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
       }
 
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
+
       // ================================================================
       // 5. CREAR EL DOCUMENTO
       // ================================================================
@@ -5070,6 +5090,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'created_by' => auth()->id(),
       ];
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
 
       // ================================================================
       // 7. CREAR DOCUMENTO
@@ -5295,6 +5320,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'created_by' => auth()->id(),
       ];
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
 
       // ================================================================
       // 7. CREAR DOCUMENTO
