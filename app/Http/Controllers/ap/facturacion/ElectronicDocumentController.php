@@ -212,6 +212,7 @@ class ElectronicDocumentController extends Controller
   {
     try {
       $data = $request->validated();
+      $data['fecha_de_vencimiento'] = $data['fecha_de_emision'];
 
       $creditNote = $this->service->createCreditNote($id, $data);
 
