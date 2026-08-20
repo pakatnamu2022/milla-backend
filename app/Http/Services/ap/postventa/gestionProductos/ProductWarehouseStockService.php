@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Exceptions\ClosedPeriodException;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
@@ -12,11 +13,13 @@ use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\ap\postventa\gestionProductos\AccountingPeriod;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use Exception;
@@ -501,7 +504,10 @@ class ProductWarehouseStockService extends BaseService
 
   /**
    * Recalcula los precios de venta después de un movimiento de inventario
-   * Usa estrategia sync/async según la cantidad de movimientos del producto
+   *
+   * OPTIMIZACIÓN: Detecta si el movimiento es retroactivo para elegir estrategia:
+   * - Movimiento RECIENTE (no retroactivo) → Enfoque INCREMENTAL (1 INSERT)
+   * - Movimiento RETROACTIVO → Rebuild con BULK INSERT
    *
    * @param array $productsToRecalculate Array de ['product_id' => X, 'warehouse_id' => Y]
    * @param InventoryMovement $movement Movimiento que originó el cambio
@@ -509,6 +515,9 @@ class ProductWarehouseStockService extends BaseService
    */
   public function recalculatePricesAfterMovement(array $productsToRecalculate, InventoryMovement $movement): void
   {
+    // Feature flag: permitir desactivar la optimización si hay problemas
+    $useIncrementalMode = config('app.cost_calculation_mode', 'incremental') === 'incremental';
+
     // Remove duplicates (same product-warehouse combination)
     $uniqueProducts = collect($productsToRecalculate)->unique(function ($item) {
       return $item['product_id'] . '-' . $item['warehouse_id'];
@@ -518,41 +527,224 @@ class ProductWarehouseStockService extends BaseService
       $productId = $item['product_id'];
       $warehouseId = $item['warehouse_id'];
 
-      // Estrategia: Contar cantidad de movimientos del producto-almacén
-      // Si ≤ 100 movimientos → SYNC (rápido, ~1-3 segundos)
-      // Si > 100 movimientos → ASYNC Job (evitar timeout)
-      $movementCount = InventoryMovement::whereHas('details', function ($q) use ($productId) {
-        $q->where('product_id', $productId);
-      })
-        ->where('warehouse_id', $warehouseId)
-        ->where('status', InventoryMovement::STATUS_APPROVED)
-        ->count();
+      if (!$useIncrementalMode) {
+        // LEGACY MODE: Siempre usar rebuild completo (comportamiento antiguo)
+        RecalculateProductCostJob::dispatch($productId, $warehouseId, $movement->movement_date);
+        continue;
+      }
 
-      if ($movementCount <= self::MOVEMENT_THRESHOLD) {
-        // SYNC: Producto con pocos movimientos, recalcular de inmediato
-        try {
-          $this->rebuildWeightedAverageCostHistory($productId, $warehouseId, $movement->movement_date);
-        } catch (\Exception $e) {
-          // Log error but don't fail the main operation
-          Log::error('Error al recalcular precios sincronicamente', [
-            'product_id' => $productId,
-            'warehouse_id' => $warehouseId,
-            'movement_id' => $movement->id,
-            'movement_count' => $movementCount,
-            'error' => $e->getMessage(),
-          ]);
-        }
-      } else {
-        // ASYNC: Producto con muchos movimientos (alta rotación), usar Job
+      // NUEVO FLUJO OPTIMIZADO: Detectar si es retroactivo
+      $isRetroactive = $this->isRetroactiveMovement($productId, $warehouseId, $movement->movement_date);
+
+      if ($isRetroactive) {
+        // CASO 1: Movimiento RETROACTIVO → Rebuild parcial con BULK INSERT
         RecalculateProductCostJob::dispatch($productId, $warehouseId, $movement->movement_date);
 
-        Log::info('Recálculo de precios despachado a Job asíncrono', [
+        Log::info('Movimiento retroactivo detectado - Rebuild con BULK INSERT', [
           'product_id' => $productId,
           'warehouse_id' => $warehouseId,
           'movement_id' => $movement->id,
-          'movement_count' => $movementCount,
+          'movement_date' => $movement->movement_date,
         ]);
+      } else {
+        // CASO 2: Movimiento RECIENTE → Enfoque INCREMENTAL (1 INSERT)
+        try {
+          $this->addIncrementalSnapshot($productId, $warehouseId, $movement);
+
+          Log::info('Snapshot incremental creado exitosamente', [
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'movement_id' => $movement->id,
+          ]);
+        } catch (\Exception $e) {
+          // Si falla el incremental, hacer fallback a rebuild completo
+          Log::error('Error en snapshot incremental - Fallback a rebuild', [
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'movement_id' => $movement->id,
+            'error' => $e->getMessage(),
+          ]);
+
+          RecalculateProductCostJob::dispatch($productId, $warehouseId, $movement->movement_date);
+        }
       }
+    }
+  }
+
+  /**
+   * Detecta si un movimiento es retroactivo comparando su fecha con el último snapshot
+   *
+   * Un movimiento es retroactivo si su fecha es ANTERIOR al último snapshot registrado.
+   * Esto sucede típicamente con:
+   * - Notas de crédito tardías
+   * - Ajustes de movimientos antiguos
+   * - Correcciones retroactivas
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param string $movementDate Fecha del movimiento en formato Y-m-d o Carbon
+   * @return bool True si es retroactivo, False si es reciente/cronológico
+   */
+  private function isRetroactiveMovement(int $productId, int $warehouseId, $movementDate): bool
+  {
+    // Obtener el último snapshot registrado
+    $lastSnapshot = WeightedAverageCostHistory::getLatestSnapshot($productId, $warehouseId);
+
+    if (!$lastSnapshot) {
+      // No hay historial previo → no puede ser retroactivo
+      return false;
+    }
+
+    // Comparar fechas
+    $movementDateCarbon = Carbon::parse($movementDate);
+    $lastSnapshotDate = Carbon::parse($lastSnapshot->movement_date);
+
+    // Es retroactivo si la fecha del movimiento es ANTERIOR al último snapshot
+    return $movementDateCarbon->lt($lastSnapshotDate);
+  }
+
+  /**
+   * Agrega un snapshot incremental para un movimiento reciente (no retroactivo)
+   *
+   * OPTIMIZACIÓN: En vez de DELETE + N INSERTs, hace solo 1 INSERT basado en el último estado.
+   * Esto reduce las escrituras en ~99% para movimientos normales del día a día.
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param InventoryMovement $movement
+   * @return void
+   * @throws Exception
+   */
+  private function addIncrementalSnapshot(int $productId, int $warehouseId, InventoryMovement $movement): void
+  {
+    DB::beginTransaction();
+    try {
+      // LOCK: Adquirir lock exclusivo para prevenir race conditions
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->lockForUpdate()
+        ->first();
+
+      if (!$stock) {
+        throw new Exception("No existe stock para producto {$productId} en almacén {$warehouseId}");
+      }
+
+      // Validar período contable cerrado (si la funcionalidad está habilitada)
+      if (config('app.accounting_periods_enabled', false)) {
+        $period = AccountingPeriod::getPeriodForDate($movement->movement_date);
+
+        if ($period && $period->is_closed) {
+          throw new ClosedPeriodException(
+            "No se puede registrar el movimiento porque la fecha ({$movement->movement_date->format('d/m/Y')}) " .
+            "corresponde al período cerrado '{$period->name}' " .
+            "({$period->start_date->format('d/m/Y')} - {$period->end_date->format('d/m/Y')}). " .
+            "Período cerrado el {$period->closed_at->format('d/m/Y H:i')} por {$period->closedByUser->name}. " .
+            "Contacta al área contable si necesitas hacer un ajuste."
+          );
+        }
+      }
+
+      // Obtener el último snapshot
+      $lastSnapshot = WeightedAverageCostHistory::getLatestSnapshot($productId, $warehouseId);
+
+      $previousStock = $lastSnapshot ? (float)$lastSnapshot->stock_after_movement : 0;
+      $previousAvgCost = $lastSnapshot ? (float)$lastSnapshot->average_cost_after_movement : 0;
+
+      // Obtener detalle del movimiento
+      $detail = $movement->details->where('product_id', $productId)->first();
+      if (!$detail) {
+        throw new Exception("No se encontró detalle del producto {$productId} en el movimiento");
+      }
+
+      $quantity = abs((float)$detail->quantity);
+      $unitCostOriginal = (float)($detail->unit_cost ?? 0);
+
+      // Convertir costo a PEN (moneda base)
+      $unitCost = $this->convertToBaseCurrency(
+        $unitCostOriginal,
+        $movement->currency_id,
+        $movement->exchange_rate
+      );
+
+      // Calcular nuevo stock y costo promedio
+      $isInbound = $movement->is_inbound;
+
+      if ($isInbound) {
+        // ENTRADA: Aumentar stock y recalcular costo promedio
+        $newStock = $previousStock + $quantity;
+
+        if ($unitCost > 0) {
+          // Aplicar fórmula de costo promedio ponderado
+          $newAvgCost = $newStock > 0
+            ? (($previousStock * $previousAvgCost) + ($quantity * $unitCost)) / $newStock
+            : 0;
+          $newAvgCost = round($newAvgCost, 2);
+        } else {
+          // Si el costo es 0 (ej: ajustes, donaciones), el costo promedio NO cambia
+          $newAvgCost = $previousAvgCost;
+        }
+      } else {
+        // SALIDA: Solo reducir stock, costo promedio NO cambia
+        $newStock = $previousStock - $quantity;
+        if ($newStock < 0) {
+          $newStock = 0;
+        }
+        $newAvgCost = $previousAvgCost;
+      }
+
+      // INSERT único del nuevo snapshot
+      WeightedAverageCostHistory::create([
+        'product_id' => $productId,
+        'warehouse_id' => $warehouseId,
+        'movement_id' => $movement->id,
+        'movement_date' => $movement->movement_date,
+        'movement_type' => $movement->movement_type,
+        'movement_number' => $movement->movement_number ?? null,
+        'quantity_in' => $isInbound ? $quantity : 0,
+        'quantity_out' => !$isInbound ? $quantity : 0,
+        'unit_cost_pen' => $unitCost,
+        'stock_after_movement' => $newStock,
+        'average_cost_after_movement' => $newAvgCost,
+        'recalculated_at' => null, // NULL = no es recálculo, es tiempo real
+      ]);
+
+      // Actualizar ProductWarehouseStock con los nuevos valores
+      $stock->quantity = $newStock;
+      $stock->average_cost = $newAvgCost;
+
+      if ($isInbound && $unitCost > 0) {
+        $stock->cost_price = $unitCost;
+      }
+
+      // Recalcular precios de venta basados en el nuevo average_cost
+      $profitMargin = $this->getProfitMargin();
+      $freightCommission = $this->getFreightCommission();
+      $minimumDiscount = $this->getMinimunDiscount();
+
+      if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
+        $salePrice = round(
+          ($newAvgCost / (1 - $profitMargin)) * (1 + $freightCommission),
+          2
+        );
+      } else {
+        $salePrice = round(
+          $newAvgCost / (1 - ($profitMargin + $freightCommission)),
+          2
+        );
+      }
+
+      $salePriceMin = $salePrice > 0 ? round($salePrice * (1 - $minimumDiscount), 2) : 0;
+
+      $stock->sale_price = $salePrice;
+      $stock->sale_price_min = $salePriceMin;
+      $stock->last_movement_date = $movement->movement_date;
+      $stock->updateAvailableQuantity();
+      $stock->save();
+
+      DB::commit();
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
     }
   }
 
@@ -1829,9 +2021,34 @@ class ProductWarehouseStockService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // LOCK: Adquirir lock exclusivo para prevenir race conditions
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->lockForUpdate()
+        ->first();
+
+      if (!$stock) {
+        throw new Exception("No existe stock para producto {$productId} en almacén {$warehouseId}");
+      }
+
       // Convertir $fromDate a Carbon si viene como string
       if ($fromDate && is_string($fromDate)) {
         $fromDate = \Carbon\Carbon::parse($fromDate);
+      }
+
+      // Validar período contable cerrado (si la funcionalidad está habilitada)
+      if (config('app.accounting_periods_enabled', false) && $fromDate) {
+        $period = AccountingPeriod::getPeriodForDate($fromDate);
+
+        if ($period && $period->is_closed) {
+          throw new ClosedPeriodException(
+            "No se puede recalcular el historial porque la fecha de inicio ({$fromDate->format('d/m/Y')}) " .
+            "corresponde al período cerrado '{$period->name}' " .
+            "({$period->start_date->format('d/m/Y')} - {$period->end_date->format('d/m/Y')}). " .
+            "Período cerrado el {$period->closed_at->format('d/m/Y H:i')} por {$period->closedByUser->name}. " .
+            "Contacta al área contable si necesitas hacer un ajuste."
+          );
+        }
       }
 
       // PASO 1: Determinar el alcance del recálculo
@@ -1879,9 +2096,12 @@ class ProductWarehouseStockService extends BaseService
         throw new Exception("Error al obtener historial de movimientos para producto $productId en almacén $warehouseId");
       }
 
-      // PASO 5: Insertar snapshots en la tabla materializada
+      // PASO 5: Insertar snapshots en la tabla materializada (OPTIMIZADO con BULK INSERT)
       $insertedCount = 0;
       $skippedCount = 0;
+      $snapshots = []; // Array para bulk insert
+
+      $now = now(); // Reutilizar el mismo timestamp para todos los snapshots
 
       foreach ($historyData['history'] as $item) {
         // Si es recálculo parcial, solo insertar movimientos >= $fromDate
@@ -1893,8 +2113,8 @@ class ProductWarehouseStockService extends BaseService
           }
         }
 
-        // Crear snapshot
-        WeightedAverageCostHistory::create([
+        // Agregar al array para bulk insert
+        $snapshots[] = [
           'product_id' => $productId,
           'warehouse_id' => $warehouseId,
           'movement_id' => $item['movement_id'],
@@ -1906,10 +2126,16 @@ class ProductWarehouseStockService extends BaseService
           'unit_cost_pen' => $item['unit_cost_in_pen'] ?? 0,
           'stock_after_movement' => $item['stock_after_movement'],
           'average_cost_after_movement' => $item['average_cost_after_movement'],
-          'recalculated_at' => now(),
-        ]);
+          'recalculated_at' => $now,
+          'created_at' => $now,
+          'updated_at' => $now,
+        ];
+      }
 
-        $insertedCount++;
+      // BULK INSERT: Una sola query para todos los snapshots
+      if (!empty($snapshots)) {
+        DB::table('weighted_average_cost_history')->insert($snapshots);
+        $insertedCount = count($snapshots);
       }
 
       // PASO 6: Actualizar ProductWarehouseStock con los valores finales calculados
