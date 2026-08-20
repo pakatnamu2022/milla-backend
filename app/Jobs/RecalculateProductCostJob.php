@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
 
 class RecalculateProductCostJob implements ShouldQueue
@@ -25,6 +26,22 @@ class RecalculateProductCostJob implements ShouldQueue
   )
   {
     $this->onQueue('product_cost_recalculation');
+  }
+
+  /**
+   * Middleware para prevenir que 2 workers procesen el mismo producto+almacén
+   * en paralelo (race condition).
+   *
+   * Si ya hay un job corriendo para este producto+almacén, este job fallará
+   * inmediatamente y será reintentado según la política de $tries.
+   */
+  public function middleware(): array
+  {
+    return [
+      (new WithoutOverlapping("cost_calc_{$this->productId}_{$this->warehouseId}"))
+        ->dontRelease()      // Si está locked, fallar inmediatamente (no re-encolar)
+        ->expireAfter(600)   // Lock expira en 10 min (= $timeout del job)
+    ];
   }
 
   /**
