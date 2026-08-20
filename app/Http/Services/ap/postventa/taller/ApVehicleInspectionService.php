@@ -154,7 +154,7 @@ class ApVehicleInspectionService extends BaseService
   {
     return DB::transaction(function () use ($data) {
       $inspection = $this->find($data['id']);
-      $workOrder = ApWorkOrder::findOrFail($data['ap_work_order_id']);
+      $workOrder = $inspection->createdByWorkOrder;
 
       $validateReceipt = $workOrder->shouldValidateReceipt();
 
@@ -166,6 +166,7 @@ class ApVehicleInspectionService extends BaseService
 
       // Update allow_editing_inspection to true to allow editing
       $workOrder->update([
+        'mileage' => $data['mileage'] ?? $workOrder->mileage,
         'allow_editing_inspection' => false,
       ]);
 

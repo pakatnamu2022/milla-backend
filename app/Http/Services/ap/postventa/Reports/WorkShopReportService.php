@@ -110,8 +110,7 @@ class WorkShopReportService
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
         $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
-      }
-      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
+      } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
         $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows) {
           if ($internalNote->workOrder) {
@@ -257,8 +256,8 @@ class WorkShopReportService
       'marca' => $vehicle?->model?->family?->brand?->name ?? '',
       'modelo_vehiculo' => $vehicle?->model?->family?->description ?? '',
       'kilometraje' => $vehicle?->mileage ?? '',
-      'placa' => $workOrder->vehicle_plate ?? '',
-      'vin' => $workOrder->vehicle_vin ?? '',
+      'placa' => $workOrder->vehicle?->plate ?? '',
+      'vin' => $workOrder->vehicle?->vin ?? '',
       'concesionario' => $workOrder->sede?->abreviatura ?? '',
       'tipo_ingreso' => $workOrder->appointment_planning_id ? 'CON CITA' : 'SIN CITA',
       'numero_ot' => $workOrder->correlative ?? '',

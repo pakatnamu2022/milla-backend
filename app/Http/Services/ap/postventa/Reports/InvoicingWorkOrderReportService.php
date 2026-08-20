@@ -341,7 +341,7 @@ class InvoicingWorkOrderReportService
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
-      'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+      'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'estado' => $estado,
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
@@ -419,7 +419,7 @@ class InvoicingWorkOrderReportService
       return [
         'taller' => $workOrder->sede?->abreviatura ?? '',
         'numero_ot' => $workOrder->correlative ?? '',
-        'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+        'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
         'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
         'estado' => $estado,
         'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
@@ -775,7 +775,7 @@ class InvoicingWorkOrderReportService
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
-      'placa_vehiculo' => $workOrder->vehicle_plate ?? '',
+      'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'estado' => $workOrder->status?->description ?? '',
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
