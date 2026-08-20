@@ -1609,6 +1609,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Purchase Receptions - Recepciones de Compra
       Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchaseReceptions/mark-defective-products', [PurchaseReceptionController::class, 'markDefectiveProducts']);
+      Route::post('purchaseReceptions/unmark-defective-product', [PurchaseReceptionController::class, 'unmarkDefectiveProduct']);
       Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
         'index',
         'show',
@@ -1765,7 +1767,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
       Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
-      
+
       // Objectives Dashboard - Dashboard de Objetivos Postventa
       Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
       Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);

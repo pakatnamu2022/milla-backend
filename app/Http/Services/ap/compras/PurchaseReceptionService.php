@@ -466,7 +466,14 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
       // 6. Actualizar cantidades en PurchaseOrderItem (solo para items ORDERED)
       if ($receptionDetail->reception_type === PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED) {
-        $orderItem->quantity_received += $quantityReceived;
+        // Cuando is_credit_note = true, TODAS las unidades se reciben físicamente
+        // (aunque algunas estén defectuosas y vayan a NC después)
+        // Esto mantiene consistencia con removeInTransitStock y el stock físico
+        $quantityToRecord = $receptionDetail->is_credit_note
+          ? $quantityReceived + $observedQuantity
+          : $quantityReceived;
+
+        $orderItem->quantity_received += $quantityToRecord;
         $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
         $orderItem->save();
 
@@ -563,5 +570,324 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
   {
     $supplierOrderService = new ApSupplierOrderService();
     $supplierOrderService->updateReceptionType($supplierOrder);
+  }
+
+  /**
+   * Marca productos como defectuosos después de la facturación
+   * Permite actualizar una recepción ya facturada cuando se detectan productos defectuosos
+   * que generarán nota de crédito
+   *
+   * @param array $data Datos con los items a marcar como defectuosos
+   * @return array Resultado de la operación
+   * @throws Exception
+   */
+  public function markDefectiveProducts(array $data): array
+  {
+    DB::beginTransaction();
+    try {
+      $updatedItems = [];
+      $stockService = app(ProductWarehouseStockService::class);
+
+      foreach ($data['items'] as $item) {
+        $receptionDetail = PurchaseReceptionDetail::with([
+          'reception.purchaseOrder.items',
+          'product'
+        ])->findOrFail($item['reception_detail_id']);
+
+        $reception = $receptionDetail->reception;
+        $purchaseOrder = $reception->purchaseOrder;
+
+        // VALIDACIÓN 1: La recepción debe estar facturada (contabilizada)
+        if (!$purchaseOrder || !$purchaseOrder->invoice_dynamics) {
+          throw new Exception(
+            "El producto '{$receptionDetail->product->name}' no puede ser marcado como defectuoso " .
+            "porque la recepción aún no está facturada/contabilizada."
+          );
+        }
+
+        // CAPTURAR VALOR ANTERIOR (el que está en BD ahora) ANTES de cualquier modificación
+        // Este es el valor que usaremos para calcular el DELTA
+        $previousObservedQuantity = $receptionDetail->observed_quantity;
+
+        // VALIDACIÓN 2: La cantidad defectuosa total no puede ser mayor a la cantidad total disponible
+        $defectiveQuantity = (float)$item['defective_quantity'];
+        $totalAvailable = $receptionDetail->quantity_received + $receptionDetail->observed_quantity;
+
+        if ($defectiveQuantity > $totalAvailable) {
+          throw new Exception(
+            "La cantidad defectuosa total ({$defectiveQuantity}) no puede ser mayor a la cantidad total disponible " .
+            "({$totalAvailable}) para el producto '{$receptionDetail->product->name}'."
+          );
+        }
+
+        // Calcular nueva distribución
+        // newObservedQuantity será igual a defectiveQuantity (lo que el usuario quiere marcar como defectuoso)
+        // newQuantityReceived será el resto
+        $newQuantityReceived = $totalAvailable - $defectiveQuantity;
+        $newObservedQuantity = $defectiveQuantity;
+
+        // VALIDACIÓN 3: La suma total debe mantenerse igual (no cambiar stock físico ya contabilizado)
+        $originalTotal = $receptionDetail->quantity_received + $receptionDetail->observed_quantity;
+        $newTotal = $newQuantityReceived + $newObservedQuantity;
+
+        if ($originalTotal != $newTotal) {
+          throw new Exception(
+            "Error de cálculo: La suma total ha cambiado. Original: {$originalTotal}, Nuevo: {$newTotal}. " .
+            "Esto no debería ocurrir."
+          );
+        }
+
+        // Guardar valores originales para auditoría
+        $originalData = [
+          'quantity_received' => $receptionDetail->quantity_received,
+          'observed_quantity' => $receptionDetail->observed_quantity,
+          'is_credit_note' => $receptionDetail->is_credit_note,
+        ];
+
+        // ACTUALIZACIÓN 1: Actualizar purchase_reception_details
+        $receptionDetail->update([
+          'quantity_received' => $newQuantityReceived,
+          'observed_quantity' => $newObservedQuantity,
+          'is_credit_note' => true,
+          'reason_observation' => $item['reason_observation'],
+        ]);
+
+        // ACTUALIZACIÓN 2: Actualizar product_warehouse_stock.quantity_pending_credit_note
+        // Calcular DELTA (diferencia entre nuevo valor y anterior)
+        $deltaObserved = $newObservedQuantity - $previousObservedQuantity;
+
+        // Aplicar solo el DELTA al stock
+        if ($deltaObserved > 0) {
+          // Si aumentó la cantidad observada, sumar la diferencia
+          $stockService->addPendingCreditNote(
+            $receptionDetail->product_id,
+            $reception->warehouse_id,
+            $deltaObserved
+          );
+        } elseif ($deltaObserved < 0) {
+          // Si disminuyó la cantidad observada, restar la diferencia (valor absoluto)
+          $stockService->removePendingCreditNote(
+            $receptionDetail->product_id,
+            $reception->warehouse_id,
+            abs($deltaObserved)
+          );
+        }
+        // Si deltaObserved == 0, no hacer nada (no cambió)
+
+        // ACTUALIZACIÓN 3: Actualizar purchase_order_items para mantener consistencia
+        // Buscar el purchase_order_item correspondiente
+        $orderItem = $purchaseOrder->items()
+          ->where('product_id', $receptionDetail->product_id)
+          ->first();
+
+        if ($orderItem) {
+          // Como ahora is_credit_note = true, quantity_received debe incluir las defectuosas
+          // Pero como ya estaba contabilizado, solo necesitamos ajustar si es necesario
+          // En realidad, con la corrección del bug, esto ya debería estar bien
+          // Pero para casos antiguos, podemos recalcular:
+
+          // Recalcular quantity_received basado en TODAS las recepciones de este producto
+          $totalReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($purchaseOrder) {
+            $query->where('purchase_order_id', $purchaseOrder->id)
+              ->where('status', 1)
+              ->whereNull('deleted_at');
+          })
+            ->where('product_id', $receptionDetail->product_id)
+            ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
+            ->get()
+            ->sum(function ($detail) {
+              // Sumar correctamente según is_credit_note
+              return $detail->is_credit_note
+                ? $detail->quantity_received + $detail->observed_quantity
+                : $detail->quantity_received;
+            });
+
+          $orderItem->quantity_received = $totalReceived;
+          $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+          $orderItem->save();
+        }
+
+        // Registrar el cambio en el array de respuesta
+        $updatedItems[] = [
+          'product_id' => $receptionDetail->product_id,
+          'product_name' => $receptionDetail->product->name,
+          'original' => $originalData,
+          'updated' => [
+            'quantity_received' => $newQuantityReceived,
+            'observed_quantity' => $newObservedQuantity,
+            'is_credit_note' => true,
+          ],
+          'defective_quantity' => $defectiveQuantity,
+        ];
+
+        // Crear log de auditoría
+        \Log::info('Producto marcado como defectuoso post-facturación', [
+          'reception_id' => $reception->id,
+          'reception_number' => $reception->reception_number,
+          'purchase_order_id' => $purchaseOrder->id,
+          'purchase_order_number' => $purchaseOrder->number,
+          'product_id' => $receptionDetail->product_id,
+          'product_name' => $receptionDetail->product->name,
+          'defective_quantity' => $defectiveQuantity,
+          'original_data' => $originalData,
+          'user_id' => Auth::id(),
+          'reason' => $item['reason_observation'],
+        ]);
+      }
+
+      DB::commit();
+
+      return [
+        'message' => 'Productos marcados como defectuosos correctamente',
+        'items' => $updatedItems,
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Revierte el marcado de defectuoso de un producto
+   * Pasa toda la cantidad (received + observed) a quantity_received
+   * y pone observed_quantity = 0, is_credit_note = false
+   *
+   * @param int $receptionDetailId ID del detalle de recepción
+   * @return array Resultado de la operación
+   * @throws Exception
+   */
+  public function unmarkDefectiveProduct(int $receptionDetailId): array
+  {
+    DB::beginTransaction();
+    try {
+      $stockService = app(ProductWarehouseStockService::class);
+
+      // Obtener el detalle de recepción con sus relaciones
+      $receptionDetail = PurchaseReceptionDetail::with([
+        'reception.purchaseOrder.items',
+        'product'
+      ])->findOrFail($receptionDetailId);
+
+      $reception = $receptionDetail->reception;
+      $purchaseOrder = $reception->purchaseOrder;
+
+      // VALIDACIÓN 1: El producto debe estar marcado como is_credit_note = true
+      if (!$receptionDetail->is_credit_note) {
+        throw new Exception(
+          "El producto '{$receptionDetail->product->name}' no está marcado como defectuoso. " .
+          "No hay nada que revertir."
+        );
+      }
+
+      // VALIDACIÓN 2: La recepción debe estar facturada
+      if (!$purchaseOrder || !$purchaseOrder->invoice_dynamics) {
+        throw new Exception(
+          "El producto no puede ser revertido porque la recepción no está facturada."
+        );
+      }
+
+      // VALIDACIÓN 3: No debe existir una NC ya procesada en Dynamics
+      if (!empty($purchaseOrder->credit_note_dynamics)) {
+        throw new Exception(
+          "No se puede revertir porque ya existe una nota de crédito procesada en Dynamics " .
+          "({$purchaseOrder->credit_note_dynamics}). Esta operación no se puede deshacer."
+        );
+      }
+
+      // Capturar valores originales para auditoría
+      $originalData = [
+        'quantity_received' => $receptionDetail->quantity_received,
+        'observed_quantity' => $receptionDetail->observed_quantity,
+        'is_credit_note' => $receptionDetail->is_credit_note,
+      ];
+
+      // Capturar el valor de observed_quantity ANTES de modificar
+      $previousObservedQuantity = $receptionDetail->observed_quantity;
+
+      // Calcular nueva distribución: TODO a quantity_received
+      $newQuantityReceived = $receptionDetail->quantity_received + $receptionDetail->observed_quantity;
+      $newObservedQuantity = 0;
+
+      // ACTUALIZACIÓN 1: Actualizar purchase_reception_details
+      $receptionDetail->update([
+        'quantity_received' => $newQuantityReceived,
+        'observed_quantity' => $newObservedQuantity,
+        'is_credit_note' => false,
+        'reason_observation' => null, // Limpiar la razón
+      ]);
+
+      // ACTUALIZACIÓN 2: Restar de product_warehouse_stock.quantity_pending_credit_note
+      // Como pasamos de observed_quantity > 0 a 0, debemos restar la cantidad anterior
+      if ($previousObservedQuantity > 0) {
+        $stockService->removePendingCreditNote(
+          $receptionDetail->product_id,
+          $reception->warehouse_id,
+          $previousObservedQuantity
+        );
+      }
+
+      // ACTUALIZACIÓN 3: Recalcular purchase_order_items
+      $orderItem = $purchaseOrder->items()
+        ->where('product_id', $receptionDetail->product_id)
+        ->first();
+
+      if ($orderItem) {
+        // Recalcular quantity_received basado en TODAS las recepciones de este producto
+        $totalReceived = PurchaseReceptionDetail::whereHas('reception', function ($query) use ($purchaseOrder) {
+          $query->where('purchase_order_id', $purchaseOrder->id)
+            ->where('status', 1)
+            ->whereNull('deleted_at');
+        })
+          ->where('product_id', $receptionDetail->product_id)
+          ->where('reception_type', PurchaseReceptionDetail::RECEPTION_TYPE_ORDERED)
+          ->get()
+          ->sum(function ($detail) {
+            // Sumar correctamente según is_credit_note
+            return $detail->is_credit_note
+              ? $detail->quantity_received + $detail->observed_quantity
+              : $detail->quantity_received;
+          });
+
+        $orderItem->quantity_received = $totalReceived;
+        $orderItem->quantity_pending = $orderItem->quantity - $orderItem->quantity_received;
+        $orderItem->save();
+      }
+
+      // Crear log de auditoría
+      \Log::info('Marcado de defectuoso revertido', [
+        'reception_id' => $reception->id,
+        'reception_number' => $reception->reception_number,
+        'purchase_order_id' => $purchaseOrder->id,
+        'purchase_order_number' => $purchaseOrder->number,
+        'product_id' => $receptionDetail->product_id,
+        'product_name' => $receptionDetail->product->name,
+        'original_data' => $originalData,
+        'new_data' => [
+          'quantity_received' => $newQuantityReceived,
+          'observed_quantity' => $newObservedQuantity,
+          'is_credit_note' => false,
+        ],
+        'user_id' => Auth::id(),
+      ]);
+
+      DB::commit();
+
+      return [
+        'message' => 'Marcado de defectuoso revertido correctamente',
+        'data' => [
+          'product_id' => $receptionDetail->product_id,
+          'product_name' => $receptionDetail->product->name,
+          'original' => $originalData,
+          'updated' => [
+            'quantity_received' => $newQuantityReceived,
+            'observed_quantity' => $newObservedQuantity,
+            'is_credit_note' => false,
+          ],
+        ],
+      ];
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 }

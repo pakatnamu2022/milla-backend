@@ -17,6 +17,7 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\GeneralMaster;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
 use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
@@ -2079,24 +2080,45 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 1. Obtener la cotización original con sus detalles
       $originalQuotation = $this->find($id);
 
-      if ($originalQuotation->area_id !== ApMasters::AREA_TALLER) {
-        throw new Exception('Solo se pueden duplicar cotizaciones del área de Taller.');
+      // Obtener el tipo de cambio óptimo
+      $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+        Carbon::now()->toDateString(), // Fecha actual
+        TypeCurrency::PEN_ID,
+        TypeCurrency::USD_ID,
+        ExchangeRate::TYPE_VENTA
+      );
+
+      if (!$optimalExchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
       }
 
-      // 2. Convertir a array y preparar datos para la nueva cotización
+      // Obtener el freight_commission (comisión de flete) del GeneralMaster
+      $freightCommissionMaster = GeneralMaster::find(GeneralMaster::FREIGHT_COMMISSION_ID);
+      if (!$freightCommissionMaster) {
+        throw new Exception('No se encontró la configuración de comisión de flete (FREIGHT_COMMISSION).');
+      }
+      $freightCommission = 1 + (float)$freightCommissionMaster->value;
+
+      // 2. Obtener el almacén físico de la sede para consultar precios y stock actuales
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id);
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén físico para la sede de la cotización.');
+      }
+
+      // 3. Convertir a array y preparar datos para la nueva cotización
       $newQuotationData = $originalQuotation->toArray();
 
-      // 3. Remover campos que no se deben copiar (auto-generados)
+      // 4. Remover campos que no se deben copiar (auto-generados)
       unset($newQuotationData['id']);
       unset($newQuotationData['quotation_number']);
       unset($newQuotationData['created_at']);
       unset($newQuotationData['updated_at']);
       unset($newQuotationData['deleted_at']);
 
-      // 4. Generar nuevo número de cotización
+      // 5. Generar nuevo número de cotización
       $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
 
-      // 5. Resetear campos específicos según tus requerimientos
+      // 6. Resetear campos específicos - la cotización clonada siempre se crea APERTURADA
       $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
       $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
       $newQuotationData['status_id'] = ApMasters::STATUS_ORDER_QUOTE_APERTURADO;
@@ -2114,11 +2136,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $newQuotationData['discarded_at'] = null;
       $newQuotationData['is_fully_paid'] = false;
       $newQuotationData['emails_sent_count'] = 0;
+      $newQuotationData['deductible_amount'] = 0;
+      $newQuotationData['exchange_rate_id'] = $optimalExchangeRate->id;
+      $newQuotationData['exchange_rate'] = $optimalExchangeRate->rate;
 
-      // 6. Crear la nueva cotización
+      // Resetear totales en 0 (se recalcularán después basándose en los detalles nuevos)
+      $newQuotationData['subtotal'] = 0;
+      $newQuotationData['discount_amount'] = 0;
+      $newQuotationData['discount_percentage'] = 0;
+      $newQuotationData['tax_amount'] = 0;
+      $newQuotationData['total_amount'] = 0;
+
+      // 7. Crear la nueva cotización (los totales se calcularán después)
       $newQuotation = ApOrderQuotations::create($newQuotationData);
 
-      // 7. Duplicar todos los detalles
+      // 8. Clonar detalles con precios y stock actualizados
       foreach ($originalQuotation->details as $detail) {
         $newDetailData = $detail->toArray();
 
@@ -2129,13 +2161,90 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         unset($newDetailData['updated_at']);
         unset($newDetailData['deleted_at']);
 
+        // Resetear descuentos y deducibles - la clonación es SIN descuentos
+        $newDetailData['discount_percentage'] = 0;
+        $newDetailData['is_deductible'] = false;
+
+        // Si es un producto (no mano de obra), actualizar precio y stock
+        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT && $detail->product_id) {
+          // Consultar el stock actual del producto en el almacén de la sede
+          $currentStock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+            ->where('product_id', $detail->product_id)
+            ->first();
+
+          if ($currentStock) {
+            // Determinar el precio unitario actual
+            $salePrice = $currentStock->sale_price ?? 0;
+
+            // Si sale_price es 0 PERO retail_price_external > 0, calcular precio con fórmula
+            if ($salePrice == 0 && isset($detail->retail_price_external) && $detail->retail_price_external > 0) {
+              // Precio = retail_price_external * tipo_cambio * freight_commission
+              $newDetailData['unit_price'] = round(
+                $detail->retail_price_external * $optimalExchangeRate->rate * $freightCommission,
+                2
+              );
+            } else {
+              // Usar el precio de venta actual del stock
+              $newDetailData['unit_price'] = $salePrice;
+            }
+
+            $newDetailData['sale_price_min_original'] = $currentStock->sale_price_min ?? 0;
+
+            // Determinar supply_type según disponibilidad de stock
+            if ($currentStock->available_quantity > 0 || $currentStock->quantity > 0) {
+              $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_STOCK;
+            } else {
+              $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL;
+            }
+          } else {
+            // Si no existe en el almacén, intentar calcular con retail_price_external
+            if (isset($detail->retail_price_external) && $detail->retail_price_external > 0) {
+              $newDetailData['unit_price'] = round(
+                $detail->retail_price_external * $optimalExchangeRate->rate * $freightCommission,
+                2
+              );
+            } else {
+              $newDetailData['unit_price'] = 0;
+            }
+
+            $newDetailData['sale_price_min_original'] = 0;
+            $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL;
+          }
+
+          // Recalcular totales del detalle sin descuento
+          $quantity = $newDetailData['quantity'] ?? 0;
+          $unitPrice = $newDetailData['unit_price'] ?? 0;
+
+          // total_cost = cantidad * precio unitario (sin descuento)
+          $newDetailData['total_cost'] = round($quantity * $unitPrice, 2);
+
+          // net_amount = total_cost (sin descuento es igual)
+          $newDetailData['net_amount'] = $newDetailData['total_cost'];
+
+          // tax_amount = net_amount * 0.18 (IGV 18%)
+          $newDetailData['tax_amount'] = round($newDetailData['net_amount'] * 0.18, 2);
+        } else {
+          // Para mano de obra o materiales, mantener los datos originales pero sin descuento
+          $quantity = $newDetailData['quantity'] ?? 0;
+          $unitPrice = $newDetailData['unit_price'] ?? 0;
+
+          $newDetailData['total_cost'] = round($quantity * $unitPrice, 2);
+          $newDetailData['net_amount'] = $newDetailData['total_cost'];
+          $newDetailData['tax_amount'] = round($newDetailData['net_amount'] * 0.18, 2);
+        }
+
         // Crear el nuevo detalle asociado a la nueva cotización
         $newQuotation->details()->create($newDetailData);
       }
 
-      // 8. Retornar la nueva cotización con sus relaciones cargadas
-      return new
-      ApOrderQuotationsResource($newQuotation->load([
+      // 9. Refrescar los detalles y recalcular totales de la cotización
+      $newQuotation->load('details');
+      $newQuotation->calculateTotals();
+      $newQuotation->calculateIsSoldAtValidPrice();
+      $newQuotation->save();
+
+      // 10. Retornar la nueva cotización con sus relaciones cargadas
+      return new ApOrderQuotationsResource($newQuotation->load([
         'vehicle',
         'createdBy',
         'details.product'
