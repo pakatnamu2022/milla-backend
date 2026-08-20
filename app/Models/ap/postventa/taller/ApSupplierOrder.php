@@ -50,7 +50,7 @@ class ApSupplierOrder extends Model
   ];
 
   const filters = [
-    'search' => ['order_number', 'order_number_external', 'supplier.num_doc', 'supplier.full_name'],
+    'search' => ['order_number', 'order_number_external', 'supplier.num_doc', 'supplier.full_name', 'receptions.purchaseOrder.number'],
     'supplier_id' => '=',
     'sede_id' => '=',
     'warehouse_id' => '=',

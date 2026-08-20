@@ -5,7 +5,9 @@ namespace App\Http\Controllers\ap\compras;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\compras\ApprovePurchaseReceptionRequest;
 use App\Http\Requests\ap\compras\IndexPurchaseReceptionRequest;
+use App\Http\Requests\ap\compras\MarkDefectiveProductsRequest;
 use App\Http\Requests\ap\compras\StorePurchaseReceptionRequest;
+use App\Http\Requests\ap\compras\UnmarkDefectiveProductRequest;
 use App\Http\Requests\ap\compras\UpdatePurchaseReceptionRequest;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
 
@@ -87,6 +89,35 @@ class PurchaseReceptionController extends Controller
   {
     try {
       return $this->success($this->service->getByPurchaseOrder($purchaseOrderId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Marca productos como defectuosos después de la facturación
+   * Permite ajustar una recepción ya facturada cuando se detectan productos defectuosos
+   * que generarán nota de crédito
+   */
+  public function markDefectiveProducts(MarkDefectiveProductsRequest $request)
+  {
+    try {
+      $result = $this->service->markDefectiveProducts($request->validated());
+      return $this->success($result);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Revierte el marcado de defectuoso de un producto
+   * Pasa toda la cantidad a quantity_received y limpia is_credit_note
+   */
+  public function unmarkDefectiveProduct(UnmarkDefectiveProductRequest $request)
+  {
+    try {
+      $result = $this->service->unmarkDefectiveProduct($request->input('reception_detail_id'));
+      return $this->success($result);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
