@@ -120,6 +120,8 @@ class ApVehicleInspection extends Model
     'pad_replace_disc_resurface' => 'boolean',
     'tire_rotation' => 'boolean',
     // Explicación de resultados
+    'explanation_work_performed' => 'boolean',
+    'price_explanation' => 'boolean',
     'confirm_additional_work' => 'boolean',
     'clarification_customer_concerns' => 'boolean',
     'exterior_cleaning' => 'boolean',
