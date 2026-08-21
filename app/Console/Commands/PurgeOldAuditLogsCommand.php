@@ -12,15 +12,17 @@ class PurgeOldAuditLogsCommand extends Command
   protected $signature = 'audit-logs:purge
                           {--months=3 : Número de meses hacia atrás a conservar}
                           {--chunk=5000 : Tamaño del lote de borrado}
-                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}';
+                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}
+                          {--remove-gets : También eliminar todos los registros con método GET}';
 
-  protected $description = 'Purga registros antiguos de la tabla audit_logs en lotes para evitar bloqueos';
+  protected $description = 'Purga registros antiguos de la tabla audit_logs y opcionalmente elimina registros GET';
 
   public function handle(): int
   {
     $months = (int) $this->option('months');
     $chunkSize = (int) $this->option('chunk');
     $dryRun = $this->option('dry-run');
+    $removeGets = $this->option('remove-gets');
 
     // Validaciones
     if ($months < 1) {
@@ -40,17 +42,34 @@ class PurgeOldAuditLogsCommand extends Command
     $this->line("   Fecha de corte: {$cutoffDate->format('Y-m-d H:i:s')}");
     $this->line("   Conservar: últimos {$months} meses");
     $this->line("   Tamaño de lote: {$chunkSize}");
+    if ($removeGets) {
+      $this->line("   También eliminar: registros con método GET");
+    }
     $this->line('');
 
-    // Contar registros candidatos a purga
-    $totalToPurge = AuditLogs::where('created_at', '<', $cutoffDate)->count();
+    // Contar registros candidatos a purga por fecha
+    $totalOldRecords = AuditLogs::where('created_at', '<', $cutoffDate)->count();
+    $totalGetRecords = $removeGets ? AuditLogs::where('method', 'GET')->count() : 0;
+    $totalToPurge = $totalOldRecords;
 
-    if ($totalToPurge === 0) {
-      $this->info('✅ No hay registros antiguos para purgar.');
-      return 0;
+    if ($removeGets) {
+      $this->info("📊 Registros antiguos (por fecha): " . number_format($totalOldRecords));
+      $this->info("📊 Registros con método GET: " . number_format($totalGetRecords));
+      // No sumamos porque puede haber overlapping
+      $totalCombined = AuditLogs::where(function ($query) use ($cutoffDate) {
+        $query->where('created_at', '<', $cutoffDate)
+          ->orWhere('method', 'GET');
+      })->count();
+      $totalToPurge = $totalCombined;
+      $this->info("📊 Total candidatos a purga: " . number_format($totalToPurge));
+    } else {
+      $this->info("📊 Registros candidatos a purga: " . number_format($totalToPurge));
     }
 
-    $this->info("📊 Registros candidatos a purga: " . number_format($totalToPurge));
+    if ($totalToPurge === 0) {
+      $this->info('✅ No hay registros para purgar.');
+      return 0;
+    }
 
     // Si es dry-run, terminar aquí
     if ($dryRun) {
@@ -62,7 +81,7 @@ class PurgeOldAuditLogsCommand extends Command
 
     // Confirmación antes de proceder
     $this->line('');
-    $this->warn('⚠️  Se procederá a ELIMINAR permanentemente los registros antiguos.');
+    $this->warn('⚠️  Se procederá a ELIMINAR permanentemente los registros.');
 
     // Proceso de borrado en lotes
     $this->line('');
@@ -74,10 +93,19 @@ class PurgeOldAuditLogsCommand extends Command
     while (true) {
       $iteration++;
 
-      // Borrar un lote
-      $deleted = AuditLogs::where('created_at', '<', $cutoffDate)
-        ->limit($chunkSize)
-        ->delete();
+      // Borrar un lote (registros antiguos y/o GET)
+      $query = AuditLogs::query();
+
+      if ($removeGets) {
+        $query->where(function ($q) use ($cutoffDate) {
+          $q->where('created_at', '<', $cutoffDate)
+            ->orWhere('method', 'GET');
+        });
+      } else {
+        $query->where('created_at', '<', $cutoffDate);
+      }
+
+      $deleted = $query->limit($chunkSize)->delete();
 
       if ($deleted === 0) {
         break;
@@ -112,6 +140,7 @@ class PurgeOldAuditLogsCommand extends Command
       'cutoff_date' => $cutoffDate->toDateTimeString(),
       'months_retained' => $months,
       'chunk_size' => $chunkSize,
+      'remove_gets' => $removeGets,
       'total_deleted' => $totalDeleted,
       'iterations' => $iteration,
       'duration_seconds' => $duration,
