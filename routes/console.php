@@ -230,8 +230,26 @@ Schedule::command('internal-notes:verify-migration --all')
 
 // Purgar registros antiguos de audit_logs (conservar últimos 3 meses)
 // Ejecuta diariamente a las 3:00 AM (horario de bajo tráfico)
-Schedule::command('audit-logs:purge')
+Schedule::command('audit-logs:purge --months=3')
   ->dailyAt('03:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Purgar y compactar tabla audit_logs (conservar últimos 3 meses + OPTIMIZE TABLE)
+// Ejecuta mensualmente el día 1 a las 3:00 AM
+Schedule::command('audit-logs:purge --months=3 --optimize')
+  ->monthlyOn(1, '03:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Purgar failed_jobs antiguos (conservar últimas 2 semanas = 336 horas)
+// Ejecuta semanalmente los domingos a las 3:00 AM
+Schedule::command('queue:prune-failed --hours=336')
+  ->weekly()
+  ->sundays()
+  ->at('03:00')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();
