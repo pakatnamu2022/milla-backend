@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Http\Resources\ap\postventa\taller;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * AppointmentPlanningListResource - Resource optimizado para listados
+ */
+class AppointmentPlanningListResource extends JsonResource
+{
+  public function toArray(Request $request): array
+  {
+    return [
+      // Campos principales
+      'id' => $this->id,
+      'full_name_client' => $this->full_name_client,
+      'plate' => $this->vehicle?->plate,
+      'type_planning_name' => $this->typePlanning?->description,
+      'type_operation_appointment_name' => $this->typeOperationAppointment?->description,
+      'email_client' => $this->email_client,
+      'phone_client' => $this->phone_client,
+
+      // Fechas y horas de atención
+      'date_appointment' => $this->date_appointment,
+      'time_appointment' => $this->time_appointment,
+
+      // Fechas y horas de entrega
+      'delivery_date' => $this->delivery_date,
+      'delivery_time' => $this->delivery_time,
+
+      // Descripción
+      'description' => $this->description,
+
+      // Usuarios
+      'advisor_name' => $this->advisor?->nombre_completo,
+      'created_by_name' => $this->creator?->name,
+
+      // Flag
+      'is_taken' => (bool)$this->is_taken,
+    ];
+  }
+}
