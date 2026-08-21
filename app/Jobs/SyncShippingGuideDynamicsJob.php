@@ -15,6 +15,7 @@ use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\TransferReception;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +66,7 @@ use Illuminate\Support\Facades\Log;
  *   shipping_guide_sync                    → default (COMERCIAL + CONSIGNACION / OTROS)
  * tries: 3 | timeout: 300 s
  */
-class SyncShippingGuideDynamicsJob implements ShouldQueue
+class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
 {
   use Queueable;
 
@@ -86,6 +87,35 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue
     string $queue = self::QUEUE_DEFAULT
   ) {
     $this->onQueue($queue);
+  }
+
+  /**
+   * Identificador único del job para prevenir duplicados en cola.
+   *
+   * Si ya existe un job en cola o procesándose con el mismo uniqueId,
+   * Laravel/Horizon descartará silenciosamente el nuevo dispatch.
+   *
+   * @return string Identificador único basado en el ID de la guía
+   */
+  public function uniqueId(): string
+  {
+    // Si tiene ID específico, usar ese ID como clave de unicidad
+    if ($this->shippingGuideId) {
+      return "sync-shipping-guide-{$this->shippingGuideId}";
+    }
+
+    // Si es modo batch (sin ID), usar un único identificador global
+    // Esto previene que múltiples ejecuciones del comando --all se solapen
+    return 'sync-shipping-guide-batch-all';
+  }
+
+  /**
+   * Tiempo en segundos que el lock de uniqueId se mantiene.
+   * Debe ser mayor que el timeout del job para cubrir todo el ciclo de vida.
+   */
+  public function uniqueFor(): int
+  {
+    return 360; // 6 minutos (20% mayor que timeout de 5 min)
   }
 
   public static function queueFor(?ShippingGuides $guide): string
