@@ -116,21 +116,23 @@ class PurchaseRequestQuote extends BaseModel
   /**
    * Determina si la cotización está pagada comparando el total de los documentos electrónicos asociados con el precio de venta de la cotización.
    * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados.
+   * Las notas de crédito restan del total facturado y las notas de débito suman, ya que representan
+   * devoluciones/anulaciones y cargos adicionales de importe respectivamente.
    * @return bool
    */
   public function getIsPaidAttribute(): bool
   {
     $baseQuery = fn($q) => $q
       ->where('aceptada_por_sunat', 1)
-      ->where(function ($query) {
-        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
-          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
-      })
       ->where('anulado', 0)
       ->whereNull('deleted_at');
 
     $hasFinalDocument = $this->electronicDocuments()
       ->tap($baseQuery)
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
       ->where('is_advance_payment', 0)
       ->exists();
 
@@ -138,9 +140,25 @@ class PurchaseRequestQuote extends BaseModel
       return false;
     }
 
-    $total = $this->electronicDocuments()
+    $totalInvoiced = $this->electronicDocuments()
       ->tap($baseQuery)
+      ->where(function ($query) {
+        $query->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
+          ->orWhere('sunat_concept_document_type_id', ElectronicDocument::TYPE_BOLETA);
+      })
       ->sum('total');
+
+    $totalCreditNotes = $this->electronicDocuments()
+      ->tap($baseQuery)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->sum('total');
+
+    $totalDebitNotes = $this->electronicDocuments()
+      ->tap($baseQuery)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->sum('total');
+
+    $total = $totalInvoiced - $totalCreditNotes + $totalDebitNotes;
 
     return $this->sale_price == $total;
   }
