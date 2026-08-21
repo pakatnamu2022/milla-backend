@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\AuditLogs;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PurgeOldAuditLogsCommand extends Command
@@ -12,7 +13,8 @@ class PurgeOldAuditLogsCommand extends Command
   protected $signature = 'audit-logs:purge
                           {--months=3 : Número de meses hacia atrás a conservar}
                           {--chunk=5000 : Tamaño del lote de borrado}
-                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}';
+                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}
+                          {--optimize : Compactar la tabla con OPTIMIZE TABLE después de purgar}';
 
   protected $description = 'Purga registros antiguos de la tabla audit_logs y elimina todos los registros con método GET';
 
@@ -112,6 +114,18 @@ class PurgeOldAuditLogsCommand extends Command
       usleep(200000); // 200ms
     }
 
+    // Compactar tabla si se solicitó --optimize
+    $optimized = false;
+    if ($this->option('optimize')) {
+      $this->line('');
+      $this->info('🔧 Compactando tabla audit_logs...');
+
+      DB::statement('OPTIMIZE TABLE audit_logs');
+
+      $optimized = true;
+      $this->info('✅ Tabla compactada.');
+    }
+
     $duration = round(microtime(true) - $startTime, 2);
 
     $this->line('');
@@ -130,6 +144,7 @@ class PurgeOldAuditLogsCommand extends Command
       'total_deleted' => $totalDeleted,
       'iterations' => $iteration,
       'duration_seconds' => $duration,
+      'optimized' => $optimized,
     ]);
 
     return 0;
