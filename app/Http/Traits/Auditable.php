@@ -89,6 +89,12 @@ trait Auditable
   ): AuditLogs
   {
     $user = auth()->user();
+    $method = request()?->method();
+
+    // No registrar auditorías de métodos GET (solo lectura)
+    if ($method === 'GET') {
+      return new AuditLogs(); // Retornar instancia vacía sin guardar
+    }
 
     return AuditLogs::create([
       'user_id' => $user?->id,
@@ -103,7 +109,7 @@ trait Auditable
       'ip_address' => request()?->ip(),
       'user_agent' => request()?->userAgent(),
       'url' => request()?->fullUrl(),
-      'method' => request()?->method(),
+      'method' => $method,
       'description' => $description,
       'metadata' => !empty($metadata) ? $metadata : null,
     ]);
