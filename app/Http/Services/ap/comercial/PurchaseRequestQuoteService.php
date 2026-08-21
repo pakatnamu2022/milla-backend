@@ -272,18 +272,23 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         ->whereIn('sunat_concept_document_type_id', [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
         ->where('status', ElectronicDocument::STATUS_ACCEPTED);
 
-      if ($finalDocumentsQuery()->exists()) {
+      $finalDocuments = $finalDocumentsQuery()->get();
+
+      if ($finalDocuments->isNotEmpty()) {
         // Puede haber facturas/boletas aceptadas, pero si notas de crédito (y débito)
         // ya netean el monto facturado a 0, la venta quedó anulada en la práctica
         // y sí se debe permitir desasignar el vehículo.
-        $totalInvoiced = $finalDocumentsQuery()->sum('total');
+        // Las notas se enlazan por original_document_id (no por ap_vehicle_movement_id,
+        // que las notas no heredan del documento original).
+        $invoiceIds = $finalDocuments->pluck('id');
+        $totalInvoiced = $finalDocuments->sum('total');
 
-        $totalCreditNotes = $vehicle->electronicDocuments()
+        $totalCreditNotes = ElectronicDocument::whereIn('original_document_id', $invoiceIds)
           ->tap($baseDocsQuery)
           ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
           ->sum('total');
 
-        $totalDebitNotes = $vehicle->electronicDocuments()
+        $totalDebitNotes = ElectronicDocument::whereIn('original_document_id', $invoiceIds)
           ->tap($baseDocsQuery)
           ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
           ->sum('total');
@@ -292,7 +297,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
         if (round($netTotal, 2) > ElectronicDocument::ROUNDING_TOLERANCE) {
           throw new Exception('No se puede desasignar el vehículo porque tiene facturas finales aceptadas asociadas: '
-            . $finalDocumentsQuery()->get()->map(function ($doc) {
+            . $finalDocuments->map(function ($doc) {
               return "{$doc->serie}-{$doc->numero}";
             })->implode(', '));
         }
