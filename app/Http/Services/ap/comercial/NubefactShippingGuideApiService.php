@@ -66,7 +66,7 @@ class NubefactShippingGuideApiService
 
       if ($response->successful() && isset($responseData['serie'])) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -76,7 +76,7 @@ class NubefactShippingGuideApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => false,
@@ -88,7 +88,7 @@ class NubefactShippingGuideApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       Log::error('Error en NubefactShippingGuideApiService::generateGuide', [
         'guide_id' => $guide->id,
@@ -149,7 +149,7 @@ class NubefactShippingGuideApiService
 
       if ($response->successful()) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -159,7 +159,7 @@ class NubefactShippingGuideApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => false,
@@ -171,7 +171,7 @@ class NubefactShippingGuideApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       Log::error('Error en NubefactShippingGuideApiService::queryGuide', [
         'guide_id' => $guide->id,
@@ -635,14 +635,14 @@ class NubefactShippingGuideApiService
       'simulado' => true,
     ];
 
-    $this->logRequest([
-      'shipping_guide_id' => $guide->id,
-      'operation' => $operation,
-      'request_payload' => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
-      'response_payload' => json_encode($data, JSON_UNESCAPED_UNICODE),
-      'http_status_code' => 200,
-      'success' => true,
-    ]);
+    // $this->logRequest([ // Comentado: Log desactivado para evitar crecimiento de BD
+    //   'shipping_guide_id' => $guide->id,
+    //   'operation' => $operation,
+    //   'request_payload' => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
+    //   'response_payload' => json_encode($data, JSON_UNESCAPED_UNICODE),
+    //   'http_status_code' => 200,
+    //   'success' => true,
+    // ]);
 
     return [
       'success' => true,
