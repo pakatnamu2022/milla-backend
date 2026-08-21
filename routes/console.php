@@ -72,12 +72,12 @@ Schedule::command('po:sync-invoice-dynamics --all')
 
 // Sincronizar shipping_guide_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
-Schedule::command('shipping-guide:sync-dynamics --all')
-  ->everyTenSeconds()
-  ->between('6:00', '23:59')
-  ->timezone('America/Lima')
-  ->withoutOverlapping()
-  ->runInBackground();
+//Schedule::command('shipping-guide:sync-dynamics --all')
+//  ->everyTenSeconds()
+//  ->between('6:00', '23:59')
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping()
+//  ->runInBackground();
 
 // Sincronizar credit_note_dynamics desde Dynamics
 // Ejecuta cada minuto con límite de 10 jobs pendientes máximo en cola
