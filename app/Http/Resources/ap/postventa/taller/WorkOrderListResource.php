@@ -51,6 +51,7 @@ class WorkOrderListResource extends JsonResource
       // Nombres de usuarios
       'advisor_name' => $this->advisor?->nombre_completo,
       'delivery_by_name' => $this->deliveryBy?->name,
+      'sede_name' => $this->sede?->abreviatura,
 
       // Descuento gerencial (calculado)
       'has_management_discount' => $this->discountRequests &&

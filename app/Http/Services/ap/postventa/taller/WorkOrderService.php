@@ -92,6 +92,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'is_delivery',
       'advisor_id',
       'delivery_by',
+      'sede_id',
       'status_id',
     ])->with([
       // Vehículo: solo plate y vin
@@ -124,6 +125,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       // DeliveryBy: solo name
       'deliveryBy:id,name',
+
+      // Sede: solo abreviatura
+      'sede:id,abreviatura',
 
       // Vehicle inspection: solo para verificar existencia (is_inspection_completed)
       // No especificamos columnas porque es HasOneThrough y causa ambigüedad
