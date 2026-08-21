@@ -12,17 +12,15 @@ class PurgeOldAuditLogsCommand extends Command
   protected $signature = 'audit-logs:purge
                           {--months=3 : Número de meses hacia atrás a conservar}
                           {--chunk=5000 : Tamaño del lote de borrado}
-                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}
-                          {--remove-gets : También eliminar todos los registros con método GET}';
+                          {--dry-run : Mostrar cuántos registros se purgarían sin borrar}';
 
-  protected $description = 'Purga registros antiguos de la tabla audit_logs y opcionalmente elimina registros GET';
+  protected $description = 'Purga registros antiguos de la tabla audit_logs y elimina todos los registros con método GET';
 
   public function handle(): int
   {
     $months = (int) $this->option('months');
     $chunkSize = (int) $this->option('chunk');
     $dryRun = $this->option('dry-run');
-    $removeGets = $this->option('remove-gets');
 
     // Validaciones
     if ($months < 1) {
@@ -39,32 +37,25 @@ class PurgeOldAuditLogsCommand extends Command
     $cutoffDate = Carbon::now('America/Lima')->subMonths($months);
 
     $this->info("🗑️  Iniciando purga de audit_logs");
-    $this->line("   Fecha de corte: {$cutoffDate->format('Y-m-d H:i:s')}");
-    $this->line("   Conservar: últimos {$months} meses");
-    $this->line("   Tamaño de lote: {$chunkSize}");
-    if ($removeGets) {
-      $this->line("   También eliminar: registros con método GET");
-    }
+    $this->line("   Fecha de corte: " . $cutoffDate->format('Y-m-d H:i:s'));
+    $this->line("   Conservar: últimos $months meses (excepto GET)");
+    $this->line("   Tamaño de lote: $chunkSize");
+    $this->line("   Nota: Se eliminarán TODOS los registros GET sin importar su fecha");
     $this->line('');
 
-    // Contar registros candidatos a purga por fecha
+    // Contar registros candidatos a purga
     $totalOldRecords = AuditLogs::where('created_at', '<', $cutoffDate)->count();
-    $totalGetRecords = $removeGets ? AuditLogs::where('method', 'GET')->count() : 0;
-    $totalToPurge = $totalOldRecords;
+    $totalGetRecords = AuditLogs::where('method', 'GET')->count();
 
-    if ($removeGets) {
-      $this->info("📊 Registros antiguos (por fecha): " . number_format($totalOldRecords));
-      $this->info("📊 Registros con método GET: " . number_format($totalGetRecords));
-      // No sumamos porque puede haber overlapping
-      $totalCombined = AuditLogs::where(function ($query) use ($cutoffDate) {
-        $query->where('created_at', '<', $cutoffDate)
-          ->orWhere('method', 'GET');
-      })->count();
-      $totalToPurge = $totalCombined;
-      $this->info("📊 Total candidatos a purga: " . number_format($totalToPurge));
-    } else {
-      $this->info("📊 Registros candidatos a purga: " . number_format($totalToPurge));
-    }
+    // Total combinado (evitando duplicados)
+    $totalToPurge = AuditLogs::where(function ($query) use ($cutoffDate) {
+      $query->where('created_at', '<', $cutoffDate)
+        ->orWhere('method', 'GET');
+    })->count();
+
+    $this->info("📊 Registros antiguos (>" . $months . " meses): " . number_format($totalOldRecords));
+    $this->info("📊 Registros con método GET (todas las fechas): " . number_format($totalGetRecords));
+    $this->info("📊 Total candidatos a purga: " . number_format($totalToPurge));
 
     if ($totalToPurge === 0) {
       $this->info('✅ No hay registros para purgar.');
@@ -93,19 +84,13 @@ class PurgeOldAuditLogsCommand extends Command
     while (true) {
       $iteration++;
 
-      // Borrar un lote (registros antiguos y/o GET)
-      $query = AuditLogs::query();
-
-      if ($removeGets) {
-        $query->where(function ($q) use ($cutoffDate) {
-          $q->where('created_at', '<', $cutoffDate)
-            ->orWhere('method', 'GET');
-        });
-      } else {
-        $query->where('created_at', '<', $cutoffDate);
-      }
-
-      $deleted = $query->limit($chunkSize)->delete();
+      // Borrar un lote (registros antiguos O método GET)
+      $deleted = AuditLogs::where(function ($q) use ($cutoffDate) {
+        $q->where('created_at', '<', $cutoffDate)
+          ->orWhere('method', 'GET');
+      })
+        ->limit($chunkSize)
+        ->delete();
 
       if ($deleted === 0) {
         break;
@@ -132,15 +117,16 @@ class PurgeOldAuditLogsCommand extends Command
     $this->line('');
     $this->info("✅ Purga completada exitosamente");
     $this->line("   Registros eliminados: " . number_format($totalDeleted));
-    $this->line("   Lotes procesados: {$iteration}");
-    $this->line("   Duración: {$duration}s");
+    $this->line("   Lotes procesados: $iteration");
+    $this->line("   Duración: " . $duration . "s");
 
     // Logging del resultado
     Log::info('audit_logs:purge ejecutado', [
       'cutoff_date' => $cutoffDate->toDateTimeString(),
       'months_retained' => $months,
       'chunk_size' => $chunkSize,
-      'remove_gets' => $removeGets,
+      'total_old_records' => $totalOldRecords,
+      'total_get_records' => $totalGetRecords,
       'total_deleted' => $totalDeleted,
       'iterations' => $iteration,
       'duration_seconds' => $duration,
