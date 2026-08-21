@@ -228,3 +228,11 @@ Schedule::command('internal-notes:verify-migration --all')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Purgar registros antiguos de audit_logs (conservar últimos 3 meses)
+// Ejecuta diariamente a las 3:00 AM (horario de bajo tráfico)
+Schedule::command('audit-logs:purge')
+  ->dailyAt('03:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
