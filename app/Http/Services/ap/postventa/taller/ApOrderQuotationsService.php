@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsListResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
@@ -64,12 +65,59 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
   public function list(Request $request)
   {
+    // Optimización: select solo los campos necesarios para el listado
+    $query = ApOrderQuotations::select([
+      'id',
+      'quotation_number',
+      'parent_quotation_id',
+      'vehicle_id',
+      'client_id',
+      'currency_id',
+      'status_id',
+      'deductible_amount',
+      'quotation_date',
+      'expiration_date',
+      'collection_date',
+      'total_amount',
+      'observations',
+      'discard_reason_id',
+      'discarded_note',
+      'discarded_by',
+      'discarded_at',
+      'is_fully_paid',
+      'delivery_document_number',
+    ])->with([
+      // Cliente: solo full_name
+      'client:id,full_name',
+
+      // Vehículo: solo plate
+      'vehicle:id,plate',
+
+      // Moneda: solo name y symbol
+      'typeCurrency:id,name,symbol',
+
+      // Estado: solo description
+      'status:id,description',
+
+      // Motivo de descarte: solo description
+      'discardReason:id,description',
+
+      // Descartado por: solo name
+      'discardedBy:id,name',
+
+      // Descuentos: para calcular has_management_discount
+      'discountRequests:id,ap_order_quotation_id,status',
+
+      // Cotizaciones segmentadas: para calcular was_segmented
+      'segmentedQuotations:id,parent_quotation_id',
+    ]);
+
     return $this->getFilteredResults(
-      ApOrderQuotations::class,
+      $query,
       $request,
       ApOrderQuotations::filters,
       ApOrderQuotations::sorts,
-      ApOrderQuotationsResource::class
+      ApOrderQuotationsListResource::class
     );
   }
 
