@@ -66,6 +66,12 @@ class WorkOrderListResource extends JsonResource
         'plate' => $this->vehicle?->plate,
       ],
 
+      // Facturar a
+      'invoice_to_client' => $this->invoiceTo ? [
+        'id' => $this->invoiceTo->id,
+        'full_name' => $this->invoiceTo->full_name,
+      ] : null,
+
       // Items (solo el primero con campos específicos)
       'items' => $this->whenLoaded('items', function () {
         return $this->items->take(1)->map(function ($item) {

@@ -94,9 +94,13 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'delivery_by',
       'sede_id',
       'status_id',
+      'invoice_to',
     ])->with([
       // Vehículo: solo plate y vin
       'vehicle:id,plate,vin',
+
+      // Facturar a
+      'invoiceTo:id,full_name',
 
       // Moneda: solo name y symbol
       'typeCurrency:id,name,symbol',
