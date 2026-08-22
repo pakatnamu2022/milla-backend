@@ -76,6 +76,13 @@ class ApOrderQuotationsListResource extends JsonResource
 
       // Para acciones
       'delivery_document_number' => $this->delivery_document_number,
+
+      //Creador por
+      'created_by_name' => $this->createdBy?->name,
+
+      //Aprobado por
+      'chief_approval_by_name' => $this->chiefApprovalBy?->name,
+      'manager_approval_by_name' => $this->managerApprovalBy?->name,
     ];
   }
 }
