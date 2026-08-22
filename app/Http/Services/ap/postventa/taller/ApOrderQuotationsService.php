@@ -86,6 +86,9 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'discarded_at',
       'is_fully_paid',
       'delivery_document_number',
+      'created_by',
+      'chief_approval_by',
+      'manager_approval_by',
     ])->with([
       // Cliente: solo full_name
       'client:id,full_name',
@@ -110,6 +113,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Cotizaciones segmentadas: para calcular was_segmented
       'segmentedQuotations:id,parent_quotation_id',
+
+      // Creado por
+      'createdBy:id,name',
+
+      //Aprobado por
+      'chiefApprovalBy:id,name',
+      'managerApprovalBy:id,name'
     ]);
 
     return $this->getFilteredResults(
