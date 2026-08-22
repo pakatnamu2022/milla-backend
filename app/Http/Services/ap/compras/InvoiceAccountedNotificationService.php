@@ -8,6 +8,7 @@ use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -79,12 +80,20 @@ class InvoiceAccountedNotificationService
   {
     // Cargar relaciones necesarias
     $purchaseOrder->load([
-      'sede',
+      'sede.province',
+      'sede.district',
+      'sede.company',
       'supplier',
-      'vehicle',
+      'creator.person',
       'currency',
       'reception.warehouse',
-      'reception.details.product',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.requestedBy.person',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.vehicle',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.client',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.createdBy.person',
+      'reception.details.product.brand',
+      'reception.details.product.model',
+      'reception.details.purchaseOrderItem',
     ]);
 
     // Verificar que tenga sede
@@ -113,9 +122,28 @@ class InvoiceAccountedNotificationService
       return;
     }
 
-    // Preparar datos comunes para el correo
-    $emailData = $this->prepareEmailData($purchaseOrder);
-    $subject = 'Comprobante Recepcionado - OC ' . $purchaseOrder->number;
+    // Preparar datos para el email y el PDF
+    $sedeAbbreviation = $purchaseOrder->sede?->abreviatura ?? 'N/A';
+    $subject = 'Informe de llegada de repuestos en Almacén PAKATNAMU ' . $sedeAbbreviation;
+
+    $emailData = [
+      'purchase_order_number' => $purchaseOrder->number,
+      'sede_name' => $purchaseOrder->sede?->name ?? 'N/A',
+      'sede_abbreviation' => $sedeAbbreviation,
+      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'responsible_name' => $purchaseOrder->creator?->person?->nombre_completo ?? 'N/A',
+    ];
+
+    // Preparar datos para el PDF
+    $pdfData = $this->preparePdfData($purchaseOrder);
+
+    // Generar el PDF
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.purchase-reception-detail', $pdfData);
+    $pdf->setPaper('a4', 'landscape');
+
+    $pdfPath = tempnam(sys_get_temp_dir(), 'purchase_reception_') . '.pdf';
+    file_put_contents($pdfPath, $pdf->output());
+    $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
     // Enviar correo a cada gerente
     foreach ($managers as $manager) {
@@ -126,16 +154,23 @@ class InvoiceAccountedNotificationService
           $this->emailService->queue([
             'to' => $managerEmail,
             'subject' => $subject,
-            'template' => 'emails.invoice-accounted-notification',
+            'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [
               'recipient_name' => $manager->person->nombre_completo ?? 'Gerente',
-              'recipient_role' => 'Gerente de Postventa',
             ]),
+            'attachments' => [
+              ['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']
+            ],
           ]);
         } catch (\Exception $e) {
           Log::error("Error al enviar correo al gerente (User ID: {$manager->id}): " . $e->getMessage());
         }
       }
+    }
+
+    // Limpiar archivo temporal después de enviar todos los correos
+    if (file_exists($pdfPath)) {
+      unlink($pdfPath);
     }
   }
 
@@ -206,6 +241,94 @@ class InvoiceAccountedNotificationService
 
       // URL del frontend
       'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
+    ];
+  }
+
+  /**
+   * Prepara los datos para el PDF de la orden de compra recepcionada
+   *
+   * @param PurchaseOrder $purchaseOrder
+   * @return array
+   */
+  protected function preparePdfData(PurchaseOrder $purchaseOrder): array
+  {
+    // Obtener solicitudes de compra únicas con sus responsables
+    $purchaseRequests = [];
+    if ($purchaseOrder->reception?->supplierOrder) {
+      $requestDetails = $purchaseOrder->reception->supplierOrder->requestDetails;
+
+      $uniqueRequests = $requestDetails
+        ->pluck('orderPurchaseRequest')
+        ->unique('id')
+        ->filter();
+
+      foreach ($uniqueRequests as $request) {
+        $purchaseRequests[] = [
+          'request_number' => $request->request_number ?? 'N/A',
+          'responsible_name' => $request->requestedBy?->person?->nombre_completo ?? 'N/A',
+        ];
+      }
+    }
+
+    // Preparar items de la recepción con toda la información
+    $items = [];
+    if ($purchaseOrder->reception?->details) {
+      foreach ($purchaseOrder->reception->details as $detail) {
+        // Obtener precio unitario del purchase order item
+        $unitPrice = $detail->purchaseOrderItem?->unit_price ?? 0;
+        $quantity = $detail->quantity_received ?? 0;
+        $total = $unitPrice * $quantity;
+
+        // Buscar la solicitud de compra asociada a este producto
+        $plate = '';
+        $client = '';
+        $advisor = '';
+
+        if ($purchaseOrder->reception->supplierOrder) {
+          // Buscar en los detalles de la orden de proveedor si hay una solicitud asociada a este producto
+          $requestDetail = $purchaseOrder->reception->supplierOrder->requestDetails
+            ->where('product_id', $detail->product_id)
+            ->first();
+
+          if ($requestDetail && $requestDetail->orderPurchaseRequest) {
+            $quotation = $requestDetail->orderPurchaseRequest->apOrderQuotation;
+
+            if ($quotation) {
+              $plate = $quotation->vehicle?->plate ?? '';
+              $client = $quotation->client?->full_name ?? '';
+              $advisor = $quotation->createdBy?->person?->nombre_completo ?? '';
+            }
+          }
+        }
+
+        $items[] = [
+          'code' => $detail->product?->code ?? 'N/A',
+          'description' => $detail->product?->name ?? 'N/A',
+          'brand' => $detail->product?->brand?->name ?? '',
+          'model' => $detail->product?->model?->name ?? '',
+          'quantity' => number_format($quantity, 2),
+          'unit_price' => $unitPrice,
+          'total' => $total,
+          'plate' => $plate,
+          'client' => $client,
+          'advisor' => $advisor,
+        ];
+      }
+    }
+
+    return [
+      'sede' => $purchaseOrder->sede,
+      'purchase_order_number' => $purchaseOrder->number,
+      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'sede_abbreviation' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
+      'responsible_name' => $purchaseOrder->creator?->person?->nombre_completo ?? 'N/A',
+      'total_without_tax' => number_format($purchaseOrder->subtotal ?? 0, 2),
+      'currency_symbol' => $purchaseOrder->currency?->symbol ?? 'S/',
+      'reception_date' => $purchaseOrder->reception?->reception_date
+        ? $purchaseOrder->reception->reception_date->format('d/m/Y')
+        : 'N/A',
+      'purchase_requests' => $purchaseRequests,
+      'items' => $items,
     ];
   }
 }
