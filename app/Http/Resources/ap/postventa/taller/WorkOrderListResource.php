@@ -70,6 +70,7 @@ class WorkOrderListResource extends JsonResource
       'items' => $this->whenLoaded('items', function () {
         return $this->items->take(1)->map(function ($item) {
           return [
+            'id' => $item->id,
             'type_planning' => [
               'description' => $item->typePlanning?->description,
               'validate_receipt' => $item->typePlanning?->validate_receipt,

@@ -36,12 +36,7 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
       'type' => [
         'nullable',
         'in:internal,external',
-      ],
-      'group_number' => [
-        'required',
-        'integer',
-        'min:1',
-      ],
+      ]
     ];
   }
 
@@ -64,10 +59,6 @@ class StoreWorkOrderPlanningRequest extends StoreRequest
       'planned_start_datetime.date' => 'La fecha de inicio planificada debe ser una fecha válida.',
 
       'type.in' => 'El tipo de planificación debe ser interno o externo.',
-
-      'group_number.required' => 'El número de grupo es obligatorio.',
-      'group_number.integer' => 'El número de grupo debe ser un entero.',
-      'group_number.min' => 'El número de grupo debe ser al menos 1.',
     ];
   }
 }

@@ -46,6 +46,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
   {
     return DB::transaction(function () use ($data) {
       $data['type'] = $data['type'] ?? 'internal';
+      $data['group_number'] = 1;
 
       $workOrder = ApWorkOrder::find($data['work_order_id']);
 
