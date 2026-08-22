@@ -41,6 +41,10 @@ class AppointmentPlanningListResource extends JsonResource
 
       // Flag
       'is_taken' => (bool)$this->is_taken,
+
+      //Orden de Trabajo
+      'work_order_id' => $this->workOrder?->id,
+      'work_order_correlative' => $this->workOrder?->correlative,
     ];
   }
 }

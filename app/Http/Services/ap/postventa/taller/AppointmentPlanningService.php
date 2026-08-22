@@ -57,6 +57,9 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
       // Creador: solo name
       'creator:id,name',
+
+      //Orden de trabajo
+      'workOrder:id,correlative,appointment_planning_id'
     ]);
 
     return $this->getFilteredResults(
