@@ -201,14 +201,20 @@ class ProductivityDashboardService
     foreach ($documents as $document) {
       // SIMPLE invoicing
       if ($document->workOrder) {
-        $workOrders->push($document->workOrder);
+        // Filter by sede if specified
+        if (!$sedeId || $document->workOrder->sede_id == $sedeId) {
+          $workOrders->push($document->workOrder);
+        }
       }
 
       // MASSIVE invoicing
       if ($document->internalNotes && $document->internalNotes->count() > 0) {
         foreach ($document->internalNotes as $internalNote) {
           if ($internalNote->workOrder) {
-            $workOrders->push($internalNote->workOrder);
+            // Filter by sede if specified
+            if (!$sedeId || $internalNote->workOrder->sede_id == $sedeId) {
+              $workOrders->push($internalNote->workOrder);
+            }
           }
         }
       }
@@ -383,10 +389,58 @@ class ProductivityDashboardService
   ): array
   {
     $technicianDetail = [];
+    $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
 
     foreach ($billedData as $technician) {
-      // Standard hours: 8 horas × 6 días × 4 semanas = 192 horas fijas
-      $standardHours = 192;
+      // Usar AttendanceSyncService como ÚNICA fuente de verdad
+      try {
+        $attendanceRequest = new \Illuminate\Http\Request([
+          'date_from' => $period['start_date'],
+          'date_to' => $period['end_date'],
+        ]);
+
+        $attendanceResponse = $attendanceService->personDashboard(
+          $technician['worker_id'],
+          $attendanceRequest
+        );
+
+        $attendanceData = $attendanceResponse->getData(true);
+      } catch (\Exception $e) {
+        // Si falla la consulta de asistencias
+        $technicianDetail[] = [
+          'sede_id' => $technician['sede_id'],
+          'sede_name' => $technician['sede_name'],
+          'sede_abbreviation' => $technician['sede_abbreviation'],
+          'worker_id' => $technician['worker_id'],
+          'worker_dni' => $technician['worker_dni'],
+          'worker_name' => $technician['worker_name'],
+          'has_error' => true,
+          'error_message' => 'Error al obtener datos de asistencia: ' . $e->getMessage(),
+          'days_worked' => 0,
+          'standard_hours' => 0,
+          'real_hours' => 0,
+          'billed_hours' => $technician['billed_hours'],
+          'productivity_hours' => 0,
+          'productivity_percentage' => 0,
+          'earnings' => 0,
+          'status' => 'error',
+          'rank' => 0,
+        ];
+        continue;
+      }
+
+      // Extraer días trabajados (días con check_in) de los datos daily
+      $daysWorked = collect($attendanceData['daily'])
+        ->filter(function ($day) {
+          return $day['type'] === 'work' && !empty($day['check_in']);
+        })
+        ->count();
+
+      // Horas estándar: 8h × días con check_in
+      $standardHours = $daysWorked * 8;
+
+      // Horas reales: Parsear del formato "XXXh YYmin" del endpoint
+      $realHours = $this->parseHoursFromString($attendanceData['hours_worked']);
 
       // Get billed hours
       $billedHours = $technician['billed_hours'];
@@ -405,6 +459,26 @@ class ProductivityDashboardService
       // Determine status
       $status = $this->getProductivityStatus($productivityPercentage);
 
+      // Contar días con marcaciones incompletas
+      $daysWithMissingMarks = collect($attendanceData['daily'])
+        ->filter(function ($day) {
+          return $day['type'] === 'work'
+            && !empty($day['check_in'])
+            && (empty($day['check_out']) || empty($day['lunch_out']) || empty($day['lunch_in']));
+        })
+        ->values()
+        ->map(function ($day) {
+          $missing = [];
+          if (empty($day['check_out'])) $missing[] = 'check_out';
+          if (empty($day['lunch_out'])) $missing[] = 'lunch_out';
+          if (empty($day['lunch_in'])) $missing[] = 'lunch_in';
+
+          return [
+            'date' => $day['date'],
+            'missing_marks' => $missing,
+          ];
+        });
+
       $technicianDetail[] = [
         'sede_id' => $technician['sede_id'],
         'sede_name' => $technician['sede_name'],
@@ -412,12 +486,22 @@ class ProductivityDashboardService
         'worker_id' => $technician['worker_id'],
         'worker_dni' => $technician['worker_dni'],
         'worker_name' => $technician['worker_name'],
+        'has_error' => false,
+        'days_worked' => $daysWorked,
         'standard_hours' => round($standardHours, 2),
+        'real_hours' => round($realHours, 2),
         'billed_hours' => $billedHours,
         'productivity_hours' => round($productivityHours, 2),
         'productivity_percentage' => $productivityPercentage,
         'earnings' => round($earnings, 2),
-        'status' => $status
+        'status' => $status,
+        // Información de asistencia
+        'attendance_summary' => [
+          'days_with_checkin' => $daysWorked,
+          'days_with_checkout' => collect($attendanceData['daily'])->filter(fn($d) => $d['type'] === 'work' && !empty($d['check_out']))->count(),
+          'days_with_missing_marks' => $daysWithMissingMarks->count(),
+          'missing_marks_details' => $daysWithMissingMarks->toArray(),
+        ],
       ];
     }
 
@@ -433,6 +517,20 @@ class ProductivityDashboardService
     }
 
     return $technicianDetail;
+  }
+
+  /**
+   * Parse hours from string format "XXXh YYmin" to decimal
+   */
+  private function parseHoursFromString(string $hoursString): float
+  {
+    // Formato: "246h 11min"
+    preg_match('/(\d+)h(?: (\d+)min)?/', $hoursString, $matches);
+
+    $hours = isset($matches[1]) ? (int)$matches[1] : 0;
+    $minutes = isset($matches[2]) ? (int)$matches[2] : 0;
+
+    return $hours + ($minutes / 60);
   }
 
   /**
