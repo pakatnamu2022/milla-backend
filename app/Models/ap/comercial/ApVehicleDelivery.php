@@ -33,6 +33,7 @@ class ApVehicleDelivery extends Model
     'client_id',
     'is_accounted',
     'is_extraordinary',
+    'extraordinary_reason',
     'extraordinary_approved',
     'extraordinary_approved_at',
     'extraordinary_approved_by',
@@ -82,6 +83,11 @@ class ApVehicleDelivery extends Model
   public function setObservationsAttribute($value)
   {
     $this->attributes['observations'] = strtoupper($value);
+  }
+
+  public function setExtraordinaryReasonAttribute($value)
+  {
+    $this->attributes['extraordinary_reason'] = $value ? strtoupper($value) : null;
   }
 
   public function advisor()

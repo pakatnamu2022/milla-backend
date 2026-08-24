@@ -76,6 +76,14 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
           }
 
           if ($this->boolean('is_extraordinary')) {
+            if (!$deliveryDate->isBefore(now()->addDays(2)->startOfDay())) {
+              $fail('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+            }
+            return;
+          }
+
+          if (!$deliveryDate->isAfter(now()->addHours(24))) {
+            $fail('La fecha de entrega debe programarse con al menos 24 horas de anticipación.');
             return;
           }
 
@@ -118,6 +126,16 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
       'is_extraordinary' => [
         'nullable',
         'boolean',
+      ],
+      'extraordinary_reason' => [
+        'nullable',
+        'string',
+        'max:500',
+        function ($attribute, $value, $fail) {
+          if ($this->boolean('is_extraordinary') && empty($value)) {
+            $fail('El motivo de la entrega extraordinaria es obligatorio.');
+          }
+        },
       ],
     ];
   }

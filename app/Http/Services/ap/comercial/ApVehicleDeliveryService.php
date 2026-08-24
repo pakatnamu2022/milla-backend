@@ -73,6 +73,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         ->whereIn('sede_id', $sedes);
     }
 
+    $query->where(function ($q) {
+      $q->where('is_extraordinary', false)
+        ->orWhereNull('is_extraordinary')
+        ->orWhere('extraordinary_approved', true);
+    });
+
     return $this->getFilteredResults(
       $query,
       $request,
@@ -130,6 +136,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $scheduledDate = Carbon::parse($data['scheduled_delivery_date']);
         if ($scheduledDate->isPast()) {
           throw new Exception('No se puede programar una entrega en una fecha y hora pasada.');
+        }
+        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(2)->startOfDay())) {
+          throw new Exception('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+        }
+        if (!$isExtraordinary && !$scheduledDate->isAfter(now()->addHours(24))) {
+          throw new Exception('La fecha de entrega debe programarse con al menos 24 horas de anticipación.');
         }
 
         if ($isExtraordinary) {
@@ -587,6 +599,17 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('Ya existe una entrega registrada para este vehículo.');
         }
 
+        $scheduledDate = Carbon::parse($data['scheduled_delivery_date']);
+        if ($scheduledDate->isPast()) {
+          throw new Exception('No se puede programar una entrega en una fecha y hora pasada.');
+        }
+        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(2)->startOfDay())) {
+          throw new Exception('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+        }
+        if (!$isExtraordinary && !$scheduledDate->isAfter(now()->addHours(24))) {
+          throw new Exception('La fecha de entrega debe programarse con al menos 24 horas de anticipación.');
+        }
+
         // Reutilizar el movimiento SOLD_NOT_DELIVERED ya existente
         $vehicleMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
           ->where('movement_type', VehicleMovement::SOLD_NOT_DELIVERED)
@@ -644,6 +667,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     if ($newDate->isPast()) {
       throw new Exception('No se puede reprogramar a una fecha y hora pasada.');
     }
+    if ($isExtraordinary && !$newDate->isBefore(now()->addDays(2)->startOfDay())) {
+      throw new Exception('Las reprogramaciones extraordinarias solo pueden ser para hoy o mañana.');
+    }
+    if (!$isExtraordinary && !$newDate->isAfter(now()->addHours(24))) {
+      throw new Exception('La fecha de reprogramación debe ser con al menos 24 horas de anticipación.');
+    }
 
     if (!$isExtraordinary) {
       $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
@@ -668,6 +697,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
       'rescheduled_by'          => auth()->id(),
       'is_extraordinary'        => $isExtraordinary,
+      'extraordinary_reason'    => $isExtraordinary ? ($data['extraordinary_reason'] ?? null) : null,
     ];
 
     if ($isExtraordinary) {
@@ -1186,13 +1216,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'subject'  => 'Entrega extraordinaria pendiente de aprobación — ' . ($delivery->vehicle->vin ?? 'VIN no disponible'),
       'template' => 'emails.vehicle-delivery-extraordinary-approval',
       'data'     => [
-        'sent_by_name'   => $sentBy?->name ?? 'Usuario del sistema',
-        'client_name'    => $delivery->client?->full_name ?? '-',
-        'vehicle_vin'    => $delivery->vehicle?->vin ?? '-',
-        'scheduled_date' => Carbon::parse($delivery->scheduled_delivery_date)->format('d/m/Y H:i'),
-        'sede_name'      => $delivery->sede?->abreviatura ?? '-',
-        'observations'   => $delivery->observations,
-        'approve_url'    => $approveUrl,
+        'sent_by_name'         => $sentBy?->name ?? 'Usuario del sistema',
+        'client_name'          => $delivery->client?->full_name ?? '-',
+        'vehicle_vin'          => $delivery->vehicle?->vin ?? '-',
+        'scheduled_date'       => Carbon::parse($delivery->scheduled_delivery_date)->format('d/m/Y H:i'),
+        'sede_name'            => $delivery->sede?->abreviatura ?? '-',
+        'extraordinary_reason' => $delivery->extraordinary_reason ?? '-',
+        'observations'         => $delivery->observations,
+        'approve_url'          => $approveUrl,
       ],
     ]);
   }
@@ -1218,7 +1249,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     );
   }
 
-  public function availableSlots(string $date, ?int $shopId = null): array
+  public function availableSlots(string $date, ?int $shopId = null, bool $isExtraordinary = false): array
   {
     $day = Carbon::parse($date);
     $dayOfWeek = $day->dayOfWeek;
@@ -1243,13 +1274,18 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       ->toArray();
 
     $now = now();
-    $isToday = $day->isSameDay($now);
+
+    if ($isExtraordinary && !$day->isBefore(now()->addDays(2)->startOfDay())) {
+      return ['date' => $date, 'slots' => []];
+    }
+
+    $cutoff = $isExtraordinary ? $now : $now->copy()->addHours(24);
 
     $result = [];
     foreach ($slots as $time) {
       $slotTime = Carbon::parse($date . ' ' . $time . ':00');
 
-      if ($isToday && !$slotTime->isAfter($now)) {
+      if (!$slotTime->isAfter($cutoff)) {
         continue;
       }
 

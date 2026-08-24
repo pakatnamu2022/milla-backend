@@ -134,10 +134,15 @@ class ApVehicleDeliveryController extends Controller
   {
     try {
       $request->validate([
-        'date'    => 'required|date_format:Y-m-d',
-        'shop_id' => 'nullable|integer',
+        'date'             => 'required|date_format:Y-m-d',
+        'shop_id'          => 'nullable|integer',
+        'is_extraordinary' => 'nullable|boolean',
       ]);
-      return $this->success($this->service->availableSlots($request->input('date'), $request->input('shop_id')));
+      return $this->success($this->service->availableSlots(
+        $request->input('date'),
+        $request->input('shop_id'),
+        $request->boolean('is_extraordinary'),
+      ));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

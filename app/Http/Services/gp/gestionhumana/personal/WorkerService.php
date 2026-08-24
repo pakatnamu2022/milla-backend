@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\personal;
 
+use App\Http\Resources\gp\gestionhumana\personal\WorkerHierarchyResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\PersonBirthdayResource;
 use App\Http\Services\BaseService;
@@ -450,6 +451,134 @@ class WorkerService extends BaseService
     }
 
     return $query->pluck('worker_id');
+  }
+
+  /**
+   * Obtiene los subordinados directos de un trabajador para el árbol
+   * genealógico de jerarquía, validando que el trabajador consultado
+   * esté dentro de la línea de mando del usuario autenticado.
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function getSubordinates(int $id): array
+  {
+    $authPartnerId = auth()->user()->partner_id;
+
+    if ((int)$id !== (int)$authPartnerId && !$this->isWithinAuthenticatedChain($id, $authPartnerId)) {
+      throw new Exception('No tienes acceso a la jerarquía de este trabajador');
+    }
+
+    $subordinates = Worker::working()->where('jefe_id', $id)
+      ->with(['position', 'sede'])
+      ->withCount('subordinates')
+      ->get();
+
+    return WorkerHierarchyResource::collection($subordinates)->resolve();
+  }
+
+  /**
+   * Busca trabajadores por nombre dentro de todo el árbol genealógico bajo
+   * $id (recorriendo todos los niveles, no solo los directos), validando
+   * que $id esté dentro de la línea de mando del usuario autenticado.
+   * Devuelve, por cada coincidencia, la ruta de ids (desde el hijo directo
+   * de $id hasta la coincidencia) para que el frontend pueda expandir cada
+   * nodo intermedio y llegar hasta el resultado.
+   * @param int $id
+   * @param string $query
+   * @return array
+   * @throws Exception
+   */
+  public function searchHierarchy(int $id, string $query): array
+  {
+    $authPartnerId = auth()->user()->partner_id;
+
+    if ((int)$id !== (int)$authPartnerId && !$this->isWithinAuthenticatedChain($id, $authPartnerId)) {
+      throw new Exception('No tienes acceso a la jerarquía de este trabajador');
+    }
+
+    $query = trim($query);
+    if ($query === '') {
+      return [];
+    }
+
+    $parentMap = [];
+    $allWorkers = [];
+    $currentLevelIds = [$id];
+    $depth = 0;
+
+    while (!empty($currentLevelIds) && $depth < 30) {
+      $level = Worker::working()
+        ->whereIn('jefe_id', $currentLevelIds)
+        ->with('position')
+        ->get();
+
+      if ($level->isEmpty()) {
+        break;
+      }
+
+      foreach ($level as $worker) {
+        $parentMap[$worker->id] = $worker->jefe_id;
+        $allWorkers[$worker->id] = $worker;
+      }
+
+      $currentLevelIds = $level->pluck('id')->all();
+      $depth++;
+    }
+
+    $normalizedQuery = $this->normalizeForSearch($query);
+
+    $matches = collect($allWorkers)
+      ->filter(fn($worker) => str_contains(
+        $this->normalizeForSearch($worker->nombre_completo),
+        $normalizedQuery
+      ))
+      ->take(20)
+      ->values();
+
+    return $matches->map(function ($worker) use ($parentMap, $id) {
+      $path = [];
+      $current = $worker->id;
+      while ($current !== null && (int)$current !== (int)$id) {
+        array_unshift($path, $current);
+        $current = $parentMap[$current] ?? null;
+      }
+
+      return [
+        'id' => $worker->id,
+        'name' => $worker->nombre_completo,
+        'position' => $worker->position?->name,
+        'path' => $path,
+      ];
+    })->all();
+  }
+
+  private function normalizeForSearch(string $value): string
+  {
+    return \Illuminate\Support\Str::of($value)->ascii()->lower()->value();
+  }
+
+  /**
+   * Verifica si el trabajador $id desciende del jefe $authPartnerId
+   * recorriendo la cadena de jefes (jefe_id) hacia arriba.
+   * @param int $id
+   * @param int $authPartnerId
+   * @return bool
+   */
+  private function isWithinAuthenticatedChain(int $id, int $authPartnerId): bool
+  {
+    $current = Worker::find($id);
+    $depth = 0;
+
+    while ($current && $current->jefe_id && $depth < 30) {
+      if ((int)$current->jefe_id === (int)$authPartnerId) {
+        return true;
+      }
+      $current = Worker::find($current->jefe_id);
+      $depth++;
+    }
+
+    return false;
   }
 
   public function update($data)

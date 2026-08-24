@@ -25,7 +25,7 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
-        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d') : now()->addDay()->format('Y-m-d')),
+        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d H:i:s') : now()->addHours(24)->format('Y-m-d H:i:s')),
         function ($attribute, $value, $fail) {
           $deliveryDate = Carbon::parse($value);
           $dayOfWeek = $deliveryDate->dayOfWeek; // 0=domingo, 6=sábado
@@ -56,6 +56,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             : collect(array_filter([$requestedSedeId]));
 
           if ($this->boolean('is_extraordinary')) {
+            if (!$deliveryDate->isBefore(now()->addDays(2)->startOfDay())) {
+              $fail('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+            }
             return;
           }
 
@@ -72,6 +75,16 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'is_extraordinary' => [
         'sometimes',
         'boolean',
+      ],
+      'extraordinary_reason' => [
+        'nullable',
+        'string',
+        'max:500',
+        function ($attribute, $value, $fail) {
+          if ($this->boolean('is_extraordinary') && empty($value)) {
+            $fail('El motivo de la entrega extraordinaria es obligatorio.');
+          }
+        },
       ],
       'ap_class_article_id' => [
         'required',

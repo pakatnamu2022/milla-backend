@@ -34,12 +34,29 @@ class RescheduleApVehicleDeliveryRequest extends StoreRequest
             $slotsLabel = implode(', ', $allowedSlots);
             $dayLabel = $dayOfWeek === Carbon::SATURDAY ? 'sábado' : 'día de semana';
             $fail("El horario '$requestedTime' no está disponible para un $dayLabel. Horarios permitidos: $slotsLabel.");
+            return;
+          }
+
+          if ($this->boolean('is_extraordinary')) {
+            if (!$deliveryDate->isBefore(now()->addDays(2)->startOfDay())) {
+              $fail('Las reprogramaciones extraordinarias solo pueden ser para hoy o mañana.');
+            }
           }
         },
       ],
       'is_extraordinary' => [
         'sometimes',
         'boolean',
+      ],
+      'extraordinary_reason' => [
+        'nullable',
+        'string',
+        'max:500',
+        function ($attribute, $value, $fail) {
+          if ($this->boolean('is_extraordinary') && empty($value)) {
+            $fail('El motivo de la reprogramación extraordinaria es obligatorio.');
+          }
+        },
       ],
       'observations' => [
         'nullable',
