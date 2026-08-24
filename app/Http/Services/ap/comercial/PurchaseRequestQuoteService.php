@@ -192,6 +192,26 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     return DB::transaction(function () use ($data) {
       $purchaseRequestQuote = $this->find($data['id']);
 
+      // Pagada en su totalidad: ya no se puede modificar nada.
+      if ($purchaseRequestQuote->is_paid) {
+        throw new Exception('No se puede editar esta solicitud/cotización porque ya fue pagada en su totalidad.');
+      }
+
+      $isApproved = (bool)$purchaseRequestQuote->is_approved;
+
+      if ($isApproved) {
+        // Aprobada (y aún no pagada en su totalidad): el precio, el vehículo/modelo
+        // y los accesorios quedan fijos. Solo se permite seguir agregando/editando
+        // bonos (no descuentos), "otros costos" (margen) y datos no relacionados al precio.
+        foreach ([
+          'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
+          'ap_vehicle_id', 'ap_models_vn_id', 'vehicle_color_id', 'type_document',
+        ] as $lockedField) {
+          unset($data[$lockedField]);
+        }
+        unset($data['accessories']);
+      }
+
       // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
       if (isset($data['doc_type_currency_id'])) {
         $data['exchange_rate_id'] = $this->getExchangeRateId($data['doc_type_currency_id']);
@@ -202,19 +222,32 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       // Si se envían bonus_discounts, reemplazar los existentes
       if (isset($data['bonus_discounts'])) {
-        // Eliminar los descuentos existentes
-        DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+        if ($isApproved) {
+          // Los descuentos (conceptos raíz, sin hijos) ya no pueden agregarse,
+          // editarse ni eliminarse; solo se sincronizan los bonos.
+          DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+            ->where('is_negative', false)
+            ->delete();
 
-        // Crear los nuevos descuentos si el array no está vacío
-        if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
-          $salePrice = $data['sale_price'];
-          $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
-          // Aplicar descuentos negativos al sale_price
-          $this->applyNegativeDiscounts($purchaseRequestQuote->id);
+          $bonusesOnly = $this->filterOutDiscountConcepts($data['bonus_discounts']);
+          if (count($bonusesOnly) > 0) {
+            $this->saveBonusDiscounts($purchaseRequestQuote->id, $bonusesOnly, $purchaseRequestQuote->sale_price);
+          }
+        } else {
+          // Eliminar los descuentos existentes
+          DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+
+          // Crear los nuevos descuentos si el array no está vacío
+          if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
+            $salePrice = $data['sale_price'];
+            $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
+            // Aplicar descuentos negativos al sale_price
+            $this->applyNegativeDiscounts($purchaseRequestQuote->id);
+          }
         }
       }
 
-      // Si se envían accessories, reemplazar los existentes
+      // Si se envían accessories, reemplazar los existentes (bloqueado si ya está aprobada)
       if (isset($data['accessories'])) {
         // Eliminar los accesorios existentes
         DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
@@ -225,7 +258,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         }
       }
 
-      // Guardar costos internos (OTROS) y recalcular margen
+      // Guardar costos internos (OTROS) y recalcular margen. Estos siguen editables
+      // aún con la cotización aprobada: son los que permiten ajustar el margen.
       if (array_key_exists('others', $data)) {
         $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float)($data['base_selling_price'] ?? $purchaseRequestQuote->base_selling_price));
       }
@@ -233,6 +267,23 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh(['others']));
     });
+  }
+
+  /**
+   * Filtra un arreglo de bonus_discounts dejando solo los que resuelven a un
+   * concepto "bono" (con parent_id, hijo de un concepto raíz). Los conceptos
+   * raíz (sin parent_id) son descuentos y quedan bloqueados una vez aprobada
+   * la cotización, ver PurchaseRequestQuoteService::update().
+   */
+  private function filterOutDiscountConcepts(array $bonusDiscounts): array
+  {
+    $conceptIds = array_column($bonusDiscounts, 'concept_id');
+    $concepts = ApMasters::whereIn('id', $conceptIds)->get()->keyBy('id');
+
+    return array_values(array_filter($bonusDiscounts, function ($row) use ($concepts) {
+      $concept = $concepts->get($row['concept_id']);
+      return $concept && !is_null($concept->parent_id);
+    }));
   }
 
   public function assignVehicle(mixed $data): JsonResource
