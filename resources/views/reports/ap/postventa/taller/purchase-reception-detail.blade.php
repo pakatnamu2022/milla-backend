@@ -1,5 +1,5 @@
 @php
-  function getBase64Image($path) {
+  $getBase64ImagePurchaseReception = function($path) {
     $fullPath = public_path($path);
     if (!file_exists($fullPath)) {
       return '';
@@ -7,7 +7,7 @@
     $imageData = base64_encode(file_get_contents($fullPath));
     $mimeType = mime_content_type($fullPath);
     return "data:{$mimeType};base64,{$imageData}";
-  }
+  };
 @endphp
 <!doctype html>
 <html lang="es">
@@ -186,13 +186,13 @@
   <table>
     <tr>
       <td class="logo" style="width: 20%;">
-        <img src="{{ getBase64Image('images/ap/logo-ap.png') }}" alt="Automotores Logo">
+        <img src="{{ $getBase64ImagePurchaseReception('images/ap/logo-ap.png') }}" alt="Automotores Logo">
       </td>
       <td class="center-title" style="width: 60%;">
         AUTOMOTORES PAKATNAMU S.A.C.
       </td>
       <td class="logo" style="width: 20%;">
-        <img src="{{ getBase64Image('images/ap/derco.jpg') }}" alt="Derco Logo">
+        <img src="{{ $getBase64ImagePurchaseReception('images/ap/derco.jpg') }}" alt="Derco Logo">
       </td>
     </tr>
   </table>

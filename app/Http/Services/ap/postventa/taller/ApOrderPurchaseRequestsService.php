@@ -1005,12 +1005,19 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
   {
     // Cargar relaciones necesarias
     $purchaseOrder->load([
-      'sede',
+      'sede.province',
+      'sede.district',
+      'sede.company',
       'supplier',
-      'vehicle',
+      'creator.person',
       'currency',
       'reception.warehouse',
-      'reception.details.product',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.requestedBy.person',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.vehicle',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.client',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.createdBy.person',
+      'reception.details.product.brand',
+      'reception.details.purchaseOrderItem',
     ]);
 
     // Verificar que tenga sede
@@ -1039,77 +1046,65 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       return;
     }
 
-    // Preparar datos para el correo
+    // Preparar datos para el email y el PDF
+    $sedeAbbreviation = $purchaseOrder->sede?->abreviatura ?? 'N/A';
+    $subject = 'Informe de llegada de repuestos en Almacén PAKATNAMU ' . $sedeAbbreviation;
+
     $emailData = [
       'purchase_order_number' => $purchaseOrder->number,
-      'invoice_dynamics' => $purchaseOrder->invoice_dynamics,
-      'receipt_dynamics' => $purchaseOrder->receipt_dynamics,
-      'invoice_date' => $purchaseOrder->invoice_date_dyn
-        ? $purchaseOrder->invoice_date_dyn->format('d/m/Y')
-        : 'N/A',
-      'emission_date' => $purchaseOrder->emission_date
-        ? $purchaseOrder->emission_date->format('d/m/Y')
-        : 'N/A',
-
-      // Datos de la sede
       'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
-
-      // Datos del proveedor
+      'sede_abbreviation' => $sedeAbbreviation,
       'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
-      'supplier_ruc' => $purchaseOrder->supplier?->num_doc ?? 'N/A',
-
-      // Datos del vehículo (si existe)
-      'vehicle_plate' => $purchaseOrder->vehicle?->plate ?? 'N/A',
-      'vehicle_vin' => $purchaseOrder->vehicle?->vin ?? 'N/A',
-
-      // Totales
-      'currency_symbol' => $purchaseOrder->currency?->symbol ?? '',
-      'total' => number_format($purchaseOrder->total, 2),
-
-      // Datos de la recepción
-      'reception_number' => $purchaseOrder->reception?->reception_number ?? 'N/A',
-      'reception_date' => $purchaseOrder->reception?->reception_date
-        ? $purchaseOrder->reception->reception_date->format('d/m/Y')
-        : 'N/A',
-      'shipping_guide_number' => $purchaseOrder->reception?->shipping_guide_number ?? 'N/A',
-      'warehouse_name' => $purchaseOrder->reception?->warehouse?->dyn_code ?? 'N/A',
-
-      // Detalle de repuestos recepcionados
-      'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
-        return [
-          'product_code' => $detail->product?->code ?? 'N/A',
-          'product_name' => $detail->product?->name ?? 'N/A',
-          'quantity_received' => $detail->quantity_received,
-          'observed_quantity' => $detail->observed_quantity,
-          'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
-        ];
-      })->all() ?? [],
-
-      // URL del frontend
-      'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
+      'responsible_name' => $purchaseOrder->creator?->person?->nombre_completo ?? 'N/A',
     ];
 
-    $subject = 'Comprobante Recepcionado - OC ' . $purchaseOrder->number;
+    // Preparar datos para el PDF (usar método público del servicio de notificaciones)
+    $notificationService = app(\App\Http\Services\ap\compras\InvoiceAccountedNotificationService::class);
+    $pdfData = $notificationService->preparePdfData($purchaseOrder);
+
+    // Generar el PDF y guardarlo en archivo temporal
+    $pdf = Pdf::loadView('reports.ap.postventa.taller.purchase-reception-detail', $pdfData);
+    $pdf->setPaper('a4', 'landscape');
+
+    $pdfPath = storage_path('app/temp/purchase_reception_' . $purchaseOrder->number . '_' . now()->format('YmdHis') . '.pdf');
+
+    // Crear directorio si no existe
+    $dir = dirname($pdfPath);
+    if (!file_exists($dir)) {
+      mkdir($dir, 0755, true);
+    }
+
+    file_put_contents($pdfPath, $pdf->output());
+    $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
     // Enviar correo a cada jefe de almacén
+    // TODO: TESTING - Comentar estas líneas después de las pruebas
+    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Correo de prueba
+
     foreach ($warehouseManagers as $warehouseManager) {
       $managerEmail = $warehouseManager->person?->email2;
 
       if ($managerEmail) {
         try {
           $this->emailService->queue([
-            'to' => $managerEmail,
+            'to' => $testEmail, // 👈 Enviando a correo de prueba
             'subject' => $subject,
-            'template' => 'emails.invoice-accounted-notification',
+            'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [
               'recipient_name' => $warehouseManager->person->nombre_completo ?? 'Jefe de Almacén',
-              'recipient_role' => 'Jefe de Almacén',
             ]),
+            'attachments' => [
+              ['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']
+            ],
           ]);
+          break; // 👈 Solo envía uno para testing
         } catch (Exception $e) {
           \Log::error("Error al enviar correo al jefe de almacén (User ID: {$warehouseManager->id}): " . $e->getMessage());
         }
       }
     }
+
+    // NO eliminamos el archivo aquí porque el email está en cola
+    // El archivo se limpiará automáticamente del directorio temp más tarde
   }
 }
