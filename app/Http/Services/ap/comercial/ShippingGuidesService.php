@@ -392,7 +392,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
       }
 
-      $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
+      $this->ensureNoActiveConsignmentGuide((int) $data['ap_vehicle_id']);
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
@@ -1519,6 +1519,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception(
         "El vehículo ya tiene la guía {$pending->document_number} pendiente de contabilizar. " .
         'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+      );
+    }
+  }
+
+  private function ensureNoActiveConsignmentGuide(int $vehicleId): void
+  {
+    $active = ShippingGuides::where('is_consignment', true)
+      ->where('status', true)
+      ->where('is_annulled', false)
+      ->whereNull('deleted_at')
+      ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $vehicleId))
+      ->first();
+
+    if ($active) {
+      throw new Exception(
+        "El vehículo ya tiene la guía de consignación {$active->document_number} activa. " .
+        'Debes anularla o desactivarla antes de crear una nueva.'
       );
     }
   }

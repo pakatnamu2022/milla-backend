@@ -201,15 +201,16 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       if ($isApproved) {
         // Aprobada (y aún no pagada en su totalidad): el precio, el vehículo/modelo
-        // y los accesorios quedan fijos. Solo se permite seguir agregando/editando
-        // bonos (no descuentos), "otros costos" (margen) y datos no relacionados al precio.
+        // y los accesorios que sí afectan el precio (ACCESORIO_ADICIONAL) quedan
+        // fijos. Solo se permite seguir agregando/editando bonos (no descuentos),
+        // obsequios (no afectan el precio final, solo el margen), "otros costos"
+        // (margen) y datos no relacionados al precio.
         foreach ([
           'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
           'ap_vehicle_id', 'ap_models_vn_id', 'vehicle_color_id', 'type_document',
         ] as $lockedField) {
           unset($data[$lockedField]);
         }
-        unset($data['accessories']);
       }
 
       // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
@@ -247,14 +248,31 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         }
       }
 
-      // Si se envían accessories, reemplazar los existentes (bloqueado si ya está aprobada)
+      // Si se envían accessories, reemplazar los existentes
       if (isset($data['accessories'])) {
-        // Eliminar los accesorios existentes
-        DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+        if ($isApproved) {
+          // ACCESORIO_ADICIONAL afecta el precio final: queda fijo. Los OBSEQUIO
+          // no afectan el precio (solo el margen), así que se pueden seguir
+          // agregando/editando/quitando libremente.
+          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+            ->where('type', 'OBSEQUIO')
+            ->delete();
 
-        // Crear los nuevos accesorios si el array no está vacío
-        if (is_array($data['accessories']) && count($data['accessories']) > 0) {
-          $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+          $giftsOnly = array_values(array_filter(
+            $data['accessories'],
+            fn($row) => ($row['type'] ?? null) === 'OBSEQUIO'
+          ));
+          if (count($giftsOnly) > 0) {
+            $this->saveAccessories($purchaseRequestQuote->id, $giftsOnly);
+          }
+        } else {
+          // Eliminar los accesorios existentes
+          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+
+          // Crear los nuevos accesorios si el array no está vacío
+          if (is_array($data['accessories']) && count($data['accessories']) > 0) {
+            $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+          }
         }
       }
 
