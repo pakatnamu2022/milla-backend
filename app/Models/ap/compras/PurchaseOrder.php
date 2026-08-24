@@ -38,6 +38,7 @@ class PurchaseOrder extends BaseModel
     'number' => ['label' => 'NRO. OC', 'width' => 22],
     'vehicle.vin' => ['label' => 'VIN', 'width' => 22],
     'number_guide' => ['label' => 'NRO. GUIA', 'width' => 22],
+    'receipt_dynamics' => ['label' => 'NRO. RECIBO DYN', 'width' => 22],
     'vehicle.engine_number' => ['label' => 'NRO. MOTOR', 'width' => 20],
     'vehicle.year' => ['label' => 'AÑO', 'width' => 10],
     'vehicle.model.family.brand.name' => ['label' => 'MARCA', 'width' => 20],
