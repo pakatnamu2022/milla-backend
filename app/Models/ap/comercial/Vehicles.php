@@ -80,6 +80,7 @@ class Vehicles extends BaseModel
     'is_received'                        => 'accessor_bool',
     'has_delivery_guide'                 => 'accessor_bool',
     'has_vehicle_delivery'               => 'accessor_bool',
+    'has_movements'                      => 'accessor_bool',
     'vehicleMovements.new_status_id'     => 'in_or_equal',
   ];
 
@@ -122,6 +123,16 @@ class Vehicles extends BaseModel
     return ApVehicleDelivery::where('vehicle_id', $this->id)
       ->whereNull('deleted_at')
       ->exists();
+  }
+
+  /**
+   * Accesor para determinar si el vehículo tiene algún movimiento registrado: 'has_movements'
+   * Útil para filtrar vehículos elegibles para consignación (has_movements=false).
+   * @return bool
+   */
+  public function getHasMovementsAttribute(): bool
+  {
+    return $this->vehicleMovements()->exists();
   }
 
   public function setPlateAttribute($value)
