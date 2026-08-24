@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\personal;
 
+use App\Http\Resources\gp\gestionhumana\personal\WorkerHierarchyResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\PersonBirthdayResource;
 use App\Http\Services\BaseService;
@@ -450,6 +451,53 @@ class WorkerService extends BaseService
     }
 
     return $query->pluck('worker_id');
+  }
+
+  /**
+   * Obtiene los subordinados directos de un trabajador para el árbol
+   * genealógico de jerarquía, validando que el trabajador consultado
+   * esté dentro de la línea de mando del usuario autenticado.
+   * @param int $id
+   * @return array
+   * @throws Exception
+   */
+  public function getSubordinates(int $id): array
+  {
+    $authPartnerId = auth()->user()->partner_id;
+
+    if ((int)$id !== (int)$authPartnerId && !$this->isWithinAuthenticatedChain($id, $authPartnerId)) {
+      throw new Exception('No tienes acceso a la jerarquía de este trabajador');
+    }
+
+    $subordinates = Worker::where('jefe_id', $id)
+      ->with(['position', 'sede'])
+      ->withCount('subordinates')
+      ->get();
+
+    return WorkerHierarchyResource::collection($subordinates)->resolve();
+  }
+
+  /**
+   * Verifica si el trabajador $id desciende del jefe $authPartnerId
+   * recorriendo la cadena de jefes (jefe_id) hacia arriba.
+   * @param int $id
+   * @param int $authPartnerId
+   * @return bool
+   */
+  private function isWithinAuthenticatedChain(int $id, int $authPartnerId): bool
+  {
+    $current = Worker::find($id);
+    $depth = 0;
+
+    while ($current && $current->jefe_id && $depth < 30) {
+      if ((int)$current->jefe_id === (int)$authPartnerId) {
+        return true;
+      }
+      $current = Worker::find($current->jefe_id);
+      $depth++;
+    }
+
+    return false;
   }
 
   public function update($data)
