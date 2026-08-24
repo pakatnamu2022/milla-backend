@@ -31,6 +31,7 @@ class ApVehicleDeliveryResource extends JsonResource
       'status_dynamic'            => $this->ShippingGuide->status_dynamic ?? null,
       'is_accounted'              => $this->is_accounted,
       'is_extraordinary'          => $this->is_extraordinary,
+      'extraordinary_reason'      => $this->extraordinary_reason,
       'extraordinary_approved'    => $this->extraordinary_approved,
       'extraordinary_approved_at' => $this->extraordinary_approved_at,
       'extraordinary_approved_by' => $this->extraordinary_approved_by,
