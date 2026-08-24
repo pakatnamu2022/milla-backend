@@ -339,15 +339,16 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->linkReceptionToInvoice($purchaseOrder, $data['purchase_reception_id']);
       }
 
-      // Para consignación: guardar dynamics_date y despachar migración de la guía
+      // Para consignación: activar migración a Dynamics con los datos de la compra
       if ($isConsignment && $consignmentGuide) {
         $consignmentGuide->update([
-          'dynamics_date' => $purchaseOrder->emission_date,
+          'dynamics_date'    => $purchaseOrder->emission_date,
           'migration_status' => 'pending',
+          'send_dynamics'    => true,
         ]);
         if (config('database_sync.enabled', false)) {
           VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
-            ->onQueue('shipping_guides');
+            ->onQueue(VerifyAndMigrateShippingGuideJob::queueFor($consignmentGuide));
         }
       }
 
