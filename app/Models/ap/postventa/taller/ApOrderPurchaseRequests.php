@@ -44,7 +44,7 @@ class ApOrderPurchaseRequests extends Model
   ];
 
   const filters = [
-    'search' => ['request_number', 'observations'],
+    'search' => ['request_number', 'observations', 'apOrderQuotation.quotation_number'],
     'ap_order_quotation_id' => '=',
     'purchase_order_id' => '=',
     'warehouse_id' => '=',
