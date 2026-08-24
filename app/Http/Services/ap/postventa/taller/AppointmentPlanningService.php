@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\taller\AppointmentPlanningListResource;
 use App\Http\Resources\ap\postventa\taller\AppointmentPlanningResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -24,12 +25,49 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
 
   public function list(Request $request)
   {
+    // Optimización: select solo los campos necesarios para el listado
+    $query = AppointmentPlanning::select([
+      'id',
+      'full_name_client',
+      'email_client',
+      'phone_client',
+      'date_appointment',
+      'time_appointment',
+      'delivery_date',
+      'delivery_time',
+      'description',
+      'is_taken',
+      'ap_vehicle_id',
+      'type_planning_id',
+      'type_operation_appointment_id',
+      'advisor_id',
+      'created_by',
+    ])->with([
+      // Vehículo: solo plate
+      'vehicle:id,plate',
+
+      // Tipo de planificación: solo description
+      'typePlanning:id,description',
+
+      // Tipo de operación: solo description
+      'typeOperationAppointment:id,description',
+
+      // Asesor: solo nombre completo
+      'advisor:id,nombre_completo',
+
+      // Creador: solo name
+      'creator:id,name',
+
+      //Orden de trabajo
+      'workOrder:id,correlative,appointment_planning_id'
+    ]);
+
     return $this->getFilteredResults(
-      AppointmentPlanning::class,
+      $query,
       $request,
       AppointmentPlanning::filters,
       AppointmentPlanning::sorts,
-      AppointmentPlanningResource::class,
+      AppointmentPlanningListResource::class,
     );
   }
 

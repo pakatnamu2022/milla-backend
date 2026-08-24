@@ -10,6 +10,8 @@ use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequests;
 use App\Models\ap\postventa\taller\ApWorkOrder;
@@ -990,5 +992,124 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         'notified_at' => $purchaseRequest->notified_at,
       ]);
     });
+  }
+
+  /**
+   * Notifica a los jefes de almacén cuando un comprobante está recepcionado
+   * Método público para ser reutilizado por otros servicios
+   *
+   * @param PurchaseOrder $purchaseOrder
+   * @return void
+   */
+  public function notifyWarehouseManagersInvoiceAccounted(PurchaseOrder $purchaseOrder): void
+  {
+    // Cargar relaciones necesarias
+    $purchaseOrder->load([
+      'sede',
+      'supplier',
+      'vehicle',
+      'currency',
+      'reception.warehouse',
+      'reception.details.product',
+    ]);
+
+    // Verificar que tenga sede
+    if (!$purchaseOrder->sede_id) {
+      \Log::warning("OC #{$purchaseOrder->number}: No se pudo obtener la sede de la orden de compra.");
+      return;
+    }
+
+    $sedeId = $purchaseOrder->sede_id;
+
+    // Obtener solo usuarios con cargo de Jefe de Almacén asignados a la sede
+    $warehouseManagers = User::whereHas('person', function ($query) {
+      $query->whereIn('cargo_id', Position::WAREHOUSE_MANAGER)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22);
+    })
+      ->whereHas('sedes', function ($query) use ($sedeId) {
+        $query->where('config_sede.id', $sedeId)
+          ->where('assigment_user_sede.status', true);
+      })
+      ->with('person')
+      ->get();
+
+    if ($warehouseManagers->isEmpty()) {
+      \Log::warning("OC #{$purchaseOrder->number}: No se encontraron jefes de almacén para la sede {$sedeId}.");
+      return;
+    }
+
+    // Preparar datos para el correo
+    $emailData = [
+      'purchase_order_number' => $purchaseOrder->number,
+      'invoice_dynamics' => $purchaseOrder->invoice_dynamics,
+      'receipt_dynamics' => $purchaseOrder->receipt_dynamics,
+      'invoice_date' => $purchaseOrder->invoice_date_dyn
+        ? $purchaseOrder->invoice_date_dyn->format('d/m/Y')
+        : 'N/A',
+      'emission_date' => $purchaseOrder->emission_date
+        ? $purchaseOrder->emission_date->format('d/m/Y')
+        : 'N/A',
+
+      // Datos de la sede
+      'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
+
+      // Datos del proveedor
+      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'supplier_ruc' => $purchaseOrder->supplier?->num_doc ?? 'N/A',
+
+      // Datos del vehículo (si existe)
+      'vehicle_plate' => $purchaseOrder->vehicle?->plate ?? 'N/A',
+      'vehicle_vin' => $purchaseOrder->vehicle?->vin ?? 'N/A',
+
+      // Totales
+      'currency_symbol' => $purchaseOrder->currency?->symbol ?? '',
+      'total' => number_format($purchaseOrder->total, 2),
+
+      // Datos de la recepción
+      'reception_number' => $purchaseOrder->reception?->reception_number ?? 'N/A',
+      'reception_date' => $purchaseOrder->reception?->reception_date
+        ? $purchaseOrder->reception->reception_date->format('d/m/Y')
+        : 'N/A',
+      'shipping_guide_number' => $purchaseOrder->reception?->shipping_guide_number ?? 'N/A',
+      'warehouse_name' => $purchaseOrder->reception?->warehouse?->dyn_code ?? 'N/A',
+
+      // Detalle de repuestos recepcionados
+      'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
+        return [
+          'product_code' => $detail->product?->code ?? 'N/A',
+          'product_name' => $detail->product?->name ?? 'N/A',
+          'quantity_received' => $detail->quantity_received,
+          'observed_quantity' => $detail->observed_quantity,
+          'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
+        ];
+      })->all() ?? [],
+
+      // URL del frontend
+      'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
+    ];
+
+    $subject = 'Comprobante Recepcionado - OC ' . $purchaseOrder->number;
+
+    // Enviar correo a cada jefe de almacén
+    foreach ($warehouseManagers as $warehouseManager) {
+      $managerEmail = $warehouseManager->person?->email2;
+
+      if ($managerEmail) {
+        try {
+          $this->emailService->queue([
+            'to' => $managerEmail,
+            'subject' => $subject,
+            'template' => 'emails.invoice-accounted-notification',
+            'data' => array_merge($emailData, [
+              'recipient_name' => $warehouseManager->person->nombre_completo ?? 'Jefe de Almacén',
+              'recipient_role' => 'Jefe de Almacén',
+            ]),
+          ]);
+        } catch (Exception $e) {
+          \Log::error("Error al enviar correo al jefe de almacén (User ID: {$warehouseManager->id}): " . $e->getMessage());
+        }
+      }
+    }
   }
 }

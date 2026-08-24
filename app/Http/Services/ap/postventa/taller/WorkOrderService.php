@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\taller\WorkOrderListResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
@@ -75,13 +76,74 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    $query = ApWorkOrder::with(['items', 'internalNote']);
+    // Optimización: select solo los campos necesarios para el listado
+    $query = ApWorkOrder::select([
+      'id',
+      'correlative',
+      'mileage',
+      'vehicle_id',
+      'opening_date',
+      'estimated_delivery_date',
+      'currency_id',
+      'final_amount',
+      'is_guarantee',
+      'is_recall',
+      'is_invoiced',
+      'is_delivery',
+      'advisor_id',
+      'delivery_by',
+      'sede_id',
+      'status_id',
+      'invoice_to',
+    ])->with([
+      // Vehículo: solo plate y vin
+      'vehicle:id,plate,vin',
+
+      // Facturar a
+      'invoiceTo:id,full_name',
+
+      // Moneda: solo name y symbol
+      'typeCurrency:id,name,symbol',
+
+      // Items: solo el primer item con campos específicos
+      'items' => function ($query) {
+        $query->select(['id', 'work_order_id', 'type_planning_id', 'type_operation_id', 'description'])
+          ->with([
+            'typePlanning:id,description,validate_receipt,type_document',
+            'typeOperation:id,description',
+          ])
+          ->limit(1);
+      },
+
+      // Estado: solo id y description
+      'status:id,description',
+
+      // Nota interna: solo number
+      'internalNote:id,work_order_id,number',
+
+      // Descuentos para calcular has_management_discount
+      'discountRequests:id,ap_work_order_id,status',
+
+      // Advisor: solo nombre completo
+      'advisor:id,nombre_completo',
+
+      // DeliveryBy: solo name
+      'deliveryBy:id,name',
+
+      // Sede: solo abreviatura
+      'sede:id,abreviatura',
+
+      // Vehicle inspection: solo para verificar existencia (is_inspection_completed)
+      // No especificamos columnas porque es HasOneThrough y causa ambigüedad
+      'vehicleInspection',
+    ]);
+
     return $this->getFilteredResults(
       $query,
       $request,
       ApWorkOrder::filters,
       ApWorkOrder::sorts,
-      WorkOrderResource::class
+      WorkOrderListResource::class
     );
   }
 
