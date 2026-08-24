@@ -657,6 +657,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('worker-without-evaluator', [WorkerController::class, 'getWorkersWithoutEvaluator']);
         Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
         Route::get('worker/my-consultants', [WorkerController::class, 'myConsultants']);
+        Route::get('worker/{id}/subordinates', [WorkerController::class, 'subordinates']);
+        Route::get('worker/{id}/search-hierarchy', [WorkerController::class, 'searchHierarchy']);
 
         Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
         Route::apiResource('worker', WorkerController::class)->only([
