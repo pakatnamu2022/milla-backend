@@ -53,6 +53,24 @@ class WorkerController extends Controller
     }
   }
 
+  /**
+   * Busca trabajadores por nombre dentro del árbol genealógico de $id,
+   * para el buscador del árbol de jerarquía de equipo.
+   * @param Request $request
+   * @param int $id
+   * @return JsonResponse
+   */
+  public function searchHierarchy(Request $request, int $id)
+  {
+    try {
+      return $this->success(
+        $this->service->searchHierarchy($id, (string)$request->query('q', ''))
+      );
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   public function show(ShowWorkerRequest $request, string $id)
   {
     try {
