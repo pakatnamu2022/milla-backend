@@ -139,12 +139,12 @@ Schedule::command('inventory:sync-adjustments-dynamics')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Calentar cache del dashboard de adopción cada 10 minutos en horario laboral
-Schedule::job(new WarmAdoptionCacheJob())
-  ->everySixHours()
-  ->between('7:00', '20:00')
-  ->timezone('America/Lima')
-  ->withoutOverlapping();
+// Calentar cache del dashboard de adopción cada 6 horas en horario laboral
+//Schedule::job(new WarmAdoptionCacheJob())
+//  ->everySixHours()
+//  ->between('7:00', '20:00')
+//  ->timezone('America/Lima')
+//  ->withoutOverlapping();
 
 // Notificar a encargados de almacén sobre stock bajo
 // Ejecuta diariamente a las 8:00 AM hora Lima
@@ -224,6 +224,14 @@ Schedule::command('ap:sync-models-vn')
 Schedule::command('internal-notes:verify-migration --all')
   ->everyTenSeconds()
   ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Purgar registros antiguos de audit_logs (conservar últimos 3 meses)
+// Ejecuta diariamente a las 3:00 AM (horario de bajo tráfico)
+Schedule::command('audit-logs:purge')
+  ->dailyAt('03:00')
   ->timezone('America/Lima')
   ->withoutOverlapping()
   ->runInBackground();

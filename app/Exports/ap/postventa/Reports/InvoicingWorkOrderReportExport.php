@@ -1,0 +1,342 @@
+<?php
+
+namespace App\Exports\ap\postventa\Reports;
+
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
+class InvoicingWorkOrderReportExport implements WithMultipleSheets
+{
+  protected Collection $finalDocuments;
+  protected Collection $advanceDocuments;
+  protected array $summary;
+  protected string $title;
+
+  public function __construct(Collection $finalDocuments, Collection $advanceDocuments, array $summary, string $title = 'Reporte de Facturación OT')
+  {
+    $this->finalDocuments = $finalDocuments;
+    $this->advanceDocuments = $advanceDocuments;
+    $this->summary = $summary;
+    $this->title = $title;
+  }
+
+  /**
+   * Retorna las hojas del reporte
+   */
+  public function sheets(): array
+  {
+    $sheets = [
+      new \App\Exports\ap\postventa\Reports\InvoicingReportMainSheet($this->finalDocuments, 'Comprobantes Finales'),
+      new \App\Exports\ap\postventa\Reports\InvoicingReportMainSheet($this->advanceDocuments, 'Comprobantes Anticipos'),
+    ];
+
+    // Solo agregar hoja de resumen si hay datos
+    if (!empty($this->summary)) {
+      $sheets[] = new \App\Exports\ap\postventa\Reports\InvoicingReportSummarySheet($this->summary, 'Resumen Pendientes');
+    }
+
+    return $sheets;
+  }
+}
+
+/**
+ * Hoja principal con el detalle de facturación
+ */
+class InvoicingReportMainSheet implements
+  FromCollection,
+  WithHeadings,
+  WithMapping,
+  WithStyles,
+  ShouldAutoSize,
+  WithTitle,
+  WithEvents
+{
+  protected Collection $data;
+  protected string $title;
+
+  public function __construct(Collection $data, string $title)
+  {
+    $this->data = $data;
+    $this->title = $title;
+  }
+
+  public function collection()
+  {
+    return $this->data;
+  }
+
+  public function headings(): array
+  {
+    return [
+      'TALLER',
+      'NÚMERO OT',
+      'PLACA',
+      'FECHA APERTURA OT',
+      'ESTADO',
+      'ASESOR',
+      'TIPO SERVICIO',
+      'MARCA',
+      'MODELO',
+      'TRABAJO REALIZADO',
+      'OPERARIO',
+      'SERIE',
+      'NÚMERO',
+      'ESTADO SUNAT',
+      'FECHA COMPROBANTE',
+      'NUM DOC',
+      'CLIENTE',
+      'TOTAL M.O',
+      'TOTAL REPUESTOS',
+      'DESCUENTO %',
+      'DESCUENTO MONTO',
+      'MONTO SIN IGV',
+      'IGV',
+      'TOTAL',
+      'MONEDA',
+      'MONEDA ORIGINAL',
+    ];
+  }
+
+  public function map($row): array
+  {
+    return [
+      $row['taller'],
+      $row['numero_ot'],
+      $row['placa_vehiculo'],
+      $row['fecha_apertura_ot'],
+      $row['estado'],
+      $row['asesor_servicio'],
+      $row['tipo_servicio'],
+      $row['marca'],
+      $row['modelo_vehiculo'],
+      $row['trabajo_realizado'],
+      $row['operario'],
+      $row['serie_comprobante'],
+      $row['numero_comprobante'],
+      $row['estado_sunat'],
+      $row['fecha_comprobante'],
+      $row['num_doc_cliente'],
+      $row['cliente'],
+      $row['total_mano_obra'],
+      $row['total_repuestos'],
+      $row['descuento_porcentaje'],
+      $row['descuento_monto'],
+      $row['monto_sin_igv'],
+      $row['igv'],
+      $row['total'],
+      $row['moneda'],
+      $row['moneda_original'],
+    ];
+  }
+
+  public function styles(Worksheet $sheet)
+  {
+    return [
+      // Estilo del encabezado
+      1 => [
+        'font' => [
+          'bold' => true,
+          'color' => ['rgb' => 'FFFFFF'],
+          'size' => 11,
+        ],
+        'fill' => [
+          'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+          'startColor' => ['rgb' => '4472C4'],
+        ],
+        'alignment' => [
+          'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+        ],
+      ],
+    ];
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        // Habilitar filtros en la fila de encabezado (columnas A-Z, 26 columnas)
+        $event->sheet->getDelegate()->setAutoFilter('A1:Z1');
+
+        // Aplicar estilos condicionales a la columna Estado SUNAT (columna N)
+        $sheet = $event->sheet->getDelegate();
+        $highestRow = $sheet->getHighestRow();
+
+        // Estilos para SI (verde con letra blanca)
+        $styleGreen = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '00B050'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Estilos para NO (rojo con letra blanca)
+        $styleRed = [
+          'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'FF0000'],
+          ],
+          'font' => [
+            'color' => ['rgb' => 'FFFFFF'],
+            'bold' => true,
+          ],
+          'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          ],
+        ];
+
+        // Aplicar estilos desde la fila 2 hasta la última fila
+        for ($row = 2; $row <= $highestRow; $row++) {
+          $cellValue = $sheet->getCell('N' . $row)->getValue();
+
+          if ($cellValue === 'SI') {
+            $sheet->getStyle('N' . $row)->applyFromArray($styleGreen);
+          } elseif ($cellValue === 'NO') {
+            $sheet->getStyle('N' . $row)->applyFromArray($styleRed);
+          }
+        }
+
+        $sheet->setSelectedCells('A1');
+      },
+    ];
+  }
+
+  public function title(): string
+  {
+    return $this->title;
+  }
+}
+
+/**
+ * Hoja de resumen de OTs pendientes de pago
+ */
+class InvoicingReportSummarySheet implements
+  FromCollection,
+  WithHeadings,
+  WithMapping,
+  WithStyles,
+  ShouldAutoSize,
+  WithTitle,
+  WithEvents
+{
+  protected array $summary;
+  protected string $title;
+
+  public function __construct(array $summary, string $title)
+  {
+    $this->summary = $summary;
+    $this->title = $title;
+  }
+
+  public function collection()
+  {
+    return collect($this->summary);
+  }
+
+  public function headings(): array
+  {
+    return [
+      'TALLER',
+      'NÚMERO OT',
+      'CLIENTE',
+      'N° ANTICIPOS',
+      'SERIES Y NÚMEROS',
+      'TOTAL ANTICIPOS',
+      'TOTAL OT',
+      'DEUDA',
+    ];
+  }
+
+  public function map($row): array
+  {
+    return [
+      $row['taller'],
+      $row['numero_ot'],
+      $row['cliente'],
+      $row['num_anticipos'],
+      $row['series_numeros'],
+      $row['total_anticipos'],
+      $row['total_ot'],
+      $row['deuda'],
+    ];
+  }
+
+  public function styles(Worksheet $sheet)
+  {
+    $lastRow = count($this->summary) + 1;
+
+    $styles = [
+      // Estilo del encabezado
+      1 => [
+        'font' => [
+          'bold' => true,
+          'color' => ['rgb' => 'FFFFFF'],
+          'size' => 11,
+        ],
+        'fill' => [
+          'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+          'startColor' => ['rgb' => '4472C4'],
+        ],
+        'alignment' => [
+          'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+          'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+        ],
+      ],
+    ];
+
+    // Ajuste de texto para la columna de series y números (columna E)
+    $sheet->getStyle('E2:E' . $lastRow)->getAlignment()->setWrapText(true);
+    $sheet->getColumnDimension('E')->setWidth(30);
+
+    // Estilo para la última fila (totales)
+    if ($lastRow > 1) {
+      $styles[$lastRow] = [
+        'font' => [
+          'bold' => true,
+          'size' => 11,
+        ],
+        'fill' => [
+          'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+          'startColor' => ['rgb' => 'FFC107'],
+        ],
+        'alignment' => [
+          'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT,
+        ],
+      ];
+    }
+
+    return $styles;
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        $sheet = $event->sheet->getDelegate();
+        $sheet->setAutoFilter('A1:H1');
+        $sheet->setSelectedCells('A1');
+      },
+    ];
+  }
+
+  public function title(): string
+  {
+    return $this->title;
+  }
+}

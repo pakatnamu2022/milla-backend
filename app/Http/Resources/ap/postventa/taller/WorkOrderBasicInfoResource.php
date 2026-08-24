@@ -27,7 +27,7 @@ class WorkOrderBasicInfoResource extends JsonResource
       'discount_amount' => (float)$this->discount_amount,
       'tax_amount' => (float)$this->tax_amount,
       'final_amount' => (float)$this->final_amount,
-      'vehicle_plate' => $this->vehicle_plate,
+      'vehicle_plate' => $this->vehicle?->plate,
       'opening_date' => $this->opening_date?->format('Y-m-d H:i:s'),
       'observations' => $this->observations,
 

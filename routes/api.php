@@ -3,11 +3,9 @@
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
-use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
-use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
-use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
+use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
@@ -22,6 +20,8 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
+use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
+use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionController;
 use App\Http\Controllers\ap\compras\PurchaseReceptionDetailController;
@@ -42,15 +42,6 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBran
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
-use App\Http\Controllers\ap\marketing\MktActivityController;
-use App\Http\Controllers\ap\marketing\MktBudgetController;
-use App\Http\Controllers\ap\marketing\MktDashboardController;
-use App\Http\Controllers\ap\marketing\MktKpiController;
-use App\Http\Controllers\ap\marketing\MktPlanController;
-use App\Http\Controllers\ap\marketing\MktProposalController;
-use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
-use App\Http\Controllers\ap\marketing\MktConstantsController;
-use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\facturacion\AccountingEntryController;
 use App\Http\Controllers\ap\facturacion\BillingCatalogController;
 use App\Http\Controllers\ap\facturacion\ElectronicDocumentController;
@@ -60,21 +51,31 @@ use App\Http\Controllers\ap\maestroGeneral\TypeCurrencyController;
 use App\Http\Controllers\ap\maestroGeneral\UnitMeasurementController;
 use App\Http\Controllers\ap\maestroGeneral\UserSeriesAssignmentController;
 use App\Http\Controllers\ap\maestroGeneral\WarehouseController;
+use App\Http\Controllers\ap\marketing\MktActivityController;
+use App\Http\Controllers\ap\marketing\MktBudgetController;
+use App\Http\Controllers\ap\marketing\MktConstantsController;
+use App\Http\Controllers\ap\marketing\MktDashboardController;
+use App\Http\Controllers\ap\marketing\MktKpiController;
+use App\Http\Controllers\ap\marketing\MktPlanController;
+use App\Http\Controllers\ap\marketing\MktProposalController;
+use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
+use App\Http\Controllers\ap\marketing\MktSupportController;
+use App\Http\Controllers\ap\postventa\Dashboard\ObjectiveDashboardController;
+use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
+use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
 use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
+use App\Http\Controllers\ap\postventa\Reports\PurchaseOrderReceiptsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\ap\postventa\Reports\InvoicingWorkOrderReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
-use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
-use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
-use App\Http\Controllers\ap\postventa\Reports\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
-use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
-use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
+use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
+use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
@@ -86,9 +87,9 @@ use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectiveMasterPvController;
 use App\Http\Controllers\ap\postventa\taller\ConceptObjectivePeriodPvController;
-use App\Http\Controllers\ap\postventa\taller\ObjectiveSedePeriodPvController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsOrderQuotationController;
 use App\Http\Controllers\ap\postventa\taller\DiscountRequestsWorkOrderController;
+use App\Http\Controllers\ap\postventa\taller\ObjectiveSedePeriodPvController;
 use App\Http\Controllers\ap\postventa\taller\PublicQuotationConfirmationController;
 use App\Http\Controllers\ap\postventa\taller\TypePlanningWorkOrderController;
 use App\Http\Controllers\ap\postventa\taller\WorkOrderController;
@@ -1609,6 +1610,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Purchase Receptions - Recepciones de Compra
       Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchaseReceptions/mark-defective-products', [PurchaseReceptionController::class, 'markDefectiveProducts']);
+      Route::post('purchaseReceptions/unmark-defective-product', [PurchaseReceptionController::class, 'unmarkDefectiveProduct']);
       Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
         'index',
         'show',
@@ -1667,6 +1670,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/available-slots-by-sede', [AppointmentPlanningController::class, 'availableSlotsBySede']);
       Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
       Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
       Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
@@ -1762,7 +1766,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
       Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
       Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
-      Route::post('reports/electronic-documents/export', [ElectronicDocumentsReportController::class, 'exportElectronicDocuments']);
+      Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
+      Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
 
       // Objectives Dashboard - Dashboard de Objetivos Postventa
       Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
@@ -1850,6 +1855,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
       Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
       Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
+      Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
+      Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

@@ -442,8 +442,8 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       // Verificar si solo está actualizando el técnico (sin fechas)
       $isOnlyWorkerUpdate = isset($data['worker_id']) &&
-                            !isset($data['planned_start_datetime']) &&
-                            !isset($data['planned_end_datetime']);
+        !isset($data['planned_start_datetime']) &&
+        !isset($data['planned_end_datetime']);
 
       // Si solo está actualizando el técnico, permitirlo incluso si está completado
       if ($isOnlyWorkerUpdate) {
@@ -521,6 +521,17 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       if ($planning->status === 'canceled') {
         throw new Exception('No se puede eliminar esta planificación porque el trabajo ya ha sido cancelado.');
+      }
+
+      // Validar si existe una factura final en borrador
+      if ($workOrder->hasDraftFinalInvoice()) {
+        throw new Exception("No se puede cancelar esta planificación porque la orden de trabajo tiene una factura final en borrador. Por favor, elimine la factura final antes de cancelar el trabajo.");
+      }
+
+      // Validar si existe una factura final generada
+      $finalInvoice = $workOrder->getFinalInvoice();
+      if ($finalInvoice) {
+        throw new Exception("No se puede cancelar esta planificación porque la orden de trabajo ya tiene una factura final generada. Por favor, elimine la factura final antes de cancelar el trabajo.");
       }
 
       // Si la planificación está en 'completed' o 'in_progress', desasignar todos los repuestos del técnico

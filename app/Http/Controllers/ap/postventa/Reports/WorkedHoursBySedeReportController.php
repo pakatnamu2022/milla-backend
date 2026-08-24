@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\WorkedHoursBySedeReportExport;
+use App\Exports\ap\postventa\Reports\WorkedHoursBySedeReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\WorkedHoursBySedeReportService;
 use Illuminate\Http\Request;

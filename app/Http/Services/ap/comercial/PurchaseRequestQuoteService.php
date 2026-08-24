@@ -261,18 +261,46 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         throw new Exception('No hay un vehículo asignado a esta cotización.');
       }
 
-      $finalDocuments = $vehicle->electronicDocuments()
-        ->where('status', ElectronicDocument::STATUS_ACCEPTED)
+      $baseDocsQuery = fn($q) => $q
         ->where('aceptada_por_sunat', 1)
         ->where('anulado', 0)
         ->where('is_advance_payment', false)
         ->whereNull('ap_billing_electronic_documents.deleted_at');
 
-      if ($finalDocuments->exists()) {
-        throw new Exception('No se puede desasignar el vehículo porque tiene facturas finales aceptadas asociadas: '
-          . $finalDocuments->get()->map(function ($doc) {
-            return "{$doc->serie}-{$doc->numero}";
-          })->implode(', '));
+      $finalDocumentsQuery = fn() => $vehicle->electronicDocuments()
+        ->tap($baseDocsQuery)
+        ->whereIn('sunat_concept_document_type_id', [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
+        ->where('status', ElectronicDocument::STATUS_ACCEPTED);
+
+      $finalDocuments = $finalDocumentsQuery()->get();
+
+      if ($finalDocuments->isNotEmpty()) {
+        // Puede haber facturas/boletas aceptadas, pero si notas de crédito (y débito)
+        // ya netean el monto facturado a 0, la venta quedó anulada en la práctica
+        // y sí se debe permitir desasignar el vehículo.
+        // Las notas se enlazan por original_document_id (no por ap_vehicle_movement_id,
+        // que las notas no heredan del documento original).
+        $invoiceIds = $finalDocuments->pluck('id');
+        $totalInvoiced = $finalDocuments->sum('total');
+
+        $totalCreditNotes = ElectronicDocument::whereIn('original_document_id', $invoiceIds)
+          ->tap($baseDocsQuery)
+          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+          ->sum('total');
+
+        $totalDebitNotes = ElectronicDocument::whereIn('original_document_id', $invoiceIds)
+          ->tap($baseDocsQuery)
+          ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+          ->sum('total');
+
+        $netTotal = $totalInvoiced - $totalCreditNotes + $totalDebitNotes;
+
+        if (round($netTotal, 2) > ElectronicDocument::ROUNDING_TOLERANCE) {
+          throw new Exception('No se puede desasignar el vehículo porque tiene facturas finales aceptadas asociadas: '
+            . $finalDocuments->map(function ($doc) {
+              return "{$doc->serie}-{$doc->numero}";
+            })->implode(', '));
+        }
       }
 
       $purchaseRequestQuote->ap_vehicle_id = null;

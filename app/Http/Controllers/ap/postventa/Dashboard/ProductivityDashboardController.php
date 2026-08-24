@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\ap\postventa\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Http\Services\ap\postventa\taller\ProductivityDashboardService;
-use Illuminate\Http\Request;
+use App\Http\Services\ap\postventa\Dashboard\ProductivityDashboardService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductivityDashboardController extends Controller
 {

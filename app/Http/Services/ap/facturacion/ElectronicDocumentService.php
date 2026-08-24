@@ -567,6 +567,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * Crear el documento principal
        */
 
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($data['fecha_de_vencimiento'])) {
+        $data['fecha_de_vencimiento'] = $data['fecha_de_emision'];
+      }
+
       $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
         'created_by' => auth()->id(),
@@ -777,6 +782,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       /**
        * Crear el documento principal
        */
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($data['fecha_de_vencimiento'])) {
+        $data['fecha_de_vencimiento'] = $data['fecha_de_emision'];
+      }
 
       $data = array_merge($data, [
         'exchange_rate_id' => $exchangeRate->id,
@@ -2968,29 +2978,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         continue;
       }
 
-      // Si es travesía, omitir validación de stock (bypass total)
+      // Validar stock reservado usando el método centralizado
+      // Este método maneja automáticamente el bypass para productos de travesía
+      ProductWarehouseStock::validateReservedStock(
+        $part->product_id,
+        $part->warehouse_id,
+        $part->quantity_used,
+        $part->is_traverse
+      );
+
+      // Si es producto de travesía, no validamos en sistema externo
       if ($part->is_traverse) {
         continue;
-      }
-
-      // Obtener registro de stock para este producto en el almacén
-      $stock = ProductWarehouseStock::where('warehouse_id', $part->warehouse_id)
-        ->where('product_id', $part->product_id)
-        ->first();
-
-      // Validar que exista stock y que haya suficiente cantidad reservada
-      if (!$stock) {
-        throw new Exception(
-          "No se encontró registro de stock para el repuesto: {$part->product->description}"
-        );
-      }
-
-      // Validar que el stock reservado sea suficiente
-      if ($stock->reserved_quantity < $part->quantity_used) {
-        throw new Exception(
-          "Stock reservado insuficiente para el repuesto: {$part->product->description}. " .
-          "Stock reservado: {$stock->reserved_quantity}, Cantidad requerida: {$part->quantity_used}"
-        );
       }
 
       // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
@@ -3017,6 +3016,95 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           throw new Exception(
             "Error al validar stock externo para el repuesto '{$part->product->description}': " . $e->getMessage()
           );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validar stock reservado para facturación consolidada de múltiples OTs
+   * Valida que exista suficiente reserved_quantity para los repuestos de todas las OTs
+   *
+   * @param \Illuminate\Support\Collection $internalNotes
+   * @return void
+   * @throws Exception
+   */
+  private function validateConsolidatedInvoiceStock($internalNotes): void
+  {
+    // Instanciar InventoryMovementService para validaciones en sistema externo
+    $inventoryMovementService = app(InventoryMovementService::class);
+
+    foreach ($internalNotes as $note) {
+      $workOrder = $note->workOrder;
+
+      // Cargar repuestos de la orden de trabajo
+      $workOrder->load(['parts.product', 'sede']);
+
+      // Si no hay repuestos, continuar con la siguiente OT
+      if ($workOrder->parts->isEmpty()) {
+        continue;
+      }
+
+      // Obtener almacén físico de la sede
+      $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
+        ->where('is_physical_warehouse', 1)
+        ->where('status', 1)
+        ->first();
+
+      if (!$warehouse) {
+        throw new Exception(
+          "No se encontró un almacén físico activo para la sede de la orden de trabajo {$workOrder->correlative}."
+        );
+      }
+
+      // Validar stock reservado para cada repuesto de esta OT
+      foreach ($workOrder->parts as $part) {
+        // Omitir si no tiene product_id
+        if (!$part->product_id) {
+          continue;
+        }
+
+        // Validar stock reservado usando el método centralizado
+        // Este método maneja automáticamente el bypass para productos de travesía
+        ProductWarehouseStock::validateReservedStock(
+          $part->product_id,
+          $part->warehouse_id,
+          $part->quantity_used,
+          $part->is_traverse
+        );
+
+        // Si es producto de travesía, no validamos en sistema externo
+        if ($part->is_traverse) {
+          continue;
+        }
+
+        // Validar stock en sistema externo (Dynamics) si el producto y almacén tienen dyn_code
+        if ($part->product && $part->product->dyn_code && $warehouse->dyn_code) {
+          try {
+            $externalStock = $inventoryMovementService->validateStockInExternalSystem(
+              $part->product->dyn_code,
+              $warehouse->dyn_code
+            );
+
+            // El SP retorna ArticuloStock como string, convertir a float para comparar
+            $availableQuantityExternal = isset($externalStock['ArticuloStock'])
+              ? (float)trim($externalStock['ArticuloStock'])
+              : 0;
+
+            if ($availableQuantityExternal < $part->quantity_used) {
+              throw new Exception(
+                "Stock insuficiente en sistema dynamics para el repuesto: {$part->product->description} " .
+                "(OT: {$workOrder->correlative}). " .
+                "Stock disponible en Dynamics: {$availableQuantityExternal}, Cantidad requerida: {$part->quantity_used}"
+              );
+            }
+          } catch (Exception $e) {
+            // Si falla la validación en sistema externo, propagar la excepción
+            throw new Exception(
+              "Error al validar stock externo para el repuesto '{$part->product->description}' " .
+              "(OT: {$workOrder->correlative}): " . $e->getMessage()
+            );
+          }
         }
       }
     }
@@ -4158,6 +4246,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Todas las órdenes de trabajo deben tener la misma moneda para consolidar');
       }
 
+      // 3.1. Validate reserved stock for all work orders' parts
+      $this->validateConsolidatedInvoiceStock($internalNotes);
+
       $data['series_id'] = $data['serie'];
       $data['serie'] = AssignSalesSeries::find($data['serie'])->series;
 
@@ -4350,6 +4441,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           // Para facturas consolidadas sin detracción, usar VENTA_INTERNA
           $invoiceData['sunat_concept_transaction_type_id'] = SunatConcepts::ID_VENTA_INTERNA;
         }
+      }
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($invoiceData['fecha_de_vencimiento'])) {
+        $invoiceData['fecha_de_vencimiento'] = $invoiceData['fecha_de_emision'];
       }
 
       // 12. Create invoice
@@ -4812,6 +4908,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         throw new Exception('Un anticipo no puede ser por 0 soles. El total debe ser mayor a 0.');
       }
 
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
+
       // ================================================================
       // 5. CREAR EL DOCUMENTO
       // ================================================================
@@ -4989,6 +5090,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'created_by' => auth()->id(),
       ];
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
 
       // ================================================================
       // 7. CREAR DOCUMENTO
@@ -5214,6 +5320,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
         'created_by' => auth()->id(),
       ];
+
+      // Si fecha_de_vencimiento no se envió, está vacío o es null, setear la fecha de emisión
+      if (empty($documentData['fecha_de_vencimiento'])) {
+        $documentData['fecha_de_vencimiento'] = $documentData['fecha_de_emision'];
+      }
 
       // ================================================================
       // 7. CREAR DOCUMENTO

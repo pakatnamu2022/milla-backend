@@ -36,6 +36,22 @@ class ApOrderQuotationsResource extends JsonResource
       'discount_amount' => (float)$this->discount_amount,
       'tax_amount' => (float)$this->tax_amount,
       'total_amount' => (float)$this->total_amount,
+      'deductible_amount' => (float)$this->deductible_amount,
+      'deductible_amount_without_tax' => round((float)$this->deductible_amount_without_tax, 2),
+      'deductible' => $this->whenLoaded('deductibles', function () {
+        $document = $this->deductibles->first()?->electronicDocument;
+
+        if (!$document) {
+          return null;
+        }
+
+        return [
+          'id' => $this->deductibles->first()?->id,
+          'full_number' => $document->full_number,
+          'cliente_denominacion' => $document->cliente_denominacion,
+          'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
+        ];
+      }),
       'validity_days' => $this->validity_days,
       'quotation_date' => $this->quotation_date,
       'expiration_date' => $this->expiration_date,

@@ -142,16 +142,16 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'vin' => $prq?->vehicle?->vin,
         'color' => $prq?->vehicle?->color?->description,
         'numero_documento' => $doc->full_number,
-        'fecha_factura'    => $doc->fecha_de_emision?->format('d/m/Y'),
-        'pct_beneficio'    => $prq?->margin_pct,
-        'beneficio'        => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
-        'total_factura'    => $docTotal,
-        'pendiente'        => $pendiente,
-        'ref_cancelacion'  => $collectionRefs ?: null,
-        'estado'           => $estado,
-        'forma_pago'       => $doc->condiciones_de_pago,
-        'banco'            => $doc->bank?->description,
-        'aceptada_sunat'   => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
+        'fecha_factura' => $doc->fecha_de_emision?->format('d/m/Y'),
+        'pct_beneficio' => $prq?->margin_pct,
+        'beneficio' => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
+        'total_factura' => $docTotal,
+        'pendiente' => $pendiente,
+        'ref_cancelacion' => $collectionRefs ?: null,
+        'estado' => $estado,
+        'forma_pago' => $doc->condiciones_de_pago,
+        'banco' => $doc->bank?->description,
+        'aceptada_sunat' => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
       ];
     });
 
@@ -160,8 +160,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $cellColorRules = [
       'estado' => [
-        'CANCELADO'        => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
-        'PENDIENTE'        => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+        'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
+        'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
         'NO CONTABILIZADO' => ['bg' => 'F3F4F6', 'text' => '6B7280', 'bold' => true],
       ],
     ];
@@ -496,12 +496,9 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         }
       }
 
-      if (!isset($data['warehouse_id'])) {
-        $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;
-      }
-
       // No permitir actualizar warehouse_physical_id aunque se envíe
       unset($data['warehouse_physical_id']);
+      unset($data['warehouse_id']);
 
       $vehicle->update($data);
 

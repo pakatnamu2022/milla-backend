@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -40,11 +41,8 @@ class ApWorkOrder extends Model
     'correlative',
     'appointment_planning_id',
     'order_quotation_id',
-    'vehicle_inspection_id',
     'vehicle_id',
     'currency_id',
-    'vehicle_plate',
-    'vehicle_vin',
     'mileage',
     'status_id',
     'advisor_id',
@@ -131,14 +129,12 @@ class ApWorkOrder extends Model
   ];
 
   const filters = [
-    'search' => ['correlative', 'vehicle_plate', 'vehicle_vin', 'observations', 'internalNotes.number'],
+    'search' => ['correlative', 'vehicle.plate', 'vehicle.vin', 'observations', 'internalNotes.number'],
     'correlative' => '=',
     'currency_id' => '=',
     'appointment_planning_id' => '=',
     'order_quotation_id' => '=',
     'vehicle_id' => '=',
-    'vehicle_plate' => 'like',
-    'vehicle_vin' => 'like',
     'status_id' => 'in_or_equal',
     'advisor_id' => '=',
     'sede_id' => '=',
@@ -197,25 +193,20 @@ class ApWorkOrder extends Model
     }
   }
 
-  public function setVehiclePlateAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['vehicle_plate'] = Str::upper($value);
-    }
-  }
-
-  public function setVehicleVinAttribute($value)
-  {
-    if ($value) {
-      $this->attributes['vehicle_vin'] = Str::upper($value);
-    }
-  }
-
   public function setDiscardedNoteAttribute($value)
   {
     if ($value) {
       $this->attributes['discarded_note'] = Str::upper($value);
     }
+  }
+
+  public function getDeductibleAmountWithoutTaxAttribute()
+  {
+    if (!$this->deductible_amount) {
+      return 0;
+    }
+
+    return (float)($this->deductible_amount / (1 + Constants::VAT_TAX / 100));
   }
 
   // Service Helpers (lazy-loaded singletons per instance)
@@ -241,16 +232,6 @@ class ApWorkOrder extends Model
       $this->billingService = app(WorkOrderBillingService::class);
     }
     return $this->billingService;
-  }
-
-  // Accessors
-  public function getDeductibleAmountWithoutTaxAttribute()
-  {
-    if (!$this->deductible_amount) {
-      return 0;
-    }
-
-    return (float)($this->deductible_amount / (1 + Constants::VAT_TAX / 100));
   }
 
   // Relations
@@ -324,15 +305,69 @@ class ApWorkOrder extends Model
     return $this->hasMany(ApWorkOrderParts::class, 'work_order_id');
   }
 
-  public function vehicleInspection(): BelongsTo
+  /**
+   * Obtiene todos los registros pivot de inspecciones de esta orden
+   */
+  public function vehicleInspectionPivots(): HasMany
   {
-    return $this->belongsTo(ApVehicleInspection::class, 'vehicle_inspection_id')
-      ->where('is_cancelled', false);
+    return $this->hasMany(WorkOrderVehicleInspection::class, 'work_order_id');
   }
 
-  public function createdVehicleInspection(): HasOne
+  /**
+   * Relación con el registro pivot activo (no anulado) de inspección vehicular.
+   * Una vez anulado (is_cancelled = true), un pivot se considera inexistente:
+   * solo puede haber uno activo por orden de trabajo. Única fuente de verdad
+   * para "cuál es la recepción activa de esta OT".
+   */
+  public function activeVehicleInspectionPivot(): HasOne
   {
-    return $this->hasOne(ApVehicleInspection::class, 'ap_work_order_id');
+    return $this->hasOne(WorkOrderVehicleInspection::class, 'work_order_id')
+      ->where('is_cancelled', false)
+      ->latest('id');
+  }
+
+  /**
+   * Relación para obtener la inspección vehicular activa (no cancelada)
+   * Usa hasOneThrough para soportar eager loading
+   */
+  public function vehicleInspection(): HasOneThrough
+  {
+    return $this->hasOneThrough(
+      ApVehicleInspection::class,
+      WorkOrderVehicleInspection::class,
+      'work_order_id',      // Foreign key en work_order_vehicle_inspection
+      'id',                 // Foreign key en ap_vehicle_inspections
+      'id',                 // Local key en ap_work_orders
+      'vehicle_inspection_id' // Local key en work_order_vehicle_inspection
+    )->where('work_order_vehicle_inspection.is_cancelled', false)
+      ->latest('work_order_vehicle_inspection.id');
+  }
+
+  /**
+   * Método helper para obtener la inspección activa (backward compatibility)
+   * @return ApVehicleInspection|null
+   * @deprecated Usar la relación vehicleInspection() directamente
+   */
+  public function getActiveVehicleInspection(): ?ApVehicleInspection
+  {
+    return $this->vehicleInspection;
+  }
+
+  /**
+   * Verifica si tiene al menos una inspección activa (no cancelada)
+   * @param int|null $vehicleInspectionId ID de inspección específica para validar (opcional)
+   * @return bool
+   */
+  public function hasActiveInspection(?int $vehicleInspectionId = null): bool
+  {
+    $query = $this->activeVehicleInspectionPivot();
+
+    // Si se especifica un ID de inspección, filtrar por ese
+    if ($vehicleInspectionId !== null) {
+      $query->where('vehicle_inspection_id', $vehicleInspectionId);
+    }
+
+    return $query->exists();
   }
 
   public function exchangeRate(): BelongsTo
@@ -1039,8 +1074,6 @@ class ApWorkOrder extends Model
         $query->where('is_invoiced', $value);
       } elseif ($column === 'currency_id' && $operator === '=') {
         $query->where('currency_id', $value);
-      } elseif ($column === 'vehicle_plate' && $operator === 'like') {
-        $query->where('vehicle_plate', 'like', '%' . $value . '%');
       }
     }
 
@@ -1091,8 +1124,8 @@ class ApWorkOrder extends Model
         'estado' => $workOrder->status ? $workOrder->status->description : '',
         'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
         'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
-        'placa_vehiculo' => $workOrder->vehicle_plate,
-        'vin_vehiculo' => $workOrder->vehicle_vin,
+        'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
+        'vin_vehiculo' => $workOrder->vehicle?->vin ?? '',
         'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
         'modelo' => $workOrder->vehicle?->model?->version ?? '',
         'km' => $workOrder->mileage ?? '',

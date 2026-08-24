@@ -3,27 +3,31 @@
 namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
-use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\GeneralMaster;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
-use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
 use App\Models\ap\postventa\gestionProductos\Products;
+use App\Models\ap\postventa\gestionProductos\ProductWarehouseStock;
+use App\Models\ap\postventa\taller\ApDeductibleOrderQuotation;
 use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -442,7 +446,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   public function show($id)
   {
     $quotation = $this->find($id);
-    $quotation->load('advancesOrderQuotation');
+    $quotation->load('advancesOrderQuotation', 'deductibles');
 
     $additionalData = [
       'checkStock' => true,
@@ -1001,7 +1005,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Total mano de obra (LABOR + MATERIAL) - sin descuento
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+        $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
@@ -1165,7 +1169,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Total mano de obra (LABOR + MATERIAL) - sin descuento
       if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_LABOR ||
-          $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
+        $detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_MATERIAL) {
         $totalLabor += $itemSubtotal;
       }
 
@@ -1211,7 +1215,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $fileName = 'Cotizacion_Taller_' . $quotation->quotation_number . '.xlsx';
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new \App\Exports\ap\postventa\taller\OrderQuotationExport($data),
+      new \App\Exports\ap\postventa\Reports\OrderQuotationExport($data),
       $fileName
     );
   }
@@ -1338,7 +1342,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     $fileName = 'Cotizacion_Repuestos_' . $quotation->quotation_number . '.xlsx';
 
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new \App\Exports\ap\postventa\taller\OrderQuotationExport($data),
+      new \App\Exports\ap\postventa\Reports\OrderQuotationExport($data),
       $fileName
     );
   }
@@ -2076,24 +2080,45 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       // 1. Obtener la cotización original con sus detalles
       $originalQuotation = $this->find($id);
 
-      if ($originalQuotation->area_id !== ApMasters::AREA_TALLER) {
-        throw new Exception('Solo se pueden duplicar cotizaciones del área de Taller.');
+      // Obtener el tipo de cambio óptimo
+      $optimalExchangeRate = ExchangeRate::getOptimalExchangeRate(
+        Carbon::now()->toDateString(), // Fecha actual
+        TypeCurrency::PEN_ID,
+        TypeCurrency::USD_ID,
+        ExchangeRate::TYPE_VENTA
+      );
+
+      if (!$optimalExchangeRate) {
+        throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de la cotización ni para la fecha actual.');
       }
 
-      // 2. Convertir a array y preparar datos para la nueva cotización
+      // Obtener el freight_commission (comisión de flete) del GeneralMaster
+      $freightCommissionMaster = GeneralMaster::find(GeneralMaster::FREIGHT_COMMISSION_ID);
+      if (!$freightCommissionMaster) {
+        throw new Exception('No se encontró la configuración de comisión de flete (FREIGHT_COMMISSION).');
+      }
+      $freightCommission = 1 + (float)$freightCommissionMaster->value;
+
+      // 2. Obtener el almacén físico de la sede para consultar precios y stock actuales
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($originalQuotation->sede_id);
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén físico para la sede de la cotización.');
+      }
+
+      // 3. Convertir a array y preparar datos para la nueva cotización
       $newQuotationData = $originalQuotation->toArray();
 
-      // 3. Remover campos que no se deben copiar (auto-generados)
+      // 4. Remover campos que no se deben copiar (auto-generados)
       unset($newQuotationData['id']);
       unset($newQuotationData['quotation_number']);
       unset($newQuotationData['created_at']);
       unset($newQuotationData['updated_at']);
       unset($newQuotationData['deleted_at']);
 
-      // 4. Generar nuevo número de cotización
+      // 5. Generar nuevo número de cotización
       $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
 
-      // 5. Resetear campos específicos según tus requerimientos
+      // 6. Resetear campos específicos - la cotización clonada siempre se crea APERTURADA
       $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
       $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
       $newQuotationData['status_id'] = ApMasters::STATUS_ORDER_QUOTE_APERTURADO;
@@ -2111,11 +2136,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $newQuotationData['discarded_at'] = null;
       $newQuotationData['is_fully_paid'] = false;
       $newQuotationData['emails_sent_count'] = 0;
+      $newQuotationData['deductible_amount'] = 0;
+      $newQuotationData['exchange_rate_id'] = $optimalExchangeRate->id;
+      $newQuotationData['exchange_rate'] = $optimalExchangeRate->rate;
 
-      // 6. Crear la nueva cotización
+      // Resetear totales en 0 (se recalcularán después basándose en los detalles nuevos)
+      $newQuotationData['subtotal'] = 0;
+      $newQuotationData['discount_amount'] = 0;
+      $newQuotationData['discount_percentage'] = 0;
+      $newQuotationData['tax_amount'] = 0;
+      $newQuotationData['total_amount'] = 0;
+
+      // 7. Crear la nueva cotización (los totales se calcularán después)
       $newQuotation = ApOrderQuotations::create($newQuotationData);
 
-      // 7. Duplicar todos los detalles
+      // 8. Clonar detalles con precios y stock actualizados
       foreach ($originalQuotation->details as $detail) {
         $newDetailData = $detail->toArray();
 
@@ -2126,13 +2161,90 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
         unset($newDetailData['updated_at']);
         unset($newDetailData['deleted_at']);
 
+        // Resetear descuentos y deducibles - la clonación es SIN descuentos
+        $newDetailData['discount_percentage'] = 0;
+        $newDetailData['is_deductible'] = false;
+
+        // Si es un producto (no mano de obra), actualizar precio y stock
+        if ($detail->item_type === ApOrderQuotationDetails::ITEM_TYPE_PRODUCT && $detail->product_id) {
+          // Consultar el stock actual del producto en el almacén de la sede
+          $currentStock = ProductWarehouseStock::where('warehouse_id', $warehouse->id)
+            ->where('product_id', $detail->product_id)
+            ->first();
+
+          if ($currentStock) {
+            // Determinar el precio unitario actual
+            $salePrice = $currentStock->sale_price ?? 0;
+
+            // Si sale_price es 0 PERO retail_price_external > 0, calcular precio con fórmula
+            if ($salePrice == 0 && isset($detail->retail_price_external) && $detail->retail_price_external > 0) {
+              // Precio = retail_price_external * tipo_cambio * freight_commission
+              $newDetailData['unit_price'] = round(
+                $detail->retail_price_external * $optimalExchangeRate->rate * $freightCommission,
+                2
+              );
+            } else {
+              // Usar el precio de venta actual del stock
+              $newDetailData['unit_price'] = $salePrice;
+            }
+
+            $newDetailData['sale_price_min_original'] = $currentStock->sale_price_min ?? 0;
+
+            // Determinar supply_type según disponibilidad de stock
+            if ($currentStock->available_quantity > 0 || $currentStock->quantity > 0) {
+              $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_STOCK;
+            } else {
+              $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL;
+            }
+          } else {
+            // Si no existe en el almacén, intentar calcular con retail_price_external
+            if (isset($detail->retail_price_external) && $detail->retail_price_external > 0) {
+              $newDetailData['unit_price'] = round(
+                $detail->retail_price_external * $optimalExchangeRate->rate * $freightCommission,
+                2
+              );
+            } else {
+              $newDetailData['unit_price'] = 0;
+            }
+
+            $newDetailData['sale_price_min_original'] = 0;
+            $newDetailData['supply_type'] = ApOrderQuotationDetails::SUPPLY_TYPE_CENTRAL;
+          }
+
+          // Recalcular totales del detalle sin descuento
+          $quantity = $newDetailData['quantity'] ?? 0;
+          $unitPrice = $newDetailData['unit_price'] ?? 0;
+
+          // total_cost = cantidad * precio unitario (sin descuento)
+          $newDetailData['total_cost'] = round($quantity * $unitPrice, 2);
+
+          // net_amount = total_cost (sin descuento es igual)
+          $newDetailData['net_amount'] = $newDetailData['total_cost'];
+
+          // tax_amount = net_amount * 0.18 (IGV 18%)
+          $newDetailData['tax_amount'] = round($newDetailData['net_amount'] * 0.18, 2);
+        } else {
+          // Para mano de obra o materiales, mantener los datos originales pero sin descuento
+          $quantity = $newDetailData['quantity'] ?? 0;
+          $unitPrice = $newDetailData['unit_price'] ?? 0;
+
+          $newDetailData['total_cost'] = round($quantity * $unitPrice, 2);
+          $newDetailData['net_amount'] = $newDetailData['total_cost'];
+          $newDetailData['tax_amount'] = round($newDetailData['net_amount'] * 0.18, 2);
+        }
+
         // Crear el nuevo detalle asociado a la nueva cotización
         $newQuotation->details()->create($newDetailData);
       }
 
-      // 8. Retornar la nueva cotización con sus relaciones cargadas
-      return new
-      ApOrderQuotationsResource($newQuotation->load([
+      // 9. Refrescar los detalles y recalcular totales de la cotización
+      $newQuotation->load('details');
+      $newQuotation->calculateTotals();
+      $newQuotation->calculateIsSoldAtValidPrice();
+      $newQuotation->save();
+
+      // 10. Retornar la nueva cotización con sus relaciones cargadas
+      return new ApOrderQuotationsResource($newQuotation->load([
         'vehicle',
         'createdBy',
         'details.product'
@@ -2936,5 +3048,178 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     ];
 
     return $this->exportService->exportToExcel(ApOrderQuotations::class, $options);
+  }
+
+  /**
+   * Asocia un deducible a una cotización
+   * - Valida que la cotización no esté descartada/anulada
+   * - Valida que la cotización no tenga ya un deducible
+   * - Valida que la moneda del comprobante coincida con la de la cotización
+   */
+  public function storeDeductible(mixed $data)
+  {
+    return DB::transaction(function () use ($data) {
+      $orderQuotation = ApOrderQuotations::find($data['order_quotation_id']);
+
+      if (!$orderQuotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Validar que la cotización no esté descartada o anulada
+      $forbiddenStatuses = [
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_ANULADO,
+      ];
+
+      if ($orderQuotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una cotización con factura borrador final');
+      }
+
+      if ($orderQuotation->hasFinalInvoice()) {
+        throw new Exception('No se puede agregar un deducible a una cotización con factura final');
+      }
+
+      if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede agregar un deducible a una cotización descartada o anulada');
+      }
+
+      // Una cotización solo puede tener un deducible activo a la vez
+      $alreadyHasDeductible = ApDeductibleOrderQuotation::where('order_quotation_id', $data['order_quotation_id'])
+        ->exists();
+
+      if ($alreadyHasDeductible) {
+        throw new Exception('La cotización ya tiene un deducible asociado');
+      }
+
+      // Obtener el comprobante electrónico
+      $electronicDocument = ElectronicDocument::find($data['electronic_document_id']);
+
+      if (!$electronicDocument) {
+        throw new Exception('Comprobante electrónico no encontrado');
+      }
+
+      // Validar que la moneda de la cotización coincida con la moneda del comprobante
+      $quotationCurrencyId = $orderQuotation->currency_id;
+      $documentCurrencyId = $electronicDocument->sunat_concept_currency_id;
+
+      // Traducir moneda del comprobante a sistema de TypeCurrency
+      $documentCurrencyInQuotationSystem = null;
+      if ($documentCurrencyId == SunatConcepts::CURRENCY_PEN) {
+        $documentCurrencyInQuotationSystem = TypeCurrency::PEN_ID;
+      } elseif ($documentCurrencyId == SunatConcepts::CURRENCY_USD) {
+        $documentCurrencyInQuotationSystem = TypeCurrency::USD_ID;
+      }
+
+      if ($quotationCurrencyId !== $documentCurrencyInQuotationSystem) {
+        $quotationCurrencyName = $quotationCurrencyId == TypeCurrency::PEN_ID ? 'PEN' : 'USD';
+        $documentCurrencyName = $documentCurrencyId == SunatConcepts::CURRENCY_PEN ? 'PEN' : 'USD';
+        throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la cotización ({$quotationCurrencyName})");
+      }
+
+      // Crear el detalle de cotización "Deducible" en negativo (resta del total)
+      $deductibleDetail = ApOrderQuotationDetails::create([
+        'order_quotation_id' => $data['order_quotation_id'],
+        'item_type' => ApOrderQuotationDetails::ITEM_TYPE_LABOR,
+        'description' => 'Deducible',
+        'quantity' => 1,
+        'unit_price' => $electronicDocument->total_gravada,
+        'discount_percentage' => 0,
+        'total_cost' => -$electronicDocument->total_gravada,
+        'net_amount' => -$electronicDocument->total_gravada,
+        'tax_amount' => -$electronicDocument->total_igv,
+        'is_deductible' => true,
+        'status' => ApOrderQuotationDetails::STATUS_PENDING,
+        'created_by' => auth()->id(),
+      ]);
+
+      // Crear el registro de auditoría del deducible, ligado al detalle creado
+      ApDeductibleOrderQuotation::create([
+        'order_quotation_id' => $data['order_quotation_id'],
+        'electronic_document_id' => $data['electronic_document_id'],
+        'order_quotation_detail_id' => $deductibleDetail->id,
+        'created_by' => auth()->id(),
+      ]);
+
+      // Actualizar el campo deductible_amount en ap_order_quotations (sumando el total del comprobante)
+      $currentDeductibleAmount = $orderQuotation->deductible_amount ?? 0;
+      $newDeductibleAmount = $currentDeductibleAmount + $electronicDocument->total;
+
+      $orderQuotation->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Recalcular totales de la cotización
+      $orderQuotation->calculateTotals();
+      $orderQuotation->save();
+
+      // Recargar la cotización con los deducibles y su comprobante electrónico
+      $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new ApOrderQuotationsResource($orderQuotation);
+    });
+  }
+
+  /**
+   * Elimina un deducible de una cotización
+   * - Valida que la cotización pueda ser modificada
+   */
+  public function deleteDeductible(int $deductibleId)
+  {
+    return DB::transaction(function () use ($deductibleId) {
+      // Buscar el deducible con sus relaciones
+      $deductible = ApDeductibleOrderQuotation::with('electronicDocument')
+        ->find($deductibleId);
+
+      if (!$deductible) {
+        throw new Exception('Deducible no encontrado');
+      }
+
+      // Validar que la cotización pueda ser modificada
+      $orderQuotation = ApOrderQuotations::find($deductible->order_quotation_id);
+
+      $forbiddenStatuses = [
+        ApMasters::STATUS_ORDER_QUOTE_DESCARTADO,
+        ApMasters::STATUS_ORDER_QUOTE_ANULADO,
+      ];
+
+      if ($orderQuotation->hasDraftFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una cotización con factura borrador final');
+      }
+
+      if ($orderQuotation->hasFinalInvoice()) {
+        throw new Exception('No se puede eliminar un deducible de una cotización con factura final');
+      }
+
+      if (in_array($orderQuotation->status_id, $forbiddenStatuses)) {
+        throw new Exception('No se puede eliminar un deducible de una cotización descartada o anulada');
+      }
+
+      // Restar el monto del comprobante del deductible_amount
+      $currentDeductibleAmount = $orderQuotation->deductible_amount ?? 0;
+      $newDeductibleAmount = max(0, $currentDeductibleAmount - $deductible->electronicDocument->total);
+
+      $orderQuotation->update([
+        'deductible_amount' => $newDeductibleAmount,
+      ]);
+
+      // Eliminar en espejo el detalle "Deducible" ligado a este registro
+      if ($deductible->order_quotation_detail_id) {
+        ApOrderQuotationDetails::where('id', $deductible->order_quotation_detail_id)
+          ->where('is_deductible', true)
+          ->delete();
+      }
+
+      // Eliminar el deducible (soft delete)
+      $deductible->delete();
+
+      // Recalcular totales de la cotización
+      $orderQuotation->calculateTotals();
+      $orderQuotation->save();
+
+      // Recargar la cotización
+      $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
+
+      return new ApOrderQuotationsResource($orderQuotation);
+    });
   }
 }

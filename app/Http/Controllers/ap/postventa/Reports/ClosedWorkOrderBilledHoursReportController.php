@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\postventa\Reports;
 
-use App\Exports\ap\postventa\taller\ClosedWorkOrderBilledHoursReportExport;
+use App\Exports\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportService;
 use Illuminate\Http\Request;

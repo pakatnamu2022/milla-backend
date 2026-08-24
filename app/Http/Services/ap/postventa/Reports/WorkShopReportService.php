@@ -56,6 +56,23 @@ class WorkShopReportService
         'internalNotes.workOrder.typeCurrency',
         'internalNotes.workOrder.exchangeRate',
         'internalNotes.workOrder.internalNotes',
+        'currency',
+        'exchangeRate',
+        'creditNote.currency',
+        'creditNote.exchangeRate',
+        'creditNote.internalNotes.workOrder.invoiceTo.documentType',
+        'creditNote.internalNotes.workOrder.invoiceTo.typePerson',
+        'creditNote.internalNotes.workOrder.vehicle.model.family.brand',
+        'creditNote.internalNotes.workOrder.vehicle.model.family',
+        'creditNote.internalNotes.workOrder.sede',
+        'creditNote.internalNotes.workOrder.advisor',
+        'creditNote.internalNotes.workOrder.items.typePlanning',
+        'creditNote.internalNotes.workOrder.plannings.worker',
+        'creditNote.internalNotes.workOrder.labours',
+        'creditNote.internalNotes.workOrder.parts.product',
+        'creditNote.internalNotes.workOrder.typeCurrency',
+        'creditNote.internalNotes.workOrder.exchangeRate',
+        'creditNote.internalNotes.workOrder.internalNotes',
       ])
       ->where('anulado', false)
       ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
@@ -88,22 +105,38 @@ class WorkShopReportService
 
     // Transformar documentos para el reporte (igual que InvoicingReport)
     $reportData = $documents->flatMap(function ($document) use ($amountsInSoles) {
+      $rows = collect();
+
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        return [$this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document)];
-      }
-
-      // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
-      if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        return $document->internalNotes->map(function ($internalNote) use ($amountsInSoles, $document) {
+        $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
+      } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
+      elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
+        $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows) {
           if ($internalNote->workOrder) {
-            return $this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $document);
+            $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $document));
           }
-          return null;
-        })->filter();
+        });
       }
 
-      return []; // Sin OT, skip
+      // NOTA DE CRÉDITO ASOCIADA: Si el documento tiene credit_note_id, mapear también la nota de crédito
+      // usando las MISMAS notas internas de la factura original, pero con montos en negativo
+      if ($document->credit_note_id && $document->creditNote) {
+        $creditNote = $document->creditNote;
+
+        // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
+        // porque la NC referencia a la factura completa
+        if ($document->internalNotes && $document->internalNotes->count() > 0) {
+          $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $creditNote, $document, $rows) {
+            if ($internalNote->workOrder) {
+              // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
+              $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $creditNote, $document));
+            }
+          });
+        }
+      }
+
+      return $rows;
     })->values();
 
     // 2. Consultar WorkOrders cerradas con nota interna SIN factura
@@ -174,9 +207,10 @@ class WorkShopReportService
    * @param ApWorkOrder $workOrder
    * @param bool $amountsInSoles
    * @param ElectronicDocument|null $document
+   * @param ElectronicDocument|null $originalDocument Documento original (factura) cuando $document es una NC
    * @return array
    */
-  private function transformWorkOrderForReport(ApWorkOrder $workOrder, bool $amountsInSoles = false, ?ElectronicDocument $document = null): array
+  private function transformWorkOrderForReport(ApWorkOrder $workOrder, bool $amountsInSoles = false, ?ElectronicDocument $document = null, ?ElectronicDocument $originalDocument = null): array
   {
     $invoiceTo = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
@@ -187,14 +221,20 @@ class WorkShopReportService
 
     // Verificar si es Nota de Crédito
     $multiplier = 1;
+    $isCreditNote = false;
     if ($document && $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA) {
       $multiplier = -1;
+      $isCreditNote = true;
     }
+
+    // Determinar el documento a usar para obtener el tipo de cambio
+    // Si es NC y tenemos documento original, usar el tipo de cambio del original
+    $documentForExchangeRate = ($isCreditNote && $originalDocument) ? $originalDocument : $document;
 
     // Calcular precios según la moneda solicitada
     $prices = $amountsInSoles
-      ? $this->calculatePricesInSoles($workOrder, $multiplier)
-      : $this->calculatePricesInDollars($workOrder, $multiplier);
+      ? $this->calculatePricesInSoles($workOrder, $multiplier, $documentForExchangeRate)
+      : $this->calculatePricesInDollars($workOrder, $multiplier, $documentForExchangeRate);
 
     // Convertir estado SUNAT a SI/NO
     $estadoSunat = '';
@@ -216,8 +256,8 @@ class WorkShopReportService
       'marca' => $vehicle?->model?->family?->brand?->name ?? '',
       'modelo_vehiculo' => $vehicle?->model?->family?->description ?? '',
       'kilometraje' => $vehicle?->mileage ?? '',
-      'placa' => $workOrder->vehicle_plate ?? '',
-      'vin' => $workOrder->vehicle_vin ?? '',
+      'placa' => $workOrder->vehicle?->plate ?? '',
+      'vin' => $workOrder->vehicle?->vin ?? '',
       'concesionario' => $workOrder->sede?->abreviatura ?? '',
       'tipo_ingreso' => $workOrder->appointment_planning_id ? 'CON CITA' : 'SIN CITA',
       'numero_ot' => $workOrder->correlative ?? '',
@@ -287,9 +327,10 @@ class WorkShopReportService
    *
    * @param ApWorkOrder $workOrder
    * @param float $multiplier
+   * @param ElectronicDocument|null $document Documento para obtener tipo de cambio (cuando es NC, será la factura original)
    * @return array
    */
-  private function calculatePricesInDollars(ApWorkOrder $workOrder, float $multiplier = 1): array
+  private function calculatePricesInDollars(ApWorkOrder $workOrder, float $multiplier = 1, ?ElectronicDocument $document = null): array
   {
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
@@ -337,9 +378,10 @@ class WorkShopReportService
    *
    * @param ApWorkOrder $workOrder
    * @param float $multiplier
+   * @param ElectronicDocument|null $document Documento para obtener tipo de cambio (cuando es NC, será la factura original)
    * @return array
    */
-  private function calculatePricesInSoles(ApWorkOrder $workOrder, float $multiplier = 1): array
+  private function calculatePricesInSoles(ApWorkOrder $workOrder, float $multiplier = 1, ?ElectronicDocument $document = null): array
   {
     // Precio de mano de obra
     $labourCost = $workOrder->labours->sum('net_amount');
@@ -365,8 +407,15 @@ class WorkShopReportService
       $lubricantsCostPEN = $lubricantsCost * $multiplier;
     } else {
       // La OT está en dólares, convertir a soles
-      // Obtener el tipo de cambio real (no el de getExchangeRateToUsd que retorna 1.0 para USD)
-      $exchangeRate = $this->getRealExchangeRate($workOrder);
+      // Si tenemos documento y tiene tipo de cambio, usarlo; sino usar el de la OT
+      $exchangeRate = null;
+      if ($document && $document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD && $document->exchangeRate) {
+        $exchangeRate = (float)$document->exchangeRate->rate;
+      }
+      if (!$exchangeRate) {
+        $exchangeRate = $this->getRealExchangeRate($workOrder);
+      }
+
       $labourCostPEN = ($labourCost * $exchangeRate) * $multiplier;
       $partsCostPEN = ($partsCost * $exchangeRate) * $multiplier;
       $lubricantsCostPEN = ($lubricantsCost * $exchangeRate) * $multiplier;

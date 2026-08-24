@@ -64,7 +64,7 @@ class NubefactApiService
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -74,7 +74,7 @@ class NubefactApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => false,
@@ -86,7 +86,7 @@ class NubefactApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       throw $e;
     }
@@ -134,7 +134,7 @@ class NubefactApiService
 
       if ($httpStatusCode == 200) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -144,7 +144,7 @@ class NubefactApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         throw new Exception($errorMessage);
       }
@@ -152,7 +152,7 @@ class NubefactApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       throw $e;
     }
@@ -198,7 +198,7 @@ class NubefactApiService
 
       if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -208,7 +208,7 @@ class NubefactApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => false,
@@ -220,7 +220,7 @@ class NubefactApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       throw $e;
     }
@@ -262,7 +262,7 @@ class NubefactApiService
 
       if ($response->successful()) {
         $logData['success'] = true;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => true,
@@ -272,7 +272,7 @@ class NubefactApiService
         $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
         $logData['success'] = false;
         $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        $this->logRequest($logData);
+        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
         return [
           'success' => false,
@@ -284,7 +284,7 @@ class NubefactApiService
       $logData['success'] = false;
       $logData['error_message'] = $e->getMessage();
       $logData['http_status_code'] = 0;
-      $this->logRequest($logData);
+      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
 
       throw $e;
     }
@@ -587,14 +587,14 @@ class NubefactApiService
       'simulado'           => true,
     ];
 
-    $this->logRequest([
-      'ap_billing_electronic_document_id' => $document->id,
-      'operation'                         => $operation,
-      'request_payload'                   => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
-      'response_payload'                  => json_encode($data, JSON_UNESCAPED_UNICODE),
-      'http_status_code'                  => 200,
-      'success'                           => true,
-    ]);
+    // $this->logRequest([ // Comentado: Log desactivado para evitar crecimiento de BD
+    //   'ap_billing_electronic_document_id' => $document->id,
+    //   'operation'                         => $operation,
+    //   'request_payload'                   => json_encode(['simulado' => true], JSON_UNESCAPED_UNICODE),
+    //   'response_payload'                  => json_encode($data, JSON_UNESCAPED_UNICODE),
+    //   'http_status_code'                  => 200,
+    //   'success'                           => true,
+    // ]);
 
     return [
       'success' => true,

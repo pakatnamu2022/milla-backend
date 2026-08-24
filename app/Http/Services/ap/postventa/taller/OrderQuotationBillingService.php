@@ -55,23 +55,47 @@ class OrderQuotationBillingService
       $totalIgv += $item['igv'];
     }
 
+    // Si la cotización tiene un deducible activo, ya fue cubierto por ese comprobante (aunque
+    // el ítem "Deducible" no aparece como línea en items_invoice, ver buildInvoiceItems()),
+    // así que se descuenta su gravada e IGV de los totales, igual que en ApWorkOrder. Así
+    // invoice_preview.total vuelve a cuadrar con total_amount.
+    $activeDeductible = $quotation->deductibles->whereNull('deleted_at')->first();
+    if ($activeDeductible && $activeDeductible->electronicDocument) {
+      $totalGravada -= (float)$activeDeductible->electronicDocument->total_gravada;
+      $totalIgv -= (float)$activeDeductible->electronicDocument->total_igv;
+    }
+
     // total_anticipo es informativo (lo ya cobrado en anticipos sin IGV), por eso se mantiene
     // positivo aunque su línea en items_invoice esté en negativo.
     // Usamos directamente los totales gravados almacenados para evitar problemas de redondeo
     $totalAnticipo = $this->advancePaymentService->getTotalGravadaFromAdvances($quotation);
+
+    // Redondear los totales
+    $totalGravadaRounded = round($totalGravada, 2);
+    $totalIgvRounded = round($totalIgv, 2);
+    $totalFinal = round($totalGravada + $totalIgv, 2);
+
+    // Si el total está muy cercano a 0 (dentro del umbral de ±0.03 por errores de redondeo),
+    // forzar tanto total_gravada como total_igv a 0 para evitar inconsistencias como tener
+    // IGV positivo sobre base gravada negativa cuando el total es 0.
+    if (abs($totalFinal) < 0.03) {
+      $totalGravadaRounded = 0;
+      $totalIgvRounded = 0;
+      $totalFinal = 0;
+    }
 
     // +0 normaliza el -0.0 que puede salir al cancelarse gravada/igv contra el anticipo
     // negativo (matemáticamente es cero, pero "-0" en el JSON se ve como un bug).
     return [
       'items_invoice' => $items,
       'invoice_preview' => [
-        'total_gravada' => round($totalGravada, 2) + 0,
+        'total_gravada' => $totalGravadaRounded + 0,
         'total_inafecta' => 0,
         'total_exonerada' => 0,
-        'total_igv' => round($totalIgv, 2) + 0,
+        'total_igv' => $totalIgvRounded + 0,
         'total_gratuita' => 0,
         'total_anticipo' => round($totalAnticipo, 2) + 0,
-        'total' => round($totalGravada + $totalIgv, 2) + 0,
+        'total' => $totalFinal + 0,
       ],
     ];
   }
@@ -86,13 +110,28 @@ class OrderQuotationBillingService
   {
     $items = [];
 
-    $pendingDetails = $quotation->details->where('status', ApOrderQuotationDetails::STATUS_PENDING);
+    // Filtrar detalles: NO incluir el ítem de deducible (is_deductible)
+    // ya que este resta del total pero no debe aparecer como item en la factura
+    $pendingDetails = $quotation->details
+      ->where('status', ApOrderQuotationDetails::STATUS_PENDING)
+      ->where('is_deductible', false);
+
     foreach ($pendingDetails as $detail) {
       $items[] = $this->buildDetailInvoiceItem($detail, $quotation);
     }
 
     foreach ($this->documentService->getActiveAdvances($quotation) as $advance) {
       $items[] = $this->buildAdvanceInvoiceItem($advance, $quotation);
+    }
+
+    // Si hay deducible, agregar el texto a la descripción del último item
+    if ($quotation->deductible_amount > 0 && count($items) > 0) {
+      $firstDeductible = $quotation->deductibles->first();
+      if ($firstDeductible && $firstDeductible->electronicDocument) {
+        $lastIndex = count($items) - 1;
+        $items[$lastIndex]['descripcion'] .= "\nPLACA: " . $quotation->vehicle->plate .
+          " - DSCTO POR PAGO DE DEDUCIBLE - Doc: " . $firstDeductible->electronicDocument->full_number;
+      }
     }
 
     return $items;
