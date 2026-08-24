@@ -79,6 +79,11 @@ class StoreApVehicleDeliveryStockInicialRequest extends StoreRequest
             return;
           }
 
+          if (!$deliveryDate->isAfter(now()->addHours(24))) {
+            $fail('La fecha de entrega debe programarse con al menos 24 horas de anticipación.');
+            return;
+          }
+
           $requestedSedeId = $this->input('sede_id');
           $sede = $requestedSedeId ? Sede::find($requestedSedeId) : null;
           $sedeIdsDelShop = $sede && $sede->shop_id

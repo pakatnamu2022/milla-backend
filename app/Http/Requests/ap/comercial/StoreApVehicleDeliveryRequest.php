@@ -25,7 +25,7 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'scheduled_delivery_date' => [
         'required',
         'date',
-        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d') : now()->addDay()->format('Y-m-d')),
+        'after_or_equal:' . ($this->boolean('is_extraordinary') ? now()->format('Y-m-d H:i:s') : now()->addHours(24)->format('Y-m-d H:i:s')),
         function ($attribute, $value, $fail) {
           $deliveryDate = Carbon::parse($value);
           $dayOfWeek = $deliveryDate->dayOfWeek; // 0=domingo, 6=sábado
