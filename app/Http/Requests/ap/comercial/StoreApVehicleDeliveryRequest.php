@@ -56,6 +56,9 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             : collect(array_filter([$requestedSedeId]));
 
           if ($this->boolean('is_extraordinary')) {
+            if (!$deliveryDate->isBefore(now()->addDays(2)->startOfDay())) {
+              $fail('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+            }
             return;
           }
 
@@ -72,6 +75,16 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
       'is_extraordinary' => [
         'sometimes',
         'boolean',
+      ],
+      'extraordinary_reason' => [
+        'nullable',
+        'string',
+        'max:500',
+        function ($attribute, $value, $fail) {
+          if ($this->boolean('is_extraordinary') && empty($value)) {
+            $fail('El motivo de la entrega extraordinaria es obligatorio.');
+          }
+        },
       ],
       'ap_class_article_id' => [
         'required',
