@@ -392,7 +392,20 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
       }
 
-      $this->ensureNoActiveConsignmentGuide((int) $data['ap_vehicle_id']);
+      $vehicleId = (int) $data['ap_vehicle_id'];
+
+      // Un vehículo solo puede entrar una vez a consignación
+      $hasConsignmentMovement = VehicleMovement::where('ap_vehicle_id', $vehicleId)
+        ->where('movement_type', VehicleMovement::CONSIGNMENT)
+        ->exists();
+      if ($hasConsignmentMovement) {
+        throw new Exception(
+          'Este vehículo ya tiene un movimiento de consignación registrado. ' .
+          'No puede ingresar al flujo de consignación más de una vez.'
+        );
+      }
+
+      $this->ensureNoActiveConsignmentGuide($vehicleId);
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
