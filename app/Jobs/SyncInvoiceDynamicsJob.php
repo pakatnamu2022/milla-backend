@@ -123,18 +123,6 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         return;
       }
 
-
-      /**
-       * Notificar a todos los stakeholders cuando el comprobante está recepcionado
-       * (Gerencia, Jefes de Almacén, Usuarios Solicitantes)
-       */
-      try {
-        $notificationService = app(InvoiceAccountedNotificationService::class);
-        $notificationService->notifyAll($purchaseOrder);
-      } catch (Throwable $e) {
-        Log::error("Error al notificar stakeholders para OC #{$purchaseOrder->id}: {$e->getMessage()}");
-      }
-
       $status = trim($result->EstadoDocumento) === 'Hist. Recep.';
       $statusReception = trim($result->EstadoRecepcion) === 'Hist. Recep.';
 
@@ -230,14 +218,14 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
          * Notificar a todos los stakeholders cuando el comprobante está recepcionado
          * (Gerencia, Jefes de Almacén, Usuarios Solicitantes)
          */
-//        if ($isNotVoided) {
-//          try {
-//            $notificationService = app(InvoiceAccountedNotificationService::class);
-//            $notificationService->notifyAll($purchaseOrder);
-//          } catch (Throwable $e) {
-//            Log::error("Error al notificar stakeholders para OC #{$purchaseOrder->id}: {$e->getMessage()}");
-//          }
-//        }
+        if ($isNotVoided) {
+          try {
+            $notificationService = app(InvoiceAccountedNotificationService::class);
+            $notificationService->notifyAll($purchaseOrder);
+          } catch (Throwable $e) {
+            Log::error("Error al notificar stakeholders para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
+        }
 
         return;
       }
