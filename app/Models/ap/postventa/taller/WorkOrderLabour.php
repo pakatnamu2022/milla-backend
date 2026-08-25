@@ -27,6 +27,7 @@ class WorkOrderLabour extends Model
     'worker_id',
     'work_order_id',
     'is_deductible',
+    'current_hourly_cost',
     'registered_by'
   ];
 
@@ -80,6 +81,7 @@ class WorkOrderLabour extends Model
     'net_amount' => 'decimal:2',
     'tax_amount' => 'decimal:2',
     'is_deductible' => 'boolean',
+    'current_hourly_cost' => 'decimal:2',
   ];
 
   public function setDescriptionAttribute($value): void

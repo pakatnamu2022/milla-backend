@@ -2786,6 +2786,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'tax_amount' => -$electronicDocument->total_igv,
         'work_order_id' => $data['work_order_id'],
         'is_deductible' => true,
+        'current_hourly_cost' => $workOrder->getCurrentHourlyCost(),
       ]);
 
       // Crear el registro de auditoría del deducible, ligado al ítem de mano de obra creado

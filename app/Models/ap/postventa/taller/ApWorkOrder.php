@@ -14,6 +14,7 @@ use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\DiscountRequestsWorkOrder;
+use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\Sede;
@@ -1144,6 +1145,32 @@ class ApWorkOrder extends Model
         'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
       ];
     });
+  }
+
+  /**
+   * Obtiene el costo de hora hombre actual según el tipo de vehículo
+   *
+   * @return float Costo de hora hombre actual
+   */
+  public function getCurrentHourlyCost(): float
+  {
+    // Cargar vehículo si no está cargado
+    if (!$this->relationLoaded('vehicle')) {
+      $this->load('vehicle');
+    }
+
+    // Determinar si es vehículo pesado o liviano
+    $isHeavy = $this->vehicle?->is_heavy ?? false;
+
+    // Obtener el ID del GeneralMaster según el tipo de vehículo
+    $generalMasterId = $isHeavy
+      ? GeneralMaster::COST_PER_MAN_HOUR_VP_ID
+      : GeneralMaster::COST_PER_MAN_HOUR_VL_ID;
+
+    // Obtener y retornar el valor del GeneralMaster
+    $generalMaster = GeneralMaster::find($generalMasterId);
+
+    return (float) ($generalMaster->value ?? 0);
   }
 
   public static function getReportableColumns()
