@@ -565,19 +565,6 @@ return [
       'timeout'             => 300,
       'nice'                => 0,
     ],
-    'supervisor-adoption-cache'              => [
-      'connection'   => 'redis',
-      'queue'        => ['adoption-cache'],
-      'balance'      => 'simple',
-      'minProcesses' => 1,
-      'maxProcesses' => 1,
-      'maxTime'      => 0,
-      'maxJobs'      => 0,
-      'memory'       => 256,
-      'tries'        => 1,
-      'timeout'      => 180,
-      'nice'         => 10, // baja prioridad del proceso para no competir con otros workers
-    ],
     'supervisor-attendance'                  => [
       'connection'          => 'redis',
       'queue'               => ['attendance'],

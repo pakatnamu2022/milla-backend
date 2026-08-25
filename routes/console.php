@@ -2,7 +2,6 @@
 
 use App\Jobs\SyncAccountsReceivableJob;
 use App\Jobs\SyncAccountsPayableJob;
-use App\Jobs\WarmAdoptionCacheJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -140,12 +139,6 @@ Schedule::command('inventory:sync-adjustments-dynamics')
   ->withoutOverlapping()
   ->runInBackground();
 
-// Calentar cache del dashboard de adopción cada 6 horas en horario laboral
-//Schedule::job(new WarmAdoptionCacheJob())
-//  ->everySixHours()
-//  ->between('7:00', '20:00')
-//  ->timezone('America/Lima')
-//  ->withoutOverlapping();
 
 // Notificar a encargados de almacén sobre stock bajo
 // Ejecuta diariamente a las 8:00 AM hora Lima
