@@ -73,11 +73,20 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         ->whereIn('sede_id', $sedes);
     }
 
-    $query->where(function ($q) {
-      $q->where('is_extraordinary', false)
-        ->orWhereNull('is_extraordinary')
-        ->orWhere('extraordinary_approved', true);
-    });
+    if ($request->boolean('extraordinary_review')) {
+      // Solo entregas extraordinarias pendientes o rechazadas de aprobación.
+      $query->where('is_extraordinary', true)
+        ->where(function ($q) {
+          $q->whereNull('extraordinary_approved')
+            ->orWhere('extraordinary_approved', false);
+        });
+    } else {
+      $query->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('is_extraordinary')
+          ->orWhere('extraordinary_approved', true);
+      });
+    }
 
     return $this->getFilteredResults(
       $query,
