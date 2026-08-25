@@ -82,13 +82,26 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     $user = $request->user();
 
+    $with = [
+      'sede',
+      'supplier',
+      'supplierOrderType',
+      'currency',
+      'warehouse.articleClass',
+      'vehicleMovement',
+      'vehicle',
+      'items',
+      'creator',
+      'reception',
+    ];
+
     if ($user->role->id === Constants::TICS_ROL_ID) {
-      return PurchaseOrder::class;
+      return PurchaseOrder::with($with);
     }
 
     $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
 
-    return PurchaseOrder::whereIn('sede_id', $sedes);
+    return PurchaseOrder::with($with)->whereIn('sede_id', $sedes);
   }
 
   /**

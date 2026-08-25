@@ -211,6 +211,9 @@ class PurchaseOrder extends BaseModel
 
   public function hasActiveReceptions(): bool
   {
+    if ($this->relationLoaded('reception')) {
+      return $this->reception !== null && $this->reception->deleted_at === null;
+    }
     return $this->reception()->whereNull('deleted_at')->exists();
   }
 
