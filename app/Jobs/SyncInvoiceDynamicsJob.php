@@ -7,6 +7,7 @@ use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\compras\InvoiceAccountedNotificationService;
 use App\Http\Services\ap\compras\PurchaseOrderService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
+use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\gp\gestionsistema\Company;
@@ -217,8 +218,9 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         /**
          * Notificar a todos los stakeholders cuando el comprobante está recepcionado
          * (Gerencia, Jefes de Almacén, Usuarios Solicitantes)
+         * Solo para órdenes de compra de tipo POSTVENTA
          */
-        if ($isNotVoided) {
+        if ($isNotVoided && $purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
           try {
             $notificationService = app(InvoiceAccountedNotificationService::class);
             $notificationService->notifyAll($purchaseOrder);
