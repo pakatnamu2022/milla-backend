@@ -1206,6 +1206,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('La guía ya está migrada completamente');
     }
 
+    // Guías de consignación no deben migrar a Dynamics hasta que se genere
+    // la orden de compra asociada (ver PurchaseOrderService::store).
+    if ($guide->is_consignment && !$guide->send_dynamics) {
+      throw new Exception('Esta guía de consignación aún no tiene una orden de compra generada; no se puede migrar todavía.');
+    }
+
     $resetActions = [];
 
     // Revisar los logs y preparar el terreno antes de redespachar
