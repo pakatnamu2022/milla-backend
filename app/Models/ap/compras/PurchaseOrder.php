@@ -34,28 +34,30 @@ class PurchaseOrder extends BaseModel
   protected $table = 'ap_purchase_order';
 
   protected $reportColumns = [
-    'sede.suc_abrev'                    => ['label' => 'SEDE', 'width' => 12],
-    'number'                            => ['label' => 'NRO. OC', 'width' => 22],
-    'vehicle.vin'                       => ['label' => 'VIN', 'width' => 22],
-    'vehicle.engine_number'             => ['label' => 'NRO. MOTOR', 'width' => 20],
-    'vehicle.year'                      => ['label' => 'AÑO', 'width' => 10],
-    'vehicle.model.family.brand.name'   => ['label' => 'MARCA', 'width' => 20],
-    'vehicle.model.name'                => ['label' => 'MODELO', 'width' => 25],
-    'vehicle.color.description'         => ['label' => 'COLOR', 'width' => 18],
+    'sede.suc_abrev' => ['label' => 'SEDE', 'width' => 12],
+    'number' => ['label' => 'NRO. OC', 'width' => 22],
+    'vehicle.vin' => ['label' => 'VIN', 'width' => 22],
+    'number_guide' => ['label' => 'NRO. GUIA', 'width' => 22],
+    'receipt_dynamics' => ['label' => 'NRO. RECIBO DYN', 'width' => 22],
+    'vehicle.engine_number' => ['label' => 'NRO. MOTOR', 'width' => 20],
+    'vehicle.year' => ['label' => 'AÑO', 'width' => 10],
+    'vehicle.model.family.brand.name' => ['label' => 'MARCA', 'width' => 20],
+    'vehicle.model.version' => ['label' => 'MODELO', 'width' => 25],
+    'vehicle.color.description' => ['label' => 'COLOR', 'width' => 18],
     'vehicle.vehicleStatus.description' => ['label' => 'ESTADO VEHÍCULO', 'width' => 22],
-    'supplier.full_name'                => ['label' => 'PROVEEDOR', 'width' => 35],
-    'supplierOrderType.description'     => ['label' => 'TIPO OC', 'width' => 18],
-    'invoice_series'                    => ['label' => 'SERIE FACTURA', 'width' => 15],
-    'invoice_number'                    => ['label' => 'NRO. FACTURA', 'width' => 15],
-    'emission_date'                     => ['label' => 'FECHA EMISIÓN', 'formatter' => 'date', 'width' => 18],
-    'due_date'                          => ['label' => 'FECHA VENC.', 'formatter' => 'date', 'width' => 18],
-    'currency.name'                     => ['label' => 'MONEDA', 'width' => 12],
-    'subtotal'                          => ['label' => 'SUBTOTAL', 'width' => 15],
-    'igv'                               => ['label' => 'IGV', 'width' => 12],
-    'total'                             => ['label' => 'TOTAL', 'width' => 15],
-    'migration_status_translated'       => ['label' => 'ESTADO MIGRACIÓN', 'accessor' => 'getMigrationStatusTranslated', 'width' => 20],
-    'status'                            => ['label' => 'ESTADO', 'formatter' => 'boolean', 'true_label' => 'VÁLIDA', 'false_label' => 'ANULADA', 'width' => 15],
-    'is_contabilizado'                  => ['label' => 'CONTABILIZADO', 'accessor' => 'isContabilizado', 'formatter' => 'boolean', 'true_label' => 'SÍ', 'false_label' => 'NO', 'width' => 18],
+    'supplier.full_name' => ['label' => 'PROVEEDOR', 'width' => 35],
+    'supplierOrderType.description' => ['label' => 'TIPO OC', 'width' => 18],
+    'invoice_series' => ['label' => 'SERIE FACTURA', 'width' => 15],
+    'invoice_number' => ['label' => 'NRO. FACTURA', 'width' => 15],
+    'emission_date' => ['label' => 'FECHA EMISIÓN', 'formatter' => 'date', 'width' => 18],
+    'due_date' => ['label' => 'FECHA VENC.', 'formatter' => 'date', 'width' => 18],
+    'currency.name' => ['label' => 'MONEDA', 'width' => 12],
+    'subtotal' => ['label' => 'SUBTOTAL', 'width' => 15],
+    'igv' => ['label' => 'IGV', 'width' => 12],
+    'total' => ['label' => 'TOTAL', 'width' => 15],
+    'migration_status_translated' => ['label' => 'ESTADO MIGRACIÓN', 'accessor' => 'getMigrationStatusTranslated', 'width' => 20],
+    'status' => ['label' => 'ESTADO', 'formatter' => 'boolean', 'true_label' => 'VÁLIDA', 'false_label' => 'ANULADA', 'width' => 15],
+    'is_contabilizado' => ['label' => 'CONTABILIZADO', 'accessor' => 'isContabilizado', 'formatter' => 'boolean', 'true_label' => 'SÍ', 'false_label' => 'NO', 'width' => 18],
   ];
 
   protected $reportRelations = [
@@ -71,16 +73,16 @@ class PurchaseOrder extends BaseModel
   protected $reportColorRules = [
     'migration_status_translated' => [
       'COMPLETADO' => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde
-      'PENDIENTE'  => ['bg' => 'FFA500', 'text' => 'FFFFFF'], // Naranja
-      'FALLIDO'    => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo
+      'PENDIENTE' => ['bg' => 'FFA500', 'text' => 'FFFFFF'], // Naranja
+      'FALLIDO' => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo
       'PROCESANDO' => ['bg' => '0066CC', 'text' => 'FFFFFF'], // Azul
     ],
     'status' => [
-      true  => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde para "VÁLIDA"
+      true => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde para "VÁLIDA"
       false => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo para "ANULADA"
     ],
     'is_contabilizado' => [
-      true  => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde con texto blanco para "SÍ"
+      true => ['bg' => '00AA00', 'text' => 'FFFFFF'], // Verde con texto blanco para "SÍ"
       false => ['bg' => 'FF0000', 'text' => 'FFFFFF'], // Rojo con texto blanco para "NO"
     ],
   ];
@@ -125,34 +127,34 @@ class PurchaseOrder extends BaseModel
   ];
 
   protected $casts = [
-    'migrated_at'               => 'datetime',
+    'migrated_at' => 'datetime',
     'invoice_sync_attempted_at' => 'datetime',
-    'emission_date'             => 'date',
-    'due_date'                  => 'date',
-    'invoice_date_dyn'          => 'date',
-    'status'                    => 'boolean',
-    'resent'                    => 'boolean',
-    'discount'                  => 'decimal:2',
-    'subtotal'                  => 'decimal:2',
-    'isc'                       => 'decimal:2',
-    'igv'                       => 'decimal:2',
-    'total'                     => 'decimal:2',
+    'emission_date' => 'date',
+    'due_date' => 'date',
+    'invoice_date_dyn' => 'date',
+    'status' => 'boolean',
+    'resent' => 'boolean',
+    'discount' => 'decimal:2',
+    'subtotal' => 'decimal:2',
+    'isc' => 'decimal:2',
+    'igv' => 'decimal:2',
+    'total' => 'decimal:2',
   ];
 
   const filters = [
-    'search'                       => ['number', 'invoice_series', 'invoice_number', 'number_guide', 'vehicle.vin'],
-    'supplier_id'                  => '=',
-    'warehouse_id'                 => '=',
-    'migration_status'             => '=',
-    'status'                       => '=',
-    'currency_id'                  => '=',
-    'sede_id'                      => '=',
-    'vehicle.ap_models_vn_id'      => '=',
+    'search' => ['number', 'invoice_series', 'invoice_number', 'number_guide', 'vehicle.vin'],
+    'supplier_id' => '=',
+    'warehouse_id' => '=',
+    'migration_status' => '=',
+    'status' => '=',
+    'currency_id' => '=',
+    'sede_id' => '=',
+    'vehicle.ap_models_vn_id' => '=',
     'vehicle.ap_vehicle_status_id' => '=',
-    'type_operation_id'            => '=',
-    'quotation_id'                 => '=',
-    'emission_date'                => 'between',
-    'due_date'                     => 'between',
+    'type_operation_id' => '=',
+    'quotation_id' => '=',
+    'emission_date' => 'between',
+    'due_date' => 'between',
   ];
 
   const sorts = [
@@ -405,9 +407,9 @@ class PurchaseOrder extends BaseModel
   public function getMigrationStatusTranslated(): string
   {
     $translations = [
-      'PENDING'    => 'PENDIENTE',
-      'COMPLETED'  => 'COMPLETADO',
-      'FAILED'     => 'FALLIDO',
+      'PENDING' => 'PENDIENTE',
+      'COMPLETED' => 'COMPLETADO',
+      'FAILED' => 'FALLIDO',
       'PROCESSING' => 'PROCESANDO',
     ];
 

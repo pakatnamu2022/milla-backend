@@ -28,10 +28,11 @@ class InvoiceAccountedNotificationService
   protected ApOrderPurchaseRequestsService $purchaseRequestsService;
 
   public function __construct(
-    EmailService $emailService,
-    PurchaseReceptionService $receptionService,
+    EmailService                   $emailService,
+    PurchaseReceptionService       $receptionService,
     ApOrderPurchaseRequestsService $purchaseRequestsService
-  ) {
+  )
+  {
     $this->emailService = $emailService;
     $this->receptionService = $receptionService;
     $this->purchaseRequestsService = $purchaseRequestsService;
@@ -92,13 +93,12 @@ class InvoiceAccountedNotificationService
       'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.client',
       'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.createdBy.person',
       'reception.details.product.brand',
-      'reception.details.product.model',
       'reception.details.purchaseOrderItem',
     ]);
 
     // Verificar que tenga sede
     if (!$purchaseOrder->sede_id) {
-      Log::warning("OC #{$purchaseOrder->number}: No se pudo obtener la sede de la orden de compra.");
+      Log::warning("#{$purchaseOrder->number}: No se pudo obtener la sede de la orden de compra.");
       return;
     }
 
@@ -118,7 +118,7 @@ class InvoiceAccountedNotificationService
       ->get();
 
     if ($managers->isEmpty()) {
-      Log::warning("OC #{$purchaseOrder->number}: No se encontraron gerentes de postventa para la sede {$sedeId}.");
+      Log::warning("#{$purchaseOrder->number}: No se encontraron gerentes de postventa para la sede {$sedeId}.");
       return;
     }
 
@@ -128,7 +128,7 @@ class InvoiceAccountedNotificationService
 
     $emailData = [
       'purchase_order_number' => $purchaseOrder->number,
-      'sede_name' => $purchaseOrder->sede?->name ?? 'N/A',
+      'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
       'sede_abbreviation' => $sedeAbbreviation,
       'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
       'responsible_name' => $purchaseOrder->creator?->person?->nombre_completo ?? 'N/A',
@@ -137,22 +137,32 @@ class InvoiceAccountedNotificationService
     // Preparar datos para el PDF
     $pdfData = $this->preparePdfData($purchaseOrder);
 
-    // Generar el PDF
+    // Generar el PDF y guardarlo en archivo temporal
     $pdf = Pdf::loadView('reports.ap.postventa.taller.purchase-reception-detail', $pdfData);
     $pdf->setPaper('a4', 'landscape');
 
-    $pdfPath = tempnam(sys_get_temp_dir(), 'purchase_reception_') . '.pdf';
+    $pdfPath = storage_path('app/temp/purchase_reception_' . $purchaseOrder->number . '_' . now()->format('YmdHis') . '.pdf');
+
+    // Crear directorio si no existe
+    $dir = dirname($pdfPath);
+    if (!file_exists($dir)) {
+      mkdir($dir, 0755, true);
+    }
+
     file_put_contents($pdfPath, $pdf->output());
     $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
     // Enviar correo a cada gerente
+    // TODO: TESTING - Comentar estas líneas después de las pruebas
+    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Pon tu correo aquí
+
     foreach ($managers as $manager) {
       $managerEmail = $manager->person?->email2;
 
       if ($managerEmail) {
         try {
           $this->emailService->queue([
-            'to' => $managerEmail,
+            'to' => $testEmail, // 👈 Enviando a correo de prueba
             'subject' => $subject,
             'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [
@@ -162,16 +172,15 @@ class InvoiceAccountedNotificationService
               ['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']
             ],
           ]);
+          break; // 👈 Solo envía uno para testing
         } catch (\Exception $e) {
           Log::error("Error al enviar correo al gerente (User ID: {$manager->id}): " . $e->getMessage());
         }
       }
     }
 
-    // Limpiar archivo temporal después de enviar todos los correos
-    if (file_exists($pdfPath)) {
-      unlink($pdfPath);
-    }
+    // NO eliminamos el archivo aquí porque el email está en cola
+    // El archivo se limpiará automáticamente del directorio temp más tarde
   }
 
   /**
@@ -230,14 +239,14 @@ class InvoiceAccountedNotificationService
 
       // Detalle de repuestos recepcionados
       'reception_items' => $purchaseOrder->reception?->details->map(function ($detail) {
-        return [
-          'product_code' => $detail->product?->code ?? 'N/A',
-          'product_name' => $detail->product?->name ?? 'N/A',
-          'quantity_received' => $detail->quantity_received,
-          'observed_quantity' => $detail->observed_quantity,
-          'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
-        ];
-      })->all() ?? [],
+          return [
+            'product_code' => $detail->product?->code ?? 'N/A',
+            'product_name' => $detail->product?->name ?? 'N/A',
+            'quantity_received' => $detail->quantity_received,
+            'observed_quantity' => $detail->observed_quantity,
+            'reception_type' => PurchaseReceptionDetail::getReceptionTypeLabel($detail->reception_type),
+          ];
+        })->all() ?? [],
 
       // URL del frontend
       'button_url' => config('app.frontend_url') . '/ap/compras/ordenes-de-compra',
@@ -250,7 +259,7 @@ class InvoiceAccountedNotificationService
    * @param PurchaseOrder $purchaseOrder
    * @return array
    */
-  protected function preparePdfData(PurchaseOrder $purchaseOrder): array
+  public function preparePdfData(PurchaseOrder $purchaseOrder): array
   {
     // Obtener solicitudes de compra únicas con sus responsables
     $purchaseRequests = [];
@@ -281,6 +290,7 @@ class InvoiceAccountedNotificationService
 
         // Buscar la solicitud de compra asociada a este producto
         $plate = '';
+        $model = '';
         $client = '';
         $advisor = '';
 
@@ -295,6 +305,7 @@ class InvoiceAccountedNotificationService
 
             if ($quotation) {
               $plate = $quotation->vehicle?->plate ?? '';
+              $model = $quotation->vehicle?->model->version ?? '';
               $client = $quotation->client?->full_name ?? '';
               $advisor = $quotation->createdBy?->person?->nombre_completo ?? '';
             }
@@ -305,7 +316,7 @@ class InvoiceAccountedNotificationService
           'code' => $detail->product?->code ?? 'N/A',
           'description' => $detail->product?->name ?? 'N/A',
           'brand' => $detail->product?->brand?->name ?? '',
-          'model' => $detail->product?->model?->name ?? '',
+          'model' => $model,
           'quantity' => number_format($quantity, 2),
           'unit_price' => $unitPrice,
           'total' => $total,

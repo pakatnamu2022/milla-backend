@@ -362,29 +362,67 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
     $emailService = new EmailService();
 
-    // Obtener detalles de la última recepción para incluir en el correo
-    $latestReception = $supplierOrder->receptions()
-      ->with('details.product')
-      ->latest()
-      ->first();
-
-    $receivedItems = [];
-    if ($latestReception) {
-      foreach ($latestReception->details as $detail) {
-        $product = $detail->product;
-        if ($product) {
-          $receivedItems[] = [
-            'code' => $product->code ?? 'N/A',
-            'name' => $product->name,
-            'quantity' => $detail->quantity_received - ($detail->observed_quantity ?? 0), // Cantidad aceptada
-            'unit' => $product->unit_type ?? 'unid'
-          ];
-        }
-      }
+    // Obtener el purchase order asociado para datos del PDF
+    $purchaseOrder = $supplierOrder->receptions->first()?->purchaseOrder;
+    if (!$purchaseOrder) {
+      \Log::warning("Supplier Order #{$supplierOrder->id}: No tiene purchase order asociada.");
+      return;
     }
+
+    // Cargar relaciones necesarias para el PDF
+    $purchaseOrder->load([
+      'sede.province',
+      'sede.district',
+      'sede.company',
+      'supplier',
+      'creator.person',
+      'currency',
+      'reception.warehouse',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.requestedBy.person',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.vehicle.model',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.client',
+      'reception.supplierOrder.requestDetails.orderPurchaseRequest.apOrderQuotation.createdBy.person',
+      'reception.details.product.brand',
+      'reception.details.purchaseOrderItem',
+    ]);
+
+    // Preparar datos para el email y el PDF
+    $sedeAbbreviation = $purchaseOrder->sede?->abreviatura ?? 'N/A';
+    $subject = 'Informe de llegada de repuestos en Almacén PAKATNAMU ' . $sedeAbbreviation;
+
+    $emailData = [
+      'purchase_order_number' => $purchaseOrder->number,
+      'sede_name' => $purchaseOrder->sede?->abreviatura ?? 'N/A',
+      'sede_abbreviation' => $sedeAbbreviation,
+      'supplier_name' => $purchaseOrder->supplier?->full_name ?? 'N/A',
+      'responsible_name' => $purchaseOrder->creator?->person?->nombre_completo ?? 'N/A',
+    ];
+
+    // Preparar datos para el PDF
+    $notificationService = app(\App\Http\Services\ap\compras\InvoiceAccountedNotificationService::class);
+    $pdfData = $notificationService->preparePdfData($purchaseOrder);
+
+    // Generar el PDF y guardarlo en archivo temporal
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.ap.postventa.taller.purchase-reception-detail', $pdfData);
+    $pdf->setPaper('a4', 'landscape');
+
+    $pdfPath = storage_path('app/temp/purchase_reception_' . $purchaseOrder->number . '_' . now()->format('YmdHis') . '.pdf');
+
+    // Crear directorio si no existe
+    $dir = dirname($pdfPath);
+    if (!file_exists($dir)) {
+      mkdir($dir, 0755, true);
+    }
+
+    file_put_contents($pdfPath, $pdf->output());
+    $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
     // Agrupar por email para enviar un solo correo por usuario
     $groupedByEmail = $usersToNotify->groupBy('email');
+
+    // TODO: TESTING - Comentar estas líneas después de las pruebas
+    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Correo de prueba
+    $sentCount = 0; // Contador para enviar solo uno
 
     foreach ($groupedByEmail as $email => $userRequests) {
       try {
@@ -392,38 +430,32 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         $firstUser = $userRequests->first();
         $userName = $firstUser['user_name'] ?? 'Usuario';
 
-        // Recopilar todas las solicitudes de este usuario
-        $requestNumbers = $userRequests->pluck('request_number')->unique()->toArray();
-
-        // Usar número de orden de proveedor o PurchaseOrder si existe
-        $orderNumber = $supplierOrder->apPurchaseOrder
-          ? $supplierOrder->apPurchaseOrder->number
-          : $supplierOrder->order_number;
-
         $emailConfig = [
-          'to' => $email,
-          'subject' => 'Pedido Recibido - Orden de Compra ' . $orderNumber,
-          'template' => 'emails.purchase-order-received',
-          'data' => [
-            'badge' => 'Pedido Recibido',
-            'title' => 'Pedido Recibido en Almacén',
-            'subtitle' => 'Los productos de tu solicitud ya están disponibles',
-            'user_name' => $userName,
-            'purchase_order_number' => $orderNumber,
-            'request_numbers' => $requestNumbers,
-            'received_items' => $receivedItems,
-            'date' => now()->format('d/m/Y H:i'),
-            'company_name' => 'Grupo Pakatnamu',
-            'contact_info' => 'almacen@grupopakatnamu.com'
-          ]
+          'to' => $testEmail, // 👈 Enviando a correo de prueba
+          'subject' => $subject,
+          'template' => 'emails.purchase-order-warehouse-notification',
+          'data' => array_merge($emailData, [
+            'recipient_name' => $userName,
+          ]),
+          'attachments' => [
+            ['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']
+          ],
         ];
 
         // Enviar correo usando cola de trabajo
         $emailService->queue($emailConfig);
+
+        $sentCount++;
+        if ($sentCount >= 1) {
+          break; // 👈 Solo envía uno para testing
+        }
       } catch (\Exception $e) {
         \Log::error('Error al enviar notificación de recepción de orden de compra a ' . $email . ': ' . $e->getMessage());
       }
     }
+
+    // NO eliminamos el archivo aquí porque el email está en cola
+    // El archivo se limpiará automáticamente del directorio temp más tarde
   }
 
   public function processReceptionStock(PurchaseOrder $purchaseOrder): void

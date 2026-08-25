@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 
 class ClosedWorkOrderBilledHoursReportService
 {
+  private ?string $startDate = null;
+  private ?string $endDate = null;
+
   /**
    * Obtiene el reporte de Horas Facturadas de Órdenes de Trabajo Cerradas
    *
@@ -36,6 +39,10 @@ class ClosedWorkOrderBilledHoursReportService
         $sedeId = $filter['value'] ?? null;
       }
     }
+
+    // Store period dates for standard hours calculation
+    $this->startDate = $startDate;
+    $this->endDate = $endDate;
 
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
@@ -100,14 +107,20 @@ class ClosedWorkOrderBilledHoursReportService
     foreach ($documents as $document) {
       // SIMPLE invoicing
       if ($document->workOrder) {
-        $workOrders->push($document->workOrder);
+        // Filter by sede if specified
+        if (!$sedeId || $document->workOrder->sede_id == $sedeId) {
+          $workOrders->push($document->workOrder);
+        }
       }
 
       // MASSIVE invoicing
       if ($document->internalNotes && $document->internalNotes->count() > 0) {
         foreach ($document->internalNotes as $internalNote) {
           if ($internalNote->workOrder) {
-            $workOrders->push($internalNote->workOrder);
+            // Filter by sede if specified
+            if (!$sedeId || $internalNote->workOrder->sede_id == $sedeId) {
+              $workOrders->push($internalNote->workOrder);
+            }
           }
         }
       }
@@ -290,8 +303,8 @@ class ClosedWorkOrderBilledHoursReportService
         $horasGarantiaRecall = $data[TypePlanningWorkOrder::GARANTIA_RECALL];
         $totalHorasFacturadas = $horasInterna + $horasEstandar + $horasGarantiaRecall;
 
-        // Horas estándar fijas: 8 horas × 6 días × 4 semanas = 192
-        $horasEstandarFijas = 192;
+        // Calcular horas estándar dinámicamente basadas en asistencias
+        $horasEstandarFijas = $this->calculateStandardHours($workerId);
 
         // Costo por hora fijo
         $costoPorHora = 8;
@@ -325,11 +338,10 @@ class ClosedWorkOrderBilledHoursReportService
       }
     }
 
-    // Ordenar por sede y luego por nombre de técnico
-    $reportData = $reportData->sortBy([
-      ['sede', 'asc'],
-      ['nombre_tecnico', 'asc']
-    ])->values();
+    // Ordenar por porcentaje de productividad de mayor a menor
+    $reportData = $reportData->sortByDesc(function ($row) {
+      return (float)$row['porcentaje_productividad'];
+    })->values();
 
     // Calcular acumulado total
     $totalInterna = $reportData->sum(fn($row) => (float)$row['horas_interna']);
@@ -337,9 +349,8 @@ class ClosedWorkOrderBilledHoursReportService
     $totalGarantiaRecall = $reportData->sum(fn($row) => (float)$row['horas_garantia_recall']);
     $totalHorasFacturadas = $totalInterna + $totalEstandar + $totalGarantiaRecall;
 
-    // Total de técnicos (excluyendo la fila de totales)
-    $cantidadTecnicos = $reportData->count();
-    $totalHorasEstandarFijas = $cantidadTecnicos * 192;
+    // Total de horas estándar: sumar las horas estándar de cada técnico
+    $totalHorasEstandarFijas = $reportData->sum(fn($row) => (float)$row['horas_estandar_fijas']);
     $totalHorasProductividad = $totalHorasFacturadas - $totalHorasEstandarFijas;
 
     // Porcentaje total de productividad
@@ -395,6 +406,7 @@ class ClosedWorkOrderBilledHoursReportService
       $labourDescription = $labour->description ?? ''; // Descripción del labour
       $sede = $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE';
       $numeroOT = $workOrder->correlative ?? '';
+      $TypePlanningDescription = $workOrderItem->typePlanning->description ?? '';
 
       // Obtener todos los técnicos que trabajaron en esta OT
       $plannings = $workOrder->plannings;
@@ -418,6 +430,7 @@ class ClosedWorkOrderBilledHoursReportService
         $detailData->push([
           'sede' => $sede,
           'numero_ot' => $numeroOT,
+          'tipo_planificacion' => $TypePlanningDescription,
           'descripcion_labour' => $labourDescription,
           'categoria_tipo' => $categoryType,
           'horas_facturadas_total' => number_format($billedHours, 2, '.', ''),
@@ -436,6 +449,49 @@ class ClosedWorkOrderBilledHoursReportService
       ['numero_ot', 'asc'],
       ['nombre_tecnico', 'asc']
     ])->values();
+  }
+
+  /**
+   * Calcula las horas estándar para un técnico basado en sus asistencias
+   *
+   * @param int $workerId
+   * @return float
+   */
+  private function calculateStandardHours(int $workerId): float
+  {
+    // Si no hay rango de fechas, usar el valor fijo anterior
+    if (!$this->startDate || !$this->endDate) {
+      return 192;
+    }
+
+    try {
+      $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
+
+      $attendanceRequest = new \Illuminate\Http\Request([
+        'date_from' => $this->startDate,
+        'date_to' => $this->endDate,
+      ]);
+
+      $attendanceResponse = $attendanceService->personDashboard(
+        $workerId,
+        $attendanceRequest
+      );
+
+      $attendanceData = $attendanceResponse->getData(true);
+
+      // Contar días con check_in
+      $daysWorked = collect($attendanceData['daily'])
+        ->filter(function ($day) {
+          return $day['type'] === 'work' && !empty($day['check_in']);
+        })
+        ->count();
+
+      // Horas estándar: 8h × días con check_in
+      return $daysWorked * 8;
+    } catch (\Exception $e) {
+      // Si falla, usar el valor fijo anterior
+      return 192;
+    }
   }
 
   /**

@@ -41,6 +41,7 @@ class BilledHoursDetailSheet implements
     return [
       'SEDE',
       'NÚMERO OT',
+      'TIPO DE PLANIFICACIÓN',
       'DESCRIPCIÓN LABOUR',
       'CATEGORÍA',
       'HORAS FACTURADAS TOTAL',
@@ -57,6 +58,7 @@ class BilledHoursDetailSheet implements
     return [
       $row['sede'],
       $row['numero_ot'],
+      $row['tipo_planificacion'],
       $row['descripcion_labour'],
       $row['categoria_tipo'],
       $row['horas_facturadas_total'],

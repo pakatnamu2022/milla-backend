@@ -46,6 +46,13 @@ class DiscardExpiredQuotationsCommand extends Command
         continue;
       }
 
+      //Si esta aprobado chief_approval_by / manager_approval_by no es null, entonces no se descarta
+      if ($quotation->chief_approval_by !== null || $quotation->manager_approval_by !== null) {
+        $this->line("  - [OMITIDO] {$quotation->quotation_number} - Tiene aprobaciones de jefe o gerente");
+        $skipped++;
+        continue;
+      }
+
       $statusName = $quotation->status_id === ApMasters::STATUS_ORDER_QUOTE_APERTURADO ? 'APERTURADO' : 'APROBADO';
       $this->line("  - [{$quotation->quotation_number}] Estado: {$statusName}, Expiró: {$quotation->expiration_date}");
 
