@@ -30,24 +30,26 @@ class VerifyAndMigrateInternalNotesCommand extends Command
   public function handle(): int
   {
     // Consultar notas internas que requieren procesamiento
+    // EXCLUYE migration_status = 'failed' para evitar reprocesar notas bloqueadas
     $query = ApInternalNote::withTrashed()
       ->where(function ($q) {
         // Caso 1: Notas activas (no eliminadas) pendientes de migración
+        // Solo pending e in_progress; EXCLUYE completed, skipped y FAILED
         $q->whereNull('deleted_at')
-          ->whereNotIn('migration_status', [
-            ApInternalNote::MIGRATION_STATUS_COMPLETED,
-            ApInternalNote::MIGRATION_STATUS_SKIPPED,
+          ->whereIn('migration_status', [
+            ApInternalNote::MIGRATION_STATUS_PENDING,
+            ApInternalNote::MIGRATION_STATUS_IN_PROGRESS,
           ]);
       })
       ->orWhere(function ($q) {
         // Caso 2: Notas eliminadas (reversiones) con logs de reversión pendientes
+        // Solo pending e in_progress; EXCLUYE failed para evitar ciclos infinitos
         $q->whereNotNull('deleted_at')
           ->whereHas('migrationLogs', function ($logQuery) {
             $logQuery->where('step', 'LIKE', '%REVERSAL%')
               ->whereIn('status', [
                 VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
                 VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS,
-                VehiclePurchaseOrderMigrationLog::STATUS_FAILED,
               ]);
           });
       });
