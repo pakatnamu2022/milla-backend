@@ -200,14 +200,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $isApproved = (bool)$purchaseRequestQuote->is_approved;
 
       if ($isApproved) {
-        // Aprobada (y aún no pagada en su totalidad): el precio, el vehículo/modelo
-        // y los accesorios que sí afectan el precio (ACCESORIO_ADICIONAL) quedan
-        // fijos. Solo se permite seguir agregando/editando bonos (no descuentos),
-        // obsequios (no afectan el precio final, solo el margen), "otros costos"
-        // (margen) y datos no relacionados al precio.
+        // Aprobada (y aún no pagada en su totalidad): el precio de venta y la
+        // moneda de facturación quedan fijos. El vehículo/modelo/color SÍ se
+        // pueden seguir cambiando (no afectan el precio ya fijado), igual que
+        // bonos, obsequios (no afectan el precio final, solo el margen) y
+        // "otros costos" (margen).
         foreach ([
           'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
-          'ap_vehicle_id', 'ap_models_vn_id', 'vehicle_color_id', 'type_document',
         ] as $lockedField) {
           unset($data[$lockedField]);
         }
