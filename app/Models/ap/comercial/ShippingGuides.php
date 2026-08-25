@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
@@ -146,6 +147,7 @@ class ShippingGuides extends BaseModel
     'send_dynamics'        => '=',
     'is_consignment'       => '=',
     'is_associated'        => 'scope',
+    'sede_id'              => 'scope',
     'migration_status'     => 'in_or_equal'
   ];
 
@@ -216,6 +218,15 @@ class ShippingGuides extends BaseModel
   public function sedeReceiver(): BelongsTo
   {
     return $this->belongsTo(Sede::class, 'sede_receiver_id');
+  }
+
+  /**
+   * Orden de compra generada a partir de esta guía de consignación
+   * (ver PurchaseOrderService::store -> consignment_shipping_guide_id).
+   */
+  public function consignmentPurchaseOrder(): HasOne
+  {
+    return $this->hasOne(PurchaseOrder::class, 'consignment_shipping_guide_id');
   }
 
   public function transmitter(): BelongsTo
@@ -326,6 +337,18 @@ class ShippingGuides extends BaseModel
       // Filtrar solo las guías que NO están asociadas a cotizaciones
       return $query->whereDoesntHave('quotations');
     }
+  }
+
+  /**
+   * Filtra por sede, considerando tanto la sede transmisora como la receptora
+   * (así como se muestra en la columna "Sede" del listado).
+   */
+  public function scopeSedeId($query, $value)
+  {
+    return $query->where(function ($q) use ($value) {
+      $q->where('sede_transmitter_id', $value)
+        ->orWhere('sede_receiver_id', $value);
+    });
   }
 
   /**

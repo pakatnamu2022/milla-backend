@@ -116,6 +116,7 @@ class PurchaseOrder extends BaseModel
     'migration_status',
     'status',
     'vehicle_movement_id',
+    'consignment_shipping_guide_id',
     'quotation_id',
     'type_operation_id',
     'migrated_at',
