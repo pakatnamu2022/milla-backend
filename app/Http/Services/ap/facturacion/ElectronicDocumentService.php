@@ -2544,24 +2544,31 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Obtener el estado anterior del vehículo
       $previousStatusId = $vehicle->ap_vehicle_status_id;
 
+      // Si el vehículo ya está en un estado de venta/entrega final, no sobreescribir su status.
+      // El flujo normal es: INVENTARIO_VN → FACTURADO/FACTURADO_FINAL → VENDIDO_NO_ENTREGADO → VENDIDO_ENTREGADO.
+      // Una vez iniciado el proceso de entrega (VENDIDO_NO_ENTREGADO o VENDIDO_ENTREGADO) o ya
+      // en estado FACTURADO/FACTURADO_FINAL, no se regresa a un estado anterior.
+      $targetStatusId = $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO;
+      $shouldUpdateStatus = !ApVehicleStatus::isSaleStatus($previousStatusId);
+
       // Crear el movimiento de vehículo
       $vehicleMovement = VehicleMovement::create([
         'movement_type' => 'VENTA',
         'ap_vehicle_id' => $vehicleId,
-        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
+        'ap_vehicle_status_id' => $shouldUpdateStatus ? $targetStatusId : $previousStatusId,
         'movement_date' => now(),
         'observation' => "Venta de vehículo - Documento: {$document->serie}-{$document->numero}",
         'warehouse_id' => $vehicle->warehouse_id,
         'origin_warehouse_id' => $vehicle->warehouse_id,
         'previous_status_id' => $previousStatusId,
-        'new_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
+        'new_status_id' => $shouldUpdateStatus ? $targetStatusId : $previousStatusId,
         'created_by' => auth()->id(),
       ]);
 
-      // Actualizar el estado del vehículo
-      $vehicle->update([
-        'ap_vehicle_status_id' => $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO,
-      ]);
+      // Actualizar el estado del vehículo solo si no está ya en un estado de venta final
+      if ($shouldUpdateStatus) {
+        $vehicle->update(['ap_vehicle_status_id' => $targetStatusId]);
+      }
 
       return $vehicleMovement;
     } catch (Exception $e) {

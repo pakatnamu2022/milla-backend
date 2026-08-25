@@ -217,6 +217,18 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $data['exchange_rate_id'] = $this->getExchangeRateId($data['doc_type_currency_id']);
       }
 
+      // Validar unicidad y estado del vehículo si se está asignando uno nuevo o diferente
+      if (!empty($data['ap_vehicle_id']) && (int)$data['ap_vehicle_id'] !== (int)$purchaseRequestQuote->ap_vehicle_id) {
+        $alreadyAssigned = PurchaseRequestQuote::where('ap_vehicle_id', $data['ap_vehicle_id'])
+          ->whereNull('deleted_at')
+          ->where('id', '!=', $purchaseRequestQuote->id)
+          ->exists();
+        if ($alreadyAssigned) {
+          throw new Exception('El vehículo ya está asociado a otra cotización.');
+        }
+        $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
+
       // Actualizar el registro principal
       $purchaseRequestQuote->update($data);
 
@@ -303,12 +315,66 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }));
   }
 
+  /**
+   * Lanza una excepción si el vehículo ya tiene una factura final aceptada con saldo neto positivo
+   * (es decir, no cancelada por notas de crédito). Esto protege contra reasignaciones manuales
+   * de vehículos ya vendidos aunque su status haya sido revertido directamente en BD.
+   */
+  private function assertVehicleNotEffectivelyInvoiced(int $vehicleId): void
+  {
+    $invoices = DB::table('ap_billing_electronic_documents as ed')
+      ->join('ap_vehicle_movement as vm', 'ed.ap_vehicle_movement_id', '=', 'vm.id')
+      ->where('vm.ap_vehicle_id', $vehicleId)
+      ->whereNull('ed.deleted_at')
+      ->where('ed.is_advance_payment', false)
+      ->where('ed.anulado', false)
+      ->where('ed.aceptada_por_sunat', true)
+      ->whereIn('ed.sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA,
+      ])
+      ->selectRaw('ed.id, ed.total')
+      ->get();
+
+    if ($invoices->isEmpty()) {
+      return;
+    }
+
+    $invoiceIds = $invoices->pluck('id');
+
+    $ncTotal = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->sum('total');
+
+    $ndTotal = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->sum('total');
+
+    $net = $invoices->sum('total') - $ncTotal + $ndTotal;
+
+    if (round($net, 2) > ElectronicDocument::ROUNDING_TOLERANCE) {
+      throw new Exception('No se puede asignar el vehículo porque ya cuenta con una factura final vigente.');
+    }
+  }
+
   public function assignVehicle(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
-      //ap_vehicle_id
       $purchaseRequestQuote = $this->find($data['id']);
+      if (!empty($data['ap_vehicle_id'])) {
+        $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
       $purchaseRequestQuote->update($data);
       $this->refreshMargin($purchaseRequestQuote);
       DB::commit();

@@ -137,14 +137,18 @@ class ApVehicleInventoryService extends BaseService
 
   /**
    * Si el registro está evaluado y la ubicación confirmada,
-   * actualiza el estado del vehículo asociado a INVENTARIO VN.
+   * actualiza el estado del vehículo asociado a INVENTARIO VN,
+   * siempre que no esté ya en un estado de venta/entrega final.
    */
   private function checkAndUpdateVehicleStatus(ApVehicleInventory $record): void
   {
     if ($record->is_evaluated && $record->is_location_confirmed && $record->ap_vehicle_id) {
-      $record->vehicle?->update([
-        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
-      ]);
+      $vehicle = $record->vehicle;
+      if ($vehicle && !ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)) {
+        $vehicle->update([
+          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+        ]);
+      }
     }
   }
 

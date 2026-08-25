@@ -636,6 +636,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       }
     }
 
+    // Excluir vehículos con facturación neta positiva (factura - NC/ND > tolerancia),
+    // ignorando documentos que pertenezcan a la cotización que se está editando.
+    $invoicedIds = $this->getEffectivelyInvoicedVehicleIds($excludeQuoteId);
+    if (!empty($invoicedIds)) {
+      $query->whereNotIn('ap_vehicles.id', $invoicedIds);
+    }
+
     // Verificar si se solicita todos los registros sin paginación
     $all = filter_var($request->get('all', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -687,6 +694,77 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $vehicles->getCollection()->transform($transformVehicle);
       return response()->json($vehicles);
     }
+  }
+
+  /**
+   * Retorna IDs de vehículos con facturación neta positiva (factura - NC + ND > tolerancia).
+   * Si se pasa $excludeQuoteId, los documentos de esa cotización no cuentan (modo edición).
+   */
+  private function getEffectivelyInvoicedVehicleIds(?string $excludeQuoteId): array
+  {
+    $invoicesQuery = DB::table('ap_billing_electronic_documents as ed')
+      ->join('ap_vehicle_movement as vm', 'ed.ap_vehicle_movement_id', '=', 'vm.id')
+      ->whereNull('ed.deleted_at')
+      ->where('ed.is_advance_payment', false)
+      ->where('ed.anulado', false)
+      ->where('ed.aceptada_por_sunat', true)
+      ->whereIn('ed.sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA,
+      ])
+      ->selectRaw('ed.id, ed.total, vm.ap_vehicle_id');
+
+    if ($excludeQuoteId) {
+      $invoicesQuery->where(function ($q) use ($excludeQuoteId) {
+        $q->whereNull('ed.purchase_request_quote_id')
+          ->orWhere('ed.purchase_request_quote_id', '!=', $excludeQuoteId);
+      });
+    }
+
+    $invoices = $invoicesQuery->get();
+
+    if ($invoices->isEmpty()) {
+      return [];
+    }
+
+    $invoiceIds = $invoices->pluck('id');
+
+    $creditNotes = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->selectRaw('original_document_id, SUM(total) as total_nc')
+      ->groupBy('original_document_id')
+      ->get()
+      ->keyBy('original_document_id');
+
+    $debitNotes = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->selectRaw('original_document_id, SUM(total) as total_nd')
+      ->groupBy('original_document_id')
+      ->get()
+      ->keyBy('original_document_id');
+
+    $netByVehicle = [];
+    foreach ($invoices as $invoice) {
+      $nc = $creditNotes->get($invoice->id)->total_nc ?? 0;
+      $nd = $debitNotes->get($invoice->id)->total_nd ?? 0;
+      $netByVehicle[$invoice->ap_vehicle_id] = ($netByVehicle[$invoice->ap_vehicle_id] ?? 0)
+        + $invoice->total - $nc + $nd;
+    }
+
+    return array_keys(array_filter(
+      $netByVehicle,
+      fn($net) => round($net, 2) > ElectronicDocument::ROUNDING_TOLERANCE
+    ));
   }
 
   /**
