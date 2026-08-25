@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  * escribiendo en la base de datos intermedia (dbtp) y verificando su procesamiento.
  *
  * FLUJO GENERAL:
- *   1. Toma notas internas con migration_status = pending/in_progress/failed.
+ *   1. Toma notas internas con migration_status = pending/in_progress (EXCLUYE failed).
  *   2. Escribe en neInTbTransaccionInventario (cabecera y detalle):
  *      - Salida de inventario → TransaccionId = NIP-00001
  *      - Reversión (ingreso)  → TransaccionId = NIP-00001*
@@ -34,7 +34,7 @@ use Illuminate\Support\Facades\Log;
  *
  * PUEDE DESPACHARSE:
  *   - Con un $internalNoteId específico → procesa solo esa nota.
- *   - Sin ID                           → procesa todas las notas pendientes.
+ *   - Sin ID                           → procesa todas las notas pendientes/in_progress.
  *
  * COLA: internal_notes | tries: 2 | timeout: 300 s | backoff: 120 s
  */
@@ -97,10 +97,11 @@ class VerifyAndMigrateInternalNoteJob implements ShouldQueue
     InternalNoteDynamicsService     $internalNoteService
   ): void
   {
+    // EXCLUYE migration_status = 'failed' para evitar reprocesar notas bloqueadas
+    // Solo procesa pending e in_progress
     $pendingNotes = ApInternalNote::whereIn('migration_status', [
       ApInternalNote::MIGRATION_STATUS_PENDING,
       ApInternalNote::MIGRATION_STATUS_IN_PROGRESS,
-      ApInternalNote::MIGRATION_STATUS_FAILED,
     ])
       ->whereNull('deleted_at')
       ->get();
