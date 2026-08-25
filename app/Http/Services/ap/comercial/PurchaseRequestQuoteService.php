@@ -610,18 +610,20 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $purchaseRequestQuote = $this->find($data['id']);
     $dataResource = new PurchaseRequestQuoteResource($purchaseRequestQuote);
     $dataArray = $dataResource->resolve();
-    $isPersonJuridica = $purchaseRequestQuote->opportunity->client->type_person_id === ApMasters::TYPE_PERSON_JURIDICA_ID;
-    // Agregar datos adicionales directamente al array
-    $dataArray['num_doc_client'] = $purchaseRequestQuote->opportunity->client->num_doc ?? null;
-    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->opportunity->client->birth_date ?? '- / - / -');
-    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->maritalStatus->description ?? '-');
-    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->spouse_full_name ?? '-');
-    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->spouse_num_doc ?? '-');
-    $dataArray['legal_representative'] = $purchaseRequestQuote->opportunity->client->legal_representative_full_name ?? '-';
-    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->opportunity->client->legal_representative_num_doc ?? '-';
-    $dataArray['address'] = $purchaseRequestQuote->opportunity->client->direction ?? null;
-    $dataArray['email'] = $purchaseRequestQuote->opportunity->client->email ?? null;
-    $dataArray['phone'] = $purchaseRequestQuote->opportunity->client->phone ?? null;
+    // El PDF debe mostrar el cliente/titular de la cotización (holder), no el de la oportunidad
+    $dataArray['client_name'] = $purchaseRequestQuote->holder->full_name ?? null;
+    $isPersonJuridica = $purchaseRequestQuote->holder->type_person_id === ApMasters::TYPE_PERSON_JURIDICA_ID;
+    // Agregar datos adicionales directamente al array (cliente de la cotización, no de la oportunidad)
+    $dataArray['num_doc_client'] = $purchaseRequestQuote->holder->num_doc ?? null;
+    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->holder->birth_date ?? '- / - / -');
+    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->maritalStatus->description ?? '-');
+    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->spouse_full_name ?? '-');
+    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->spouse_num_doc ?? '-');
+    $dataArray['legal_representative'] = $purchaseRequestQuote->holder->legal_representative_full_name ?? '-';
+    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->holder->legal_representative_num_doc ?? '-';
+    $dataArray['address'] = $purchaseRequestQuote->holder->direction ?? null;
+    $dataArray['email'] = $purchaseRequestQuote->holder->email ?? null;
+    $dataArray['phone'] = $purchaseRequestQuote->holder->phone ?? null;
     $dataArray['class'] = $purchaseRequestQuote->vehicle?->model?->classArticle->description ?? $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
     $dataArray['brand'] = $purchaseRequestQuote->vehicle?->model?->family->brand->name ?? $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
     $dataArray['ap_model_vn'] = $purchaseRequestQuote->vehicle?->model?->version ?? $purchaseRequestQuote->apModelsVn->version ?? null;
