@@ -394,14 +394,22 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
 
       $vehicleId = (int) $data['ap_vehicle_id'];
 
-      // Un vehículo solo puede entrar una vez a consignación
-      $hasConsignmentMovement = VehicleMovement::where('ap_vehicle_id', $vehicleId)
-        ->where('movement_type', VehicleMovement::CONSIGNMENT)
-        ->exists();
-      if ($hasConsignmentMovement) {
+      // El motivo de traslado de una guía de consignación siempre debe ser OTROS
+      if ((int) ($data['transfer_reason_id'] ?? 0) !== SunatConcepts::TRANSFER_REASON_OTROS) {
         throw new Exception(
-          'Este vehículo ya tiene un movimiento de consignación registrado. ' .
-          'No puede ingresar al flujo de consignación más de una vez.'
+          'El motivo de traslado de una guía de consignación debe ser OTROS. ' .
+          'No se permite TRASLADO ENTRE ESTABLECIMIENTOS, COMPRA ni ningún otro motivo.'
+        );
+      }
+
+      // La consignación es el primer y único movimiento inicial de un vehículo.
+      // Si ya tiene cualquier movimiento previo (PEDIDO, INVENTARIO, FACTURADO, etc.),
+      // significa que el vehículo ya tiene historial en el sistema y no puede entrar a consignación.
+      $hasPriorMovements = VehicleMovement::where('ap_vehicle_id', $vehicleId)->exists();
+      if ($hasPriorMovements) {
+        throw new Exception(
+          'Este vehículo ya tiene movimientos registrados en el sistema. ' .
+          'La consignación solo puede ser el primer movimiento de un vehículo.'
         );
       }
 
