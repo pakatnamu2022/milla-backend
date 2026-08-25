@@ -73,11 +73,20 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         ->whereIn('sede_id', $sedes);
     }
 
-    $query->where(function ($q) {
-      $q->where('is_extraordinary', false)
-        ->orWhereNull('is_extraordinary')
-        ->orWhere('extraordinary_approved', true);
-    });
+    if ($request->boolean('extraordinary_review')) {
+      // Solo entregas extraordinarias pendientes o rechazadas de aprobación.
+      $query->where('is_extraordinary', true)
+        ->where(function ($q) {
+          $q->whereNull('extraordinary_approved')
+            ->orWhere('extraordinary_approved', false);
+        });
+    } else {
+      $query->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('is_extraordinary')
+          ->orWhere('extraordinary_approved', true);
+      });
+    }
 
     return $this->getFilteredResults(
       $query,
@@ -763,7 +772,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
 
-  public function approveExtraordinary(int $id): ApVehicleDeliveryResource
+  public function approveExtraordinary(int $id, ?string $comment = null): ApVehicleDeliveryResource
   {
     $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
@@ -780,15 +789,16 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $delivery->update([
-      'extraordinary_approved'    => true,
-      'extraordinary_approved_at' => now(),
-      'extraordinary_approved_by' => auth()->user()->name,
+      'extraordinary_approved'         => true,
+      'extraordinary_approved_at'      => now(),
+      'extraordinary_approved_by'      => auth()->user()->name,
+      'extraordinary_approval_comment' => $comment,
     ]);
 
     return new ApVehicleDeliveryResource($delivery->fresh());
   }
 
-  public function rejectExtraordinary(int $id): ApVehicleDeliveryResource
+  public function rejectExtraordinary(int $id, string $comment): ApVehicleDeliveryResource
   {
     $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
@@ -805,9 +815,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $delivery->update([
-      'extraordinary_approved'    => false,
-      'extraordinary_approved_at' => now(),
-      'extraordinary_approved_by' => auth()->user()->name,
+      'extraordinary_approved'         => false,
+      'extraordinary_approved_at'      => now(),
+      'extraordinary_approved_by'      => auth()->user()->name,
+      'extraordinary_approval_comment' => $comment,
     ]);
 
     return new ApVehicleDeliveryResource($delivery->fresh());

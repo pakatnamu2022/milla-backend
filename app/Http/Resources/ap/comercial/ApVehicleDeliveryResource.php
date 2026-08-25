@@ -35,6 +35,7 @@ class ApVehicleDeliveryResource extends JsonResource
       'extraordinary_approved'    => $this->extraordinary_approved,
       'extraordinary_approved_at' => $this->extraordinary_approved_at,
       'extraordinary_approved_by' => $this->extraordinary_approved_by,
+      'extraordinary_approval_comment' => $this->extraordinary_approval_comment,
       'extraordinary_sent_by'     => $this->extraordinary_sent_by,
       'rescheduled_by'            => $this->rescheduled_by,
       'checklist_status'          => $this->checklist_status,
