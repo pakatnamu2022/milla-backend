@@ -173,15 +173,19 @@ class ApWorkOrderPartsService extends BaseService implements BaseServiceInterfac
     if ($workOrder->currency_id === TypeCurrency::USD_ID) {
       // El sale_price_min está en soles, necesitamos convertirlo a dólares
       if ($workOrder->exchange_rate && $workOrder->exchange_rate > 0) {
-        $priceToCompare = $sale_price_min / $workOrder->exchange_rate;
+        $priceToCompare = round($sale_price_min / $workOrder->exchange_rate, 2);
       } else {
         // Si no hay tipo de cambio, no podemos validar correctamente
         throw new Exception('No se puede validar el precio: la orden de trabajo en dólares no tiene tipo de cambio registrado');
       }
     }
 
+    // Redondear ambos valores a 2 decimales para evitar problemas de precisión de punto flotante
+    $unitPriceRounded = round($data['unit_price'], 2);
+    $priceToCompareRounded = round($priceToCompare, 2);
+
     // Comparar el unit_price con el precio mínimo (ya en la moneda correcta)
-    if ($data['unit_price'] < $priceToCompare) {
+    if ($unitPriceRounded < $priceToCompareRounded) {
       $currencySymbol = $workOrder->currency_id === TypeCurrency::USD_ID ? 'USD' : 'PEN';
       $formattedPrice = number_format($priceToCompare, 2);
       throw new Exception("El precio unitario no puede ser menor al precio de venta registrado ({$formattedPrice} {$currencySymbol}) para este producto en el almacén seleccionado");
