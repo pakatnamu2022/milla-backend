@@ -122,6 +122,7 @@ class Vehicles extends BaseModel
   {
     return ApVehicleDelivery::where('vehicle_id', $this->id)
       ->whereNull('deleted_at')
+      ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
       ->exists();
   }
 

@@ -133,7 +133,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('El asesor no está asociado a un socio válido');
         }
 
-        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])->exists();
+        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
+          ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+          ->exists();
         if ($existingDelivery) {
           throw new Exception('Ya existe una entrega registrada para este vehículo.');
         }
@@ -629,7 +631,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         $vehicle = Vehicles::findOrFail($data['vehicle_id']);
         $isExtraordinary = !empty($data['is_extraordinary']);
 
-        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])->exists();
+        $existingDelivery = ApVehicleDelivery::where('vehicle_id', $data['vehicle_id'])
+          ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+          ->exists();
         if ($existingDelivery) {
           throw new Exception('Ya existe una entrega registrada para este vehículo.');
         }
@@ -898,6 +902,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     // ── 2. Ya tiene entrega registrada ───────────────────────────────────────
     $existingDelivery = ApVehicleDelivery::where('vehicle_id', $vehicle->id)
       ->whereNull('deleted_at')
+      ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
       ->first();
 
     if ($existingDelivery) {

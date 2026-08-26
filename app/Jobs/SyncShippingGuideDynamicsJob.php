@@ -386,6 +386,13 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
    */
   protected function processCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
   {
+    $isCancelled = $shippingGuide->status === false || $shippingGuide->cancelled_at !== null;
+
+    if ($isCancelled) {
+      $this->processCancelledCommercialDeliveryGuide($shippingGuide);
+      return;
+    }
+
     $results = $this->consultAjustesInventario($shippingGuide->dyn_series);
 
     $found = collect($results)->first(
@@ -409,9 +416,9 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
-        'status_delivery'   => 'delivered',
+        'status_delivery'    => ApVehicleDelivery::STATUS_DELIVERED,
         'real_delivery_date' => now(),
-        'is_accounted'      => true,
+        'is_accounted'       => true,
       ]);
 
     $delivery = ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)->first();
@@ -422,6 +429,49 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
           ->update(['opportunity_status_id' => Opportunity::DELIVERED_ID]);
       }
     }
+  }
+
+  /**
+   * Maneja la guía de venta COMERCIAL cuando está cancelada.
+   * Consulta neIvConsultarAjustesInventario buscando el reversal (dyn_series + '*').
+   * Cuando Dynamics confirma que el reversal está contabilizado:
+   *   - guía: is_annulled = true
+   *   - delivery: status_delivery = 'cancelled', is_accounted = true
+   * El is_accounted=true en un delivery cancelado significa "reversal contabilizado en Dynamics".
+   */
+  protected function processCancelledCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
+  {
+    if ($shippingGuide->is_annulled) {
+      return;
+    }
+
+    $reversalDynSeries = $shippingGuide->dyn_series . '*';
+    $results = $this->consultAjustesInventario($shippingGuide->dyn_series);
+
+    $found = collect($results)->first(
+      fn($row) => trim($row->Numero ?? '') === $reversalDynSeries
+    );
+
+    if (!$found) {
+      Log::info('Reversión de guía de venta aún no contabilizada en Dynamics', [
+        'shipping_guide_id'   => $shippingGuide->id,
+        'reversal_dyn_series' => $reversalDynSeries,
+      ]);
+      return;
+    }
+
+    $shippingGuide->update(['is_annulled' => true]);
+
+    ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
+      ->update([
+        'status_delivery' => ApVehicleDelivery::STATUS_CANCELLED,
+        'is_accounted'    => true,
+      ]);
+
+    Log::info('Reversión de guía de venta comercial contabilizada en Dynamics', [
+      'shipping_guide_id'   => $shippingGuide->id,
+      'reversal_dyn_series' => $reversalDynSeries,
+    ]);
   }
 
   /**
