@@ -255,7 +255,8 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'cliente_email_2' => 'nullable|email|max:250',
 
       // Fechas
-      'fecha_de_emision' => 'required|date',
+      // El comprobante debe emitirse el mismo día (SUNAT), no se permite adelantar ni atrasar la fecha.
+      'fecha_de_emision' => 'required|date|date_equals:today',
       'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
 
       // Moneda
@@ -381,6 +382,7 @@ class StoreElectronicDocumentRequest extends StoreRequest
       'cliente_numero_de_documento.required' => 'El número de documento del cliente es obligatorio',
       'cliente_denominacion.required' => 'El nombre o razón social del cliente es obligatorio',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
+      'fecha_de_emision.date_equals' => 'La fecha de emisión debe ser el día de hoy',
       'total.required' => 'El total del documento es obligatorio',
       'total.min' => 'El total del documento debe ser al menos 0',
       'sunat_concept_currency_id.required' => 'La moneda es obligatoria',
