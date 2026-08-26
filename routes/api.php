@@ -17,6 +17,7 @@ use App\Http\Controllers\ap\comercial\DiscountCouponsController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteAdjustmentRequestController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
@@ -1408,6 +1409,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'update',
         'destroy'
       ]);
+
+      // Ajustes de bono/descuento post-pago
+      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/approve', [PurchaseRequestQuoteAdjustmentRequestController::class, 'approve']);
+      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/reject', [PurchaseRequestQuoteAdjustmentRequestController::class, 'reject']);
+      Route::apiResource('purchaseRequestQuoteAdjustmentRequest', PurchaseRequestQuoteAdjustmentRequestController::class)
+        ->parameters(['purchaseRequestQuoteAdjustmentRequest' => 'id'])
+        ->only([
+          'index',
+          'show',
+          'store',
+          'destroy',
+        ]);
 
       Route::get('vehiclePurchaseOrder/next-correlative', [PurchaseOrderController::class, 'nextCorrelative']);
       Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);

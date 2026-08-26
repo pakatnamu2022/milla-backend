@@ -814,6 +814,16 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     return DB::transaction(function () use ($id, $cancellationReason) {
       $document = $this->find($id);
 
+      if ($document->cancelled_at) {
+        throw new \Exception('Esta guía ya fue anulada.');
+      }
+
+      // Si la guía está asociada a una entrega de vehículo, debe estar en estado "entregada"
+      $vehicleDelivery = ApVehicleDelivery::where('shipping_guide_id', $document->id)->first();
+      if ($vehicleDelivery && $vehicleDelivery->status_delivery !== 'delivered') {
+        throw new \Exception('Solo se pueden anular guías de entregas de vehículos que ya hayan sido entregadas.');
+      }
+
       $document->update([
         'cancellation_reason' => $cancellationReason,
         'cancelled_by'        => Auth::id(),

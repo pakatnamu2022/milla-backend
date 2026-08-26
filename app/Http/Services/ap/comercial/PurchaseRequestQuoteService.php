@@ -147,6 +147,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'credit_type_id'       => $data['credit_type_id'] ?? null,
         'credit_entity_id'     => $data['credit_entity_id'] ?? null,
         'insurance_entity_id'  => $data['insurance_entity_id'] ?? null,
+        'has_gps_hunter'       => $data['has_gps_hunter'] ?? false,
         'gps_hunter_years'     => $data['gps_hunter_years'] ?? null,
       ];
 
@@ -227,6 +228,26 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
           throw new Exception('El vehículo ya está asociado a otra cotización.');
         }
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
+
+      // Si viene con VIN y sin color/modelo, tomar esos valores del vehículo asignado
+      if (!empty($data['ap_vehicle_id'])) {
+        $vehicle = Vehicles::find($data['ap_vehicle_id']);
+        if ($vehicle) {
+          if (empty($data['vehicle_color_id'])) {
+            $data['vehicle_color_id'] = $vehicle->vehicle_color_id;
+          }
+          if (empty($data['ap_models_vn_id'])) {
+            $data['ap_models_vn_id'] = $vehicle->ap_models_vn_id;
+          }
+        }
+      }
+
+      // Si aún son nulos (sin VIN), no sobreescribir columnas NOT NULL
+      foreach (['vehicle_color_id', 'ap_models_vn_id'] as $field) {
+        if (array_key_exists($field, $data) && is_null($data[$field])) {
+          unset($data[$field]);
+        }
       }
 
       // Actualizar el registro principal
@@ -961,7 +982,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @param PurchaseRequestQuote $quote
    * @return array|int[]
    */
-  private function calculateMargin(PurchaseRequestQuote $quote): array
+  /**
+   * Público a propósito: reutilizado por PurchaseRequestQuoteAdjustmentRequestService
+   * para calcular el margen "antes" y simular el margen "después" de un ajuste
+   * de bonos/descuentos post-pago, sin duplicar esta fórmula.
+   */
+  public function calculateMargin(PurchaseRequestQuote $quote): array
   {
     $vehicle = $quote->vehicle;
     $salePrice = (float)$quote->base_selling_price;
@@ -1028,7 +1054,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @param PurchaseRequestQuote $quote
    * @return void
    */
-  private function refreshMargin(PurchaseRequestQuote $quote): void
+  /**
+   * Público a propósito: ver nota en calculateMargin().
+   */
+  public function refreshMargin(PurchaseRequestQuote $quote): void
   {
     $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.purchaseOrder']);
     $quote->update($this->calculateMargin($quote));

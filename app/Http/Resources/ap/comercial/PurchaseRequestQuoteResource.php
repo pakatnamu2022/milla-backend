@@ -47,6 +47,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'credit_type_id'               => $this->credit_type_id,
       'credit_entity_id'             => $this->credit_entity_id,
       'insurance_entity_id'          => $this->insurance_entity_id,
+      'has_gps_hunter'               => (bool) $this->has_gps_hunter,
       'gps_hunter_years'             => $this->gps_hunter_years,
       'opportunity_id'               => $this->opportunity_id,
       'holder_id'                    => $this->holder_id,

@@ -41,6 +41,7 @@ class PurchaseRequestQuote extends BaseModel
     'credit_type_id',
     'credit_entity_id',
     'insurance_entity_id',
+    'has_gps_hunter',
     'gps_hunter_years',
     'warranty_years',
     'warranty_km',
@@ -178,6 +179,11 @@ class PurchaseRequestQuote extends BaseModel
   public function discountCoupons()
   {
     return $this->hasMany(DiscountCoupons::class, 'purchase_request_quote_id');
+  }
+
+  public function adjustmentRequests(): HasMany
+  {
+    return $this->hasMany(PurchaseRequestQuoteAdjustmentRequest::class, 'purchase_request_quote_id');
   }
 
   public function others(): HasMany
