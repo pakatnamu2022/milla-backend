@@ -1,96 +1,96 @@
-@extends('emails.layouts.base')
+@extends('emails.layouts.main')
+
+@section('title', 'Ajuste de margen aprobado.')
+
+@section('subtitle')
+  Los cambios ya fueron aplicados a la cotización.
+@endsection
 
 @section('content')
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr>
-      <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-               style="max-width:640px;background:#ffffff;border:1px solid #e6e8ee;border-radius:16px;overflow:hidden;">
+  {{-- Saludo --}}
+  <tr>
+    <td style="padding:0 0 20px 0;">
+      <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#111111;">
+        Tu solicitud de ajuste de bono/descuento para la cotización <strong style="font-weight:600;">#{{ $quote_number }}</strong>
+        ha sido <strong style="font-weight:600;color:#15803d;">aprobada</strong>@if($resolver_name) por <strong style="font-weight:600;">{{ $resolver_name }}</strong>@endif.
+        El margen del vehículo ya fue actualizado.
+      </p>
+    </td>
+  </tr>
 
-          <!-- Header -->
-          <tr>
-            <td style="padding:24px 24px 16px 24px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td align="left" style="vertical-align:middle;">
-                    @if(isset($logo))
-                      <img src="{{ $logo }}" alt="Logo" width="120"
-                           style="display:block;height:auto;border:0;outline:none;text-decoration:none;max-width:160px;">
-                    @endif
-                  </td>
-                  <td align="right" style="vertical-align:middle;">
-                    <span
-                      style="display:inline-block;padding:6px 10px;border:1px solid #86efac;border-radius:999px;font:600 12px/1.2 Inter,Arial,Helvetica,sans-serif;color:#15803d;background:#dcfce7;">
-                      Aprobado
-                    </span>
-                  </td>
-                </tr>
-              </table>
+  {{-- Campos --}}
+  <tr>
+    <td>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
 
-              <h1 style="margin:16px 0 4px 0;font:700 20px/1.25 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Ajuste de Margen Aprobado
-              </h1>
-              <p style="margin:0;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;">
-                Cotización #{{ $quote_number }}
-              </p>
-            </td>
-          </tr>
+        {{-- Cotización --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/file-text.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">Cotización #{{ $quote_number }}</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Cotización</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <!-- Body -->
-          <tr>
-            <td style="padding:24px;">
+        {{-- Margen antes --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/percent.svg?color=%23111111&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#111111;line-height:1.2;">{{ $currency_symbol }} {{ number_format($margin_amount_before, 2) }} ({{ number_format($margin_pct_before, 2) }}%)</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Margen antes</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-              <p style="margin:0 0 20px 0;font:400 14px/1.7 Inter,Arial,Helvetica,sans-serif;color:#111827;">
-                Tu solicitud de ajuste de bono/descuento para la cotización <strong>#{{ $quote_number }}</strong>
-                ha sido <strong style="color:#15803d;">aprobada</strong>
-                @if($resolver_name) por <strong>{{ $resolver_name }}</strong> @endif. Los cambios ya fueron
-                aplicados y el margen fue actualizado.
-              </p>
+        {{-- Margen ahora --}}
+        <tr>
+          <td style="padding:14px 0;border-bottom:1px solid #f3f4f6;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="width:44px;vertical-align:middle;padding-right:12px;">
+                  <img src="https://api.iconify.design/lucide/trending-up.svg?color=%2315803d&width=28&height=28" alt=""
+                       width="28" height="28"
+                       style="display:block;width:28px;height:28px;border:0;outline:none;text-decoration:none;">
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0 0 3px 0;font-family:system-ui,-apple-system,sans-serif;font-size:16px;font-weight:600;color:#15803d;line-height:1.2;">{{ $currency_symbol }} {{ number_format($margin_amount_after, 2) }} ({{ number_format($margin_pct_after, 2) }}%)</p>
+                  <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#6b7280;line-height:1.4;">Margen ahora</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-                     style="border:1px solid #e6e8ee;border-radius:12px;overflow:hidden;margin-bottom:16px;">
-                <thead>
-                <tr>
-                  <th colspan="2" style="padding:12px 16px;background:#f9fafc;font:600 12px/1.4 Inter,Arial,Helvetica,sans-serif;color:#111827;text-transform:uppercase;border-bottom:2px solid #e6e8ee;text-align:left;">
-                    Margen Actualizado
-                  </th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                  <td style="padding:12px 16px;font:400 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#4b5563;border-bottom:1px solid #e6e8ee;">Antes</td>
-                  <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#111827;border-bottom:1px solid #e6e8ee;text-align:right;">
-                    S/ {{ number_format($margin_amount_before, 2) }} ({{ number_format($margin_pct_before, 2) }}%)
-                  </td>
-                </tr>
-                <tr style="background:#f0fdf4;">
-                  <td style="padding:12px 16px;font:600 14px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;">Ahora</td>
-                  <td style="padding:12px 16px;font:700 15px/1.6 Inter,Arial,Helvetica,sans-serif;color:#15803d;text-align:right;">
-                    S/ {{ number_format($margin_amount_after, 2) }} ({{ number_format($margin_pct_after, 2) }}%)
-                  </td>
-                </tr>
-                </tbody>
-              </table>
+      </table>
+    </td>
+  </tr>
 
-              @if(isset($button_url))
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
-                       style="margin:0 auto 8px auto;">
-                  <tr>
-                    <td align="center" bgcolor="#01237E" style="border-radius:10px;">
-                      <a href="{{ $button_url }}"
-                         style="display:inline-block;padding:12px 24px;font:600 14px/1 Inter,Arial,Helvetica,sans-serif;text-decoration:none;color:#ffffff;background:#01237E;border-radius:10px;border:1px solid #011a5b;">
-                        Ver Solicitud de Ajuste
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              @endif
-
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+  {{-- Botón --}}
+  <tr>
+    <td align="center" style="padding:20px 0 40px 0;">
+      <a href="{{ $button_url }}"
+         style="display:inline-block;padding:13px 28px;background:#111111;color:#ffffff;font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:600;line-height:1;text-decoration:none;border-radius:8px;">
+        Ver Solicitud de Ajuste
+      </a>
+    </td>
+  </tr>
 @endsection

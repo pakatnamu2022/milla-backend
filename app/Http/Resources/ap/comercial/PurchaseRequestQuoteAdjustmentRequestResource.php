@@ -14,6 +14,9 @@ class PurchaseRequestQuoteAdjustmentRequestResource extends JsonResource
       'purchase_request_quote_id' => $this->purchase_request_quote_id,
       'quote_correlative' => $this->purchaseRequestQuote->correlative ?? null,
       'holder_name' => $this->purchaseRequestQuote->holder->full_name ?? null,
+      // Los montos de la solicitud (margin_amount_*) están en la moneda del
+      // documento de la cotización, la misma que usa PurchaseRequestQuoteColumns.
+      'currency_symbol' => $this->purchaseRequestQuote->docTypeCurrency->symbol ?? 'S/',
       'requested_by_id' => $this->requested_by_id,
       'requested_by_name' => $this->requestedBy->name ?? null,
       'status' => $this->status,
