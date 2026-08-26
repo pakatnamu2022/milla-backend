@@ -1781,6 +1781,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Productivity Dashboard - Dashboard de Productividad de Técnicos
       Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
       Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
+      Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
 
       // Technician Productivity Detail - Detalle de Productividad por Técnico
       Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);

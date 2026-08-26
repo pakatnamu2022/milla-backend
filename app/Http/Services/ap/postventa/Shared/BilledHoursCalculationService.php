@@ -212,6 +212,7 @@ class BilledHoursCalculationService
       $workOrdersDetail[] = [
         'work_order_id' => $workOrder->id,
         'work_order_number' => $workOrder->correlative ?? '',
+        'vehicle_plate' => $workOrder->vehicle ? $workOrder->vehicle->plate : '',
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : 'N/A',
         'fecha_facturacion' => $invoiceDate,
@@ -241,6 +242,7 @@ class BilledHoursCalculationService
         $workOrdersWithoutLabour[] = [
           'work_order_id' => $workOrder->id,
           'work_order_number' => $workOrder->correlative ?? '',
+          'vehicle_plate' => $workOrder->vehicle ? $workOrder->vehicle->plate : '',
           'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE',
           'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : 'N/A',
           'fecha_facturacion' => $invoiceDate,

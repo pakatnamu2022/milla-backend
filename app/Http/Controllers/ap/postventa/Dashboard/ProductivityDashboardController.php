@@ -87,4 +87,41 @@ class ProductivityDashboardController extends Controller
       ], 500);
     }
   }
+
+  /**
+   * Get technician detail for a specific sede
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function getTechnicianDetail(Request $request): JsonResponse
+  {
+    $validated = $request->validate([
+      'date_range' => 'required|array|size:2',
+      'date_range.*' => 'required|date',
+      'sede_id' => 'required|integer|exists:config_sede,id',
+      'use_cache' => 'nullable|boolean'
+    ]);
+
+    $startDate = $validated['date_range'][0];
+    $endDate = $validated['date_range'][1];
+    $sedeId = $validated['sede_id'];
+    $useCache = $validated['use_cache'] ?? true;
+
+    try {
+      // Usar método específico optimizado - UNA SOLA fuente de verdad (getBaseTechnicianData)
+      $technicianDetail = $this->service->getTechnicianDetailBySede($startDate, $endDate, $sedeId, $useCache);
+
+      return response()->json([
+        'success' => true,
+        'data' => $technicianDetail
+      ]);
+    } catch (\Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al obtener detalle de técnicos por sede',
+        'error' => $e->getMessage()
+      ], 500);
+    }
+  }
 }
