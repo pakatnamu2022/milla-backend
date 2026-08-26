@@ -428,10 +428,6 @@ class TransferShippingGuideDynamicsService
         $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
         $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
 
-        if ($isCancelled) {
-          [$warehouseStartCode, $warehouseEndCode] = [$warehouseEndCode, $warehouseStartCode];
-        }
-
         $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
 
         $inventoryAccount = (clone $baseQuery)->where('is_received', true)->value('inventory_account')
@@ -441,7 +437,14 @@ class TransferShippingGuideDynamicsService
           ? (clone $baseQuery)->where('is_received', false)->value('inventory_account') . '-' . $sede
           : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
 
-        if ($isCancelled) {
+        // Consignación se trata como una recepción: el vehículo entra desde el
+        // almacén externo (no recibido) hacia el almacén propio (recibido), al
+        // revés del traslado "OTROS" normal (que sale del almacén propio hacia
+        // un tercero externo). Una cancelación invierte el sentido nuevamente.
+        $shouldSwap = $shippingGuide->is_consignment ? !$isCancelled : $isCancelled;
+
+        if ($shouldSwap) {
+          [$warehouseStartCode, $warehouseEndCode] = [$warehouseEndCode, $warehouseStartCode];
           [$inventoryAccount, $counterpartInventoryAccount] = [$counterpartInventoryAccount, $inventoryAccount];
         }
       }
