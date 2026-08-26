@@ -110,7 +110,9 @@ class Vehicles extends BaseModel
    */
   public function getHasDeliveryGuideAttribute(): bool
   {
-    return $this->vehicleDelivery()->exists();
+    return ApVehicleDelivery::where('vehicle_id', $this->id)
+      ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+      ->exists();
   }
 
   /**
