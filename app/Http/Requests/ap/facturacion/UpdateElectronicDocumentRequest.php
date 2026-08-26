@@ -270,7 +270,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'cliente_email_2' => 'nullable|email|max:250',
 
       // Fechas
-      'fecha_de_emision' => 'nullable|date',
+      // Si se envía, el comprobante debe emitirse el mismo día (SUNAT), no se permite adelantar ni atrasar la fecha.
+      'fecha_de_emision' => 'nullable|date|date_equals:today',
       'fecha_de_vencimiento' => 'nullable|date|after_or_equal:fecha_de_emision',
 
       // Moneda
@@ -398,6 +399,7 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       'ap_billing_document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
       'series.exists' => 'La serie seleccionada no es válida o no está asignada a usted',
       'total.min' => 'El total del documento debe ser al menos 0',
+      'fecha_de_emision.date_equals' => 'La fecha de emisión debe ser el día de hoy',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'items.min' => 'Debe agregar al menos un item al documento',
       'items.*.descripcion.required_with' => 'La descripción del item es obligatoria',
