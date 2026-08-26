@@ -35,6 +35,12 @@ class PermissionSeeder extends Seeder
         'policy_method' => 'viewAdvisors',
         'is_active' => true,
       ],
+      // Nota: los permisos de "Ajustes de Margen" (viewAdjustments, requestAdjustment,
+      // approveAdjustment, rejectAdjustment) NO se seedean aquí: son acciones nuevas
+      // del catálogo (config/permissions.php) que se crean bajo la vista existente
+      // "Solicitudes de Compra" (route=solicitudes-cotizaciones) desde el admin
+      // GP > Gestión del Sistema > Vistas > Permisos, igual que el resto de acciones
+      // de ese módulo. Así no hace falta una vista/menú nueva.
     ];
 
     $permissionsCreated = [];

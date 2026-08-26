@@ -125,9 +125,14 @@ return [
 
 
   'recipients' => [
-    'purchase_quote' => [
+    'purchase_quote'            => [
       'piura_jaen'         => ['john.timana@derco.pe'],
       'cajamarca_chiclayo' => ['adolfo.ramirez@inchcape.com'],
+    ],
+    'purchase_quote_adjustment' => [
+      // Destinatarios de contabilidad para solicitudes de ajuste de margen post-pago.
+      // Configurar en .env: PURCHASE_QUOTE_ADJUSTMENT_ACCOUNTING_EMAILS=correo1@dominio.com,correo2@dominio.com
+      'accounting' => array_filter(explode(',', env('PURCHASE_QUOTE_ADJUSTMENT_ACCOUNTING_EMAILS', 'griojasf@automotorespakatnamu.com'))),
     ],
   ],
 

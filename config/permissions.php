@@ -325,7 +325,36 @@ return [
       'description'   => 'Permite reiniciar migration',
       'icon'          => 'Plus',
       'policy_method' => 'resetMigration',
-    ]
+    ],
+
+    // Ajuste de bono/descuento post-pago sobre solicitudes de compra ya
+    // pagadas (ver PurchaseRequestQuoteAdjustmentRequestService). Se asignan
+    // a la vista existente "Solicitudes de Compra" (route=solicitudes-cotizaciones),
+    // no requieren una vista nueva.
+    'viewAdjustments'               => [
+      'label'         => 'Ver Ajustes de Margen',
+      'description'   => 'Permite ver la bandeja de solicitudes de ajuste de bono/descuento post-pago',
+      'icon'          => 'Eye',
+      'policy_method' => 'viewAdjustments',
+    ],
+    'requestAdjustment'             => [
+      'label'         => 'Solicitar Ajuste de Margen',
+      'description'   => 'Permite solicitar un ajuste de bono/descuento sobre una cotización ya pagada',
+      'icon'          => 'PercentCircle',
+      'policy_method' => 'requestAdjustment',
+    ],
+    'approveAdjustment'             => [
+      'label'         => 'Aprobar Ajuste de Margen',
+      'description'   => 'Permite aprobar una solicitud de ajuste de bono/descuento post-pago',
+      'icon'          => 'ThumbsUp',
+      'policy_method' => 'approveAdjustment',
+    ],
+    'rejectAdjustment'              => [
+      'label'         => 'Rechazar Ajuste de Margen',
+      'description'   => 'Permite rechazar una solicitud de ajuste de bono/descuento post-pago',
+      'icon'          => 'ThumbsDown',
+      'policy_method' => 'rejectAdjustment',
+    ],
   ],
 
 

@@ -145,62 +145,12 @@ class TechnicianProductivityDetailService
 
   /**
    * Get attendance data for a technician (standard hours and real hours)
+   * MÉTODO REFACTORIZADO: Ahora usa el servicio centralizado BilledHoursCalculationService
    */
   private function getAttendanceData(int $workerId, string $startDate, string $endDate): array
   {
-    try {
-      $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
-
-      $attendanceRequest = new \Illuminate\Http\Request([
-        'date_from' => $startDate,
-        'date_to' => $endDate,
-      ]);
-
-      $attendanceResponse = $attendanceService->personDashboard(
-        $workerId,
-        $attendanceRequest
-      );
-
-      $attendanceData = $attendanceResponse->getData(true);
-
-      // Count days with check_in
-      $daysWorked = collect($attendanceData['daily'])
-        ->filter(function ($day) {
-          return $day['type'] === 'work' && !empty($day['check_in']);
-        })
-        ->count();
-
-      // Standard hours: 8h × days with check_in
-      $standardHours = $daysWorked * 8;
-
-      // Real hours: Parse from "XXXh YYmin" format
-      $realHours = $this->parseHoursFromString($attendanceData['hours_worked']);
-
-      return [
-        'standard_hours' => $standardHours,
-        'real_hours' => $realHours,
-      ];
-    } catch (\Exception $e) {
-      // If it fails, return 0 for both
-      return [
-        'standard_hours' => 0,
-        'real_hours' => 0,
-      ];
-    }
-  }
-
-  /**
-   * Parse hours from string format "XXXh YYmin" to decimal
-   */
-  private function parseHoursFromString(string $hoursString): float
-  {
-    // Format: "246h 11min"
-    preg_match('/(\d+)h(?: (\d+)min)?/', $hoursString, $matches);
-
-    $hours = isset($matches[1]) ? (int)$matches[1] : 0;
-    $minutes = isset($matches[2]) ? (int)$matches[2] : 0;
-
-    return $hours + ($minutes / 60);
+    // Usar el método centralizado del servicio compartido
+    return $this->billedHoursService->getAttendanceData($workerId, $startDate, $endDate);
   }
 
   /**

@@ -17,6 +17,7 @@ use App\Http\Controllers\ap\comercial\DiscountCouponsController;
 use App\Http\Controllers\ap\comercial\OpportunityActionController;
 use App\Http\Controllers\ap\comercial\OpportunityController;
 use App\Http\Controllers\ap\comercial\PotentialBuyersController;
+use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteAdjustmentRequestController;
 use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
@@ -84,6 +85,7 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
+use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -1408,6 +1410,18 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Ajustes de bono/descuento post-pago
+      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/approve', [PurchaseRequestQuoteAdjustmentRequestController::class, 'approve']);
+      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/reject', [PurchaseRequestQuoteAdjustmentRequestController::class, 'reject']);
+      Route::apiResource('purchaseRequestQuoteAdjustmentRequest', PurchaseRequestQuoteAdjustmentRequestController::class)
+        ->parameters(['purchaseRequestQuoteAdjustmentRequest' => 'id'])
+        ->only([
+          'index',
+          'show',
+          'store',
+          'destroy',
+        ]);
+
       Route::get('vehiclePurchaseOrder/next-correlative', [PurchaseOrderController::class, 'nextCorrelative']);
       Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
       Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
@@ -1835,6 +1849,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy'
+      ]);
+
+      // Campaign Schedules - Cronograma de Campañas
+      Route::get('campaignSchedules/worker-schedule', [ApCampaignScheduleController::class, 'getWorkerSchedule']);
+      Route::apiResource('campaignSchedules', ApCampaignScheduleController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
 

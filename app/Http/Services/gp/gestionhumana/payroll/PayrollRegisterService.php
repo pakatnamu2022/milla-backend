@@ -11,6 +11,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollFamilyAllowance;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollRegister;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\GeneralMaster;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,7 @@ class PayrollRegisterService extends BaseService
             $workers = Worker::whereHas('sede', function ($query) use ($companyId) {
                 $query->where('empresa_id', $companyId);
             })
+                ->working()
                 ->with(['position', 'sede'])
                 ->get();
 
@@ -108,6 +110,22 @@ class PayrollRegisterService extends BaseService
                 $occupation = $worker->position->name ?? '';
                 $costCenter = $worker->sede->nombre ?? '';
 
+                $basicSalary = $calculation->basic_salary ?? 0.00;
+                $totalIncome = $this->calculateTotalIncome([
+                    'basic_salary' => $basicSalary,
+                    'family_allowance' => $familyAllowanceAmount,
+                    'overtime_25' => $calculation->overtime_25 ?? 0.00,
+                    'overtime_35' => $calculation->overtime_35 ?? 0.00,
+                    'holiday_pay' => $calculation->holiday_pay ?? 0.00,
+                    'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,
+                    'night_bonus' => $calculation->night_bonus ?? 0.00,
+                    'production_bonus' => $productionBonus,
+                    'commercial_bonus' => $commercialBonus,
+                ]);
+
+                // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
+                $employerContributions = $this->calculateEmployerContributions($worker, $basicSalary, $totalIncome);
+
                 // Crear el registro
                 PayrollRegister::create([
                     'period_id' => $periodId,
@@ -122,7 +140,7 @@ class PayrollRegisterService extends BaseService
                     'monthly_salary' => 0.00, // TODO: obtener de contrato o tabla de sueldos
                     'afp_affiliation' => null, // TODO: obtener de datos del trabajador
                     'has_family_allowance' => $hasFamilyAllowance,
-                    'has_essalud_vida' => false, // TODO: obtener de datos del trabajador
+                    'has_essalud_vida' => strtoupper($worker->essaludvida ?? '') === 'SI',
 
                     // Días (desde cálculos o valores por defecto)
                     'days_worked' => $calculation->days_worked ?? 30,
@@ -157,17 +175,7 @@ class PayrollRegisterService extends BaseService
                     'food_benefit' => 0.00,
 
                     // Calcular total de ingresos
-                    'total_income' => $this->calculateTotalIncome([
-                        'basic_salary' => $calculation->basic_salary ?? 0.00,
-                        'family_allowance' => $familyAllowanceAmount,
-                        'overtime_25' => $calculation->overtime_25 ?? 0.00,
-                        'overtime_35' => $calculation->overtime_35 ?? 0.00,
-                        'holiday_pay' => $calculation->holiday_pay ?? 0.00,
-                        'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,
-                        'night_bonus' => $calculation->night_bonus ?? 0.00,
-                        'production_bonus' => $productionBonus,
-                        'commercial_bonus' => $commercialBonus,
-                    ]),
+                    'total_income' => $totalIncome,
 
                     // BB.SS truncos
                     'cts_truncated' => 0.00,
@@ -197,14 +205,14 @@ class PayrollRegisterService extends BaseService
                     'aguinaldo' => 0.00,
                     'net_pay_plus_aguinaldo' => $calculation->net_salary ?? 0.00,
 
-                    // Aportes empleador (valores por defecto - TODO: implementar cálculos)
-                    'cts_employer' => 0.00,
-                    'essalud_employer' => 0.00,
-                    'sctr_total' => 0.00,
-                    'life_insurance' => 0.00,
-                    'sctr_health' => 0.00,
-                    'sctr_pension' => 0.00,
-                    'employer_contributions_total' => 0.00,
+                    // Aportes empleador
+                    'cts_employer' => 0.00, // TODO: Fase 3 (gratificación/CTS)
+                    'essalud_employer' => $employerContributions['essalud'],
+                    'sctr_total' => $employerContributions['sctr_total'],
+                    'life_insurance' => $employerContributions['life_insurance'],
+                    'sctr_health' => $employerContributions['sctr_health'],
+                    'sctr_pension' => $employerContributions['sctr_pension'],
+                    'employer_contributions_total' => $employerContributions['total'],
 
                     // Netos finales
                     'vacation_paid_preliminary' => 0.00,
@@ -243,6 +251,62 @@ class PayrollRegisterService extends BaseService
     private function calculateTotalIncome(array $incomes): float
     {
         return round(array_sum($incomes), 2);
+    }
+
+    /**
+     * Calcular aportes del empleador: SCTR (salud + pensión), EsSalud y Vida Ley.
+     *
+     * Tasas configurables vía GeneralMaster (patrón ya usado en PayrollScheduleService):
+     * - EsSalud: 9% sobre el total de ingresos, con piso RMV.
+     * - SCTR (salud + pensión): 0.50% + 0.50% sobre el total de ingresos, solo si el
+     *   trabajador está afiliado (rrhh_persona.estado_sctr = 'SI'). SCTR pensión tiene
+     *   tope en la RMA (Remuneración Máxima Asegurable).
+     * - Vida Ley: (sueldo básico x 3.12%) x (1 + IGV) / 12, prorrateado a cuota mensual
+     *   (fórmula confirmada contra "CALCULO VIDA LEY TP - POR PERSONA POLIZA 2025-2026.xlsx").
+     *
+     * @param Worker $worker
+     * @param float $basicSalary
+     * @param float $totalIncome
+     * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, life_insurance: float, total: float}
+     */
+    private function calculateEmployerContributions(Worker $worker, float $basicSalary, float $totalIncome): array
+    {
+        $minimumWage = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+        $essaludRate = (float)(GeneralMaster::find(GeneralMaster::ESSALUD_RATE_ID)->value ?? 0.09);
+        $sctrHealthRate = (float)(GeneralMaster::find(GeneralMaster::SCTR_HEALTH_RATE_ID)->value ?? 0.005);
+        $sctrPensionRate = (float)(GeneralMaster::find(GeneralMaster::SCTR_PENSION_RATE_ID)->value ?? 0.005);
+        $insurableMaxRemuneration = (float)(GeneralMaster::find(GeneralMaster::INSURABLE_MAX_REMUNERATION_ID)->value ?? 12027.91);
+        $lifeInsuranceRate = (float)(GeneralMaster::find(GeneralMaster::LIFE_INSURANCE_RATE_ID)->value ?? 0.0312);
+        $igvRate = (float)(GeneralMaster::find(GeneralMaster::IGV_RATE_ID)->value ?? 0.18);
+
+        // EsSalud: aplica a todos, con piso RMV.
+        $essaludBase = max($totalIncome, $minimumWage);
+        $essalud = round($essaludBase * $essaludRate, 2);
+
+        // SCTR: solo trabajadores afiliados (rrhh_persona.estado_sctr = 'SI').
+        $isSctrAffiliated = strtoupper($worker->estado_sctr ?? '') === 'SI';
+        $sctrHealth = 0.0;
+        $sctrPension = 0.0;
+        if ($isSctrAffiliated) {
+            $sctrHealth = round($totalIncome * $sctrHealthRate, 2);
+            $sctrPensionBase = min($totalIncome, $insurableMaxRemuneration);
+            $sctrPension = round($sctrPensionBase * $sctrPensionRate, 2);
+        }
+        $sctrTotal = round($sctrHealth + $sctrPension, 2);
+
+        // Vida Ley: prima anual por persona sobre el básico, + IGV, prorrateada a 12 meses.
+        $lifeInsuranceAnnualCost = $basicSalary * $lifeInsuranceRate;
+        $lifeInsuranceAnnualWithIgv = $lifeInsuranceAnnualCost * (1 + $igvRate);
+        $lifeInsurance = round($lifeInsuranceAnnualWithIgv / 12, 2);
+
+        return [
+            'essalud' => $essalud,
+            'sctr_health' => $sctrHealth,
+            'sctr_pension' => $sctrPension,
+            'sctr_total' => $sctrTotal,
+            'life_insurance' => $lifeInsurance,
+            'total' => round($essalud + $sctrTotal + $lifeInsurance, 2),
+        ];
     }
 
     /**

@@ -307,6 +307,7 @@ class ClosedWorkOrderBilledHoursReportService
 
   /**
    * Calcula las horas estándar para un técnico basado en sus asistencias
+   * MÉTODO REFACTORIZADO: Ahora usa el servicio centralizado BilledHoursCalculationService
    *
    * @param int $workerId
    * @return float
@@ -318,34 +319,15 @@ class ClosedWorkOrderBilledHoursReportService
       return 192;
     }
 
-    try {
-      $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
+    // Usar el método centralizado del servicio compartido
+    $standardHours = $this->billedHoursService->calculateStandardHours(
+      $workerId,
+      $this->startDate,
+      $this->endDate
+    );
 
-      $attendanceRequest = new \Illuminate\Http\Request([
-        'date_from' => $this->startDate,
-        'date_to' => $this->endDate,
-      ]);
-
-      $attendanceResponse = $attendanceService->personDashboard(
-        $workerId,
-        $attendanceRequest
-      );
-
-      $attendanceData = $attendanceResponse->getData(true);
-
-      // Contar días con check_in
-      $daysWorked = collect($attendanceData['daily'])
-        ->filter(function ($day) {
-          return $day['type'] === 'work' && !empty($day['check_in']);
-        })
-        ->count();
-
-      // Horas estándar: 8h × días con check_in
-      return $daysWorked * 8;
-    } catch (\Exception $e) {
-      // Si falla, usar el valor fijo anterior
-      return 192;
-    }
+    // Si falla (retorna 0), usar el valor fijo anterior como fallback
+    return $standardHours > 0 ? $standardHours : 192;
   }
 
   }

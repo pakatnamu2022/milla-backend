@@ -108,7 +108,7 @@ class ApVehicleDelivery extends Model
 
   public function ShippingGuide()
   {
-    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id')->whereNull('cancelled_at');
+    return $this->belongsTo(ShippingGuides::class, 'shipping_guide_id');
   }
 
   public function vehicleMovement()
