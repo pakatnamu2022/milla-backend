@@ -2739,13 +2739,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede agregar un deducible a una orden de trabajo cerrada, finalizada o anulada');
       }
 
-      // Una orden de trabajo solo puede tener un deducible activo a la vez
-      $alreadyHasDeductible = WorkOrderLabour::where('work_order_id', $data['work_order_id'])
-        ->where('is_deductible', true)
-        ->exists();
+      // Validar que no exceda el máximo de deducibles permitidos
+      $currentDeductiblesCount = ApDeductibleWorkOrder::where('work_order_id', $data['work_order_id'])->count();
 
-      if ($alreadyHasDeductible) {
-        throw new Exception('La orden de trabajo ya tiene un deducible asociado');
+      if ($currentDeductiblesCount >= ApWorkOrder::MAX_DEDUCTIBLES) {
+        throw new Exception('La orden de trabajo ya tiene el máximo de deducibles permitidos (' . ApWorkOrder::MAX_DEDUCTIBLES . ')');
       }
 
       // Obtener el comprobante electrónico
@@ -2773,21 +2771,36 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         throw new Exception("La moneda del comprobante electrónico ({$documentCurrencyName}) no coincide con la moneda de la orden de trabajo ({$workOrderCurrencyName})");
       }
 
-      // Crear el ítem de mano de obra "Deducible" en negativo (resta del total de mano de obra)
-      $deductibleLabour = WorkOrderLabour::create([
-        'group_number' => 1,
-        'description' => 'Deducible',
-        'labour_type' => WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE,
-        'time_spent' => 1,
-        'hourly_rate' => $electronicDocument->total_gravada,
-        'discount_percentage' => 0,
-        'total_cost' => -$electronicDocument->total_gravada,
-        'net_amount' => -$electronicDocument->total_gravada,
-        'tax_amount' => -$electronicDocument->total_igv,
-        'work_order_id' => $data['work_order_id'],
-        'is_deductible' => true,
-        'current_hourly_cost' => $workOrder->getCurrentHourlyCost(),
-      ]);
+      // Buscar si ya existe una línea de deducible
+      $deductibleLabour = WorkOrderLabour::where('work_order_id', $data['work_order_id'])
+        ->where('is_deductible', true)
+        ->first();
+
+      if ($deductibleLabour) {
+        // Si ya existe, acumular los montos
+        $deductibleLabour->update([
+          'hourly_rate' => $deductibleLabour->hourly_rate - $electronicDocument->total_gravada,
+          'total_cost' => $deductibleLabour->total_cost - $electronicDocument->total_gravada,
+          'net_amount' => $deductibleLabour->net_amount - $electronicDocument->total_gravada,
+          'tax_amount' => $deductibleLabour->tax_amount - $electronicDocument->total_igv,
+        ]);
+      } else {
+        // Si no existe, crear la línea de deducible en negativo
+        $deductibleLabour = WorkOrderLabour::create([
+          'group_number' => 1,
+          'description' => 'Deducible',
+          'labour_type' => WorkOrderLabour::LABOUR_TYPE_DEDUCTIBLE,
+          'time_spent' => 1,
+          'hourly_rate' => -$electronicDocument->total_gravada,
+          'discount_percentage' => 0,
+          'total_cost' => -$electronicDocument->total_gravada,
+          'net_amount' => -$electronicDocument->total_gravada,
+          'tax_amount' => -$electronicDocument->total_igv,
+          'work_order_id' => $data['work_order_id'],
+          'is_deductible' => true,
+          'current_hourly_cost' => $workOrder->getCurrentHourlyCost(),
+        ]);
+      }
 
       // Crear el registro de auditoría del deducible, ligado al ítem de mano de obra creado
       ApDeductibleWorkOrder::create([
@@ -2861,15 +2874,31 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'deductible_amount' => $newDeductibleAmount,
       ]);
 
-      // Eliminar en espejo el ítem de mano de obra "Deducible" ligado a este registro
-      if ($deductible->work_order_labour_id) {
-        WorkOrderLabour::where('id', $deductible->work_order_labour_id)
-          ->where('is_deductible', true)
-          ->delete();
-      }
-
       // Eliminar el deducible (soft delete)
       $deductible->delete();
+
+      // Verificar cuántos deducibles quedan activos después de eliminar este
+      $remainingDeductiblesCount = ApDeductibleWorkOrder::where('work_order_id', $workOrder->id)->count();
+
+      // Buscar la línea de deducible en WorkOrderLabour
+      $deductibleLabour = WorkOrderLabour::where('work_order_id', $workOrder->id)
+        ->where('is_deductible', true)
+        ->first();
+
+      if ($deductibleLabour) {
+        if ($remainingDeductiblesCount === 0) {
+          // Si no quedan más deducibles, eliminar la línea de WorkOrderLabour
+          $deductibleLabour->delete();
+        } else {
+          // Si quedan deducibles, restar el monto del deducible eliminado
+          $deductibleLabour->update([
+            'hourly_rate' => $deductibleLabour->hourly_rate + $deductible->electronicDocument->total_gravada,
+            'total_cost' => $deductibleLabour->total_cost + $deductible->electronicDocument->total_gravada,
+            'net_amount' => $deductibleLabour->net_amount + $deductible->electronicDocument->total_gravada,
+            'tax_amount' => $deductibleLabour->tax_amount + $deductible->electronicDocument->total_igv,
+          ]);
+        }
+      }
 
       $this->performWorkOrderRecalculation($workOrder);
 
