@@ -261,8 +261,14 @@ class ProductivityDashboardService
       // Calculate productivity (can be negative)
       $productivityHours = $billedHours - $standardHours;
 
-      // Calculate earnings (if negative, set to 0)
-      $earnings = max(0, $productivityHours * $earningsPerHour);
+      // Calculate earnings
+      // IMPORTANTE: Si standard_hours = 0, NO hay comisión (alerta para regularizar asistencias)
+      // Esto evita dar comisiones falsas a técnicos sin asistencias registradas
+      if ($standardHours > 0) {
+        $earnings = max(0, $productivityHours) * $earningsPerHour;
+      } else {
+        $earnings = 0; // No hay asistencias registradas
+      }
 
       // Calculate productivity percentage
       $productivityPercentage = $standardHours > 0
