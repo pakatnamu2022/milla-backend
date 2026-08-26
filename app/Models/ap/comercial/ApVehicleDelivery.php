@@ -79,7 +79,8 @@ class ApVehicleDelivery extends Model
   ];
 
   const string STATUS_DELIVERED = 'delivered';
-  const string STATUS_PENDING = 'pending';
+  const string STATUS_PENDING   = 'pending';
+  const string STATUS_CANCELLED = 'cancelled';
 
   public function setObservationsAttribute($value)
   {
@@ -155,8 +156,9 @@ class ApVehicleDelivery extends Model
   {
     return match ($this->status_delivery) {
       'delivered', 'completed' => 'Entregado',
-      'pending' => 'Pendiente',
-      default => $this->status_delivery ?? '-',
+      'pending'                => 'Pendiente',
+      'cancelled'              => 'Anulado',
+      default                  => $this->status_delivery ?? '-',
     };
   }
 
@@ -179,6 +181,7 @@ class ApVehicleDelivery extends Model
     return $this->vehicle_id !== null
       && self::where('vehicle_id', $this->vehicle_id)
         ->whereNull('deleted_at')
+        ->where('status_delivery', '!=', self::STATUS_CANCELLED)
         ->exists();
   }
 

@@ -831,6 +831,10 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         'status'              => false,
       ]);
 
+      // Resetear contabilización del delivery para que el job pueda re-sincronizarla
+      ApVehicleDelivery::where('shipping_guide_id', $document->id)
+        ->update(['is_accounted' => false]);
+
       // Sincronizar cancelación con Dynamics
       VerifyAndMigrateShippingGuideJob::dispatchSync($document->id);
 
