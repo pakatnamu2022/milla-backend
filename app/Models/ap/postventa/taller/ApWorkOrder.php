@@ -160,6 +160,7 @@ class ApWorkOrder extends Model
   ];
 
   const int LIMITATION_PERMITTED_REVERSAL = 1;
+  const int MAX_DEDUCTIBLES = 2;
 
   // Boot method
   protected static function boot()

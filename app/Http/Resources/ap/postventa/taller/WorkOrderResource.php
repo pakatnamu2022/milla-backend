@@ -53,19 +53,22 @@ class WorkOrderResource extends JsonResource
       'final_amount' => (float)$this->final_amount,
       'deductible_amount' => (float)$this->deductible_amount,
       'deductible_amount_without_tax' => round((float)$this->deductible_amount_without_tax, 2),
-      'deductible' => $this->whenLoaded('deductibles', function () {
-        $document = $this->deductibles->first()?->electronicDocument;
+      'deductibles' => $this->whenLoaded('deductibles', function () {
+        return $this->deductibles->map(function ($deductible) {
+          $document = $deductible->electronicDocument;
 
-        if (!$document) {
-          return null;
-        }
+          if (!$document) {
+            return null;
+          }
 
-        return [
-          'id' => $this->deductibles->first()?->id,
-          'full_number' => $document->full_number,
-          'cliente_denominacion' => $document->cliente_denominacion,
-          'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
-        ];
+          return [
+            'id' => $deductible->id,
+            'full_number' => $document->full_number,
+            'cliente_denominacion' => $document->cliente_denominacion,
+            'cliente_numero_de_documento' => $document->cliente_numero_de_documento,
+            'total' => (float)$document->total,
+          ];
+        })->filter()->values();
       }),
       'is_invoiced' => (bool)$this->is_invoiced,
       'is_guarantee' => (bool)$this->is_guarantee,
