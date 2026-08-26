@@ -34,21 +34,12 @@ class ProductivityDashboardService
     }
 
     return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($startDate, $endDate, $sedeId) {
-      // Get period info
-      $period = $this->getPeriodInfo($startDate, $endDate);
+      // Get base technician data (UNA SOLA fuente de verdad)
+      $baseData = $this->getBaseTechnicianData($startDate, $endDate, $sedeId);
 
-      // Get user sede IDs
-      $userSedeIds = $this->billedHoursService->getUserSedeIds();
-
-      // Get billed hours data usando el servicio centralizado
-      $labours = $this->billedHoursService->getBilledHoursData($startDate, $endDate, $sedeId, $userSedeIds);
-
-      // Calculate billed hours by technician
-      $billedData = $this->billedHoursService->calculateBilledHoursByWorker($labours);
-
-      if ($billedData->isEmpty()) {
+      if (empty($baseData['technician_detail'])) {
         return [
-          'period' => $period,
+          'period' => $baseData['period'],
           'executive_summary' => $this->getEmptyExecutiveSummary(),
           'headquarters_summary' => [],
           'technician_detail' => [],
@@ -56,39 +47,110 @@ class ProductivityDashboardService
         ];
       }
 
-      // Get configurations from GeneralMaster
-      $workingHoursPerDay = $this->getWorkingHoursPerDay();
-      $earningsPerHour = $this->getEarningsPerHour();
-
-      // Calculate technician details with productivity
-      $technicianDetail = $this->calculateTechnicianDetail(
-        $billedData,
-        $period,
-        $workingHoursPerDay,
-        $earningsPerHour
-      );
-
       // Calculate headquarters summary
-      $headquartersSummary = $this->calculateHeadquartersSummary($technicianDetail);
+      $headquartersSummary = $this->calculateHeadquartersSummary($baseData['technician_detail']);
 
       // Calculate executive summary
-      $executiveSummary = $this->calculateExecutiveSummary($technicianDetail, $headquartersSummary);
+      $executiveSummary = $this->calculateExecutiveSummary($baseData['technician_detail'], $headquartersSummary);
 
       // Generate chart data
-      $chartData = $this->generateChartData($technicianDetail);
+      $chartData = $this->generateChartData($baseData['technician_detail']);
 
       return [
-        'period' => $period,
-        'configurations' => [
-          'working_hours_per_day' => $workingHoursPerDay,
-          'earnings_per_hour' => $earningsPerHour
-        ],
+        'period' => $baseData['period'],
+        'configurations' => $baseData['configurations'],
         'executive_summary' => $executiveSummary,
         'headquarters_summary' => $headquartersSummary,
-        'technician_detail' => $technicianDetail,
+        'technician_detail' => $baseData['technician_detail'],
         'chart_data' => $chartData
       ];
     });
+  }
+
+  /**
+   * Get technician detail for a specific sede
+   *
+   * @param string $startDate Format: Y-m-d
+   * @param string $endDate Format: Y-m-d
+   * @param int $sedeId Required sede ID
+   * @param bool $useCache
+   * @return array
+   */
+  public function getTechnicianDetailBySede(string $startDate, string $endDate, int $sedeId, bool $useCache = true): array
+  {
+    $cacheKey = "productivity_technician_detail_{$startDate}_{$endDate}_{$sedeId}";
+
+    if (!$useCache) {
+      Cache::forget($cacheKey);
+    }
+
+    return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($startDate, $endDate, $sedeId) {
+      // Get base technician data (UNA SOLA fuente de verdad)
+      $baseData = $this->getBaseTechnicianData($startDate, $endDate, $sedeId);
+
+      return [
+        'period' => $baseData['period'],
+        'sede_id' => $sedeId,
+        'configurations' => $baseData['configurations'],
+        'technician_detail' => $baseData['technician_detail']
+      ];
+    });
+  }
+
+  /**
+   * Get base technician data (shared logic for dashboard and detail endpoints)
+   * UNA SOLA FUENTE DE VERDAD
+   *
+   * @param string $startDate
+   * @param string $endDate
+   * @param int|null $sedeId
+   * @return array
+   */
+  protected function getBaseTechnicianData(string $startDate, string $endDate, ?int $sedeId): array
+  {
+    // Get period info
+    $period = $this->getPeriodInfo($startDate, $endDate);
+
+    // Get user sede IDs
+    $userSedeIds = $this->billedHoursService->getUserSedeIds();
+
+    // Get billed hours data usando el servicio centralizado
+    $labours = $this->billedHoursService->getBilledHoursData($startDate, $endDate, $sedeId, $userSedeIds);
+
+    // Calculate billed hours by technician
+    $billedData = $this->billedHoursService->calculateBilledHoursByWorker($labours);
+
+    if ($billedData->isEmpty()) {
+      return [
+        'period' => $period,
+        'configurations' => [
+          'working_hours_per_day' => $this->getWorkingHoursPerDay(),
+          'earnings_per_hour' => $this->getEarningsPerHour()
+        ],
+        'technician_detail' => []
+      ];
+    }
+
+    // Get configurations from GeneralMaster
+    $workingHoursPerDay = $this->getWorkingHoursPerDay();
+    $earningsPerHour = $this->getEarningsPerHour();
+
+    // Calculate technician details with productivity
+    $technicianDetail = $this->calculateTechnicianDetail(
+      $billedData,
+      $period,
+      $workingHoursPerDay,
+      $earningsPerHour
+    );
+
+    return [
+      'period' => $period,
+      'configurations' => [
+        'working_hours_per_day' => $workingHoursPerDay,
+        'earnings_per_hour' => $earningsPerHour
+      ],
+      'technician_detail' => $technicianDetail
+    ];
   }
 
   /**
@@ -145,6 +207,7 @@ class ProductivityDashboardService
 
   /**
    * Calculate technician detail with productivity
+   * MÉTODO REFACTORIZADO: Ahora usa el servicio centralizado BilledHoursCalculationService
    */
   private function calculateTechnicianDetail(
     \Illuminate\Support\Collection $billedData,
@@ -154,24 +217,17 @@ class ProductivityDashboardService
   ): array
   {
     $technicianDetail = [];
-    $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
 
     foreach ($billedData as $technician) {
-      // Usar AttendanceSyncService como ÚNICA fuente de verdad
-      try {
-        $attendanceRequest = new \Illuminate\Http\Request([
-          'date_from' => $period['start_date'],
-          'date_to' => $period['end_date'],
-        ]);
+      // Usar el método centralizado de BilledHoursCalculationService como ÚNICA fuente de verdad
+      $attendanceData = $this->billedHoursService->getAttendanceData(
+        $technician['worker_id'],
+        $period['start_date'],
+        $period['end_date']
+      );
 
-        $attendanceResponse = $attendanceService->personDashboard(
-          $technician['worker_id'],
-          $attendanceRequest
-        );
-
-        $attendanceData = $attendanceResponse->getData(true);
-      } catch (\Exception $e) {
-        // Si falla la consulta de asistencias
+      // Si falla (retorna 0), agregar registro con error
+      if ($attendanceData['standard_hours'] === 0 && $attendanceData['real_hours'] === 0) {
         $technicianDetail[] = [
           'sede_id' => $technician['sede_id'],
           'sede_name' => $technician['sede_name'],
@@ -180,7 +236,7 @@ class ProductivityDashboardService
           'worker_dni' => $technician['worker_dni'],
           'worker_name' => $technician['worker_name'],
           'has_error' => true,
-          'error_message' => 'Error al obtener datos de asistencia: ' . $e->getMessage(),
+          'error_message' => 'Error al obtener datos de asistencia',
           'days_worked' => 0,
           'standard_hours' => 0,
           'real_hours' => 0,
@@ -194,18 +250,10 @@ class ProductivityDashboardService
         continue;
       }
 
-      // Extraer días trabajados (días con check_in) de los datos daily
-      $daysWorked = collect($attendanceData['daily'])
-        ->filter(function ($day) {
-          return $day['type'] === 'work' && !empty($day['check_in']);
-        })
-        ->count();
-
-      // Horas estándar: 8h × días con check_in
-      $standardHours = $daysWorked * 8;
-
-      // Horas reales: Parsear del formato "XXXh YYmin" del endpoint
-      $realHours = $this->parseHoursFromString($attendanceData['hours_worked']);
+      // Extraer datos de asistencia del método centralizado
+      $daysWorked = $attendanceData['days_worked'];
+      $standardHours = $attendanceData['standard_hours'];
+      $realHours = $attendanceData['real_hours'];
 
       // Get billed hours
       $billedHours = $technician['billed_hours'];
@@ -224,25 +272,34 @@ class ProductivityDashboardService
       // Determine status
       $status = $this->getProductivityStatus($productivityPercentage);
 
-      // Contar días con marcaciones incompletas
-      $daysWithMissingMarks = collect($attendanceData['daily'])
-        ->filter(function ($day) {
-          return $day['type'] === 'work'
-            && !empty($day['check_in'])
-            && (empty($day['check_out']) || empty($day['lunch_out']) || empty($day['lunch_in']));
-        })
-        ->values()
-        ->map(function ($day) {
-          $missing = [];
-          if (empty($day['check_out'])) $missing[] = 'check_out';
-          if (empty($day['lunch_out'])) $missing[] = 'lunch_out';
-          if (empty($day['lunch_in'])) $missing[] = 'lunch_in';
+      // Contar días con marcaciones incompletas (si existen los datos daily)
+      $daysWithMissingMarks = collect();
+      $daysWithCheckout = 0;
 
-          return [
-            'date' => $day['date'],
-            'missing_marks' => $missing,
-          ];
-        });
+      if (!empty($attendanceData['attendance_data']['daily'])) {
+        $daysWithMissingMarks = collect($attendanceData['attendance_data']['daily'])
+          ->filter(function ($day) {
+            return $day['type'] === 'work'
+              && !empty($day['check_in'])
+              && (empty($day['check_out']) || empty($day['lunch_out']) || empty($day['lunch_in']));
+          })
+          ->values()
+          ->map(function ($day) {
+            $missing = [];
+            if (empty($day['check_out'])) $missing[] = 'check_out';
+            if (empty($day['lunch_out'])) $missing[] = 'lunch_out';
+            if (empty($day['lunch_in'])) $missing[] = 'lunch_in';
+
+            return [
+              'date' => $day['date'],
+              'missing_marks' => $missing,
+            ];
+          });
+
+        $daysWithCheckout = collect($attendanceData['attendance_data']['daily'])
+          ->filter(fn($d) => $d['type'] === 'work' && !empty($d['check_out']))
+          ->count();
+      }
 
       $technicianDetail[] = [
         'sede_id' => $technician['sede_id'],
@@ -263,16 +320,16 @@ class ProductivityDashboardService
         // Información de asistencia
         'attendance_summary' => [
           'days_with_checkin' => $daysWorked,
-          'days_with_checkout' => collect($attendanceData['daily'])->filter(fn($d) => $d['type'] === 'work' && !empty($d['check_out']))->count(),
+          'days_with_checkout' => $daysWithCheckout,
           'days_with_missing_marks' => $daysWithMissingMarks->count(),
           'missing_marks_details' => $daysWithMissingMarks->toArray(),
         ],
       ];
     }
 
-    // Sort by productivity hours DESC
+    // Sort by productivity percentage DESC
     usort($technicianDetail, function ($a, $b) {
-      return $b['productivity_hours'] <=> $a['productivity_hours'];
+      return $b['productivity_percentage'] <=> $a['productivity_percentage'];
     });
 
     // Add ranking
@@ -282,20 +339,6 @@ class ProductivityDashboardService
     }
 
     return $technicianDetail;
-  }
-
-  /**
-   * Parse hours from string format "XXXh YYmin" to decimal
-   */
-  private function parseHoursFromString(string $hoursString): float
-  {
-    // Formato: "246h 11min"
-    preg_match('/(\d+)h(?: (\d+)min)?/', $hoursString, $matches);
-
-    $hours = isset($matches[1]) ? (int)$matches[1] : 0;
-    $minutes = isset($matches[2]) ? (int)$matches[2] : 0;
-
-    return $hours + ($minutes / 60);
   }
 
   /**

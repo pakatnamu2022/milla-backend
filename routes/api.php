@@ -85,6 +85,7 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
+use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -1794,6 +1795,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Productivity Dashboard - Dashboard de Productividad de Técnicos
       Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
       Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
+      Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
 
       // Technician Productivity Detail - Detalle de Productividad por Técnico
       Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);
@@ -1847,6 +1849,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy'
+      ]);
+
+      // Campaign Schedules - Cronograma de Campañas
+      Route::get('campaignSchedules/worker-schedule', [ApCampaignScheduleController::class, 'getWorkerSchedule']);
+      Route::apiResource('campaignSchedules', ApCampaignScheduleController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
 
