@@ -25,7 +25,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'warranty_km' => ['sometimes', 'integer', 'min:1'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
       'holder_id' => ['sometimes', 'exists:business_partners,id'],
-      'vehicle_color_id' => ['sometimes', 'exists:ap_masters,id'],
+      'vehicle_color_id' => ['nullable', 'exists:ap_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['sometimes', 'exists:type_currency,id'],
       'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
@@ -44,10 +44,11 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
       'type_currency_id'    => ['sometimes', 'exists:ap_masters,id'],
-      'credit_type_id'      => ['nullable', 'exists:ap_masters,id'],
+      'credit_type_id'      => ['sometimes', 'exists:ap_masters,id'],
       'credit_entity_id'    => ['nullable', 'exists:ap_masters,id'],
       'insurance_entity_id' => ['nullable', 'exists:ap_masters,id'],
-      'gps_hunter_years'    => ['nullable', 'integer', 'min:1'],
+      'has_gps_hunter'      => ['sometimes', 'boolean'],
+      'gps_hunter_years'    => ['nullable', 'required_if:has_gps_hunter,1', 'integer', 'min:1'],
 
       'sede_id' => ['sometimes', 'exists:config_sede,id']
     ];

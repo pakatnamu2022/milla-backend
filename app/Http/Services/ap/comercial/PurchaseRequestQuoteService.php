@@ -147,6 +147,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'credit_type_id'       => $data['credit_type_id'] ?? null,
         'credit_entity_id'     => $data['credit_entity_id'] ?? null,
         'insurance_entity_id'  => $data['insurance_entity_id'] ?? null,
+        'has_gps_hunter'       => $data['has_gps_hunter'] ?? false,
         'gps_hunter_years'     => $data['gps_hunter_years'] ?? null,
       ];
 
