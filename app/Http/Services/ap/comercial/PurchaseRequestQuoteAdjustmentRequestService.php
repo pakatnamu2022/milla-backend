@@ -394,7 +394,7 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
       $data = $this->buildEmailData($record);
       $subject = 'Nueva solicitud de ajuste de margen — Cotización #' . ($quote->correlative ?? $quote->id);
 
-      $this->emailService->queue([
+      $this->emailService->send([
         'to' => $recipients,
         'subject' => $subject,
         'template' => 'emails.purchase-request-quote-adjustment-notification',
@@ -418,7 +418,7 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
       $subject = ($approved ? 'Ajuste de margen aprobado' : 'Ajuste de margen rechazado')
         . ' — Cotización #' . ($quote->correlative ?? $quote->id);
 
-      $this->emailService->queue([
+      $this->emailService->send([
         'to' => $requester->email,
         'subject' => $subject,
         'template' => $approved
@@ -440,6 +440,7 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
       'holder_name' => $quote->holder->full_name ?? null,
       'requester_name' => $record->requestedBy->name ?? 'Comercial',
       'reason' => $record->reason,
+      'currency_symbol' => $quote->docTypeCurrency->symbol ?? 'S/',
       'margin_amount_before' => (float)$record->margin_amount_before,
       'margin_pct_before' => (float)$record->margin_pct_before,
       'margin_amount_after' => (float)$record->margin_amount_after,
