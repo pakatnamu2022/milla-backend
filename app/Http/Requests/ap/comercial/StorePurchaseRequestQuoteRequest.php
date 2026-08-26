@@ -45,10 +45,11 @@ class StorePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.additional_price'  => ['nullable', 'numeric', 'min:0'],
 
       'type_currency_id' => ['required', 'exists:ap_masters,id'],
-      'credit_type_id'      => ['nullable', 'exists:ap_masters,id'],
+      'credit_type_id'      => ['required', 'exists:ap_masters,id'],
       'credit_entity_id'    => ['nullable', 'exists:ap_masters,id'],
       'insurance_entity_id' => ['nullable', 'exists:ap_masters,id'],
-      'gps_hunter_years' => ['nullable', 'integer', 'min:1'],
+      'has_gps_hunter'   => ['required', 'boolean'],
+      'gps_hunter_years' => ['nullable', 'required_if:has_gps_hunter,1', 'integer', 'min:1'],
 
       // Sede
       'sede_id'          => ['required', 'exists:config_sede,id']
