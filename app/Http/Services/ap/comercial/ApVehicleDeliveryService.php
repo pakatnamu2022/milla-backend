@@ -73,11 +73,20 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         ->whereIn('sede_id', $sedes);
     }
 
-    $query->where(function ($q) {
-      $q->where('is_extraordinary', false)
-        ->orWhereNull('is_extraordinary')
-        ->orWhere('extraordinary_approved', true);
-    });
+    if ($request->boolean('extraordinary_review')) {
+      // Solo entregas extraordinarias pendientes o rechazadas de aprobación.
+      $query->where('is_extraordinary', true)
+        ->where(function ($q) {
+          $q->whereNull('extraordinary_approved')
+            ->orWhere('extraordinary_approved', false);
+        });
+    } else {
+      $query->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('is_extraordinary')
+          ->orWhere('extraordinary_approved', true);
+      });
+    }
 
     return $this->getFilteredResults(
       $query,
@@ -145,6 +154,20 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         }
 
         if ($isExtraordinary) {
+          $shopId = Sede::find($data['sede_id'])?->shop_id;
+          $sedeIds = $shopId
+            ? Sede::where('shop_id', $shopId)->pluck('id')
+            : collect([$data['sede_id']]);
+
+          $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $scheduledDate->format('Y-m-d H:i:s'))
+            ->whereIn('sede_id', $sedeIds)
+            ->whereNull('deleted_at')
+            ->exists();
+
+          if (!$slotTaken) {
+            throw new Exception('Para una entrega extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
+          }
+
           $data['extraordinary_approved'] = null;
           $data['extraordinary_sent_by'] = auth()->id();
         }
@@ -610,6 +633,22 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           throw new Exception('La fecha de entrega debe programarse con al menos 24 horas de anticipación.');
         }
 
+        if ($isExtraordinary) {
+          $shopId = Sede::find($data['sede_id'])?->shop_id;
+          $sedeIds = $shopId
+            ? Sede::where('shop_id', $shopId)->pluck('id')
+            : collect([$data['sede_id']]);
+
+          $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $scheduledDate->format('Y-m-d H:i:s'))
+            ->whereIn('sede_id', $sedeIds)
+            ->whereNull('deleted_at')
+            ->exists();
+
+          if (!$slotTaken) {
+            throw new Exception('Para una entrega extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
+          }
+        }
+
         // Reutilizar el movimiento SOLD_NOT_DELIVERED ya existente
         $vehicleMovement = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
           ->where('movement_type', VehicleMovement::SOLD_NOT_DELIVERED)
@@ -674,11 +713,21 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       throw new Exception('La fecha de reprogramación debe ser con al menos 24 horas de anticipación.');
     }
 
-    if (!$isExtraordinary) {
-      $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
-        ? \App\Models\gp\maestroGeneral\Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
-        : collect([$vehicleDelivery->sede_id]);
+    $sedeIdsDelShop = $vehicleDelivery->sede?->shop_id
+      ? Sede::where('shop_id', $vehicleDelivery->sede->shop_id)->pluck('id')
+      : collect([$vehicleDelivery->sede_id]);
 
+    if ($isExtraordinary) {
+      $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
+        ->whereIn('sede_id', $sedeIdsDelShop)
+        ->where('id', '!=', $id)
+        ->whereNull('deleted_at')
+        ->exists();
+
+      if (!$slotTaken) {
+        throw new Exception('Para una reprogramación extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
+      }
+    } else {
       $slotTaken = ApVehicleDelivery::where('scheduled_delivery_date', $newDate->format('Y-m-d H:i:s'))
         ->whereIn('sede_id', $sedeIdsDelShop)
         ->where('id', '!=', $id)
@@ -723,7 +772,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     return new ApVehicleDeliveryResource($vehicleDelivery->fresh());
   }
 
-  public function approveExtraordinary(int $id): ApVehicleDeliveryResource
+  public function approveExtraordinary(int $id, ?string $comment = null): ApVehicleDeliveryResource
   {
     $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
@@ -740,15 +789,16 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $delivery->update([
-      'extraordinary_approved'    => true,
-      'extraordinary_approved_at' => now(),
-      'extraordinary_approved_by' => auth()->user()->name,
+      'extraordinary_approved'         => true,
+      'extraordinary_approved_at'      => now(),
+      'extraordinary_approved_by'      => auth()->user()->name,
+      'extraordinary_approval_comment' => $comment,
     ]);
 
     return new ApVehicleDeliveryResource($delivery->fresh());
   }
 
-  public function rejectExtraordinary(int $id): ApVehicleDeliveryResource
+  public function rejectExtraordinary(int $id, string $comment): ApVehicleDeliveryResource
   {
     $delivery = ApVehicleDelivery::whereNull('deleted_at')->findOrFail($id);
 
@@ -765,9 +815,10 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     }
 
     $delivery->update([
-      'extraordinary_approved'    => false,
-      'extraordinary_approved_at' => now(),
-      'extraordinary_approved_by' => auth()->user()->name,
+      'extraordinary_approved'         => false,
+      'extraordinary_approved_at'      => now(),
+      'extraordinary_approved_by'      => auth()->user()->name,
+      'extraordinary_approval_comment' => $comment,
     ]);
 
     return new ApVehicleDeliveryResource($delivery->fresh());
@@ -1279,21 +1330,34 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       return ['date' => $date, 'slots' => []];
     }
 
-    $cutoff = $isExtraordinary ? $now : $now->copy()->addHours(24);
-
     $result = [];
-    foreach ($slots as $time) {
-      $slotTime = Carbon::parse($date . ' ' . $time . ':00');
 
-      if (!$slotTime->isAfter($cutoff)) {
-        continue;
+    if ($isExtraordinary) {
+      // Extraordinario: solo slots que ya están tomados (hoy o mañana, sin filtro de hora)
+      foreach ($slots as $time) {
+        if (in_array($time, $takenDatetimes, true)) {
+          $result[] = [
+            'time'      => $time,
+            'datetime'  => $date . ' ' . $time . ':00',
+            'available' => true,
+          ];
+        }
       }
+    } else {
+      $cutoff = $now->copy()->addHours(24);
+      foreach ($slots as $time) {
+        $slotTime = Carbon::parse($date . ' ' . $time . ':00');
 
-      $result[] = [
-        'time'      => $time,
-        'datetime'  => $date . ' ' . $time . ':00',
-        'available' => !in_array($time, $takenDatetimes, true),
-      ];
+        if (!$slotTime->isAfter($cutoff)) {
+          continue;
+        }
+
+        $result[] = [
+          'time'      => $time,
+          'datetime'  => $date . ' ' . $time . ':00',
+          'available' => !in_array($time, $takenDatetimes, true),
+        ];
+      }
     }
 
     return ['date' => $date, 'slots' => $result];

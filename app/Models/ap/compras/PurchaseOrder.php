@@ -116,6 +116,7 @@ class PurchaseOrder extends BaseModel
     'migration_status',
     'status',
     'vehicle_movement_id',
+    'consignment_shipping_guide_id',
     'quotation_id',
     'type_operation_id',
     'migrated_at',
@@ -211,6 +212,9 @@ class PurchaseOrder extends BaseModel
 
   public function hasActiveReceptions(): bool
   {
+    if ($this->relationLoaded('reception')) {
+      return $this->reception !== null && $this->reception->deleted_at === null;
+    }
     return $this->reception()->whereNull('deleted_at')->exists();
   }
 

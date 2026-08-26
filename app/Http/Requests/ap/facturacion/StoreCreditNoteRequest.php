@@ -117,7 +117,8 @@ class StoreCreditNoteRequest extends StoreRequest
       ],
       'serie' => 'required|string|max:4',
 
-      'fecha_de_emision' => 'required|date',
+      // La nota de crédito debe emitirse el mismo día (SUNAT), no se permite adelantar ni atrasar la fecha.
+      'fecha_de_emision' => 'required|date|date_equals:today',
 
       'observaciones' => 'nullable|string|max:1000',
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
@@ -154,6 +155,7 @@ class StoreCreditNoteRequest extends StoreRequest
       'sunat_concept_credit_note_type_id.exists' => 'El tipo de nota de crédito seleccionado no es válido',
       'series.required' => 'La serie es obligatoria',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
+      'fecha_de_emision.date_equals' => 'La fecha de emisión debe ser el día de hoy',
       'discount_amount.required' => 'El monto del descuento es obligatorio para descuento global',
       'discount_amount.min' => 'El monto del descuento debe ser mayor a 0',
       'account_plan_id.required' => 'La cuenta contable es obligatoria para descuento global',

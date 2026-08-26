@@ -200,21 +200,33 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $isApproved = (bool)$purchaseRequestQuote->is_approved;
 
       if ($isApproved) {
-        // Aprobada (y aún no pagada en su totalidad): el precio, el vehículo/modelo
-        // y los accesorios quedan fijos. Solo se permite seguir agregando/editando
-        // bonos (no descuentos), "otros costos" (margen) y datos no relacionados al precio.
+        // Aprobada (y aún no pagada en su totalidad): el precio de venta y la
+        // moneda de facturación quedan fijos. El vehículo/modelo/color SÍ se
+        // pueden seguir cambiando (no afectan el precio ya fijado), igual que
+        // bonos, obsequios (no afectan el precio final, solo el margen) y
+        // "otros costos" (margen).
         foreach ([
           'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
-          'ap_vehicle_id', 'ap_models_vn_id', 'vehicle_color_id', 'type_document',
         ] as $lockedField) {
           unset($data[$lockedField]);
         }
-        unset($data['accessories']);
       }
 
       // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
       if (isset($data['doc_type_currency_id'])) {
         $data['exchange_rate_id'] = $this->getExchangeRateId($data['doc_type_currency_id']);
+      }
+
+      // Validar unicidad y estado del vehículo si se está asignando uno nuevo o diferente
+      if (!empty($data['ap_vehicle_id']) && (int)$data['ap_vehicle_id'] !== (int)$purchaseRequestQuote->ap_vehicle_id) {
+        $alreadyAssigned = PurchaseRequestQuote::where('ap_vehicle_id', $data['ap_vehicle_id'])
+          ->whereNull('deleted_at')
+          ->where('id', '!=', $purchaseRequestQuote->id)
+          ->exists();
+        if ($alreadyAssigned) {
+          throw new Exception('El vehículo ya está asociado a otra cotización.');
+        }
+        $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
       }
 
       // Actualizar el registro principal
@@ -247,14 +259,31 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         }
       }
 
-      // Si se envían accessories, reemplazar los existentes (bloqueado si ya está aprobada)
+      // Si se envían accessories, reemplazar los existentes
       if (isset($data['accessories'])) {
-        // Eliminar los accesorios existentes
-        DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+        if ($isApproved) {
+          // ACCESORIO_ADICIONAL afecta el precio final: queda fijo. Los OBSEQUIO
+          // no afectan el precio (solo el margen), así que se pueden seguir
+          // agregando/editando/quitando libremente.
+          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)
+            ->where('type', 'OBSEQUIO')
+            ->delete();
 
-        // Crear los nuevos accesorios si el array no está vacío
-        if (is_array($data['accessories']) && count($data['accessories']) > 0) {
-          $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+          $giftsOnly = array_values(array_filter(
+            $data['accessories'],
+            fn($row) => ($row['type'] ?? null) === 'OBSEQUIO'
+          ));
+          if (count($giftsOnly) > 0) {
+            $this->saveAccessories($purchaseRequestQuote->id, $giftsOnly);
+          }
+        } else {
+          // Eliminar los accesorios existentes
+          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
+
+          // Crear los nuevos accesorios si el array no está vacío
+          if (is_array($data['accessories']) && count($data['accessories']) > 0) {
+            $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+          }
         }
       }
 
@@ -286,12 +315,66 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }));
   }
 
+  /**
+   * Lanza una excepción si el vehículo ya tiene una factura final aceptada con saldo neto positivo
+   * (es decir, no cancelada por notas de crédito). Esto protege contra reasignaciones manuales
+   * de vehículos ya vendidos aunque su status haya sido revertido directamente en BD.
+   */
+  private function assertVehicleNotEffectivelyInvoiced(int $vehicleId): void
+  {
+    $invoices = DB::table('ap_billing_electronic_documents as ed')
+      ->join('ap_vehicle_movement as vm', 'ed.ap_vehicle_movement_id', '=', 'vm.id')
+      ->where('vm.ap_vehicle_id', $vehicleId)
+      ->whereNull('ed.deleted_at')
+      ->where('ed.is_advance_payment', false)
+      ->where('ed.anulado', false)
+      ->where('ed.aceptada_por_sunat', true)
+      ->whereIn('ed.sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_FACTURA,
+        ElectronicDocument::TYPE_BOLETA,
+      ])
+      ->selectRaw('ed.id, ed.total')
+      ->get();
+
+    if ($invoices->isEmpty()) {
+      return;
+    }
+
+    $invoiceIds = $invoices->pluck('id');
+
+    $ncTotal = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->sum('total');
+
+    $ndTotal = DB::table('ap_billing_electronic_documents')
+      ->whereNull('deleted_at')
+      ->where('is_advance_payment', false)
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true)
+      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+      ->whereIn('original_document_id', $invoiceIds)
+      ->sum('total');
+
+    $net = $invoices->sum('total') - $ncTotal + $ndTotal;
+
+    if (round($net, 2) > ElectronicDocument::ROUNDING_TOLERANCE) {
+      throw new Exception('No se puede asignar el vehículo porque ya cuenta con una factura final vigente.');
+    }
+  }
+
   public function assignVehicle(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
-      //ap_vehicle_id
       $purchaseRequestQuote = $this->find($data['id']);
+      if (!empty($data['ap_vehicle_id'])) {
+        $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
       $purchaseRequestQuote->update($data);
       $this->refreshMargin($purchaseRequestQuote);
       DB::commit();
@@ -527,18 +610,20 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     $purchaseRequestQuote = $this->find($data['id']);
     $dataResource = new PurchaseRequestQuoteResource($purchaseRequestQuote);
     $dataArray = $dataResource->resolve();
-    $isPersonJuridica = $purchaseRequestQuote->opportunity->client->type_person_id === ApMasters::TYPE_PERSON_JURIDICA_ID;
-    // Agregar datos adicionales directamente al array
-    $dataArray['num_doc_client'] = $purchaseRequestQuote->opportunity->client->num_doc ?? null;
-    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->opportunity->client->birth_date ?? '- / - / -');
-    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->maritalStatus->description ?? '-');
-    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->spouse_full_name ?? '-');
-    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->opportunity->client->spouse_num_doc ?? '-');
-    $dataArray['legal_representative'] = $purchaseRequestQuote->opportunity->client->legal_representative_full_name ?? '-';
-    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->opportunity->client->legal_representative_num_doc ?? '-';
-    $dataArray['address'] = $purchaseRequestQuote->opportunity->client->direction ?? null;
-    $dataArray['email'] = $purchaseRequestQuote->opportunity->client->email ?? null;
-    $dataArray['phone'] = $purchaseRequestQuote->opportunity->client->phone ?? null;
+    // El PDF debe mostrar el cliente/titular de la cotización (holder), no el de la oportunidad
+    $dataArray['client_name'] = $purchaseRequestQuote->holder->full_name ?? null;
+    $isPersonJuridica = $purchaseRequestQuote->holder->type_person_id === ApMasters::TYPE_PERSON_JURIDICA_ID;
+    // Agregar datos adicionales directamente al array (cliente de la cotización, no de la oportunidad)
+    $dataArray['num_doc_client'] = $purchaseRequestQuote->holder->num_doc ?? null;
+    $dataArray['birth_date'] = ($isPersonJuridica) ? '- / - / -' : ($purchaseRequestQuote->holder->birth_date ?? '- / - / -');
+    $dataArray['marital_status'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->maritalStatus->description ?? '-');
+    $dataArray['spouse_full_name'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->spouse_full_name ?? '-');
+    $dataArray['spouse_num_doc'] = ($isPersonJuridica) ? '-' : ($purchaseRequestQuote->holder->spouse_num_doc ?? '-');
+    $dataArray['legal_representative'] = $purchaseRequestQuote->holder->legal_representative_full_name ?? '-';
+    $dataArray['dni_legal_representative'] = $purchaseRequestQuote->holder->legal_representative_num_doc ?? '-';
+    $dataArray['address'] = $purchaseRequestQuote->holder->direction ?? null;
+    $dataArray['email'] = $purchaseRequestQuote->holder->email ?? null;
+    $dataArray['phone'] = $purchaseRequestQuote->holder->phone ?? null;
     $dataArray['class'] = $purchaseRequestQuote->vehicle?->model?->classArticle->description ?? $purchaseRequestQuote->apModelsVn->classArticle->description ?? null;
     $dataArray['brand'] = $purchaseRequestQuote->vehicle?->model?->family->brand->name ?? $purchaseRequestQuote->apModelsVn->family->brand->name ?? null;
     $dataArray['ap_model_vn'] = $purchaseRequestQuote->vehicle?->model?->version ?? $purchaseRequestQuote->apModelsVn->version ?? null;

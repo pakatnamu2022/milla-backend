@@ -128,6 +128,8 @@ class ShippingGuidesResource extends JsonResource
       'migration_status' => $this->migration_status,
       'is_accounted' => $this->is_accounted,
       'is_annulled' => $this->is_annulled,
+      'purchase_order_id' => $this->consignmentPurchaseOrder?->id,
+      'purchase_order_number' => $this->consignmentPurchaseOrder?->number,
     ];
   }
 }

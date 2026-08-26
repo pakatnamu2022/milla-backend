@@ -119,7 +119,8 @@ class UpdateDebitNoteRequest extends StoreRequest
       'serie' => 'required|string|max:4',
 
       // Fechas
-      'fecha_de_emision' => 'required|date',
+      // La nota de débito debe emitirse el mismo día (SUNAT), no se permite adelantar ni atrasar la fecha.
+      'fecha_de_emision' => 'required|date|date_equals:today',
 
       // Campos opcionales
       'observaciones' => 'nullable|string|max:1000',
@@ -173,6 +174,7 @@ class UpdateDebitNoteRequest extends StoreRequest
       'series.required' => 'La serie es obligatoria',
       'serie.size' => 'La serie debe tener exactamente 4 caracteres',
       'fecha_de_emision.required' => 'La fecha de emisión es obligatoria',
+      'fecha_de_emision.date_equals' => 'La fecha de emisión debe ser el día de hoy',
       'items.required' => 'Debe agregar al menos un item a la nota de débito',
       'items.min' => 'Debe agregar al menos un item a la nota de débito',
       'items.*.descripcion.required' => 'La descripción del item es obligatoria',

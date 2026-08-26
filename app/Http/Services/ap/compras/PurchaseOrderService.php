@@ -82,13 +82,26 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
   {
     $user = $request->user();
 
+    $with = [
+      'sede',
+      'supplier',
+      'supplierOrderType',
+      'currency',
+      'warehouse.articleClass',
+      'vehicleMovement',
+      'vehicle',
+      'items',
+      'creator',
+      'reception',
+    ];
+
     if ($user->role->id === Constants::TICS_ROL_ID) {
-      return PurchaseOrder::class;
+      return PurchaseOrder::with($with);
     }
 
     $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
 
-    return PurchaseOrder::whereIn('sede_id', $sedes);
+    return PurchaseOrder::with($with)->whereIn('sede_id', $sedes);
   }
 
   /**
@@ -339,15 +352,16 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->linkReceptionToInvoice($purchaseOrder, $data['purchase_reception_id']);
       }
 
-      // Para consignación: guardar dynamics_date y despachar migración de la guía
+      // Para consignación: activar migración a Dynamics con los datos de la compra
       if ($isConsignment && $consignmentGuide) {
         $consignmentGuide->update([
-          'dynamics_date' => $purchaseOrder->emission_date,
+          'dynamics_date'    => $purchaseOrder->emission_date,
           'migration_status' => 'pending',
+          'send_dynamics'    => true,
         ]);
         if (config('database_sync.enabled', false)) {
           VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
-            ->onQueue('shipping_guides');
+            ->onQueue(VerifyAndMigrateShippingGuideJob::queueFor($consignmentGuide));
         }
       }
 

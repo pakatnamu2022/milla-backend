@@ -607,33 +607,6 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     return VehicleMovement::create($vehicleMovementData);
   }
 
-  /**
-   * Create a vehicle movement when a vehicle is created with commercial operation type
-   * @param int $vehicleId
-   * @return VehicleMovement
-   * @throws Exception
-   */
-  public function storeConsignmentVehicleMovement(int $vehicleId): VehicleMovement
-  {
-    $vehicle = Vehicles::find($vehicleId);
-    if (!$vehicle) {
-      throw new Exception('Vehículo no encontrado');
-    }
-
-    $vehicleMovement = VehicleMovement::create([
-      'ap_vehicle_id'        => $vehicleId,
-      'movement_type'        => VehicleMovement::ORDERED,
-      'movement_date'        => now(),
-      'confirmed_at'         => now(),
-      'observation'          => 'Creación de vehículo para consignación',
-      'previous_status_id'   => null,
-      'new_status_id'        => ApVehicleStatus::PEDIDO_VN,
-      'ap_vehicle_status_id' => ApVehicleStatus::PEDIDO_VN,
-      'created_by'           => auth()->id(),
-    ]);
-
-    return $vehicleMovement;
-  }
 
   /**
    * Create a vehicle movement for shipping guide in consignment (EN CONSIGNACION)

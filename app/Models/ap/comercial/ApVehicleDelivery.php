@@ -37,6 +37,7 @@ class ApVehicleDelivery extends Model
     'extraordinary_approved',
     'extraordinary_approved_at',
     'extraordinary_approved_by',
+    'extraordinary_approval_comment',
     'extraordinary_sent_by',
     'extraordinary_token',
     'rescheduled_by',

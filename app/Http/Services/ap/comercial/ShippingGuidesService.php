@@ -392,7 +392,28 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('El campo ap_vehicle_id es obligatorio para una guía de consignación');
       }
 
-      $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
+      $vehicleId = (int) $data['ap_vehicle_id'];
+
+      // El motivo de traslado de una guía de consignación siempre debe ser OTROS
+      if ((int) ($data['transfer_reason_id'] ?? 0) !== SunatConcepts::TRANSFER_REASON_OTROS) {
+        throw new Exception(
+          'El motivo de traslado de una guía de consignación debe ser OTROS. ' .
+          'No se permite TRASLADO ENTRE ESTABLECIMIENTOS, COMPRA ni ningún otro motivo.'
+        );
+      }
+
+      // La consignación es el primer y único movimiento inicial de un vehículo.
+      // Si ya tiene cualquier movimiento previo (PEDIDO, INVENTARIO, FACTURADO, etc.),
+      // significa que el vehículo ya tiene historial en el sistema y no puede entrar a consignación.
+      $hasPriorMovements = VehicleMovement::where('ap_vehicle_id', $vehicleId)->exists();
+      if ($hasPriorMovements) {
+        throw new Exception(
+          'Este vehículo ya tiene movimientos registrados en el sistema. ' .
+          'La consignación solo puede ser el primer movimiento de un vehículo.'
+        );
+      }
+
+      $this->ensureNoActiveConsignmentGuide($vehicleId);
 
       $origin = BusinessPartnersEstablishment::find($data['transmitter_id']) ?? null;
       $destination = BusinessPartnersEstablishment::find($data['receiver_id']) ?? null;
@@ -1185,6 +1206,12 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception('La guía ya está migrada completamente');
     }
 
+    // Guías de consignación no deben migrar a Dynamics hasta que se genere
+    // la orden de compra asociada (ver PurchaseOrderService::store).
+    if ($guide->is_consignment && !$guide->send_dynamics) {
+      throw new Exception('Esta guía de consignación aún no tiene una orden de compra generada; no se puede migrar todavía.');
+    }
+
     $resetActions = [];
 
     // Revisar los logs y preparar el terreno antes de redespachar
@@ -1519,6 +1546,23 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception(
         "El vehículo ya tiene la guía {$pending->document_number} pendiente de contabilizar. " .
         'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+      );
+    }
+  }
+
+  private function ensureNoActiveConsignmentGuide(int $vehicleId): void
+  {
+    $active = ShippingGuides::where('is_consignment', true)
+      ->where('status', true)
+      ->where('is_annulled', false)
+      ->whereNull('deleted_at')
+      ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $vehicleId))
+      ->first();
+
+    if ($active) {
+      throw new Exception(
+        "El vehículo ya tiene la guía de consignación {$active->document_number} activa. " .
+        'Debes anularla o desactivarla antes de crear una nueva.'
       );
     }
   }

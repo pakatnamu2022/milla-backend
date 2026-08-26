@@ -94,19 +94,27 @@ class ApVehicleDeliveryController extends Controller
     }
   }
 
-  public function approveExtraordinary($id)
+  public function approveExtraordinary(Request $request, $id)
   {
     try {
-      return $this->success($this->service->approveExtraordinary((int) $id));
+      $data = $request->validate([
+        'comment' => 'nullable|string|max:2000',
+      ]);
+      return $this->success($this->service->approveExtraordinary((int) $id, $data['comment'] ?? null));
     } catch (\Throwable $th) {
       return $this->errorValidation($th->getMessage());
     }
   }
 
-  public function rejectExtraordinary($id)
+  public function rejectExtraordinary(Request $request, $id)
   {
     try {
-      return $this->success($this->service->rejectExtraordinary((int) $id));
+      $data = $request->validate([
+        'comment' => 'required|string|max:2000',
+      ], [
+        'comment.required' => 'Debe indicar el motivo del rechazo.',
+      ]);
+      return $this->success($this->service->rejectExtraordinary((int) $id, $data['comment']));
     } catch (\Throwable $th) {
       return $this->errorValidation($th->getMessage());
     }

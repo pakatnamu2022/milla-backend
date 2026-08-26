@@ -232,6 +232,13 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
       return;
     }
 
+    if (
+      !$shippingGuide->aceptada_por_sunat &&
+      $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA
+    ) {
+      return;
+    }
+
     try {
       if ($shippingGuide->area_id === ApMasters::AREA_COMERCIAL) {
         if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA) {

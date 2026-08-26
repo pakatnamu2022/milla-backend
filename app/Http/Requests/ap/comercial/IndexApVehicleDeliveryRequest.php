@@ -11,6 +11,7 @@ class IndexApVehicleDeliveryRequest extends IndexRequest
     return [
       'real_delivery_date' => 'nullable|array|min:2|max:2',
       'real_delivery_date.*' => 'nullable|date',
+      'extraordinary_review' => 'nullable|boolean',
     ];
   }
 }
