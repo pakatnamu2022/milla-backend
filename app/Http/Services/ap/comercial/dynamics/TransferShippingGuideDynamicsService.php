@@ -103,13 +103,15 @@ class TransferShippingGuideDynamicsService
       true
     );
 
-    // Solo las guías de COMPRA ingresan el vehículo a inventario desde el job de migración.
-    // Para TRASLADO_SEDE el estado se gestiona exclusivamente desde SyncShippingGuideDynamicsJob
-    // (EN_CURSO → INVENTARIO_VN) para respetar la fecha de traslado (issue_date).
+    // Las guías de COMPRA, y las de consignación (una vez facturadas, ver
+    // SyncInvoiceDynamicsJob), ingresan el vehículo a inventario desde aquí al
+    // contabilizarse su transferencia. Para TRASLADO_SEDE el estado se gestiona
+    // exclusivamente desde SyncShippingGuideDynamicsJob (EN_CURSO → INVENTARIO_VN)
+    // para respetar la fecha de traslado (issue_date).
     if (
       $transferLog->proceso_estado === 1
       && $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA
-      && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA
+      && ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA || $shippingGuide->is_consignment)
     ) {
       $vehicle = $shippingGuide->vehicleMovement?->vehicle;
       if (!$vehicle) {
@@ -208,9 +210,10 @@ class TransferShippingGuideDynamicsService
     $procesoEstado = $existingSerial->ProcesoEstado ?? 0;
     $serialLog->updateProcesoEstado(1);
 
-    // updateVehicleWarehouse solo aplica a guías de COMPRA; para TRASLADO_SEDE
-    // el warehouse se asigna en SyncShippingGuideDynamicsJob respetando la issue_date.
-    if ($procesoEstado === "1" && $shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
+    // updateVehicleWarehouse aplica a guías de COMPRA y de consignación; para
+    // TRASLADO_SEDE el warehouse se asigna en SyncShippingGuideDynamicsJob
+    // respetando la issue_date.
+    if ($procesoEstado === "1" && ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA || $shippingGuide->is_consignment)) {
       $this->updateVehicleWarehouse($shippingGuide);
     }
   }
@@ -428,10 +431,6 @@ class TransferShippingGuideDynamicsService
         $warehouseStartCode = (clone $baseQuery)->where('is_received', true)->value('dyn_code');
         $warehouseEndCode = (clone $baseQuery)->where('is_received', false)->value('dyn_code');
 
-        if ($isCancelled) {
-          [$warehouseStartCode, $warehouseEndCode] = [$warehouseEndCode, $warehouseStartCode];
-        }
-
         $sede = Sede::findOrFail($sede_id)->dyn_code ?? throw new Exception('La Sede receptora no fue encontrada.');
 
         $inventoryAccount = (clone $baseQuery)->where('is_received', true)->value('inventory_account')
@@ -441,7 +440,14 @@ class TransferShippingGuideDynamicsService
           ? (clone $baseQuery)->where('is_received', false)->value('inventory_account') . '-' . $sede
           : throw new Exception('La Cuenta Contrapartida no fue encontrada.');
 
-        if ($isCancelled) {
+        // Consignación se trata como una recepción: el vehículo entra desde el
+        // almacén externo (no recibido) hacia el almacén propio (recibido), al
+        // revés del traslado "OTROS" normal (que sale del almacén propio hacia
+        // un tercero externo). Una cancelación invierte el sentido nuevamente.
+        $shouldSwap = $shippingGuide->is_consignment ? !$isCancelled : $isCancelled;
+
+        if ($shouldSwap) {
+          [$warehouseStartCode, $warehouseEndCode] = [$warehouseEndCode, $warehouseStartCode];
           [$inventoryAccount, $counterpartInventoryAccount] = [$counterpartInventoryAccount, $inventoryAccount];
         }
       }

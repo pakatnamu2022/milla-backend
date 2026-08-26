@@ -195,7 +195,10 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
         }
 
         /**
-         * Crear movimiento de vehículo en tránsito
+         * Crear movimiento de vehículo en tránsito tras contabilizarse la factura.
+         * Igual para compra normal y para consignación: EN_TRANSITO aquí; llega a
+         * INVENTARIO_VN después, cuando se contabilice en Dynamics la guía COMPRA
+         * (o, en consignación, la guía de recepción que se despacha más abajo).
          */
         if ($purchaseOrder->vehicle_movement_id) {
           try {
@@ -203,6 +206,32 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
             $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
           } catch (Throwable $e) {
             Log::error("Error al crear movimiento de vehículo en tránsito para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
+        }
+
+        /**
+         * Recién con la factura contabilizada (no antes) se habilita el envío a
+         * Dynamics de la guía de recepción en consignación (send_dynamics=true) y
+         * se despacha su migración — estaba pendiente de enviar desde que se creó
+         * la guía, a la espera de este paso.
+         */
+        if ($isNotVoided && $purchaseOrder->consignment_shipping_guide_id) {
+          $consignmentGuide = $purchaseOrder->consignmentGuide;
+
+          if ($consignmentGuide && !$consignmentGuide->send_dynamics) {
+            try {
+              $consignmentGuide->update([
+                'migration_status' => 'pending',
+                'send_dynamics'    => true,
+              ]);
+
+              if (config('database_sync.enabled', false)) {
+                VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
+                  ->onQueue(VerifyAndMigrateShippingGuideJob::queueFor($consignmentGuide));
+              }
+            } catch (Throwable $e) {
+              Log::error("Error al despachar migración de guía de consignación para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+            }
           }
         }
 
@@ -233,6 +262,8 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       }
 
       $vehicle = $purchaseOrder->vehicle;
+      $isConsignmentOrder = (bool) $purchaseOrder->consignment_shipping_guide_id;
+
       $hasInTransitMovement = $vehicle
         ? $vehicle->vehicleMovements()
           ->where('ap_vehicle_status_id', ApVehicleStatus::VEHICULO_EN_TRAVESIA)
@@ -242,13 +273,38 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
       $isNotVoided = $newInvoice !== $newReceipt;
 
       /**
-       * CASO 3: OC con factura pero sin movimiento (recuperación)
+       * CASO 3: OC con factura pero sin movimiento (recuperación) — igual para
+       * compra normal y consignación, siempre EN_TRANSITO en este punto.
        */
-      if (!empty($purchaseOrder->invoice_dynamics) && !$hasInTransitMovement && $purchaseOrder->vehicle_movement_id) {
+      if (!empty($purchaseOrder->invoice_dynamics) && $purchaseOrder->vehicle_movement_id && !$hasInTransitMovement) {
         try {
           $vehicleMovementService = new VehicleMovementService();
           $vehicleMovementService->storeInTransitVehicleMovement($purchaseOrder->id);
         } catch (Throwable $e) {
+        }
+      }
+
+      /**
+       * CASO 3 (recuperación): si la factura ya estaba contabilizada pero la guía
+       * de consignación nunca llegó a despacharse a Dynamics, se envía ahora.
+       */
+      if ($isNotVoided && $isConsignmentOrder) {
+        $consignmentGuide = $purchaseOrder->consignmentGuide;
+
+        if ($consignmentGuide && !$consignmentGuide->send_dynamics) {
+          try {
+            $consignmentGuide->update([
+              'migration_status' => 'pending',
+              'send_dynamics'    => true,
+            ]);
+
+            if (config('database_sync.enabled', false)) {
+              VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
+                ->onQueue(VerifyAndMigrateShippingGuideJob::queueFor($consignmentGuide));
+            }
+          } catch (Throwable $e) {
+            Log::error("Error al despachar migración (recuperación) de guía de consignación para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+          }
         }
       }
 

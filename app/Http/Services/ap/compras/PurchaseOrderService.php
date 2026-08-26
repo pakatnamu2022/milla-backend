@@ -15,7 +15,6 @@ use App\Jobs\SyncInvoiceDynamicsJob;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
 use App\Jobs\VerifyAndMigratePurchaseOrderJob;
-use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
@@ -352,17 +351,15 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
         $this->linkReceptionToInvoice($purchaseOrder, $data['purchase_reception_id']);
       }
 
-      // Para consignación: activar migración a Dynamics con los datos de la compra
+      // Para consignación: NO se activa el envío a Dynamics de la guía aquí todavía.
+      // El flujo correcto es: OC creada → factura de la OC contabilizada en Dynamics
+      // (SyncInvoiceDynamicsJob) → recién ahí se marca send_dynamics=true y se
+      // despacha la migración de la guía de consignación. Solo guardamos la fecha
+      // contable de referencia por si se necesita más adelante.
       if ($isConsignment && $consignmentGuide) {
         $consignmentGuide->update([
-          'dynamics_date'    => $purchaseOrder->emission_date,
-          'migration_status' => 'pending',
-          'send_dynamics'    => true,
+          'dynamics_date' => $purchaseOrder->emission_date,
         ]);
-        if (config('database_sync.enabled', false)) {
-          VerifyAndMigrateShippingGuideJob::dispatch($consignmentGuide->id)
-            ->onQueue(VerifyAndMigrateShippingGuideJob::queueFor($consignmentGuide));
-        }
       }
 
       // Despachar job de migración y sincronización si está habilitado

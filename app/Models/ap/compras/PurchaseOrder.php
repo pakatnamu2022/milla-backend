@@ -5,6 +5,7 @@ namespace App\Models\ap\compras;
 use App\Http\Traits\Reportable;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
@@ -226,6 +227,11 @@ class PurchaseOrder extends BaseModel
   public function originalPurchaseOrder(): BelongsTo
   {
     return $this->belongsTo(PurchaseOrder::class, 'original_purchase_order_id');
+  }
+
+  public function consignmentGuide(): BelongsTo
+  {
+    return $this->belongsTo(ShippingGuides::class, 'consignment_shipping_guide_id');
   }
 
   public function supplierOrderType(): BelongsTo
