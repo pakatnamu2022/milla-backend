@@ -56,6 +56,7 @@ class PayrollRegisterService extends BaseService
             $workers = Worker::whereHas('sede', function ($query) use ($companyId) {
                 $query->where('empresa_id', $companyId);
             })
+                ->working()
                 ->with(['position', 'sede'])
                 ->get();
 
