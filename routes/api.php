@@ -84,6 +84,7 @@ use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
+use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -1835,6 +1836,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy'
+      ]);
+
+      // Campaign Schedules - Cronograma de Campañas
+      Route::get('campaignSchedules/worker-schedule', [ApCampaignScheduleController::class, 'getWorkerSchedule']);
+      Route::apiResource('campaignSchedules', ApCampaignScheduleController::class)->only([
+        'index',
+        'show',
+        'store',
         'destroy'
       ]);
 
