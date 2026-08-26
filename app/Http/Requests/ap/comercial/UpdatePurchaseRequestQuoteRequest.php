@@ -24,10 +24,10 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'warranty_years' => ['sometimes', 'integer', 'min:1'],
       'warranty_km' => ['sometimes', 'integer', 'min:1'],
       'opportunity_id' => ['nullable', 'exists:ap_opportunity,id'],
-      'holder_id' => ['sometimes', 'exists:business_partners,id'],
+      'holder_id' => ['nullable', 'exists:business_partners,id'],
       'vehicle_color_id' => ['nullable', 'exists:ap_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
-      'doc_type_currency_id' => ['sometimes', 'exists:type_currency,id'],
+      'doc_type_currency_id' => ['nullable', 'exists:type_currency,id'],
       'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
 
       // Validaciones para bonus_discounts
@@ -43,8 +43,8 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'accessories.*.quantity' => ['required', 'integer', 'min:1'],
       'accessories.*.additional_price' => ['nullable', 'numeric', 'min:0'],
 
-      'type_currency_id'    => ['sometimes', 'exists:ap_masters,id'],
-      'credit_type_id'      => ['sometimes', 'exists:ap_masters,id'],
+      'type_currency_id'    => ['nullable', 'exists:ap_masters,id'],
+      'credit_type_id'      => ['nullable', 'exists:ap_masters,id'],
       'credit_entity_id'    => ['nullable', 'exists:ap_masters,id'],
       'insurance_entity_id' => ['nullable', 'exists:ap_masters,id'],
       'has_gps_hunter'      => ['sometimes', 'boolean'],
