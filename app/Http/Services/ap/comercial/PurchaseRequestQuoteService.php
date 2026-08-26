@@ -230,6 +230,26 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
       }
 
+      // Si viene con VIN y sin color/modelo, tomar esos valores del vehículo asignado
+      if (!empty($data['ap_vehicle_id'])) {
+        $vehicle = Vehicles::find($data['ap_vehicle_id']);
+        if ($vehicle) {
+          if (empty($data['vehicle_color_id'])) {
+            $data['vehicle_color_id'] = $vehicle->vehicle_color_id;
+          }
+          if (empty($data['ap_models_vn_id'])) {
+            $data['ap_models_vn_id'] = $vehicle->ap_models_vn_id;
+          }
+        }
+      }
+
+      // Si aún son nulos (sin VIN), no sobreescribir columnas NOT NULL
+      foreach (['vehicle_color_id', 'ap_models_vn_id'] as $field) {
+        if (array_key_exists($field, $data) && is_null($data[$field])) {
+          unset($data[$field]);
+        }
+      }
+
       // Actualizar el registro principal
       $purchaseRequestQuote->update($data);
 
