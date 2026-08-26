@@ -130,6 +130,7 @@ class ShippingGuidesResource extends JsonResource
       'is_annulled' => $this->is_annulled,
       'purchase_order_id' => $this->consignmentPurchaseOrder?->id,
       'purchase_order_number' => $this->consignmentPurchaseOrder?->number,
+      'purchase_order_invoice_dynamics' => $this->consignmentPurchaseOrder?->invoice_dynamics,
     ];
   }
 }

@@ -13,6 +13,7 @@ class CreditOptionsSeeder extends Seeder
 
     // CREDIT_TYPE — sin parent
     $creditTypes = [
+      ['code' => 'CONTADO', 'description' => 'CONTADO'],
       ['code' => 'CREDITO_INCHCAPE', 'description' => 'CREDITO INCHCAPE'],
       ['code' => 'FONDO_COLECTIVO', 'description' => 'FONDO COLECTIVO'],
       ['code' => 'CAJAS', 'description' => 'CAJAS'],

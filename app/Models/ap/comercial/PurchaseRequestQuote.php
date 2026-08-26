@@ -41,6 +41,7 @@ class PurchaseRequestQuote extends BaseModel
     'credit_type_id',
     'credit_entity_id',
     'insurance_entity_id',
+    'has_gps_hunter',
     'gps_hunter_years',
     'warranty_years',
     'warranty_km',
