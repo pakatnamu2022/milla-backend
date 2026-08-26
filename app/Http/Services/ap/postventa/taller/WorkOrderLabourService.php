@@ -129,6 +129,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
 
       $workOrder->ensureCanBeModified();
 
+      if ($workOrderLabour->is_deductible) {
+        throw new Exception('No se puede modificar el deductible desde este apartado. Por favor, modifíquelo desde el apartado de deducibles.');
+      }
+
       if (isset($data['time_spent']) || isset($data['hourly_rate']) || isset($data['discount_percentage'])) {
         $timeSpent = isset($data['time_spent'])
           ? $this->convertToDecimalTime($data['time_spent'])
@@ -226,12 +230,6 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
         if ($quotationDetail) {
           $quotationDetail->update(['status' => ApOrderQuotationDetails::STATUS_PENDING]);
         }
-      }
-
-      // Si es el labour de deducible, eliminar en cascada su(s) registro(s) de auditoría y resetear el monto
-      if ($workOrderLabour->is_deductible) {
-        ApDeductibleWorkOrder::where('work_order_labour_id', $workOrderLabour->id)->delete();
-        $workOrder->update(['deductible_amount' => 0]);
       }
 
       $workOrderLabour->delete();

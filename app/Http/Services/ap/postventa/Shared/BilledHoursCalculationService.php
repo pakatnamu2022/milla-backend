@@ -212,6 +212,7 @@ class BilledHoursCalculationService
       $workOrdersDetail[] = [
         'work_order_id' => $workOrder->id,
         'work_order_number' => $workOrder->correlative ?? '',
+        'vehicle_plate' => $workOrder->vehicle ? $workOrder->vehicle->plate : '',
         'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE',
         'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : 'N/A',
         'fecha_facturacion' => $invoiceDate,
@@ -241,6 +242,7 @@ class BilledHoursCalculationService
         $workOrdersWithoutLabour[] = [
           'work_order_id' => $workOrder->id,
           'work_order_number' => $workOrder->correlative ?? '',
+          'vehicle_plate' => $workOrder->vehicle ? $workOrder->vehicle->plate : '',
           'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : 'SIN SEDE',
           'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : 'N/A',
           'fecha_facturacion' => $invoiceDate,
@@ -451,5 +453,119 @@ class BilledHoursCalculationService
       ->where('status', true)
       ->pluck('sede_id')
       ->toArray();
+  }
+
+  /**
+   * Calcula las horas estándar para un técnico basado en sus asistencias
+   * MÉTODO CENTRALIZADO usado por todos los servicios de productividad
+   *
+   * @param int $workerId ID del técnico
+   * @param string $startDate Fecha inicio (Y-m-d)
+   * @param string $endDate Fecha fin (Y-m-d)
+   * @return float Horas estándar (días con check_in × 8h)
+   */
+  public function calculateStandardHours(int $workerId, string $startDate, string $endDate): float
+  {
+    try {
+      $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
+
+      $attendanceRequest = new \Illuminate\Http\Request([
+        'date_from' => $startDate,
+        'date_to' => $endDate,
+      ]);
+
+      $attendanceResponse = $attendanceService->personDashboard(
+        $workerId,
+        $attendanceRequest
+      );
+
+      $attendanceData = $attendanceResponse->getData(true);
+
+      // Contar días con check_in
+      $daysWorked = collect($attendanceData['daily'])
+        ->filter(function ($day) {
+          return $day['type'] === 'work' && !empty($day['check_in']);
+        })
+        ->count();
+
+      // Horas estándar: 8h × días con check_in
+      return $daysWorked * 8;
+    } catch (\Exception $e) {
+      // Si falla, retornar 0
+      return 0;
+    }
+  }
+
+  /**
+   * Obtiene los datos completos de asistencia para un técnico
+   * MÉTODO CENTRALIZADO usado por servicios que necesitan tanto horas estándar como reales
+   *
+   * @param int $workerId ID del técnico
+   * @param string $startDate Fecha inicio (Y-m-d)
+   * @param string $endDate Fecha fin (Y-m-d)
+   * @return array ['standard_hours' => float, 'real_hours' => float, 'days_worked' => int, 'attendance_data' => array]
+   */
+  public function getAttendanceData(int $workerId, string $startDate, string $endDate): array
+  {
+    try {
+      $attendanceService = new \App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService();
+
+      $attendanceRequest = new \Illuminate\Http\Request([
+        'date_from' => $startDate,
+        'date_to' => $endDate,
+      ]);
+
+      $attendanceResponse = $attendanceService->personDashboard(
+        $workerId,
+        $attendanceRequest
+      );
+
+      $attendanceData = $attendanceResponse->getData(true);
+
+      // Contar días con check_in
+      $daysWorked = collect($attendanceData['daily'])
+        ->filter(function ($day) {
+          return $day['type'] === 'work' && !empty($day['check_in']);
+        })
+        ->count();
+
+      // Horas estándar: 8h × días con check_in
+      $standardHours = $daysWorked * 8;
+
+      // Horas reales: Parsear del formato "XXXh YYmin"
+      $realHours = $this->parseHoursFromString($attendanceData['hours_worked']);
+
+      return [
+        'standard_hours' => $standardHours,
+        'real_hours' => $realHours,
+        'days_worked' => $daysWorked,
+        'attendance_data' => $attendanceData, // Datos completos por si se necesitan
+      ];
+    } catch (\Exception $e) {
+      // Si falla, retornar valores en 0
+      return [
+        'standard_hours' => 0,
+        'real_hours' => 0,
+        'days_worked' => 0,
+        'attendance_data' => [],
+      ];
+    }
+  }
+
+  /**
+   * Parsea horas desde el formato string "XXXh YYmin" a decimal
+   *
+   * @param string $hoursString Ejemplo: "246h 11min"
+   * @return float Horas en formato decimal
+   */
+  private function parseHoursFromString(string $hoursString): float
+  {
+    // Formato: "246h 11min"
+    preg_match('/(\d+)h(?: (\d+)min)?/', $hoursString, $matches);
+
+    $hours = isset($matches[1]) ? (int)$matches[1] : 0;
+    $minutes = isset($matches[2]) ? (int)$matches[2] : 0;
+
+    return $hours + ($minutes / 60);
   }
 }

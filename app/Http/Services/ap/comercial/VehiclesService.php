@@ -475,14 +475,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         }
 
         // Filtrar solo los campos permitidos para actualización
-        $allowedFields = ['plate', 'customer_id', 'year_delivery', 'is_heavy'];
+        $allowedFields = ['plate', 'customer_id', 'year_delivery', 'is_heavy', 'engine_number'];
         $data = array_intersect_key($data, array_flip($allowedFields));
         $data['id'] = $vehicle->id; // Mantener el ID
 
         // No permitir actualizar estos campos aunque se envíen en comercial
         unset($data['warehouse_physical_id']);
         unset($data['warehouse_id']);
-        unset($data['engine_number']);
       }
 
       // Si se actualiza el VIN, validar que no exista
