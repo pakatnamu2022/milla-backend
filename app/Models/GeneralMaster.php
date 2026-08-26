@@ -47,6 +47,12 @@ class GeneralMaster extends BaseModel
   const int WORKING_HOURS_ID = 7;
   const int NIGHT_SURCHARGE_ID = 8;
   const int MINIMUM_WAGE_ID = 13;
+  const int ESSALUD_RATE_ID = 19; // ES - EsSalud 9%
+  const int LIFE_INSURANCE_RATE_ID = 20; // ES-VI - tasa Vida Ley 3.12%
+  const int INSURABLE_MAX_REMUNERATION_ID = 22; // RMA - tope SCTR pensión
+  const int SCTR_HEALTH_RATE_ID = 55;
+  const int SCTR_PENSION_RATE_ID = 56;
+  const int IGV_RATE_ID = 57;
 
   //CONSTANTES POSTVENTA
   const int COST_PER_MAN_HOUR_VL_ID = 9;

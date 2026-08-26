@@ -88,6 +88,18 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       });
     }
 
+    // Filtro de guías anuladas: por defecto las oculta; con ?annulled=1 solo muestra las anuladas
+    if ($request->filled('annulled')) {
+      if ($request->boolean('annulled')) {
+        $query->whereHas('ShippingGuide', fn($q) => $q->whereNotNull('cancelled_at'));
+      } else {
+        $query->where(function ($q) {
+          $q->whereNull('shipping_guide_id')
+            ->orWhereHas('ShippingGuide', fn($sq) => $sq->whereNull('cancelled_at'));
+        });
+      }
+    }
+
     return $this->getFilteredResults(
       $query,
       $request,

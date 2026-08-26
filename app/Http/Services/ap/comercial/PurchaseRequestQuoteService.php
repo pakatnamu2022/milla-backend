@@ -982,7 +982,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @param PurchaseRequestQuote $quote
    * @return array|int[]
    */
-  private function calculateMargin(PurchaseRequestQuote $quote): array
+  /**
+   * Público a propósito: reutilizado por PurchaseRequestQuoteAdjustmentRequestService
+   * para calcular el margen "antes" y simular el margen "después" de un ajuste
+   * de bonos/descuentos post-pago, sin duplicar esta fórmula.
+   */
+  public function calculateMargin(PurchaseRequestQuote $quote): array
   {
     $vehicle = $quote->vehicle;
     $salePrice = (float)$quote->base_selling_price;
@@ -1049,7 +1054,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * @param PurchaseRequestQuote $quote
    * @return void
    */
-  private function refreshMargin(PurchaseRequestQuote $quote): void
+  /**
+   * Público a propósito: ver nota en calculateMargin().
+   */
+  public function refreshMargin(PurchaseRequestQuote $quote): void
   {
     $quote->load(['discountCoupons', 'accessories', 'others', 'vehicle.purchaseOrder']);
     $quote->update($this->calculateMargin($quote));

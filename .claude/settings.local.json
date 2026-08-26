@@ -68,7 +68,22 @@
       "Bash(git -C \"C:/laragon/www/milla-backend\" log --oneline -5)",
       "Bash(git -C \"C:/laragon/www/milla-backend\" fetch origin main)",
       "Bash(git -C \"C:/laragon/www/milla-backend\" merge origin/main --no-edit)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(ls \"C:\\\\Users\\\\Hector\\\\Desktop\\\\Planillas\\\\\" 2>/dev/null)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import openpyxl\")",
+      "Bash(python3 -c \"import pandas\")",
+      "Bash(npm ls *)",
+      "Bash(mkdir -p /tmp_extract)",
+      "Bash(mkdir -p \"C:/Users/Hector/AppData/Local/Temp/claude/C--laragon-www-milla-backend/0dc77374-3abb-4843-a183-5bf1dfcf5c91/scratchpad/sctr\")",
+      "Bash(cp \"SCTR JUNIO 2026  TP SAC.xls\" \"C:/Users/Hector/AppData/Local/Temp/claude/C--laragon-www-milla-backend/0dc77374-3abb-4843-a183-5bf1dfcf5c91/scratchpad/sctr/sctr.xls\")",
+      "Bash(awk 'NR==2200,NR==2273{print NR\": \"$0}' routes/api.php)",
+      "Bash(tasklist //FI \"IMAGENAME eq mysqld.exe\")",
+      "Read(//c/laragon/bin/mysql/**)",
+      "Bash(\"/c/laragon/bin/mysql/mysql-8.4.3-winx64/bin/mysqld.exe\" --defaults-file=\"/c/laragon/bin/mysql/mysql-8.4.3-winx64/my.ini\" --standalone)",
+      "Bash(echo \"started with pid $!\")",
+      "Bash(powershell -c \"Start-Sleep -Seconds 3\")",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 3306 -WarningAction SilentlyContinue)"
     ],
     "deny": [],
     "ask": []

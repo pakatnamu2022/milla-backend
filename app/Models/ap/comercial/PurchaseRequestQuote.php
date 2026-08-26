@@ -181,6 +181,11 @@ class PurchaseRequestQuote extends BaseModel
     return $this->hasMany(DiscountCoupons::class, 'purchase_request_quote_id');
   }
 
+  public function adjustmentRequests(): HasMany
+  {
+    return $this->hasMany(PurchaseRequestQuoteAdjustmentRequest::class, 'purchase_request_quote_id');
+  }
+
   public function others(): HasMany
   {
     return $this->hasMany(PurchaseRequestQuoteOther::class, 'purchase_request_quote_id');
