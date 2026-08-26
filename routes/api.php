@@ -63,6 +63,7 @@ use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
 use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\postventa\Dashboard\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
+use App\Http\Controllers\ap\postventa\Dashboard\TechnicianProductivityDetailController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
@@ -1780,6 +1781,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Productivity Dashboard - Dashboard de Productividad de Técnicos
       Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
       Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
+
+      // Technician Productivity Detail - Detalle de Productividad por Técnico
+      Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);
 
       // Reports - Reportes de Mesón
       Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);

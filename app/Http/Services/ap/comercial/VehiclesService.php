@@ -442,7 +442,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         // Campos críticos que no pueden cambiar
         $criticalFields = [
           'vin' => 'VIN',
-          'engine_number' => 'número de motor',
           'ap_models_vn_id' => 'modelo',
           'year' => 'año',
           'vehicle_color_id' => 'color',
@@ -466,6 +465,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         $allowedFields = ['plate', 'customer_id', 'year_delivery', 'is_heavy'];
         $data = array_intersect_key($data, array_flip($allowedFields));
         $data['id'] = $vehicle->id; // Mantener el ID
+
+        // No permitir actualizar estos campos aunque se envíen en comercial
+        unset($data['warehouse_physical_id']);
+        unset($data['warehouse_id']);
+        unset($data['engine_number']);
       }
 
       // Si se actualiza el VIN, validar que no exista

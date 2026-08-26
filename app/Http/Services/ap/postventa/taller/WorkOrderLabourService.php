@@ -74,7 +74,10 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
       if (auth()->check()) {
         $data['registered_by'] = auth()->user()->id;
       }
-      
+
+      // Set current_hourly_cost automáticamente al insertar
+      $data['current_hourly_cost'] = $workOrder->getCurrentHourlyCost();
+
       // Si viene de cotización (quotation_detail_id), dejar el valor tal cual
       $factor = $this->getCurrencyConversionFactor($workOrder);
       $data['hourly_rate'] = $this->calculateLabourCosts($data, $timeSpentDecimal, floatval($data['hourly_rate']), $data['discount_percentage'] ?? 0, $factor);
