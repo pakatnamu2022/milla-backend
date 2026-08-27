@@ -23,6 +23,19 @@ class AppointmentPlanningListResource extends JsonResource
       'type_operation_appointment_name' => $this->typeOperationAppointment?->description,
       'email_client' => $this->email_client,
       'phone_client' => $this->phone_client,
+      'ap_vehicle_id' => $this->ap_vehicle_id,
+      // Vehículo
+      'vehicle' => [
+        'id' => $this->vehicle?->id,
+        'vin' => $this->vehicle?->vin,
+        'plate' => $this->vehicle?->plate,
+        'brand' => $this->vehicle?->model?->family?->brand?->name,
+        'model' => $this->vehicle?->model?->version,
+        'year' => $this->vehicle?->year,
+        'color' => $this->vehicle?->color?->description,
+        'engine_type' => $this->vehicle?->engineType?->description,
+        'engine_number' => $this->vehicle?->engine_number,
+      ],
 
       // Fechas y horas de atención
       'date_appointment' => $this->date_appointment,

@@ -43,8 +43,13 @@ class AppointmentPlanningService extends BaseService implements BaseServiceInter
       'advisor_id',
       'created_by',
     ])->with([
-      // Vehículo: solo plate
-      'vehicle:id,plate',
+      // Vehículo: incluir relaciones anidadas para brand
+      'vehicle:id,vin,plate,ap_models_vn_id,year,engine_number,vehicle_color_id,engine_type_id',
+      'vehicle.model:id,version,family_id',
+      'vehicle.model.family:id,brand_id',
+      'vehicle.model.family.brand:id,name',
+      'vehicle.color:id,description',
+      'vehicle.engineType:id,description',
 
       // Tipo de planificación: solo description
       'typePlanning:id,description',
