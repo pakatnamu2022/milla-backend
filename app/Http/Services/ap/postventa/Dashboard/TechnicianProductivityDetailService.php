@@ -48,7 +48,7 @@ class TechnicianProductivityDetailService
     // Get attendance data
     $attendanceData = $this->getAttendanceData($workerId, $startDate, $endDate);
 
-    // Calculate summary
+    // Calculate summary (incluye days_worked real del técnico)
     $summary = $this->calculateSummaryFromBilledData(
       $billedData['total_billed_hours'],
       $attendanceData,
@@ -118,6 +118,7 @@ class TechnicianProductivityDetailService
   {
     $standardHours = $attendanceData['standard_hours'];
     $realHours = $attendanceData['real_hours'];
+    $daysWorked = $attendanceData['days_worked'];
 
     // Calculate productivity hours
     $productivityHours = $totalBilledHours - $standardHours;
@@ -138,6 +139,7 @@ class TechnicianProductivityDetailService
       : 0;
 
     return [
+      'days_worked' => $daysWorked,
       'real_hours' => round($realHours, 2),
       'standard_hours' => round($standardHours, 2),
       'billed_hours' => round($totalBilledHours, 2),
