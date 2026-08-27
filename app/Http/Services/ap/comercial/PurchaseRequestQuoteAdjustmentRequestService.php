@@ -355,20 +355,18 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
   }
 
   /**
-   * Misma fórmula que PurchaseRequestQuoteService::saveBonusDiscounts() para
-   * calcular percentage/amount/valor_unitario/precio_unitario a partir de un
-   * valor fijo o porcentual, respetando la retención del 7%.
+   * Misma fórmula que PurchaseRequestQuoteService::saveBonusDiscounts():
+   * `value` ya es el monto final (la retención del 7% viene aplicada desde el
+   * front al agregar; al editar se usa el valor tal cual). No se recalcula.
    */
   private function computeAmounts(?string $type, float $value, bool $hasRetention, float $salePrice): array
   {
-    $retentionFactor = $hasRetention ? 0.93 : 1.0;
-
     if ($type === 'FIJO') {
-      $amount = $value * $retentionFactor;
+      $amount = $value;
       $percentage = $salePrice > 0 ? ($amount / $salePrice) * 100 : 0;
     } else { // PORCENTAJE
       $percentage = $value;
-      $amount = ($salePrice * $percentage) / 100 * $retentionFactor;
+      $amount = ($salePrice * $percentage) / 100;
     }
 
     $precioUnitario = $amount;
