@@ -731,17 +731,19 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $precioUnitario = 0;
       $valorUnitario = 0;
 
+      // `value` llega como el monto final. La retención del 7% ya viene
+      // aplicada desde el front cuando corresponde; aquí solo se guarda.
+      // `has_retention` se persiste como etiqueta, sin recalcular el monto.
       $hasRetention = (bool)($discount['has_retention'] ?? false);
-      $retentionFactor = $hasRetention ? 0.93 : 1.0;
 
       if ($discount['type'] === 'FIJO') {
-        $amount = $discount['value'] * $retentionFactor;
+        $amount = $discount['value'];
         $percentage = ($salePrice > 0) ? ($amount / $salePrice) * 100 : 0;
         $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
       } elseif ($discount['type'] === 'PORCENTAJE') {
         $percentage = $discount['value'];
-        $amount = ($salePrice * $percentage) / 100 * $retentionFactor;
+        $amount = ($salePrice * $percentage) / 100;
         $precioUnitario = $amount;
         $valorUnitario = $precioUnitario / 1.18;
       }
