@@ -11,7 +11,6 @@ use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\personal\WorkerService;
-use App\Http\Utils\Constants;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
@@ -64,12 +63,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   private function getPurchaseRequestQuoteQuery($worker, Request $request)
   {
     $user = $request->user();
-    // Si es del área de TICS, ver todo
-    if ($user->role->id === Constants::TICS_ROL_ID || $user->role->id === Constants::JAC_ID) {
+    if ($user->hasPermission('solicitudes-cotizaciones.viewAll')) {
       return PurchaseRequestQuote::class;
     }
 
-    if ($worker->position->hierarchicalCategory->id === Constants::SALE_COORDINATOR_CATEGORY_ID) {
+    if ($user->hasPermission('solicitudes-cotizaciones.viewBranches')) {
       $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
       return PurchaseRequestQuote::whereIn('sede_id', $sedes);
     }
@@ -207,8 +205,8 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         // bonos, obsequios (no afectan el precio final, solo el margen) y
         // "otros costos" (margen).
         foreach ([
-          'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
-        ] as $lockedField) {
+                   'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
+                 ] as $lockedField) {
           unset($data[$lockedField]);
         }
       }
@@ -725,7 +723,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   private function saveBonusDiscounts($purchaseRequestQuoteId, $bonusDiscounts, $salePrice)
   {
     $conceptIds = array_column($bonusDiscounts, 'concept_id');
-    $concepts   = ApMasters::whereIn('id', $conceptIds)->get()->keyBy('id');
+    $concepts = ApMasters::whereIn('id', $conceptIds)->get()->keyBy('id');
 
     foreach ($bonusDiscounts as $discount) {
       $percentage = 0;
@@ -748,7 +746,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $valorUnitario = $precioUnitario / 1.18;
       }
 
-      $concept    = $concepts->get($discount['concept_id']);
+      $concept = $concepts->get($discount['concept_id']);
       $isNegative = $concept && is_null($concept->parent_id);
 
       DiscountCoupons::create([
@@ -1025,11 +1023,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
 
     $clientRevenue = $salePrice - $discountTotal + $paidAccTotal;
-    $totalIncome   = $clientRevenue + $bonusTotal;
-    $vehicleCosts  = $billedCost + $giftTotal + $extraCostsTotal;
+    $totalIncome = $clientRevenue + $bonusTotal;
+    $vehicleCosts = $billedCost + $giftTotal + $extraCostsTotal;
 
-    $grossDiff    = $totalIncome - $vehicleCosts;
-    $netDiff      = $grossDiff / 1.18;
+    $grossDiff = $totalIncome - $vehicleCosts;
+    $netDiff = $grossDiff / 1.18;
     $netSalePrice = $salePrice / 1.18;
 
     // Flete e inmat se restan a nivel neto
