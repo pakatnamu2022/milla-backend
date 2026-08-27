@@ -3,6 +3,8 @@
 namespace App\Models\gp\gestionhumana\asistencias;
 
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,10 +16,13 @@ class AttendanceSync extends Model
   protected $fillable = [
     'zkbio_transaction_id',
     'person_id',
+    'created_by',
+    'sede_id',
     'emp_code',
     'full_name',
     'date',
     'mark_type',
+    'record_type',
     'time',
     'area',
     'punch_state_original',
@@ -25,13 +30,14 @@ class AttendanceSync extends Model
   ];
 
   const filters = [
-    'search'         => ['emp_code', 'full_name', 'person.nombre_completo'],
-    'emp_code'       => '=',
-    'person_id'      => '=',
-    'mark_type'      => '=',
-    'date'           => '=',
-    'date_from'      => 'scope',
-    'date_to'        => 'scope',
+    'search' => ['emp_code', 'full_name', 'person.nombre_completo'],
+    'emp_code' => '=',
+    'person_id' => '=',
+    'mark_type' => '=',
+    'record_type' => '=',
+    'date' => '=',
+    'date_from' => 'scope',
+    'date_to' => 'scope',
     'person.sede_id' => '='
   ];
 
@@ -45,9 +51,12 @@ class AttendanceSync extends Model
   ];
 
   protected $casts = [
-    'date'      => 'date',
+    'date' => 'date',
     'synced_at' => 'datetime',
   ];
+
+  const string RECORD_TYPE_MANUAL = 'manual';
+  const string RECORD_TYPE_AUTOMATIC = 'automatic';
 
   public function scopeDateFrom(Builder $query, string $value): Builder
   {
@@ -62,5 +71,15 @@ class AttendanceSync extends Model
   public function person(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'person_id');
+  }
+
+  public function createdBy(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'created_by');
+  }
+
+  public function sede(): BelongsTo
+  {
+    return $this->belongsTo(Sede::class, 'sede_id');
   }
 }

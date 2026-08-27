@@ -4,11 +4,11 @@ namespace App\Http\Services\gp\gestionhumana\asistencias;
 
 use App\Exports\AttendanceReportExport;
 use App\Exports\GeneralExport;
+use App\Http\Requests\gp\gestionhumana\asistencias\StoreBulkAttendanceSyncRequest;
 use App\Http\Resources\gp\gestionhumana\asistencias\AttendanceSyncResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
-use App\Jobs\SendAbsentAttendanceReportJob;
 use App\Jobs\SyncAttendanceJob;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
@@ -24,6 +24,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class AttendanceSyncService extends BaseService
 {
   private const LATE_TOLERANCE_MINUTES = 5;
+
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
@@ -42,14 +43,107 @@ class AttendanceSyncService extends BaseService
     return response()->json(new AttendanceSyncResource($record));
   }
 
+  public function bulkStore(StoreBulkAttendanceSyncRequest $request): JsonResponse
+  {
+    $personId = $request->person_id;
+    $sedeId = $request->sede_id;
+    $dates = $request->dates;
+    $createdBy = auth()->id();
+
+    // Obtener datos de la persona
+    $person = DB::table('rrhh_persona')
+      ->where('id', $personId)
+      ->select('id', 'vat as emp_code', 'nombre_completo as full_name')
+      ->first();
+
+    if (!$person) {
+      return response()->json([
+        'message' => 'La persona no existe.',
+      ], 404);
+    }
+
+    $skippedMarks = [];
+    $records = [];
+
+    // Iterar por cada fecha enviada
+    foreach ($dates as $dateItem) {
+      $date = $dateItem['date'];
+      $marks = $dateItem['marks'];
+
+      // Obtener los mark_types ya existentes para esta persona y fecha
+      $existingMarkTypes = AttendanceSync::where('person_id', $personId)
+        ->where('date', $date)
+        ->pluck('mark_type')
+        ->toArray();
+
+      // Procesar cada marcación
+      foreach ($marks as $mark) {
+        $time = $mark['time'];
+        $markType = $mark['mark_type'];
+
+        // Verificar si ya existe este mark_type para esta fecha
+        if (in_array($markType, $existingMarkTypes)) {
+          $skippedMarks[] = [
+            'date' => $date,
+            'time' => $time,
+            'mark_type' => $markType,
+            'reason' => 'Ya existe un registro de ' . $markType . ' para esta fecha.',
+          ];
+          continue;
+        }
+
+        // Agregar al array de registros a insertar
+        $records[] = [
+          'zkbio_transaction_id' => null,
+          'person_id' => $personId,
+          'created_by' => $createdBy,
+          'sede_id' => $sedeId,
+          'emp_code' => $person->emp_code,
+          'full_name' => strtoupper($person->full_name),
+          'date' => $date,
+          'mark_type' => $markType,
+          'record_type' => AttendanceSync::RECORD_TYPE_MANUAL,
+          'time' => $time,
+          'area' => null,
+          'punch_state_original' => 0,
+          'synced_at' => now(),
+          'created_at' => now(),
+          'updated_at' => now(),
+        ];
+
+        // Agregar a existentes para evitar duplicados dentro del mismo request
+        $existingMarkTypes[] = $markType;
+      }
+    }
+
+    if (empty($records)) {
+      return response()->json([
+        'message' => 'No se crearon registros. Todos los registros ya existen.',
+        'created' => 0,
+        'skipped' => count($skippedMarks),
+        'skipped_marks' => $skippedMarks,
+      ], 422);
+    }
+
+    // Insertar registros masivos
+    AttendanceSync::insert($records);
+
+    return response()->json([
+      'message' => 'Registros creados exitosamente.',
+      'created' => count($records),
+      'skipped' => count($skippedMarks),
+      'skipped_marks' => $skippedMarks,
+    ]);
+  }
+
   public function sync(Request $request): JsonResponse
   {
     $validRanges = ['today', 'yesterday', 'this_week', 'this_month', 'last_month', 'last_3_months', 'last_6_months', 'custom'];
 
     $request->validate([
-      'range'     => ['required', 'string', 'in:' . implode(',', $validRanges)],
+      'range' => ['required', 'string', 'in:' . implode(',', $validRanges)],
       'date_from' => ['required_if:range,custom', 'nullable', 'date_format:Y-m-d'],
-      'date_to'   => ['required_if:range,custom', 'nullable', 'date_format:Y-m-d', 'gte:date_from'],
+      'date_to' => ['required_if:range,custom', 'nullable', 'date_format:Y-m-d', 'gte:date_from'],
     ]);
 
     [$from, $to] = $this->resolveRange($request->range, $request->date_from, $request->date_to);
@@ -67,11 +161,11 @@ class AttendanceSyncService extends BaseService
       $after = AttendanceSync::whereDate('date', $date)->count();
 
       return response()->json([
-        'message'       => "Sync completado para {$date}.",
-        'range'         => 'today',
-        'date_from'     => $date,
-        'date_to'       => $date,
-        'new_records'   => max(0, $after - $before),
+        'message' => "Sync completado para {$date}.",
+        'range' => 'today',
+        'date_from' => $date,
+        'date_to' => $date,
+        'new_records' => max(0, $after - $before),
         'total_for_day' => $after,
       ]);
     }
@@ -83,11 +177,11 @@ class AttendanceSyncService extends BaseService
     }
 
     return response()->json([
-      'message'   => "{$days} jobs despachados para {$from->toDateString()} → {$to->toDateString()}.",
-      'range'     => $request->range,
+      'message' => "{$days} jobs despachados para {$from->toDateString()} → {$to->toDateString()}.",
+      'range' => $request->range,
       'date_from' => $from->toDateString(),
-      'date_to'   => $to->toDateString(),
-      'days'      => $days,
+      'date_to' => $to->toDateString(),
+      'days' => $days,
     ]);
   }
 
@@ -111,10 +205,10 @@ class AttendanceSyncService extends BaseService
   {
     $request->validate([
       'date_from' => ['required', 'date_format:Y-m-d'],
-      'date_to'   => ['required', 'date_format:Y-m-d', 'gte:date_from'],
-      'emp_code'  => ['nullable', 'string'],
+      'date_to' => ['required', 'date_format:Y-m-d', 'gte:date_from'],
+      'emp_code' => ['nullable', 'string'],
       'person_id' => ['nullable', 'integer'],
-      'search'    => ['nullable', 'string', 'max:100'],
+      'search' => ['nullable', 'string', 'max:100'],
     ]);
 
     $rows = $this->buildPivotedRows(
@@ -142,14 +236,14 @@ class AttendanceSyncService extends BaseService
       }
 
       return [
-        'date'         => $row->date,
-        'emp_code'     => $row->emp_code,
-        'vat'          => $row->vat,
-        'full_name'    => $row->full_name,
-        'check_in'     => $checkIn,
-        'lunch_out'    => $scheduled['lunch_out'],
-        'lunch_in'     => $scheduled['lunch_in'],
-        'check_out'    => $checkOut,
+        'date' => $row->date,
+        'emp_code' => $row->emp_code,
+        'vat' => $row->vat,
+        'full_name' => $row->full_name,
+        'check_in' => $checkIn,
+        'lunch_out' => $scheduled['lunch_out'],
+        'lunch_in' => $scheduled['lunch_in'],
+        'check_out' => $checkOut,
         'hours_worked' => $hoursWorked,
       ];
     });
@@ -162,14 +256,14 @@ class AttendanceSyncService extends BaseService
 
     if ($request->get('export') === 'xlsx') {
       $columns = [
-        'date'         => 'Fecha',
-        'emp_code'     => 'Código',
-        'vat'          => 'DNI',
-        'full_name'    => 'Nombre Completo',
-        'check_in'     => 'Entrada',
-        'lunch_out'    => 'Salida Almuerzo',
-        'lunch_in'     => 'Retorno Almuerzo',
-        'check_out'    => 'Salida',
+        'date' => 'Fecha',
+        'emp_code' => 'Código',
+        'vat' => 'DNI',
+        'full_name' => 'Nombre Completo',
+        'check_in' => 'Entrada',
+        'lunch_out' => 'Salida Almuerzo',
+        'lunch_in' => 'Retorno Almuerzo',
+        'check_out' => 'Salida',
         'hours_worked' => 'Horas Trabajadas',
       ];
       $filename = 'sunafil_' . $request->date_from . '_' . $request->date_to . '.xlsx';
@@ -183,10 +277,10 @@ class AttendanceSyncService extends BaseService
   {
     $request->validate([
       'date_from' => ['required', 'date_format:Y-m-d'],
-      'date_to'   => ['required', 'date_format:Y-m-d', 'gte:date_from'],
+      'date_to' => ['required', 'date_format:Y-m-d', 'gte:date_from'],
       'person_id' => ['nullable', 'integer'],
-      'emp_code'  => ['nullable', 'string'],
-      'search'    => ['nullable', 'string', 'max:100'],
+      'emp_code' => ['nullable', 'string'],
+      'search' => ['nullable', 'string', 'max:100'],
     ]);
 
     $rows = $this->buildPivotedRows(
@@ -205,35 +299,35 @@ class AttendanceSyncService extends BaseService
 
     if ($request->get('export') === 'xlsx') {
       $flat = $summary->flatMap(fn($person) => collect($person['daily'])->map(fn($day) => [
-        'emp_code'       => $person['emp_code'],
-        'full_name'      => $person['full_name'],
-        'date'           => $day['date'],
-        'observacion'    => match ($day['type'] ?? null) {
+        'emp_code' => $person['emp_code'],
+        'full_name' => $person['full_name'],
+        'date' => $day['date'],
+        'observacion' => match ($day['type'] ?? null) {
           'vacation' => 'VACACIONES',
           'ausentismo' => 'AUSENTISMO: ' . strtoupper($day['ausentismo_tipo'] ?? ''),
           'permiso' => 'PERMISO',
           default => null,
         },
-        'check_in'       => $day['check_in'],
-        'lunch_out'      => $day['lunch_out'],
-        'lunch_in'       => $day['lunch_in'],
-        'check_out'      => $day['check_out'],
-        'hours_worked'   => $day['hours_worked'],
+        'check_in' => $day['check_in'],
+        'lunch_out' => $day['lunch_out'],
+        'lunch_in' => $day['lunch_in'],
+        'check_out' => $day['check_out'],
+        'hours_worked' => $day['hours_worked'],
         'expected_hours' => $day['expected_hours'],
-        'balance'        => $day['balance'],
+        'balance' => $day['balance'],
       ]));
       $columns = [
-        'emp_code'       => 'Código',
-        'full_name'      => 'Nombre Completo',
-        'date'           => 'Fecha',
-        'observacion'    => 'Observación',
-        'check_in'       => 'Entrada',
-        'lunch_out'      => 'Salida Almuerzo',
-        'lunch_in'       => 'Retorno Almuerzo',
-        'check_out'      => 'Salida',
-        'hours_worked'   => 'Horas Trabajadas',
+        'emp_code' => 'Código',
+        'full_name' => 'Nombre Completo',
+        'date' => 'Fecha',
+        'observacion' => 'Observación',
+        'check_in' => 'Entrada',
+        'lunch_out' => 'Salida Almuerzo',
+        'lunch_in' => 'Retorno Almuerzo',
+        'check_out' => 'Salida',
+        'hours_worked' => 'Horas Trabajadas',
         'expected_hours' => 'Horas Esperadas',
-        'balance'        => 'Balance',
+        'balance' => 'Balance',
       ];
       $filename = 'interno_' . $request->date_from . '_' . $request->date_to . '.xlsx';
       return Excel::download(new GeneralExport($flat, $columns, 'Reporte Interno'), $filename);
@@ -246,7 +340,7 @@ class AttendanceSyncService extends BaseService
   {
     $request->validate([
       'date_from' => ['nullable', 'date_format:Y-m-d'],
-      'date_to'   => ['nullable', 'date_format:Y-m-d'],
+      'date_to' => ['nullable', 'date_format:Y-m-d'],
     ]);
 
     $dateFrom = $request->get('date_from', now()->startOfMonth()->toDateString());
@@ -280,52 +374,52 @@ class AttendanceSyncService extends BaseService
 
       if (isset($holidays[$dateStr])) {
         $daily->push([
-          'date'           => $dateStr,
-          'type'           => 'holiday',
-          'holiday_name'   => $holidays[$dateStr],
-          'check_in'       => null,
-          'lunch_out'      => null,
-          'lunch_in'       => null,
-          'check_out'      => null,
-          'is_estimated'   => false,
-          'hours_worked'   => $this->toHm(0.0),
+          'date' => $dateStr,
+          'type' => 'holiday',
+          'holiday_name' => $holidays[$dateStr],
+          'check_in' => null,
+          'lunch_out' => null,
+          'lunch_in' => null,
+          'check_out' => null,
+          'is_estimated' => false,
+          'hours_worked' => $this->toHm(0.0),
           'expected_hours' => $this->toHm(0.0),
-          'balance'        => $this->toHm(0.0),
+          'balance' => $this->toHm(0.0),
         ]);
         continue;
       }
 
       if (isset($vacations[$dateStr])) {
         $daily->push([
-          'date'           => $dateStr,
-          'type'           => 'vacation',
-          'vacation_id'    => $vacations[$dateStr],
-          'check_in'       => null,
-          'lunch_out'      => null,
-          'lunch_in'       => null,
-          'check_out'      => null,
-          'is_estimated'   => false,
-          'hours_worked'   => $this->toHm(0.0),
+          'date' => $dateStr,
+          'type' => 'vacation',
+          'vacation_id' => $vacations[$dateStr],
+          'check_in' => null,
+          'lunch_out' => null,
+          'lunch_in' => null,
+          'check_out' => null,
+          'is_estimated' => false,
+          'hours_worked' => $this->toHm(0.0),
           'expected_hours' => $this->toHm(0.0),
-          'balance'        => $this->toHm(0.0),
+          'balance' => $this->toHm(0.0),
         ]);
         continue;
       }
 
       if (isset($ausentismo[$dateStr])) {
         $daily->push([
-          'date'            => $dateStr,
-          'type'            => 'ausentismo',
-          'ausentismo_id'   => $ausentismo[$dateStr]['id'],
+          'date' => $dateStr,
+          'type' => 'ausentismo',
+          'ausentismo_id' => $ausentismo[$dateStr]['id'],
           'ausentismo_tipo' => $ausentismo[$dateStr]['tipo'],
-          'check_in'        => null,
-          'lunch_out'       => null,
-          'lunch_in'        => null,
-          'check_out'       => null,
-          'is_estimated'    => false,
-          'hours_worked'    => $this->toHm(0.0),
-          'expected_hours'  => $this->toHm(0.0),
-          'balance'         => $this->toHm(0.0),
+          'check_in' => null,
+          'lunch_out' => null,
+          'lunch_in' => null,
+          'check_out' => null,
+          'is_estimated' => false,
+          'hours_worked' => $this->toHm(0.0),
+          'expected_hours' => $this->toHm(0.0),
+          'balance' => $this->toHm(0.0),
         ]);
         continue;
       }
@@ -333,24 +427,24 @@ class AttendanceSyncService extends BaseService
       if (!$rows->has($dateStr) && isset($permisos[$dateStr])) {
         $permisoData = $permisos[$dateStr];
         // Get day-specific check-in to determine if permiso covers the entry slot
-        $mysqlDow   = $day->dayOfWeek + 1; // Carbon 0=Sun→MySQL 1=Sun
-        $override   = $schedule?->day_overrides?->get($mysqlDow);
+        $mysqlDow = $day->dayOfWeek + 1; // Carbon 0=Sun→MySQL 1=Sun
+        $override = $schedule?->day_overrides?->get($mysqlDow);
         $dayCheckin = $override ? $override->checkin : ($schedule?->schedule_checkin ?? '08:00:00');
 
         if ($permisoData['hora_inicio'] <= $dayCheckin) {
           $daily->push([
-            'date'           => $dateStr,
-            'type'           => 'permiso',
-            'message'        => 'Permiso del día',
-            'permiso_id'     => $permisoData['id'],
-            'check_in'       => null,
-            'lunch_out'      => null,
-            'lunch_in'       => null,
-            'check_out'      => null,
-            'is_estimated'   => false,
-            'hours_worked'   => $this->toHm(0.0),
+            'date' => $dateStr,
+            'type' => 'permiso',
+            'message' => 'Permiso del día',
+            'permiso_id' => $permisoData['id'],
+            'check_in' => null,
+            'lunch_out' => null,
+            'lunch_in' => null,
+            'check_out' => null,
+            'is_estimated' => false,
+            'hours_worked' => $this->toHm(0.0),
             'expected_hours' => $this->toHm(0.0),
-            'balance'        => $this->toHm(0.0),
+            'balance' => $this->toHm(0.0),
           ]);
           continue;
         }
@@ -375,9 +469,9 @@ class AttendanceSyncService extends BaseService
         : round(-$expectedHours, 2);
 
       $daily->push([
-        'date'           => $dateStr,
-        'type'           => 'work',
-        'message'        => match (true) {
+        'date' => $dateStr,
+        'type' => 'work',
+        'message' => match (true) {
           !$marks['checkIn'] => 'Sin marcación',
           !$marks['checkOut'] => 'Sin salida registrada',
           Carbon::createFromFormat('H:i:s', $marks['checkIn'])->gt(
@@ -385,16 +479,16 @@ class AttendanceSyncService extends BaseService
           ) => 'Tardanza',
           default => 'Asistió',
         },
-        'check_in'       => $marks['checkIn'],
-        'lunch_out'      => $marks['lunchOut'],
-        'lunch_in'       => $marks['lunchIn'],
-        'check_out'      => $marks['checkOut'],
-        'is_estimated'   => $marks['isEstimated'],
-        '_worked_raw'    => $hoursWorked,
-        '_expected_raw'  => $expectedHours,
-        'hours_worked'   => $this->toHm($hoursWorked),
+        'check_in' => $marks['checkIn'],
+        'lunch_out' => $marks['lunchOut'],
+        'lunch_in' => $marks['lunchIn'],
+        'check_out' => $marks['checkOut'],
+        'is_estimated' => $marks['isEstimated'],
+        '_worked_raw' => $hoursWorked,
+        '_expected_raw' => $expectedHours,
+        'hours_worked' => $this->toHm($hoursWorked),
         'expected_hours' => $this->toHm($expectedHours),
-        'balance'        => $this->toHm($balance),
+        'balance' => $this->toHm($balance),
       ]);
     }
 
@@ -405,21 +499,21 @@ class AttendanceSyncService extends BaseService
     $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])));
 
     return response()->json([
-      'person_id'          => $personId,
-      'emp_code'           => $empCode,
-      'full_name'          => $fullName,
-      'vat'                => $vat,
-      'date_from'          => $dateFrom,
-      'date_to'            => $dateTo,
-      'days_with_records'  => $rows->count(),
-      'days_expected'      => $daily->where('type', 'work')->count(),
-      'days_on_vacation'   => $daily->where('type', 'vacation')->count(),
+      'person_id' => $personId,
+      'emp_code' => $empCode,
+      'full_name' => $fullName,
+      'vat' => $vat,
+      'date_from' => $dateFrom,
+      'date_to' => $dateTo,
+      'days_with_records' => $rows->count(),
+      'days_expected' => $daily->where('type', 'work')->count(),
+      'days_on_vacation' => $daily->where('type', 'vacation')->count(),
       'days_on_ausentismo' => $daily->where('type', 'ausentismo')->count(),
-      'days_on_permiso'    => $daily->where('type', 'permiso')->count(),
-      'expected_hours'     => $this->toHm($totalExpected),
-      'hours_worked'       => $this->toHm($totalWorked),
-      'balance'            => $this->toHm(round($totalWorked - $totalExpected, 2)),
-      'daily'              => $daily->values(),
+      'days_on_permiso' => $daily->where('type', 'permiso')->count(),
+      'expected_hours' => $this->toHm($totalExpected),
+      'hours_worked' => $this->toHm($totalWorked),
+      'balance' => $this->toHm(round($totalWorked - $totalExpected, 2)),
+      'daily' => $daily->values(),
     ]);
   }
 
@@ -450,8 +544,8 @@ class AttendanceSyncService extends BaseService
 
     if ($absentRows->isEmpty() && $lateRows->isEmpty()) {
       return [
-        'sent'    => false,
-        'count'   => 0,
+        'sent' => false,
+        'count' => 0,
         'message' => "Sin ausentes ni tardanzas para {$dateStr} (user_id={$partnerUserId}).",
       ];
     }
@@ -466,15 +560,15 @@ class AttendanceSyncService extends BaseService
 
     $emailService = new EmailService();
     $emailService->send([
-      'to'          => $isLocal ? Constants::EMAIL_TEST : $recipient->email,
-      'cc'          => $isLocal ? [] : ['ymontalvop@grupopakatnamu.com'],
-      'subject'     => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
-      'template'    => 'emails.attendance-absent-report',
-      'data'        => [
-        'report_date'  => $targetDate->format('d/m/Y'),
+      'to' => $isLocal ? Constants::EMAIL_TEST : $recipient->email,
+      'cc' => $isLocal ? [] : ['ymontalvop@grupopakatnamu.com'],
+      'subject' => "Reporte de Asistencias {$targetDate->format('d/m/Y')} — {$absentRows->count()} sin marcar, {$lateRows->count()} tardanzas",
+      'template' => 'emails.attendance-absent-report',
+      'data' => [
+        'report_date' => $targetDate->format('d/m/Y'),
         'absent_count' => $absentRows->count(),
-        'late_count'   => $lateRows->count(),
-        'workers'      => $absentRows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray(),
+        'late_count' => $lateRows->count(),
+        'workers' => $absentRows->map(fn($r) => ['dni' => $r['dni'], 'full_name' => $r['full_name']])->toArray(),
       ],
       'attachments' => [[
         'path' => $tmpPath,
@@ -486,12 +580,12 @@ class AttendanceSyncService extends BaseService
     @unlink($tmpPath);
 
     return [
-      'sent'         => true,
+      'sent' => true,
       'absent_count' => $absentRows->count(),
-      'late_count'   => $lateRows->count(),
-      'date'         => $dateStr,
-      'recipient'    => $recipient->email,
-      'message'      => "Reporte enviado a {$recipient->email}: {$absentRows->count()} ausente(s) y {$lateRows->count()} tardanza(s) para {$dateStr}.",
+      'late_count' => $lateRows->count(),
+      'date' => $dateStr,
+      'recipient' => $recipient->email,
+      'message' => "Reporte enviado a {$recipient->email}: {$absentRows->count()} ausente(s) y {$lateRows->count()} tardanza(s) para {$dateStr}.",
     ];
   }
 
@@ -804,62 +898,62 @@ class AttendanceSyncService extends BaseService
 
         if (isset($personVacations[$dateStr])) {
           $daily->push([
-            'date'           => $dateStr,
-            'type'           => 'vacation',
-            'check_in'       => null,
-            'lunch_out'      => null,
-            'lunch_in'       => null,
-            'check_out'      => null,
-            'is_estimated'   => false,
-            '_worked_raw'    => null,
-            '_expected_raw'  => 0.0,
-            'hours_worked'   => $this->toHm(0.0),
+            'date' => $dateStr,
+            'type' => 'vacation',
+            'check_in' => null,
+            'lunch_out' => null,
+            'lunch_in' => null,
+            'check_out' => null,
+            'is_estimated' => false,
+            '_worked_raw' => null,
+            '_expected_raw' => 0.0,
+            'hours_worked' => $this->toHm(0.0),
             'expected_hours' => $this->toHm(0.0),
-            'balance'        => $this->toHm(0.0),
+            'balance' => $this->toHm(0.0),
           ]);
           continue;
         }
 
         if (isset($personAusentismo[$dateStr])) {
           $daily->push([
-            'date'            => $dateStr,
-            'type'            => 'ausentismo',
-            'ausentismo_id'   => $personAusentismo[$dateStr]['id'],
+            'date' => $dateStr,
+            'type' => 'ausentismo',
+            'ausentismo_id' => $personAusentismo[$dateStr]['id'],
             'ausentismo_tipo' => $personAusentismo[$dateStr]['tipo'],
-            'check_in'        => null,
-            'lunch_out'       => null,
-            'lunch_in'        => null,
-            'check_out'       => null,
-            'is_estimated'    => false,
-            '_worked_raw'     => null,
-            '_expected_raw'   => 0.0,
-            'hours_worked'    => $this->toHm(0.0),
-            'expected_hours'  => $this->toHm(0.0),
-            'balance'         => $this->toHm(0.0),
+            'check_in' => null,
+            'lunch_out' => null,
+            'lunch_in' => null,
+            'check_out' => null,
+            'is_estimated' => false,
+            '_worked_raw' => null,
+            '_expected_raw' => 0.0,
+            'hours_worked' => $this->toHm(0.0),
+            'expected_hours' => $this->toHm(0.0),
+            'balance' => $this->toHm(0.0),
           ]);
           continue;
         }
 
         if (!$attendanceByDate->has($dateStr)) {
           if (isset($personPermisos[$dateStr])) {
-            $permisoData    = $personPermisos[$dateStr];
+            $permisoData = $personPermisos[$dateStr];
             $scheduleCheckin = $first->schedule_checkin ?? '08:00:00';
             if ($permisoData['hora_inicio'] <= $scheduleCheckin) {
               $daily->push([
-                'date'           => $dateStr,
-                'type'           => 'permiso',
-                'message'        => 'Permiso del día',
-                'permiso_id'     => $permisoData['id'],
-                'check_in'       => null,
-                'lunch_out'      => null,
-                'lunch_in'       => null,
-                'check_out'      => null,
-                'is_estimated'   => false,
-                '_worked_raw'    => null,
-                '_expected_raw'  => 0.0,
-                'hours_worked'   => $this->toHm(0.0),
+                'date' => $dateStr,
+                'type' => 'permiso',
+                'message' => 'Permiso del día',
+                'permiso_id' => $permisoData['id'],
+                'check_in' => null,
+                'lunch_out' => null,
+                'lunch_in' => null,
+                'check_out' => null,
+                'is_estimated' => false,
+                '_worked_raw' => null,
+                '_expected_raw' => 0.0,
+                'hours_worked' => $this->toHm(0.0),
                 'expected_hours' => $this->toHm(0.0),
-                'balance'        => $this->toHm(0.0),
+                'balance' => $this->toHm(0.0),
               ]);
             }
           }
@@ -880,18 +974,18 @@ class AttendanceSyncService extends BaseService
         $balance = $hoursWorked !== null ? round($hoursWorked - $expectedHours, 2) : null;
 
         $daily->push([
-          'date'           => $dateStr,
-          'type'           => 'work',
-          'check_in'       => $marks['checkIn'],
-          'lunch_out'      => $marks['lunchOut'],
-          'lunch_in'       => $marks['lunchIn'],
-          'check_out'      => $marks['checkOut'],
-          'is_estimated'   => $marks['isEstimated'],
-          '_worked_raw'    => $hoursWorked,
-          '_expected_raw'  => $expectedHours,
-          'hours_worked'   => $this->toHm($hoursWorked),
+          'date' => $dateStr,
+          'type' => 'work',
+          'check_in' => $marks['checkIn'],
+          'lunch_out' => $marks['lunchOut'],
+          'lunch_in' => $marks['lunchIn'],
+          'check_out' => $marks['checkOut'],
+          'is_estimated' => $marks['isEstimated'],
+          '_worked_raw' => $hoursWorked,
+          '_expected_raw' => $expectedHours,
+          'hours_worked' => $this->toHm($hoursWorked),
           'expected_hours' => $this->toHm($expectedHours),
-          'balance'        => $this->toHm($balance),
+          'balance' => $this->toHm($balance),
         ]);
       }
 
@@ -901,17 +995,17 @@ class AttendanceSyncService extends BaseService
       $daily = $daily->map(fn($d) => array_diff_key($d, array_flip(['_worked_raw', '_expected_raw'])))->values();
 
       return [
-        'person_id'          => $first->person_id,
-        'emp_code'           => $empCode,
-        'full_name'          => $first->full_name,
-        'days_present'       => $workDays->count(),
-        'days_on_vacation'   => $daily->where('type', 'vacation')->count(),
+        'person_id' => $first->person_id,
+        'emp_code' => $empCode,
+        'full_name' => $first->full_name,
+        'days_present' => $workDays->count(),
+        'days_on_vacation' => $daily->where('type', 'vacation')->count(),
         'days_on_ausentismo' => $daily->where('type', 'ausentismo')->count(),
-        'days_on_permiso'    => $daily->where('type', 'permiso')->count(),
-        'expected_hours'     => $this->toHm($totalExpected),
-        'hours_worked'       => $this->toHm($totalWorked),
-        'balance'            => $this->toHm(round($totalWorked - $totalExpected, 2)),
-        'daily'              => $daily,
+        'days_on_permiso' => $daily->where('type', 'permiso')->count(),
+        'expected_hours' => $this->toHm($totalExpected),
+        'hours_worked' => $this->toHm($totalWorked),
+        'balance' => $this->toHm(round($totalWorked - $totalExpected, 2)),
+        'daily' => $daily,
       ];
     })->sortBy('full_name')->values();
   }
@@ -950,9 +1044,9 @@ class AttendanceSyncService extends BaseService
     }
 
     return [
-      'check_in'  => $checkIn,
+      'check_in' => $checkIn,
       'lunch_out' => $this->addTimeOffset($row->schedule_lunch_out, $offsets['lunch_out']),
-      'lunch_in'  => $this->addTimeOffset($row->schedule_lunch_in, $offsets['lunch_in']),
+      'lunch_in' => $this->addTimeOffset($row->schedule_lunch_in, $offsets['lunch_in']),
       'check_out' => $checkOut,
     ];
   }
@@ -1091,7 +1185,7 @@ class AttendanceSyncService extends BaseService
     $map = [];
     foreach ($records as $permiso) {
       $inicioDate = Carbon::parse($permiso->fecha_inicio)->toDateString();
-      $finDate    = Carbon::parse($permiso->fecha_fin)->toDateString();
+      $finDate = Carbon::parse($permiso->fecha_fin)->toDateString();
       $horaInicio = Carbon::parse($permiso->fecha_inicio)->format('H:i:s');
       foreach (CarbonPeriod::create($inicioDate, $finDate) as $day) {
         $dateStr = $day->toDateString();
@@ -1121,7 +1215,7 @@ class AttendanceSyncService extends BaseService
     $map = [];
     foreach ($records as $permiso) {
       $inicioDate = Carbon::parse($permiso->fecha_inicio)->toDateString();
-      $finDate    = Carbon::parse($permiso->fecha_fin)->toDateString();
+      $finDate = Carbon::parse($permiso->fecha_fin)->toDateString();
       $horaInicio = Carbon::parse($permiso->fecha_inicio)->format('H:i:s');
       foreach (CarbonPeriod::create($inicioDate, $finDate) as $day) {
         $dateStr = $day->toDateString();
@@ -1172,19 +1266,19 @@ class AttendanceSyncService extends BaseService
     $override = $schedule->day_overrides->get($mysqlDow);
 
     return (object)[
-      'date'               => $date,
-      'person_id'          => $personId,
-      'emp_code'           => null,
-      'full_name'          => strtoupper($schedule->full_name ?? ''),
-      'vat'                => $schedule->vat,
-      'check_in'           => null,
-      'lunch_out'          => null,
-      'lunch_in'           => null,
-      'check_out'          => null,
-      'schedule_checkin'   => $override ? $override->checkin : $schedule->schedule_checkin,
+      'date' => $date,
+      'person_id' => $personId,
+      'emp_code' => null,
+      'full_name' => strtoupper($schedule->full_name ?? ''),
+      'vat' => $schedule->vat,
+      'check_in' => null,
+      'lunch_out' => null,
+      'lunch_in' => null,
+      'check_out' => null,
+      'schedule_checkin' => $override ? $override->checkin : $schedule->schedule_checkin,
       'schedule_lunch_out' => $override ? $override->lunch_out : $schedule->schedule_lunch_out,
-      'schedule_lunch_in'  => $override ? $override->lunch_in : $schedule->schedule_lunch_in,
-      'schedule_checkout'  => $override ? $override->checkout : $schedule->schedule_checkout,
+      'schedule_lunch_in' => $override ? $override->lunch_in : $schedule->schedule_lunch_in,
+      'schedule_checkout' => $override ? $override->checkout : $schedule->schedule_checkout,
     ];
   }
 
@@ -1231,7 +1325,7 @@ class AttendanceSyncService extends BaseService
     }
 
     return response($csv, 200, [
-      'Content-Type'        => 'text/csv',
+      'Content-Type' => 'text/csv',
       'Content-Disposition' => "attachment; filename=\"{$filename}\"",
     ]);
   }
