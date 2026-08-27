@@ -1508,22 +1508,37 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           // Órdenes de trabajo: Generar salida por venta + reversión
           if ($document->work_order_id) {
-            try {
-              // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
-              $saleMovement = $inventoryMovementService->createSaleFromWorkOrder($document->work_order_id);
-              $saleMovement->update(['electronic_document_id' => $document->id]);
+            // Validar si la orden de trabajo tiene repuestos antes de procesar
+            $workOrder = ApWorkOrder::with('parts')->find($document->work_order_id);
+            $hasProductParts = $workOrder && $workOrder->parts()
+              ->whereNotNull('product_id')
+              ->where('is_traverse', false)
+              ->exists();
 
-              // 2. INGRESO: Reversión por anulación
-              $reversalService = app(ApWorkOrderReversalService::class);
-              $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+            if ($hasProductParts) {
+              try {
+                // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
+                $saleMovement = $inventoryMovementService->createSaleFromWorkOrder($document->work_order_id);
+                $saleMovement->update(['electronic_document_id' => $document->id]);
 
-            } catch (Exception $e) {
-              Log::error('Error al procesar anulación de OT no contabilizada', [
+                // 2. INGRESO: Reversión por anulación
+                $reversalService = app(ApWorkOrderReversalService::class);
+                $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+
+              } catch (Exception $e) {
+                Log::error('Error al procesar anulación de OT no contabilizada', [
+                  'document_id' => $document->id,
+                  'work_order_id' => $document->work_order_id,
+                  'error' => $e->getMessage(),
+                ]);
+                throw $e;
+              }
+            } else {
+              // Log informativo: OT sin repuestos, se omite proceso de inventario
+              Log::info('OT sin repuestos - se omite proceso de inventario', [
                 'document_id' => $document->id,
                 'work_order_id' => $document->work_order_id,
-                'error' => $e->getMessage(),
               ]);
-              throw $e;
             }
           }
         }
