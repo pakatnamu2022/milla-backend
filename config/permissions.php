@@ -110,6 +110,12 @@ return [
       'policy_method' => 'viewAdvisors',
     ],
 
+    'viewAll'                       => [
+      'label'         => 'Ver Todo',
+      'description'   => 'Permite visualizar todos los registros sin restricción',
+      'icon'          => 'Eye',
+      'policy_method' => 'viewAll',
+    ],
     'viewBranches'                  => [
       'label'         => 'Ver por Sedes',
       'description'   => 'Permite visualizar la lista por sedes',
