@@ -6,6 +6,7 @@ use App\Http\Resources\ap\postventa\taller\ApCampaignScheduleResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\postventa\taller\ApCampaignSchedule;
+use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -53,6 +54,18 @@ class ApCampaignScheduleService extends BaseService
         $dateCarbon = Carbon::parse($date);
         if ($dateCarbon->startOfMonth()->lt($currentMonth)) {
           throw new Exception('No se pueden registrar fechas de meses pasados. Solo puede modificar el mes actual o futuros.');
+        }
+      }
+
+      // Validar que el técnico no tenga asistencias registradas en las fechas seleccionadas
+      foreach ($dates as $date) {
+        $existingAttendance = AttendanceSync::where('person_id', $workerId)
+          ->whereDate('date', $date)
+          ->first();
+
+        if ($existingAttendance) {
+          $formattedDate = Carbon::parse($date)->format('d/m/Y');
+          throw new Exception("El técnico ya tiene registrada una asistencia el {$formattedDate}, no se puede asignar a la campaña.");
         }
       }
 
