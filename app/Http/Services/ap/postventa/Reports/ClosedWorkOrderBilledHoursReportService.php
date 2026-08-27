@@ -150,8 +150,18 @@ class ClosedWorkOrderBilledHoursReportService
         $horasGarantiaRecall = $data[TypePlanningWorkOrder::GARANTIA_RECALL];
         $totalHorasFacturadas = $horasInterna + $horasEstandar + $horasGarantiaRecall;
 
-        // Calcular horas estándar dinámicamente basadas en asistencias
-        $horasEstandarFijas = $this->calculateStandardHours($workerId);
+        // Usar el método centralizado getAttendanceData (igual que ProductivityDashboardService)
+        // Si no hay rango de fechas, las horas estándar serán 0
+        if ($this->startDate && $this->endDate) {
+          $attendanceData = $this->billedHoursService->getAttendanceData(
+            $workerId,
+            $this->startDate,
+            $this->endDate
+          );
+          $horasEstandarFijas = $attendanceData['standard_hours'];
+        } else {
+          $horasEstandarFijas = 0;
+        }
 
         // Costo por hora fijo
         $costoPorHora = 8;
@@ -160,12 +170,19 @@ class ClosedWorkOrderBilledHoursReportService
         $horasProductividad = $totalHorasFacturadas - $horasEstandarFijas;
 
         // Porcentaje de productividad: (Total facturado / Horas estándar) * 100
+        // Si las horas estándar son 0, la productividad es 0 (no usar fallback de 192)
         $porcentajeProductividad = $horasEstandarFijas > 0
           ? ($totalHorasFacturadas / $horasEstandarFijas) * 100
           : 0;
 
-        // Comisión: Solo horas de productividad positivas × costo por hora
-        $comision = max(0, $horasProductividad) * $costoPorHora;
+        // Comisión: Solo si hay horas estándar (días trabajados con asistencia)
+        // IMPORTANTE: Si standard_hours = 0, NO hay comisión (alerta para regularizar asistencias)
+        // Esto evita dar comisiones falsas a técnicos sin asistencias registradas
+        if ($horasEstandarFijas > 0) {
+          $comision = max(0, $horasProductividad) * $costoPorHora;
+        } else {
+          $comision = 0; // No hay asistencias registradas
+        }
 
         $reportData->push([
           'sede' => $sede ? $sede->abreviatura : 'SIN SEDE',
@@ -304,30 +321,4 @@ class ClosedWorkOrderBilledHoursReportService
       ['nombre_tecnico', 'asc']
     ])->values();
   }
-
-  /**
-   * Calcula las horas estándar para un técnico basado en sus asistencias
-   * MÉTODO REFACTORIZADO: Ahora usa el servicio centralizado BilledHoursCalculationService
-   *
-   * @param int $workerId
-   * @return float
-   */
-  private function calculateStandardHours(int $workerId): float
-  {
-    // Si no hay rango de fechas, usar el valor fijo anterior
-    if (!$this->startDate || !$this->endDate) {
-      return 192;
-    }
-
-    // Usar el método centralizado del servicio compartido
-    $standardHours = $this->billedHoursService->calculateStandardHours(
-      $workerId,
-      $this->startDate,
-      $this->endDate
-    );
-
-    // Si falla (retorna 0), usar el valor fijo anterior como fallback
-    return $standardHours > 0 ? $standardHours : 192;
-  }
-
-  }
+}

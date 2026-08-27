@@ -1016,6 +1016,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
         Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
         Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+        Route::post('/bulk-store', [AttendanceSyncController::class, 'bulkStore']);
 
         // Exclusiones permanentes por persona
         Route::resource('exclusions', AttendanceExclusionController::class)->only([

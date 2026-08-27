@@ -122,9 +122,15 @@ class TechnicianProductivityDetailService
     // Calculate productivity hours
     $productivityHours = $totalBilledHours - $standardHours;
 
-    // Calculate commission (only positive productivity hours)
+    // Calculate commission
+    // IMPORTANTE: Si standard_hours = 0, NO hay comisión (alerta para regularizar asistencias)
+    // Esto evita dar comisiones falsas a técnicos sin asistencias registradas
     $earningsPerHour = 8.0;
-    $commission = max(0, $productivityHours) * $earningsPerHour;
+    if ($standardHours > 0) {
+      $commission = max(0, $productivityHours) * $earningsPerHour;
+    } else {
+      $commission = 0; // No hay asistencias registradas
+    }
 
     // Calculate productivity percentage
     $productivityPercentage = $standardHours > 0
