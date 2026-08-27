@@ -960,6 +960,7 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   private function saveOthers(int $quoteId, array $others, float $salePrice): void
   {
     PurchaseRequestQuoteOther::where('purchase_request_quote_id', $quoteId)->delete();
+    $others = array_filter($others, fn($item) => !empty($item['description']) && (float)($item['value'] ?? 0) !== 0.0);
     foreach ($others as $item) {
       $amount = $item['type'] === 'PORCENTAJE'
         ? $salePrice * (float)$item['value'] / 100
