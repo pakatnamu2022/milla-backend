@@ -38,11 +38,13 @@ class PayrollRegisterController extends Controller
       $request->validate([
         'company_id' => 'required|integer|exists:companies,id',
         'period_id' => 'required|integer|exists:gh_payroll_periods,id',
+        'force' => 'sometimes|boolean',
       ]);
 
       $result = $this->service->generate(
         $request->input('company_id'),
-        $request->input('period_id')
+        $request->input('period_id'),
+        (bool) $request->boolean('force')
       );
 
       return $this->success($result);

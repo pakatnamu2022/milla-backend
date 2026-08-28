@@ -38,9 +38,13 @@ class PayrollRegisterService extends BaseService
      *
      * @param int $companyId ID de la empresa
      * @param int $periodId ID del periodo
+     * @param bool $force Si true, borra y recrea los registros ya existentes del período
+     *                    (regenerar) en vez de saltarlos — usar cuando cambiaron datos
+     *                    fuente (sueldo histórico, vacaciones, condiciones, etc.) después
+     *                    de una generación previa.
      * @return array
      */
-    public function generate(int $companyId, int $periodId)
+    public function generate(int $companyId, int $periodId, bool $force = false)
     {
         try {
             DB::beginTransaction();
@@ -75,6 +79,13 @@ class PayrollRegisterService extends BaseService
             // Tipos del catálogo GpMasters para BB.SS. truncos (id por código, ver
             // Database\Seeders\gp\gestionhumana\payroll\PayrollLiquidationBbssTypeSeeder).
             $liquidationTypeIds = PayrollLiquidationBbss::typeIdsByCode();
+
+            // Regenerar: borra los registros ya existentes del período para que el bucle
+            // los recree con los datos/cálculos actuales (sueldo histórico, vacaciones,
+            // condiciones de trabajo, etc.), en vez de saltarlos como si nada cambió.
+            if ($force) {
+                PayrollRegister::where('period_id', $periodId)->delete();
+            }
 
             $createdCount = 0;
             $skippedCount = 0;
