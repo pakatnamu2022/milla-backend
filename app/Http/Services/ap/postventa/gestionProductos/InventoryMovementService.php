@@ -1421,61 +1421,255 @@ class InventoryMovementService extends BaseService
 
   public function getKardex(Request $request)
   {
-    // Base query: get all movements
-    $query = InventoryMovement::query()
+    $warehouseId = $request->warehouse_id;
+    $dateFrom = $request->date_from;
+    $dateTo = $request->date_to;
+    $search = $request->search;
+
+    // Get unique product IDs that have movements in this warehouse within the date range
+    $productIdsQuery = InventoryMovementDetail::query()
+      ->join('inventory_movements', 'inventory_movement_details.inventory_movement_id', '=', 'inventory_movements.id')
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('inventory_movements.warehouse_id', $warehouseId)
+          ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+      })
+      ->where('inventory_movements.movement_date', '>=', $dateFrom)
+      ->where('inventory_movements.movement_date', '<=', $dateTo)
+      ->whereNull('inventory_movements.deleted_at')
+      ->distinct()
+      ->pluck('inventory_movement_details.product_id');
+
+    // Query products with their relations
+    $query = Products::query()
+      ->whereIn('id', $productIdsQuery)
       ->with([
-        'details.product.category',
-        'warehouse',
-        'warehouseDestination',
-        'user',
-        'reasonInOut',
-        'reference'
-      ])
-      ->orderBy('movement_date', 'desc')
-      ->orderBy('created_at', 'desc');
+        'category:id,description',
+        'brand:id,name',
+        'unitMeasurement:id,description',
+        'articleClass:id,description'
+      ]);
 
-    // Apply warehouse filter if provided (can be origin or destination)
-    if ($request->has('warehouse_id')) {
-      $warehouseId = $request->warehouse_id;
-      $query->where(function ($q) use ($warehouseId) {
-        $q->where('warehouse_id', $warehouseId)
-          ->orWhere('warehouse_destination_id', $warehouseId);
-      });
-    }
-
-    // Apply date range filter if provided
-    if ($request->has('date_from')) {
-      $query->where('movement_date', '>=', $request->date_from);
-    }
-
-    if ($request->has('date_to')) {
-      $query->where('movement_date', '<=', $request->date_to);
-    }
-
-    // Apply movement type filter if provided
-    if ($request->has('movement_type')) {
-      $query->where('movement_type', $request->movement_type);
-    }
-
-    // Apply status filter if provided
-    if ($request->has('status')) {
-      $query->where('status', $request->status);
-    }
-
-    // Apply search filter (by movement number or notes)
-    if ($request->has('search')) {
-      $search = $request->search;
+    // Apply search filter if provided
+    if ($search) {
       $query->where(function ($q) use ($search) {
-        $q->where('movement_number', 'LIKE', "%{$search}%")
-          ->orWhere('notes', 'LIKE', "%{$search}%");
+        $q->where('code', 'LIKE', "%{$search}%")
+          ->orWhere('dyn_code', 'LIKE', "%{$search}%")
+          ->orWhere('name', 'LIKE', "%{$search}%")
+          ->orWhere('description', 'LIKE', "%{$search}%");
       });
     }
 
     // Paginate results
     $perPage = $request->get('per_page', 15);
-    $movements = $query->paginate($perPage);
+    $products = $query->paginate($perPage);
 
-    return InventoryMovementResource::collection($movements);
+    // Define movement types for calculation
+    $inboundTypes = [
+      InventoryMovement::TYPE_PURCHASE_RECEPTION,
+      InventoryMovement::TYPE_ADJUSTMENT_IN,
+      InventoryMovement::TYPE_TRANSFER_IN,
+      InventoryMovement::TYPE_RETURN_IN,
+    ];
+
+    $outboundTypes = [
+      InventoryMovement::TYPE_SALE,
+      InventoryMovement::TYPE_ADJUSTMENT_OUT,
+      InventoryMovement::TYPE_TRANSFER_OUT,
+      InventoryMovement::TYPE_RETURN_OUT,
+    ];
+
+    // Calculate balance for each product
+    $products->getCollection()->transform(function ($product) use ($warehouseId, $dateTo, $inboundTypes, $outboundTypes) {
+      // Calculate total inbound up to date_to
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate total outbound up to date_to
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate balance
+      $product->balance = $totalInbound - $totalOutbound;
+
+      return $product;
+    });
+
+    // Return paginated collection with custom structure
+    return response()->json([
+      'data' => $products->map(function ($product) {
+        return [
+          'id' => $product->id,
+          'code' => $product->code,
+          'dyn_code' => $product->dyn_code,
+          'description' => $product->description,
+          'category' => $product->category ? $product->category->description : null,
+          'brand' => $product->brand ? $product->brand->name : null,
+          'unit_measurement' => $product->unitMeasurement ? $product->unitMeasurement->description : null,
+          'article_class' => $product->articleClass ? $product->articleClass->description : null,
+          'balance' => $product->balance,
+        ];
+      }),
+      'links' => [
+        'first' => $products->url(1),
+        'last' => $products->url($products->lastPage()),
+        'prev' => $products->previousPageUrl(),
+        'next' => $products->nextPageUrl(),
+      ],
+      'meta' => [
+        'current_page' => $products->currentPage(),
+        'from' => $products->firstItem(),
+        'last_page' => $products->lastPage(),
+        'path' => $products->path(),
+        'per_page' => $products->perPage(),
+        'to' => $products->lastItem(),
+        'total' => $products->total(),
+      ],
+    ]);
+  }
+
+  public function exportKardex(Request $request)
+  {
+    $warehouseId = $request->warehouse_id;
+    $dateFrom = $request->date_from;
+    $dateTo = $request->date_to;
+    $search = $request->search;
+
+    // Validate warehouse exists
+    $warehouse = Warehouse::find($warehouseId);
+    if (!$warehouse) {
+      throw new Exception('Almacén no encontrado');
+    }
+
+    // Get unique product IDs that have movements in this warehouse within the date range
+    $productIdsQuery = InventoryMovementDetail::query()
+      ->join('inventory_movements', 'inventory_movement_details.inventory_movement_id', '=', 'inventory_movements.id')
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('inventory_movements.warehouse_id', $warehouseId)
+          ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+      })
+      ->where('inventory_movements.movement_date', '>=', $dateFrom)
+      ->where('inventory_movements.movement_date', '<=', $dateTo)
+      ->whereNull('inventory_movements.deleted_at')
+      ->distinct()
+      ->pluck('inventory_movement_details.product_id');
+
+    // Query products with their relations
+    $query = Products::query()
+      ->whereIn('id', $productIdsQuery)
+      ->with([
+        'category:id,description',
+        'brand:id,name',
+        'unitMeasurement:id,description',
+        'articleClass:id,description'
+      ]);
+
+    // Apply search filter if provided
+    if ($search) {
+      $query->where(function ($q) use ($search) {
+        $q->where('code', 'LIKE', "%{$search}%")
+          ->orWhere('dyn_code', 'LIKE', "%{$search}%")
+          ->orWhere('name', 'LIKE', "%{$search}%")
+          ->orWhere('description', 'LIKE', "%{$search}%");
+      });
+    }
+
+    // Get all products (no pagination for export)
+    $products = $query->get();
+
+    // Define movement types for calculation
+    $inboundTypes = [
+      InventoryMovement::TYPE_PURCHASE_RECEPTION,
+      InventoryMovement::TYPE_ADJUSTMENT_IN,
+      InventoryMovement::TYPE_TRANSFER_IN,
+      InventoryMovement::TYPE_RETURN_IN,
+    ];
+
+    $outboundTypes = [
+      InventoryMovement::TYPE_SALE,
+      InventoryMovement::TYPE_ADJUSTMENT_OUT,
+      InventoryMovement::TYPE_TRANSFER_OUT,
+      InventoryMovement::TYPE_RETURN_OUT,
+    ];
+
+    // Calculate balance for each product and transform for export
+    $exportData = $products->map(function ($product) use ($warehouseId, $dateTo, $inboundTypes, $outboundTypes) {
+      // Calculate total inbound up to date_to
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate total outbound up to date_to
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate balance
+      $balance = $totalInbound - $totalOutbound;
+
+      return [
+        'code' => $product->code,
+        'dyn_code' => $product->dyn_code,
+        'description' => $product->description,
+        'category' => $product->category ? $product->category->description : '',
+        'brand' => $product->brand ? $product->brand->name : '',
+        'unit_measurement' => $product->unitMeasurement ? $product->unitMeasurement->description : '',
+        'article_class' => $product->articleClass ? $product->articleClass->description : '',
+        'balance' => $balance,
+      ];
+    });
+
+    // Define columns for export
+    $columns = [
+      'code' => ['label' => 'Código'],
+      'dyn_code' => ['label' => 'Código Dynamics'],
+      'description' => ['label' => 'Descripción'],
+      'category' => ['label' => 'Categoría'],
+      'brand' => ['label' => 'Marca'],
+      'unit_measurement' => ['label' => 'Unidad de Medida'],
+      'article_class' => ['label' => 'Clase de Artículo'],
+      'balance' => ['label' => 'Saldo'],
+    ];
+
+    $title = "Kardex_{$warehouse->description}_" . \Carbon\Carbon::parse($dateFrom)->format('Ymd') . "_" . \Carbon\Carbon::parse($dateTo)->format('Ymd');
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    $export = new GeneralExport($exportData, $columns, $title);
+
+    return Excel::download($export, $filename);
   }
 
   /**

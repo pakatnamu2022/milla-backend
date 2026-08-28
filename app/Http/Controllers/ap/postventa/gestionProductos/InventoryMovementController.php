@@ -166,12 +166,9 @@ class InventoryMovementController extends Controller
   {
     try {
       $request->validate([
-        'warehouse_id' => 'sometimes|integer|exists:warehouse,id',
-        'per_page' => 'sometimes|integer|min:1|max:100',
-        'date_from' => 'sometimes|date',
-        'date_to' => 'sometimes|date',
-        'movement_type' => 'sometimes|string',
-        'status' => 'sometimes|string',
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'date_from' => 'required|date',
+        'date_to' => 'required|date|after_or_equal:date_from',
         'search' => 'nullable|string',
       ]);
 
@@ -180,6 +177,22 @@ class InventoryMovementController extends Controller
       // Return with pagination preserved
       // Format: { data: [], links: {}, meta: {} }
       return $movements;
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function exportKardex(Request $request)
+  {
+    try {
+      $request->validate([
+        'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'date_from' => 'required|date',
+        'date_to' => 'required|date|after_or_equal:date_from',
+        'search' => 'nullable|string',
+      ]);
+
+      return $this->service->exportKardex($request);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
