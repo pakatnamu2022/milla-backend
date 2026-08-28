@@ -24,10 +24,9 @@ class ApCampaignSchedule extends Model
   ];
 
   const filters = [
+    'search' => ['worker.nombre_completo', 'creator.name'],
     'sede_id' => '=',
-    'worker_id' => '=',
-    'date' => 'date_between',
-    'created_by' => '=',
+    'date' => 'between',
   ];
 
   const sorts = [
