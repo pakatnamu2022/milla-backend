@@ -160,7 +160,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if ($scheduledDate->isPast()) {
           throw new Exception('No se puede programar una entrega en una fecha y hora pasada.');
         }
-        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(2)->startOfDay())) {
+        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(4)->startOfDay())) {
           throw new Exception('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
         }
         if (!$isExtraordinary && !$scheduledDate->isAfter(now()->addHours(24))) {
@@ -642,7 +642,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         if ($scheduledDate->isPast()) {
           throw new Exception('No se puede programar una entrega en una fecha y hora pasada.');
         }
-        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(2)->startOfDay())) {
+        if ($isExtraordinary && !$scheduledDate->isBefore(now()->addDays(4)->startOfDay())) {
           throw new Exception('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
         }
         if (!$isExtraordinary && !$scheduledDate->isAfter(now()->addHours(24))) {
@@ -684,6 +684,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'observations'            => $data['observations'] ?? null,
           'client_id'               => $data['client_id'],
           'vehicle_movement_id'     => $vehicleMovement?->id,
+          'is_extraordinary'        => $isExtraordinary,
+          'extraordinary_reason'    => $isExtraordinary ? ($data['extraordinary_reason'] ?? null) : null,
         ];
 
         if ($isExtraordinary) {
@@ -722,7 +724,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     if ($newDate->isPast()) {
       throw new Exception('No se puede reprogramar a una fecha y hora pasada.');
     }
-    if ($isExtraordinary && !$newDate->isBefore(now()->addDays(2)->startOfDay())) {
+    if ($isExtraordinary && !$newDate->isBefore(now()->addDays(4)->startOfDay())) {
       throw new Exception('Las reprogramaciones extraordinarias solo pueden ser para hoy o mañana.');
     }
     if (!$isExtraordinary && !$newDate->isAfter(now()->addHours(24))) {

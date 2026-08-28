@@ -56,8 +56,8 @@ class StoreApVehicleDeliveryRequest extends StoreRequest
             : collect(array_filter([$requestedSedeId]));
 
           if ($this->boolean('is_extraordinary')) {
-            if (!$deliveryDate->isBefore(now()->addDays(2)->startOfDay())) {
-              $fail('Las entregas extraordinarias solo pueden programarse para hoy o mañana.');
+            if (!$deliveryDate->isBefore(now()->addDays(4)->startOfDay())) {
+              $fail('Las entregas extraordinarias solo pueden programarse dentro de los próximos 3 días.');
             }
             return;
           }
