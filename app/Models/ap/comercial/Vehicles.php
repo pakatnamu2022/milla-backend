@@ -61,6 +61,7 @@ class Vehicles extends BaseModel
     'search'                             => ['vin', 'plate', 'engine_number', 'year', 'ap_vehicle_status_id'],
     'ap_models_vn_id'                    => '=',
     'model.class_id'                     => '=',
+    'model.family_id'                    => '=',
     'warehouse_id'                       => '=',
     'ap_vehicle_status_id'               => 'in_or_equal',
     'vehicle_color_id'                   => '=',
