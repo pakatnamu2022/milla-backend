@@ -1343,7 +1343,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     $now = now();
 
-    if ($isExtraordinary && !$day->isBefore(now()->addDays(2)->startOfDay())) {
+    if ($isExtraordinary && !$day->isBefore(now()->addDays(4)->startOfDay())) {
       return ['date' => $date, 'slots' => []];
     }
 
