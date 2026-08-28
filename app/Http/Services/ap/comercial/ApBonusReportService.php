@@ -21,6 +21,10 @@ class ApBonusReportService
    * Genera el detalle de bonos (no descuentos) agrupado por sede, únicamente de
    * cotizaciones (PurchaseRequestQuote) que ya están totalmente pagadas
    * (is_paid = true), tal como lo requiere el reporte de bonos comercial.
+   *
+   * El rango de fechas se aplica sobre la fecha de emisión de la factura final
+   * de cada cotización: sólo se incluyen los bonos de cotizaciones cuya factura
+   * final se emitió dentro del periodo seleccionado.
    */
   public function generate(
     ?string $fechaInicio = null,
@@ -53,8 +57,21 @@ class ApBonusReportService
       });
 
     if ($fechaInicio && $fechaFin) {
-      $query->whereDate('created_at', '>=', $fechaInicio)
-        ->whereDate('created_at', '<=', $fechaFin);
+      // Optimización: limita a cotizaciones con al menos una factura/boleta
+      // válida emitida dentro del rango. El filtro definitivo sobre la factura
+      // "final" se aplica en memoria más abajo.
+      $query->whereHas('electronicDocuments', function ($q) use ($fechaInicio, $fechaFin) {
+        $q->where('aceptada_por_sunat', 1)
+          ->where('anulado', 0)
+          ->whereNull('deleted_at')
+          ->where('is_advance_payment', 0)
+          ->whereIn('sunat_concept_document_type_id', [
+            ElectronicDocument::TYPE_FACTURA,
+            ElectronicDocument::TYPE_BOLETA,
+          ])
+          ->whereDate('fecha_de_emision', '>=', $fechaInicio)
+          ->whereDate('fecha_de_emision', '<=', $fechaFin);
+      });
     }
 
     if (!empty($sedeIds)) {
@@ -64,6 +81,21 @@ class ApBonusReportService
     // is_paid es un accessor calculado (no una columna de BD), por lo que el
     // filtro "cotizaciones totalmente pagadas" se aplica en memoria.
     $quotes = $query->get()->filter(fn($quote) => $quote->is_paid);
+
+    // Sólo cotizaciones cuya factura FINAL (la última factura/boleta válida por
+    // fecha de emisión) fue emitida dentro del periodo seleccionado.
+    if ($fechaInicio && $fechaFin) {
+      $quotes = $quotes->filter(function ($quote) use ($fechaInicio, $fechaFin) {
+        $finalInvoiceDate = $quote->electronicDocuments->first()?->fecha_de_emision;
+
+        if (!$finalInvoiceDate) {
+          return false;
+        }
+
+        return $finalInvoiceDate->toDateString() >= $fechaInicio
+          && $finalInvoiceDate->toDateString() <= $fechaFin;
+      });
+    }
 
     $rows = collect();
 
