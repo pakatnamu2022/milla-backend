@@ -150,6 +150,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
@@ -670,6 +671,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'store',
           'update',
           'destroy'
+        ]);
+
+        //      ESTADO DEL TRABAJADOR (activacion/cese) - centraliza en milla-backend, coexiste con el legacy
+        Route::get('worker-status-history/worker/{workerId}/current', [WorkerStatusHistoryController::class, 'currentStatus']);
+        Route::apiResource('worker-status-history', WorkerStatusHistoryController::class)->only([
+          'index',
+          'show',
+          'store',
         ]);
 
         //      VACACIONES

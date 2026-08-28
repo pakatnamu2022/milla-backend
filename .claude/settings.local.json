@@ -88,6 +88,12 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(wc -l /tmp_tsc_out.txt)",
       "Bash(tail -20 /tmp_tsc_out.txt)"
+    ,
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)"
     ],
     "deny": [],
     "ask": []
