@@ -1658,6 +1658,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers/{id}/cancel', [InventoryMovementController::class, 'cancelTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
+      Route::get('inventoryMovements/kardex/export', [InventoryMovementController::class, 'exportKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
