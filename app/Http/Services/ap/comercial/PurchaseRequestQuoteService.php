@@ -623,7 +623,80 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
   /**
+   * Duplica una solicitud/cotización N veces a partir de la misma oportunidad,
+   * copiando titular, modelo, color, precios, garantía, crédito/seguro/GPS,
+   * bonos/descuentos, accesorios y "otros costos".
+   *
+   * Cada copia nace "limpia": tipo SOLICITUD_COMPRA (sin VIN), sin aprobar,
+   * sin facturar y con su propio correlativo. Cada una es independiente para
+   * asignarle luego su VIN, aprobación y facturación.
+   *
+   * @throws Throwable
+   */
+  public function duplicate(int $id, int $copies)
+  {
+    return DB::transaction(function () use ($id, $copies) {
+      $source = $this->find($id);
+      $source->load(['discountCoupons', 'accessories', 'others']);
+
+      $created = collect();
+
+      for ($i = 0; $i < $copies; $i++) {
+        $copy = $source->replicate();
+        $copy->correlative    = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
+        $copy->type_document  = 'SOLICITUD_COMPRA';
+        $copy->ap_vehicle_id  = null;
+        $copy->is_approved    = 0;
+        if (array_key_exists('is_invoiced', $source->getAttributes())) {
+          $copy->is_invoiced = 0;
+        }
+        $copy->margin_amount  = 0;
+        $copy->margin_pct     = 0;
+        $copy->save();
+
+        foreach ($source->discountCoupons as $coupon) {
+          $newCoupon = $coupon->replicate();
+          $newCoupon->purchase_request_quote_id = $copy->id;
+          $newCoupon->save();
+        }
+
+        foreach ($source->accessories as $accessory) {
+          $newAccessory = $accessory->replicate();
+          $newAccessory->purchase_request_quote_id = $copy->id;
+          $newAccessory->save();
+        }
+
+        foreach ($source->others as $other) {
+          $newOther = $other->replicate();
+          $newOther->purchase_request_quote_id = $copy->id;
+          $newOther->save();
+        }
+
+        $this->refreshMargin($copy);
+
+        $this->sendQuoteCreatedEmail($copy->fresh()->load([
+          'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+          'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+          'discountCoupons.conceptCode', 'accessories.approvedAccessory', 'sede', 'vehicle',
+        ]));
+
+        $created->push($copy);
+      }
+
+      return [
+        'message'      => $created->count() . ' solicitud(es) generada(s) correctamente.',
+        'correlatives' => $created->pluck('correlative')->values(),
+      ];
+    });
+  }
+
+  /**
    * Elimina un registro de PurchaseRequestQuote y sus relaciones.
+   *
+   * Solo se permite si la solicitud está "limpia": sin VIN asignado, sin
+   * aprobar, sin documentos electrónicos (anticipos/facturas), sin orden de
+   * compra y sin solicitudes de ajuste de margen.
+   *
    * @param $id
    * @return JsonResponse
    * @throws Throwable
@@ -631,9 +704,34 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   public function destroy($id)
   {
     $PurchaseRequestQuote = $this->find($id);
+
+    if (!is_null($PurchaseRequestQuote->ap_vehicle_id)) {
+      throw new Exception('No se puede eliminar: la solicitud tiene un vehículo (VIN) asignado. Desasigna el vehículo primero.');
+    }
+
+    if ((bool) $PurchaseRequestQuote->is_approved) {
+      throw new Exception('No se puede eliminar: la solicitud ya está aprobada.');
+    }
+
+    if ($PurchaseRequestQuote->electronicDocuments()->whereNull('deleted_at')->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene documentos electrónicos asociados (anticipos o facturas).');
+    }
+
+    if ($PurchaseRequestQuote->adjustmentRequests()->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene solicitudes de ajuste de margen asociadas.');
+    }
+
+    if ($PurchaseRequestQuote->purchaseOrders()->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene una orden de compra asociada.');
+    }
+
     DB::transaction(function () use ($PurchaseRequestQuote) {
+      $PurchaseRequestQuote->discountCoupons()->delete();
+      $PurchaseRequestQuote->accessories()->delete();
+      $PurchaseRequestQuote->others()->delete();
       $PurchaseRequestQuote->delete();
     });
+
     return response()->json(['message' => 'Registro eliminado correctamente']);
   }
 
