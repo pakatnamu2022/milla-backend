@@ -1398,7 +1398,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Discount Coupons
       Route::get('discountCoupons/byQuote/{quoteId}', [DiscountCouponsController::class, 'byQuote']);
-      Route::put('discountCoupons/{id}', [DiscountCouponsController::class, 'update']);
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
       Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
       Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
@@ -2261,12 +2260,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
 
     // Liquidation BBSS
+    Route::post('liquidation-bbss/calculate-gratification/{periodId}', [PayrollLiquidationBbssController::class, 'calculateGratification']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
     Route::apiResource('bonuses', PayrollBonusController::class);
 
     // Insurances
+    Route::get('insurances/template', [PayrollInsuranceController::class, 'downloadTemplate']);
     Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
     Route::apiResource('insurances', PayrollInsuranceController::class);
 

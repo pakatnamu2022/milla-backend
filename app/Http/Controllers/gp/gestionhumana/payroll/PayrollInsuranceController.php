@@ -9,6 +9,7 @@ use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollInsuranceRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollInsuranceRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollInsuranceService;
 use Exception;
+use Illuminate\Http\Request;
 
 class PayrollInsuranceController extends Controller
 {
@@ -61,6 +62,23 @@ class PayrollInsuranceController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Descarga la plantilla Excel vacía (formato FESALUD u ONCOSALUD) para
+   * llenarla manualmente y luego importarla.
+   */
+  public function downloadTemplate(Request $request)
+  {
+    $request->validate([
+      'business_partner_id' => 'required|integer|in:13297,13298',
+    ]);
+
+    try {
+      return $this->service->downloadTemplate((int)$request->input('business_partner_id'));
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

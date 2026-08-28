@@ -15,6 +15,7 @@ class PayrollInsuranceResource extends JsonResource
       'worker' => $this->worker?->nombre_completo,
       'period_id' => $this->period_id,
       'period' => $this->period?->name,
+      'company_id' => $this->period?->company_id,
       'business_partner_id' => $this->business_partner_id,
       'business_partner' => $this->businessPartner?->full_name,
       'doc_number_affiliate' => $this->doc_number_affiliate,

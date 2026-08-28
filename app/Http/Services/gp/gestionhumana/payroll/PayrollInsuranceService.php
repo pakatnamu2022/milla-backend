@@ -7,6 +7,8 @@ use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Imports\gp\gestionhumana\payroll\PayrollInsuranceOncoplusImport;
 use App\Imports\gp\gestionhumana\payroll\PayrollInsuranceFesaludImport;
+use App\Exports\gp\gestionhumana\payroll\PayrollInsuranceFesaludTemplateExport;
+use App\Exports\gp\gestionhumana\payroll\PayrollInsuranceOncoplusTemplateExport;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use Exception;
 use Illuminate\Http\Request;
@@ -80,6 +82,22 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Descarga una plantilla Excel vacía con el formato esperado por el
+   * importador correspondiente (FESALUD u ONCOSALUD).
+   *
+   * @param int $businessPartnerId
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   */
+  public function downloadTemplate(int $businessPartnerId)
+  {
+    return match ($businessPartnerId) {
+      13297 => Excel::download(new PayrollInsuranceFesaludTemplateExport(), 'plantilla_seguro_fesalud.xlsx'),
+      13298 => Excel::download(new PayrollInsuranceOncoplusTemplateExport(), 'plantilla_seguro_oncosalud.xlsx'),
+      default => throw new Exception('El business_partner_id debe ser 13297 (FESALUD) o 13298 (ONCOSALUD).'),
+    };
   }
 
   /**

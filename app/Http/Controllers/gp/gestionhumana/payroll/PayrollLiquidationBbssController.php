@@ -64,4 +64,13 @@ class PayrollLiquidationBbssController extends Controller
             return $this->error($e->getMessage());
         }
     }
+
+    public function calculateGratification(int $periodId)
+    {
+        try {
+            return $this->success($this->service->calculateGratification($periodId));
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
 }

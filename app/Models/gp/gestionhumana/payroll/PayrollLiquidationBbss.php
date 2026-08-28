@@ -49,7 +49,7 @@ class PayrollLiquidationBbss extends BaseModel
   ];
 
   const filters = [
-    'search' => [],
+    'search' => ['worker.nombre_completo', 'worker.vat'],
     'worker_id' => '=',
     'period_id' => '=',
     'type_id' => '=',

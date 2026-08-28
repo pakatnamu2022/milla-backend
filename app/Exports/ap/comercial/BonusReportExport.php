@@ -97,13 +97,17 @@ class BonusReportSheet implements
     'B' => Alignment::HORIZONTAL_LEFT,   // Cliente
     'C' => Alignment::HORIZONTAL_RIGHT,  // Precio Cotización (formato contable)
     'D' => Alignment::HORIZONTAL_CENTER, // VIN
-    'E' => Alignment::HORIZONTAL_LEFT,   // Tipo de Bono
-    'F' => Alignment::HORIZONTAL_LEFT,   // Concepto del Bono
-    'G' => Alignment::HORIZONTAL_RIGHT,  // Monto del Bono (formato contable)
-    'H' => Alignment::HORIZONTAL_CENTER, // N° Factura
-    'I' => Alignment::HORIZONTAL_RIGHT,  // Monto Factura (formato contable)
-    'J' => Alignment::HORIZONTAL_CENTER, // Fecha Factura
-    'K' => Alignment::HORIZONTAL_RIGHT,  // Total Bonos Cotización (formato contable)
+    'E' => Alignment::HORIZONTAL_LEFT,   // Marca
+    'F' => Alignment::HORIZONTAL_LEFT,   // Modelo
+    'G' => Alignment::HORIZONTAL_CENTER, // Factura Compra
+    'H' => Alignment::HORIZONTAL_CENTER, // Fecha Compra
+    'I' => Alignment::HORIZONTAL_LEFT,   // Tipo de Bono
+    'J' => Alignment::HORIZONTAL_LEFT,   // Concepto del Bono
+    'K' => Alignment::HORIZONTAL_RIGHT,  // Monto del Bono (formato contable)
+    'L' => Alignment::HORIZONTAL_CENTER, // N° Factura
+    'M' => Alignment::HORIZONTAL_RIGHT,  // Monto Factura (formato contable)
+    'N' => Alignment::HORIZONTAL_CENTER, // Fecha Factura
+    'O' => Alignment::HORIZONTAL_RIGHT,  // Total Bonos Cotización (formato contable)
   ];
 
   public function __construct(Collection $data, string $title)
@@ -127,6 +131,10 @@ class BonusReportSheet implements
       'CLIENTE',
       'PRECIO',
       'VIN',
+      'MARCA',
+      'MODELO',
+      'FACTURA COMPRA',
+      'FECHA COMPRA',
       'TIPO DE BONO',
       'CONCEPTO DEL BONO',
       'MONTO DEL BONO',
@@ -144,7 +152,7 @@ class BonusReportSheet implements
    * con relleno de espacios entre ambos), sin tocar el valor almacenado.
    */
   private const CURRENCY_FORMAT = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
-  private const CURRENCY_COLUMNS = ['C', 'G', 'I', 'K'];
+  private const CURRENCY_COLUMNS = ['C', 'K', 'M', 'O'];
 
   public function map($row): array
   {
@@ -153,6 +161,10 @@ class BonusReportSheet implements
       $row->client ?? '',
       (float)($row->sale_price ?? 0),
       $row->vin ?? '',
+      $row->brand ?? '',
+      $row->model_version ?? '',
+      $row->purchase_invoice ?? '',
+      $row->purchase_date ?? '',
       $row->bonus_type ?? '',
       $row->bonus_concept ?? '',
       (float)($row->amount ?? 0),
@@ -199,7 +211,7 @@ class BonusReportSheet implements
         }
 
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:K1');
+        $sheet->setAutoFilter('A1:O1');
         $sheet->setSelectedCells('A1');
       },
     ];

@@ -8,9 +8,11 @@ use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use App\Models\gp\gestionhumana\payroll\PayrollFamilyAllowance;
+use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollRegister;
+use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionhumana\personal\WorkerContract;
@@ -140,22 +142,66 @@ class PayrollRegisterService extends BaseService
                     ?? WorkerContract::salaryForWorkerAtDate($worker->id, $period->end_date)
                     ?? (float)($worker->sueldo ?? 0.00);
 
-                // Sueldo básico GANADO en el período: prorrateado por días trabajados
-                // (PayrollSummaryService::calculate, REM. BASICA = sueldo/30*días), no el
-                // sueldo mensual pleno — es lo que realmente entra a "Total Ingresos".
-                $basicSalary = $calculation->basic_salary ?? $monthlySalary;
-
                 // Condiciones de trabajo (mismo patrón que asignación familiar/bonos)
                 $workConditions = (float)(PayrollWorkingCondition::where('worker_id', $worker->id)
                     ->where('period_id', $periodId)
                     ->value('amount') ?? 0.00);
 
-                // Vacaciones: días realmente tomados y su valor de hora vacacional,
-                // ya calculados en gh_payroll_calculations desde las marcaciones
-                // (código de asistencia VC) — antes se ignoraban y quedaban en 0.
-                $daysVacation = (int)($calculation->days_vacation ?? 0);
-                $vacationHourValue = (float)($calculation->vacation_hour_value ?? 0.00);
-                $vacationPay = round($daysVacation * $vacationHourValue, 2);
+                // Días de vacación / descanso médico / faltas / licencias: se cuentan
+                // directo desde gh_payroll_schedules (marcación diaria por código, "DM",
+                // "VC", "F", "LSGH", "LCGH") — cubre tanto marcación manual como la
+                // auto-completada desde vacaciones/ausentismo aprobado (ver
+                // PayrollScheduleService::resolveApprovedLeaveCode).
+                $scheduleCodeCounts = PayrollSchedule::where('worker_id', $worker->id)
+                    ->where('period_id', $periodId)
+                    ->selectRaw('code, count(*) as total')
+                    ->groupBy('code')
+                    ->pluck('total', 'code');
+
+                $daysVacation = (int)($calculation->days_vacation ?? $scheduleCodeCounts['VC'] ?? 0);
+                $daysMedicalRest = (int)($scheduleCodeCounts['DM'] ?? 0);
+                $daysAbsence = (int)($scheduleCodeCounts['F'] ?? 0);
+                $daysLeaveUnpaid = (int)($scheduleCodeCounts['LSGH'] ?? 0);
+                $daysLeavePaid = (int)($scheduleCodeCounts['LCGH'] ?? 0);
+                $daysNotWorked = (int)($scheduleCodeCounts['NL'] ?? 0);
+
+                if ($calculation) {
+                    // Hay PayrollCalculation: confiar en sus valores, ya prorateados
+                    // correctamente por PayrollSummaryService (sueldo/30*días trabajados,
+                    // donde días trabajados ya incluye DM/LCGH como día pagado).
+                    $daysWorked = (int)$calculation->days_worked;
+                    $basicSalary = (float)$calculation->basic_salary;
+                    $vacationHourValue = (float)($calculation->vacation_hour_value ?? 0.00);
+                    $vacationPay = round($daysVacation * $vacationHourValue, 2);
+                } else {
+                    // Sin PayrollCalculation (no se corrió "Calcular asistencias" para
+                    // este trabajador/período — gh_payroll_schedules quedó vacío): en vez
+                    // de asumir 30 días trabajados a ciegas, si hay vacaciones/ausentismo
+                    // MÉDICO aprobado para fechas dentro del período (rrhh_vacaciones /
+                    // rrhh_ausentismo_laboral) igual se descuentan del sueldo básico —
+                    // esta es la fuente de datos real que el usuario reportó que faltaba.
+                    $approvedLeave = $this->resolveApprovedLeaveDaysInPeriod($worker->id, $period);
+                    $daysVacation = max($daysVacation, $approvedLeave['vacation']);
+                    $daysMedicalRest = max($daysMedicalRest, $approvedLeave['medical_rest']);
+                    $daysLeavePaid = max($daysLeavePaid, $approvedLeave['leave_paid']);
+                    $daysLeaveUnpaid = max($daysLeaveUnpaid, $approvedLeave['leave_unpaid']);
+
+                    // Convención del resto del módulo: mes de 30 días. DM/LCGH se pagan
+                    // como si se hubiera trabajado (igual que en PayrollScheduleService),
+                    // solo vacaciones (pagadas aparte) y licencia sin goce descuentan.
+                    $daysWorked = max(0, 30 - $daysVacation - $daysLeaveUnpaid);
+
+                    // Sueldo básico GANADO en el período: prorrateado por días trabajados
+                    // (sueldo/30*días), no el sueldo mensual pleno.
+                    $basicSalary = round($monthlySalary / 30 * $daysWorked, 2);
+
+                    // Sin historial de cálculo no hay promedio de los últimos 6 meses
+                    // disponible (PayrollCalculation::calcularPromedioUltimos6Meses):
+                    // se aproxima el valor del día vacacional al sueldo/30, igual que un
+                    // día normal — documentado, RRHH puede ajustar corriendo el cálculo.
+                    $vacationHourValue = $monthlySalary / 30;
+                    $vacationPay = round($daysVacation * $vacationHourValue, 2);
+                }
 
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
@@ -205,8 +251,13 @@ class PayrollRegisterService extends BaseService
                 $christmasGratification = $sumLiquidation(PayrollLiquidationBbss::TYPE_GRATIFICACION_NAVIDAD);
                 $christmasExtraordinaryBonus = $sumLiquidation(PayrollLiquidationBbss::TYPE_BONIF_EXTRAORD_NAVIDAD);
 
+                // Seguros (Fesalud/Oncosalud): registrados uno a uno o importados en
+                // gh_payroll_insurances, se suman por trabajador/período.
+                $oncosaludPlan = (float)(PayrollInsurance::where('worker_id', $worker->id)
+                    ->where('period_id', $periodId)
+                    ->sum('rate_with_tax'));
+
                 // Fuentes de datos aún no identificadas: quedan en 0.00 (documentado en el plan).
-                $oncosaludPlan = 0.00;
                 $advancesLoans = 0.00;
                 $otherDeductions = 0.00;
                 $judicialDeductions = 0.00;
@@ -227,8 +278,14 @@ class PayrollRegisterService extends BaseService
                 );
 
                 $netPayPreliminary = round($totalIncome - $totalDeductions, 2);
+                // La gratificación (Fiestas Patrias o Navidad) y su bonificación extraordinaria
+                // no llevan descuentos (están inafectas), así que se suman completas al neto,
+                // igual que el aguinaldo.
                 $netPayPlusAguinaldo = round(
-                    $netPayPreliminary + $christmasGratification + $christmasExtraordinaryBonus + $aguinaldo,
+                    $netPayPreliminary
+                    + $gratification + $extraordinaryBonus
+                    + $christmasGratification + $christmasExtraordinaryBonus
+                    + $aguinaldo,
                     2
                 );
 
@@ -248,20 +305,23 @@ class PayrollRegisterService extends BaseService
                     'has_family_allowance' => $hasFamilyAllowance,
                     'has_essalud_vida' => strtoupper($worker->essaludvida ?? '') === 'SI',
 
-                    // Días (desde cálculos o valores por defecto)
-                    'days_worked' => $calculation->days_worked ?? 30,
+                    // Días (desde cálculos, o desde vacaciones/ausentismo aprobado si no
+                    // hay cálculo de asistencias corrido para este trabajador/período)
+                    'days_worked' => $daysWorked,
                     'days_vacation' => $daysVacation,
-                    'days_medical_rest' => 0,
-                    'days_absence' => 0,
-                    'days_leave_unpaid' => 0,
-                    'days_leave_paid' => 0,
-                    'days_subsidy' => 0,
-                    'days_not_worked' => 0,
-                    'days_effective' => ($calculation->days_worked ?? 30) + $daysVacation,
+                    'days_medical_rest' => $daysMedicalRest,
+                    'days_absence' => $daysAbsence,
+                    'days_leave_unpaid' => $daysLeaveUnpaid,
+                    'days_leave_paid' => $daysLeavePaid,
+                    'days_subsidy' => 0, // TODO: sin código de asistencia dedicado a subsidio hoy
+                    'days_not_worked' => $daysNotWorked,
+                    // days_worked ya incluye DM/LCGH como día pagado (igual que en
+                    // PayrollCalculation), por eso no se vuelven a sumar aquí.
+                    'days_effective' => $daysWorked + $daysVacation,
                     'normal_hours' => $calculation->total_normal_hours ?? 0,
                     'has_vacation' => $daysVacation > 0,
                     'has_subsidy' => false,
-                    'calc_days_worked' => $calculation->days_worked ?? 30,
+                    'calc_days_worked' => $daysWorked,
                     'calc_days_not_worked' => $calculation->days_absent ?? 0,
 
                     // Ingresos (desde cálculos o valores por defecto)
@@ -358,6 +418,91 @@ class PayrollRegisterService extends BaseService
     private function calculateTotalIncome(array $incomes): float
     {
         return round(array_sum($incomes), 2);
+    }
+
+    /**
+     * Cuenta días de vacación/descanso médico/licencia aprobados dentro del período,
+     * leyendo directo de rrhh_vacaciones y rrhh_ausentismo_laboral — se usa solo como
+     * respaldo cuando el trabajador no tiene PayrollCalculation (no se corrió "Calcular
+     * asistencias" ese período), que era el caso reportado: un trabajador con vacaciones
+     * y descanso médico aprobados por RRHH pero con gh_payroll_schedules vacío, cuyo
+     * registro de planilla caía a 30 días trabajados por defecto ignorando ambos.
+     *
+     * Convenciones de status_deleted confirmadas empíricamente (no son iguales entre
+     * tablas):
+     * - rrhh_vacaciones: status_deleted=0 es el registro vigente (las versiones
+     *   anteriores de una solicitud editada quedan en 1) — al revés de rrhh_persona.
+     * - rrhh_ausentismo_laboral: status_deleted=1 = no eliminado/activo, como el resto
+     *   del proyecto (rrhh_persona, etc.).
+     *
+     * @param int $workerId
+     * @param PayrollPeriod $period
+     * @return array{vacation: int, medical_rest: int, leave_paid: int, leave_unpaid: int}
+     */
+    private function resolveApprovedLeaveDaysInPeriod(int $workerId, PayrollPeriod $period): array
+    {
+        $startDate = $period->start_date;
+        $endDate = $period->end_date;
+
+        $vacations = DB::table('rrhh_vacaciones')
+            ->where('empleado_id', $workerId)
+            ->where('status_id', 19) // APROBADO (config_status)
+            ->where('status_deleted', 0)
+            ->where('fecha_inicio', '<=', $endDate)
+            ->where('fecha_fin', '>=', $startDate)
+            ->get(['fecha_inicio', 'fecha_fin']);
+
+        $absences = DB::table('rrhh_ausentismo_laboral')
+            ->where('empleado_id', $workerId)
+            ->where('status_deleted', 1) // no eliminado (convención del proyecto)
+            ->where('fecha_inicial', '<=', $endDate)
+            ->where('fecha_fin', '>=', $startDate)
+            ->get(['fecha_inicial', 'fecha_fin', 'id_tipo_descanso']);
+
+        // Mapa fecha => código, recorriendo día por día para no contar dos veces si
+        // hubiera solicitudes solapadas (mismo criterio que
+        // PayrollScheduleService::resolveApprovedLeaveCode / MEDICAL_REST_TIPO_DESCANSO_IDS).
+        $codeByDate = [];
+
+        foreach ($vacations as $vacation) {
+            $this->markDateRange($codeByDate, $vacation->fecha_inicio, $vacation->fecha_fin, $startDate, $endDate, 'VC');
+        }
+
+        foreach ($absences as $absence) {
+            $code = in_array((int)$absence->id_tipo_descanso, [2, 19], true)
+                ? 'DM'
+                : ($absence->id_tipo_descanso == 16 ? 'LSGH' : 'LCGH');
+            $this->markDateRange($codeByDate, $absence->fecha_inicial, $absence->fecha_fin, $startDate, $endDate, $code, overwrite: false);
+        }
+
+        $counts = array_count_values($codeByDate);
+
+        return [
+            'vacation' => $counts['VC'] ?? 0,
+            'medical_rest' => $counts['DM'] ?? 0,
+            'leave_paid' => $counts['LCGH'] ?? 0,
+            'leave_unpaid' => $counts['LSGH'] ?? 0,
+        ];
+    }
+
+    /**
+     * Marca en $codeByDate cada fecha (Y-m-d) del rango [$from, $to] recortado a
+     * [$periodStart, $periodEnd] con el código dado. Si $overwrite es false, no pisa
+     * una fecha ya marcada (usado para que vacaciones tenga prioridad sobre ausentismo
+     * si por algún motivo se solaparan).
+     */
+    private function markDateRange(array &$codeByDate, $from, $to, $periodStart, $periodEnd, string $code, bool $overwrite = true): void
+    {
+        $cursor = \Carbon\Carbon::parse($from)->max(\Carbon\Carbon::parse($periodStart));
+        $end = \Carbon\Carbon::parse($to)->min(\Carbon\Carbon::parse($periodEnd));
+
+        while ($cursor->lte($end)) {
+            $key = $cursor->format('Y-m-d');
+            if ($overwrite || !isset($codeByDate[$key])) {
+                $codeByDate[$key] = $code;
+            }
+            $cursor->addDay();
+        }
     }
 
     /**
