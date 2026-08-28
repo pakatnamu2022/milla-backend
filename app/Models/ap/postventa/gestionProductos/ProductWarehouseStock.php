@@ -85,6 +85,16 @@ class ProductWarehouseStock extends Model
     return $this->belongsTo(TypeCurrency::class, 'currency_id');
   }
 
+  public function shelves()
+  {
+    return $this->belongsToMany(
+      ProductShelf::class,
+      'product_warehouse_shelf',
+      'product_warehouse_stock_id',
+      'product_shelf_id'
+    )->withPivot('position')->withTimestamps();
+  }
+
   // Accessors
   public function getIsLowStockAttribute(): bool
   {

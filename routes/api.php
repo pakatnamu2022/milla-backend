@@ -67,6 +67,7 @@ use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
 use App\Http\Controllers\ap\postventa\Dashboard\TechnicianProductivityDetailController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductShelfController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
@@ -1680,6 +1681,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
+
+      // Product Shelves - Estantes de Productos
+      Route::apiResource('productShelves', ProductShelfController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::post('productShelves/assign-products', [ProductShelfController::class, 'assignProducts']);
+      Route::post('productShelves/remove-product', [ProductShelfController::class, 'removeProduct']);
+      Route::get('productShelves/{shelfId}/products', [ProductShelfController::class, 'getShelfProducts']);
+
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
