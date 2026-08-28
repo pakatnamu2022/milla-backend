@@ -954,9 +954,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       'items.typeOperation'
     ]);
 
-    // Validar que existan los datos de entrega
-    if (empty($workOrder->full_pickup_name) || empty($workOrder->num_doc_pickup) || empty($workOrder->phone_pickup)) {
-      throw new Exception('Debe ingresar los datos de la persona a quien se le está entregando el vehículo (nombre completo, documento y teléfono) antes de generar el reporte de entrega.');
+    // Verificamos si es una INTERNA
+    $isInternalType = $workOrder->isInternalType();
+
+    if (!$isInternalType) {
+      // Validar que existan los datos de entrega
+      if (empty($workOrder->full_pickup_name) || empty($workOrder->num_doc_pickup) || empty($workOrder->phone_pickup)) {
+        throw new Exception('Debe ingresar los datos de la persona a quien se le está entregando el vehículo (nombre completo, documento y teléfono) antes de generar el reporte de entrega.');
+      }
     }
 
     $inspection = $workOrder->vehicleInspection;
