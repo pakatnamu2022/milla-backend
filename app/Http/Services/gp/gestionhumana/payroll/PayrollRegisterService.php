@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollRegister;
 use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\personal\WorkerContract;
 use App\Models\GeneralMaster;
 use Exception;
 use Illuminate\Http\Request;
@@ -121,12 +122,29 @@ class PayrollRegisterService extends BaseService
                 $occupation = $worker->position->name ?? '';
                 $costCenter = $worker->sede->nombre ?? '';
 
-                $basicSalary = $calculation->basic_salary ?? (float)($worker->sueldo ?? 0.00);
+                // Sueldo mensual vigente EN EL PERÍODO, resuelto contra el historial de
+                // contratos (rrhh_contrato) — nunca rrhh_persona.sueldo (sueldo ACTUAL),
+                // que para periodos pasados no refleja el contrato que regía entonces.
+                $monthlySalary = $calculation->salary
+                    ?? WorkerContract::salaryForWorkerAtDate($worker->id, $period->end_date)
+                    ?? (float)($worker->sueldo ?? 0.00);
+
+                // Sueldo básico GANADO en el período: prorrateado por días trabajados
+                // (PayrollSummaryService::calculate, REM. BASICA = sueldo/30*días), no el
+                // sueldo mensual pleno — es lo que realmente entra a "Total Ingresos".
+                $basicSalary = $calculation->basic_salary ?? $monthlySalary;
 
                 // Condiciones de trabajo (mismo patrón que asignación familiar/bonos)
                 $workConditions = (float)(PayrollWorkingCondition::where('worker_id', $worker->id)
                     ->where('period_id', $periodId)
                     ->value('amount') ?? 0.00);
+
+                // Vacaciones: días realmente tomados y su valor de hora vacacional,
+                // ya calculados en gh_payroll_calculations desde las marcaciones
+                // (código de asistencia VC) — antes se ignoraban y quedaban en 0.
+                $daysVacation = (int)($calculation->days_vacation ?? 0);
+                $vacationHourValue = (float)($calculation->vacation_hour_value ?? 0.00);
+                $vacationPay = round($daysVacation * $vacationHourValue, 2);
 
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
@@ -139,6 +157,7 @@ class PayrollRegisterService extends BaseService
                     'production_bonus' => $productionBonus,
                     'commercial_bonus' => $commercialBonus,
                     'work_conditions' => $workConditions,
+                    'vacation_pay' => $vacationPay,
                 ]);
 
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
@@ -213,23 +232,23 @@ class PayrollRegisterService extends BaseService
                     'cost_center' => $costCenter,
                     'status' => 'Activo',
                     'occupation' => $occupation,
-                    'monthly_salary' => (float)($worker->sueldo ?? 0.00),
+                    'monthly_salary' => $monthlySalary,
                     'afp_affiliation' => $pensionDeductions['affiliation'],
                     'has_family_allowance' => $hasFamilyAllowance,
                     'has_essalud_vida' => strtoupper($worker->essaludvida ?? '') === 'SI',
 
                     // Días (desde cálculos o valores por defecto)
                     'days_worked' => $calculation->days_worked ?? 30,
-                    'days_vacation' => 0,
+                    'days_vacation' => $daysVacation,
                     'days_medical_rest' => 0,
                     'days_absence' => 0,
                     'days_leave_unpaid' => 0,
                     'days_leave_paid' => 0,
                     'days_subsidy' => 0,
                     'days_not_worked' => 0,
-                    'days_effective' => $calculation->days_worked ?? 30,
+                    'days_effective' => ($calculation->days_worked ?? 30) + $daysVacation,
                     'normal_hours' => $calculation->total_normal_hours ?? 0,
-                    'has_vacation' => false,
+                    'has_vacation' => $daysVacation > 0,
                     'has_subsidy' => false,
                     'calc_days_worked' => $calculation->days_worked ?? 30,
                     'calc_days_not_worked' => $calculation->days_absent ?? 0,
@@ -241,7 +260,7 @@ class PayrollRegisterService extends BaseService
                     'overtime_35' => $calculation->overtime_35 ?? 0.00,
                     'subsidy_disability' => 0.00, // TODO: implementar lógica
                     'work_conditions' => $workConditions,
-                    'vacation_pay' => 0.00,
+                    'vacation_pay' => $vacationPay,
                     'production_bonus' => $productionBonus,
                     'holiday_days_pay' => $calculation->holiday_pay ?? 0.00,
                     'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,

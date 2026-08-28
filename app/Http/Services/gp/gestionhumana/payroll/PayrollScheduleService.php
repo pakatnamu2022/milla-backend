@@ -13,6 +13,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\personal\WorkerContract;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -383,11 +384,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     // Get all attendance rules
     $attendanceRules = AttendanceRule::all()->groupBy('code');
 
-    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules) {
+    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules, $dateTo) {
       $worker = $workerSchedules->first()->worker;
 
-      // Worker salary and shift info
-      $sueldo = (float)($worker->sueldo ?? 0);
+      // Worker salary and shift info — sueldo vigente en el periodo, no el actual
+      // (ver PayrollScheduleService::createCalculationsForPeriod).
+      $sueldo = WorkerContract::salaryForWorkerAtDate($worker->id, $dateTo) ?? (float)($worker->sueldo ?? 0);
       $horasJornada = (float)($worker->horas_jornada ?: 8);
 
       if ($sueldo == 0 || $horasJornada == 0) {
@@ -594,7 +596,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     foreach ($schedules->groupBy('worker_id') as $workerId => $workerSchedules) {
       try {
         $worker = $workerSchedules->first()->worker;
-        $sueldo = (float)($worker->sueldo ?? 0);
+        // Sueldo vigente EN ESE PERIODO según historial de contratos (rrhh_contrato),
+        // no el sueldo actual de rrhh_persona — evita recalcular planillas pasadas
+        // con el sueldo de hoy cuando el trabajador tuvo un contrato anterior con
+        // otro monto (ascensos, renovaciones, etc.).
+        $sueldo = WorkerContract::salaryForWorkerAtDate($workerId, $dateTo) ?? (float)($worker->sueldo ?? 0);
         $horasJornada = (float)($worker->horas_jornada ?: 8);
 
         if ($sueldo == 0 || $horasJornada == 0) {
@@ -626,6 +632,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'company_id' => $period->company_id ?? null,
           'sede_id' => $worker->sede_id ?? null,
           'salary' => $sueldo,
+          'basic_salary' => $sueldo,
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
           'vacation_hour_value' => $valorHoraVacacional,
