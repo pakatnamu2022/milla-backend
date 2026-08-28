@@ -222,14 +222,14 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $vehicleDelivery = ApVehicleDelivery::with(['rescheduleLogs.rescheduledBy'])->findOrFail($id);
 
     return $vehicleDelivery->rescheduleLogs->map(fn($log) => [
-      'id'               => $log->id,
-      'previous_date'    => $log->previous_date,
-      'new_date'         => $log->new_date,
-      'is_extraordinary' => $log->is_extraordinary,
-      'observations'     => $log->observations,
-      'rescheduled_by'   => $log->rescheduled_by,
+      'id'                  => $log->id,
+      'previous_date'       => $log->previous_date,
+      'new_date'            => $log->new_date,
+      'is_extraordinary'    => $log->is_extraordinary,
+      'observations'        => $log->observations,
+      'rescheduled_by'      => $log->rescheduled_by,
       'rescheduled_by_name' => $log->rescheduledBy?->name,
-      'created_at'       => $log->created_at,
+      'created_at'          => $log->created_at,
     ])->values()->all();
   }
 
@@ -767,7 +767,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     if ($isExtraordinary) {
       $updateData['extraordinary_approved'] = null;
-      $updateData['extraordinary_sent_by']  = auth()->id();
+      $updateData['extraordinary_sent_by'] = auth()->id();
     }
 
     $vehicleDelivery->update($updateData);
@@ -1101,7 +1101,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
           'step'    => 'Stock inicial',
           'status'  => 'fail',
           'message' => "El vehículo pertenece a stock inicial (OC: {$purchaseOrder->number}) pero no está en estado «Vendido No Entregado».",
-          'action'  => 'Para vehículos de stock inicial, contacta al área de TIC\'s enviando un correo con el VIN y el número de orden de compra para regularizar el estado.',
+          'action'  => 'Para vehículos de stock inicial, contacta al área de TIC\'s enviando un correo con el VIN para regularizar el estado.',
         ];
         $canGenerate = false;
       } elseif ($receptionGuide && $receptionGuide->is_accounted) {
@@ -1240,11 +1240,11 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     $vehicle = $delivery->vehicle;
     $modelVersion = $vehicle?->model?->version ?? '';
-    $modelYear    = $vehicle?->model?->model_year ?? '';
-    $brandName    = $vehicle?->model?->family?->brand?->name ?? '';
-    $colorName    = $vehicle?->color?->description ?? '';
-    $advisorName  = $delivery->advisor?->nombre_completo ?? '';
-    $sedeName     = $delivery->sede?->abreviatura ?? '';
+    $modelYear = $vehicle?->model?->model_year ?? '';
+    $brandName = $vehicle?->model?->family?->brand?->name ?? '';
+    $colorName = $vehicle?->color?->description ?? '';
+    $advisorName = $delivery->advisor?->nombre_completo ?? '';
+    $sedeName = $delivery->sede?->abreviatura ?? '';
 
     $this->emailService->queue([
       'to'          => $client->email,
@@ -1252,18 +1252,18 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'template'    => 'emails.vehicle-welcome',
       'attachments' => $attachments,
       'data'        => [
-        'client_name'      => $client->full_name,
-        'brand_name'       => $brandName,
-        'model_version'    => $modelVersion,
-        'model_year'       => $modelYear,
-        'vehicle_vin'      => $vehicle?->vin ?? '',
-        'color_name'       => $colorName,
-        'advisor_name'     => $advisorName,
-        'sede_name'        => $sedeName,
-        'delivery_date'    => Carbon::parse($delivery->real_delivery_date ?? now())->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-        'has_letter'       => !empty($letterUrl),
-        'video_url'        => $videoUrl,
-        'video_thumbnail'  => $videoThumbnail,
+        'client_name'     => $client->full_name,
+        'brand_name'      => $brandName,
+        'model_version'   => $modelVersion,
+        'model_year'      => $modelYear,
+        'vehicle_vin'     => $vehicle?->vin ?? '',
+        'color_name'      => $colorName,
+        'advisor_name'    => $advisorName,
+        'sede_name'       => $sedeName,
+        'delivery_date'   => Carbon::parse($delivery->real_delivery_date ?? now())->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
+        'has_letter'      => !empty($letterUrl),
+        'video_url'       => $videoUrl,
+        'video_thumbnail' => $videoThumbnail,
       ],
     ]);
   }
@@ -1301,12 +1301,12 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $title = $request->get('title', 'Reporte Entregas de Vehículos');
 
     $exportService = new ExportService();
-    $filters       = $exportService->buildFiltersFromRequest($request, ApVehicleDelivery::class);
+    $filters = $exportService->buildFiltersFromRequest($request, ApVehicleDelivery::class);
 
-    $model     = new ApVehicleDelivery();
-    $data      = $model->getReportData($filters);
-    $columns   = $model->getReportableColumns();
-    $styles    = $model->getReportStyles();
+    $model = new ApVehicleDelivery();
+    $data = $model->getReportData($filters);
+    $columns = $model->getReportableColumns();
+    $styles = $model->getReportStyles();
     $colorRules = method_exists($model, 'getReportColorRules') ? $model->getReportColorRules() : [];
 
     $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';

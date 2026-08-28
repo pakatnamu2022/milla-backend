@@ -30,7 +30,8 @@ class ApBonusReportService
     $query = PurchaseRequestQuote::query()
       ->with([
         'sede',
-        'vehicle',
+        'vehicle.purchaseOrder',
+        'vehicle.model.family.brand',
         'opportunity.client',
         'discountCoupons' => function ($q) {
           $q->where('is_negative', false)->with('conceptCode.parent');
@@ -83,19 +84,28 @@ class ApBonusReportService
         $bonusType = $concept?->parent->description ?? $concept?->description ?? '';
         $bonusConcept = $concept->description ?? '';
 
+        $vehicle = $quote->vehicle;
+        $purchaseOrder = $vehicle->purchaseOrder ?? null;
+        $purchaseInvoice = ($purchaseOrder && $purchaseOrder->invoice_series && $purchaseOrder->invoice_number)
+          ? $purchaseOrder->invoice_series . '-' . $purchaseOrder->invoice_number
+          : '';
         $rows->push((object) [
-          'sede_id'      => $quote->sede_id,
-          'sede'         => $sedeLabel,
-          'correlative'  => $quote->full_correlative,
-          'client'       => $clientName,
-          'sale_price'   => (float) $quote->sale_price,
-          'vin'          => $quote->vehicle->vin ?? '',
-          'bonus_type'   => $bonusType,
-          'bonus_concept' => $bonusConcept,
-          'amount'       => (float) $bonus->amount,
-          'invoice_number' => $finalInvoice->full_number ?? '',
-          'invoice_amount' => $finalInvoice ? (float) $finalInvoice->total : 0.0,
-          'invoice_date'   => $finalInvoice?->fecha_de_emision?->format('Y-m-d') ?? '',
+          'sede_id'          => $quote->sede_id,
+          'sede'             => $sedeLabel,
+          'correlative'      => $quote->full_correlative,
+          'client'           => $clientName,
+          'sale_price'       => (float) $quote->sale_price,
+          'vin'              => $vehicle->vin ?? '',
+          'brand'            => $vehicle->model->family->brand->name ?? '',
+          'model_version'    => $vehicle->model->version ?? '',
+          'purchase_invoice' => $purchaseInvoice,
+          'purchase_date'    => $purchaseOrder?->emission_date?->format('Y-m-d') ?? '',
+          'bonus_type'       => $bonusType,
+          'bonus_concept'    => $bonusConcept,
+          'amount'           => (float) $bonus->amount,
+          'invoice_number'   => $finalInvoice->full_number ?? '',
+          'invoice_amount'   => $finalInvoice ? (float) $finalInvoice->total : 0.0,
+          'invoice_date'     => $finalInvoice?->fecha_de_emision?->format('Y-m-d') ?? '',
         ]);
       }
     }

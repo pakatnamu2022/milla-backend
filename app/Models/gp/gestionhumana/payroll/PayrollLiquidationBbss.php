@@ -14,6 +14,27 @@ class PayrollLiquidationBbss extends BaseModel
 
   protected $table = 'gh_payroll_liquidation_bbss';
 
+  // Códigos del catálogo GpMasters (type=LIQUIDATION_BBSS), ver
+  // Database\Seeders\gp\gestionhumana\payroll\PayrollLiquidationBbssTypeSeeder.
+  const string TYPE_CTS_TRUNCADA = 'CTS_TRUNCADA';
+  const string TYPE_GRATIFICACION_TRUNCADA = 'GRATIFICACION_TRUNCADA';
+  const string TYPE_BONIFICACION_EXTRAORDINARIA = 'BONIFICACION_EXTRAORDINARIA';
+  const string TYPE_VACACIONES_TRUNCADAS = 'VACACIONES_TRUNCADAS';
+  const string TYPE_AGUINALDO = 'AGUINALDO';
+  const string TYPE_GRATIFICACION_NAVIDAD = 'GRATIFICACION_NAVIDAD';
+  const string TYPE_BONIF_EXTRAORD_NAVIDAD = 'BONIF_EXTRAORD_NAVIDAD';
+
+  /**
+   * Mapa code => id de GpMasters para los tipos de este catálogo.
+   * Se resuelve por código (no por id fijo) porque los ids dependen del seeder.
+   */
+  public static function typeIdsByCode(): array
+  {
+    return GpMasters::where('type', 'LIQUIDATION_BBSS')
+      ->pluck('id', 'code')
+      ->toArray();
+  }
+
   protected $fillable = [
     'worker_id',
     'period_id',
@@ -28,7 +49,7 @@ class PayrollLiquidationBbss extends BaseModel
   ];
 
   const filters = [
-    'search' => [],
+    'search' => ['worker.nombre_completo', 'worker.vat'],
     'worker_id' => '=',
     'period_id' => '=',
     'type_id' => '=',

@@ -150,6 +150,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
@@ -670,6 +671,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'store',
           'update',
           'destroy'
+        ]);
+
+        //      ESTADO DEL TRABAJADOR (activacion/cese) - centraliza en milla-backend, coexiste con el legacy
+        Route::get('worker-status-history/worker/{workerId}/current', [WorkerStatusHistoryController::class, 'currentStatus']);
+        Route::apiResource('worker-status-history', WorkerStatusHistoryController::class)->only([
+          'index',
+          'show',
+          'store',
         ]);
 
         //      VACACIONES
@@ -1399,7 +1408,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Discount Coupons
       Route::get('discountCoupons/byQuote/{quoteId}', [DiscountCouponsController::class, 'byQuote']);
-      Route::put('discountCoupons/{id}', [DiscountCouponsController::class, 'update']);
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
       Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
       Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
@@ -2262,12 +2270,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
 
     // Liquidation BBSS
+    Route::post('liquidation-bbss/calculate-gratification/{periodId}', [PayrollLiquidationBbssController::class, 'calculateGratification']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
     Route::apiResource('bonuses', PayrollBonusController::class);
 
     // Insurances
+    Route::get('insurances/template', [PayrollInsuranceController::class, 'downloadTemplate']);
     Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
     Route::apiResource('insurances', PayrollInsuranceController::class);
 

@@ -12,6 +12,7 @@ use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryCompetenceDetail;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\gestionhumana\payroll\AttendanceRule;
+use App\Models\gp\gestionhumana\payroll\PensionSystem;
 use App\Models\gp\tics\PhoneLine;
 use App\Models\gp\tics\PhoneLineWorker;
 use App\Models\User;
@@ -218,5 +219,13 @@ class Worker extends BaseModel
   public function workSchedule()
   {
     return $this->belongsTo(WorkSchedule::class, 'work_schedule_id');
+  }
+
+  /**
+   * Sistema de pensiones (ONP/AFP) al que está afiliado, con sus tasas vigentes.
+   */
+  public function pensionSystem()
+  {
+    return $this->hasOne(PensionSystem::class, 'id', 'sis_pensiones_id');
   }
 }

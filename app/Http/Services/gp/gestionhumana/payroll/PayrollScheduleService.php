@@ -13,10 +13,12 @@ use App\Models\gp\gestionhumana\payroll\PayrollCalculationDetail;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\personal\WorkerContract;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class PayrollScheduleService extends BaseService implements BaseServiceInterface
 {
@@ -383,11 +385,12 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     // Get all attendance rules
     $attendanceRules = AttendanceRule::all()->groupBy('code');
 
-    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules) {
+    $summary = $schedules->groupBy('worker_id')->map(function ($workerSchedules) use ($attendanceRules, $dateTo) {
       $worker = $workerSchedules->first()->worker;
 
-      // Worker salary and shift info
-      $sueldo = (float)($worker->sueldo ?? 0);
+      // Worker salary and shift info — sueldo vigente en el periodo, no el actual
+      // (ver PayrollScheduleService::createCalculationsForPeriod).
+      $sueldo = WorkerContract::salaryForWorkerAtDate($worker->id, $dateTo) ?? (float)($worker->sueldo ?? 0);
       $horasJornada = (float)($worker->horas_jornada ?: 8);
 
       if ($sueldo == 0 || $horasJornada == 0) {
@@ -481,9 +484,103 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Fills missing days in the given date range for all workers that appear at least once
-   * in that range. Missing days are created as PayrollSchedule records with code 'NL'
-   * (No Laboró) using the corresponding attendance rules.
+   * IDs del catálogo rrhh_tipo_descanso (ver TipoDescanso) que corresponden a descanso
+   * médico — hay dos filas con la misma descripción "DESCANSO MEDICO" (2 y 19, la 19 es
+   * la vigente, la 2 quedó de un catálogo anterior pero sigue referenciada en registros
+   * viejos), por eso se mapean ambas al mismo código de asistencia 'DM'.
+   */
+  private const MEDICAL_REST_TIPO_DESCANSO_IDS = [2, 19];
+
+  /** id_tipo_descanso -> código de asistencia (AttendanceRule.code) para licencias/descansos aprobados */
+  private const LEAVE_CODE_BY_TIPO_DESCANSO = [
+    16 => 'LSGH', // LICENCIA SIN GOCE DE HABER
+  ];
+
+  /**
+   * Busca si el trabajador tiene una vacación aprobada (rrhh_vacaciones) o un
+   * descanso/licencia aprobado (rrhh_ausentismo_laboral) que cubra la fecha dada, y
+   * devuelve el código de asistencia correspondiente ('VC', 'DM', etc.) o null si no
+   * hay nada registrado para ese día.
+   *
+   * Nota sobre status_deleted: en rrhh_vacaciones, status_deleted=0 es el registro
+   * vigente (0=activo, al revés de la convención de rrhh_persona) — confirmado
+   * empíricamente: los duplicados/versiones anteriores de una solicitud editada quedan
+   * con status_deleted=1. En rrhh_ausentismo_laboral sí sigue la convención estándar
+   * del proyecto (status_deleted=1 = no eliminado/activo).
+   *
+   * @param int $workerId
+   * @param string $date Y-m-d
+   * @return string|null
+   */
+  private function resolveApprovedLeaveCode(int $workerId, string $date): ?string
+  {
+    $onVacation = DB::table('rrhh_vacaciones')
+      ->where('empleado_id', $workerId)
+      ->where('status_id', 19) // APROBADO (config_status)
+      ->where('status_deleted', 0)
+      ->where('fecha_inicio', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->exists();
+
+    if ($onVacation) {
+      return 'VC';
+    }
+
+    $ausentismo = DB::table('rrhh_ausentismo_laboral')
+      ->where('empleado_id', $workerId)
+      ->where('status_deleted', 1) // no eliminado (convención del proyecto)
+      ->where('fecha_inicial', '<=', $date)
+      ->where('fecha_fin', '>=', $date)
+      ->orderByDesc('id')
+      ->value('id_tipo_descanso');
+
+    if ($ausentismo === null) {
+      return null;
+    }
+
+    if (in_array((int)$ausentismo, self::MEDICAL_REST_TIPO_DESCANSO_IDS, true)) {
+      return 'DM';
+    }
+
+    // Otros tipos de licencia/descanso aprobado: código específico si está mapeado,
+    // si no, se asume licencia con goce (LCGH) — es el default más seguro porque no
+    // penaliza el sueldo del trabajador por un descanso que RRHH ya aprobó.
+    return self::LEAVE_CODE_BY_TIPO_DESCANSO[(int)$ausentismo] ?? 'LCGH';
+  }
+
+  /**
+   * Determina el status de PayrollSchedule para un código, igual que en store()/storeBulk().
+   */
+  private function determineStatus(string $code, ?Collection $attendanceRules = null): string
+  {
+    if ($code === 'VC') {
+      return PayrollSchedule::STATUS_VACATION;
+    }
+
+    $rule = $attendanceRules
+      ? $attendanceRules->get($code)?->first()
+      : AttendanceRule::where('code', $code)->first();
+
+    if ($rule && !$rule->pay) {
+      return PayrollSchedule::STATUS_ABSENT;
+    }
+
+    return PayrollSchedule::STATUS_WORKED;
+  }
+
+  /**
+   * Rellena los días sin marcación en el rango dado, para los trabajadores que ya
+   * tienen al menos una marcación en ese rango (RRHH está llevando su horario ese mes).
+   *
+   * Antes de asumir 'NL' (No Laboró) para un día vacío, se valida si ese día está
+   * cubierto por una vacación aprobada (rrhh_vacaciones) o un descanso/licencia
+   * aprobado (rrhh_ausentismo_laboral) — si RRHH ya aprobó esos días por otro módulo,
+   * no debería hacer falta volver a tipearlos uno por uno en el horario.
+   *
+   * No se extiende a trabajadores SIN ninguna marcación en el período: rellenar todo
+   * su mes como 'NL' (no pagado) solo porque tienen una vacación/licencia aprobada de
+   * unos días sería peligroso — el resto de días trabajados normalmente quedaría sin
+   * pagar. Para esos casos, PayrollRegisterService avisa con 'calculation_pending'.
    */
   private function fillMissingDaysWithNL(PayrollPeriod $period, $dateFrom, $dateTo): void
   {
@@ -518,6 +615,8 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       ->get()
       ->groupBy('worker_id');
 
+    $attendanceRules = AttendanceRule::all()->groupBy('code');
+
     foreach ($workerIds as $workerId) {
       $workerSchedules = $existingByWorker->get($workerId, collect());
       $filledDates     = $workerSchedules->map(fn($s) => Carbon::parse($s->work_date)->format('Y-m-d'))->toArray();
@@ -535,18 +634,20 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $hours = $this->calculateHours('NL', $worker, PayrollSchedule::STATUS_ABSENT);
-
       foreach ($missingDates as $missingDate) {
+        $code = $this->resolveApprovedLeaveCode($workerId, $missingDate) ?? 'NL';
+        $status = $this->determineStatus($code, $attendanceRules);
+        $hours = $this->calculateHours($code, $worker, $status);
+
         PayrollSchedule::create([
           'worker_id'    => $workerId,
-          'code'         => 'NL',
+          'code'         => $code,
           'period_id'    => $period->id,
           'work_date'    => $missingDate,
           'hours_worked' => $hours['hours_worked'],
           'extra_hours'  => $hours['extra_hours'],
-          'notes'        => null,
-          'status'       => PayrollSchedule::STATUS_ABSENT,
+          'notes'        => $code !== 'NL' ? 'Auto-completado desde vacaciones/ausentismo aprobado' : null,
+          'status'       => $status,
         ]);
       }
     }
@@ -594,7 +695,11 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     foreach ($schedules->groupBy('worker_id') as $workerId => $workerSchedules) {
       try {
         $worker = $workerSchedules->first()->worker;
-        $sueldo = (float)($worker->sueldo ?? 0);
+        // Sueldo vigente EN ESE PERIODO según historial de contratos (rrhh_contrato),
+        // no el sueldo actual de rrhh_persona — evita recalcular planillas pasadas
+        // con el sueldo de hoy cuando el trabajador tuvo un contrato anterior con
+        // otro monto (ascensos, renovaciones, etc.).
+        $sueldo = WorkerContract::salaryForWorkerAtDate($workerId, $dateTo) ?? (float)($worker->sueldo ?? 0);
         $horasJornada = (float)($worker->horas_jornada ?: 8);
 
         if ($sueldo == 0 || $horasJornada == 0) {
@@ -626,6 +731,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
           'company_id' => $period->company_id ?? null,
           'sede_id' => $worker->sede_id ?? null,
           'salary' => $sueldo,
+          'basic_salary' => $sueldo,
           'shift_hours' => $horasJornada,
           'base_hour_value' => $valorHoraBase,
           'vacation_hour_value' => $valorHoraVacacional,

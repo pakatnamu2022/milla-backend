@@ -53,6 +53,9 @@ class GeneralMaster extends BaseModel
   const int SCTR_HEALTH_RATE_ID = 55;
   const int SCTR_PENSION_RATE_ID = 56;
   const int IGV_RATE_ID = 57;
+  const int UIT_ID = 58;
+  const int FAMILY_ALLOWANCE_ID = 59;
+  const int INCOME_TAX_DEDUCTION_UIT_ID = 60;
 
   //CONSTANTES POSTVENTA
   const int COST_PER_MAN_HOUR_VL_ID = 9;

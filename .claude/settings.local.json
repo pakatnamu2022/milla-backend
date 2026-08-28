@@ -83,7 +83,17 @@
       "Bash(\"/c/laragon/bin/mysql/mysql-8.4.3-winx64/bin/mysqld.exe\" --defaults-file=\"/c/laragon/bin/mysql/mysql-8.4.3-winx64/my.ini\" --standalone)",
       "Bash(echo \"started with pid $!\")",
       "Bash(powershell -c \"Start-Sleep -Seconds 3\")",
-      "PowerShell(Test-NetConnection -ComputerName localhost -Port 3306 -WarningAction SilentlyContinue)"
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 3306 -WarningAction SilentlyContinue)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(wc -l /tmp_tsc_out.txt)",
+      "Bash(tail -20 /tmp_tsc_out.txt)"
+    ,
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)"
     ],
     "deny": [],
     "ask": []
