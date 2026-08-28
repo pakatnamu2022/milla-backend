@@ -4,8 +4,10 @@ namespace App\Models\ap\postventa\repuestos;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -20,10 +22,8 @@ class ApprovedAccessories extends Model
     'code_dynamics',
     'type_operation_id',
     'description',
-    'price',
     'status',
     'type_currency_id',
-    'body_type_id',
   ];
 
   const filters = [
@@ -31,13 +31,12 @@ class ApprovedAccessories extends Model
     'status' => '=',
     'type_currency_id' => '=',
     'type_operation_id' => '=',
-    'body_type_id' => '=',
+    'body_type_id' => 'scope',
   ];
 
   const sorts = [
     'code',
     'description',
-    'price',
   ];
 
   public function setCodeAttribute($value): void
@@ -54,6 +53,23 @@ class ApprovedAccessories extends Model
     }
   }
 
+  /**
+   * Filtra los accesorios que tienen un precio para la carrocería indicada.
+   * Se usa en la solicitud de compra para listar solo lo que aplica al
+   * vehículo/modelo seleccionado.
+   */
+  public function scopeBodyTypeId(Builder $query, $bodyTypeId): Builder
+  {
+    return $query->whereHas('prices', function ($q) use ($bodyTypeId) {
+      $q->where('body_type_id', $bodyTypeId);
+    });
+  }
+
+  public function prices(): HasMany
+  {
+    return $this->hasMany(ApprovedAccessoryPrice::class, 'approved_accessory_id');
+  }
+
   public function typeCurrency(): BelongsTo
   {
     return $this->belongsTo(TypeCurrency::class, 'type_currency_id');
@@ -62,10 +78,5 @@ class ApprovedAccessories extends Model
   public function typeOperation(): BelongsTo
   {
     return $this->belongsTo(ApMasters::class, 'type_operation_id');
-  }
-
-  public function bodyType(): BelongsTo
-  {
-    return $this->belongsTo(ApMasters::class, 'body_type_id');
   }
 }

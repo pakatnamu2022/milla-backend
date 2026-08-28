@@ -7,17 +7,21 @@ use App\Http\Requests\gp\gestionhumana\evaluacion\DeleteEvaluationCategoryObject
 use App\Http\Requests\gp\gestionhumana\evaluacion\IndexEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\StoreEvaluationCategoryObjectiveDetailRequest;
 use App\Http\Requests\gp\gestionhumana\evaluacion\UpdateEvaluationCategoryObjectiveDetailRequest;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetailService;
+use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class EvaluationCategoryObjectiveDetailController extends Controller
 {
   protected EvaluationCategoryObjectiveDetailService $service;
+  protected ExportService $exportService;
 
-  public function __construct(EvaluationCategoryObjectiveDetailService $service)
+  public function __construct(EvaluationCategoryObjectiveDetailService $service, ExportService $exportService)
   {
     $this->service = $service;
+    $this->exportService = $exportService;
   }
 
   /**
@@ -145,6 +149,15 @@ class EvaluationCategoryObjectiveDetailController extends Controller
   {
     try {
       return response()->json($this->service->globalWeightValidationReport());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function exportAll(Request $request)
+  {
+    try {
+      return $this->exportService->exportFromRequest($request, EvaluationCategoryObjectiveDetail::class);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
