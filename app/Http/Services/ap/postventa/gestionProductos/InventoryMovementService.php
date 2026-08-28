@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
+use App\Http\Resources\ap\postventa\gestionProductos\ProductMovementHistoryResource;
 use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
 use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
@@ -114,7 +115,68 @@ class InventoryMovementService extends BaseService
 
   public function show($id)
   {
-    return new InventoryMovementResource($this->find($id)->load(['details', 'reference']));
+    $movement = $this->find($id);
+
+    // Base relations to always load
+    $relations = [
+      'details.product:id,code,dyn_code,name',
+      'warehouse:id,dyn_code,description',
+      'warehouseDestination:id,dyn_code,description',
+      'user:id,name',
+      'reasonInOut',
+      'electronicDocument',
+      'transferReception',
+    ];
+
+    // Load additional relations based on movement type and reference type
+    switch ($movement->movement_type) {
+      case InventoryMovement::TYPE_PURCHASE_RECEPTION:
+        $relations[] = 'reference.purchaseOrder.supplier';
+        $relations[] = 'reference.purchaseOrder.exchangeRate';
+        break;
+
+      case InventoryMovement::TYPE_TRANSFER_OUT:
+        $relations[] = 'reference.transmitterEstablishment';
+        $relations[] = 'reference.receiverEstablishment';
+        break;
+
+      case InventoryMovement::TYPE_TRANSFER_IN:
+        $relations[] = 'reference.transferMovement.warehouseOrigin';
+        $relations[] = 'reference.shippingGuide.transmitterEstablishment';
+        $relations[] = 'reference.shippingGuide.receiverEstablishment';
+        break;
+
+      case InventoryMovement::TYPE_SALE:
+        // Load different relations based on reference_type
+        if ($movement->reference_type && str_contains($movement->reference_type, 'ApOrderQuotations')) {
+          $relations[] = 'reference.client';
+          $relations[] = 'reference.vehicle';
+          $relations[] = 'reference.typeCurrency';
+          $relations[] = 'reference.status';
+        } elseif ($movement->reference_type && str_contains($movement->reference_type, 'ApWorkOrder')) {
+          // No additional relations needed for ApWorkOrder
+        } elseif ($movement->reference_type && str_contains($movement->reference_type, 'ApInternalNote')) {
+          // No additional relations needed for ApInternalNote
+        }
+        break;
+
+      case InventoryMovement::TYPE_ADJUSTMENT_OUT:
+        // Could be WorkOrderParts or OrderQuotation
+        if ($movement->reference_type && str_contains($movement->reference_type, 'ApOrderQuotations')) {
+          $relations[] = 'reference.client';
+          $relations[] = 'reference.vehicle';
+          $relations[] = 'reference.typeCurrency';
+          $relations[] = 'reference.status';
+        }
+        break;
+
+      case InventoryMovement::TYPE_RETURN_OUT:
+        // Credit note with details
+        $relations[] = 'reference.details.product';
+        break;
+    }
+
+    return new InventoryMovementResource($movement->load($relations));
   }
 
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
@@ -1126,13 +1188,27 @@ class InventoryMovementService extends BaseService
       ->with([
         'details' => function ($q) use ($productId) {
           $q->where('product_id', $productId)
-            ->with('product');
+            ->with('product:id,code,dyn_code,name');
         },
-        'warehouse',
-        'warehouseDestination',
-        'user',
+        'warehouse:id,dyn_code,description',
+        'warehouseDestination:id,dyn_code,description',
+        'user:id,name',
         'reasonInOut',
-        'reference'
+        // Load electronic document with only essential fields
+        'electronicDocument' => function ($q) {
+          $q->select(
+            'id',
+            'full_number',
+            'serie',
+            'numero',
+            'status',
+            'cliente_denominacion',
+            'cliente_numero_de_documento',
+            'credit_note_id',
+            'total',
+            'fecha_de_emision'
+          )->with('creditNote:id,full_number'); // Load the credit note relation if exists
+        }
       ]);
 
     // Apply date range filter if provided
@@ -1158,6 +1234,49 @@ class InventoryMovementService extends BaseService
     $allMovements = $query->orderBy('movement_date', 'asc')
       ->orderBy('created_at', 'asc')
       ->get();
+
+    // Eager load specific reference relations to avoid N+1 queries
+    // Group movements by reference_type and load only the necessary relations for each type
+    $allMovements->load([
+      // PURCHASE_RECEPTION - load purchaseOrder
+      'reference' => function ($query) {
+        $query->when(
+          function ($q) {
+            return $q->getModel() instanceof PurchaseReception;
+          },
+          function ($q) {
+            $q->with([
+              'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
+              'purchaseOrder.supplier:id,full_name,num_doc'
+            ]);
+          }
+        );
+      },
+    ]);
+
+    // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
+    foreach ($allMovements as $movement) {
+      if ($movement->reference instanceof ShippingGuides) {
+        $movement->reference->load([
+          'receiverEstablishment:id,description,dyn_code',
+          'transmitterEstablishment:id,description,dyn_code'
+        ]);
+      } elseif ($movement->reference instanceof TransferReception) {
+        $movement->reference->load([
+          'shippingGuide' => function ($q) {
+            $q->select('id', 'document_number')
+              ->with('transmitterEstablishment:id,description,dyn_code');
+          }
+        ]);
+      } elseif ($movement->reference instanceof ApOrderQuotations) {
+        $movement->reference->load('client:id,full_name,num_doc');
+      } elseif ($movement->reference instanceof SupplierCreditNote) {
+        $movement->reference->load([
+          'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
+          'purchaseOrder.supplier:id,full_name,num_doc'
+        ]);
+      }
+    }
 
     // Calculate quantity_in, quantity_out, and running balance for each movement
     $runningBalance = 0;
@@ -1217,8 +1336,8 @@ class InventoryMovementService extends BaseService
 
     $paginatedMovements = $movementsWithBalance->slice(($page - 1) * $perPage, $perPage)->values();
 
-    // Transform to resource
-    $resourceCollection = InventoryMovementResource::collection($paginatedMovements);
+    // Transform to resource using optimized history resource
+    $resourceCollection = ProductMovementHistoryResource::collection($paginatedMovements);
 
     // Build pagination response
     $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
@@ -1232,8 +1351,23 @@ class InventoryMovementService extends BaseService
     $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
     $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
 
+    // Get product and warehouse info to send separately
+    $product = Products::select('id', 'name', 'code', 'dyn_code')
+      ->find($productId);
+    $warehouse = Warehouse::select('id', 'description', 'dyn_code')
+      ->find($warehouseId);
+
     return response()->json([
       'data' => $resourceCollection,
+      'product' => $product ? [
+        'name' => $product->name,
+        'code' => $product->code,
+        'dyn_code' => $product->dyn_code,
+      ] : null,
+      'warehouse' => $warehouse ? [
+        'description' => $warehouse->description,
+        'dyn_code' => $warehouse->dyn_code,
+      ] : null,
       'links' => [
         'first' => $first,
         'last' => $last,
