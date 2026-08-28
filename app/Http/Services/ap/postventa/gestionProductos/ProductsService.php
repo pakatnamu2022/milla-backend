@@ -7,6 +7,7 @@ use App\Http\Resources\ap\postventa\gestionProductos\ProductsResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\ExportService;
+use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
@@ -23,6 +24,7 @@ class ProductsService extends BaseService implements BaseServiceInterface
   {
     $this->exportService = $exportService;
   }
+
   public function list(Request $request)
   {
     $query = Products::query();
@@ -88,6 +90,10 @@ class ProductsService extends BaseService implements BaseServiceInterface
         $data['minimum_stock'] = 0;
       }
 
+      if ((int)$data['ap_class_article_id'] === ApClassArticle::SERVICIOS) {
+        throw new Exception('No se puede crear un producto con la clase de artículo "SERVICIOS".');
+      }
+
       // Generate correlative and append to code
       $correlative = Products::generateNextCorrelative();
       $data['dyn_code'] = str_replace('X', '', $data['dyn_code']);
@@ -137,6 +143,10 @@ class ProductsService extends BaseService implements BaseServiceInterface
     DB::beginTransaction();
     try {
       $product = $this->find($data['id']);
+
+      if ((int)$data['ap_class_article_id'] === ApClassArticle::SERVICIOS) {
+        throw new Exception('No se puede crear un producto con la clase de artículo "SERVICIOS".');
+      }
 
       // Si solo se está actualizando el status, permitir la actualización sin validaciones
       $isOnlyStatusUpdate = count($data) === 2 && isset($data['id']) && isset($data['status']);
