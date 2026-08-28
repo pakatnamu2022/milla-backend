@@ -7,7 +7,6 @@ use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductMovementHistoryResource;
 use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
-use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -19,7 +18,6 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
-use App\Models\ap\compras\SupplierCreditNoteDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -136,14 +134,22 @@ class InventoryMovementService extends BaseService
         break;
 
       case InventoryMovement::TYPE_TRANSFER_OUT:
-        $relations[] = 'reference.transmitterEstablishment';
-        $relations[] = 'reference.receiverEstablishment';
+        $relations[] = 'reference.transmitter:id,description,code';
+        $relations[] = 'reference.receiver:id,description,code';
         break;
 
       case InventoryMovement::TYPE_TRANSFER_IN:
-        $relations[] = 'reference.transferMovement.warehouseOrigin';
-        $relations[] = 'reference.shippingGuide.transmitterEstablishment';
-        $relations[] = 'reference.shippingGuide.receiverEstablishment';
+        // TRANSFER_IN can have two types of references:
+        // 1. TransferReception (when there's an explicit reception)
+        // 2. ShippingGuides (when it's a direct transfer without reception)
+        if ($movement->reference_type === TransferReception::class) {
+          $relations[] = 'reference.transferMovement.warehouse';
+          $relations[] = 'reference.shippingGuide.transmitter:id,description,code';
+          $relations[] = 'reference.shippingGuide.receiver:id,description,code';
+        } elseif ($movement->reference_type === ShippingGuides::class) {
+          $relations[] = 'reference.transmitter:id,description,code';
+          $relations[] = 'reference.receiver:id,description,code';
+        }
         break;
 
       case InventoryMovement::TYPE_SALE:
@@ -1258,14 +1264,14 @@ class InventoryMovementService extends BaseService
     foreach ($allMovements as $movement) {
       if ($movement->reference instanceof ShippingGuides) {
         $movement->reference->load([
-          'receiverEstablishment:id,description,dyn_code',
-          'transmitterEstablishment:id,description,dyn_code'
+          'receiver:id,description,code',
+          'transmitter:id,description,code'
         ]);
       } elseif ($movement->reference instanceof TransferReception) {
         $movement->reference->load([
           'shippingGuide' => function ($q) {
             $q->select('id', 'document_number')
-              ->with('transmitterEstablishment:id,description,dyn_code');
+              ->with('transmitter:id,description,code');
           }
         ]);
       } elseif ($movement->reference instanceof ApOrderQuotations) {
@@ -1281,27 +1287,54 @@ class InventoryMovementService extends BaseService
     // Calculate quantity_in, quantity_out, and running balance for each movement
     $runningBalance = 0;
 
-    // Get current stock to calculate initial balance
-    $currentStock = $this->stockService->getStock($productId, $warehouseId);
+    // Calculate initial balance BEFORE the filtered date range
+    // This is the stock that existed at the start of date_from
+    if ($allMovements->isNotEmpty() && $request->has('date_from')) {
+      // Use optimized SQL aggregation to calculate balance without loading all records
+      $inboundTypes = [
+        InventoryMovement::TYPE_PURCHASE_RECEPTION,
+        InventoryMovement::TYPE_ADJUSTMENT_IN,
+        InventoryMovement::TYPE_TRANSFER_IN,
+        InventoryMovement::TYPE_RETURN_IN,
+      ];
 
-    // If we have movements, we need to calculate the initial balance
-    // by subtracting all movements from current stock
-    if ($allMovements->isNotEmpty() && $currentStock) {
-      $totalIn = 0;
-      $totalOut = 0;
+      $outboundTypes = [
+        InventoryMovement::TYPE_SALE,
+        InventoryMovement::TYPE_ADJUSTMENT_OUT,
+        InventoryMovement::TYPE_TRANSFER_OUT,
+        InventoryMovement::TYPE_RETURN_OUT,
+      ];
 
-      foreach ($allMovements as $movement) {
-        $quantity = $movement->details->first()->quantity ?? 0;
+      // Calculate total inbound before date_from
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $productId)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<', $request->date_from)
+        ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
 
-        if ($movement->is_inbound) {
-          $totalIn += $quantity;
-        } else {
-          $totalOut += $quantity;
-        }
-      }
+      // Calculate total outbound before date_from
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $productId)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<', $request->date_from)
+        ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
 
-      // Initial balance = current stock - (total in - total out from filtered movements)
-      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
+      // Initial balance = inbound - outbound
+      $runningBalance = $totalInbound - $totalOutbound;
     }
 
     // Add calculated fields to each movement

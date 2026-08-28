@@ -148,12 +148,12 @@ class ProductMovementHistoryResource extends JsonResource
     return [
       'document_number' => $guide->document_number,
       'is_annulled' => $guide->is_annulled,
-      'receiver_name' => $guide->receiver_name,
-      'receiver_establishment' => $guide->receiverEstablishment ? [
-        'description' => $guide->receiverEstablishment->description,
+      'receiver_name' => $guide->receiver->description,
+      'receiver_establishment' => $guide->receiver ? [
+        'description' => $guide->receiver->description,
       ] : null,
-      'transmitter_establishment' => $guide->transmitterEstablishment ? [
-        'description' => $guide->transmitterEstablishment->description,
+      'transmitter_establishment' => $guide->transmitter ? [
+        'description' => $guide->transmitter->description,
       ] : null,
     ];
   }
