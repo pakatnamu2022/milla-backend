@@ -11,6 +11,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class PayrollRegisterExport implements
@@ -238,17 +239,47 @@ class PayrollRegisterExport implements
         ];
     }
 
+    /**
+     * Columnas de texto (no numéricas) — todo lo demás en headings() se trata como
+     * columna numérica para fines de alineación/totales.
+     */
+    private const TEXT_HEADINGS = [
+        'ID', 'DNI', 'Trabajador', 'Centro de Costo', 'Estado', 'Cargo', 'AFP',
+        'Tiene Asig. Familiar', 'Tiene ESSALUD Vida',
+    ];
+
+    /**
+     * Encabezados a los que se les agrega fórmula SUM() en la fila de totales.
+     */
+    private const SUM_HEADINGS = [
+        'Días Trabajados', 'Días Vacaciones', 'Días Descanso Médico', 'Días Ausencia',
+        'Días Efectivos', 'Horas Normales', 'Sueldo Básico', 'Asignación Familiar',
+        'H. Extra 25%', 'H. Extra 35%', 'Total Ingresos', 'Total Descuentos',
+        'Neto Preliminar', 'Neto + Aguinaldo', 'Total Aportes Empleador', 'Neto Final',
+    ];
+
+    /**
+     * Letra de columna Excel (A, B, ..., AA, ...) para un encabezado dado, calculada
+     * a partir de su posición real en headings() — evita contar letras a mano.
+     */
+    private function columnLetter(string $heading): string
+    {
+        $index = array_search($heading, $this->headings(), true);
+        return Coordinate::stringFromColumnIndex($index + 1);
+    }
+
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                $headings = $this->headings();
+                $lastColumn = Coordinate::stringFromColumnIndex(count($headings));
 
                 // Freeze header row
                 $sheet->freezePane('A2');
 
                 // Auto filter
-                $lastColumn = 'CP';
                 $sheet->setAutoFilter("A1:{$lastColumn}1");
 
                 // Header row height
@@ -258,16 +289,12 @@ class PayrollRegisterExport implements
                 $lastRow = $sheet->getHighestRow();
                 $sheet->getStyle("A2:{$lastColumn}{$lastRow}")->getAlignment()->setVertical('center');
 
-                // Numeric columns alignment (right)
-                $numberColumns = ['G', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-                                 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD',
-                                 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM',
-                                 'AN', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AV',
-                                 'AW', 'AX', 'AY', 'AZ', 'BA', 'BB', 'BC', 'BD', 'BE',
-                                 'BF', 'BG', 'BH', 'BI', 'BJ', 'BK', 'BL', 'BM', 'BN',
-                                 'BO', 'BP', 'BQ', 'BR', 'BS', 'BT', 'BU'];
-
-                foreach ($numberColumns as $col) {
+                // Numeric columns alignment (right) — todo lo que no esté en TEXT_HEADINGS
+                foreach ($headings as $heading) {
+                    if (in_array($heading, self::TEXT_HEADINGS, true)) {
+                        continue;
+                    }
+                    $col = $this->columnLetter($heading);
                     $sheet->getStyle("{$col}2:{$col}{$lastRow}")->getAlignment()->setHorizontal('right');
                 }
 
@@ -278,26 +305,8 @@ class PayrollRegisterExport implements
                 $sheet->getStyle("A{$totalsRow}:C{$totalsRow}")->getFont()->setBold(true);
 
                 // Sum formulas for key numeric columns
-                $sumColumns = [
-                    'K' => 'Días Trabajados',
-                    'L' => 'Días Vacaciones',
-                    'M' => 'Días Desc. Médico',
-                    'N' => 'Días Ausencia',
-                    'S' => 'Días Efectivos',
-                    'T' => 'Horas Normales',
-                    'U' => 'Sueldo Básico',
-                    'V' => 'Asig. Familiar',
-                    'W' => 'H. Extra 25%',
-                    'X' => 'H. Extra 35%',
-                    'AI' => 'Total Ingresos',
-                    'BA' => 'Total Descuentos',
-                    'BB' => 'Neto Preliminar',
-                    'BF' => 'Neto + Aguinaldo',
-                    'BM' => 'Total Aportes Empleador',
-                    'BO' => 'Neto Final',
-                ];
-
-                foreach ($sumColumns as $col => $label) {
+                foreach (self::SUM_HEADINGS as $heading) {
+                    $col = $this->columnLetter($heading);
                     $sheet->setCellValue("{$col}{$totalsRow}", "=SUM({$col}2:{$col}{$lastRow})");
                 }
 
