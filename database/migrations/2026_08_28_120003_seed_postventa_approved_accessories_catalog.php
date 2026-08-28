@@ -15,15 +15,16 @@ use Illuminate\Support\Str;
  *   VAN     -> VAN, MINIBUS, MICROBUS, PANEL
  *
  * Reglas:
- *  - Accesorios de la lista que ya existen  -> se reutiliza el registro y se
- *    reescriben sus precios por grupo.
+ *  - Accesorios de la lista que ya existen  -> se reutiliza el registro (match
+ *    por descripción / alias, case & accent insensitive) y se reescriben sus
+ *    precios por grupo.
  *  - Accesorios de la lista que no existen  -> se crean (post-venta, soles).
  *  - Post-venta que NO está en la lista     -> status = 0 (queda registrado
  *    para no romper cotizaciones viejas, pero deja de ofrecerse).
- *  - Comercial                              -> se habilita para las 16
- *    carrocerías que hoy usan los modelos (sin SIN CARROCERIA), al precio
- *    que ya tuvieran.
+ *  - Comercial                              -> se habilita para las carrocerías
+ *    que hoy usan los modelos (sin SIN CARROCERIA), al precio que ya tuvieran.
  *
+ * NOTA: no se usan IDs hardcodeados; los IDs difieren entre entornos.
  * Irreversible: down() no restaura datos.
  */
 return new class extends Migration
@@ -42,42 +43,45 @@ return new class extends Migration
   ];
 
   /**
-   * Lista oficial. 'id' = registro existente a reutilizar (null = crear /
-   * buscar por descripción). 'prices' = precio por grupo; grupo ausente = no aplica.
+   * Lista oficial.
+   *  - 'description' = nombre canónico (se guarda / actualiza así).
+   *  - 'aliases'     = otras descripciones con las que pudo haberse registrado
+   *                    antes (para reutilizar el mismo registro en vez de duplicar).
+   *  - 'prices'      = precio por grupo; grupo ausente = no aplica.
    */
   private array $catalog = [
-    ['id' => 51,   'description' => 'LAMINAS DE SEGURIDAD (MIYASATO)',                          'prices' => ['AUTOS' => 390, 'PICKUP' => 390, 'C3F' => 390, 'VAN' => 650]],
-    ['id' => null, 'description' => 'ALARMA BÁSICA AMERICANA',                                   'prices' => ['AUTOS' => 300, 'PICKUP' => 300, 'C3F' => 300, 'VAN' => 300]],
-    ['id' => 33,   'description' => 'ALARMA PRESTIGE APS25',                                     'prices' => ['AUTOS' => 400, 'PICKUP' => 400, 'C3F' => 400, 'VAN' => 400]],
-    ['id' => null, 'description' => 'SENSORES DE RETROCESO',                                     'prices' => ['AUTOS' => 250, 'PICKUP' => 250, 'C3F' => 250, 'VAN' => 250]],
-    ['id' => 8,    'description' => 'CÁMARA DE RETROCESO',                                       'prices' => ['AUTOS' => 300, 'PICKUP' => 300, 'C3F' => 300, 'VAN' => 300]],
-    ['id' => 2,    'description' => 'KIT DE SEGUROS (INCLUYE REMACHES)',                         'prices' => ['AUTOS' => 150, 'PICKUP' => 150, 'C3F' => 150, 'VAN' => 150]],
-    ['id' => null, 'description' => 'KIT DE SEGUROS RENAULT (INCLUYE REMACHES)',                 'prices' => ['AUTOS' => 150, 'PICKUP' => 150, 'C3F' => 150, 'VAN' => 150]],
-    ['id' => null, 'description' => 'CABLE ACERADO',                                             'prices' => ['AUTOS' => 100, 'PICKUP' => 100, 'C3F' => 100, 'VAN' => 100]],
-    ['id' => null, 'description' => 'UNDERCOATING (4 FRASCOS)',                                  'prices' => ['AUTOS' => 360]],
-    ['id' => null, 'description' => 'UNDERCOATING (9 FRASCOS)',                                  'prices' => ['PICKUP' => 810, 'C3F' => 810]],
-    ['id' => null, 'description' => 'UNDERCOATING (12 FRASCOS)',                                 'prices' => ['VAN' => 1080]],
-    ['id' => null, 'description' => 'TAPIZADO PRANA (INCLUYE ALFOMBRA)',                         'prices' => ['AUTOS' => 1170, 'PICKUP' => 1300, 'C3F' => 1560, 'VAN' => 2080]],
-    ['id' => null, 'description' => 'INSTALACIÓN DE CIERRE CENTRALIZADO (PESTILLOS ELECTRICOS)', 'prices' => ['AUTOS' => 500]],
-    ['id' => null, 'description' => 'INSTALACIÓN DE CIERRE CENTRALIZADO (CON SWITCH)',           'prices' => ['VAN' => 600]],
-    ['id' => null, 'description' => 'BARRAS LATERALES ALUMINIO',                                 'prices' => ['AUTOS' => 650, 'PICKUP' => 650, 'C3F' => 650, 'VAN' => 650]],
-    ['id' => null, 'description' => 'BARRAS TRANSVERSALES ALUMINIO',                             'prices' => ['AUTOS' => 560, 'PICKUP' => 560, 'C3F' => 560, 'VAN' => 560]],
-    ['id' => null, 'description' => 'ESTRIBOS PLANCHA DE ALUMINIO',                              'prices' => ['PICKUP' => 1430]],
-    ['id' => null, 'description' => 'ANTIVUELCO ACERADO',                                        'prices' => ['PICKUP' => 1430]],
-    ['id' => null, 'description' => 'PROTECTOR DE TOLVA',                                        'prices' => ['PICKUP' => 1600]],
-    ['id' => null, 'description' => 'CARPA',                                                     'prices' => ['AUTOS' => 234, 'PICKUP' => 260, 'C3F' => 325]],
-    ['id' => null, 'description' => 'ESPEJO RETROVISOR CON CÁMARA',                              'prices' => ['AUTOS' => 580, 'PICKUP' => 580, 'C3F' => 580]],
-    ['id' => null, 'description' => 'TIRO REMOLQUE',                                             'prices' => ['PICKUP' => 1040]],
-    ['id' => null, 'description' => 'LONA MARITIMA',                                             'prices' => ['PICKUP' => 1600]],
-    ['id' => null, 'description' => 'PARILLA PEQUEÑA UNIVERSAL (125 CM X 95 CM)',                'prices' => ['PICKUP' => 715]],
-    ['id' => null, 'description' => 'PARILLA MEDIANA UNIVERSAL (140 CM X 100 CM)',               'prices' => ['PICKUP' => 754]],
-    ['id' => null, 'description' => 'PARILLA GRANDE UNIVERSAL (160 CM X 120 CM)',                'prices' => ['PICKUP' => 845]],
-    ['id' => null, 'description' => 'PARILLA PEQUEÑA AERODINAMICA (125 CM X 95 CM)',             'prices' => ['PICKUP' => 910]],
-    ['id' => null, 'description' => 'PARILLA MEDIANA AERODINAMICA (140 CM X 100 CM)',            'prices' => ['PICKUP' => 936]],
-    ['id' => null, 'description' => 'PARILLA GRANDE AERODINAMICA (160 CM X 120 CM)',             'prices' => ['PICKUP' => 975]],
-    ['id' => 45,   'description' => 'FORRO DE TIMÓN',                                            'prices' => ['AUTOS' => 60, 'PICKUP' => 60, 'C3F' => 60, 'VAN' => 60]],
-    ['id' => null, 'description' => 'JGO DE NEBLINEROS FORCE LED',                               'prices' => ['PICKUP' => 1170]],
-    ['id' => null, 'description' => 'PORTANEBLINERO GALVANIZADO NEGRO',                          'prices' => ['PICKUP' => 650]],
+    ['description' => 'LAMINAS DE SEGURIDAD (MIYASATO)',                          'aliases' => ['LAMINAS DE SEGURIDAD MIYASATO', 'LAMINA DE SEGURIDAD (MIYASATO)', 'LAMINAS DE SEGURIDAD'], 'prices' => ['AUTOS' => 390, 'PICKUP' => 390, 'C3F' => 390, 'VAN' => 650]],
+    ['description' => 'ALARMA BÁSICA AMERICANA',                                   'aliases' => ['ALARMA BASICA AMERICANA', 'ALARMA BASICA'],                                                   'prices' => ['AUTOS' => 300, 'PICKUP' => 300, 'C3F' => 300, 'VAN' => 300]],
+    ['description' => 'ALARMA PRESTIGE APS25',                                     'aliases' => ['ALARMA APS25', 'ALARMA PRESTIGE APS 25', 'ALARMA APS 25'],                                    'prices' => ['AUTOS' => 400, 'PICKUP' => 400, 'C3F' => 400, 'VAN' => 400]],
+    ['description' => 'SENSORES DE RETROCESO',                                     'aliases' => ['SENSOR DE RETROCESO', 'SENSORES DE RETROCESO (4 PUNTOS)'],                                     'prices' => ['AUTOS' => 250, 'PICKUP' => 250, 'C3F' => 250, 'VAN' => 250]],
+    ['description' => 'CÁMARA DE RETROCESO',                                       'aliases' => ['CAMARA DE RETROCESO'],                                                                        'prices' => ['AUTOS' => 300, 'PICKUP' => 300, 'C3F' => 300, 'VAN' => 300]],
+    ['description' => 'KIT DE SEGUROS (INCLUYE REMACHES)',                         'aliases' => ['KIT DE SEGUROS INCLUYE REMACHES', 'KIT DE SEGUROS CON REMACHES', 'KIT DE SEGUROS + REMACHES'],  'prices' => ['AUTOS' => 150, 'PICKUP' => 150, 'C3F' => 150, 'VAN' => 150]],
+    ['description' => 'KIT DE SEGUROS RENAULT (INCLUYE REMACHES)',                 'aliases' => ['KIT DE SEGUROS RENAULT'],                                                                     'prices' => ['AUTOS' => 150, 'PICKUP' => 150, 'C3F' => 150, 'VAN' => 150]],
+    ['description' => 'CABLE ACERADO',                                            'aliases' => [],                                                                                            'prices' => ['AUTOS' => 100, 'PICKUP' => 100, 'C3F' => 100, 'VAN' => 100]],
+    ['description' => 'UNDERCOATING (4 FRASCOS)',                                  'aliases' => [],                                                                                            'prices' => ['AUTOS' => 360]],
+    ['description' => 'UNDERCOATING (9 FRASCOS)',                                  'aliases' => [],                                                                                            'prices' => ['PICKUP' => 810, 'C3F' => 810]],
+    ['description' => 'UNDERCOATING (12 FRASCOS)',                                 'aliases' => [],                                                                                            'prices' => ['VAN' => 1080]],
+    ['description' => 'TAPIZADO PRANA (INCLUYE ALFOMBRA)',                         'aliases' => ['TAPIZADO PRANA', 'TAPIZ PRANA'],                                                              'prices' => ['AUTOS' => 1170, 'PICKUP' => 1300, 'C3F' => 1560, 'VAN' => 2080]],
+    ['description' => 'INSTALACIÓN DE CIERRE CENTRALIZADO (PESTILLOS ELECTRICOS)', 'aliases' => ['CIERRE CENTRALIZADO (PESTILLOS ELECTRICOS)'],                                                  'prices' => ['AUTOS' => 500]],
+    ['description' => 'INSTALACIÓN DE CIERRE CENTRALIZADO (CON SWITCH)',           'aliases' => ['CIERRE CENTRALIZADO (CON SWITCH)'],                                                            'prices' => ['VAN' => 600]],
+    ['description' => 'BARRAS LATERALES ALUMINIO',                                 'aliases' => ['BARRAS LATERALES DE ALUMINIO'],                                                               'prices' => ['AUTOS' => 650, 'PICKUP' => 650, 'C3F' => 650, 'VAN' => 650]],
+    ['description' => 'BARRAS TRANSVERSALES ALUMINIO',                             'aliases' => ['BARRAS TRANSVERSALES DE ALUMINIO'],                                                           'prices' => ['AUTOS' => 560, 'PICKUP' => 560, 'C3F' => 560, 'VAN' => 560]],
+    ['description' => 'ESTRIBOS PLANCHA DE ALUMINIO',                              'aliases' => ['ESTRIBOS DE PLANCHA DE ALUMINIO'],                                                            'prices' => ['PICKUP' => 1430]],
+    ['description' => 'ANTIVUELCO ACERADO',                                        'aliases' => [],                                                                                            'prices' => ['PICKUP' => 1430]],
+    ['description' => 'PROTECTOR DE TOLVA',                                        'aliases' => [],                                                                                            'prices' => ['PICKUP' => 1600]],
+    ['description' => 'CARPA',                                                     'aliases' => [],                                                                                            'prices' => ['AUTOS' => 234, 'PICKUP' => 260, 'C3F' => 325]],
+    ['description' => 'ESPEJO RETROVISOR CON CÁMARA',                              'aliases' => ['ESPEJO RETROVISOR CON CAMARA'],                                                               'prices' => ['AUTOS' => 580, 'PICKUP' => 580, 'C3F' => 580]],
+    ['description' => 'TIRO REMOLQUE',                                             'aliases' => ['TIRO DE REMOLQUE'],                                                                           'prices' => ['PICKUP' => 1040]],
+    ['description' => 'LONA MARITIMA',                                             'aliases' => ['LONA MARÍTIMA'],                                                                              'prices' => ['PICKUP' => 1600]],
+    ['description' => 'PARILLA PEQUEÑA UNIVERSAL (125 CM X 95 CM)',                'aliases' => [],                                                                                            'prices' => ['PICKUP' => 715]],
+    ['description' => 'PARILLA MEDIANA UNIVERSAL (140 CM X 100 CM)',               'aliases' => [],                                                                                            'prices' => ['PICKUP' => 754]],
+    ['description' => 'PARILLA GRANDE UNIVERSAL (160 CM X 120 CM)',                'aliases' => [],                                                                                            'prices' => ['PICKUP' => 845]],
+    ['description' => 'PARILLA PEQUEÑA AERODINAMICA (125 CM X 95 CM)',             'aliases' => [],                                                                                            'prices' => ['PICKUP' => 910]],
+    ['description' => 'PARILLA MEDIANA AERODINAMICA (140 CM X 100 CM)',            'aliases' => [],                                                                                            'prices' => ['PICKUP' => 936]],
+    ['description' => 'PARILLA GRANDE AERODINAMICA (160 CM X 120 CM)',             'aliases' => [],                                                                                            'prices' => ['PICKUP' => 975]],
+    ['description' => 'FORRO DE TIMÓN',                                            'aliases' => ['FORRO DE TIMON', 'FORRO DE TIMON 60', 'FORRO DE TIMÓN 60', 'FORRO DE TIMON 120', 'FORRO DE TIMÓN 120', 'FORRO DE TIMON UNIVERSAL'], 'prices' => ['AUTOS' => 60, 'PICKUP' => 60, 'C3F' => 60, 'VAN' => 60]],
+    ['description' => 'JGO DE NEBLINEROS FORCE LED',                               'aliases' => ['JUEGO DE NEBLINEROS FORCE LED', 'JGO NEBLINEROS FORCE LED'],                                   'prices' => ['PICKUP' => 1170]],
+    ['description' => 'PORTANEBLINERO GALVANIZADO NEGRO',                          'aliases' => ['PORTA NEBLINERO GALVANIZADO NEGRO'],                                                          'prices' => ['PICKUP' => 650]],
   ];
 
   public function up(): void
@@ -90,14 +94,15 @@ return new class extends Migration
         $bodyTypeIds = array_merge($bodyTypeIds, $this->groups[$group]);
       }
 
-      $id = $entry['id'];
-
-      if ($id === null) {
-        $id = DB::table('approved_accessories')
-          ->where('type_operation_id', self::OPERATION_POSTVENTA)
-          ->whereRaw('UPPER(description) = ?', [Str::upper($entry['description'])])
-          ->value('id');
-      }
+      // Buscar el registro existente por descripción canónica o alias.
+      // La colación de MySQL (utf8mb4_*_ci) ya ignora mayúsculas y tildes.
+      $candidates = array_merge([$entry['description']], $entry['aliases'] ?? []);
+      $id = DB::table('approved_accessories')
+        ->where('type_operation_id', self::OPERATION_POSTVENTA)
+        ->whereNull('deleted_at')
+        ->whereIn('description', $candidates)
+        ->orderBy('id')
+        ->value('id');
 
       if ($id === null) {
         $codeSource = trim(preg_replace('/\(.*?\)/', '', $entry['description'])) ?: $entry['description'];
