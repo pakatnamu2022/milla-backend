@@ -54,11 +54,11 @@ class VerifyElectronicDocumentSyncCommand extends Command
     $document = ElectronicDocument::whereIn('id', [$documentId])
       ->whereNull('deleted_at')
       ->where(function ($query) {
-        // Para boletas: validar que esté en estado SENT y no esté anulado
+        // Para boletas: validar que esté en estado SENT o ACCEPTED y no esté anulado
         $query->whereHas('seriesModel', function ($q) {
           $q->where('type_receipt_id', AssignSalesSeries::BOLETA);
         })
-          ->where('status', ElectronicDocument::STATUS_SENT)
+          ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
           ->where('anulado', false);
       })
       ->orWhere(function ($query) use ($documentId) {
@@ -139,12 +139,12 @@ class VerifyElectronicDocumentSyncCommand extends Command
         ]);
     })
       ->where(function ($query) {
-        // Para boletas: validar que esté en estado SENT y no esté anulado
+        // Para boletas: validar que esté en estado SENT o ACCEPTED y no esté anulado
         $query->where(function ($q) {
           $q->whereHas('seriesModel', function ($sq) {
             $sq->where('type_receipt_id', AssignSalesSeries::BOLETA);
           })
-            ->where('status', ElectronicDocument::STATUS_SENT)
+            ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
             ->where('anulado', false);
         })
           // Para facturas: validar status ACCEPTED además de lo anterior
