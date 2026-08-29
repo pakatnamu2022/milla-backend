@@ -46,17 +46,21 @@ class EvaluationCategoryObjectiveDetail extends Model
     'fixedWeight' => 'boolean',
   ];
 
-  protected $reportRelations = ['worker', 'objective.metric'];
+  protected $reportRelations = ['worker.position', 'worker.area', 'worker.boss', 'objective.metric', 'category'];
 
   protected $reportColumns = [
-    'worker.vat'             => ['label' => 'DNI', 'width' => 12],
-    'worker.nombre_completo' => ['label' => 'Nombre Completo', 'width' => 30],
-    'objective.name'         => ['label' => "Objetivo", 'width' => 35],
-    'descripcion_report'     => ['label' => 'Descripción', 'accessor' => 'getDescripcionReportAttribute', 'width' => 35],
-    'objective.metric.name'  => ['label' => 'Métrica', 'width' => 18],
-    'goal'                   => ['label' => 'Meta', 'width' => 10],
-    'logica_report'          => ['label' => 'Lógica', 'accessor' => 'getLogicaReportAttribute', 'width' => 18],
-    'weight'                 => ['label' => "Peso", 'width' => 14],
+    'worker.vat'                  => ['label' => 'DNI', 'width' => 12],
+    'worker.nombre_completo'      => ['label' => 'Nombre Completo', 'width' => 30],
+    'worker.position.name'        => ['label' => 'Puesto', 'width' => 25],
+    'worker.area.name'            => ['label' => 'Área', 'width' => 20],
+    'worker.boss.nombre_completo' => ['label' => 'Líder', 'width' => 30],
+    'category.name'               => ['label' => 'Categoría', 'width' => 25],
+    'objective.name'              => ['label' => 'Objetivo', 'width' => 35],
+    'descripcion_report'          => ['label' => 'Descripción', 'accessor' => 'getDescripcionReportAttribute', 'width' => 35],
+    'objective.metric.name'       => ['label' => 'Métrica', 'width' => 18],
+    'goal'                        => ['label' => 'Meta', 'width' => 10],
+    'logica_report'               => ['label' => 'Lógica', 'accessor' => 'getLogicaReportAttribute', 'width' => 18],
+    'weight'                      => ['label' => 'Peso', 'width' => 14],
   ];
 
   public function getDescripcionReportAttribute(): string
@@ -72,7 +76,7 @@ class EvaluationCategoryObjectiveDetail extends Model
   public function getReportData($filters = [], $columns = null)
   {
     return $this->newQuery()
-      ->with(['worker', 'objective.metric'])
+      ->with(['worker.position', 'worker.area', 'worker.boss', 'objective.metric', 'category'])
       ->where('active', 1)
       ->whereHas('objective', fn($q) => $q->where('active', 1))
       ->whereNull('deleted_at')
