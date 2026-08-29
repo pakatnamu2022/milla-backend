@@ -19,6 +19,7 @@ use App\Models\ap\comercial\PurchaseRequestQuoteOther;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
+use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -161,7 +162,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       // Guardar accessories en DetailsApprovedAccessoriesQuote
       if (isset($data['accessories']) && is_array($data['accessories'])) {
-        $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+        $this->saveAccessories(
+          $purchaseRequestQuote->id,
+          $data['accessories'],
+          $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
+        );
       }
 
       // Guardar costos internos (OTROS) y calcular margen
@@ -293,7 +298,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
             fn($row) => ($row['type'] ?? null) === 'OBSEQUIO'
           ));
           if (count($giftsOnly) > 0) {
-            $this->saveAccessories($purchaseRequestQuote->id, $giftsOnly);
+            $this->saveAccessories(
+              $purchaseRequestQuote->id,
+              $giftsOnly,
+              $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
+            );
           }
         } else {
           // Eliminar los accesorios existentes
@@ -301,7 +310,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
           // Crear los nuevos accesorios si el array no está vacío
           if (is_array($data['accessories']) && count($data['accessories']) > 0) {
-            $this->saveAccessories($purchaseRequestQuote->id, $data['accessories']);
+            $this->saveAccessories(
+              $purchaseRequestQuote->id,
+              $data['accessories'],
+              $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
+            );
           }
         }
       }
@@ -610,7 +623,80 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   }
 
   /**
+   * Duplica una solicitud/cotización N veces a partir de la misma oportunidad,
+   * copiando titular, modelo, color, precios, garantía, crédito/seguro/GPS,
+   * bonos/descuentos, accesorios y "otros costos".
+   *
+   * Cada copia nace "limpia": tipo SOLICITUD_COMPRA (sin VIN), sin aprobar,
+   * sin facturar y con su propio correlativo. Cada una es independiente para
+   * asignarle luego su VIN, aprobación y facturación.
+   *
+   * @throws Throwable
+   */
+  public function duplicate(int $id, int $copies)
+  {
+    return DB::transaction(function () use ($id, $copies) {
+      $source = $this->find($id);
+      $source->load(['discountCoupons', 'accessories', 'others']);
+
+      $created = collect();
+
+      for ($i = 0; $i < $copies; $i++) {
+        $copy = $source->replicate();
+        $copy->correlative    = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
+        $copy->type_document  = 'SOLICITUD_COMPRA';
+        $copy->ap_vehicle_id  = null;
+        $copy->is_approved    = 0;
+        if (array_key_exists('is_invoiced', $source->getAttributes())) {
+          $copy->is_invoiced = 0;
+        }
+        $copy->margin_amount  = 0;
+        $copy->margin_pct     = 0;
+        $copy->save();
+
+        foreach ($source->discountCoupons as $coupon) {
+          $newCoupon = $coupon->replicate();
+          $newCoupon->purchase_request_quote_id = $copy->id;
+          $newCoupon->save();
+        }
+
+        foreach ($source->accessories as $accessory) {
+          $newAccessory = $accessory->replicate();
+          $newAccessory->purchase_request_quote_id = $copy->id;
+          $newAccessory->save();
+        }
+
+        foreach ($source->others as $other) {
+          $newOther = $other->replicate();
+          $newOther->purchase_request_quote_id = $copy->id;
+          $newOther->save();
+        }
+
+        $this->refreshMargin($copy);
+
+        $this->sendQuoteCreatedEmail($copy->fresh()->load([
+          'holder', 'opportunity.worker', 'apModelsVn.family.brand',
+          'vehicleColor', 'typeCurrency', 'docTypeCurrency',
+          'discountCoupons.conceptCode', 'accessories.approvedAccessory', 'sede', 'vehicle',
+        ]));
+
+        $created->push($copy);
+      }
+
+      return [
+        'message'      => $created->count() . ' solicitud(es) generada(s) correctamente.',
+        'correlatives' => $created->pluck('correlative')->values(),
+      ];
+    });
+  }
+
+  /**
    * Elimina un registro de PurchaseRequestQuote y sus relaciones.
+   *
+   * Solo se permite si la solicitud está "limpia": sin VIN asignado, sin
+   * aprobar, sin documentos electrónicos (anticipos/facturas), sin orden de
+   * compra y sin solicitudes de ajuste de margen.
+   *
    * @param $id
    * @return JsonResponse
    * @throws Throwable
@@ -618,9 +704,34 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   public function destroy($id)
   {
     $PurchaseRequestQuote = $this->find($id);
+
+    if (!is_null($PurchaseRequestQuote->ap_vehicle_id)) {
+      throw new Exception('No se puede eliminar: la solicitud tiene un vehículo (VIN) asignado. Desasigna el vehículo primero.');
+    }
+
+    if ((bool) $PurchaseRequestQuote->is_approved) {
+      throw new Exception('No se puede eliminar: la solicitud ya está aprobada.');
+    }
+
+    if ($PurchaseRequestQuote->electronicDocuments()->whereNull('deleted_at')->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene documentos electrónicos asociados (anticipos o facturas).');
+    }
+
+    if ($PurchaseRequestQuote->adjustmentRequests()->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene solicitudes de ajuste de margen asociadas.');
+    }
+
+    if ($PurchaseRequestQuote->purchaseOrders()->exists()) {
+      throw new Exception('No se puede eliminar: la solicitud tiene una orden de compra asociada.');
+    }
+
     DB::transaction(function () use ($PurchaseRequestQuote) {
+      $PurchaseRequestQuote->discountCoupons()->delete();
+      $PurchaseRequestQuote->accessories()->delete();
+      $PurchaseRequestQuote->others()->delete();
       $PurchaseRequestQuote->delete();
     });
+
     return response()->json(['message' => 'Registro eliminado correctamente']);
   }
 
@@ -923,24 +1034,36 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   /**
    * Guarda los accesorios en la tabla DetailsApprovedAccessoriesQuote
    */
-  private function saveAccessories($purchaseRequestQuoteId, $accessories)
+  private function saveAccessories($purchaseRequestQuoteId, $accessories, ?int $bodyTypeId = null)
   {
     foreach ($accessories as $accessory) {
       // Obtener el accesorio aprobado para obtener su precio y moneda
-      $approvedAccessory = ApprovedAccessories::find($accessory['accessory_id']);
+      $approvedAccessory = ApprovedAccessories::with('prices')->find($accessory['accessory_id']);
 
       if (!$approvedAccessory) {
         throw new Exception('Accesorio con ID ' . $accessory['accessory_id'] . ' no encontrado.');
       }
 
+      // El precio depende de la carrocería del modelo/vehículo de la solicitud.
+      // Si no se puede resolver esa carrocería, se toma la primera fila de precio.
+      $priceRow = $bodyTypeId
+        ? $approvedAccessory->prices->firstWhere('body_type_id', $bodyTypeId)
+        : null;
+      $priceRow = $priceRow ?: $approvedAccessory->prices->first();
+
+      if (!$priceRow) {
+        throw new Exception('El accesorio "' . $approvedAccessory->description . '" no tiene un precio configurado.');
+      }
+
       $type = $accessory['type'];
       $quantity = $accessory['quantity'];
-      $price = $approvedAccessory->price;
+      $price = (float) $priceRow->price;
       $additionalPrice = max(0, $accessory['additional_price'] ?? 0);
       $total = $quantity * ($price + $additionalPrice);
 
       DetailsApprovedAccessoriesQuote::create([
         'approved_accessory_id'     => $accessory['accessory_id'],
+        'body_type_id'              => $priceRow->body_type_id,
         'type'                      => $type,
         'quantity'                  => $quantity,
         'price'                     => $price,
@@ -950,6 +1073,19 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
       ]);
     }
+  }
+
+  /**
+   * Resuelve la carrocería (body_type_id) del modelo VN de la solicitud, que es
+   * la que determina qué precio de cada accesorio homologado aplica.
+   */
+  private function bodyTypeIdForModel(?int $apModelsVnId): ?int
+  {
+    if (!$apModelsVnId) {
+      return null;
+    }
+
+    return ApModelsVn::whereKey($apModelsVnId)->value('body_type_id');
   }
 
   /**

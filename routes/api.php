@@ -819,6 +819,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         //    CATEGORY OBJECTIVE DETAILS
         Route::get('/categoryObjectiveDetail/global-weight-report', [EvaluationCategoryObjectiveDetailController::class, 'globalWeightReport']);
+        Route::get('/categoryObjectiveDetail/export-all', [EvaluationCategoryObjectiveDetailController::class, 'exportAll']);
         Route::get('/categoryObjectiveDetail/{category}/weight-report', [EvaluationCategoryObjectiveDetailController::class, 'weightReport']);
         Route::post('/categoryObjectiveDetail/{category}/apply-reference-weights', [EvaluationCategoryObjectiveDetailController::class, 'applyReferenceWeights']);
         Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
@@ -1412,6 +1413,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
       Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
       Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
+      Route::post('purchaseRequestQuote/{id}/duplicate', [PurchaseRequestQuoteController::class, 'duplicate']);
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
         'show',

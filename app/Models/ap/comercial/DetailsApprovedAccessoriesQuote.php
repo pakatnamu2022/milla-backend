@@ -23,6 +23,7 @@ class DetailsApprovedAccessoriesQuote extends Model
     'type_currency_id',
     'purchase_request_quote_id',
     'approved_accessory_id',
+    'body_type_id',
   ];
 
   public function approvedAccessory()

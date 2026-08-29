@@ -2564,7 +2564,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Una vez iniciado el proceso de entrega (VENDIDO_NO_ENTREGADO o VENDIDO_ENTREGADO) o ya
       // en estado FACTURADO/FACTURADO_FINAL, no se regresa a un estado anterior.
       $targetStatusId = $isFinal ? ApVehicleStatus::FACTURADO_FINAL : ApVehicleStatus::FACTURADO;
-      $shouldUpdateStatus = !ApVehicleStatus::isSaleStatus($previousStatusId);
+      // Permitir la transición FACTURADO → FACTURADO_FINAL cuando la factura final llega después del anticipo.
+      $shouldUpdateStatus = !ApVehicleStatus::isSaleStatus($previousStatusId)
+        || ($isFinal && $previousStatusId === ApVehicleStatus::FACTURADO);
 
       // Crear el movimiento de vehículo
       $vehicleMovement = VehicleMovement::create([

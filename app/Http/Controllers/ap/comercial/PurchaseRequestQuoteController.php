@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
+use App\Http\Requests\ap\comercial\DuplicatePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\SwapVehicleRequest;
 use App\Http\Requests\ap\comercial\ExportPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
@@ -84,6 +85,15 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->success($this->service->swapVehicle($id, $request->validated()['ap_vehicle_id']));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function duplicate(DuplicatePurchaseRequestQuoteRequest $request, int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->duplicate($id, (int) $request->validated()['copies']));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

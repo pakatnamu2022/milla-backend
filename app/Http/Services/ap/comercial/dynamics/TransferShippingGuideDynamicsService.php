@@ -316,7 +316,9 @@ class TransferShippingGuideDynamicsService
       $class_id = $vehicleVn->model->class_id ?? null;
 
       if ($shippingGuide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_COMPRA) {
-        $sede_id = $shippingGuide->sedeReceiver->id ?? null;
+        // If the vehicle was moved via a traslado interno before the compra guide was synced,
+        // use the vehicle's current sede (where it physically is) instead of the guide's sedeReceiver.
+        $sede_id = $vehicleVn->warehouse?->sede_id ?? $shippingGuide->sedeReceiver->id ?? null;
 
         $baseQuery = Warehouse::where('sede_id', $sede_id)
           ->where('type_operation_id', $type_operation_id)
@@ -544,7 +546,11 @@ class TransferShippingGuideDynamicsService
       // otros flujos (TRASLADO_SEDE, COMPRA) terminan en almacén de recepción (is_received = true).
       $isReceived = $shippingGuide->document_type !== ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA;
 
-      $warehouseId = Warehouse::where('sede_id', $shippingGuide->sedeReceiver->id)
+      // For COMPRA guides, use the vehicle's current sede in case a traslado interno moved it
+      // before this guide was processed in Dynamics (e.g., bought in Piura, now in Chiclayo).
+      $sedeId = $vehicle->warehouse?->sede_id ?? $shippingGuide->sedeReceiver->id;
+
+      $warehouseId = Warehouse::where('sede_id', $sedeId)
         ->where('type_operation_id', $vehicle->type_operation_id)
         ->where('article_class_id', $vehicle->model->class_id)
         ->where('is_received', $isReceived)
