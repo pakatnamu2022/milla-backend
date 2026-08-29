@@ -202,7 +202,7 @@ class InventoryMovementService extends BaseService
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_PURCHASE_RECEPTION,
-        'movement_date' => $reception->reception_date,
+        'movement_date' => $purchaseOrder->emission_date,
         'warehouse_id' => $reception->warehouse_id,
         'currency_id' => $currencyId,              // Currency from purchase order
         'exchange_rate' => $exchangeRateValue,      // Exchange rate value for conversion
