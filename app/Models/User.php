@@ -67,7 +67,12 @@ class User extends Authenticatable
 
   public function person()
   {
-    return $this->hasOne(Person::class, 'id', 'partner_id');
+    return $this->hasOne(Person::class, 'id', 'partner_id')
+      ->where(function ($q) {
+        $q->where(function ($inner) {
+          $inner->where('b_empleado', 1)->where('status_id', 22);
+        })->orWhere('b_proveedor', 1);
+      });
   }
 
   public function role()
