@@ -10,7 +10,6 @@ use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\venta\ApAssignBrandConsultant;
 use App\Models\ap\configuracionComercial\venta\ApCommercialManagerBrandGroup;
 use App\Models\gp\gestionhumana\personal\Worker;
-use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -32,11 +31,13 @@ class ApDailyDeliveryReportService
     $year = $carbonInicio->year;
     $month = $carbonInicio->month;
 
-    // Paso 1: Obtener vehículos con entrega en el rango de fechas
-    $vehiclesWithDelivery = $this->getDeliveredVehicles($fechaInicio, $fechaFin);
+    // Paso 0: Resolver qué solicitudes tienen venta facturada real atribuible al periodo
+    //         (aplica NC, ND y refacturaciones). Fuente única de verdad de "facturadas".
+    $invoicing = (new CommercialInvoicingPeriodResolver())->resolve($fechaInicio, $fechaFin);
+    $invoicedQuoteIds = $invoicing->quote_ids;
 
-    // Paso 2: Obtener IDs de cotizaciones facturadas en el rango de fechas
-    $invoicedQuoteIds = $this->getInvoicedQuoteIds($fechaInicio, $fechaFin);
+    // Paso 1: Obtener vehículos con entrega en el rango de fechas (o facturados atribuibles al periodo)
+    $vehiclesWithDelivery = $this->getDeliveredVehicles($fechaInicio, $fechaFin, $invoicedQuoteIds);
 
     // Paso 3: Construir resumen por grupo de marca (TRADICIONALES, CHINAS, CAMIONES)
     $summary = $this->buildSummaryByBrandGroup($vehiclesWithDelivery, $invoicedQuoteIds);
@@ -69,6 +70,9 @@ class ApDailyDeliveryReportService
     // Paso 9: Construir reporte de compras por marca y por sede
     $purchasesReport = $this->buildPurchasesReport($fechaInicio, $fechaFin, $year, $month, $vehiclesWithDelivery);
 
+    // Paso 10: Detalle de refacturaciones / NC parcial (trazabilidad)
+    $refacturadas = $this->buildRefacturadasDetail($invoicing);
+
     return [
       'fecha_inicio'      => $fechaInicio,
       'fecha_fin'         => $fechaFin,
@@ -82,7 +86,129 @@ class ApDailyDeliveryReportService
       'brand_report'      => $brandReport,
       'purchases_report'  => $purchasesReport,
       'current_inventory' => $currentInventory,
+      'refacturadas'      => $refacturadas['en_periodo'],
+      'refacturadas_fuera_periodo' => $refacturadas['fuera_periodo'],
     ];
+  }
+
+  /**
+   * Construye el detalle de refacturaciones / NC parcial para trazabilidad.
+   *  - en_periodo: solicitudes cuya venta se atribuye a este periodo por refacturación
+   *    (o con NC parcial sobre el comprobante vigente).
+   *  - fuera_periodo: solicitudes facturadas dentro del rango pero cuya venta se
+   *    atribuye a un periodo anterior (explican por qué el conteo de "facturadas" baja).
+   *
+   * @param object $invoicing Resultado de CommercialInvoicingPeriodResolver::resolve()
+   */
+  protected function buildRefacturadasDetail(object $invoicing): array
+  {
+    $refactured = $invoicing->refactured;
+    $outOfPeriod = $invoicing->out_of_period;
+
+    if (empty($refactured) && $outOfPeriod->isEmpty()) {
+      return ['en_periodo' => [], 'fuera_periodo' => []];
+    }
+
+    // IDs de documentos involucrados
+    $docIds = collect($refactured)
+      ->flatMap(fn($r) => [$r['comprobante_original_id'], $r['comprobante_vigente_id']])
+      ->filter()
+      ->unique()
+      ->all();
+
+    $docs = empty($docIds)
+      ? collect()
+      : DB::table('ap_billing_electronic_documents')
+        ->whereIn('id', $docIds)
+        ->select('id', 'full_number', 'fecha_de_emision', 'total')
+        ->get()
+        ->keyBy('id');
+
+    $originalIds = collect($refactured)->pluck('comprobante_original_id')->filter()->unique()->all();
+    $ncByOriginal = empty($originalIds)
+      ? collect()
+      : DB::table('ap_billing_electronic_documents')
+        ->whereNull('deleted_at')
+        ->where('anulado', false)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->whereIn('original_document_id', $originalIds)
+        ->select('original_document_id', 'full_number', 'fecha_de_emision', 'total')
+        ->get()
+        ->groupBy('original_document_id');
+
+    // Info de solicitudes (correlativo, cliente, asesor, VIN, marca)
+    $quoteIds = array_values(array_unique(array_merge(
+      array_keys($refactured),
+      $outOfPeriod->all()
+    )));
+
+    $quotes = empty($quoteIds)
+      ? collect()
+      : DB::table('purchase_request_quote as prq')
+        ->leftJoin('ap_vehicles as v', 'prq.ap_vehicle_id', '=', 'v.id')
+        ->leftJoin('ap_models_vn as m', 'v.ap_models_vn_id', '=', 'm.id')
+        ->leftJoin('ap_families as f', 'm.family_id', '=', 'f.id')
+        ->leftJoin('ap_vehicle_brand as b', 'f.brand_id', '=', 'b.id')
+        ->leftJoin('ap_opportunity as o', 'prq.opportunity_id', '=', 'o.id')
+        ->leftJoin('rrhh_persona as w', 'o.worker_id', '=', 'w.id')
+        ->leftJoin('business_partners as bp', 'prq.holder_id', '=', 'bp.id')
+        ->whereIn('prq.id', $quoteIds)
+        ->select([
+          'prq.id',
+          'prq.correlative',
+          'v.vin',
+          'b.name as brand_name',
+          'bp.full_name as cliente',
+          'w.nombre_completo as asesor',
+        ])
+        ->get()
+        ->keyBy('id');
+
+    $mapRow = function (array $r) use ($docs, $ncByOriginal, $quotes) {
+      $q = $quotes->get($r['quote_id']);
+      $orig = $docs->get($r['comprobante_original_id']);
+      $vig = $docs->get($r['comprobante_vigente_id']);
+      $ncs = $ncByOriginal->get($r['comprobante_original_id'], collect());
+
+      return [
+        'solicitud' => $q->correlative ?? null,
+        'vin' => $q->vin ?? null,
+        'cliente' => $q && trim((string) $q->cliente) !== '' ? trim($q->cliente) : null,
+        'asesor' => $q->asesor ?? null,
+        'marca' => $q->brand_name ?? null,
+        'comprobante_original' => $orig->full_number ?? null,
+        'fecha_original' => $orig->fecha_de_emision ? substr($orig->fecha_de_emision, 0, 10) : $r['fecha_original'],
+        'monto_original' => isset($orig->total) ? (float) $orig->total : null,
+        'nota_credito' => $ncs->pluck('full_number')->implode(', ') ?: null,
+        'fecha_nc' => optional($ncs->first())->fecha_de_emision
+          ? substr($ncs->first()->fecha_de_emision, 0, 10) : null,
+        'monto_nc' => $ncs->isNotEmpty() ? (float) $ncs->sum('total') : ($r['nc_total'] ?? null),
+        'comprobante_nuevo' => $r['refacturacion'] ? ($vig->full_number ?? null) : null,
+        'fecha_nuevo' => $r['refacturacion'] && $vig?->fecha_de_emision
+          ? substr($vig->fecha_de_emision, 0, 10) : ($r['refacturacion'] ? $r['fecha_vigente'] : null),
+        'periodo_atribuido' => $r['periodo_atribuido'],
+        'observacion' => $r['parcial']
+          ? 'NC PARCIAL — revisar: la NC no anula ni descuenta el total.'
+          : 'Refacturación: se anuló el comprobante original con NC y se emitió uno nuevo.',
+      ];
+    };
+
+    $enPeriodo = array_values(array_map($mapRow, $refactured));
+
+    $fueraPeriodo = $quotes
+      ->only($outOfPeriod->all())
+      ->map(fn($q) => [
+        'solicitud' => $q->correlative ?? null,
+        'vin' => $q->vin ?? null,
+        'cliente' => $q && trim((string) $q->cliente) !== '' ? trim($q->cliente) : null,
+        'asesor' => $q->asesor ?? null,
+        'marca' => $q->brand_name ?? null,
+        'observacion' => 'Facturada en el rango pero atribuida a un periodo anterior (refacturación).',
+      ])
+      ->values()
+      ->all();
+
+    return ['en_periodo' => $enPeriodo, 'fuera_periodo' => $fueraPeriodo];
   }
 
   /**
@@ -93,8 +219,10 @@ class ApDailyDeliveryReportService
    * @param string $fechaFin
    * @return Collection
    */
-  protected function getDeliveredVehicles(string $fechaInicio, string $fechaFin): Collection
+  protected function getDeliveredVehicles(string $fechaInicio, string $fechaFin, Collection $invoicedQuoteIds): Collection
   {
+    $invoicedQuoteIdList = $invoicedQuoteIds->all() ?: [0];
+
     $vehicles = DB::table('ap_vehicles')
       ->leftJoin('ap_vehicle_delivery', function ($join) {
         $join->on('ap_vehicles.id', '=', 'ap_vehicle_delivery.vehicle_id')
@@ -110,29 +238,15 @@ class ApDailyDeliveryReportService
       ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
       ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
       ->leftJoin('config_sede', DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id)'), '=', 'config_sede.id')
-      ->where(function ($query) use ($fechaInicio, $fechaFin) {
+      ->where(function ($query) use ($fechaInicio, $fechaFin, $invoicedQuoteIdList) {
         $fechaFinFull = $fechaFin . ' 23:59:59';
         // Tiene entrega en el rango de fechas
         $query->where(function ($q) use ($fechaInicio, $fechaFinFull) {
           $q->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFinFull])
             ->whereNotNull('ap_vehicle_delivery.real_delivery_date');
         })
-          // O tiene factura válida en el rango de fechas (independiente de la entrega)
-          ->orWhereExists(function ($q) use ($fechaInicio, $fechaFinFull) {
-            $q->select(DB::raw(1))
-              ->from('ap_billing_electronic_documents')
-              ->whereColumn('ap_billing_electronic_documents.purchase_request_quote_id', 'purchase_request_quote.id')
-              ->where('ap_billing_electronic_documents.is_advance_payment', false)
-              ->where('ap_billing_electronic_documents.aceptada_por_sunat', true)
-              ->where('ap_billing_electronic_documents.anulado', false)
-              ->whereIn('ap_billing_electronic_documents.sunat_concept_document_type_id', [
-                SunatConcepts::ID_FACTURA_ELECTRONICA,
-                SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
-              ])
-              ->where('ap_billing_electronic_documents.area_id', ApMasters::AREA_COMERCIAL)
-              ->whereBetween('ap_billing_electronic_documents.fecha_de_emision', [$fechaInicio, $fechaFinFull])
-              ->whereNull('ap_billing_electronic_documents.deleted_at');
-          });
+          // O tiene venta facturada real atribuible al periodo (aplica NC, ND y refacturaciones)
+          ->orWhereIn('purchase_request_quote.id', $invoicedQuoteIdList);
       })
       ->whereNull('ap_vehicles.deleted_at')
       ->select([
@@ -190,19 +304,7 @@ class ApDailyDeliveryReportService
    */
   protected function getInvoicedQuoteIds(string $fechaInicio, string $fechaFin): Collection
   {
-    return ElectronicDocument::where('is_advance_payment', false)
-      ->where('aceptada_por_sunat', true)
-      ->where('anulado', false)
-      ->whereIn('sunat_concept_document_type_id', [
-        SunatConcepts::ID_FACTURA_ELECTRONICA,
-        SunatConcepts::ID_BOLETA_VENTA_ELECTRONICA,
-      ])
-      ->where('area_id', ApMasters::AREA_COMERCIAL)
-      ->whereNotNull('purchase_request_quote_id')
-      ->whereBetween('fecha_de_emision', [$fechaInicio, $fechaFin . ' 23:59:59'])
-      ->whereNull('deleted_at')
-      ->distinct()
-      ->pluck('purchase_request_quote_id');
+    return (new CommercialInvoicingPeriodResolver())->resolve($fechaInicio, $fechaFin)->quote_ids;
   }
 
   protected function buildSummaryByBrandGroup(Collection $vehicles, Collection $invoicedQuoteIds): array
