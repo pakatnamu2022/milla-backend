@@ -45,11 +45,18 @@ class ApOrderQuotationsReversalService
       }
 
       // Revertir estados
-      $quotation->update([
+      $updateData = [
         'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
         'is_fully_paid' => false,
         'output_generation_warehouse' => false,
-      ]);
+      ];
+
+      // Si es una NC, marcar que tuvo NC (para tracking de re-reserva)
+      if ($creditNote && $creditNote->is_nota_credito) {
+        $updateData['had_credit_note'] = true;
+      }
+
+      $quotation->update($updateData);
 
     } catch (Exception $e) {
       Log::error('Error al revertir estado de cotización', [

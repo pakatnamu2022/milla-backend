@@ -20,7 +20,7 @@ class StoreCreditNoteRequest extends StoreRequest
     // original_document_id comes from the route {id} parameter
     $routeId = $this->route('id');
     if ($routeId !== null) {
-      $this->merge(['original_document_id' => (int) $routeId]);
+      $this->merge(['original_document_id' => (int)$routeId]);
     }
 
     $numericFields = [
@@ -123,6 +123,7 @@ class StoreCreditNoteRequest extends StoreRequest
       'observaciones' => 'nullable|string|max:1000',
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
       'enviar_automaticamente_al_cliente' => 'nullable|boolean',
+      're_invoice' => 'nullable|boolean',
     ];
 
     if ($typeCode === SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL) {

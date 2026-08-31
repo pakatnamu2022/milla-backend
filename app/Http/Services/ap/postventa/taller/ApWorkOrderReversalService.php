@@ -45,11 +45,18 @@ class ApWorkOrderReversalService
       }
 
       // Revertir estados
-      $workOrder->update([
+      $updateData = [
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
         'is_invoiced' => false,
         'output_generation_warehouse' => false,
-      ]);
+      ];
+
+      // Si es una NC, marcar que tuvo NC (para tracking de re-reserva)
+      if ($creditNote && $creditNote->is_nota_credito) {
+        $updateData['had_credit_note'] = true;
+      }
+
+      $workOrder->update($updateData);
 
     } catch (Exception $e) {
       Log::error('Error al revertir estado de orden de trabajo', [

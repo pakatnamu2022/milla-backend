@@ -131,6 +131,7 @@ class ElectronicDocumentResource extends JsonResource
       'card_last4' => $this->card_last4,
       'internal_note' => $this->internal_note,
       'consolidation_type' => $this->consolidation_type,
+      're_invoice' => $this->re_invoice,
 
       /**
        * Timestamps and users
