@@ -73,7 +73,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     $sedeId = $request->filled('sede_id') ? $request->get('sede_id') : null;
 
-    // 1. Comprobantes base (facturas + boletas) aceptados por SUNAT.
+    // 1. Comprobantes base (facturas + boletas), aceptados o no por SUNAT.
+    //    Los no aceptados también se muestran, con "NO" en la columna ACEPTADA POR SUNAT.
     //    No se filtra por fecha aquí: se necesita toda la cadena de la solicitud
     //    para detectar refacturaciones y atribuir el periodo correcto.
     $invoiceQuery = ElectronicDocument::with([
@@ -94,8 +95,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         ElectronicDocument::TYPE_BOLETA,
       ])
       ->where('is_advance_payment', false)
-      ->where('anulado', false)
-      ->where('aceptada_por_sunat', true);
+      ->where('anulado', false);
 
     if ($sedeId) {
       $invoiceQuery->whereHas('purchaseRequestQuote', function ($q) use ($sedeId) {
@@ -162,8 +162,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         ];
       });
 
-      $vigentes = $enriched->filter(fn($e) => round($e['net'], 2) > $tol)->values();
-      $cancelled = $enriched->filter(fn($e) => round($e['net'], 2) <= $tol)->values();
+      // Un comprobante se considera "anulado por NC" solo si tiene una NC que lleva
+      // su neto a ~0. Un comprobante de importe 0 sin NC NO se anula: sigue vigente.
+      $wasCancelledByNc = fn($e) => $e['total_nc'] > $tol && round($e['net'], 2) <= $tol;
+      $cancelled = $enriched->filter($wasCancelledByNc)->values();
+      $vigentes = $enriched->reject($wasCancelledByNc)->values();
 
       // Registrar todas las NC de la solicitud como referenciadas (trazabilidad).
       foreach ($enriched as $e) {
@@ -178,7 +181,15 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         continue;
       }
 
-      $chosen = $vigentes->last();
+      // Comprobante vigente: se prefiere uno aceptado por SUNAT; a igualdad, el más reciente.
+      $chosen = $vigentes
+        ->sortBy(fn($e) => sprintf(
+          '%d-%s-%012d',
+          $e['invoice']->aceptada_por_sunat ? 1 : 0,
+          substr((string) $e['invoice']->fecha_de_emision, 0, 10),
+          $e['invoice']->id
+        ))
+        ->last();
       $vigInvoice = $chosen['invoice'];
       $prq = $vigInvoice->purchaseRequestQuote;
 
@@ -191,7 +202,33 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       // Filtro de periodo por fecha atribuida.
       if ($hasRange) {
         $ad = $attributedDate?->toDateString();
+        $vigDate = $vigInvoice->fecha_de_emision?->toDateString();
         if ($ad === null || $ad < $start || $ad > $end) {
+          // Fuera de periodo. Si es refacturación y el comprobante vigente SÍ se emitió
+          // en este rango, dejar rastro en la hoja de Refacturaciones: explica por qué
+          // una factura/boleta de este periodo no aparece en la hoja principal.
+          if ($isRefact && $vigDate !== null && $vigDate >= $start && $vigDate <= $end) {
+            $origEnriched = $cancelled->isNotEmpty() ? $cancelled->last() : $chosen;
+            $origInvoice = $origEnriched['invoice'];
+            $origNc = $origEnriched['ncs']->last();
+            $refactRows[] = [
+              'tipo' => 'REFACTURADA A OTRO PERIODO',
+              'solicitud' => $prq?->correlative,
+              'vin' => $prq?->vehicle?->vin,
+              'cliente' => $prq?->holder?->full_name,
+              'comprobante_original' => $origInvoice->full_number,
+              'fecha_original' => $origInvoice->fecha_de_emision?->format('d/m/Y'),
+              'monto_original' => (float) $origInvoice->total,
+              'nc' => $origNc?->full_number,
+              'fecha_nc' => $origNc?->fecha_de_emision?->format('d/m/Y'),
+              'monto_nc' => $origNc ? (float) $origNc->total : null,
+              'comprobante_nuevo' => $vigInvoice->full_number,
+              'fecha_nuevo' => $vigInvoice->fecha_de_emision?->format('d/m/Y'),
+              'monto_nuevo' => (float) $vigInvoice->total,
+              'periodo_atribuido' => $attributedDate?->format('m/Y'),
+              'observacion' => 'El comprobante nuevo se emitió en este periodo, pero la venta se atribuye al periodo del comprobante original (refacturación).',
+            ];
+          }
           continue;
         }
       }
@@ -233,11 +270,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'modelo' => $prq?->vehicle?->model?->version,
         'vin' => $prq?->vehicle?->vin,
         'color' => $prq?->vehicle?->color?->description,
-        'tipo_credito' => $prq?->creditType?->description,
-        'entidad_credito' => $prq?->creditEntity?->description,
-        'entidad_seguro' => $prq?->insuranceEntity?->description,
-        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
-        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
         'numero_documento' => $vigInvoice->full_number,
         'fecha_factura' => $vigInvoice->fecha_de_emision?->format('d/m/Y'),
         'fecha_atribuida' => $attributedDate?->format('d/m/Y'),
@@ -256,6 +288,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'banco' => $vigInvoice->bank?->description,
         'aceptada_sunat' => $vigInvoice->aceptada_por_sunat ? 'SÍ' : 'NO',
         'observacion' => $observacion,
+        'tipo_credito' => $prq?->creditType?->description,
+        'entidad_credito' => $prq?->creditEntity?->description,
+        'entidad_seguro' => $prq?->insuranceEntity?->description,
+        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
+        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
       ];
 
       // Hoja de refacturaciones / NC parcial.
@@ -264,6 +301,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         $origInvoice = $origEnriched['invoice'];
         $origNc = $origEnriched['ncs']->last();
         $refactRows[] = [
+          'tipo' => 'ATRIBUIDA A ESTE PERIODO',
           'solicitud' => $prq?->correlative,
           'vin' => $prq?->vehicle?->vin,
           'cliente' => $prq?->holder?->full_name,
@@ -324,11 +362,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'modelo' => 'MODELO',
       'vin' => 'VIN',
       'color' => 'COLOR',
-      'tipo_credito' => 'TIPO DE CRÉDITO',
-      'entidad_credito' => 'ENTIDAD DE CRÉDITO',
-      'entidad_seguro' => 'ENTIDAD DE SEGURO',
-      'gps_hunter' => 'GPS HUNTER',
-      'gps_hunter_anios' => 'AÑOS GPS HUNTER',
       'numero_documento' => 'NUMERO DE DOCUMENTO',
       'fecha_factura' => 'FECHA COMPROBANTE',
       'fecha_atribuida' => 'FECHA ATRIBUIDA',
@@ -347,6 +380,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'banco' => 'BANCO',
       'aceptada_sunat' => 'ACEPTADA POR SUNAT',
       'observacion' => 'OBSERVACIÓN',
+      'tipo_credito' => 'TIPO DE CRÉDITO',
+      'entidad_credito' => 'ENTIDAD DE CRÉDITO',
+      'entidad_seguro' => 'ENTIDAD DE SEGURO',
+      'gps_hunter' => 'GPS HUNTER',
+      'gps_hunter_anios' => 'AÑOS GPS HUNTER',
     ];
 
     $creditNoteColumns = [
@@ -369,6 +407,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     ];
 
     $refactColumns = [
+      'tipo' => 'TIPO',
       'solicitud' => 'SOLICITUD',
       'vin' => 'VIN',
       'cliente' => 'CLIENTE',
