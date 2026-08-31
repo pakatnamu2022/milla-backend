@@ -731,7 +731,8 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     $newDate = Carbon::parse($data['scheduled_delivery_date']);
 
-    if ($newDate->isPast()) {
+    $isSameDayExtraordinary = $isExtraordinary && $newDate->isToday();
+    if ($newDate->isPast() && !$isSameDayExtraordinary) {
       throw new Exception('No se puede reprogramar a una fecha y hora pasada.');
     }
     if ($isExtraordinary && !$newDate->isBefore(now()->addDays(4)->startOfDay())) {
