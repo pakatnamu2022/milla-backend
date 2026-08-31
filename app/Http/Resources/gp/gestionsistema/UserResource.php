@@ -11,12 +11,18 @@ use Illuminate\Support\Facades\Storage;
 
 class UserResource extends JsonResource
 {
+  private function resolvedPerson()
+  {
+    return $this->person ?? $this->personAsProvider;
+  }
+
   public function toArray(Request $request): array
   {
+    $person = $this->resolvedPerson();
     $photoBase64 = null;
 
-    if ($this->person?->foto_adjunto) {
-      $path = $this->person->foto_adjunto;
+    if ($person?->foto_adjunto) {
+      $path = $person->foto_adjunto;
       if (Storage::disk('general')->exists($path)) {
         $mime = Storage::disk('general')->mimeType($path);
         $content = Storage::disk('general')->get($path);
@@ -29,21 +35,21 @@ class UserResource extends JsonResource
       'partner_id' => $this->partner_id,
       'name' => $this->name,
       'username' => $this->username,
-      'email' => $this->person?->email,
+      'email' => $person?->email,
       'foto_adjunto' => $photoBase64,
-      'position' => $this->person?->position?->name,
-      'empresa' => $this->person?->sede?->company?->abbreviation,
-      'sede' => $this->person?->sede?->suc_abrev,
-      'sede_id' => $this->person?->sede?->id,
-      'shop_id' => $this->person?->sede?->shop_id,
-      'fecha_ingreso' => $this->person?->fecha_inicio,
+      'position' => $person?->position?->name,
+      'empresa' => $person?->sede?->company?->abbreviation,
+      'sede' => $person?->sede?->suc_abrev,
+      'sede_id' => $person?->sede?->id,
+      'shop_id' => $person?->sede?->shop_id,
+      'fecha_ingreso' => $person?->fecha_inicio,
       'role' => $this->role?->nombre,
       'role_id' => $this->role?->id,
-      'subordinates' => $this->person?->subordinates->count() ?? 0,
+      'subordinates' => $person?->subordinates?->count() ?? 0,
       'sedes' => SedeResource::collection($this->sedes),
       'verified_at' => $this->verified_at,
       'two_factor_enabled' => (bool)$this->two_factor_enabled,
-      'discount_percentage' => $this->getDiscountPercentageByPosition($this->person?->cargo_id),
+      'discount_percentage' => $this->getDiscountPercentageByPosition($person?->cargo_id),
     ];
   }
 
