@@ -2532,12 +2532,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Validar que el vehículo pertenece al mismo shop que el documento
-      $documentShopId = Sede::find($document->sede_id)?->shop_id;
+      $documentSede = Sede::with('shop')->find($document->sede_id);
+      $documentShopId = $documentSede?->shop_id;
       $vehicleShopId = $vehicle->warehouse?->sede?->shop_id;
       if ($documentShopId && $vehicleShopId && $documentShopId !== $vehicleShopId) {
+        $documentShopName = $documentSede?->shop?->description ?? $documentShopId;
+        $vehicleShopName = $vehicle->warehouse?->sede?->shop?->description ?? $vehicleShopId;
         throw new Exception(
           "No se puede facturar el vehículo: pertenece a un shop diferente al del documento. " .
-          "El vehículo está en shop {$vehicleShopId} y el documento es de shop {$documentShopId}."
+          "El vehículo está en shop {$vehicleShopName} y el documento es de shop {$documentShopName}."
         );
       }
 
