@@ -770,15 +770,21 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $previousDate = $vehicleDelivery->scheduled_delivery_date;
 
     $updateData = [
-      'scheduled_delivery_date' => $data['scheduled_delivery_date'],
-      'observations'            => $data['observations'] ?? $vehicleDelivery->observations,
-      'rescheduled_by'          => auth()->id(),
-      'is_extraordinary'        => $isExtraordinary,
-      'extraordinary_reason'    => $isExtraordinary ? ($data['extraordinary_reason'] ?? null) : null,
+      'scheduled_delivery_date'        => $data['scheduled_delivery_date'],
+      'observations'                   => $data['observations'] ?? $vehicleDelivery->observations,
+      'rescheduled_by'                 => auth()->id(),
+      // Una reprogramación reactiva la entrega y parte de cero el ciclo de
+      // aprobación extraordinaria (sirve para recuperar una entrega rechazada).
+      'status_delivery'                => ApVehicleDelivery::STATUS_PENDING,
+      'is_extraordinary'               => $isExtraordinary,
+      'extraordinary_reason'           => $isExtraordinary ? ($data['extraordinary_reason'] ?? null) : null,
+      'extraordinary_approved'         => null,
+      'extraordinary_approved_at'      => null,
+      'extraordinary_approved_by'      => null,
+      'extraordinary_approval_comment' => null,
     ];
 
     if ($isExtraordinary) {
-      $updateData['extraordinary_approved'] = null;
       $updateData['extraordinary_sent_by'] = auth()->id();
     }
 
@@ -847,6 +853,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
       'extraordinary_approved_at'      => now(),
       'extraordinary_approved_by'      => auth()->user()->name,
       'extraordinary_approval_comment' => $comment,
+      // Al rechazar, la entrega queda cancelada: libera el vehículo para
+      // que pueda volver a programarse (o reprogramarse desde la revisión).
+      'status_delivery'                => ApVehicleDelivery::STATUS_CANCELLED,
     ]);
 
     return new ApVehicleDeliveryResource($delivery->fresh());
