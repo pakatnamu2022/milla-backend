@@ -18,10 +18,8 @@ class UserService extends BaseService
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      User::where('status_deleted', 1)->whereHas('person', function ($query) {
-        $query->where(function ($q) {
-          $q->where('b_empleado', 1)->where('status_id', 22);
-        })->orWhere('b_proveedor', 1);
+      User::where('status_deleted', 1)->where(function ($q) {
+        $q->whereHas('person')->orWhereHas('personAsProvider');
       }),
       $request,
       User::filters,
