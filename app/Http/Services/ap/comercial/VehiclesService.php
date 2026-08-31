@@ -270,11 +270,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'modelo' => $prq?->vehicle?->model?->version,
         'vin' => $prq?->vehicle?->vin,
         'color' => $prq?->vehicle?->color?->description,
-        'tipo_credito' => $prq?->creditType?->description,
-        'entidad_credito' => $prq?->creditEntity?->description,
-        'entidad_seguro' => $prq?->insuranceEntity?->description,
-        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
-        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
         'numero_documento' => $vigInvoice->full_number,
         'fecha_factura' => $vigInvoice->fecha_de_emision?->format('d/m/Y'),
         'fecha_atribuida' => $attributedDate?->format('d/m/Y'),
@@ -293,6 +288,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'banco' => $vigInvoice->bank?->description,
         'aceptada_sunat' => $vigInvoice->aceptada_por_sunat ? 'SÍ' : 'NO',
         'observacion' => $observacion,
+        'tipo_credito' => $prq?->creditType?->description,
+        'entidad_credito' => $prq?->creditEntity?->description,
+        'entidad_seguro' => $prq?->insuranceEntity?->description,
+        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
+        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
       ];
 
       // Hoja de refacturaciones / NC parcial.
@@ -362,11 +362,6 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'modelo' => 'MODELO',
       'vin' => 'VIN',
       'color' => 'COLOR',
-      'tipo_credito' => 'TIPO DE CRÉDITO',
-      'entidad_credito' => 'ENTIDAD DE CRÉDITO',
-      'entidad_seguro' => 'ENTIDAD DE SEGURO',
-      'gps_hunter' => 'GPS HUNTER',
-      'gps_hunter_anios' => 'AÑOS GPS HUNTER',
       'numero_documento' => 'NUMERO DE DOCUMENTO',
       'fecha_factura' => 'FECHA COMPROBANTE',
       'fecha_atribuida' => 'FECHA ATRIBUIDA',
@@ -385,6 +380,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'banco' => 'BANCO',
       'aceptada_sunat' => 'ACEPTADA POR SUNAT',
       'observacion' => 'OBSERVACIÓN',
+      'tipo_credito' => 'TIPO DE CRÉDITO',
+      'entidad_credito' => 'ENTIDAD DE CRÉDITO',
+      'entidad_seguro' => 'ENTIDAD DE SEGURO',
+      'gps_hunter' => 'GPS HUNTER',
+      'gps_hunter_anios' => 'AÑOS GPS HUNTER',
     ];
 
     $creditNoteColumns = [
