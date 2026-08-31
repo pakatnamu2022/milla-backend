@@ -109,13 +109,16 @@ class CommercialInvoicingPeriodResolver
         ];
       });
 
-      $vigentes = $enriched->filter(fn($e) => round($e['net'], 2) > $tol)->values();
+      // Un comprobante se considera "anulado por NC" solo si tiene una NC que lleva
+      // su neto a ~0. Un comprobante de importe 0 sin NC NO se anula: sigue vigente.
+      $wasCancelledByNc = fn($e) => $e['nc'] > $tol && round($e['net'], 2) <= $tol;
+      $vigentes = $enriched->reject($wasCancelledByNc)->values();
       if ($vigentes->isEmpty()) {
         // Venta anulada / descontada por NC y sin refacturación: no cuenta en ningún periodo.
         continue;
       }
 
-      $cancelled = $enriched->filter(fn($e) => round($e['net'], 2) <= $tol)->values();
+      $cancelled = $enriched->filter($wasCancelledByNc)->values();
       $chosen = $vigentes->last();
       $isRefact = $cancelled->isNotEmpty();
       $isPartial = $chosen['nc'] > $tol;
