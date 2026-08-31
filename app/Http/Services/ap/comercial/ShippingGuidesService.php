@@ -842,6 +842,37 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     });
   }
 
+  /**
+   * Anula la guía de remisión sin generar reversión en Dynamics.
+   * A diferencia de cancel(), no toca cancelled_at ni dispara el job de
+   * reversión: solo marca is_annulled = true y status = false para que
+   * los procesos de sincronización dejen de tomarla.
+   */
+  public function annul($id, $reason)
+  {
+    return DB::transaction(function () use ($id, $reason) {
+      $document = $this->find($id);
+
+      if ($document->is_annulled) {
+        throw new \Exception('Esta guía ya fue anulada.');
+      }
+
+      if ($document->cancelled_at) {
+        throw new \Exception('Esta guía ya fue cancelada y no puede anularse.');
+      }
+
+      $document->update([
+        'is_annulled'     => true,
+        'status'          => false,
+        'annulled_at'     => now(),
+        'annulled_by'     => Auth::id(),
+        'annulled_reason' => $reason,
+      ]);
+
+      return new ShippingGuidesResource($document);
+    });
+  }
+
   public function sendToNubefact($id): JsonResponse
   {
     DB::beginTransaction();

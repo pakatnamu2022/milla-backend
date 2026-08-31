@@ -29,9 +29,6 @@ class PayrollViewsPermissionsSeeder extends Seeder
     $GP = 4; // company_id usado por el resto del árbol "Gestión Humana" (ver vista 77/503)
     $planillasParentId = 503; // Vista "Planillas" ya existente
 
-    // Vista "Registro de Planilla" (574) ya existe pero no tiene permisos.
-    $registroPlanillaViewId = 574;
-
     // Roles que ya tienen acceso a otras vistas hijas de "Planillas" (503) —
     // se les otorga también acceso a las vistas nuevas, para no dejar el
     // módulo inconsistente entre sus propias páginas.
@@ -64,9 +61,19 @@ class PayrollViewsPermissionsSeeder extends Seeder
           'icon' => 'Gift',
         ],
         [
+          'descripcion' => 'Conceptos de Planilla',
+          'route' => 'conceptos-planilla',
+          'icon' => 'FileText',
+        ],
+        [
           'descripcion' => 'Condiciones de Trabajo',
           'route' => 'condiciones-trabajo',
           'icon' => 'Briefcase',
+        ],
+        [
+          'descripcion' => 'Día Trabajo',
+          'route' => 'dia-trabajo',
+          'icon' => 'CalendarCheck',
         ],
         [
           'descripcion' => 'Liquidación BB.SS.',
@@ -74,9 +81,24 @@ class PayrollViewsPermissionsSeeder extends Seeder
           'icon' => 'Calculator',
         ],
         [
+          'descripcion' => 'Parámetros',
+          'route' => 'parametros',
+          'icon' => 'Settings',
+        ],
+        [
+          'descripcion' => 'Periodos',
+          'route' => 'periodos',
+          'icon' => 'CalendarRange',
+        ],
+        [
           'descripcion' => 'Préstamos',
           'route' => 'prestamos',
           'icon' => 'HandCoins',
+        ],
+        [
+          'descripcion' => 'Reglas de Asistencia',
+          'route' => 'reglas-asistencia',
+          'icon' => 'ClipboardList',
         ],
         [
           'descripcion' => 'Seguros',
@@ -89,9 +111,14 @@ class PayrollViewsPermissionsSeeder extends Seeder
           'icon' => 'CreditCard',
         ],
         [
-          'descripcion' => 'Tipo Día Trabajo',
-          'route' => 'tipo-dia-trabajo',
-          'icon' => 'CalendarCheck',
+          'descripcion' => 'Tasas y Porcentajes',
+          'route' => 'tasas-porcentajes',
+          'icon' => 'Percent',
+        ],
+        [
+          'descripcion' => 'Registro de Planilla',
+          'route' => 'registro-planilla',
+          'icon' => 'ClipboardPen',
         ],
       ];
 
@@ -143,34 +170,6 @@ class PayrollViewsPermissionsSeeder extends Seeder
         }
       }
 
-      // ── Permisos faltantes para la vista ya existente "Registro de Planilla" ──
-      $registroPlanillaView = View::find($registroPlanillaViewId);
-      if ($registroPlanillaView) {
-        $this->command->info("  Vista existente: {$registroPlanillaView->descripcion} (ID: {$registroPlanillaView->id}) — generando permisos");
-
-        foreach ($actionConfig as $action => $cfg) {
-          $code = "registro-planilla.{$action}";
-
-          $permission = Permission::updateOrCreate(
-            ['code' => $code],
-            [
-              'code' => $code,
-              'name' => "{$cfg['label']} Registro de Planilla",
-              'description' => "Permite {$cfg['label']} en Registro de Planilla",
-              'module' => 'planillas',
-              'vista_id' => $registroPlanillaView->id,
-              'policy_method' => $cfg['policy_method'],
-              'is_active' => true,
-            ]
-          );
-
-          $permissionIds[] = $permission->id;
-          $this->command->comment("    Permiso: {$code}");
-        }
-      } else {
-        $this->command->warn("  Vista 'Registro de Planilla' (ID {$registroPlanillaViewId}) no encontrada — se omite.");
-      }
-
       // ── Asignar todos los permisos nuevos a los roles del módulo ───────
       $this->command->newLine();
       $service = new PermissionService();
@@ -185,7 +184,7 @@ class PayrollViewsPermissionsSeeder extends Seeder
       $this->command->info('════════════════════════════════════════════════════════');
       $this->command->info('  Planillas — Vistas y permisos');
       $this->command->info('════════════════════════════════════════════════════════');
-      $this->command->info('Vistas nuevas: ' . count($submodules) . ' + 1 existente (Registro de Planilla) actualizada con permisos.');
+      $this->command->info('Vistas nuevas: ' . count($submodules) . ' + 1 existente (Registro de Planilla) con permisos.');
       $this->command->info('Total permisos: ' . count($permissionIds));
       $this->command->info('Roles actualizados: ' . implode(', ', $roleIds));
       $this->command->info('════════════════════════════════════════════════════════');

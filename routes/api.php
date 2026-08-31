@@ -1466,6 +1466,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Vehicle Documents (Guías de Remisión/Traslado)
       Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
+      Route::post('shippingGuides/{id}/annul', [ShippingGuidesController::class, 'annul']);
       Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
       Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
       Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);

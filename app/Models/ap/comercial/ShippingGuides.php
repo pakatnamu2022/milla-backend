@@ -69,6 +69,9 @@ class ShippingGuides extends BaseModel
     'cancellation_reason',
     'cancelled_by',
     'cancelled_at',
+    'annulled_at',
+    'annulled_by',
+    'annulled_reason',
     'sunat_responsecode',
     'sunat_description',
     'sunat_note',
@@ -104,6 +107,7 @@ class ShippingGuides extends BaseModel
     'issue_date'          => 'datetime',
     'dynamics_date'       => 'date',
     'cancelled_at'        => 'datetime',
+    'annulled_at'         => 'datetime',
     'sent_at'             => 'datetime',
     'accepted_at'         => 'datetime',
     'received_date'       => 'datetime',
@@ -262,6 +266,11 @@ class ShippingGuides extends BaseModel
   public function canceller(): BelongsTo
   {
     return $this->belongsTo(User::class, 'cancelled_by');
+  }
+
+  public function annuller(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'annulled_by');
   }
 
   public function documentSeries(): BelongsTo
