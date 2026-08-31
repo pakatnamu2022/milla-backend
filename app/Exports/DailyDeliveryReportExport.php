@@ -32,6 +32,112 @@ class DailyDeliveryReportExport implements WithMultipleSheets
       new DailyDeliveryReportBrandsSheet($this->reportData),
       new DailyDeliveryReportPurchasesSheet($this->reportData),
       new DailyDeliveryReportInventorySheet($this->reportData),
+      new DailyDeliveryReportRefacturadasSheet($this->reportData),
+    ];
+  }
+}
+
+// Hoja 7: Refacturaciones / NC parcial
+class DailyDeliveryReportRefacturadasSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle, WithEvents
+{
+  protected $reportData;
+
+  public function __construct(array $reportData)
+  {
+    $this->reportData = $reportData;
+  }
+
+  public function collection()
+  {
+    $enPeriodo = $this->reportData['refacturadas'] ?? [];
+    $fueraPeriodo = $this->reportData['refacturadas_fuera_periodo'] ?? [];
+
+    $rows = collect($enPeriodo)->map(fn($r) => [
+      'ATRIBUIDA A ESTE PERIODO',
+      $r['solicitud'] ?? null,
+      $r['vin'] ?? null,
+      $r['cliente'] ?? null,
+      $r['asesor'] ?? null,
+      $r['marca'] ?? null,
+      $r['comprobante_original'] ?? null,
+      $r['fecha_original'] ?? null,
+      $r['monto_original'] ?? null,
+      $r['nota_credito'] ?? null,
+      $r['fecha_nc'] ?? null,
+      $r['monto_nc'] ?? null,
+      $r['comprobante_nuevo'] ?? null,
+      $r['fecha_nuevo'] ?? null,
+      $r['periodo_atribuido'] ?? null,
+      $r['observacion'] ?? null,
+    ]);
+
+    $rowsFuera = collect($fueraPeriodo)->map(fn($r) => [
+      'FUERA DE PERIODO',
+      $r['solicitud'] ?? null,
+      $r['vin'] ?? null,
+      $r['cliente'] ?? null,
+      $r['asesor'] ?? null,
+      $r['marca'] ?? null,
+      null, null, null, null, null, null, null, null, null,
+      $r['observacion'] ?? null,
+    ]);
+
+    return $rows->concat($rowsFuera)->values();
+  }
+
+  public function headings(): array
+  {
+    return [
+      'TIPO',
+      'SOLICITUD',
+      'VIN',
+      'CLIENTE',
+      'ASESOR',
+      'MARCA',
+      'COMPROBANTE ORIGINAL',
+      'FECHA ORIGINAL',
+      'MONTO ORIGINAL',
+      'NOTA DE CRÉDITO',
+      'FECHA NC',
+      'MONTO NC',
+      'COMPROBANTE NUEVO',
+      'FECHA NUEVO',
+      'PERIODO ATRIBUIDO',
+      'OBSERVACIÓN',
+    ];
+  }
+
+  public function styles(Worksheet $sheet)
+  {
+    return [
+      1 => [
+        'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '375623']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+      ],
+    ];
+  }
+
+  public function title(): string
+  {
+    return 'Refacturaciones';
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        $sheet = $event->sheet->getDelegate();
+        $lastRow = max($sheet->getHighestRow(), 1);
+        $sheet->getRowDimension(1)->setRowHeight(25);
+        $sheet->getStyle('A1:P' . $lastRow)->applyFromArray([
+          'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D4D4D4']]],
+        ]);
+        $sheet->getStyle('P2:P' . $lastRow)->getAlignment()->setWrapText(true);
+        $sheet->getColumnDimension('P')->setWidth(45);
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter('A1:P1');
+      },
     ];
   }
 }
