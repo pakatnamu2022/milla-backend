@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Models\gp\gestionhumana\personal\Person;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Role;
 use App\Models\gp\gestionsistema\UserRole;
@@ -66,9 +67,12 @@ class User extends Authenticatable
 
   public function person()
   {
-    return $this->hasOne(Worker::class, 'id', 'partner_id')
-      ->where('rrhh_persona.status_deleted', 1)
-      ->where('rrhh_persona.status_id', 22);
+    return $this->hasOne(Person::class, 'id', 'partner_id')
+      ->where(function ($q) {
+        $q->where(function ($inner) {
+          $inner->where('b_empleado', 1)->where('status_id', 22);
+        })->orWhere('b_proveedor', 1);
+      });
   }
 
   public function role()
