@@ -67,8 +67,15 @@ class User extends Authenticatable
   public function person()
   {
     return $this->hasOne(Worker::class, 'id', 'partner_id')
-      ->where('rrhh_persona.status_deleted', 1)
-      ->where('rrhh_persona.status_id', 22);
+      ->where('status_id', 22);
+  }
+
+  public function personAsProvider()
+  {
+    return $this->hasOne(Worker::class, 'id', 'partner_id')
+      ->withoutGlobalScope('working')
+      ->where('status_deleted', 1)
+      ->where('b_proveedor', 1);
   }
 
   public function role()

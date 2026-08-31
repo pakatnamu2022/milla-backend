@@ -126,6 +126,19 @@ class ShippingGuidesController extends Controller
     }
   }
 
+  public function annul(Request $request, $id)
+  {
+    try {
+      $request->validate([
+        'cancellation_reason' => 'required|string',
+      ]);
+
+      return $this->success($this->service->annul($id, $request->cancellation_reason));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function sendToNubefact($id)
   {
     try {

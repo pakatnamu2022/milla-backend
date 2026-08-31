@@ -112,7 +112,13 @@ class Vehicles extends BaseModel
   public function getHasDeliveryGuideAttribute(): bool
   {
     return ApVehicleDelivery::where('vehicle_id', $this->id)
+      ->whereNull('deleted_at')
       ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+      ->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('extraordinary_approved')
+          ->orWhere('extraordinary_approved', true);
+      })
       ->exists();
   }
 
@@ -126,6 +132,11 @@ class Vehicles extends BaseModel
     return ApVehicleDelivery::where('vehicle_id', $this->id)
       ->whereNull('deleted_at')
       ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+      ->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('extraordinary_approved')
+          ->orWhere('extraordinary_approved', true);
+      })
       ->exists();
   }
 
