@@ -1799,18 +1799,22 @@ class InventoryMovementService extends BaseService
       // Update ApOrderQuotations output_generation_warehouse
       $quotation->update(['output_generation_warehouse' => true]);
 
-      // Liberar la reserva hecha al confirmar la cotización para los ítems de tipo STOCK:
-      // esa cantidad ya se está consumiendo como venta real, no debe seguir contando como "reservada".
-      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
-      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      // NUEVO FLUJO CENTRALIZADO:
+      // Usar el método removeStockFromSale() que maneja automáticamente:
+      // - Si supply_type=STOCK: Libera reserva y remueve stock
+      // - Si supply_type!=STOCK: Solo remueve stock (sin liberar reserva)
       foreach ($productDetails as $detail) {
-        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
-          $this->stockService->releaseReservedStock($detail->product_id, $warehouse->id, $detail->quantity);
-        }
+        $hasReservation = $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK;
+        $this->stockService->removeStockFromSale(
+          $detail->product_id,
+          $warehouse->id,
+          $detail->quantity,
+          $hasReservation
+        );
       }
 
-      // Update stock automatically
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+      // Ya no es necesario llamar a updateStockFromMovement porque removeStockFromSale
+      // ya actualizó el stock correctamente
 
       DB::commit();
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
@@ -1924,16 +1928,219 @@ class InventoryMovementService extends BaseService
       // Update ApWorkOrder output_generation_warehouse
       $workOrder->update(['output_generation_warehouse' => true]);
 
-      // Liberar la reserva hecha al agregar los repuestos a la OT: esa cantidad ya se
-      // está consumiendo como venta real, no debe seguir contando como "reservada".
-      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
-      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      // NUEVO FLUJO CENTRALIZADO:
+      // Usar removeStockFromSale() con hasReservation=true porque las OTs SIEMPRE
+      // tienen reserva previa (se reserva al agregar repuestos a la OT)
       foreach ($productParts as $part) {
-        $this->stockService->releaseReservedStock($part->product_id, $warehouse->id, $part->quantity_used);
+        $this->stockService->removeStockFromSale(
+          $part->product_id,
+          $warehouse->id,
+          $part->quantity_used,
+          true // Las OTs SIEMPRE tienen reserva previa
+        );
       }
 
-      // Update stock automatically
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+      // Ya no es necesario llamar a updateStockFromMovement porque removeStockFromSale
+      // ya actualizó el stock correctamente
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * NUEVO: Create SYMBOLIC SALE movement for Quotation (without touching reserved_quantity)
+   *
+   * IMPORTANTE: Este método es para casos especiales donde se necesita un movimiento
+   * contable/simbólico de SALIDA que NO afecte las reservas existentes.
+   *
+   * CASO DE USO:
+   * - Anulación de factura no contabilizada (CASO 2 en cancelInNubefact):
+   *   Se genera SALIDA simbólica + INGRESO para cumplir con registros de Dynamics,
+   *   pero las reservas deben quedar intactas porque la venta nunca se completó.
+   *
+   * DIFERENCIA CON createSaleFromQuotation():
+   * - createSaleFromQuotation(): Libera reservas (flujo normal de venta)
+   * - createSymbolicSaleFromQuotation(): NO toca reservas (solo resta quantity)
+   *
+   * @param int $quotationId
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createSymbolicSaleFromQuotation(int $quotationId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $quotation = ApOrderQuotations::with('details.product')->find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Get warehouse
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id);
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén para la cotización');
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'reference_type' => ApOrderQuotations::class,
+        'reference_id' => $quotation->id,
+        'notes' => "Salida simbólica (anulación) - {$quotation->quotation_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details and update stock SYMBOLICALLY
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      $productDetails = $quotation->details()
+        ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+        ->where('is_traverse', false)
+        ->whereNotNull('product_id')
+        ->get();
+
+      foreach ($productDetails as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->total_cost,
+          'notes' => "Salida simbólica - {$detail->product->descripcion}",
+        ]);
+
+        // IMPORTANTE: Usar removeStockSymbolic() que NO toca reserved_quantity
+        $this->stockService->removeStockSymbolic(
+          $detail->product_id,
+          $warehouse->id,
+          $detail->quantity
+        );
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update quotation output flag
+      $quotation->update(['output_generation_warehouse' => true]);
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * NUEVO: Create SYMBOLIC SALE movement for Work Order (without touching reserved_quantity)
+   *
+   * IMPORTANTE: Este método es para casos especiales donde se necesita un movimiento
+   * contable/simbólico de SALIDA que NO afecte las reservas existentes.
+   *
+   * CASO DE USO:
+   * - Anulación de factura no contabilizada (CASO 2 en cancelInNubefact):
+   *   Se genera SALIDA simbólica + INGRESO para cumplir con registros de Dynamics,
+   *   pero las reservas deben quedar intactas porque la venta nunca se completó.
+   *
+   * DIFERENCIA CON createSaleFromWorkOrder():
+   * - createSaleFromWorkOrder(): Libera reservas (flujo normal de venta)
+   * - createSymbolicSaleFromWorkOrder(): NO toca reservas (solo resta quantity)
+   *
+   * @param int $workOrderId
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createSymbolicSaleFromWorkOrder(int $workOrderId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $workOrder = ApWorkOrder::with('parts.product')->find($workOrderId);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Get warehouse
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($workOrder->sede_id);
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén para la orden de trabajo');
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'reference_type' => ApWorkOrder::class,
+        'reference_id' => $workOrder->id,
+        'notes' => "Salida simbólica (anulación) - {$workOrder->correlative}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details and update stock SYMBOLICALLY
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      $productParts = $workOrder->parts()
+        ->where('is_traverse', false)
+        ->whereNotNull('product_id')
+        ->get();
+
+      foreach ($productParts as $part) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $part->product_id,
+          'quantity' => $part->quantity_used,
+          'unit_cost' => $part->unit_price,
+          'total_cost' => $part->total_cost,
+          'notes' => "Salida simbólica - {$part->product->descripcion}",
+        ]);
+
+        // IMPORTANTE: Usar removeStockSymbolic() que NO toca reserved_quantity
+        $this->stockService->removeStockSymbolic(
+          $part->product_id,
+          $warehouse->id,
+          $part->quantity_used
+        );
+
+        $totalItems++;
+        $totalQuantity += $part->quantity_used;
+      }
+
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update work order flags
+      $workOrder->update([
+        'output_generation_warehouse' => true,
+        'is_invoiced' => true,
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+      ]);
 
       DB::commit();
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);

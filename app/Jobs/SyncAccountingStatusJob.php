@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\gestionProductos\StockReReservationService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Models\ap\ApMasters;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-/**
+/**ds
  * php artisan queue:work --tries=3
  */
 class SyncAccountingStatusJob implements ShouldQueue
@@ -42,11 +43,18 @@ class SyncAccountingStatusJob implements ShouldQueue
     $query = ElectronicDocument::where('migration_status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED);
 
     if ($this->documentId) {
+      // Cuando se consulta por ID específico, permitir cualquier área
       $documents = $query->where('id', $this->documentId)->get();
     } else {
-      $documents = $query->where(function ($q) {
-        $q->where('is_accounted', false)->orWhereNull('is_accounted');
-      })->get();
+      // IMPORTANTE: Excluir áreas 881 (Taller) y 882 (Mesón/Repuestos) del procesamiento masivo
+      // Estas áreas deben consultarse individualmente por ID para validar stock correctamente
+      // antes de generar salidas de inventario
+      $documents = $query
+        ->where(function ($q) {
+          $q->where('is_accounted', false)->orWhereNull('is_accounted');
+        })
+        ->whereNotIn('area_id', [ApMasters::AREA_TALLER, ApMasters::AREA_MESON])
+        ->get();
     }
 
     foreach ($documents as $document) {
@@ -433,6 +441,9 @@ class SyncAccountingStatusJob implements ShouldQueue
         }
       }
     }
+
+    // RE-RESERVA AUTOMÁTICA: Si re_invoice = true, re-reservar stock para refacturación
+    $this->handleStockReReservationIfApplicable($creditNote, $originalDocument);
   }
 
   /**
@@ -590,6 +601,85 @@ class SyncAccountingStatusJob implements ShouldQueue
       }
     } catch (Exception $e) {
       Log::error('Error al procesar NC por ítem', [
+        'credit_note_id' => $creditNote->id,
+        'original_document_id' => $originalDocument->id,
+        'error' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
+   * Maneja la re-reserva automática de stock cuando re_invoice = true
+   *
+   * Cuando una NC tiene re_invoice = true, significa que se va a refacturar.
+   * Por lo tanto, el stock que regresó al almacén debe volver a RESERVADO
+   * para que cuando se contabilice el nuevo comprobante, NO afecte el reservado.
+   *
+   * @param ElectronicDocument $creditNote
+   * @param ElectronicDocument $originalDocument
+   * @return void
+   */
+  private function handleStockReReservationIfApplicable(ElectronicDocument $creditNote, ElectronicDocument $originalDocument): void
+  {
+    // Solo procesar si re_invoice = true
+    if (!$creditNote->re_invoice) {
+      return;
+    }
+
+    try {
+      $reReservationService = app(StockReReservationService::class);
+
+      // Re-reservar para cotización si existe
+      if ($originalDocument->order_quotation_id) {
+        try {
+          $reReservationService->reReserveStockForQuotation($originalDocument->order_quotation_id);
+        } catch (Exception $e) {
+          Log::error('Error en re-reserva automática para cotización', [
+            'credit_note_id' => $creditNote->id,
+            'quotation_id' => $originalDocument->order_quotation_id,
+            'error' => $e->getMessage(),
+          ]);
+        }
+      }
+
+      // Re-reservar para orden de trabajo si existe
+      if ($originalDocument->work_order_id) {
+        try {
+          $reReservationService->reReserveStockForWorkOrder($originalDocument->work_order_id);
+
+        } catch (Exception $e) {
+          Log::error('Error en re-reserva automática para OT', [
+            'credit_note_id' => $creditNote->id,
+            'work_order_id' => $originalDocument->work_order_id,
+            'error' => $e->getMessage(),
+          ]);
+        }
+      }
+
+      // Re-reservar para masivas - buscar work_order_id en internal_notes (pueden ser varias OTs)
+      if ($originalDocument->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+        $internalNotes = $originalDocument->internalNotes()->get();
+
+        foreach ($internalNotes as $internalNote) {
+          if (!$internalNote->work_order_id) {
+            continue;
+          }
+
+          try {
+            $reReservationService->reReserveStockForWorkOrder($internalNote->work_order_id);
+          } catch (Exception $e) {
+            Log::error('Error en re-reserva automática para OT masiva', [
+              'credit_note_id' => $creditNote->id,
+              'work_order_id' => $internalNote->work_order_id,
+              'internal_note_id' => $internalNote->id,
+              'error' => $e->getMessage(),
+            ]);
+          }
+        }
+      }
+
+    } catch (Exception $e) {
+      Log::error('Error general en re-reserva automática', [
         'credit_note_id' => $creditNote->id,
         'original_document_id' => $originalDocument->id,
         'error' => $e->getMessage(),

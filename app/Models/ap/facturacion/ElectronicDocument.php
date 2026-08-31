@@ -135,7 +135,8 @@ class ElectronicDocument extends BaseModel
     'updated_by',
     'card_last4',
     'internal_note',
-    'consolidation_type'
+    'consolidation_type',
+    're_invoice'
   ];
 
   protected $casts = [
@@ -170,6 +171,7 @@ class ElectronicDocument extends BaseModel
     'was_dyn_requested' => 'boolean',
     'is_accounted' => 'boolean',
     'is_annulled' => 'boolean',
+    're_invoice' => 'boolean',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
     'migrated_at' => 'datetime',

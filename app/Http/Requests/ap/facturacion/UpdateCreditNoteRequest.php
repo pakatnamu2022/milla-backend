@@ -108,6 +108,7 @@ class UpdateCreditNoteRequest extends StoreRequest
       'observaciones' => 'nullable|string|max:1000',
       'enviar_automaticamente_a_la_sunat' => 'nullable|boolean',
       'enviar_automaticamente_al_cliente' => 'nullable|boolean',
+      're_invoice' => 'nullable|boolean',
     ];
 
     if ($typeCode === SunatConcepts::CODE_CREDIT_NOTE_DESCUENTO_GLOBAL) {
@@ -166,7 +167,7 @@ class UpdateCreditNoteRequest extends StoreRequest
       }
 
       // Get the original document from the credit note itself
-      $creditNoteId = (int) $this->route('id');
+      $creditNoteId = (int)$this->route('id');
       $creditNote = ElectronicDocument::find($creditNoteId);
       if (!$creditNote || !$creditNote->original_document_id) {
         return;

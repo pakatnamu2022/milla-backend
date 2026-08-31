@@ -1684,6 +1684,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
+      Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
 
       // Product Shelves - Estantes de Productos
       Route::apiResource('productShelves', ProductShelfController::class)->only([
@@ -2039,7 +2040,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
       Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
-
+      
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
       Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
