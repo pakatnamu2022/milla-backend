@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\comercial;
 
+use App\Exports\ap\comercial\VehiclesBillingExport;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
@@ -43,9 +44,39 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     return $exportService->exportFromRequest($request, Vehicles::class);
   }
 
+  /**
+   * Reporte de Facturación Comercial (3 hojas).
+   *
+   * Reglas:
+   *  - "Facturación" = facturas + boletas aceptadas por SUNAT, no anticipo, no anuladas.
+   *  - Una NC "aplica" (reduce el neto y anula/descuenta el comprobante) si:
+   *      anulado = false  Y  ( aceptada_por_sunat = true  OR  fecha_de_emision = hoy ).
+   *    Es decir: una NC del mismo día en que se genera el reporte cuenta aunque aún no
+   *    esté aceptada; si es de un día anterior y sigue sin aceptarse, ya no cuenta.
+   *  - Una ND solo cuenta si está aceptada por SUNAT.
+   *  - Se agrupa por purchase_request_quote_id (1 fila por solicitud, sin duplicar VIN).
+   *  - Neto de un comprobante = total - Σ NC aplicadas + Σ ND aplicadas.
+   *  - Comprobante vigente = neto > ROUNDING_TOLERANCE.
+   *  - Solicitud sin vigente (NC anula/descuenta todo y no hubo refacturación) => no aparece
+   *    en la hoja principal, solo en la hoja de Notas de Crédito.
+   *  - Refacturación: si la solicitud tiene ≥1 comprobante anulado por NC y 1 vigente
+   *    posterior, el vigente se atribuye al periodo del PRIMER comprobante de la cadena.
+   */
   public function exportBilling(Request $request)
   {
-    $query = ElectronicDocument::with([
+    $today = now()->toDateString();
+
+    $dates = $request->get('fecha_de_emision');
+    $hasRange = is_array($dates) && count($dates) === 2 && $dates[0] && $dates[1];
+    $start = $hasRange ? substr($dates[0], 0, 10) : null;
+    $end = $hasRange ? substr($dates[1], 0, 10) : null;
+
+    $sedeId = $request->filled('sede_id') ? $request->get('sede_id') : null;
+
+    // 1. Comprobantes base (facturas + boletas) aceptados por SUNAT.
+    //    No se filtra por fecha aquí: se necesita toda la cadena de la solicitud
+    //    para detectar refacturaciones y atribuir el periodo correcto.
+    $invoiceQuery = ElectronicDocument::with([
       'purchaseRequestQuote.sede',
       'purchaseRequestQuote.holder.typePerson',
       'purchaseRequestQuote.opportunity.worker',
@@ -63,26 +94,226 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         ElectronicDocument::TYPE_BOLETA,
       ])
       ->where('is_advance_payment', false)
-      ->where('anulado', false);
+      ->where('anulado', false)
+      ->where('aceptada_por_sunat', true);
 
-    if ($request->filled('fecha_de_emision')) {
-      $dates = $request->get('fecha_de_emision');
-      if (is_array($dates) && count($dates) === 2) {
-        $query->whereDate('fecha_de_emision', '>=', $dates[0])
-          ->whereDate('fecha_de_emision', '<=', $dates[1]);
-      }
-    }
-
-    if ($request->filled('sede_id')) {
-      $sedeId = $request->get('sede_id');
-      $query->whereHas('purchaseRequestQuote', function ($q) use ($sedeId) {
+    if ($sedeId) {
+      $invoiceQuery->whereHas('purchaseRequestQuote', function ($q) use ($sedeId) {
         $q->where('sede_id', $sedeId);
       });
     }
 
-    $documents = $query->orderBy('fecha_de_emision', 'desc')->get();
+    $invoices = $invoiceQuery->orderBy('fecha_de_emision')->orderBy('id')->get();
+    $invoicesById = $invoices->keyBy('id');
+    $invoiceIds = $invoices->pluck('id')->all();
 
-    $columns = [
+    // 2. Notas de crédito que aplican a esos comprobantes.
+    $creditNotes = collect();
+    $debitNotes = collect();
+    if (!empty($invoiceIds)) {
+      $creditNotes = ElectronicDocument::with('creditNoteType')
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('is_advance_payment', false)
+        ->where('anulado', false)
+        ->whereIn('original_document_id', $invoiceIds)
+        ->where(function ($q) use ($today) {
+          $q->where('aceptada_por_sunat', true)
+            ->orWhereDate('fecha_de_emision', $today);
+        })
+        ->orderBy('fecha_de_emision')->orderBy('id')
+        ->get();
+
+      $debitNotes = ElectronicDocument::where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+        ->where('is_advance_payment', false)
+        ->where('anulado', false)
+        ->where('aceptada_por_sunat', true)
+        ->whereIn('original_document_id', $invoiceIds)
+        ->get();
+    }
+
+    $ncByInvoice = $creditNotes->groupBy('original_document_id');
+    $ndByInvoice = $debitNotes->groupBy('original_document_id');
+    $tol = ElectronicDocument::ROUNDING_TOLERANCE;
+
+    $mainRows = [];
+    $creditNoteRows = [];
+    $refactRows = [];
+    $referencedNcIds = [];
+
+    foreach ($invoices->groupBy('purchase_request_quote_id') as $prqInvoices) {
+      $prqInvoices = $prqInvoices
+        ->sortBy(fn($i) => [$i->fecha_de_emision?->timestamp ?? 0, $i->id])
+        ->values();
+      $firstInvoice = $prqInvoices->first();
+
+      $enriched = $prqInvoices->map(function ($inv) use ($ncByInvoice, $ndByInvoice) {
+        $ncs = $ncByInvoice->get($inv->id, collect());
+        $nds = $ndByInvoice->get($inv->id, collect());
+        $totalNc = (float) $ncs->sum('total');
+        $totalNd = (float) $nds->sum('total');
+        $gross = (float) $inv->total;
+        return [
+          'invoice' => $inv,
+          'ncs' => $ncs,
+          'total_nc' => $totalNc,
+          'total_nd' => $totalNd,
+          'gross' => $gross,
+          'net' => $gross - $totalNc + $totalNd,
+        ];
+      });
+
+      $vigentes = $enriched->filter(fn($e) => round($e['net'], 2) > $tol)->values();
+      $cancelled = $enriched->filter(fn($e) => round($e['net'], 2) <= $tol)->values();
+
+      // Registrar todas las NC de la solicitud como referenciadas (trazabilidad).
+      foreach ($enriched as $e) {
+        foreach ($e['ncs'] as $nc) {
+          $creditNoteRows[] = $this->buildBillingCreditNoteRow($nc, $e['invoice'], 'REFERENCIADA');
+          $referencedNcIds[] = $nc->id;
+        }
+      }
+
+      if ($vigentes->isEmpty()) {
+        // Solicitud totalmente anulada/descontada por NC y sin refacturación: no va a la hoja principal.
+        continue;
+      }
+
+      $chosen = $vigentes->last();
+      $vigInvoice = $chosen['invoice'];
+      $prq = $vigInvoice->purchaseRequestQuote;
+
+      $isRefact = $cancelled->isNotEmpty();
+      // Caso anómalo (no debería existir): NC parcial sobre el comprobante vigente.
+      $isPartial = $chosen['total_nc'] > $tol;
+
+      $attributedDate = $isRefact ? $firstInvoice->fecha_de_emision : $vigInvoice->fecha_de_emision;
+
+      // Filtro de periodo por fecha atribuida.
+      if ($hasRange) {
+        $ad = $attributedDate?->toDateString();
+        if ($ad === null || $ad < $start || $ad > $end) {
+          continue;
+        }
+      }
+
+      $observacion = null;
+      if ($isPartial) {
+        $observacion = 'NC PARCIAL — revisar: la NC no anula ni descuenta el total del comprobante.';
+      }
+
+      $totalBalance = $vigInvoice->receivableAccounts->sum('balance');
+      $hasReceivable = $vigInvoice->receivableAccounts->isNotEmpty();
+      $collectionRefs = $vigInvoice->receivableAccounts
+        ->whereNotNull('collection_reference')
+        ->pluck('collection_reference')
+        ->unique()
+        ->implode("\n");
+
+      $facturaNeta = round($chosen['net'], 2);
+
+      if (!$vigInvoice->is_accounted) {
+        $estado = 'NO CONTABILIZADO';
+        $pendiente = $facturaNeta;
+      } elseif (!$hasReceivable || $totalBalance == 0) {
+        $estado = 'CANCELADO';
+        $pendiente = 0.0;
+      } else {
+        $estado = 'PENDIENTE';
+        $pendiente = (float) $totalBalance;
+      }
+
+      $mainRows[] = [
+        'solicitud' => $prq?->correlative,
+        'sede' => $prq?->sede?->abreviatura,
+        'tipo_persona' => $prq?->holder?->typePerson?->description,
+        'dni' => $prq?->holder?->num_doc,
+        'cliente' => $prq?->holder?->full_name,
+        'asesor' => $prq?->opportunity?->worker?->nombre_completo,
+        'marca' => $prq?->vehicle?->model?->family?->brand?->name,
+        'modelo' => $prq?->vehicle?->model?->version,
+        'vin' => $prq?->vehicle?->vin,
+        'color' => $prq?->vehicle?->color?->description,
+        'tipo_credito' => $prq?->creditType?->description,
+        'entidad_credito' => $prq?->creditEntity?->description,
+        'entidad_seguro' => $prq?->insuranceEntity?->description,
+        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
+        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
+        'numero_documento' => $vigInvoice->full_number,
+        'fecha_factura' => $vigInvoice->fecha_de_emision?->format('d/m/Y'),
+        'fecha_atribuida' => $attributedDate?->format('d/m/Y'),
+        'refacturacion' => $isRefact ? 'SÍ' : 'NO',
+        'pct_beneficio' => $prq?->margin_pct,
+        'beneficio' => is_numeric($prq?->margin_amount) ? (float) $prq->margin_amount : null,
+        'total_factura' => $chosen['gross'],
+        'total_nc' => $chosen['total_nc'] ?: null,
+        'total_nd' => $chosen['total_nd'] ?: null,
+        'factura_neta' => $facturaNeta,
+        'pendiente' => $pendiente,
+        'nc_asociada' => $chosen['ncs']->pluck('full_number')->implode("\n") ?: null,
+        'ref_cancelacion' => $collectionRefs ?: null,
+        'estado' => $estado,
+        'forma_pago' => $vigInvoice->condiciones_de_pago,
+        'banco' => $vigInvoice->bank?->description,
+        'aceptada_sunat' => $vigInvoice->aceptada_por_sunat ? 'SÍ' : 'NO',
+        'observacion' => $observacion,
+      ];
+
+      // Hoja de refacturaciones / NC parcial.
+      if ($isRefact || $isPartial) {
+        $origEnriched = $cancelled->isNotEmpty() ? $cancelled->last() : $chosen;
+        $origInvoice = $origEnriched['invoice'];
+        $origNc = $origEnriched['ncs']->last();
+        $refactRows[] = [
+          'solicitud' => $prq?->correlative,
+          'vin' => $prq?->vehicle?->vin,
+          'cliente' => $prq?->holder?->full_name,
+          'comprobante_original' => $origInvoice->full_number,
+          'fecha_original' => $origInvoice->fecha_de_emision?->format('d/m/Y'),
+          'monto_original' => (float) $origInvoice->total,
+          'nc' => $origNc?->full_number,
+          'fecha_nc' => $origNc?->fecha_de_emision?->format('d/m/Y'),
+          'monto_nc' => $origNc ? (float) $origNc->total : null,
+          'comprobante_nuevo' => $isRefact ? $vigInvoice->full_number : null,
+          'fecha_nuevo' => $isRefact ? $vigInvoice->fecha_de_emision?->format('d/m/Y') : null,
+          'monto_nuevo' => $isRefact ? (float) $vigInvoice->total : null,
+          'periodo_atribuido' => $attributedDate?->format('m/Y'),
+          'observacion' => $isPartial
+            ? 'NC PARCIAL — revisar: la NC no anula ni descuenta el total.'
+            : 'Refacturación: se anuló el comprobante original con NC y se emitió uno nuevo.',
+        ];
+      }
+    }
+
+    // NC dentro del rango que aún no fueron listadas (p. ej. NC sin aceptar de días previos).
+    if ($hasRange && !empty($invoiceIds)) {
+      $rangeNc = ElectronicDocument::with('creditNoteType')
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('is_advance_payment', false)
+        ->where('anulado', false)
+        ->whereIn('original_document_id', $invoiceIds)
+        ->whereDate('fecha_de_emision', '>=', $start)
+        ->whereDate('fecha_de_emision', '<=', $end)
+        ->orderBy('fecha_de_emision')->orderBy('id')
+        ->get();
+
+      foreach ($rangeNc as $nc) {
+        if (in_array($nc->id, $referencedNcIds, true)) {
+          continue;
+        }
+        $creditNoteRows[] = $this->buildBillingCreditNoteRow(
+          $nc,
+          $invoicesById->get($nc->original_document_id),
+          'EN RANGO'
+        );
+      }
+    }
+
+    $title = $request->get('title', 'Reporte de Facturación Comercial');
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    $accountingUsd = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
+
+    $mainColumns = [
       'solicitud' => 'SOLICITUD',
       'sede' => 'SEDE',
       'tipo_persona' => 'TIPO DE PERSONA',
@@ -99,97 +330,148 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'gps_hunter' => 'GPS HUNTER',
       'gps_hunter_anios' => 'AÑOS GPS HUNTER',
       'numero_documento' => 'NUMERO DE DOCUMENTO',
-      'fecha_factura' => 'FECHA FACTURA',
+      'fecha_factura' => 'FECHA COMPROBANTE',
+      'fecha_atribuida' => 'FECHA ATRIBUIDA',
+      'refacturacion' => 'REFACTURACIÓN',
       'pct_beneficio' => '% BENEFICIO',
       'beneficio' => 'BENEFICIO',
       'total_factura' => 'TOTAL FACTURA',
+      'total_nc' => 'TOTAL NC',
+      'total_nd' => 'TOTAL ND',
+      'factura_neta' => 'FACTURA NETA',
       'pendiente' => 'PENDIENTE',
+      'nc_asociada' => 'NC ASOCIADA',
       'ref_cancelacion' => 'REF CANCELACION',
       'estado' => 'ESTADO',
       'forma_pago' => 'FORMA DE PAGO',
       'banco' => 'BANCO',
       'aceptada_sunat' => 'ACEPTADA POR SUNAT',
+      'observacion' => 'OBSERVACIÓN',
     ];
 
-    $rows = $documents->map(function ($doc) {
-      $prq = $doc->purchaseRequestQuote;
-      $totalBalance = $doc->receivableAccounts->sum('balance');
-      $hasReceivable = $doc->receivableAccounts->isNotEmpty();
-      $isCancelled = $hasReceivable && $totalBalance == 0;
+    $creditNoteColumns = [
+      'solicitud' => 'SOLICITUD',
+      'sede' => 'SEDE',
+      'cliente' => 'CLIENTE',
+      'vin' => 'VIN',
+      'marca' => 'MARCA',
+      'modelo' => 'MODELO',
+      'asesor' => 'ASESOR',
+      'nc' => 'NOTA DE CRÉDITO',
+      'fecha_nc' => 'FECHA NC',
+      'tipo_nc' => 'TIPO NC',
+      'motivo' => 'MOTIVO',
+      'monto_nc' => 'MONTO NC',
+      'comprobante_origen' => 'COMPROBANTE ORIGEN',
+      'fecha_comprobante_origen' => 'FECHA COMPROBANTE ORIGEN',
+      'aceptada_sunat' => 'ACEPTADA POR SUNAT',
+      'origen' => 'ORIGEN',
+    ];
 
-      $collectionRefs = $doc->receivableAccounts
-        ->whereNotNull('collection_reference')
-        ->pluck('collection_reference')
-        ->unique()
-        ->implode("\n");
+    $refactColumns = [
+      'solicitud' => 'SOLICITUD',
+      'vin' => 'VIN',
+      'cliente' => 'CLIENTE',
+      'comprobante_original' => 'COMPROBANTE ORIGINAL',
+      'fecha_original' => 'FECHA ORIGINAL',
+      'monto_original' => 'MONTO ORIGINAL',
+      'nc' => 'NOTA DE CRÉDITO',
+      'fecha_nc' => 'FECHA NC',
+      'monto_nc' => 'MONTO NC',
+      'comprobante_nuevo' => 'COMPROBANTE NUEVO',
+      'fecha_nuevo' => 'FECHA NUEVO',
+      'monto_nuevo' => 'MONTO NUEVO',
+      'periodo_atribuido' => 'PERIODO ATRIBUIDO',
+      'observacion' => 'OBSERVACIÓN',
+    ];
 
-      $docTotal = (float)($doc->total
-        ?? ($doc->total_gravada + $doc->total_igv + $doc->total_inafecta + $doc->total_exonerada)
-        ?? 0);
-
-      if (!$doc->is_accounted) {
-        $estado = 'NO CONTABILIZADO';
-        $pendiente = $docTotal;
-      } elseif (!$hasReceivable || $totalBalance == 0) {
-        $estado = 'CANCELADO';
-        $pendiente = 0.0;
-      } else {
-        $estado = 'PENDIENTE';
-        $pendiente = (float)$totalBalance;
-      }
-
-      return [
-        'solicitud' => $prq?->correlative,
-        'sede' => $prq?->sede?->abreviatura,
-        'tipo_persona' => $prq?->holder?->typePerson?->description,
-        'dni' => $prq?->holder?->num_doc,
-        'cliente' => $prq?->holder?->full_name,
-        'asesor' => $prq?->opportunity?->worker?->nombre_completo,
-        'marca' => $prq?->vehicle?->model?->family?->brand?->name,
-        'modelo' => $prq?->vehicle?->model?->version,
-        'vin' => $prq?->vehicle?->vin,
-        'color' => $prq?->vehicle?->color?->description,
-        'tipo_credito' => $prq?->creditType?->description,
-        'entidad_credito' => $prq?->creditEntity?->description,
-        'entidad_seguro' => $prq?->insuranceEntity?->description,
-        'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
-        'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
-        'numero_documento' => $doc->full_number,
-        'fecha_factura' => $doc->fecha_de_emision?->format('d/m/Y'),
-        'pct_beneficio' => $prq?->margin_pct,
-        'beneficio' => is_numeric($prq?->margin_amount) ? (float)$prq->margin_amount : null,
-        'total_factura' => $docTotal,
-        'pendiente' => $pendiente,
-        'ref_cancelacion' => $collectionRefs ?: null,
-        'estado' => $estado,
-        'forma_pago' => $doc->condiciones_de_pago,
-        'banco' => $doc->bank?->description,
-        'aceptada_sunat' => $doc->aceptada_por_sunat ? 'SÍ' : 'NO',
-      ];
-    });
-
-    $title = $request->get('title', 'Reporte de Facturación Comercial');
-    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
-
-    $cellColorRules = [
-      'estado' => [
-        'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
-        'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
-        'NO CONTABILIZADO' => ['bg' => 'F3F4F6', 'text' => '6B7280', 'bold' => true],
+    $sheets = [
+      [
+        'title' => 'Facturación',
+        'columns' => $mainColumns,
+        'rows' => $mainRows,
+        'cellColorRules' => [
+          'estado' => [
+            'CANCELADO' => ['bg' => 'DCFCE7', 'text' => '15803D', 'bold' => true],
+            'PENDIENTE' => ['bg' => 'FFEDD5', 'text' => 'C2410C', 'bold' => true],
+            'NO CONTABILIZADO' => ['bg' => 'F3F4F6', 'text' => '6B7280', 'bold' => true],
+          ],
+          'refacturacion' => [
+            'SÍ' => ['bg' => 'FEF9C3', 'text' => '854D0E', 'bold' => true],
+          ],
+        ],
+        'columnFormats' => [
+          'beneficio' => $accountingUsd,
+          'total_factura' => $accountingUsd,
+          'total_nc' => $accountingUsd,
+          'total_nd' => $accountingUsd,
+          'factura_neta' => $accountingUsd,
+          'pendiente' => $accountingUsd,
+        ],
+        'wrapTextColumns' => ['nc_asociada', 'ref_cancelacion', 'observacion'],
+      ],
+      [
+        'title' => 'Notas de Crédito',
+        'columns' => $creditNoteColumns,
+        'rows' => $creditNoteRows,
+        'cellColorRules' => [
+          'aceptada_sunat' => [
+            'NO' => ['bg' => 'FEE2E2', 'text' => 'B91C1C', 'bold' => true],
+          ],
+        ],
+        'columnFormats' => [
+          'monto_nc' => $accountingUsd,
+        ],
+        'wrapTextColumns' => ['motivo'],
+      ],
+      [
+        'title' => 'Refacturaciones',
+        'columns' => $refactColumns,
+        'rows' => $refactRows,
+        'columnFormats' => [
+          'monto_original' => $accountingUsd,
+          'monto_nc' => $accountingUsd,
+          'monto_nuevo' => $accountingUsd,
+        ],
+        'wrapTextColumns' => ['observacion'],
       ],
     ];
 
-    $accountingUsd = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
-    $columnFormats = [
-      'beneficio' => $accountingUsd,
-      'total_factura' => $accountingUsd,
-      'pendiente' => $accountingUsd,
-    ];
-
     return \Maatwebsite\Excel\Facades\Excel::download(
-      new GeneralExport($rows, $columns, $title, [], $cellColorRules, $columnFormats, ['ref_cancelacion']),
+      new VehiclesBillingExport($sheets),
       $filename
     );
+  }
+
+  /**
+   * Arma una fila de la hoja "Notas de Crédito".
+   *
+   * @param  ElectronicDocument       $nc       Nota de crédito
+   * @param  ElectronicDocument|null  $invoice  Comprobante de origen (con purchaseRequestQuote cargado)
+   * @param  string                   $origen   'REFERENCIADA' | 'EN RANGO'
+   */
+  private function buildBillingCreditNoteRow(ElectronicDocument $nc, ?ElectronicDocument $invoice, string $origen): array
+  {
+    $prq = $invoice?->purchaseRequestQuote;
+
+    return [
+      'solicitud' => $prq?->correlative,
+      'sede' => $prq?->sede?->abreviatura,
+      'cliente' => $prq?->holder?->full_name,
+      'vin' => $prq?->vehicle?->vin,
+      'marca' => $prq?->vehicle?->model?->family?->brand?->name,
+      'modelo' => $prq?->vehicle?->model?->version,
+      'asesor' => $prq?->opportunity?->worker?->nombre_completo,
+      'nc' => $nc->full_number,
+      'fecha_nc' => $nc->fecha_de_emision?->format('d/m/Y'),
+      'tipo_nc' => $nc->creditNoteType?->description,
+      'motivo' => $nc->observaciones,
+      'monto_nc' => (float) $nc->total,
+      'comprobante_origen' => $invoice?->full_number,
+      'fecha_comprobante_origen' => $invoice?->fecha_de_emision?->format('d/m/Y'),
+      'aceptada_sunat' => $nc->aceptada_por_sunat ? 'SÍ' : 'NO',
+      'origen' => $origen,
+    ];
   }
 
   public function exportDelivery(Request $request)
