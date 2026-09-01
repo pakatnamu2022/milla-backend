@@ -180,7 +180,7 @@ class ElectronicDocument extends BaseModel
 
   const array filters = [
     'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento', 'vehicleMovement.vehicle.vin', 'workOrder.correlative', 'orderQuotation.quotation_number'],
-    'is_accounted' => '=',
+    'is_accounted' => 'scope',
     'original_document_id' => '=',
     'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
@@ -553,6 +553,34 @@ class ElectronicDocument extends BaseModel
   public function scopeConsolidatedWorkOrders($query)
   {
     return $query->where('consolidation_type', self::CONSOLIDATION_MASSIVE);
+  }
+
+  /**
+   * Scope para filtrar por is_accounted
+   * Cuando el valor es 0 o false, incluye también los registros donde is_accounted sea null
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param mixed $value
+   * @return \Illuminate\Database\Eloquent\Builder
+   */
+  public function scopeIsAccounted($query, $value)
+  {
+    // Convertir el valor a booleano
+    $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($bool === null && ($value === '0' || $value === 0)) {
+      $bool = false;
+    }
+
+    if ($bool) {
+      // Si es true, buscar solo los que son 1 o true
+      return $query->where('is_accounted', true);
+    } else {
+      // Si es false, buscar los que son 0, false o null
+      return $query->where(function ($q) {
+        $q->where('is_accounted', false)
+          ->orWhereNull('is_accounted');
+      });
+    }
   }
 
   /**
