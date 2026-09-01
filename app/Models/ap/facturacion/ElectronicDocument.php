@@ -180,6 +180,7 @@ class ElectronicDocument extends BaseModel
 
   const array filters = [
     'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento', 'vehicleMovement.vehicle.vin', 'workOrder.correlative', 'orderQuotation.quotation_number'],
+    'is_accounted' => '=',
     'original_document_id' => '=',
     'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
