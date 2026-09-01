@@ -1329,6 +1329,7 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
 
     $exportService = new ExportService();
     $filters = $exportService->buildFiltersFromRequest($request, ApVehicleDelivery::class);
+    $filters[] = ['column' => 'status_delivery', 'operator' => '!=', 'value' => ApVehicleDelivery::STATUS_CANCELLED];
 
     $model = new ApVehicleDelivery();
     $data = $model->getReportData($filters);
