@@ -8,6 +8,7 @@ use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 {
   protected $signature = 'inventory:create-from-document {document_id : ID del comprobante electrónico}';
 
-  protected $description = 'Crea movimiento de inventario desde un comprobante (solo registros, sin mover stock ni estados)';
+  protected $description = 'Crea movimiento de inventario desde un comprobante o nota de crédito (solo registros, sin mover stock ni estados)';
 
   public function handle(): int
   {
@@ -34,30 +35,74 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       return 1;
     }
 
-    // Mostrar información del comprobante
-    $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    $this->info("📄 INFORMACIÓN DEL COMPROBANTE");
-    $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    $this->table(
-      ['Campo', 'Valor'],
-      [
-        ['ID', $document->id],
-        ['Número', $document->full_number],
-        ['Fecha emisión', $document->fecha_de_emision],
-        ['Tipo consolidación', $document->consolidation_type ?? 'simple'],
-        ['work_order_id', $document->work_order_id ?? 'NULL'],
-        ['order_quotation_id', $document->order_quotation_id ?? 'NULL'],
-      ]
-    );
+    // Determinar si es nota de crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+    $originalDocument = null;
+
+    if ($isCreditNote) {
+      // Buscar documento original
+      $originalDocument = $document->originalDocument;
+      if (!$originalDocument) {
+        $this->error("❌ La nota de crédito no tiene un documento original asociado");
+        return 1;
+      }
+
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      $this->info("📄 INFORMACIÓN - NOTA DE CRÉDITO");
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+      $creditNoteTypeLabel = 'Desconocido';
+      if ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_ANULACION) {
+        $creditNoteTypeLabel = 'Anulación de operación (01)';
+      } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL) {
+        $creditNoteTypeLabel = 'Devolución total (06)';
+      } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_ITEM) {
+        $creditNoteTypeLabel = 'Devolución por ítem (02)';
+      }
+
+      $this->table(
+        ['Campo', 'Valor'],
+        [
+          ['ID NC', $document->id],
+          ['Número NC', $document->full_number],
+          ['Tipo NC', $creditNoteTypeLabel],
+          ['Fecha emisión', $document->fecha_de_emision],
+          ['Doc. Original', $originalDocument->full_number],
+          ['Doc. Original ID', $originalDocument->id],
+          ['Tipo consolidación', $originalDocument->consolidation_type ?? 'simple'],
+          ['work_order_id', $originalDocument->work_order_id ?? 'NULL'],
+          ['order_quotation_id', $originalDocument->order_quotation_id ?? 'NULL'],
+        ]
+      );
+    } else {
+      // Mostrar información del comprobante normal
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      $this->info("📄 INFORMACIÓN DEL COMPROBANTE");
+      $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      $this->table(
+        ['Campo', 'Valor'],
+        [
+          ['ID', $document->id],
+          ['Número', $document->full_number],
+          ['Fecha emisión', $document->fecha_de_emision],
+          ['Tipo consolidación', $document->consolidation_type ?? 'simple'],
+          ['work_order_id', $document->work_order_id ?? 'NULL'],
+          ['order_quotation_id', $document->order_quotation_id ?? 'NULL'],
+        ]
+      );
+    }
 
     // Variables para almacenar qué procesar
     $workOrderIdToProcess = null;
     $quotationIdToProcess = null;
 
+    // Si es NC, usar el documento original para obtener referencias
+    $documentToCheck = $isCreditNote ? $originalDocument : $document;
+
     // Determinar qué procesar según tipo de comprobante
-    if ($document->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
+    if ($documentToCheck->consolidation_type === ElectronicDocument::CONSOLIDATION_MASSIVE) {
       // MASIVO: Pedir ID de la OT
-      $internalNotes = $document->internalNotes()->get();
+      $internalNotes = $documentToCheck->internalNotes()->get();
       $workOrderIds = $internalNotes->where('work_order_id', '!=', null)->pluck('work_order_id')->toArray();
 
       $this->newLine();
@@ -85,12 +130,12 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 
     } else {
       // SIMPLE: Detectar automáticamente
-      if ($document->work_order_id) {
-        $workOrderIdToProcess = $document->work_order_id;
+      if ($documentToCheck->work_order_id) {
+        $workOrderIdToProcess = $documentToCheck->work_order_id;
         $this->newLine();
         $this->info("📦 COMPROBANTE SIMPLE - Orden de Trabajo ID: {$workOrderIdToProcess}");
-      } elseif ($document->order_quotation_id) {
-        $quotationIdToProcess = $document->order_quotation_id;
+      } elseif ($documentToCheck->order_quotation_id) {
+        $quotationIdToProcess = $documentToCheck->order_quotation_id;
         $this->newLine();
         $this->info("📦 COMPROBANTE SIMPLE - Cotización ID: {$quotationIdToProcess}");
       } else {
@@ -172,9 +217,16 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       return null;
     }
 
+    // Detectar si es nota de crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+
     $this->newLine();
     $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    $this->info("📋 PREVISUALIZACIÓN - ORDEN DE TRABAJO: {$workOrder->correlative}");
+    if ($isCreditNote) {
+      $this->info("📋 PREVISUALIZACIÓN - DEVOLUCIÓN POR NC - OT: {$workOrder->correlative}");
+    } else {
+      $this->info("📋 PREVISUALIZACIÓN - ORDEN DE TRABAJO: {$workOrder->correlative}");
+    }
     $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     // Obtener almacén
@@ -194,9 +246,18 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       ->where('is_traverse', false);
 
     if ($productParts->isEmpty()) {
-      $this->warn("⚠️  Sin repuestos para generar salida (solo servicios o travesía)");
+      if ($isCreditNote) {
+        $this->warn("⚠️  Sin repuestos para generar devolución (solo servicios o travesía)");
+      } else {
+        $this->warn("⚠️  Sin repuestos para generar salida (solo servicios o travesía)");
+      }
       return null;
     }
+
+    // Determinar tipo de movimiento y referencia según sea NC o no
+    $movementType = $isCreditNote ? InventoryMovement::TYPE_RETURN_IN : InventoryMovement::TYPE_SALE;
+    $referenceType = $isCreditNote ? ElectronicDocument::class : ApWorkOrder::class;
+    $referenceId = $isCreditNote ? $document->id : $workOrder->id;
 
     // Mostrar info del movimiento que se creará
     $this->table(
@@ -205,11 +266,11 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
         ['OT ID', $workOrder->id],
         ['Correlativo', $workOrder->correlative],
         ['Almacén', "{$warehouse->name} (ID: {$warehouse->id})"],
-        ['movement_type', InventoryMovement::TYPE_SALE],
+        ['movement_type', $movementType . ($isCreditNote ? ' (Devolución Entrada)' : ' (Salida)')],
         ['movement_date', $document->fecha_de_emision],
         ['Comprobante', $document->full_number],
-        ['reference_type', ApWorkOrder::class],
-        ['reference_id', $workOrder->id],
+        ['reference_type', $referenceType],
+        ['reference_id', $referenceId],
         ['electronic_document_id', $document->id],
         ['status', InventoryMovement::STATUS_APPROVED],
       ]
@@ -261,9 +322,16 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       return null;
     }
 
+    // Detectar si es nota de crédito
+    $isCreditNote = $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+
     $this->newLine();
     $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    $this->info("📋 PREVISUALIZACIÓN - COTIZACIÓN: {$quotation->quotation_number}");
+    if ($isCreditNote) {
+      $this->info("📋 PREVISUALIZACIÓN - DEVOLUCIÓN POR NC - COTIZACIÓN: {$quotation->quotation_number}");
+    } else {
+      $this->info("📋 PREVISUALIZACIÓN - COTIZACIÓN: {$quotation->quotation_number}");
+    }
     $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     // Obtener almacén
@@ -284,9 +352,18 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       ->where('is_traverse', false);
 
     if ($productDetails->isEmpty()) {
-      $this->warn("⚠️  Sin productos para generar salida (solo servicios o travesía)");
+      if ($isCreditNote) {
+        $this->warn("⚠️  Sin productos para generar devolución (solo servicios o travesía)");
+      } else {
+        $this->warn("⚠️  Sin productos para generar salida (solo servicios o travesía)");
+      }
       return null;
     }
+
+    // Determinar tipo de movimiento y referencia según sea NC o no
+    $movementType = $isCreditNote ? InventoryMovement::TYPE_RETURN_IN : InventoryMovement::TYPE_SALE;
+    $referenceType = $isCreditNote ? ElectronicDocument::class : ApOrderQuotations::class;
+    $referenceId = $isCreditNote ? $document->id : $quotation->id;
 
     // Mostrar info del movimiento que se creará
     $this->table(
@@ -295,11 +372,11 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
         ['Cotización ID', $quotation->id],
         ['Número', $quotation->quotation_number],
         ['Almacén', "{$warehouse->name} (ID: {$warehouse->id})"],
-        ['movement_type', InventoryMovement::TYPE_SALE],
+        ['movement_type', $movementType . ($isCreditNote ? ' (Devolución Entrada)' : ' (Salida)')],
         ['movement_date', $document->fecha_de_emision],
         ['Comprobante', $document->full_number],
-        ['reference_type', ApOrderQuotations::class],
-        ['reference_id', $quotation->id],
+        ['reference_type', $referenceType],
+        ['reference_id', $referenceId],
         ['electronic_document_id', $document->id],
         ['status', InventoryMovement::STATUS_APPROVED],
       ]
@@ -351,7 +428,11 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
       $totalItems = $previewData['totalItems'];
       $totalQuantity = $previewData['totalQuantity'];
 
+      // Detectar si es nota de crédito
+      $isCreditNote = $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO;
+
       $this->info("DEBUG: Iniciando creación del movimiento...");
+      $this->info("DEBUG: Es nota de crédito: " . ($isCreditNote ? 'SÍ' : 'NO'));
 
       if ($previewData['type'] === 'work_order') {
         $workOrder = $previewData['workOrder'];
@@ -359,20 +440,40 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 
         $this->info("DEBUG: Creando movimiento para OT {$workOrder->id}...");
 
+        // Determinar descripción de NC si aplica
+        $creditNoteDescription = 'Desconocido';
+        if ($isCreditNote) {
+          if ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_ANULACION) {
+            $creditNoteDescription = 'Anulación de operación';
+          } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL) {
+            $creditNoteDescription = 'Devolución total';
+          } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_ITEM) {
+            $creditNoteDescription = 'Devolución por ítem';
+          }
+        }
+
+        // Configurar según sea NC o factura normal
+        $movementType = $isCreditNote ? InventoryMovement::TYPE_RETURN_IN : InventoryMovement::TYPE_SALE;
+        $referenceType = $isCreditNote ? ElectronicDocument::class : ApWorkOrder::class;
+        $referenceId = $isCreditNote ? $document->id : $workOrder->id;
+        $notes = $isCreditNote
+          ? "Devolución por NC {$document->full_number} - {$creditNoteDescription} - {$workOrder->correlative}"
+          : "Salida por venta - Orden de Trabajo {$workOrder->correlative}";
+
         // Crear movimiento
         $movement = InventoryMovement::create([
           'movement_number' => InventoryMovement::generateMovementNumber(),
-          'movement_type' => InventoryMovement::TYPE_SALE,
+          'movement_type' => $movementType,
           'movement_date' => $document->fecha_de_emision,
           'warehouse_id' => $warehouse->id,
           'currency_id' => 1,
           'exchange_rate' => 1.00,
-          'reference_type' => ApWorkOrder::class,
-          'reference_id' => $workOrder->id,
+          'reference_type' => $referenceType,
+          'reference_id' => $referenceId,
           'electronic_document_id' => $document->id,
           'user_id' => $workOrder->created_by ?? 1,
           'status' => InventoryMovement::STATUS_APPROVED,
-          'notes' => "Salida por venta - Orden de Trabajo {$workOrder->correlative}",
+          'notes' => $notes,
           'total_items' => $totalItems,
           'total_quantity' => $totalQuantity,
         ]);
@@ -382,6 +483,10 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 
         // Crear detalles
         foreach ($productParts as $part) {
+          $detailNotes = $isCreditNote
+            ? "Devolución NC {$document->full_number} - {$part->product->name}"
+            : "Venta orden de trabajo {$workOrder->correlative}";
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $part->product_id,
@@ -390,7 +495,7 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
             'quantity' => $part->quantity_used,
             'unit_cost' => $part->unit_price,
             'total_cost' => $part->net_amount,
-            'notes' => "Venta orden de trabajo {$workOrder->correlative}",
+            'notes' => $detailNotes,
           ]);
         }
 
@@ -402,20 +507,40 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 
         $this->info("DEBUG: Creando movimiento para Cotización {$quotation->id}...");
 
+        // Determinar descripción de NC si aplica
+        $creditNoteDescription = 'Desconocido';
+        if ($isCreditNote) {
+          if ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_ANULACION) {
+            $creditNoteDescription = 'Anulación de operación';
+          } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL) {
+            $creditNoteDescription = 'Devolución total';
+          } elseif ($document->sunat_concept_credit_note_type_id == SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_ITEM) {
+            $creditNoteDescription = 'Devolución por ítem';
+          }
+        }
+
+        // Configurar según sea NC o factura normal
+        $movementType = $isCreditNote ? InventoryMovement::TYPE_RETURN_IN : InventoryMovement::TYPE_SALE;
+        $referenceType = $isCreditNote ? ElectronicDocument::class : ApOrderQuotations::class;
+        $referenceId = $isCreditNote ? $document->id : $quotation->id;
+        $notes = $isCreditNote
+          ? "Devolución por NC {$document->full_number} - {$creditNoteDescription} - {$quotation->quotation_number}"
+          : "Salida por venta - Cotización {$quotation->quotation_number}";
+
         // Crear movimiento
         $movement = InventoryMovement::create([
           'movement_number' => InventoryMovement::generateMovementNumber(),
-          'movement_type' => InventoryMovement::TYPE_SALE,
+          'movement_type' => $movementType,
           'movement_date' => $document->fecha_de_emision,
           'warehouse_id' => $warehouse->id,
           'currency_id' => 1,
           'exchange_rate' => 1.00,
-          'reference_type' => ApOrderQuotations::class,
-          'reference_id' => $quotation->id,
+          'reference_type' => $referenceType,
+          'reference_id' => $referenceId,
           'electronic_document_id' => $document->id,
           'user_id' => $quotation->created_by ?? 1,
           'status' => InventoryMovement::STATUS_APPROVED,
-          'notes' => "Salida por venta - Cotización {$quotation->quotation_number}",
+          'notes' => $notes,
           'total_items' => $totalItems,
           'total_quantity' => $totalQuantity,
         ]);
@@ -425,6 +550,10 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
 
         // Crear detalles
         foreach ($productDetails as $detail) {
+          $detailNotes = $isCreditNote
+            ? "Devolución NC {$document->full_number} - {$detail->product->name}"
+            : "Venta cotización {$quotation->quotation_number}";
+
           InventoryMovementDetail::create([
             'inventory_movement_id' => $movement->id,
             'product_id' => $detail->product_id,
@@ -433,7 +562,7 @@ class CreateMovementFromWorkOrderOrQuotationCommand extends Command
             'quantity' => $detail->quantity,
             'unit_cost' => $detail->unit_price,
             'total_cost' => $detail->total_cost,
-            'notes' => "Venta cotización {$quotation->quotation_number}",
+            'notes' => $detailNotes,
           ]);
         }
 
