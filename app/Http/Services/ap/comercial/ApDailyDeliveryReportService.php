@@ -534,7 +534,22 @@ class ApDailyDeliveryReportService
     // Paso 1: Detectar jefe CAMIONES — el jefe cuyos workers tienen vehículos de tipo camión.
     // Se busca en TODOS los jefes (no solo los sin marcas), porque sus workers pueden tener
     // marcas asignadas pero operar vehículos camión.
+    // NOTA: se combina actividad real del período + asignación de marcas camión, porque si no
+    // hubo entregas/facturadas aún (inicio de mes), la detección por actividad queda vacía y
+    // el jefe cae incorrectamente bajo el gerente que gestiona el grupo de marcas camión.
     $camionAdvisorIds = $vehiclesCamiones->pluck('advisor_id')->filter()->unique()->toArray();
+
+    $camionBrandIds = DB::table('ap_vehicle_brand')
+      ->where('type_class_id', $camionTypeId)
+      ->pluck('id')
+      ->toArray();
+    $camionWorkerIdsFromBrands = $brandAssignments
+      ->filter(fn($ba) => in_array($ba->brand_id, $camionBrandIds))
+      ->pluck('worker_id')
+      ->unique()
+      ->toArray();
+    $camionAdvisorIds = array_unique(array_merge($camionAdvisorIds, $camionWorkerIdsFromBrands));
+
     $camionesJefeId = null;
 
     foreach ($bossToWorkers->keys() as $jefeId) {
