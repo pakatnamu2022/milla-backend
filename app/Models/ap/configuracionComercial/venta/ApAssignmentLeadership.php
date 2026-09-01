@@ -18,6 +18,7 @@ class ApAssignmentLeadership extends Model
     'year',
     'month',
     'status',
+    'hierarchy',
   ];
 
   const filters = [

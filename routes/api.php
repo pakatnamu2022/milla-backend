@@ -39,6 +39,7 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultant
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApPeriodSnapshotController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCampaignController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
@@ -1201,6 +1202,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      Route::post('periodSnapshot', [ApPeriodSnapshotController::class, 'store']);
+
       Route::get('assignmentLeadership/grouped/list', [ApAssignmentLeadershipController::class, 'grouped']);
 
       Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
@@ -1208,6 +1211,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy',
       ]);
 
       Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([

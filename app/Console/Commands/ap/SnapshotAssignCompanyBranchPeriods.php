@@ -52,32 +52,22 @@ class SnapshotAssignCompanyBranchPeriods extends Command
       return CommandAlias::FAILURE;
     }
 
-    // Verificar si ya existen registros para el mes actual
-    $alreadyExists = DB::table('ap_assign_company_branch_period')
-      ->where('year', $currentYear)
-      ->where('month', $currentMonth)
-      ->exists();
-
-    if ($alreadyExists) {
-      $this->warn("Ya existen registros para {$currentMonth}/{$currentYear}");
-      return CommandAlias::FAILURE;
-    }
-
-    $count = 0;
+    $inserted = 0;
+    $skipped = 0;
     foreach ($assignments as $a) {
-      DB::table('ap_assign_company_branch_period')->updateOrInsert(
-        [
-          'sede_id' => $a->sede_id,
-          'worker_id' => $a->worker_id,
-          'year' => $currentYear,
-          'month' => $currentMonth, // Snapshot del mes anterior
-        ],
-        ['created_at' => now(), 'updated_at' => now()]
-      );
-      $count++;
+      $affected = DB::table('ap_assign_company_branch_period')->insertOrIgnore([
+        'sede_id'    => $a->sede_id,
+        'worker_id'  => $a->worker_id,
+        'year'       => $currentYear,
+        'month'      => $currentMonth,
+        'status'     => $a->status,
+        'created_at' => now(),
+        'updated_at' => now(),
+      ]);
+      $affected ? $inserted++ : $skipped++;
     }
 
-    $this->info("Copiados {$count} registros de {$previousMonthNumber}/{$previousYear} a {$currentMonth}/{$currentYear}");
+    $this->info("Copiados {$inserted} registros de {$previousMonthNumber}/{$previousYear} a {$currentMonth}/{$currentYear} ({$skipped} ya existían)");
     return CommandAlias::SUCCESS;
   }
 }

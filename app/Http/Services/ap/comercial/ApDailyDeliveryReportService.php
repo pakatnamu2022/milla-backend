@@ -531,40 +531,39 @@ class ApDailyDeliveryReportService
     // Árbol dinámico: agrupar por gerente (no por grupo de marcas)
     $tree = [];
 
-    // Paso 1: Detectar jefe CAMIONES — el jefe cuyos workers tienen vehículos de tipo camión.
-    // Se busca en TODOS los jefes (no solo los sin marcas), porque sus workers pueden tener
-    // marcas asignadas pero operar vehículos camión.
-    $camionAdvisorIds = $vehiclesCamiones->pluck('advisor_id')->filter()->unique()->toArray();
+    // Paso 1: Detectar jefes top-level por columna hierarchy=1 (configuración explícita por período).
+    // Si hierarchy=1, el jefe se separa con su propio nodo en lugar de aparecer bajo un gerente.
+    $topLevelBossIds = DB::table('ap_assignment_leadership_periods')
+      ->where('year', $year)
+      ->where('month', $month)
+      ->where('status', 1)
+      ->whereNull('deleted_at')
+      ->where('hierarchy', 1)
+      ->distinct()
+      ->pluck('boss_id')
+      ->toArray();
+
+    // Clasificar top-level: camiones (workers asignados a marcas camión) vs otros independientes
+    $camionBrandIds = DB::table('ap_vehicle_brand')
+      ->where('type_class_id', $camionTypeId)
+      ->pluck('id')
+      ->toArray();
+
     $camionesJefeId = null;
-
-    foreach ($bossToWorkers->keys() as $jefeId) {
-      $workers = $bossToWorkers->get($jefeId);
-      if ($workers) {
-        foreach ($workers as $workerAssignment) {
-          if (in_array($workerAssignment->worker_id, $camionAdvisorIds)) {
-            $camionesJefeId = $jefeId;
-            break 2;
-          }
-        }
-      }
-    }
-
-    // Paso 2: Detectar jefes "otros independientes" — jefes cuyos workers NO tienen marcas asignadas
-    // y que no son el jefe de CAMIONES.
     $otherIndependentJefeIds = [];
-    foreach ($bossToWorkers->keys() as $jefeId) {
-      if ($jefeId === $camionesJefeId) {
-        continue;
-      }
+
+    foreach ($topLevelBossIds as $jefeId) {
       $workers = $bossToWorkers->get($jefeId);
-      $hasAnyBrandedWorker = false;
-      foreach ($workers as $workerAssignment) {
-        if (!empty($advisorBrandGroups[$workerAssignment->worker_id])) {
-          $hasAnyBrandedWorker = true;
-          break;
-        }
-      }
-      if (!$hasAnyBrandedWorker) {
+      if (!$workers) continue;
+
+      $workerIds = $workers->pluck('worker_id')->toArray();
+      $hasCamionWorkers = $brandAssignments->filter(
+        fn($ba) => in_array($ba->worker_id, $workerIds) && in_array($ba->brand_id, $camionBrandIds)
+      )->isNotEmpty();
+
+      if ($hasCamionWorkers) {
+        $camionesJefeId = $jefeId;
+      } else {
         $otherIndependentJefeIds[] = $jefeId;
       }
     }

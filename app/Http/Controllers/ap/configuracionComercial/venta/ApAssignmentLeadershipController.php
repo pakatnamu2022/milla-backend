@@ -68,4 +68,13 @@ class ApAssignmentLeadershipController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function destroy($id, IndexApAssignmentLeadershipRequest $request)
+  {
+    try {
+      return $this->success($this->service->destroy($id, $request));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
