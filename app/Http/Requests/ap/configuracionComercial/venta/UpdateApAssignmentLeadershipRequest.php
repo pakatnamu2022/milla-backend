@@ -15,6 +15,7 @@ class UpdateApAssignmentLeadershipRequest extends StoreRequest
       'assigned_workers' => 'nullable|array|min:1',
       'assigned_workers.*' => 'nullable|exists:rrhh_persona,id',
       'status' => 'nullable|boolean',
+      'hierarchy' => 'nullable|boolean',
     ];
   }
 

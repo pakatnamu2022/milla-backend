@@ -70,7 +70,8 @@ class ApAssignmentLeadershipService extends BaseService
           ];
         })->values(),
         'workers_count' => $items->count(),
-        'status' => $first->status
+        'status' => $first->status,
+        'hierarchy' => (bool) $first->hierarchy,
       ];
     })->values();
   }
@@ -131,6 +132,7 @@ class ApAssignmentLeadershipService extends BaseService
         'year' => $data['year'],
         'month' => $data['month'],
         'status' => 1,
+        'hierarchy' => $data['hierarchy'] ?? 0,
       ]);
     }
 
@@ -180,6 +182,13 @@ class ApAssignmentLeadershipService extends BaseService
           throw new Exception("El asesor {$nameAsesor} ya está asignado a otro jefe en este periodo.");
         }
       }
+    }
+
+    if (isset($data['hierarchy'])) {
+      ApAssignmentLeadership::where('boss_id', $data['boss_id'])
+        ->where('year', $data['year'])
+        ->where('month', $data['month'])
+        ->update(['hierarchy' => $data['hierarchy'] ? 1 : 0]);
     }
 
     if (isset($data['status'])) {
@@ -234,6 +243,7 @@ class ApAssignmentLeadershipService extends BaseService
             'year' => $data['year'],
             'month' => $data['month'],
             'status' => 1,
+            'hierarchy' => $data['hierarchy'] ?? 0,
           ]);
         }
       }
@@ -259,5 +269,22 @@ class ApAssignmentLeadershipService extends BaseService
     }
 
     return new ApAssignmentLeadershipResource($items);
+  }
+
+  public function destroy($bossId, Request $request)
+  {
+    $year  = $request->query('year', now()->year);
+    $month = $request->query('month', now()->month);
+
+    $deleted = ApAssignmentLeadership::where('boss_id', $bossId)
+      ->where('year', $year)
+      ->where('month', $month)
+      ->delete();
+
+    if (!$deleted) {
+      throw new Exception('No se encontró la asignación para eliminar.');
+    }
+
+    return ['message' => 'Asignación eliminada correctamente.'];
   }
 }
