@@ -558,6 +558,11 @@ class ElectronicDocument extends BaseModel
   /**
    * Accessors
    */
+  public function getIsAccountedAttribute($value): bool
+  {
+    return (bool) $value;
+  }
+
   public function getDocumentNumberAttribute(): string
   {
     return "{$this->serie}-{$this->numero}";
