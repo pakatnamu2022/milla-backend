@@ -79,6 +79,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Documento electrónico no encontrado');
     }
 
+    if ($document->status === ElectronicDocument::STATUS_DRAFT) {
+      throw new Exception('El documento está en estado borrador y no puede sincronizarse');
+    }
+
+    if ($document->status === ElectronicDocument::STATUS_REJECTED) {
+      throw new Exception('El documento está en estado rechazado y no puede sincronizarse');
+    }
+
+    if ($document->status === ElectronicDocument::STATUS_CANCELLED) {
+      throw new Exception('El documento está en estado cancelado y no puede sincronizarse');
+    }
+
     if ($document->migration_status === 'completed') {
       throw new Exception('El documento ya está sincronizado completamente');
     }
@@ -1517,9 +1529,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             // Validar si la orden de trabajo tiene repuestos antes de procesar
             $workOrder = ApWorkOrder::with('parts')->find($document->work_order_id);
             $hasProductParts = $workOrder && $workOrder->parts()
-              ->whereNotNull('product_id')
-              ->where('is_traverse', false)
-              ->exists();
+                ->whereNotNull('product_id')
+                ->where('is_traverse', false)
+                ->exists();
 
             if ($hasProductParts) {
               try {
