@@ -78,7 +78,7 @@ class ApInternalNote extends BaseModel
 
   /**
    * Generate next sequential number
-   * Format: IN-ddmmyy-correlative (e.g., IN-020826-000001)
+   * Format: IN-ddmmyy-correlative (e.g., IN-020826-1)
    */
   public static function generateNextNumber(): string
   {
@@ -93,15 +93,15 @@ class ApInternalNote extends BaseModel
       ->first();
 
     if (!$lastNote) {
-      return $prefix . '000001';
+      return $prefix . '1';
     }
 
-    // Extract correlative from format IN-ddmmyy-000001
+    // Extract correlative from format IN-ddmmyy-1
     $parts = explode('-', $lastNote->number);
     $lastCorrelative = (int)end($parts);
     $nextCorrelative = $lastCorrelative + 1;
 
-    return $prefix . str_pad($nextCorrelative, 6, '0', STR_PAD_LEFT);
+    return $prefix . $nextCorrelative;
   }
 
   /**
