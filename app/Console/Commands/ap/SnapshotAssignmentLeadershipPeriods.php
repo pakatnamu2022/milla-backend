@@ -72,9 +72,10 @@ class SnapshotAssignmentLeadershipPeriods extends Command
       DB::table('ap_assignment_leadership_periods')->insert([
         'boss_id' => $a->boss_id,
         'worker_id' => $a->worker_id,
-        'year' => $currentYear,        // ← Mes ACTUAL
-        'month' => $currentMonth,       // ← Mes ACTUAL
+        'year' => $currentYear,
+        'month' => $currentMonth,
         'status' => $a->status,
+        'hierarchy' => $a->hierarchy ?? 0,
         'created_at' => now(),
         'updated_at' => now()
       ]);

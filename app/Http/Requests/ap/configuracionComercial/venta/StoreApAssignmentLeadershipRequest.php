@@ -14,6 +14,7 @@ class StoreApAssignmentLeadershipRequest extends StoreRequest
       'boss_id' => 'required|exists:rrhh_persona,id',
       'assigned_workers' => 'required|array|min:1',
       'assigned_workers.*' => 'integer|exists:rrhh_persona,id',
+      'hierarchy' => 'nullable|boolean',
     ];
   }
 

@@ -25,6 +25,7 @@ class ApAssignmentLeadershipResource extends JsonResource
         ];
       })->values(),
       'status' => $first->status,
+      'hierarchy' => (bool) $first->hierarchy,
     ];
   }
 }
