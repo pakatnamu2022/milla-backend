@@ -270,4 +270,21 @@ class ApAssignmentLeadershipService extends BaseService
 
     return new ApAssignmentLeadershipResource($items);
   }
+
+  public function destroy($bossId, Request $request)
+  {
+    $year  = $request->query('year', now()->year);
+    $month = $request->query('month', now()->month);
+
+    $deleted = ApAssignmentLeadership::where('boss_id', $bossId)
+      ->where('year', $year)
+      ->where('month', $month)
+      ->delete();
+
+    if (!$deleted) {
+      throw new Exception('No se encontró la asignación para eliminar.');
+    }
+
+    return ['message' => 'Asignación eliminada correctamente.'];
+  }
 }

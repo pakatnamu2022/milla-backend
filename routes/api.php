@@ -1209,6 +1209,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'show',
         'store',
         'update',
+        'destroy',
       ]);
 
       Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
