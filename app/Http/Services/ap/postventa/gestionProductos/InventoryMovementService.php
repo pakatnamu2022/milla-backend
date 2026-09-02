@@ -2169,6 +2169,26 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+      if ($relatedDocument) {
+        $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+          ->where('reference_id', $relatedDocument->id)
+          ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+          ->first();
+
+        if ($existingReturn) {
+          Log::info('⚠️ [CREATE-RETURN] Movimiento de devolución ya existe - Retornando existente', [
+            'existing_movement_id' => $existingReturn->id,
+            'existing_movement_number' => $existingReturn->movement_number,
+            'credit_note_id' => $relatedDocument->id,
+            'credit_note_number' => $relatedDocument->full_number,
+            'work_order_id' => $workOrder->id,
+          ]);
+          DB::commit();
+          return $existingReturn->load(['warehouse', 'user', 'details.product', 'reference']);
+        }
+      }
+
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
         ->where('is_physical_warehouse', true)
@@ -2333,6 +2353,26 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+      if ($relatedDocument) {
+        $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+          ->where('reference_id', $relatedDocument->id)
+          ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+          ->first();
+
+        if ($existingReturn) {
+          Log::info('⚠️ [CREATE-RETURN] Movimiento de devolución ya existe - Retornando existente', [
+            'existing_movement_id' => $existingReturn->id,
+            'existing_movement_number' => $existingReturn->movement_number,
+            'credit_note_id' => $relatedDocument->id,
+            'credit_note_number' => $relatedDocument->full_number,
+            'quotation_id' => $quotation->id,
+          ]);
+          DB::commit();
+          return $existingReturn->load(['warehouse', 'user', 'details.product', 'reference']);
+        }
+      }
+
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
         ->where('is_physical_warehouse', true)

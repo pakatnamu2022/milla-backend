@@ -86,6 +86,23 @@ class ApOrderQuotationsReversalService
         ->first();
 
       if ($movement) {
+        // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+        if ($relatedDocument) {
+          $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+            ->where('reference_id', $relatedDocument->id)
+            ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+            ->exists();
+
+          if ($existingReturn) {
+            Log::info('⚠️ [REVERSE-INVENTORY] Movimiento de devolución ya existe - No crear duplicado', [
+              'credit_note_id' => $relatedDocument->id,
+              'credit_note_number' => $relatedDocument->full_number,
+              'quotation_id' => $quotation->id,
+            ]);
+            return; // No crear duplicado
+          }
+        }
+
         $inventoryService = app(InventoryMovementService::class);
 
         // Crear movimiento de devolución (mantiene el movimiento original de SALE)

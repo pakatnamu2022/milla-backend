@@ -183,6 +183,12 @@ class ProductWarehouseStockService extends BaseService
       return $stock;
     } catch (Exception $e) {
       DB::rollBack();
+      Log::error('❌ [ADD-STOCK] Error al agregar stock', [
+        'product_id' => $productId,
+        'warehouse_id' => $warehouseId,
+        'quantity' => $quantity,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
     }
   }
@@ -643,7 +649,6 @@ class ProductWarehouseStockService extends BaseService
       // Obtener el último snapshot
       $lastSnapshot = WeightedAverageCostHistory::getLatestSnapshot($productId, $warehouseId);
 
-      $previousStock = $lastSnapshot ? (float)$lastSnapshot->stock_after_movement : 0;
       $previousAvgCost = $lastSnapshot ? (float)$lastSnapshot->average_cost_after_movement : 0;
 
       // Obtener detalle del movimiento
@@ -662,29 +667,28 @@ class ProductWarehouseStockService extends BaseService
         $movement->exchange_rate
       );
 
-      // Calcular nuevo stock y costo promedio
+      // IMPORTANTE: El stock YA fue actualizado por addStock() o removeStock()
+      // NO debemos recalcularlo aquí, solo usamos el valor ACTUAL
+      $currentStock = (float)$stock->quantity;
+
+      // Calcular nuevo costo promedio (pero NO el stock)
       $isInbound = $movement->is_inbound;
 
       if ($isInbound) {
-        // ENTRADA: Aumentar stock y recalcular costo promedio
-        $newStock = $previousStock + $quantity;
+        // ENTRADA: Recalcular costo promedio
+        if ($unitCost > 0 && $currentStock > 0) {
+          // Calcular el stock previo basado en el actual menos la cantidad que se agregó
+          $previousStock = $currentStock - $quantity;
 
-        if ($unitCost > 0) {
           // Aplicar fórmula de costo promedio ponderado
-          $newAvgCost = $newStock > 0
-            ? (($previousStock * $previousAvgCost) + ($quantity * $unitCost)) / $newStock
-            : 0;
+          $newAvgCost = (($previousStock * $previousAvgCost) + ($quantity * $unitCost)) / $currentStock;
           $newAvgCost = round($newAvgCost, 2);
         } else {
           // Si el costo es 0 (ej: ajustes, donaciones), el costo promedio NO cambia
           $newAvgCost = $previousAvgCost;
         }
       } else {
-        // SALIDA: Solo reducir stock, costo promedio NO cambia
-        $newStock = $previousStock - $quantity;
-        if ($newStock < 0) {
-          $newStock = 0;
-        }
+        // SALIDA: Costo promedio NO cambia
         $newAvgCost = $previousAvgCost;
       }
 
@@ -699,13 +703,12 @@ class ProductWarehouseStockService extends BaseService
         'quantity_in' => $isInbound ? $quantity : 0,
         'quantity_out' => !$isInbound ? $quantity : 0,
         'unit_cost_pen' => $unitCost,
-        'stock_after_movement' => $newStock,
+        'stock_after_movement' => $currentStock,
         'average_cost_after_movement' => $newAvgCost,
         'recalculated_at' => null, // NULL = no es recálculo, es tiempo real
       ]);
 
-      // Actualizar ProductWarehouseStock con los nuevos valores
-      $stock->quantity = $newStock;
+      // Actualizar SOLO average_cost (NO quantity, ya fue actualizado por addStock)
       $stock->average_cost = $newAvgCost;
 
       if ($isInbound && $unitCost > 0) {
