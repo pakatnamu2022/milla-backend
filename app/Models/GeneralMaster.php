@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class GeneralMaster extends BaseModel
@@ -17,7 +18,14 @@ class GeneralMaster extends BaseModel
     'description',
     'type',
     'value',
+    'effective_from',
+    'effective_to',
     'status',
+  ];
+
+  protected $casts = [
+    'effective_from' => 'date:Y-m-d',
+    'effective_to' => 'date:Y-m-d',
   ];
 
   const filters = [
@@ -82,5 +90,37 @@ class GeneralMaster extends BaseModel
   public function scopeOfType($query, string $type)
   {
     return $query->where('type', strtoupper($type));
+  }
+
+  /**
+   * Filas cuya vigencia cubre $date (effective_from/effective_to null = sin límite en ese lado).
+   */
+  public function scopeValidAt($query, $date)
+  {
+    $date = $date instanceof Carbon ? $date->format('Y-m-d') : Carbon::parse($date)->format('Y-m-d');
+
+    return $query
+      ->where(fn ($q) => $q->whereNull('effective_from')->orWhereDate('effective_from', '<=', $date))
+      ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $date));
+  }
+
+  /**
+   * Resuelve el valor de un parámetro (por código) vigente a una fecha dada, en vez de leer
+   * "el valor actual" a ciegas. Uso obligatorio para parámetros de planilla que cambian por ley
+   * (RMV/SALARIO_MINIMO, UIT, FAMILY_ALLOWANCE) al calcular periodos que no son el mes en curso,
+   * para que recalcular un periodo antiguo no arrastre el valor vigente hoy.
+   *
+   * Si hay varias filas vigentes a esa fecha (no debería, pero por seguridad) se toma la de
+   * effective_from más reciente.
+   */
+  public static function valueAt(string $code, $date, $default = null)
+  {
+    $row = static::where('code', strtoupper($code))
+      ->where('status', 1)
+      ->validAt($date)
+      ->orderByDesc('effective_from')
+      ->first();
+
+    return $row?->value ?? $default;
   }
 }

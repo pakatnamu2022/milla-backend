@@ -8,6 +8,16 @@ use Illuminate\Validation\Rule;
 
 class UpdateGeneralMasterRequest extends StoreRequest
 {
+  protected function prepareForValidation(): void
+  {
+    if ($this->has('effective_from') || $this->has('effective_to')) {
+      $this->merge([
+        'effective_from' => $this->input('effective_from') ?: null,
+        'effective_to' => $this->input('effective_to') ?: null,
+      ]);
+    }
+  }
+
   public function rules(): array
   {
     return [
@@ -19,12 +29,20 @@ class UpdateGeneralMasterRequest extends StoreRequest
         Rule::unique('general_masters', 'code')
           ->where('status', 1)
           ->where('type', $this->input('type'))
+          ->where(function ($query) {
+            $from = $this->input('effective_from');
+            $from
+              ? $query->where('effective_from', $from)
+              : $query->whereNull('effective_from');
+          })
           ->whereNull('deleted_at')
           ->ignore($this->route('generalMaster')),
       ],
       'description' => 'sometimes|string|max:255',
       'type' => 'sometimes|string|max:255',
       'value' => 'nullable|string|max:255',
+      'effective_from' => 'nullable|date',
+      'effective_to' => 'nullable|date|after_or_equal:effective_from',
       'status' => 'sometimes|boolean',
     ];
   }
@@ -42,6 +60,9 @@ class UpdateGeneralMasterRequest extends StoreRequest
       'type.max' => 'El campo tipo no debe exceder los 255 caracteres.',
       'value.string' => 'El campo valor debe ser una cadena de texto.',
       'value.max' => 'El campo valor no debe exceder los 255 caracteres.',
+      'effective_from.date' => 'El campo vigente desde debe ser una fecha válida.',
+      'effective_to.date' => 'El campo vigente hasta debe ser una fecha válida.',
+      'effective_to.after_or_equal' => 'La fecha de fin de vigencia no puede ser anterior a la de inicio.',
       'status.boolean' => 'El campo estado debe ser un valor booleano.',
     ];
   }

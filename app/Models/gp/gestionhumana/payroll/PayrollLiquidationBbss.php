@@ -23,6 +23,7 @@ class PayrollLiquidationBbss extends BaseModel
   const string TYPE_AGUINALDO = 'AGUINALDO';
   const string TYPE_GRATIFICACION_NAVIDAD = 'GRATIFICACION_NAVIDAD';
   const string TYPE_BONIF_EXTRAORD_NAVIDAD = 'BONIF_EXTRAORD_NAVIDAD';
+  const string TYPE_CTS_SEMESTRAL = 'CTS_SEMESTRAL';
 
   /**
    * Mapa code => id de GpMasters para los tipos de este catálogo.
