@@ -859,16 +859,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $valorUnitario = $precioUnitario / 1.18;
       }
 
-      $concept = $concepts->get($discount['concept_id']);
-      $isNegative = $concept && is_null($concept->parent_id);
-
       DiscountCoupons::create([
         'type'                      => $discount['type'],
         'percentage'                => $percentage,
         'amount'                    => $amount,
         'valor_unitario'            => $valorUnitario,
         'precio_unitario'           => $precioUnitario,
-        'is_negative'               => $isNegative,
+        'is_negative'               => (bool) ($discount['is_negative'] ?? false),
         'has_retention'             => $hasRetention,
         'concept_code_id'           => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,
