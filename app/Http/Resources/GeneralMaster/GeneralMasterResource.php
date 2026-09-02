@@ -20,6 +20,8 @@ class GeneralMasterResource extends JsonResource
       'description' => $this->description,
       'type' => $this->type,
       'value' => $this->value,
+      'effective_from' => $this->effective_from,
+      'effective_to' => $this->effective_to,
       'status' => $this->status,
     ];
   }

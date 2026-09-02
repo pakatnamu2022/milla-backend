@@ -73,4 +73,32 @@ class PayrollLiquidationBbssController extends Controller
             return $this->error($e->getMessage());
         }
     }
+
+    public function calculateCts(int $periodId)
+    {
+        try {
+            return $this->success($this->service->calculateCts($periodId));
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function gratificationStatus(int $periodId)
+    {
+        try {
+            return $this->success($this->service->gratificationReadiness($periodId));
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function payslip(int $periodId, int $workerId, \Illuminate\Http\Request $request)
+    {
+        try {
+            $type = $request->query('type', 'cts');
+            return $this->service->payslip($periodId, $workerId, $type);
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
 }
