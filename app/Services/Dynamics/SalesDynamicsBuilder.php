@@ -5,10 +5,8 @@ namespace App\Services\Dynamics;
 use App\Http\Resources\Dynamics\SalesDocumentDetailDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentDynamicsResource;
 use App\Http\Resources\Dynamics\SalesDocumentSerialDynamicsResource;
-use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
-use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
@@ -30,13 +28,10 @@ class SalesDynamicsBuilder
   }
 
   /**
-   * Construye todas las líneas de detalle: ítems del documento + líneas de accesorios de posventa + deducible si aplica.
+   * Construye todas las líneas de detalle: ítems del documento + deducible si aplica.
    */
   public function buildItems(ElectronicDocument $document): Collection
   {
-    $postSaleAccessories = $this->getPostSaleAccessories($document);
-    $igvDivisor = $this->getIgvDivisor($document);
-
     // Obtener el código de repuestos en travesía para discriminar
     $sparePartsRoadAccount = ApAccountingAccountPlan::find(ApAccountingAccountPlan::SPARE_PARTS_ROAD_ID);
     $sparePartsRoadCode = $sparePartsRoadAccount?->code_dynamics;
@@ -48,30 +43,19 @@ class SalesDynamicsBuilder
     // Mapear items normales, filtrando los repuestos en travesía
     $normalItems = $document->items
       ->filter(function ($item) use ($sparePartsRoadCode, &$traversePartsTotal, &$hasTraverseParts) {
-        // Si el item tiene el código de repuestos en travesía, NO incluirlo individualmente
         if ($sparePartsRoadCode && $item->dyn_code === $sparePartsRoadCode) {
-          // Acumular el subtotal del item (ya está sin IGV)
           $traversePartsTotal += (float)($item->subtotal ?? 0);
           $hasTraverseParts = true;
-          return false; // NO incluir este item
+          return false;
         }
-        return true; // Incluir items normales
+        return true;
       });
 
-    // Calcular la siguiente línea disponible en base a los items que SÍ se incluyen,
-    // para que la línea liberada por un item excluido (repuesto en travesía) se reutilice
-    // en vez de dejar un hueco en la numeración.
     $nextLine = $normalItems->max('line_number') + 1;
 
-    $items = $normalItems
-      ->map(function ($item) use ($document, $postSaleAccessories, $igvDivisor) {
-        $overridePrice = $this->resolveVehicleBasePrice($item, $postSaleAccessories, $document, $igvDivisor);
-        return new SalesDocumentDetailDynamicsResource($item, $document, $overridePrice);
-      });
-
-    foreach ($postSaleAccessories as $accessory) {
-      $items->push($this->buildAccessoryLine($accessory, $document, $document->full_number, $nextLine++, $igvDivisor));
-    }
+    $items = $normalItems->map(function ($item) use ($document) {
+      return new SalesDocumentDetailDynamicsResource($item, $document, null);
+    });
 
     // Agregar ítem de deducible si el documento tiene orden de trabajo con deducible
     if ($document->work_order_id && $document->workOrder) {
@@ -91,91 +75,6 @@ class SalesDynamicsBuilder
     }
 
     return $items;
-  }
-
-  /**
-   * Retorna los accesorios de posventa del documento (solo si no es anticipo).
-   */
-  public function getPostSaleAccessories(ElectronicDocument $document): Collection
-  {
-    if ($document->is_advance_payment) {
-      return collect();
-    }
-
-    return $document->purchaseRequestQuote?->accessories
-      ->filter(fn($a) => $a->type === 'ACCESORIO_ADICIONAL' &&
-        $a->approvedAccessory?->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA
-      ) ?? collect();
-  }
-
-  /**
-   * Devuelve el divisor IGV (ej. 1.18 para 18%).
-   */
-  public function getIgvDivisor(ElectronicDocument $document): float
-  {
-    return 1 + ($document->porcentaje_de_igv / 100);
-  }
-
-  /**
-   * Devuelve el precio unitario base del vehículo sin IGV, descontando el total de accesorios,
-   * o null si no aplica override (anticipo o sin accesorios).
-   */
-  public function resolveVehicleBasePrice($item, Collection $postSaleAccessories, ElectronicDocument $document, float $igvDivisor): ?float
-  {
-    if ($postSaleAccessories->isEmpty() || $item->anticipo_regularizacion) {
-      return null;
-    }
-
-    $totalAccessoriesPreTax = $postSaleAccessories->sum(
-      fn($a) => $this->accessoryUnitGrossInDocCurrency($a, $document) * $a->quantity / $igvDivisor
-    );
-
-    return round((float)$item->valor_unitario - $totalAccessoriesPreTax, 2);
-  }
-
-  /**
-   * Devuelve el precio unitario bruto (con IGV) del accesorio convertido a la moneda del documento.
-   */
-  public function accessoryUnitGrossInDocCurrency($accessory, ElectronicDocument $document): float
-  {
-    $gross = (float)($accessory->price + $accessory->additional_price);
-    $docCurrency = $document->currency->iso_code;
-
-    if ($accessory->type_currency_id === TypeCurrency::PEN_ID && $docCurrency === TypeCurrency::USD) {
-      return $gross / (float)$document->tipo_de_cambio;
-    }
-
-    if ($accessory->type_currency_id === TypeCurrency::USD_ID && $docCurrency === TypeCurrency::PEN) {
-      return $gross * (float)$document->tipo_de_cambio;
-    }
-
-    return $gross;
-  }
-
-  /**
-   * Construye el array de una línea de accesorio de posventa para Dynamics.
-   */
-  public function buildAccessoryLine($accessory, ElectronicDocument $document, string $documentoId, int $linea, float $igvDivisor): array
-  {
-    $unitPricePreTax = round($this->accessoryUnitGrossInDocCurrency($accessory, $document) / $igvDivisor, 2);
-    $description = Str::upper($accessory->approvedAccessory->description);
-
-    return [
-      'EmpresaId' => Company::AP_DYNAMICS,
-      'DocumentoId' => $documentoId,
-      'Linea' => $linea,
-      'ArticuloId' => $accessory->approvedAccessory->code_dynamics
-        ?? throw new Exception("El accesorio '{$accessory->approvedAccessory->code}' no tiene código Dynamics (code_dynamics) definido."),
-      'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
-      'ArticuloDescripcionLarga' => $description,
-      'SitioId' => $document->warehouse()
-        ?? throw new Exception('El documento no tiene almacén asociado.'),
-      'UnidadMedidaId' => 'UND',
-      'Cantidad' => $accessory->quantity,
-      'PrecioUnitario' => $unitPricePreTax,
-      'DescuentoUnitario' => 0,
-      'PrecioTotal' => round($accessory->quantity * $unitPricePreTax, 2),
-    ];
   }
 
   /**
