@@ -120,6 +120,11 @@ class PayrollViewsPermissionsSeeder extends Seeder
           'route' => 'registro-planilla',
           'icon' => 'ClipboardPen',
         ],
+        [
+          'descripcion' => 'Exclusiones',
+          'route' => 'exclusiones',
+          'icon' => 'ShieldOff',
+        ],
       ];
 
       $actionConfig = [

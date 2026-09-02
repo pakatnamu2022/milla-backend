@@ -139,6 +139,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollExclusionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
@@ -2277,6 +2278,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Liquidation BBSS
     Route::post('liquidation-bbss/calculate-gratification/{periodId}', [PayrollLiquidationBbssController::class, 'calculateGratification']);
+    Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
+    Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
+    Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
@@ -2307,6 +2311,11 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Family Allowance
     Route::get('family-allowances', [PayrollFamilyAllowanceController::class, 'index']);
     Route::post('family-allowances', [PayrollFamilyAllowanceController::class, 'storeOrUpdate']);
+
+    // Exclusiones (opt-out de conceptos automáticos, ej. asignación familiar)
+    Route::get('exclusions', [PayrollExclusionController::class, 'index']);
+    Route::post('exclusions', [PayrollExclusionController::class, 'store']);
+    Route::delete('exclusions/{id}', [PayrollExclusionController::class, 'destroy']);
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);

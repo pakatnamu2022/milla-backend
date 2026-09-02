@@ -87,13 +87,20 @@
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(wc -l /tmp_tsc_out.txt)",
-      "Bash(tail -20 /tmp_tsc_out.txt)"
-    ,
+      "Bash(tail -20 /tmp_tsc_out.txt)",
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(php -l app/Http/Services/gp/gestionhumana/payroll/PayrollLiquidationBbssService.php)",
+      "Bash(php -l app/Models/gp/gestionhumana/payroll/PayrollLiquidationBbss.php)",
+      "Bash(php -l database/seeders/gp/gestionhumana/payroll/PayrollLiquidationBbssTypeSeeder.php)",
+      "Bash(awk 'NR==2276,NR==2282{print NR\": \"$0}' routes/api.php)",
+      "Bash(grep -i \"liquidacion-bbss\" /tmp_tsc_out.txt)",
+      "Bash(where pdftoppm *)",
+      "Bash(python -c \"import fitz\")",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []

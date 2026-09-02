@@ -400,7 +400,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
       $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
       $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
       $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
-      $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+      $salarioMinimo = (float)(GeneralMaster::valueAt('SALARIO_MINIMO', $dateTo, 1130));
       $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
       // Base hour value
@@ -687,7 +687,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     $diasMes = (float)(GeneralMaster::find(GeneralMaster::DAYS_MONTH_ID)->value ?? 30);
     $horasTrabajo = (float)(GeneralMaster::find(GeneralMaster::WORKING_HOURS_ID)->value ?? 8);
     $recargoNocturno = 1 + (float)(GeneralMaster::find(GeneralMaster::NIGHT_SURCHARGE_ID)->value ?? 0.35);
-    $salarioMinimo = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+    $salarioMinimo = (float)(GeneralMaster::valueAt('SALARIO_MINIMO', $dateTo, 1130));
     $umbralNocturno = $salarioMinimo * $recargoNocturno;
 
     $createdIds = [];

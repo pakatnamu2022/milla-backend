@@ -218,14 +218,14 @@ class PayrollRegisterService extends BaseService
                 ]);
 
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
-                $employerContributions = $this->calculateEmployerContributions($worker, $basicSalary, $totalIncome);
+                $employerContributions = $this->calculateEmployerContributions($worker, $basicSalary, $totalIncome, $period->end_date);
 
                 // Descuentos ONP/AFP (según rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones)
                 $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome);
 
                 // Renta de 5ta categoría: proyección anual simplificada (ingreso mensual x 12,
                 // menos 7 UIT, tramos progresivos 8/14/17/20/30%, prorrateado a cuota mensual).
-                $incomeTax5th = $this->calculateIncomeTax5th($totalIncome);
+                $incomeTax5th = $this->calculateIncomeTax5th($totalIncome, $period->end_date);
 
                 // BB.SS. truncos: se cargan manualmente en el módulo "Liquidación BB.SS."
                 // (gh_payroll_liquidation_bbss) y aquí solo se suman por tipo, igual que
@@ -519,11 +519,15 @@ class PayrollRegisterService extends BaseService
      * @param Worker $worker
      * @param float $basicSalary
      * @param float $totalIncome
+     * @param string|null $referenceDate Fecha (fin del periodo) para resolver las tasas/RMV
+     *        vigentes en ese momento, no las de hoy — ver GeneralMaster::valueAt().
      * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, life_insurance: float, total: float}
      */
-    private function calculateEmployerContributions(Worker $worker, float $basicSalary, float $totalIncome): array
+    private function calculateEmployerContributions(Worker $worker, float $basicSalary, float $totalIncome, ?string $referenceDate = null): array
     {
-        $minimumWage = (float)(GeneralMaster::find(GeneralMaster::MINIMUM_WAGE_ID)->value ?? 1130);
+        $referenceDate = $referenceDate ?? now()->format('Y-m-d');
+
+        $minimumWage = (float)(GeneralMaster::valueAt('SALARIO_MINIMO', $referenceDate, 1130));
         $essaludRate = (float)(GeneralMaster::find(GeneralMaster::ESSALUD_RATE_ID)->value ?? 0.09);
         $sctrHealthRate = (float)(GeneralMaster::find(GeneralMaster::SCTR_HEALTH_RATE_ID)->value ?? 0.005);
         $sctrPensionRate = (float)(GeneralMaster::find(GeneralMaster::SCTR_PENSION_RATE_ID)->value ?? 0.005);
@@ -625,11 +629,15 @@ class PayrollRegisterService extends BaseService
      * en el sistema, etc.) — aproximación razonable para la mayoría de casos.
      *
      * @param float $totalIncome
+     * @param string|null $referenceDate Fecha (fin del periodo) para resolver la UIT vigente en
+     *        ese momento (cambia cada año) — ver GeneralMaster::valueAt().
      * @return float
      */
-    private function calculateIncomeTax5th(float $totalIncome): float
+    private function calculateIncomeTax5th(float $totalIncome, ?string $referenceDate = null): float
     {
-        $uit = (float)(GeneralMaster::find(GeneralMaster::UIT_ID)->value ?? 5150);
+        $referenceDate = $referenceDate ?? now()->format('Y-m-d');
+
+        $uit = (float)(GeneralMaster::valueAt('UIT', $referenceDate, 5150));
         $deductionUit = (float)(GeneralMaster::find(GeneralMaster::INCOME_TAX_DEDUCTION_UIT_ID)->value ?? 7);
 
         $annualIncome = $totalIncome * 12;

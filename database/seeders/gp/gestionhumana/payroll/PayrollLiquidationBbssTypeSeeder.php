@@ -26,6 +26,7 @@ class PayrollLiquidationBbssTypeSeeder extends Seeder
       'AGUINALDO' => 'Aguinaldo',
       'GRATIFICACION_NAVIDAD' => 'Gratificación x Navidad',
       'BONIF_EXTRAORD_NAVIDAD' => 'Bonificación Extraordinaria 9% (Navidad)',
+      'CTS_SEMESTRAL' => 'CTS Semestral',
     ];
 
     foreach ($codes as $code => $description) {
