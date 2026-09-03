@@ -2258,6 +2258,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
     Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
 
+    // Histórico de conceptos variables (para completar meses anteriores al sistema)
+    Route::get('calculations/historical-template', [PayrollCalculationController::class, 'historicalTemplate']);
+    Route::post('calculations/historical-import', [PayrollCalculationController::class, 'historicalImport']);
+
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);

@@ -108,7 +108,8 @@
       "Bash(\"/c/laragon/bin/python/python-3.13/python.exe\" -m pip install --quiet openpyxl)",
       "Bash(npx --prefix /c/laragon/www/namu-frontend tsc --noEmit --project /c/laragon/www/namu-frontend/tsconfig.json)",
       "Bash(find /c/laragon/www -maxdepth 2 -iname \"*frontend*\" 2>/dev/null; find / -maxdepth 3 -iname \"namu-frontend*\" 2>/dev/null)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(find / -iname \"*CTS*\" -o -iname \"*GRATIFICACION*\" 2>/dev/null | grep -vi node_modules | head -50)"
     ],
     "deny": [],
     "ask": []
