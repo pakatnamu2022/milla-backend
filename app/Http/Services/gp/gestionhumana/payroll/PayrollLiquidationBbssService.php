@@ -49,6 +49,93 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
         );
     }
 
+    /**
+     * Orden canónico de los conceptos del catálogo LIQUIDATION_BBSS, ver
+     * Database\Seeders\gp\gestionhumana\payroll\PayrollLiquidationBbssTypeSeeder.
+     */
+    private const CONCEPT_LABELS = [
+        PayrollLiquidationBbss::TYPE_GRATIFICACION_NAVIDAD => 'Gratificación',
+        PayrollLiquidationBbss::TYPE_BONIF_EXTRAORD_NAVIDAD => 'Bonif. Extraord. 9%',
+        PayrollLiquidationBbss::TYPE_CTS_SEMESTRAL => 'CTS Semestral',
+        PayrollLiquidationBbss::TYPE_CTS_TRUNCADA => 'CTS Truncada',
+        PayrollLiquidationBbss::TYPE_GRATIFICACION_TRUNCADA => 'Gratif. Truncada',
+        PayrollLiquidationBbss::TYPE_BONIFICACION_EXTRAORDINARIA => 'Bonif. Extraord.',
+        PayrollLiquidationBbss::TYPE_VACACIONES_TRUNCADAS => 'Vacaciones Truncadas',
+        PayrollLiquidationBbss::TYPE_AGUINALDO => 'Aguinaldo',
+    ];
+
+    /**
+     * Igual que list(), pero pivoteado: una sola fila por trabajador+periodo con un valor por
+     * cada concepto (tipo) que tenga registrado, en vez de una fila por cada tipo — evita que un
+     * trabajador con gratificación + bono extraordinario (o CTS) en el mismo periodo aparezca
+     * dos veces. Requiere period_id porque, a diferencia de list(), no pagina: junta todas las
+     * filas del periodo en memoria antes de agrupar (mismo patrón que PayrollRegisterService).
+     */
+    public function listPivoted(Request $request): array
+    {
+        $periodId = (int) $request->query('period_id');
+        if (!$periodId) {
+            throw new Exception('Debe seleccionar un periodo.');
+        }
+
+        $search = trim((string) $request->query('search', ''));
+
+        $rows = PayrollLiquidationBbss::with(['worker', 'type', 'period'])
+            ->where('period_id', $periodId)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->whereHas('worker', function ($q) use ($search) {
+                    $q->where('nombre_completo', 'like', "%{$search}%")
+                        ->orWhere('vat', 'like', "%{$search}%");
+                });
+            })
+            ->get();
+
+        $grouped = [];
+        $codesPresent = [];
+
+        foreach ($rows as $row) {
+            $workerId = $row->worker_id;
+            $code = $row->type?->code;
+            if (!$code) {
+                continue;
+            }
+
+            if (!isset($grouped[$workerId])) {
+                $grouped[$workerId] = [
+                    'worker_id' => $workerId,
+                    'worker' => $row->worker?->nombre_completo,
+                    'worker_vat' => $row->worker?->vat,
+                    'period_id' => $row->period_id,
+                    'period' => $row->period?->name,
+                    'amounts' => [],
+                    'ids' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $amount = (float) $row->amount;
+            $grouped[$workerId]['amounts'][$code] = $amount;
+            $grouped[$workerId]['ids'][$code] = $row->id;
+            $grouped[$workerId]['total'] += $amount;
+            $codesPresent[$code] = true;
+        }
+
+        $data = array_values($grouped);
+        usort($data, fn($a, $b) => strcmp((string) $a['worker'], (string) $b['worker']));
+
+        $columns = [];
+        foreach (self::CONCEPT_LABELS as $code => $label) {
+            if (isset($codesPresent[$code])) {
+                $columns[] = ['code' => $code, 'label' => $label];
+            }
+        }
+
+        return [
+            'data' => $data,
+            'columns' => $columns,
+        ];
+    }
+
     public function find($id)
     {
         $record = PayrollLiquidationBbss::find($id);
