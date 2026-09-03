@@ -4,6 +4,7 @@ namespace App\Http\Requests\ap\comercial;
 
 use App\Http\Requests\StoreRequest;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePurchaseRequestQuoteRequest extends StoreRequest
 {
@@ -28,7 +29,15 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'vehicle_color_id' => ['nullable', 'exists:ap_masters,id'],
       'ap_models_vn_id' => ['nullable', 'exists:ap_models_vn,id'],
       'doc_type_currency_id' => ['nullable', 'exists:type_currency,id'],
-      'ap_vehicle_id' => ['nullable', 'exists:ap_vehicles,id'],
+      'ap_vehicle_id' => [
+        'nullable',
+        'exists:ap_vehicles,id',
+        // El VIN no puede estar ya asignado a otra cotización/solicitud activa.
+        // El servicio revalida esto igualmente (defensa en profundidad).
+        Rule::unique('purchase_request_quote', 'ap_vehicle_id')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('purchaseRequestQuote')),
+      ],
 
       // Validaciones para bonus_discounts
       'bonus_discounts' => ['nullable', 'array'],
@@ -92,6 +101,7 @@ class UpdatePurchaseRequestQuoteRequest extends StoreRequest
       'doc_type_currency_id.exists' => 'El tipo de moneda seleccionado no es válido.',
 
       'ap_vehicle_id.exists' => 'El vehículo seleccionado no es válida.',
+      'ap_vehicle_id.unique' => 'El vehículo ya está asociado a otra cotización.',
 
       // Mensajes para bonus_discounts
       'bonus_discounts.array' => 'Los descuentos/bonos deben ser una lista.',

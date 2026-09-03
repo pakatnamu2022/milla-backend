@@ -476,8 +476,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         ->where('is_advance_payment', false)
         ->whereNull('ap_billing_electronic_documents.deleted_at');
 
+      // Solo bloquean las facturas/boletas finales emitidas para ESTA cotización.
+      // Un mismo VIN puede haber quedado (por el bug de doble asignación) enlazado
+      // a otra cotización que sí tiene la venta real facturada; esa factura no debe
+      // impedir desasignar el VIN de la cotización equivocada.
       $finalDocumentsQuery = fn() => $vehicle->electronicDocuments()
         ->tap($baseDocsQuery)
+        ->where('ap_billing_electronic_documents.purchase_request_quote_id', $id)
         ->whereIn('sunat_concept_document_type_id', [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
         ->where('status', ElectronicDocument::STATUS_ACCEPTED);
 
