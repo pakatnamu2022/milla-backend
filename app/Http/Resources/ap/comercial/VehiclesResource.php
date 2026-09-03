@@ -34,6 +34,7 @@ class VehiclesResource extends JsonResource
       'status_color'                 => $this->vehicleStatus->color,
       'warehouse_id'                 => $this->warehouse_id ?? null,
       'warehouse_name'               => $this->warehouse?->description ?? null,
+      'warehouse_is_received'        => $this->warehouse?->is_received,
       'warehouse_physical_id'        => $this->warehouse_physical_id ?? null,
       'warehouse_physical_name'      => $this->warehousePhysical?->description ?? null,
       'sede_warehouse_id'            => $this->warehouse?->sede_id ?? null,
