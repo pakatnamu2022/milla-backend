@@ -10,7 +10,7 @@ return new class extends Migration {
     Schema::create('ap_assets', function (Blueprint $table) {
       $table->id();
       $table->unsignedBigInteger('ap_vehicle_id');
-      $table->unsignedBigInteger('worker_id');
+      $table->integer('worker_id');
       $table->date('assigned_date');
       $table->text('observation')->nullable();
       $table->string('dyn_series', 50)->nullable()
@@ -22,7 +22,7 @@ return new class extends Migration {
         'failed',
         'skipped',
       ])->default('pending');
-      $table->unsignedBigInteger('created_by')->nullable();
+      $table->integer('created_by')->nullable();
       $table->timestamps();
       $table->softDeletes();
 

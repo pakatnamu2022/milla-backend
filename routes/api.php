@@ -1526,6 +1526,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Activos (vehículo VN → activo fijo)
       Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
+      Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
       Route::post('assets/{id}/dispatch-migration', [AssetController::class, 'dispatchMigration']);
       Route::apiResource('assets', AssetController::class)->only([
         'index',

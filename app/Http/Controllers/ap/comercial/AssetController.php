@@ -34,6 +34,15 @@ class AssetController extends Controller
     }
   }
 
+  public function eligibleVehicleDetail(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->eligibleVehicleDetail($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function show(int $id): JsonResponse
   {
     try {

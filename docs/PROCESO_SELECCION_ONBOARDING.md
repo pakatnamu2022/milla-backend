@@ -1,11 +1,31 @@
 # Proceso de Selección y Onboarding — Levantamiento y plan de migración a milla-backend
 
-> Estado: **Levantamiento** (sprint 1 del cronograma). Fecha: 2026-09-03.
+> Estado: **Levantamiento cerrado** — decisiones en la sección 0. Fecha: 2026-09-03.
 > Fuente del proceso actual: `web_millagp_2` (Laravel + Blade, monolito legacy).
 > Destino: `milla-backend` (API) + `namu-frontend` (Next.js).
 > Ambos sistemas comparten la **misma base de datos** MySQL `db_milla_gp`, por lo que la
 > migración es incremental: se puede reimplementar pantalla por pantalla sobre las
 > mismas tablas sin migración de datos.
+
+---
+
+## 0. Decisiones cerradas con el área usuaria (2026-09-03)
+
+| # | Tema | Decisión |
+|---|------|----------|
+| 1 | Registro de postulantes | **Manual por RRHH** (sin portal público). |
+| 2 | Aprobación de ficha (`rrhh_temp_data_persona` 17/18/19) | **Se conserva igual**: el postulante edita su ficha desde su portal → cola de aprobación → RRHH aprueba/rechaza → fusión a `rrhh_persona`. |
+| 3 | Carta oferta | **Generada por el sistema** desde plantilla con merge de datos (cargo, área, sede, sueldo, fecha de ingreso). |
+| 4 | Firma de la carta oferta | **Bloqueante**: no se da de alta hasta tener la carta firmada (`status_carta_oferta_id = 21`). |
+| 5 | Alta / baja de trabajador | **Solo RRHH central** (rol único, todas las sedes). |
+| 6 | Reingreso de cesados | **Dentro del MVP** (es frecuente). |
+| 7 | **Contratos** (`rrhh_contrato`) | **Dentro del alcance — versión completa con firma digital** (plantillas, generación de PDF, flujo de firmantes con certificado X.509 vía TCPDF, lotes de firma, confirmación de lectura). Se adelanta trabajo respecto al cronograma original. |
+| 8 | Onboarding (tipo por cargo, cronograma, inducciones SSOMA) | **Fase posterior**, NO entra en este MVP. **Excepción**: el **email de bienvenida** (`config_onboarding`) sí se envía desde Selección. |
+
+> ⚠️ **Riesgo de plazo**: contratos con firma digital completa es un módulo en sí mismo
+> (~1.600 líneas de lógica legacy + certificados + lotes). Se aborda como **Fase 4**
+> (ver sección 9). Corte natural si el 20/11 aprieta: entregar Selección hasta el alta y
+> liberar Contratos poco después.
 
 ---
 
@@ -223,21 +243,18 @@ Observaciones de la traza:
 - [ ] Cambiar estado del postulante: SELECCIONADO (6) / RECHAZADO (3) / FUERA DE CUPO (4) / LISTA NEGRA (5), con `motivo_status`.
 - [ ] Vistas "Fuera de cupo" y "Lista negra / Rechazados" + acción **repostular**.
 
-### Etapa 3 — Contratación / carta oferta (alcance priorizado)
+### Etapa 3 — Contratación / carta oferta
 - [ ] Al marcar SELECCIONADO: capturar `fecha_inicio` (ingreso), `presupuesto`, `jefe_id`.
-- [ ] Generar carta oferta desde plantilla `config_mail_carta` (reemplazo de
-      `{$cargo} {$area} {$sede} {$postulante}`) + subir PDF (`rrhh_persona.carta_oferta`).
-- [ ] `status_carta_oferta_id = 20`.
+- [ ] **Generar carta oferta (PDF)** desde plantilla `config_mail_carta` con merge de datos
+      (`{$cargo} {$area} {$sede} {$postulante}` + sueldo + fecha ingreso) → guardar en
+      `rrhh_persona.carta_oferta`. `status_carta_oferta_id = 20`.
 - [ ] Asignar documentos iniciales para `tipo_trabajador_id = 6`.
-- [ ] **Instanciar cronograma de onboarding** del cargo (`rrhh_cronograma*` →
-      `rrhh_cronograma_asignado*`), evaluador = `jefe_id`. Error controlado si el cargo no
-      tiene cronograma.
-- [ ] Enviar **email de carta oferta / bienvenida** con adjuntos (carta + `config_sede.doc1_rrhh..doc8_rrhh`), CC configurable.
-- [ ] Registrar fila en `onboarding` (checklist llamadas día 1/2/3/7/15, visita a sede).
+- [ ] Enviar **email de carta oferta** con adjuntos (carta + `config_sede.doc1_rrhh..doc8_rrhh`), CC configurable.
+- [ ] ~~Instanciar cronograma de onboarding del cargo~~ → **fase posterior (Onboarding)**.
 
 ### Etapa 4 — Seleccionados / alta
 - [ ] Listado datatable de `tipo_trabajador_id IN (2, 6)` con estado de carta oferta, email y alta/baja.
-- [ ] Subir carta oferta **firmada** → `status_carta_oferta_id = 21`.
+- [ ] Subir carta oferta **firmada** → `status_carta_oferta_id = 21`. **Requisito bloqueante para el alta.**
 - [ ] Enviar **email de bienvenida** (plantilla `config_onboarding`) → `status_envio_mail_carta_oferta = 21` + fecha.
 - [ ] **Generar / reactivar** `usr_users`.
 - [ ] Formulario de **ficha completa** del trabajador (datos bancarios haberes/CTS,
@@ -245,31 +262,53 @@ Observaciones de la traza:
       centro de costo, jefe, supervisor — con reasignación de evaluaciones pendientes al
       cambiar supervisor).
 - [ ] Gestión de **parientes** (`rrhh_parientes`) y **experiencia laboral** (`rrhh_experiencia_laboral`).
-- [ ] **Dar de alta / baja** (`rrhh_persona.status_id` 22/23 + fila en
-      `rrhh_estado_trabajador` + activar/desactivar `usr_users`). → Ya existe
-      `WorkerStatusHistoryController` en milla-backend; **reusar**.
-- [ ] **Reingreso** de personas cesadas a un nuevo proceso.
+- [ ] **Dar de alta / baja** — solo rol RRHH central — (`rrhh_persona.status_id` 22/23 +
+      fila en `rrhh_estado_trabajador` + activar/desactivar `usr_users`). Ya existe
+      `WorkerStatusHistoryController` en milla-backend; **reusar**. Validar carta firmada antes del alta.
+- [ ] **Reingreso** de personas cesadas a un nuevo proceso (dentro del MVP).
 - [ ] PDFs: ficha del trabajador (`PartnerPDF`), carnet con QR (`carnetPdf`).
-- [ ] Asignación de **evaluadores** de onboarding (`EvaluacionCompetenciaEvaluador`).
+
+### Etapa 5 — Contratos (versión completa con firma digital)
+Legacy de referencia: `app/Http/Controllers/AdministracionPersonal/ContratoController.php`
+(~1.629 líneas), `PlantillaContratoController`, `Configuraciones/FirmantesController`,
+`Configuraciones/TipoContratoController`. Firma con **TCPDF** (`elibyy/tcpdf-laravel`) +
+certificado X.509 por firmante (`.crt` + `.key` + password + imagen de firma).
+
+- [ ] CRUD **tipos de contrato** (`rrhh_tipo_contrato`: días de vacaciones, descripción…).
+- [ ] CRUD **plantillas de contrato** (`rrhh_plantilla_contrato` / `template_contrato_id`) con editor HTML y variables de merge.
+- [ ] CRUD **firmantes** (`rrhh_firmante`: certificado, key, password, imagen de firma) — subida segura de credenciales.
+- [ ] **Crear contrato** para un empleado: tipo, fechas inicio/fin, sueldo, cargo, sede, plantilla, firmante(s) principal y secundario, `grupo_contrato`, `lote`.
+- [ ] Generación de **PDF sin firma** (`generatePDFSF`) para revisión.
+- [ ] Flujo por **lotes** de firma: `SolcititudFirmalote` → `viewFirmarlote` (firmante firma con su certificado) → `viewGHlote` / `aprobarGHlote` (conformidad RRHH) → `enviartrabajador`.
+- [ ] Flujo individual: `solicitarfirma` → `solicitarfirmante` → `aprobarSolicitud` → `firmarContrato` (aplica firma digital TCPDF) → `downloadfirmado`.
+- [ ] **Confirmación de lectura** del trabajador (`confirmarlectura`, `conformidad_lectura`, `fecha_lectura`).
+- [ ] Estados en `rrhh_contrato`: `solicitar_firma`, `estado_envio_email`, `confirmacion_firmante`, `conformidad_rrhh`, con sus fechas.
+- [ ] Carga masiva (`masivoTrabajador`, `masivoFirmante`, `masivoGH`).
+- [ ] Reporte de **contratos vencidos** / por vencer (`ContratosVencidosExport`, `MailContratosVencidos`).
+- [ ] Reusar / extender `WorkerContract` (ya mapea `rrhh_contrato` con `salaryForWorkerAtDate`).
 
 ### Transversal
 - [ ] **Permisos por vista** en `namu-frontend` / `gp/gestion-humana`: "Proceso de
-      Postulación", "Administración de Postulantes", "Seleccionados" (equivalentes a
-      idVista 50 / 52 / 71 del legacy).
+      Postulación", "Administración de Postulantes", "Seleccionados", "Contratos"
+      (equivalentes a idVista 50 / 52 / 71 + contratos del legacy).
 - [ ] Plantillas de correo configurables (carta oferta, bienvenida, día antes, líder).
 - [ ] Emails con el layout Apple-minimalista ya adoptado en Milla (ver memoria
       `project_viaticos_email_redesign`, `project_evaluation_email_redesign`).
 
 ---
 
-## 7. Fuera de alcance (confirmado por el cronograma — "alcance priorizado para acortar plazo")
+## 7. Fuera de alcance de este MVP
 
-- Generación de **contratos** (`rrhh_contrato`), plantillas de contrato, firma digital,
-  lotes de firma, firmantes → siguen en el módulo legacy "Administración de Personal".
-- **Inducciones SSOMA** (`sso_inducciones_*`).
-- Portal público de postulación / bolsa de trabajo externa (hoy no existe).
+- **Onboarding operativo**: tipo de onboarding por cargo, cronograma de actividades
+  instanciado (`rrhh_cronograma_asignado*`), seguimiento (`onboarding`: llamadas día
+  1/2/3/7/15, visita a sede), documentos iniciales como checklist de cumplimiento,
+  **inducciones SSOMA** (`sso_inducciones_clientes` — validar activación). → **Fase siguiente**.
+  - *Excepción*: el **email de bienvenida** (`config_onboarding`) sí se envía desde Selección.
+- Portal público de postulación / bolsa de trabajo externa (hoy no existe, no se hará).
 - Cese completo con LBS automática, entrega de equipos (Fase 4 de otro plan — ver
   comentario en `WorkerStatusHistory.php`).
+
+> **Contratos SÍ entran** en este alcance (decisión #7), como Fase 5 / track paralelo.
 
 ---
 
@@ -285,32 +324,40 @@ app/Models/gp/gestionhumana/reclutamiento/
   PersonDataLog.php                 (rrhh_log_data_persona)
   MandatoryDocAssignment.php        (rrhh_asig_doc_obligatorio)
   MandatoryDocConfig.php            (config_doc_obligatorio_inic)
-  OnboardingSchedule.php            (rrhh_cronograma_asignado + grupo + tarea)
-  OnboardingScheduleTemplate.php    (rrhh_cronograma + grupo + tarea)
-  OnboardingTracking.php            (onboarding)
   OfferLetterTemplate.php           (config_mail_carta)
   WelcomeEmailTemplate.php          (config_onboarding)
   Relative.php                      (rrhh_parientes)
   WorkExperience.php                (rrhh_experiencia_laboral)
 
+app/Models/gp/gestionhumana/personal/   (Fase 5 — contratos)
+  ContractTemplate.php              (rrhh_plantilla_contrato)
+  ContractType.php                  (rrhh_tipo_contrato)
+  Signer.php                        (rrhh_firmante)
+  # WorkerContract.php ya existe (rrhh_contrato) — extender
+
 app/Http/Controllers/gp/gestionhumana/reclutamiento/
   RecruitmentProcessController.php
   ApplicantController.php
   SelectedWorkerController.php
-  OnboardingController.php
+  # OnboardingController.php → fase posterior
 
 app/Http/Services/gp/gestionhumana/reclutamiento/
   RecruitmentProcessService.php
   ApplicantService.php        (registro, docs, usuario, cambio de estado)
-  OfferLetterService.php      (carta oferta + email + cronograma)
+  OfferLetterService.php      (carta oferta PDF + email)
   SelectedWorkerService.php   (ficha completa, alta/baja, reingreso)
-  OnboardingService.php
 
-routes/api.php  → grupo prefix 'gp/gestionhumana/reclutamiento'
+app/Http/Services/gp/gestionhumana/personal/   (Fase 5)
+  ContractService.php         (crear, generar PDF, lotes)
+  ContractSignatureService.php (firma digital TCPDF + certificado X.509)
+
+routes/api.php  → grupos prefix 'gp/gestionhumana/reclutamiento' y '.../personal'
 ```
 
 - **Reusar** `Worker`, `WorkerStatusHistory`, `WorkerContract`, `User`, `EmailService`,
   `DigitalFileService`.
+- Contratos: paquete de firma ya disponible en el ecosistema (`elibyy/tcpdf-laravel`);
+  evaluar si milla-backend ya lo tiene o hay que añadirlo.
 - Usar el trait `App\Http\Traits\Reportable` en los modelos que se exporten a Excel
   (ver memoria `feedback_reportable_trait`).
 - FKs a `usr_users`: usar `integer()` y tabla `usr_users` (ver memoria `feedback_fk_usr_users`).
@@ -320,31 +367,28 @@ routes/api.php  → grupo prefix 'gp/gestionhumana/reclutamiento'
 
 ## 9. Plan de trabajo mapeado al cronograma
 
-| Sprint (cronograma) | Fechas | Entregable milla-backend + namu-frontend |
-|---------------------|--------|------------------------------------------|
-| Levantamiento | 17–18/08 (hecho tarde) | **Este documento** + validación de reglas de negocio con el área usuaria |
-| Desarrollo — Postulación | 19/08–25/09 | `RecruitmentProcess` CRUD + registro/edición de postulantes + usuario + docs iniciales + aprobación/rechazo de ficha (`rrhh_temp_data_persona`) + cambio de estado. Pantallas namu: "Proceso de Postulación" y "Administración de Postulantes" |
-| Pruebas | 28–30/09 | 2 días internos + 1 día con área usuaria |
-| Desarrollo — Contratación | 01–28/10 | Carta oferta (plantilla + PDF + email) + cronograma de onboarding instanciado + `onboarding` tracking + email de bienvenida + **alta de trabajador** (reusar `WorkerStatusHistory`). Pantalla namu: "Seleccionados" |
-| Pruebas | 29/10–02/11 | 2 días internos + 1 día con área usuaria |
-| Desarrollo — Cierre | 03–16/11 | Finalizar proceso + **permisos por vista** (50/52/71) + Fuera de cupo / Lista negra + reingreso + PDFs (ficha, carnet QR) |
-| Pruebas | 17–19/11 | 2 días internos + 1 día con área usuaria |
-| Presentación | 20/11 | Proceso de Selección en producción |
+| Fase | Fechas objetivo | Entregable milla-backend + namu-frontend |
+|------|-----------------|------------------------------------------|
+| Levantamiento | hecho (03/09) | **Este documento** + decisiones sección 0 |
+| **F1 — Postulación** | 04/09–25/09 | `RecruitmentProcess` CRUD + cálculo de plazo + finalizar. Registro/edición de postulantes + `usr_users` + docs iniciales. Cola de aprobación de ficha (`rrhh_temp_data_persona` 17/18/19). Cambio de estado (SELECCIONADO/RECHAZADO/FUERA DE CUPO/LISTA NEGRA). Pantallas namu: "Proceso de Postulación", "Administración de Postulantes" |
+| Pruebas F1 | 28–30/09 | 2 días internos + 1 día con área usuaria |
+| **F2 — Contratación + alta** | 01/10–28/10 | Carta oferta generada (plantilla + PDF merge + email). Pantalla "Seleccionados": subir carta firmada (bloqueante), email de bienvenida, generar usuario, ficha completa del trabajador, parientes/experiencia, **alta/baja** (reusar `WorkerStatusHistory`), **reingreso**, PDFs ficha/carnet |
+| Pruebas F2 | 29/10–02/11 | 2 días internos + 1 día con área usuaria |
+| **F3 — Cierre + permisos** | 03/11–16/11 | Vistas "Fuera de cupo" / "Lista negra" + repostular. **Permisos por vista** (50/52/71). Endurecer validaciones y reportes Excel (`Reportable`) |
+| Pruebas F3 | 17–19/11 | 2 días internos + 1 día con área usuaria |
+| **Presentación** | 20/11 | Selección (hasta el alta) en producción |
+| **F5 — Contratos (track paralelo)** | arranca 01/10, entrega ~2ª quincena nov | Tipos de contrato + plantillas + firmantes (certificado X.509) + crear contrato + PDF sin firma + flujo de firma individual y por lotes + confirmación de lectura + contratos vencidos. Pantalla namu: "Contratos". *Si no llega al 20/11, entrega inmediatamente después sin bloquear la presentación.* |
+| Onboarding | Fase siguiente (post 20/11) | Tipo de onboarding por cargo, cronograma instanciado, seguimiento, inducciones SSOMA |
 
 ---
 
-## 10. Preguntas abiertas para el área usuaria (cerrar el levantamiento)
+## 10. Estado del levantamiento
 
-1. ¿Se mantiene el **registro manual** de postulantes por RRHH o se quiere un formulario
-   que el propio postulante llene (portal / link)?
-2. ¿El paso `rrhh_temp_data_persona` (postulante completa su ficha y RRHH aprueba) se
-   conserva tal cual, o se simplifica a que RRHH capture todo?
-3. Carta oferta: ¿PDF subido manualmente (como hoy) o **generado** por el sistema desde
-   plantilla con merge de datos?
-4. ¿La **firma** de la carta oferta es requisito bloqueante para el alta, o informativo?
-5. ¿El cronograma de onboarding por cargo (`rrhh_cronograma`) ya está cargado y vigente, o
-   hay que rediseñarlo?
-6. ¿Quién puede dar de alta: sólo RRHH central o también jefes de sede? (define permisos)
-7. Confirmar que **contratos** quedan fuera del alcance de este módulo.
-8. ¿El "reingreso" de personas cesadas es frecuente y debe estar en el MVP?
+Todas las preguntas de negocio quedaron **cerradas** — ver **sección 0**. Sub-decisiones
+técnicas pendientes de confirmar durante el desarrollo (no bloquean el arranque):
+
+1. ¿`milla-backend` ya tiene un paquete de PDF con firma digital, o se añade `elibyy/tcpdf-laravel`?
+2. ¿Los certificados de firmantes se guardan en disco `private` (como el legacy) o en el `DigitalFileService` de Milla?
+3. ¿El email de bienvenida se manda al confirmar la carta firmada, al dar de alta, o es acción manual? (hoy es manual)
+4. Migrar plantillas existentes (`config_mail_carta`, `config_onboarding`, `rrhh_plantilla_contrato`) tal cual, o rehacerlas con el layout Apple-minimalista.
 ```

@@ -19,7 +19,7 @@ class StoreAssetRequest extends StoreRequest
         'integer',
       ],
       'assigned_date' => [
-        'required',
+        'nullable',
         'date',
       ],
       'observation' => [
@@ -36,7 +36,6 @@ class StoreAssetRequest extends StoreRequest
       'ap_vehicle_id.required' => 'El vehículo es obligatorio.',
       'ap_vehicle_id.exists'   => 'El vehículo seleccionado no existe.',
       'worker_id.required'     => 'El trabajador es obligatorio.',
-      'assigned_date.required' => 'La fecha de asignación es obligatoria.',
       'assigned_date.date'     => 'La fecha de asignación no es válida.',
       'observation.max'        => 'La observación no puede exceder los 1000 caracteres.',
     ];
