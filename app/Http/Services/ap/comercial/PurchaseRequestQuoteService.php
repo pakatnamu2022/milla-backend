@@ -453,14 +453,21 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
   }
 
-  public function unassignVehicle(int $id): JsonResource
+  public function unassignVehicle(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
+      $id = (int)$data['id'];
+      $vehicleId = (int)$data['ap_vehicle_id'];
+
       $purchaseRequestQuote = $this->find($id);
       $vehicle = $purchaseRequestQuote->vehicle;
       if (!$vehicle) {
         throw new Exception('No hay un vehículo asignado a esta cotización.');
+      }
+
+      if ((int)$purchaseRequestQuote->ap_vehicle_id !== $vehicleId) {
+        throw new Exception('El vehículo indicado no coincide con el asignado a esta cotización.');
       }
 
       $baseDocsQuery = fn($q) => $q
