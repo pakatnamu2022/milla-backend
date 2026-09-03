@@ -43,6 +43,7 @@ class ApVehicleStatus extends Model
   const int CONSIGNACION = 8;
   const int FACTURADO_FINAL = 9;
   const int EN_CURSO = 10;
+  const int ACTIVO = 11;
 
   const array STATUS = [
     self::PEDIDO_VN                  => 'PEDIDO VN',
@@ -55,6 +56,7 @@ class ApVehicleStatus extends Model
     self::CONSIGNACION               => 'CONSIGNACION',
     self::FACTURADO_FINAL            => 'FACTURADO FINAL',
     self::EN_CURSO                   => 'EN CURSO',
+    self::ACTIVO                     => 'ACTIVO',
   ];
 
   const array STATUS_ID = [
@@ -68,6 +70,7 @@ class ApVehicleStatus extends Model
     'CONSIGNACION'               => self::CONSIGNACION,
     'FACTURADO FINAL'            => self::FACTURADO_FINAL,
     'EN CURSO'                   => self::EN_CURSO,
+    'ACTIVO'                     => self::ACTIVO,
   ];
 
   const array ALL_STATUS = [
@@ -81,6 +84,7 @@ class ApVehicleStatus extends Model
     self::CONSIGNACION,
     self::FACTURADO_FINAL,
     self::EN_CURSO,
+    self::ACTIVO,
   ];
 
   // Pesos para elegir el mejor estado de inventario al revertir una anulación de factura.
@@ -101,6 +105,9 @@ class ApVehicleStatus extends Model
     self::FACTURADO_FINAL,
     self::VENDIDO_NO_ENTREGADO,
     self::VENDIDO_ENTREGADO,
+    // ACTIVO es un estado terminal: el vehículo dejó de ser mercadería y pasó a activo fijo.
+    // Ninguna operación logística (guía, recepción) debe revertirlo automáticamente.
+    self::ACTIVO,
   ];
 
   public static function isSaleStatus(?int $statusId): bool

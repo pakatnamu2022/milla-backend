@@ -28,6 +28,7 @@ class Warehouse extends Model
     'parent_warehouse_id',
     'inventory_account',
     'counterparty_account',
+    'asset_account',
     'is_physical_warehouse',
   ];
 

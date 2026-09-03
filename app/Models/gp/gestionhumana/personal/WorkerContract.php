@@ -9,6 +9,14 @@ class WorkerContract extends BaseModel
 {
     protected $table = 'rrhh_contrato';
 
+    protected $fillable = [
+        'empleado_id',
+        'sueldo',
+        'fecha_inicio_contrato',
+        'fecha_fin_contrato',
+        'status_deleted',
+    ];
+
     protected $casts = [
         'sueldo' => 'decimal:2',
         'fecha_inicio_contrato' => 'date',

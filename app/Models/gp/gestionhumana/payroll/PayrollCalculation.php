@@ -270,7 +270,16 @@ class PayrollCalculation extends BaseModel
       ->with('period')
       ->get();
 
-    if ($calculations->isEmpty()) {
+    // Bonos/comisiones (gh_payroll_bonuses, p.ej. bonos de conductores) de los mismos periodos.
+    // Se consultan aparte porque para trabajadores como conductores puede haber meses con bono
+    // registrado pero sin PayrollCalculation todavía (el cálculo de nómina normal y el histórico
+    // de bonos se cargan por separado) — no deben perderse esos meses del promedio.
+    $bonuses = PayrollBonus::whereIn('period_id', $periods)
+      ->where('worker_id', $workerId)
+      ->with('period')
+      ->get();
+
+    if ($calculations->isEmpty() && $bonuses->isEmpty()) {
       return (object)[
         'avg_overtime' => 0,
         'avg_holiday' => 0,
@@ -308,19 +317,23 @@ class PayrollCalculation extends BaseModel
       $monthlyTotals[$key]['night_bonus'] += $calc->night_bonus ?? 0;
     }
 
-    // Bonos/comisiones (gh_payroll_bonuses, p.ej. bonos de conductores) de los mismos meses.
-    // Solo se suman a meses que ya tienen cálculo de nómina, para no alterar $monthsCount.
-    $bonuses = PayrollBonus::whereIn('period_id', $periods)
-      ->where('worker_id', $workerId)
-      ->with('period')
-      ->get();
-
+    // Suma los bonos al mes correspondiente, creando la entrada del mes en $monthlyTotals si
+    // todavía no existía (mes con bono pero sin cálculo de nómina — sí debe contar en
+    // $monthsCount, igual que un mes con cálculo pero sin bono).
     foreach ($bonuses as $bonus) {
       if (!$bonus->period) continue;
       $key = $bonus->period->year . '-' . str_pad($bonus->period->month, 2, '0', STR_PAD_LEFT);
-      if (isset($monthlyTotals[$key])) {
-        $monthlyTotals[$key]['bonus'] += $bonus->amount ?? 0;
+      if (!isset($monthlyTotals[$key])) {
+        $monthlyTotals[$key] = [
+          'overtime_25' => 0,
+          'overtime_35' => 0,
+          'holiday' => 0,
+          'compensatory' => 0,
+          'night_bonus' => 0,
+          'bonus' => 0,
+        ];
       }
+      $monthlyTotals[$key]['bonus'] += $bonus->amount ?? 0;
     }
 
     // Contar meses únicos
