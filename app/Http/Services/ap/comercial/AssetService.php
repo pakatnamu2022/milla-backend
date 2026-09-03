@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AssetService extends BaseService
 {
@@ -215,11 +216,23 @@ class AssetService extends BaseService
 
       $this->logService->ensureAssetLogsExist($asset);
 
-      VerifyAndMigrateAssetJob::dispatch($asset->id);
-
-      $asset->load(self::WITH_RELATIONS);
-      return AssetResource::make($asset);
+      return $asset;
     });
+
+    // Fuera de la transacción y tras el commit: si la cola está caída, el activo
+    // igual queda creado como "pending" y el scheduler (assets:verify-migration --all)
+    // lo migra en el siguiente ciclo.
+    try {
+      VerifyAndMigrateAssetJob::dispatch($asset->id)->afterCommit();
+    } catch (\Throwable $e) {
+      Log::warning('No se pudo despachar VerifyAndMigrateAssetJob; el scheduler lo reintentará', [
+        'asset_id' => $asset->id,
+        'error'    => $e->getMessage(),
+      ]);
+    }
+
+    $asset->load(self::WITH_RELATIONS);
+    return AssetResource::make($asset);
   }
 
   public function dispatchMigration(int $id): array
