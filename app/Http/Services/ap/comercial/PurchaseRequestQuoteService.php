@@ -369,7 +369,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    */
   /**
    * Verifica que el vehículo (VIN) pertenezca a la sede de la cotización.
-   * El almacén físico del vehículo debe estar en la misma sede.
+   * El almacén del vehículo (`warehouse_id`) debe estar en la misma sede.
+   *
+   * Se usa `warehouse` y no `warehousePhysical` porque `warehouse_physical_id`
+   * está casi siempre en NULL en producción; con esa relación el chequeo nunca
+   * disparaba y en la práctica no validaba nada.
    */
   private function assertVehicleBelongsToSede(int $vehicleId, ?int $sedeId): void
   {
@@ -377,12 +381,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       return;
     }
 
-    $vehicle = Vehicles::with('warehousePhysical')->find($vehicleId);
+    $vehicle = Vehicles::with('warehouse')->find($vehicleId);
     if (!$vehicle) {
       return;
     }
 
-    $vehicleSedeId = $vehicle->warehousePhysical?->sede_id;
+    $vehicleSedeId = $vehicle->warehouse?->sede_id;
     if ($vehicleSedeId !== null && (int)$vehicleSedeId !== (int)$sedeId) {
       throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
     }
@@ -442,6 +446,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote = $this->find($data['id']);
       if (!empty($data['ap_vehicle_id'])) {
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+        // El VIN debe pertenecer a la sede de la cotización (el frontend antiguo
+        // no filtra por sede, así que el backend debe garantizarlo).
+        $this->assertVehicleBelongsToSede((int)$data['ap_vehicle_id'], $purchaseRequestQuote->sede_id);
       }
       $purchaseRequestQuote->update($data);
       $this->refreshMargin($purchaseRequestQuote);
@@ -567,6 +574,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       if (!$newVehicle) {
         throw new Exception('Vehículo no encontrado.');
       }
+
+      // El VIN nuevo debe pertenecer a la sede de la cotización (el frontend
+      // antiguo no filtra por sede, así que el backend debe garantizarlo).
+      $this->assertVehicleBelongsToSede($newVehicleId, $quote->sede_id);
 
       // Bloquear si hay documentos de venta final aceptados
       $hasFinalSale = $quote->electronicDocuments()
