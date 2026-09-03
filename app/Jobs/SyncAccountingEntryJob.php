@@ -70,8 +70,13 @@ class SyncAccountingEntryJob implements ShouldQueue
         return;
       }
 
-      // 3. Obtener ElectronicDocument desde VehicleMovement
-      $electronicDocument = ElectronicDocument::with([
+      // 3. Obtener ElectronicDocument válido (neto positivo tras NC) desde VehicleMovement.
+      //    Si hubo una refacturación (boleta/factura → NC → nueva boleta/factura) la primera
+      //    factura queda con neto ~0; aquí se escoge siempre la que sí tiene saldo vigente.
+      $vin = $shippingGuide->vehicleMovement->vehicle->vin;
+      $tol = ElectronicDocument::ROUNDING_TOLERANCE;
+
+      $candidateDocuments = ElectronicDocument::with([
         'items',
         'creator.person',
         'currency',
@@ -80,15 +85,39 @@ class SyncAccountingEntryJob implements ShouldQueue
         'vehicle',
       ])
         ->where('is_advance_payment', 0)
-        ->whereHas('vehicle', function ($query) use ($shippingGuide) {
-          $query->where('vin', $shippingGuide->vehicleMovement->vehicle->vin);
+        ->where('anulado', false)
+        ->where('aceptada_por_sunat', true)
+        ->whereIn('sunat_concept_document_type_id', [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA,
+        ])
+        ->whereHas('vehicle', function ($query) use ($vin) {
+          $query->where('vin', $vin);
         })
-        ->first();
+        ->get();
+
+      $candidateIds = $candidateDocuments->pluck('id');
+      $ncTotals = DB::table('ap_billing_electronic_documents')
+        ->whereNull('deleted_at')
+        ->where('is_advance_payment', false)
+        ->where('anulado', false)
+        ->where('aceptada_por_sunat', true)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->whereIn('original_document_id', $candidateIds)
+        ->selectRaw('original_document_id, SUM(total) as total_nc')
+        ->groupBy('original_document_id')
+        ->pluck('total_nc', 'original_document_id');
+
+      $electronicDocument = $candidateDocuments->first(function ($inv) use ($ncTotals, $tol) {
+        $nc = (float) ($ncTotals->get($inv->id) ?? 0);
+        return round((float) $inv->total - $nc, 2) > $tol;
+      });
 
       if (!$electronicDocument) {
-        Log::warning('No se encontró factura asociada a la guía', [
+        Log::warning('No se encontró factura vigente asociada a la guía', [
           'shipping_guide_id' => $shippingGuide->id,
-          'vehicle_movement_id' => $shippingGuide->vehicle_movement_id
+          'vehicle_movement_id' => $shippingGuide->vehicle_movement_id,
+          'vin' => $vin,
         ]);
         return;
       }
