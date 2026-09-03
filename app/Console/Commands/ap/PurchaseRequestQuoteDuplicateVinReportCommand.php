@@ -62,10 +62,21 @@ class PurchaseRequestQuoteDuplicateVinReportCommand extends Command
       }
     }
 
+    $paidRows = array_filter($rows, fn($r) => $r['is_paid'] === 'Sí');
+    $vinsWithMultiplePaid = collect($paidRows)
+      ->groupBy('ap_vehicle_id')
+      ->filter(fn($g) => $g->count() > 1)
+      ->keys();
+
     $this->info(
       'VINs con doble asignación: ' . $duplicatedVehicleIds->count() .
-      ' | Solicitudes involucradas: ' . count($rows)
+      ' | Solicitudes involucradas: ' . count($rows) .
+      ' | Cotizaciones pagadas: ' . count($paidRows)
     );
+
+    if ($vinsWithMultiplePaid->isNotEmpty()) {
+      $this->error('CRÍTICO: VIN(s) con más de una cotización pagada: ' . $vinsWithMultiplePaid->implode(', '));
+    }
     $this->newLine();
 
     $headers = ['ap_vehicle_id', 'vin', 'plate', 'quote_id', 'correlative', 'sede', 'holder', 'is_approved', 'is_paid', 'status', 'created_at'];
