@@ -17,6 +17,8 @@ class IndexVehiclesRequest extends IndexRequest
       // Modelo
       'ap_models_vn_id'                    => 'nullable|integer|exists:ap_models_vn,id',
       'model.class_id'                     => 'nullable|integer',
+      'model.family_id'                    => 'nullable|integer|exists:ap_families,id',
+      'model.family.brand_id'              => 'nullable|integer|exists:ap_vehicle_brand,id',
 
       // Estado
       'ap_vehicle_status_id'               => 'nullable|array',
@@ -56,6 +58,8 @@ class IndexVehiclesRequest extends IndexRequest
       'search'                             => 'búsqueda',
       'ap_models_vn_id'                    => 'modelo',
       'model.class_id'                     => 'clase de modelo',
+      'model.family_id'                    => 'familia',
+      'model.family.brand_id'              => 'marca',
       'ap_vehicle_status_id'               => 'estado de vehículo',
       'warehouse_id'                       => 'almacén',
       'warehouse_physical_id'              => 'almacén físico',

@@ -106,7 +106,9 @@
       "Read(//c/Users/Hector/AppData/Local/Programs/**)",
       "Read(//c//**)",
       "Bash(\"/c/laragon/bin/python/python-3.13/python.exe\" -m pip install --quiet openpyxl)",
-      "Bash(npx --prefix /c/laragon/www/namu-frontend tsc --noEmit --project /c/laragon/www/namu-frontend/tsconfig.json)"
+      "Bash(npx --prefix /c/laragon/www/namu-frontend tsc --noEmit --project /c/laragon/www/namu-frontend/tsconfig.json)",
+      "Bash(find /c/laragon/www -maxdepth 2 -iname \"*frontend*\" 2>/dev/null; find / -maxdepth 3 -iname \"namu-frontend*\" 2>/dev/null)",
+      "Bash(netstat -ano)"
     ],
     "deny": [],
     "ask": []

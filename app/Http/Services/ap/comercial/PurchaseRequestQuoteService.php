@@ -122,6 +122,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       // Generar el correlativo
       $correlative = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
 
+      // El VIN debe pertenecer a la sede de la cotización
+      if (!empty($data['ap_vehicle_id'])) {
+        $this->assertVehicleBelongsToSede((int)$data['ap_vehicle_id'], $data['sede_id'] ?? null);
+      }
+
       // Preparar datos para crear el PurchaseRequestQuote
       $quoteData = [
         'correlative'          => $correlative,
@@ -231,6 +236,16 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
           throw new Exception('El vehículo ya está asociado a otra cotización.');
         }
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
+
+      // El VIN asignado (nuevo o el existente) debe pertenecer a la sede de la cotización,
+      // ya sea que cambie el vehículo o que cambie la sede.
+      $effectiveVehicleId = $data['ap_vehicle_id'] ?? $purchaseRequestQuote->ap_vehicle_id;
+      if (!empty($effectiveVehicleId)) {
+        $this->assertVehicleBelongsToSede(
+          (int)$effectiveVehicleId,
+          $data['sede_id'] ?? $purchaseRequestQuote->sede_id
+        );
       }
 
       // Si viene con VIN y sin color/modelo, tomar esos valores del vehículo asignado
@@ -352,6 +367,27 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * (es decir, no cancelada por notas de crédito). Esto protege contra reasignaciones manuales
    * de vehículos ya vendidos aunque su status haya sido revertido directamente en BD.
    */
+  /**
+   * Verifica que el vehículo (VIN) pertenezca a la sede de la cotización.
+   * El almacén físico del vehículo debe estar en la misma sede.
+   */
+  private function assertVehicleBelongsToSede(int $vehicleId, ?int $sedeId): void
+  {
+    if (empty($sedeId)) {
+      return;
+    }
+
+    $vehicle = Vehicles::with('warehousePhysical')->find($vehicleId);
+    if (!$vehicle) {
+      return;
+    }
+
+    $vehicleSedeId = $vehicle->warehousePhysical?->sede_id;
+    if ($vehicleSedeId !== null && (int)$vehicleSedeId !== (int)$sedeId) {
+      throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+    }
+  }
+
   private function assertVehicleNotEffectivelyInvoiced(int $vehicleId): void
   {
     $invoices = DB::table('ap_billing_electronic_documents as ed')

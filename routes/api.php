@@ -2302,6 +2302,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
     Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
     Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
+    Route::get('liquidation-bbss/pivot', [PayrollLiquidationBbssController::class, 'indexPivot']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses

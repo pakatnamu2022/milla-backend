@@ -27,6 +27,15 @@ class PayrollLiquidationBbssController extends Controller
         }
     }
 
+    public function indexPivot(IndexPayrollLiquidationBbssRequest $request)
+    {
+        try {
+            return $this->success($this->service->listPivoted($request));
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
     public function store(StorePayrollLiquidationBbssRequest $request)
     {
         try {

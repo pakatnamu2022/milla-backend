@@ -934,6 +934,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       $query->where('warehouse_physical_id', $request->warehouse_physical_id);
     }
 
+    // Restringir a la sede de la cotizacion: el VIN debe estar en un almacen de esa sede.
+    // Se exceptua el vehiculo ya asignado a la cotizacion que se esta editando.
+    if ($request->filled('sede_id')) {
+      $sedeId = $request->get('sede_id');
+      $query->where(function ($q) use ($sedeId, $excludeQuoteId) {
+        $q->whereHas('warehousePhysical', function ($sub) use ($sedeId) {
+          $sub->where('sede_id', $sedeId);
+        });
+        if ($excludeQuoteId) {
+          $q->orWhereHas('purchaseRequestQuote', function ($sub) use ($excludeQuoteId) {
+            $sub->where('id', $excludeQuoteId);
+          });
+        }
+      });
+    }
+
     // family_id
     if ($request->has('family_id') && $request->family_id) {
       $query->whereHas('model.family', function ($q) use ($request) {
