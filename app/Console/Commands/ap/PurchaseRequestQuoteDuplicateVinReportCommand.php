@@ -46,6 +46,14 @@ class PurchaseRequestQuoteDuplicateVinReportCommand extends Command
       $plate = $first->vehicle?->plate ?? '-';
 
       foreach ($group as $quote) {
+        // Anticipos: documentos electrónicos de anticipo aceptados por SUNAT y no anulados.
+        $advanceCount = $quote->electronicDocuments()
+          ->where('is_advance_payment', 1)
+          ->where('aceptada_por_sunat', 1)
+          ->where('anulado', 0)
+          ->whereNull('deleted_at')
+          ->count();
+
         $rows[] = [
           'ap_vehicle_id' => $vehicleId,
           'vin'           => $vin,
@@ -56,6 +64,7 @@ class PurchaseRequestQuoteDuplicateVinReportCommand extends Command
           'holder'        => $quote->holder?->full_name ?? '-',
           'is_approved'   => $quote->is_approved ? 'Sí' : 'No',
           'is_paid'       => $quote->is_paid ? 'Sí' : 'No',
+          'anticipos'     => $advanceCount > 0 ? "Sí ($advanceCount)" : 'No',
           'status'        => $quote->status ? 'Activa' : 'Inactiva',
           'created_at'    => $quote->created_at?->format('Y-m-d H:i') ?? '-',
         ];
@@ -68,18 +77,27 @@ class PurchaseRequestQuoteDuplicateVinReportCommand extends Command
       ->filter(fn($g) => $g->count() > 1)
       ->keys();
 
+    $rowsWithAdvance = array_filter($rows, fn($r) => $r['anticipos'] !== 'No');
+
     $this->info(
       'VINs con doble asignación: ' . $duplicatedVehicleIds->count() .
       ' | Solicitudes involucradas: ' . count($rows) .
-      ' | Cotizaciones pagadas: ' . count($paidRows)
+      ' | Cotizaciones pagadas: ' . count($paidRows) .
+      ' | Cotizaciones con anticipos: ' . count($rowsWithAdvance)
     );
 
     if ($vinsWithMultiplePaid->isNotEmpty()) {
       $this->error('CRÍTICO: VIN(s) con más de una cotización pagada: ' . $vinsWithMultiplePaid->implode(', '));
     }
+
+    $unpaidWithAdvance = array_filter($rows, fn($r) => $r['anticipos'] !== 'No' && $r['is_paid'] === 'No');
+    if (!empty($unpaidWithAdvance)) {
+      $this->warn('ATENCIÓN: cotización(es) NO pagadas pero con anticipos asociados: ' .
+        implode(', ', array_map(fn($r) => $r['correlative'] . ' (#' . $r['quote_id'] . ')', $unpaidWithAdvance)));
+    }
     $this->newLine();
 
-    $headers = ['ap_vehicle_id', 'vin', 'plate', 'quote_id', 'correlative', 'sede', 'holder', 'is_approved', 'is_paid', 'status', 'created_at'];
+    $headers = ['ap_vehicle_id', 'vin', 'plate', 'quote_id', 'correlative', 'sede', 'holder', 'is_approved', 'is_paid', 'anticipos', 'status', 'created_at'];
 
     if ($this->option('csv')) {
       $this->line(implode(',', $headers));
@@ -93,7 +111,7 @@ class PurchaseRequestQuoteDuplicateVinReportCommand extends Command
     }
 
     $this->table(
-      ['ID Vehículo', 'VIN', 'Placa', 'ID Cotización', 'Correlativo', 'Sede', 'Titular', 'Aprobada', 'Pagada', 'Estado', 'Creada'],
+      ['ID Vehículo', 'VIN', 'Placa', 'ID Cotización', 'Correlativo', 'Sede', 'Titular', 'Aprobada', 'Pagada', 'Anticipos', 'Estado', 'Creada'],
       $rows
     );
 
