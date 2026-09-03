@@ -7,6 +7,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\User;
+use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -231,6 +232,7 @@ class PayrollCalculation extends BaseModel
         'avg_holiday' => 0,
         'avg_compensatory' => 0,
         'avg_night_bonus' => 0,
+        'avg_bonus' => 0,
         'total_avg' => 0,
         'months_counted' => 0,
       ];
@@ -274,6 +276,7 @@ class PayrollCalculation extends BaseModel
         'avg_holiday' => 0,
         'avg_compensatory' => 0,
         'avg_night_bonus' => 0,
+        'avg_bonus' => 0,
         'total_avg' => 0,
         'months_counted' => 0,
       ];
@@ -293,6 +296,7 @@ class PayrollCalculation extends BaseModel
           'holiday' => 0,
           'compensatory' => 0,
           'night_bonus' => 0,
+          'bonus' => 0,
         ];
       }
 
@@ -304,6 +308,21 @@ class PayrollCalculation extends BaseModel
       $monthlyTotals[$key]['night_bonus'] += $calc->night_bonus ?? 0;
     }
 
+    // Bonos/comisiones (gh_payroll_bonuses, p.ej. bonos de conductores) de los mismos meses.
+    // Solo se suman a meses que ya tienen cálculo de nómina, para no alterar $monthsCount.
+    $bonuses = PayrollBonus::whereIn('period_id', $periods)
+      ->where('worker_id', $workerId)
+      ->with('period')
+      ->get();
+
+    foreach ($bonuses as $bonus) {
+      if (!$bonus->period) continue;
+      $key = $bonus->period->year . '-' . str_pad($bonus->period->month, 2, '0', STR_PAD_LEFT);
+      if (isset($monthlyTotals[$key])) {
+        $monthlyTotals[$key]['bonus'] += $bonus->amount ?? 0;
+      }
+    }
+
     // Contar meses únicos
     $monthsCount = count($monthlyTotals);
 
@@ -313,6 +332,7 @@ class PayrollCalculation extends BaseModel
         'avg_holiday' => 0,
         'avg_compensatory' => 0,
         'avg_night_bonus' => 0,
+        'avg_bonus' => 0,
         'total_avg' => 0,
         'months_counted' => 0,
       ];
@@ -327,6 +347,7 @@ class PayrollCalculation extends BaseModel
     $monthsWithHoliday = 0;
     $monthsWithCompensatory = 0;
     $monthsWithNightBonus = 0;
+    $monthsWithBonus = 0;
 
     foreach ($monthlyTotals as $totals) {
       if ($totals['overtime_25'] > 0) $monthsWithOvertime25++;
@@ -334,6 +355,7 @@ class PayrollCalculation extends BaseModel
       if ($totals['holiday'] > 0) $monthsWithHoliday++;
       if ($totals['compensatory'] > 0) $monthsWithCompensatory++;
       if ($totals['night_bonus'] > 0) $monthsWithNightBonus++;
+      if ($totals['bonus'] > 0) $monthsWithBonus++;
     }
 
     // Calcular totales solo si cumplen la condición de 3 meses
@@ -357,12 +379,17 @@ class PayrollCalculation extends BaseModel
       ? array_sum(array_column($monthlyTotals, 'night_bonus'))
       : 0;
 
+    $totalBonus = $monthsWithBonus >= $minMonthsRequired
+      ? array_sum(array_column($monthlyTotals, 'bonus'))
+      : 0;
+
     // Calcular promedios
     $avgOvertime25 = $totalOvertime25 / $monthsCount;
     $avgOvertime35 = $totalOvertime35 / $monthsCount;
     $avgHoliday = $totalHoliday / $monthsCount;
     $avgCompensatory = $totalCompensatory / $monthsCount;
     $avgNightBonus = $totalNightBonus / $monthsCount;
+    $avgBonus = $totalBonus / $monthsCount;
 
     // Sumar horas extras para mantener compatibilidad
     $avgOvertime = $avgOvertime25 + $avgOvertime35;
@@ -372,7 +399,8 @@ class PayrollCalculation extends BaseModel
       'avg_holiday' => round($avgHoliday, 2),
       'avg_compensatory' => round($avgCompensatory, 2),
       'avg_night_bonus' => round($avgNightBonus, 2),
-      'total_avg' => round($avgOvertime + $avgHoliday + $avgCompensatory + $avgNightBonus, 2),
+      'avg_bonus' => round($avgBonus, 2),
+      'total_avg' => round($avgOvertime + $avgHoliday + $avgCompensatory + $avgNightBonus + $avgBonus, 2),
       'months_counted' => $monthsCount,
     ];
   }

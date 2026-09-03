@@ -109,7 +109,12 @@
       "Bash(npx --prefix /c/laragon/www/namu-frontend tsc --noEmit --project /c/laragon/www/namu-frontend/tsconfig.json)",
       "Bash(find /c/laragon/www -maxdepth 2 -iname \"*frontend*\" 2>/dev/null; find / -maxdepth 3 -iname \"namu-frontend*\" 2>/dev/null)",
       "Bash(netstat -ano)",
-      "Bash(find / -iname \"*CTS*\" -o -iname \"*GRATIFICACION*\" 2>/dev/null | grep -vi node_modules | head -50)"
+      "Bash(find / -iname \"*CTS*\" -o -iname \"*GRATIFICACION*\" 2>/dev/null | grep -vi node_modules | head -50)",
+      "Bash(php artisan *)",
+      "Bash(wc -l /tmp_out_dry.txt)",
+      "Bash(awk '/AMBIGUOS/{f=1} /Grupos a corregir/{f=0} f' 'C:\\\\Users\\\\Hector\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--laragon-www-milla-backend\\\\0dc77374-3abb-4843-a183-5bf1dfcf5c91\\\\scratchpad\\\\dry_run.txt')",
+      "Bash(kill %1)",
+      "Bash(powershell -NoProfile -Command 'Get-ChildItem -Path '\\\\''C:\\\\Users\\\\Hector\\\\Downloads'\\\\'','\\\\''C:\\\\Users\\\\Hector\\\\Desktop'\\\\'','\\\\''C:\\\\Users\\\\Hector\\\\Documents'\\\\'' -Recurse -Filter '\\\\''*.xls*'\\\\'' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\\\\''CTS|GRATI|TP SAC'\\\\'' } | Select-Object -ExpandProperty FullName')"
     ],
     "deny": [],
     "ask": []

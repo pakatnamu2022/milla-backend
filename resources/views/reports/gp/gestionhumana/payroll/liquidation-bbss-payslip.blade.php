@@ -5,7 +5,7 @@
   <title>Boleta {{ $concept }} — {{ $worker->nombre_completo }}</title>
   <style>
     @page {
-      margin: 22mm 20mm;
+      margin: 16mm 16mm 20mm 16mm;
     }
 
     * { padding: 0; box-sizing: border-box; }
@@ -18,31 +18,30 @@
      */
     body, table, td, div, p, h1, h2, h3 { margin: 0; }
 
+    /*
+     * Diseño minimalista: un solo tamaño base, sin cajas de color ni bordes. La
+     * jerarquía se construye solo con espacio en blanco y peso/tamaño de fuente.
+     */
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 9.5px;
+      font-size: 10.5px;
       color: #000000;
-      line-height: 1.4;
+      line-height: 1.6;
     }
 
     table { width: 100%; border-collapse: collapse; }
     td { padding: 0; vertical-align: top; }
 
-    .label {
-      font-size: 7.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
-    }
+    .field-label { font-size: 9px; margin-bottom: 2px; }
+    .field-value { font-weight: bold; }
 
     /* ---------- Encabezado ---------- */
-    .header-table { margin-bottom: 26px; }
     .header-table td { vertical-align: top; }
-
-    .doc-title { font-size: 22px; font-weight: bold; letter-spacing: -0.3px; }
+    .doc-title { font-size: 21px; font-weight: bold; }
+    .doc-subtitle { font-size: 10.5px; margin-top: 4px; }
 
     .logo-cell { text-align: right; }
-    .logo-img { max-height: 30px; max-width: 140px; }
+    .logo-img { max-height: 46px; max-width: 200px; }
     .logo-mark {
       display: inline-block;
       width: 30px;
@@ -55,88 +54,54 @@
       font-weight: bold;
     }
 
-    /* ---------- Datos (número / fechas / empresa) ---------- */
-    .meta-table { margin-bottom: 22px; }
-    .meta-table td { padding-bottom: 7px; font-size: 9.5px; }
-    .meta-table td:first-child { width: 45%; }
-    .meta-value { font-weight: bold; }
+    /* ---------- Bloques de contenido: separación solo por espacio ---------- */
+    .block { margin-top: 30px; }
+    .block-tight { margin-top: 22px; }
 
-    /* ---------- Empresa / trabajador (dos columnas) ---------- */
-    .parties-table { margin-bottom: 26px; }
+    /* ---------- Datos del documento ---------- */
+    .meta-table td { padding-right: 16px; }
+    .meta-table tr + tr td { padding-top: 14px; }
+
+    /* ---------- Empresa / trabajador ---------- */
     .parties-table td { width: 50%; }
-    .party-name { font-size: 10px; font-weight: bold; margin-bottom: 3px; }
-    .party-line { font-size: 9px; line-height: 1.6; }
+    .party-name { font-weight: bold; margin-bottom: 3px; }
+    .party-line { line-height: 1.6; }
 
-    .divider { border-top: 1px solid #000000; margin-bottom: 20px; }
+    /* ---------- Secciones de cálculo ---------- */
+    .section-title { font-size: 9px; font-weight: bold; margin-bottom: 10px; }
 
-    /* ---------- Monto total (destacado) ---------- */
-    .hero-line { font-size: 14px; font-weight: bold; margin-bottom: 26px; }
+    .line-table td { padding: 5px 0; }
+    .line-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* ---------- Detalle / fórmula ---------- */
-    .section-title {
-      font-size: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      margin-top: 22px;
-    }
+    .breakdown-table { margin: 4px 0 4px 14px; width: calc(100% - 14px); }
+    .breakdown-table td { padding: 2px 0; font-size: 9px; }
+    .breakdown-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-    .detail-table { margin-bottom: 4px; }
-    .detail-table th {
-      text-align: left;
-      font-size: 7.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: normal;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #000000;
-    }
-    .detail-table th.num, .detail-table td.num { text-align: right; }
-    .detail-table td {
-      padding: 6px 0;
-      font-size: 9.5px;
-      vertical-align: top;
-    }
-    .detail-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .detail-table .formula { font-size: 8.5px; }
+    .total-line td { padding-top: 12px; font-weight: bold; }
+    .total-line td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-    .subtotal-row td { padding-top: 8px; font-weight: bold; border-top: 1px solid #000000; }
+    /* ---------- Resultado final ---------- */
+    .result-label { font-size: 9px; margin-bottom: 4px; }
+    .result-amount { font-size: 26px; font-weight: bold; }
+    .result-sub { font-size: 9px; margin-top: 6px; }
 
-    .total-block { margin-top: 14px; }
-    .total-block table td { padding: 4px 0; font-size: 9.5px; }
-    .total-block .total-row td {
-      padding-top: 8px;
-      border-top: 1px solid #000000;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .total-block td:first-child { text-align: left; }
-    .total-block td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .footnote { line-height: 1.6; }
 
-    .footnote {
-      margin-top: 18px;
-      font-size: 9px;
-      line-height: 1.6;
-    }
+    /* ---------- Firma (centrada) ---------- */
+    .signature-block { text-align: center; margin-top: 70px; }
+    .signature-rule { display: inline-block; }
+    .signature-line { font-size: 9px; margin-top: 6px; }
 
-    /* ---------- Firma ---------- */
-    .signature-table { margin-top: 55px; margin-bottom: 20px; }
-    .signature-cell { width: 220px; }
-    .signature-line {
-      border-top: 1px solid #000000;
-      padding-top: 6px;
-      font-size: 8.5px;
-    }
+    .legal-note { line-height: 1.6; font-size: 9px; margin-top: 26px; }
 
-    .legal-note {
-      font-size: 7.5px;
-      line-height: 1.6;
-      margin-bottom: 6px;
-    }
-
+    /* ---------- Pie de página: fijo al fondo de la hoja ---------- */
     .footer-note {
-      font-size: 7.5px;
+      position: fixed;
+      bottom: -11mm;
+      left: 0;
+      right: 0;
+      font-size: 8.5px;
+      text-align: center;
     }
   </style>
 </head>
@@ -144,13 +109,15 @@
 
   @php
     $baseComputable = $base['computable'] + ($type === 'cts' ? $extra['sixth_gratification'] : 0);
+    $isCts = $type === 'cts';
   @endphp
 
   {{-- Encabezado --}}
   <table class="header-table">
     <tr>
       <td style="width: 60%;">
-        <div class="doc-title">{{ $type === 'cts' ? 'Constancia de depósito CTS' : 'Boleta de gratificación' }}</div>
+        <div class="doc-title">{{ $isCts ? 'Constancia de depósito de CTS' : 'Boleta de gratificación' }}</div>
+        <div class="doc-subtitle">{{ $company->businessName ?? $company->name ?? '' }} — {{ $worker->nombre_completo }}</div>
       </td>
       <td class="logo-cell" style="width: 40%;">
         @if($company_logo)
@@ -163,54 +130,57 @@
   </table>
 
   {{-- Datos del documento --}}
-  <table class="meta-table">
+  <table class="meta-table block">
     <tr>
       <td>
-        <div class="label">Concepto</div>
-        <div class="meta-value">{{ $concept }}</div>
+        <div class="field-label">Concepto</div>
+        <div class="field-value">{{ $concept }}</div>
       </td>
       <td>
-        <div class="label">Periodo cubierto</div>
-        <div class="meta-value">{{ $semester_start->translatedFormat('d \d\e F \Y') }} — {{ $semester_end->translatedFormat('d \d\e F \Y') }}</div>
+        <div class="field-label">Fecha de emisión</div>
+        <div class="field-value">{{ now()->format('d/m/Y') }}</div>
+      </td>
+      <td>
+        <div class="field-label">Meses computados</div>
+        <div class="field-value">{{ $months }} de 6</div>
       </td>
     </tr>
     <tr>
-      <td>
-        <div class="label">Fecha de emisión</div>
-        <div class="meta-value">{{ now()->format('d/m/Y') }}</div>
-      </td>
-      <td>
-        <div class="label">Meses computados</div>
-        <div class="meta-value">{{ $months }} de 6</div>
+      <td colspan="3">
+        <div class="field-label">Periodo cubierto (semestre)</div>
+        <div class="field-value">{{ $semester_start->translatedFormat('d \d\e F \d\e Y') }} — {{ $semester_end->translatedFormat('d \d\e F \d\e Y') }}</div>
       </td>
     </tr>
-    @if($type === 'cts')
+    @if($isCts)
       <tr>
         <td>
-          <div class="label">Banco</div>
-          <div class="meta-value">{{ $extra['bank'] ?? '—' }}</div>
+          <div class="field-label">Banco</div>
+          <div class="field-value">{{ $extra['bank'] ?? '—' }}</div>
         </td>
-        <td>
-          <div class="label">Cuenta CTS</div>
-          <div class="meta-value">{{ $extra['account'] ?? '—' }}</div>
+        <td colspan="2">
+          <div class="field-label">Cuenta CTS</div>
+          <div class="field-value">{{ $extra['account'] ?? '—' }}</div>
         </td>
       </tr>
     @endif
   </table>
 
   {{-- Empresa / trabajador --}}
-  <table class="parties-table">
+  <table class="parties-table block">
     <tr>
       <td>
-        <div class="label">De</div>
+        <div class="field-label">De</div>
         <div class="party-name">{{ $company->businessName ?? $company->name ?? '' }}</div>
         <div class="party-line">
           RUC {{ $company->num_doc ?? '—' }}<br>
           {{ $company->address ?? '' }}
+          @if($isCts && $legal_representative)
+            <br>Representada por {{ $legal_representative->nombre_completo }} — DNI {{ $legal_representative->vat }}
+          @endif
         </div>
       </td>
       <td>
-        <div class="label">Trabajador</div>
+        <div class="field-label">Trabajador</div>
         <div class="party-name">{{ $worker->nombre_completo }}</div>
         <div class="party-line">
           DNI {{ $worker->vat }}<br>
@@ -220,93 +190,105 @@
     </tr>
   </table>
 
-  <div class="divider"></div>
-
-  {{-- Monto total, destacado --}}
-  <div class="hero-line">
-    S/ {{ number_format($amount, 2) }} {{ $type === 'cts' ? 'depositados' : 'pagados' }} el {{ now()->translatedFormat('d \d\e F \d\e Y') }}
-  </div>
-
   {{-- Base computable --}}
-  <div class="section-title">Cómo se calculó la base computable</div>
-  <table class="detail-table">
-    <tr>
-      <th style="width: 40%;">Concepto</th>
-      <th style="width: 35%;">Fórmula</th>
-      <th class="num" style="width: 25%;">Monto</th>
-    </tr>
-    <tr>
-      <td>Remuneración básica</td>
-      <td class="formula">Sueldo del trabajador</td>
-      <td class="num">S/ {{ number_format($base['salary'], 2) }}</td>
-    </tr>
-    <tr>
-      <td>Asignación familiar</td>
-      <td class="formula">Monto legal vigente (10% RMV)</td>
-      <td class="num">S/ {{ number_format($base['family_allowance'], 2) }}</td>
-    </tr>
-    <tr>
-      <td>Promedio de variables</td>
-      <td class="formula">Horas extra / bonif. de últimos 6 meses ÷ 6</td>
-      <td class="num">S/ {{ number_format($base['avg_variable'], 2) }}</td>
-    </tr>
-    @if($type === 'cts')
+  <div class="block">
+    <div class="section-title">Base computable</div>
+    <table class="line-table">
       <tr>
-        <td>1/6 de gratificación</td>
-        <td class="formula">Grati. bruta de referencia ÷ 6</td>
-        <td class="num">S/ {{ number_format($extra['sixth_gratification'], 2) }}</td>
+        <td>Remuneración básica</td>
+        <td class="num">S/ {{ number_format($base['salary'], 2) }}</td>
       </tr>
-    @endif
-    <tr class="subtotal-row">
-      <td>Base computable</td>
-      <td class="formula">Suma de los conceptos anteriores</td>
-      <td class="num">S/ {{ number_format($baseComputable, 2) }}</td>
-    </tr>
-  </table>
-
-  {{-- Cálculo final --}}
-  <div class="section-title">Cómo se calculó el {{ strtolower($concept) }}</div>
-  <div class="total-block">
-    <table>
-      @if($type === 'cts')
+      <tr>
+        <td>Asignación familiar</td>
+        <td class="num">S/ {{ number_format($base['family_allowance'], 2) }}</td>
+      </tr>
+      <tr>
+        <td>
+          Promedio de conceptos variables (últimos {{ $base['avg_breakdown']['months_counted'] }} mes(es))
+          @if($base['avg_variable'] > 0)
+            <table class="breakdown-table">
+              <tr>
+                <td>Horas extra</td>
+                <td class="num">S/ {{ number_format($base['avg_breakdown']['overtime'], 2) }}</td>
+              </tr>
+              <tr>
+                <td>Feriado</td>
+                <td class="num">S/ {{ number_format($base['avg_breakdown']['holiday'], 2) }}</td>
+              </tr>
+              <tr>
+                <td>DDT</td>
+                <td class="num">S/ {{ number_format($base['avg_breakdown']['compensatory'], 2) }}</td>
+              </tr>
+              <tr>
+                <td>Bonif. nocturna</td>
+                <td class="num">S/ {{ number_format($base['avg_breakdown']['night_bonus'], 2) }}</td>
+              </tr>
+              <tr>
+                <td>Bonos o comisiones</td>
+                <td class="num">S/ {{ number_format($base['avg_breakdown']['bonus'], 2) }}</td>
+              </tr>
+            </table>
+          @endif
+        </td>
+        <td class="num">S/ {{ number_format($base['avg_variable'], 2) }}</td>
+      </tr>
+      @if($isCts)
         <tr>
-          <td>Proporcional por meses completos</td>
-          <td class="num">(S/ {{ number_format($baseComputable, 2) }} ÷ 12) × {{ $months }} = S/ {{ number_format(($baseComputable / 12) * $months, 2) }}</td>
-        </tr>
-        <tr>
-          <td>Descuento por días LSGH / faltas no justificadas</td>
-          <td class="num">(S/ {{ number_format($baseComputable, 2) }} ÷ 360) × {{ $extra['lsgh_days'] }} = − S/ {{ number_format(($baseComputable / 360) * $extra['lsgh_days'], 2) }}</td>
-        </tr>
-      @else
-        <tr>
-          <td>Base computable proporcional al semestre</td>
-          <td class="num">S/ {{ number_format($baseComputable, 2) }} × {{ $months }} ÷ 6 = S/ {{ number_format($amount, 2) }}</td>
+          <td>1/6 de gratificación de referencia</td>
+          <td class="num">S/ {{ number_format($extra['sixth_gratification'], 2) }}</td>
         </tr>
       @endif
-      <tr class="total-row">
-        <td>Total {{ $concept }}</td>
-        <td class="num">S/ {{ number_format($amount, 2) }}</td>
+      <tr class="total-line">
+        <td>Base computable total</td>
+        <td class="num">S/ {{ number_format($baseComputable, 2) }}</td>
       </tr>
     </table>
   </div>
 
-  @if($type === 'gratificacion' && $extra['extraordinary_bonus'] > 0)
-    <div class="footnote">
-      Adicionalmente corresponde una Bonificación Extraordinaria (9%, Ley N° 29351) de
-      S/ {{ number_format($extra['extraordinary_bonus'], 2) }} = S/ {{ number_format($amount, 2) }} × 9%, abonada en concepto aparte.
+  {{-- Cálculo --}}
+  @if($isCts || $months < 6)
+    <div class="block-tight">
+      <div class="section-title">Cálculo</div>
+      <table class="line-table">
+        @if($isCts)
+          <tr>
+            <td>Proporcional ({{ $months }}/6 meses)</td>
+            <td class="num">(S/ {{ number_format($baseComputable, 2) }} ÷ 12) × {{ $months }} = S/ {{ number_format(($baseComputable / 12) * $months, 2) }}</td>
+          </tr>
+          <tr>
+            <td>Descuento LSGH ({{ $extra['lsgh_days'] }} día(s))</td>
+            <td class="num">(S/ {{ number_format($baseComputable, 2) }} ÷ 360) × {{ $extra['lsgh_days'] }} = − S/ {{ number_format(($baseComputable / 360) * $extra['lsgh_days'], 2) }}</td>
+          </tr>
+        @else
+          <tr>
+            <td>Proporcional ({{ $months }}/6 meses)</td>
+            <td class="num">S/ {{ number_format($baseComputable, 2) }} × {{ $months }} ÷ 6 = S/ {{ number_format($amount, 2) }}</td>
+          </tr>
+        @endif
+      </table>
+    </div>
+  @endif
+
+  {{-- Resultado final --}}
+  <div class="block">
+    <div class="result-label">Total {{ $concept }}</div>
+    <div class="result-amount">S/ {{ number_format($amount, 2) }}</div>
+    <div class="result-sub">Son: {{ $amount_words }} — {{ $isCts ? 'depositado' : 'pagado' }} el {{ now()->format('d/m/Y') }}</div>
+  </div>
+
+  @if(!$isCts && $extra['extraordinary_bonus'] > 0)
+    <div class="block-tight footnote">
+      Bonificación Extraordinaria (Ley N° 29351): S/ {{ number_format($amount, 2) }} × 9% = S/ {{ number_format($extra['extraordinary_bonus'], 2) }}, abonada en concepto aparte.
     </div>
   @endif
 
   {{-- Firma --}}
-  <table class="signature-table">
-    <tr>
-      <td class="signature-cell">
-        <div class="signature-line">Firma autorizada</div>
-      </td>
-    </tr>
-  </table>
+  <div class="signature-block">
+    <div class="signature-rule">_______________________</div>
+    <div class="signature-line">Firma autorizada</div>
+  </div>
 
-  @if($type === 'cts')
+  @if($isCts)
     <div class="legal-note">
       Constancia emitida en aplicación del Art. 24° del Texto Único Ordenado del Decreto Legislativo
       N° 650, Ley de Compensación por Tiempo de Servicios, aprobado mediante D.S. N° 001-97-TR.
