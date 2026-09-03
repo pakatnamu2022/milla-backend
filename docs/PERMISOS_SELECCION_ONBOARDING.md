@@ -63,15 +63,34 @@ Seeder objetivo: `Database\Seeders\gp\gestionhumana\personal\WorkerDetailViewsPe
 
 ## 2. Reclutamiento — Fase 1 (Postulación, 04–25/09)
 
-Vista contenedora nueva: **Reclutamiento** bajo 456 o bajo 77 (decidir).
-Propuesta: `parent_id = 77`, slug `reclutamiento`, icon `UserSearch`.
+Contenedor: **Reclutamiento y Seleccion** — `submodule`, `parent_id = 77` (Gestión Humana),
+slug `reclutamiento-y-seleccion`, icon `UserSearch`, sin ruta propia.
+Ruta frontend base: `/gp/gestion-humana/reclutamiento-y-seleccion/<route>`.
 
-| route | descripción | icon | permisos |
-|-------|-------------|------|----------|
-| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` |
-| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` |
+| route | descripción | icon | permisos | estado |
+|-------|-------------|------|----------|--------|
+| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ⏳ backend listo, falta frontend |
+| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | pendiente |
 
 Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostulanteController` (idVista 52).
+
+**Seeder:** `Database\Seeders\gp\gestionhumana\reclutamiento\RecruitmentViewsPermissionsSeeder`
+(ya creado con `procesos-postulacion`). Roles destino: 98 TICS, 102 TIC's TP, 127 Gerente GH,
+68 Analista Proyectos GH, 24 Gestión Humana, 138 Gestión Humana AP.
+**No ejecutar hasta que exista la pantalla en namu-frontend** (si no, aparece en el menú y da 404).
+
+### Backend F1 — Procesos de Postulación (implementado)
+
+- `app/Models/gp/gestionhumana/reclutamiento/RecruitmentProcess.php` (`rrhh_proceso_postulacion`)
+- `RecruitmentProcessService` / `RecruitmentProcessController` / `RecruitmentProcessResource`
+- FormRequests: `Index/Store/UpdateRecruitmentProcessRequest`
+- Rutas (`routes/api.php`, prefix `gp/gh/reclutamiento`):
+  - `GET|POST|PUT|DELETE recruitment-process` (apiResource sin `create`/`edit`)
+  - `POST recruitment-process/{id}/close` — finaliza (status 11 + `fecha_fin_cierre`)
+- `dias_plazo` ← `rrhh_cargo.plazo_proceso_seleccion`; `fecha_fin_plazo` = `fecha_inicio` + N
+  días hábiles (lun-vie) con `CarbonImmutable` (⚠️ el legacy `sumasdiasemana()` daba un
+  resultado ~2 días menor por un bug; aquí se calcula exacto).
+- `centro_costo_id` ← `rrhh_area.centro_costo_id`. Anulación lógica = `status_deleted = 0`.
 
 ---
 

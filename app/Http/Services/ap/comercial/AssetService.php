@@ -8,7 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\ap\comercial\dynamics\AssetMigrationLogService;
 use App\Jobs\VerifyAndMigrateAssetJob;
 use App\Models\ap\comercial\ApAsset;
-use App\Models\ap\comercial\ApReceivingInspection;
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -59,13 +59,26 @@ class AssetService extends BaseService
    */
   public function eligibleVehicles(Request $request)
   {
-    $search = $request->query('search');
+    $search  = $request->query('search');
+    $perPage = (int) $request->query('per_page', 20);
+    $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 20;
 
-    $vehicles = Vehicles::with(['model.family.brand', 'color', 'warehouse.sede', 'shippingGuideReceiving'])
+    $deliveredVehicleIds = ApVehicleDelivery::query()
+      ->whereNull('deleted_at')
+      ->where('status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED)
+      ->where(function ($q) {
+        $q->where('is_extraordinary', false)
+          ->orWhereNull('extraordinary_approved')
+          ->orWhere('extraordinary_approved', true);
+      })
+      ->select('vehicle_id');
+
+    $paginator = Vehicles::with(['model.family.brand', 'color', 'warehouse.sede', 'shippingGuideReceiving'])
       ->where('ap_vehicle_status_id', ApVehicleStatus::INVENTARIO_VN)
       ->whereDoesntHave('purchaseRequestQuote')
       ->whereDoesntHave('electronicDocuments')
       ->whereNotIn('id', ApAsset::query()->select('ap_vehicle_id'))
+      ->whereNotIn('id', $deliveredVehicleIds)
       ->when($search, function ($q) use ($search) {
         $q->where(function ($sub) use ($search) {
           $sub->where('vin', 'like', "%{$search}%")
@@ -73,24 +86,26 @@ class AssetService extends BaseService
         });
       })
       ->orderBy('vin')
-      ->limit(50)
-      ->get()
-      ->filter(fn(Vehicles $v) => !$v->has_delivery_guide)
-      ->values();
+      ->paginate($perPage);
 
     return [
-      'data' => $vehicles->map(fn(Vehicles $v) => $this->mapEligibleVehicle($v))->all(),
+      'data' => collect($paginator->items())
+        ->map(fn(Vehicles $v) => $this->mapEligibleVehicle($v))
+        ->all(),
+      'meta' => [
+        'current_page' => $paginator->currentPage(),
+        'last_page'    => $paginator->lastPage(),
+        'per_page'     => $paginator->perPage(),
+        'total'        => $paginator->total(),
+      ],
     ];
   }
 
   /**
-   * Datos del vehículo elegible + detalle de la guía de recepción de compra
-   * (se muestra al seleccionar el VIN en el formulario de alta).
+   * Ítem del combo de vehículos elegibles (solo lo necesario para el select).
    */
   private function mapEligibleVehicle(Vehicles $vehicle): array
   {
-    $reception = $this->receptionGuide($vehicle);
-
     return [
       'id'                => $vehicle->id,
       'vin'               => $vehicle->vin,
@@ -102,63 +117,48 @@ class AssetService extends BaseService
       'warehouse'         => $vehicle->warehouse?->description,
       'sede'              => $vehicle->warehouse?->sede?->abreviatura,
       'has_asset_account' => (bool) $vehicle->warehouse?->asset_account,
-      'reception'         => $reception ? [
-        'number'        => $reception->document_number
-          ?? trim(($reception->series ?? '') . '-' . ($reception->correlative ?? '')) ?: null,
-        'issue_date'    => $reception->issue_date?->format('Y-m-d'),
-        'received_date' => $reception->received_date?->format('Y-m-d'),
-      ] : null,
     ];
   }
 
   /**
-   * Detalle de un vehículo elegible + inspección de recepción (fotos y daños),
-   * usado al seleccionar el VIN en el formulario de alta.
+   * Detalle completo del vehículo elegible al seleccionar el VIN: identificación,
+   * especificaciones del modelo, historial de movimientos y recepción de compra
+   * (checklist, inspección visual, fotos y daños). Mismo panel que "Entrega de
+   * Vehículo" pero sin la parte de precios / cliente / documentos de venta.
    */
   public function eligibleVehicleDetail(int $id): array
   {
-    $vehicle = Vehicles::with(['model.family.brand', 'color', 'warehouse.sede'])->findOrFail($id);
-    $data = $this->mapEligibleVehicle($vehicle);
+    $vehicle = Vehicles::with([
+      'model.family.brand',
+      'color',
+      'engineType',
+      'vehicleStatus',
+      'warehouse.sede',
+      'vehicleMovements',
+      'shippingGuideReceiving.receivingChecklists.receiving',
+      'shippingGuideReceiving.receivingInspection.damages',
+      'shippingGuideReceiving.receivingInspection.inspectedBy',
+      'shippingGuideReceiving.receivedBy',
+    ])->findOrFail($id);
 
-    $reception = $this->receptionGuide($vehicle);
-    if ($reception) {
-      $inspection = ApReceivingInspection::with('damages')
-        ->where('shipping_guide_id', $reception->id)
-        ->latest('id')
-        ->first();
+    $reception = $vehicle->shippingGuideReceiving;
 
-      $data['reception']['inspection'] = $inspection ? [
-        'general_observations' => $inspection->general_observations,
-        'inspected_by_name'    => $inspection->inspectedBy?->name,
-        'photos'               => array_values(array_filter([
-          ['label' => 'Frontal',        'url' => $inspection->photo_front_url],
-          ['label' => 'Posterior',      'url' => $inspection->photo_back_url],
-          ['label' => 'Lado izquierdo', 'url' => $inspection->photo_left_url],
-          ['label' => 'Lado derecho',   'url' => $inspection->photo_right_url],
-          ['label' => 'VIN',            'url' => $inspection->photo_vin_url],
-        ], fn($p) => !empty($p['url']))),
-        'damages' => $inspection->damages->map(fn($d) => [
-          'damage_type' => $d->damage_type,
-          'description' => $d->description,
-          'photo_url'   => $d->photo_url,
-        ])->all(),
-      ] : null;
-    }
-
-    return $data;
+    return [
+      'id'                => $vehicle->id,
+      'has_asset_account' => (bool) $vehicle->warehouse?->asset_account,
+      'assigned_date'     => $reception?->issue_date?->format('Y-m-d'),
+      'vehicle'           => VehiclesResource::make($vehicle),
+      'reception'         => $this->vehiclesService->buildReceptionData($vehicle),
+    ];
   }
 
   /**
-   * Guía de remisión (GR) de recepción de compra del vehículo. Su fecha de emisión
+   * Guía de remisión de recepción de compra del vehículo. Su fecha de emisión
    * es la que se usa como fecha de asignación del activo por defecto.
    */
   private function receptionGuide(Vehicles $vehicle): ?ShippingGuides
   {
-    return $vehicle->shippingGuides()
-      ->where('shipping_guides.document_type', ShippingGuides::DOCUMENT_TYPE_GR)
-      ->whereHas('receivingChecklists')
-      ->orderBy('shipping_guides.issue_date')
-      ->first();
+    return $vehicle->shippingGuideReceiving;
   }
 
   /**
@@ -166,7 +166,7 @@ class AssetService extends BaseService
    */
   public function store(array $data): JsonResource
   {
-    return DB::transaction(function () use ($data) {
+    $asset = DB::transaction(function () use ($data) {
       $vehicle = Vehicles::with(['warehouse.sede', 'model'])->findOrFail($data['ap_vehicle_id']);
 
       if ((int) $vehicle->ap_vehicle_status_id !== ApVehicleStatus::INVENTARIO_VN) {

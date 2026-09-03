@@ -155,6 +155,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
@@ -2363,6 +2364,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('register', [PayrollRegisterController::class, 'index']);
     Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
     Route::post('register/export', [PayrollRegisterController::class, 'export']);
+  });
+
+  // GP - Gestión Humana - Reclutamiento y Selección
+  Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
+    // Procesos de postulación (F1) — legacy idVista 50
+    Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
+    Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
   });
 
   /**
