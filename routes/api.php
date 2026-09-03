@@ -4,6 +4,7 @@ use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApBonusReportController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
+use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
@@ -1532,6 +1533,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
 
         Route::get('bonus/export', [ApBonusReportController::class, 'export']);
+
+        Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
+        Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
       });
 
       // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
