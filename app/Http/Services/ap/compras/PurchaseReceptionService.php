@@ -420,10 +420,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
     // Agrupar por email para enviar un solo correo por usuario
     $groupedByEmail = $usersToNotify->groupBy('email');
 
-    // TODO: TESTING - Comentar estas líneas después de las pruebas
-    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Correo de prueba
-    $sentCount = 0; // Contador para enviar solo uno
-
     foreach ($groupedByEmail as $email => $userRequests) {
       try {
         // Obtener el primer registro para obtener el nombre del usuario
@@ -431,7 +427,7 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
         $userName = $firstUser['user_name'] ?? 'Usuario';
 
         $emailConfig = [
-          'to' => $testEmail, // 👈 Enviando a correo de prueba
+          'to' => $email,
           'subject' => $subject,
           'template' => 'emails.purchase-order-warehouse-notification',
           'data' => array_merge($emailData, [
