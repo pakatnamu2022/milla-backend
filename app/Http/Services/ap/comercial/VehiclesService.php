@@ -940,7 +940,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     if ($request->filled('sede_id')) {
       $sedeId = $request->get('sede_id');
       $query->where(function ($q) use ($sedeId, $excludeQuoteId) {
-        $q->whereHas('warehousePhysical', function ($sub) use ($sedeId) {
+        // El almacen de la sede se determina por `warehouse_id` (almacen contable/
+        // de ubicacion). `warehouse_physical_id` esta casi siempre en NULL en
+        // produccion, por lo que filtrar por `warehousePhysical.sede_id` dejaba
+        // la lista vacia aunque el VIN si pertenezca a la sede.
+        $q->whereHas('warehouse', function ($sub) use ($sedeId) {
           $sub->where('sede_id', $sedeId);
         });
         if ($excludeQuoteId) {
