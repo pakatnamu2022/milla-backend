@@ -443,6 +443,41 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
+   * Create a vehicle movement when a vehicle (INVENTARIO_VN) is converted into a fixed asset.
+   * Moves the vehicle to the ACTIVO status; keeps the current warehouse.
+   * @throws Exception|Throwable
+   */
+  public function storeAssetVehicleMovement(Vehicles $vehicle, ?string $observation = null): VehicleMovement
+  {
+    DB::beginTransaction();
+    try {
+      $previousStatusId = $vehicle->ap_vehicle_status_id ?? ApVehicleStatus::INVENTARIO_VN;
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::ASSET,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => ApVehicleStatus::ACTIVO,
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'observation'          => $observation ?? 'Conversión de vehículo VN en activo fijo',
+        'warehouse_id'         => $vehicle->warehouse_id,
+        'origin_warehouse_id'  => $vehicle->warehouse_id,
+        'previous_status_id'   => $previousStatusId,
+        'new_status_id'        => ApVehicleStatus::ACTIVO,
+        'created_by'           => auth()->id(),
+      ]);
+
+      $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::ACTIVO]);
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw new Exception($e->getMessage());
+    }
+  }
+
+  /**
    * Create a vehicle movement when a credit note is set (vehículo devuelto)
    * @throws Exception|Throwable
    */

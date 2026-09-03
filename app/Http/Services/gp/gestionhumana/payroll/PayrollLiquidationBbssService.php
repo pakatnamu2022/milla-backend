@@ -365,12 +365,21 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             ? (float)GeneralMaster::valueAt('FAMILY_ALLOWANCE', $referenceDate, self::FAMILY_ALLOWANCE_AMOUNT)
             : 0.0;
 
-        $avgVariable = (float)(PayrollCalculation::calcularPromedioUltimos6Meses($periodId, $worker->id, $companyId)->total_avg ?? 0);
+        $avgDetail = PayrollCalculation::calcularPromedioUltimos6Meses($periodId, $worker->id, $companyId);
+        $avgVariable = (float)($avgDetail->total_avg ?? 0);
 
         return [
             'salary' => $salary,
             'family_allowance' => $familyAllowance,
             'avg_variable' => $avgVariable,
+            'avg_breakdown' => [
+                'overtime' => (float)($avgDetail->avg_overtime ?? 0),
+                'holiday' => (float)($avgDetail->avg_holiday ?? 0),
+                'compensatory' => (float)($avgDetail->avg_compensatory ?? 0),
+                'night_bonus' => (float)($avgDetail->avg_night_bonus ?? 0),
+                'bonus' => (float)($avgDetail->avg_bonus ?? 0),
+                'months_counted' => (int)($avgDetail->months_counted ?? 0),
+            ],
             'computable' => $salary + $familyAllowance + $avgVariable,
         ];
     }
@@ -715,6 +724,7 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             'period' => $period,
             'company' => $period->company,
             'company_logo' => $this->companyLogoBase64($period->company),
+            'legal_representative' => $this->companyLegalRepresentative($period->company_id),
             'worker' => $worker,
             'semester_start' => $semesterStart,
             'semester_end' => $semesterEnd,
@@ -722,7 +732,34 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             'base' => $base,
             'extra' => $extra,
             'amount' => (float)$liquidation->amount,
+            'amount_words' => $this->numberToWords((float)$liquidation->amount),
         ];
+    }
+
+    /**
+     * Representante legal de la empresa para la constancia de CTS ("debidamente representado
+     * por..."). Se guarda como GeneralMaster (code = LEGAL_REPRESENTATIVE_COMPANY_{id}, value =
+     * id del Worker que lo representa) porque general_masters no tiene columna company_id propia
+     * y así cada empresa puede tener el suyo; si no está configurado, se omite en la boleta.
+     */
+    private function companyLegalRepresentative(int $companyId): ?Worker
+    {
+        $workerId = GeneralMaster::valueAt('LEGAL_REPRESENTATIVE_COMPANY_' . $companyId, now(), null);
+
+        return $workerId ? Worker::find($workerId) : null;
+    }
+
+    /**
+     * Monto en letras para la constancia de CTS ("SON: MIL CIENTO SETENTA Y OCHO CON 71/100"),
+     * mismo patrón que ElectronicDocumentService::convertNumberToWords().
+     */
+    private function numberToWords(float $amount): string
+    {
+        $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+        $integerPart = floor($amount);
+        $decimalPart = round(($amount - $integerPart) * 100);
+
+        return strtoupper($formatter->format($integerPart)) . ' CON ' . str_pad((string)$decimalPart, 2, '0', STR_PAD_LEFT) . '/100';
     }
 
     /**

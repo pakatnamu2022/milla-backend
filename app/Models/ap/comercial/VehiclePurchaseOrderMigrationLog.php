@@ -74,6 +74,11 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_SALE_SHIPPING_GUIDE_DETAIL_REVERSAL = 'sale_shipping_guide_detail_REVERSAL';
   const STEP_SALE_SHIPPING_GUIDE_SERIAL_REVERSAL = 'sale_shipping_guide_serial_REVERSAL';
 
+  // Constantes para los pasos de migración (Activos - vehículo VN → activo fijo)
+  const STEP_ASSET_TRANSACTION = 'asset_transaction';
+  const STEP_ASSET_TRANSACTION_DETAIL = 'asset_transaction_detail';
+  const STEP_ASSET_TRANSACTION_SERIAL = 'asset_transaction_serial';
+
   // Constantes para los pasos de migración (Asientos Contables)
   const STEP_ACCOUNTING_ENTRY_HEADER = 'accounting_entry_header';
   const STEP_ACCOUNTING_ENTRY_DETAIL = 'accounting_entry_detail';
@@ -130,6 +135,9 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL => 'neInTbTransaccionInventarioDet',
     self::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL => 'neInTbTransaccionInventario',
     self::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL => 'neInTbTransaccionInventarioDet',
+    self::STEP_ASSET_TRANSACTION => 'neInTbTransaccionInventario',
+    self::STEP_ASSET_TRANSACTION_DETAIL => 'neInTbTransaccionInventarioDet',
+    self::STEP_ASSET_TRANSACTION_SERIAL => 'neInTbTransaccionInventarioDtS',
   ];
 
   /**

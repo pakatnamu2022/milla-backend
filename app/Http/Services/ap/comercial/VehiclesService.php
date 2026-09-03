@@ -1279,7 +1279,7 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     ]);
   }
 
-  private function buildReceptionData(Vehicles $vehicle): ?array
+  public function buildReceptionData(Vehicles $vehicle): ?array
   {
     $guide = $vehicle->shippingGuideReceiving;
 

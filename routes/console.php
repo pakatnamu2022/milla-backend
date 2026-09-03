@@ -222,6 +222,15 @@ Schedule::command('internal-notes:verify-migration --all')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Verificar y migrar a Dynamics las transacciones de activos (vehículo VN → activo fijo)
+// Ejecuta cada 10 segundos; omite registros con migration_status completed/skipped/failed
+Schedule::command('assets:verify-migration --all')
+  ->everyTenSeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
 // Purgar registros antiguos de audit_logs (conservar últimos 3 meses)
 // Ejecuta diariamente a las 3:00 AM (horario de bajo tráfico)
 Schedule::command('audit-logs:purge --months=3')
