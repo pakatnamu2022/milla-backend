@@ -1077,17 +1077,13 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     file_put_contents($pdfPath, $pdf->output());
     $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
-    // Enviar correo a cada jefe de almacén
-    // TODO: TESTING - Comentar estas líneas después de las pruebas
-    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Correo de prueba
-
     foreach ($warehouseManagers as $warehouseManager) {
       $managerEmail = $warehouseManager->person?->email2;
 
       if ($managerEmail) {
         try {
           $this->emailService->queue([
-            'to' => $testEmail, // 👈 Enviando a correo de prueba
+            'to' => $managerEmail,
             'subject' => $subject,
             'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [

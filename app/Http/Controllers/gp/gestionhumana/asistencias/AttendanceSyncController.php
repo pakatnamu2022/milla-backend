@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\gp\gestionhumana\asistencias;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\asistencias\StoreBulkAttendanceSyncRequest;
 use App\Http\Services\gp\gestionhumana\asistencias\AttendanceSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,11 @@ class AttendanceSyncController extends Controller
   public function show(string $id): JsonResponse
   {
     return $this->service->show($id);
+  }
+
+  public function bulkStore(StoreBulkAttendanceSyncRequest $request): JsonResponse
+  {
+    return $this->service->bulkStore($request);
   }
 
   public function sync(Request $request): JsonResponse

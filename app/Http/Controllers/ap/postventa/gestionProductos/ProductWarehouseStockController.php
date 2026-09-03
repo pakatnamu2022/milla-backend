@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\postventa\gestionProductos;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\ap\postventa\gestionProductos\ProductWarehouseStockService;
+use App\Http\Services\ap\postventa\gestionProductos\StockReReservationService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -206,4 +207,63 @@ class ProductWarehouseStockController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Re-reservar stock después de Nota de Crédito
+   *
+   * CONTEXTO:
+   * Cuando se genera una NC, el stock regresa a quantity pero NO a reserved_quantity.
+   * Si vuelven a facturar la misma OT/Cotización, necesitan re-reservar manualmente.
+   *
+   * Este endpoint permite re-reservar stock MANUALMENTE cuando confirman que SÍ van a re-facturar.
+   *
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function reReserveStockAfterCreditNote(Request $request): JsonResponse
+  {
+    try {
+      // Validar que proporcionaron exactamente UNO: work_order_id O quotation_id
+      $request->validate([
+        'work_order_id' => 'nullable|integer|exists:ap_work_orders,id',
+        'quotation_id' => 'nullable|integer|exists:ap_order_quotations,id',
+      ]);
+
+      $workOrderId = $request->input('work_order_id');
+      $quotationId = $request->input('quotation_id');
+
+      if (!$workOrderId && !$quotationId) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Debe proporcionar work_order_id O quotation_id',
+        ], 422);
+      }
+
+      if ($workOrderId && $quotationId) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Debe proporcionar SOLO work_order_id O quotation_id, no ambos',
+        ], 422);
+      }
+
+      $reReservationService = app(StockReReservationService::class);
+
+      // Re-reservar según tipo
+      if ($workOrderId) {
+        $result = $reReservationService->reReserveStockForWorkOrder($workOrderId);
+      } else {
+        $result = $reReservationService->reReserveStockForQuotation($quotationId);
+      }
+
+      return response()->json($result, $result['success'] ? 200 : 422);
+
+    } catch (\Throwable $th) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Error al re-reservar stock',
+        'error' => $th->getMessage(),
+      ], 500);
+    }
+  }
 }
+

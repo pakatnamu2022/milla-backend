@@ -771,13 +771,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     try {
       $vehicle = $this->find($data['id']);
 
-      // Si es del área comercial, solo permitir editar placa, titular, año de entrega e is_heavy
+      // Si es del área comercial, solo permitir editar placa, titular, año de entrega, año e is_heavy
       if ($vehicle->type_operation_id === ApMasters::TIPO_OPERACION_COMERCIAL) {
         // Campos críticos que no pueden cambiar
         $criticalFields = [
           'vin' => 'VIN',
           'ap_models_vn_id' => 'modelo',
-          'year' => 'año',
           'vehicle_color_id' => 'color',
           'engine_type_id' => 'tipo de motor',
         ];
@@ -792,11 +791,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
         if (!empty($changedFields)) {
           $fieldNames = implode(', ', $changedFields);
-          throw new Exception("No se puede modificar los siguientes campos en un vehículo del ÁREA COMERCIAL: $fieldNames. Solo se permite editar la placa, titular (cliente), año de entrega e is_heavy.");
+          throw new Exception("No se puede modificar los siguientes campos en un vehículo del ÁREA COMERCIAL: $fieldNames. Solo se permite editar la placa, titular (cliente), año, año de entrega e is_heavy.");
         }
 
         // Filtrar solo los campos permitidos para actualización
-        $allowedFields = ['plate', 'customer_id', 'year_delivery', 'is_heavy', 'engine_number'];
+        $allowedFields = ['plate', 'customer_id', 'year', 'year_delivery', 'is_heavy', 'engine_number'];
         $data = array_intersect_key($data, array_flip($allowedFields));
         $data['id'] = $vehicle->id; // Mantener el ID
 

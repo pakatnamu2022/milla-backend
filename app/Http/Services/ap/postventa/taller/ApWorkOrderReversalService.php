@@ -45,11 +45,18 @@ class ApWorkOrderReversalService
       }
 
       // Revertir estados
-      $workOrder->update([
+      $updateData = [
         'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
         'is_invoiced' => false,
         'output_generation_warehouse' => false,
-      ]);
+      ];
+
+      // Si es una NC, marcar que tuvo NC (para tracking de re-reserva)
+      if ($creditNote && $creditNote->is_nota_credito) {
+        $updateData['had_credit_note'] = true;
+      }
+
+      $workOrder->update($updateData);
 
     } catch (Exception $e) {
       Log::error('Error al revertir estado de orden de trabajo', [
@@ -79,6 +86,23 @@ class ApWorkOrderReversalService
         ->first();
 
       if ($movement) {
+        // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+        if ($relatedDocument) {
+          $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+            ->where('reference_id', $relatedDocument->id)
+            ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+            ->exists();
+
+          if ($existingReturn) {
+            Log::info('⚠️ [REVERSE-INVENTORY] Movimiento de devolución ya existe - No crear duplicado', [
+              'credit_note_id' => $relatedDocument->id,
+              'credit_note_number' => $relatedDocument->full_number,
+              'work_order_id' => $workOrder->id,
+            ]);
+            return; // No crear duplicado
+          }
+        }
+
         $inventoryService = app(InventoryMovementService::class);
 
         // Crear movimiento de devolución (mantiene el movimiento original de SALE)

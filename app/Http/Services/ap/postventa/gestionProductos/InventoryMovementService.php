@@ -4,9 +4,9 @@ namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Exports\GeneralExport;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
+use App\Http\Resources\ap\postventa\gestionProductos\ProductMovementHistoryResource;
 use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
 use App\Http\Services\BaseService;
-use App\Http\Services\ap\postventa\gestionProductos\ProductsService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
@@ -18,7 +18,6 @@ use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\compras\SupplierCreditNote;
-use App\Models\ap\compras\SupplierCreditNoteDetail;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
@@ -114,7 +113,76 @@ class InventoryMovementService extends BaseService
 
   public function show($id)
   {
-    return new InventoryMovementResource($this->find($id)->load(['details', 'reference']));
+    $movement = $this->find($id);
+
+    // Base relations to always load
+    $relations = [
+      'details.product:id,code,dyn_code,name',
+      'warehouse:id,dyn_code,description',
+      'warehouseDestination:id,dyn_code,description',
+      'user:id,name',
+      'reasonInOut',
+      'electronicDocument',
+      'transferReception',
+    ];
+
+    // Load additional relations based on movement type and reference type
+    switch ($movement->movement_type) {
+      case InventoryMovement::TYPE_PURCHASE_RECEPTION:
+        $relations[] = 'reference.purchaseOrder.supplier';
+        $relations[] = 'reference.purchaseOrder.exchangeRate';
+        break;
+
+      case InventoryMovement::TYPE_TRANSFER_OUT:
+        $relations[] = 'reference.transmitter:id,description,code';
+        $relations[] = 'reference.receiver:id,description,code';
+        break;
+
+      case InventoryMovement::TYPE_TRANSFER_IN:
+        // TRANSFER_IN can have two types of references:
+        // 1. TransferReception (when there's an explicit reception)
+        // 2. ShippingGuides (when it's a direct transfer without reception)
+        if ($movement->reference_type === TransferReception::class) {
+          $relations[] = 'reference.transferMovement.warehouse';
+          $relations[] = 'reference.shippingGuide.transmitter:id,description,code';
+          $relations[] = 'reference.shippingGuide.receiver:id,description,code';
+        } elseif ($movement->reference_type === ShippingGuides::class) {
+          $relations[] = 'reference.transmitter:id,description,code';
+          $relations[] = 'reference.receiver:id,description,code';
+        }
+        break;
+
+      case InventoryMovement::TYPE_SALE:
+        // Load different relations based on reference_type
+        if ($movement->reference_type && str_contains($movement->reference_type, 'ApOrderQuotations')) {
+          $relations[] = 'reference.client';
+          $relations[] = 'reference.vehicle';
+          $relations[] = 'reference.typeCurrency';
+          $relations[] = 'reference.status';
+        } elseif ($movement->reference_type && str_contains($movement->reference_type, 'ApWorkOrder')) {
+          // No additional relations needed for ApWorkOrder
+        } elseif ($movement->reference_type && str_contains($movement->reference_type, 'ApInternalNote')) {
+          // No additional relations needed for ApInternalNote
+        }
+        break;
+
+      case InventoryMovement::TYPE_ADJUSTMENT_OUT:
+        // Could be WorkOrderParts or OrderQuotation
+        if ($movement->reference_type && str_contains($movement->reference_type, 'ApOrderQuotations')) {
+          $relations[] = 'reference.client';
+          $relations[] = 'reference.vehicle';
+          $relations[] = 'reference.typeCurrency';
+          $relations[] = 'reference.status';
+        }
+        break;
+
+      case InventoryMovement::TYPE_RETURN_OUT:
+        // Credit note with details
+        $relations[] = 'reference.details.product';
+        break;
+    }
+
+    return new InventoryMovementResource($movement->load($relations));
   }
 
   public function createFromPurchaseReception(PurchaseReception $reception): InventoryMovement
@@ -134,7 +202,7 @@ class InventoryMovementService extends BaseService
       $movement = InventoryMovement::create([
         'movement_number' => InventoryMovement::generateMovementNumber(),
         'movement_type' => InventoryMovement::TYPE_PURCHASE_RECEPTION,
-        'movement_date' => $reception->reception_date,
+        'movement_date' => $purchaseOrder->emission_date,
         'warehouse_id' => $reception->warehouse_id,
         'currency_id' => $currencyId,              // Currency from purchase order
         'exchange_rate' => $exchangeRateValue,      // Exchange rate value for conversion
@@ -1126,13 +1194,27 @@ class InventoryMovementService extends BaseService
       ->with([
         'details' => function ($q) use ($productId) {
           $q->where('product_id', $productId)
-            ->with('product');
+            ->with('product:id,code,dyn_code,name');
         },
-        'warehouse',
-        'warehouseDestination',
-        'user',
+        'warehouse:id,dyn_code,description',
+        'warehouseDestination:id,dyn_code,description',
+        'user:id,name',
         'reasonInOut',
-        'reference'
+        // Load electronic document with only essential fields
+        'electronicDocument' => function ($q) {
+          $q->select(
+            'id',
+            'full_number',
+            'serie',
+            'numero',
+            'status',
+            'cliente_denominacion',
+            'cliente_numero_de_documento',
+            'credit_note_id',
+            'total',
+            'fecha_de_emision'
+          )->with('creditNote:id,full_number'); // Load the credit note relation if exists
+        }
       ]);
 
     // Apply date range filter if provided
@@ -1159,30 +1241,100 @@ class InventoryMovementService extends BaseService
       ->orderBy('created_at', 'asc')
       ->get();
 
+    // Eager load specific reference relations to avoid N+1 queries
+    // Group movements by reference_type and load only the necessary relations for each type
+    $allMovements->load([
+      // PURCHASE_RECEPTION - load purchaseOrder
+      'reference' => function ($query) {
+        $query->when(
+          function ($q) {
+            return $q->getModel() instanceof PurchaseReception;
+          },
+          function ($q) {
+            $q->with([
+              'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
+              'purchaseOrder.supplier:id,full_name,num_doc'
+            ]);
+          }
+        );
+      },
+    ]);
+
+    // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
+    foreach ($allMovements as $movement) {
+      if ($movement->reference instanceof ShippingGuides) {
+        $movement->reference->load([
+          'receiver:id,description,code',
+          'transmitter:id,description,code'
+        ]);
+      } elseif ($movement->reference instanceof TransferReception) {
+        $movement->reference->load([
+          'shippingGuide' => function ($q) {
+            $q->select('id', 'document_number')
+              ->with('transmitter:id,description,code');
+          }
+        ]);
+      } elseif ($movement->reference instanceof ApOrderQuotations) {
+        $movement->reference->load('client:id,full_name,num_doc');
+      } elseif ($movement->reference instanceof SupplierCreditNote) {
+        $movement->reference->load([
+          'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
+          'purchaseOrder.supplier:id,full_name,num_doc'
+        ]);
+      }
+    }
+
     // Calculate quantity_in, quantity_out, and running balance for each movement
     $runningBalance = 0;
 
-    // Get current stock to calculate initial balance
-    $currentStock = $this->stockService->getStock($productId, $warehouseId);
+    // Calculate initial balance BEFORE the filtered date range
+    // This is the stock that existed at the start of date_from
+    if ($allMovements->isNotEmpty() && $request->has('date_from')) {
+      // Use optimized SQL aggregation to calculate balance without loading all records
+      $inboundTypes = [
+        InventoryMovement::TYPE_PURCHASE_RECEPTION,
+        InventoryMovement::TYPE_ADJUSTMENT_IN,
+        InventoryMovement::TYPE_TRANSFER_IN,
+        InventoryMovement::TYPE_RETURN_IN,
+      ];
 
-    // If we have movements, we need to calculate the initial balance
-    // by subtracting all movements from current stock
-    if ($allMovements->isNotEmpty() && $currentStock) {
-      $totalIn = 0;
-      $totalOut = 0;
+      $outboundTypes = [
+        InventoryMovement::TYPE_SALE,
+        InventoryMovement::TYPE_ADJUSTMENT_OUT,
+        InventoryMovement::TYPE_TRANSFER_OUT,
+        InventoryMovement::TYPE_RETURN_OUT,
+      ];
 
-      foreach ($allMovements as $movement) {
-        $quantity = $movement->details->first()->quantity ?? 0;
+      // Calculate total inbound before date_from
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $productId)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<', $request->date_from)
+        ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
 
-        if ($movement->is_inbound) {
-          $totalIn += $quantity;
-        } else {
-          $totalOut += $quantity;
-        }
-      }
+      // Calculate total outbound before date_from
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $productId)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<', $request->date_from)
+        ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
 
-      // Initial balance = current stock - (total in - total out from filtered movements)
-      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
+      // Initial balance = inbound - outbound
+      $runningBalance = $totalInbound - $totalOutbound;
     }
 
     // Add calculated fields to each movement
@@ -1217,8 +1369,8 @@ class InventoryMovementService extends BaseService
 
     $paginatedMovements = $movementsWithBalance->slice(($page - 1) * $perPage, $perPage)->values();
 
-    // Transform to resource
-    $resourceCollection = InventoryMovementResource::collection($paginatedMovements);
+    // Transform to resource using optimized history resource
+    $resourceCollection = ProductMovementHistoryResource::collection($paginatedMovements);
 
     // Build pagination response
     $from = $total > 0 ? (($page - 1) * $perPage) + 1 : null;
@@ -1232,8 +1384,23 @@ class InventoryMovementService extends BaseService
     $prev = $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null;
     $next = $page < $lastPage ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null;
 
+    // Get product and warehouse info to send separately
+    $product = Products::select('id', 'name', 'code', 'dyn_code')
+      ->find($productId);
+    $warehouse = Warehouse::select('id', 'description', 'dyn_code')
+      ->find($warehouseId);
+
     return response()->json([
       'data' => $resourceCollection,
+      'product' => $product ? [
+        'name' => $product->name,
+        'code' => $product->code,
+        'dyn_code' => $product->dyn_code,
+      ] : null,
+      'warehouse' => $warehouse ? [
+        'description' => $warehouse->description,
+        'dyn_code' => $warehouse->dyn_code,
+      ] : null,
       'links' => [
         'first' => $first,
         'last' => $last,
@@ -1254,61 +1421,255 @@ class InventoryMovementService extends BaseService
 
   public function getKardex(Request $request)
   {
-    // Base query: get all movements
-    $query = InventoryMovement::query()
+    $warehouseId = $request->warehouse_id;
+    $dateFrom = $request->date_from;
+    $dateTo = $request->date_to;
+    $search = $request->search;
+
+    // Get unique product IDs that have movements in this warehouse within the date range
+    $productIdsQuery = InventoryMovementDetail::query()
+      ->join('inventory_movements', 'inventory_movement_details.inventory_movement_id', '=', 'inventory_movements.id')
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('inventory_movements.warehouse_id', $warehouseId)
+          ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+      })
+      ->where('inventory_movements.movement_date', '>=', $dateFrom)
+      ->where('inventory_movements.movement_date', '<=', $dateTo)
+      ->whereNull('inventory_movements.deleted_at')
+      ->distinct()
+      ->pluck('inventory_movement_details.product_id');
+
+    // Query products with their relations
+    $query = Products::query()
+      ->whereIn('id', $productIdsQuery)
       ->with([
-        'details.product.category',
-        'warehouse',
-        'warehouseDestination',
-        'user',
-        'reasonInOut',
-        'reference'
-      ])
-      ->orderBy('movement_date', 'desc')
-      ->orderBy('created_at', 'desc');
+        'category:id,description',
+        'brand:id,name',
+        'unitMeasurement:id,description',
+        'articleClass:id,description'
+      ]);
 
-    // Apply warehouse filter if provided (can be origin or destination)
-    if ($request->has('warehouse_id')) {
-      $warehouseId = $request->warehouse_id;
-      $query->where(function ($q) use ($warehouseId) {
-        $q->where('warehouse_id', $warehouseId)
-          ->orWhere('warehouse_destination_id', $warehouseId);
-      });
-    }
-
-    // Apply date range filter if provided
-    if ($request->has('date_from')) {
-      $query->where('movement_date', '>=', $request->date_from);
-    }
-
-    if ($request->has('date_to')) {
-      $query->where('movement_date', '<=', $request->date_to);
-    }
-
-    // Apply movement type filter if provided
-    if ($request->has('movement_type')) {
-      $query->where('movement_type', $request->movement_type);
-    }
-
-    // Apply status filter if provided
-    if ($request->has('status')) {
-      $query->where('status', $request->status);
-    }
-
-    // Apply search filter (by movement number or notes)
-    if ($request->has('search')) {
-      $search = $request->search;
+    // Apply search filter if provided
+    if ($search) {
       $query->where(function ($q) use ($search) {
-        $q->where('movement_number', 'LIKE', "%{$search}%")
-          ->orWhere('notes', 'LIKE', "%{$search}%");
+        $q->where('code', 'LIKE', "%{$search}%")
+          ->orWhere('dyn_code', 'LIKE', "%{$search}%")
+          ->orWhere('name', 'LIKE', "%{$search}%")
+          ->orWhere('description', 'LIKE', "%{$search}%");
       });
     }
 
     // Paginate results
     $perPage = $request->get('per_page', 15);
-    $movements = $query->paginate($perPage);
+    $products = $query->paginate($perPage);
 
-    return InventoryMovementResource::collection($movements);
+    // Define movement types for calculation
+    $inboundTypes = [
+      InventoryMovement::TYPE_PURCHASE_RECEPTION,
+      InventoryMovement::TYPE_ADJUSTMENT_IN,
+      InventoryMovement::TYPE_TRANSFER_IN,
+      InventoryMovement::TYPE_RETURN_IN,
+    ];
+
+    $outboundTypes = [
+      InventoryMovement::TYPE_SALE,
+      InventoryMovement::TYPE_ADJUSTMENT_OUT,
+      InventoryMovement::TYPE_TRANSFER_OUT,
+      InventoryMovement::TYPE_RETURN_OUT,
+    ];
+
+    // Calculate balance for each product
+    $products->getCollection()->transform(function ($product) use ($warehouseId, $dateTo, $inboundTypes, $outboundTypes) {
+      // Calculate total inbound up to date_to
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate total outbound up to date_to
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate balance
+      $product->balance = $totalInbound - $totalOutbound;
+
+      return $product;
+    });
+
+    // Return paginated collection with custom structure
+    return response()->json([
+      'data' => $products->map(function ($product) {
+        return [
+          'id' => $product->id,
+          'code' => $product->code,
+          'dyn_code' => $product->dyn_code,
+          'description' => $product->description,
+          'category' => $product->category ? $product->category->description : null,
+          'brand' => $product->brand ? $product->brand->name : null,
+          'unit_measurement' => $product->unitMeasurement ? $product->unitMeasurement->description : null,
+          'article_class' => $product->articleClass ? $product->articleClass->description : null,
+          'balance' => $product->balance,
+        ];
+      }),
+      'links' => [
+        'first' => $products->url(1),
+        'last' => $products->url($products->lastPage()),
+        'prev' => $products->previousPageUrl(),
+        'next' => $products->nextPageUrl(),
+      ],
+      'meta' => [
+        'current_page' => $products->currentPage(),
+        'from' => $products->firstItem(),
+        'last_page' => $products->lastPage(),
+        'path' => $products->path(),
+        'per_page' => $products->perPage(),
+        'to' => $products->lastItem(),
+        'total' => $products->total(),
+      ],
+    ]);
+  }
+
+  public function exportKardex(Request $request)
+  {
+    $warehouseId = $request->warehouse_id;
+    $dateFrom = $request->date_from;
+    $dateTo = $request->date_to;
+    $search = $request->search;
+
+    // Validate warehouse exists
+    $warehouse = Warehouse::find($warehouseId);
+    if (!$warehouse) {
+      throw new Exception('Almacén no encontrado');
+    }
+
+    // Get unique product IDs that have movements in this warehouse within the date range
+    $productIdsQuery = InventoryMovementDetail::query()
+      ->join('inventory_movements', 'inventory_movement_details.inventory_movement_id', '=', 'inventory_movements.id')
+      ->where(function ($q) use ($warehouseId) {
+        $q->where('inventory_movements.warehouse_id', $warehouseId)
+          ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+      })
+      ->where('inventory_movements.movement_date', '>=', $dateFrom)
+      ->where('inventory_movements.movement_date', '<=', $dateTo)
+      ->whereNull('inventory_movements.deleted_at')
+      ->distinct()
+      ->pluck('inventory_movement_details.product_id');
+
+    // Query products with their relations
+    $query = Products::query()
+      ->whereIn('id', $productIdsQuery)
+      ->with([
+        'category:id,description',
+        'brand:id,name',
+        'unitMeasurement:id,description',
+        'articleClass:id,description'
+      ]);
+
+    // Apply search filter if provided
+    if ($search) {
+      $query->where(function ($q) use ($search) {
+        $q->where('code', 'LIKE', "%{$search}%")
+          ->orWhere('dyn_code', 'LIKE', "%{$search}%")
+          ->orWhere('name', 'LIKE', "%{$search}%")
+          ->orWhere('description', 'LIKE', "%{$search}%");
+      });
+    }
+
+    // Get all products (no pagination for export)
+    $products = $query->get();
+
+    // Define movement types for calculation
+    $inboundTypes = [
+      InventoryMovement::TYPE_PURCHASE_RECEPTION,
+      InventoryMovement::TYPE_ADJUSTMENT_IN,
+      InventoryMovement::TYPE_TRANSFER_IN,
+      InventoryMovement::TYPE_RETURN_IN,
+    ];
+
+    $outboundTypes = [
+      InventoryMovement::TYPE_SALE,
+      InventoryMovement::TYPE_ADJUSTMENT_OUT,
+      InventoryMovement::TYPE_TRANSFER_OUT,
+      InventoryMovement::TYPE_RETURN_OUT,
+    ];
+
+    // Calculate balance for each product and transform for export
+    $exportData = $products->map(function ($product) use ($warehouseId, $dateTo, $inboundTypes, $outboundTypes) {
+      // Calculate total inbound up to date_to
+      $totalInbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $inboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate total outbound up to date_to
+      $totalOutbound = InventoryMovement::query()
+        ->join('inventory_movement_details as imd', 'inventory_movements.id', '=', 'imd.inventory_movement_id')
+        ->where('imd.product_id', $product->id)
+        ->whereIn('inventory_movements.movement_type', $outboundTypes)
+        ->where(function ($q) use ($warehouseId) {
+          $q->where('inventory_movements.warehouse_id', $warehouseId)
+            ->orWhere('inventory_movements.warehouse_destination_id', $warehouseId);
+        })
+        ->where('inventory_movements.movement_date', '<=', $dateTo)
+        ->whereNull('inventory_movements.deleted_at')
+        ->sum('imd.quantity') ?? 0;
+
+      // Calculate balance
+      $balance = $totalInbound - $totalOutbound;
+
+      return [
+        'code' => $product->code,
+        'dyn_code' => $product->dyn_code,
+        'description' => $product->description,
+        'category' => $product->category ? $product->category->description : '',
+        'brand' => $product->brand ? $product->brand->name : '',
+        'unit_measurement' => $product->unitMeasurement ? $product->unitMeasurement->description : '',
+        'article_class' => $product->articleClass ? $product->articleClass->description : '',
+        'balance' => $balance,
+      ];
+    });
+
+    // Define columns for export
+    $columns = [
+      'code' => ['label' => 'Código'],
+      'dyn_code' => ['label' => 'Código Dynamics'],
+      'description' => ['label' => 'Descripción'],
+      'category' => ['label' => 'Categoría'],
+      'brand' => ['label' => 'Marca'],
+      'unit_measurement' => ['label' => 'Unidad de Medida'],
+      'article_class' => ['label' => 'Clase de Artículo'],
+      'balance' => ['label' => 'Saldo'],
+    ];
+
+    $title = "Kardex_{$warehouse->description}_" . \Carbon\Carbon::parse($dateFrom)->format('Ymd') . "_" . \Carbon\Carbon::parse($dateTo)->format('Ymd');
+    $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+    $export = new GeneralExport($exportData, $columns, $title);
+
+    return Excel::download($export, $filename);
   }
 
   /**
@@ -1438,18 +1799,22 @@ class InventoryMovementService extends BaseService
       // Update ApOrderQuotations output_generation_warehouse
       $quotation->update(['output_generation_warehouse' => true]);
 
-      // Liberar la reserva hecha al confirmar la cotización para los ítems de tipo STOCK:
-      // esa cantidad ya se está consumiendo como venta real, no debe seguir contando como "reservada".
-      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
-      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      // NUEVO FLUJO CENTRALIZADO:
+      // Usar el método removeStockFromSale() que maneja automáticamente:
+      // - Si supply_type=STOCK: Libera reserva y remueve stock
+      // - Si supply_type!=STOCK: Solo remueve stock (sin liberar reserva)
       foreach ($productDetails as $detail) {
-        if ($detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK) {
-          $this->stockService->releaseReservedStock($detail->product_id, $warehouse->id, $detail->quantity);
-        }
+        $hasReservation = $detail->supply_type === ApOrderQuotationDetails::SUPPLY_TYPE_STOCK;
+        $this->stockService->removeStockFromSale(
+          $detail->product_id,
+          $warehouse->id,
+          $detail->quantity,
+          $hasReservation
+        );
       }
 
-      // Update stock automatically
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+      // Ya no es necesario llamar a updateStockFromMovement porque removeStockFromSale
+      // ya actualizó el stock correctamente
 
       DB::commit();
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
@@ -1563,16 +1928,219 @@ class InventoryMovementService extends BaseService
       // Update ApWorkOrder output_generation_warehouse
       $workOrder->update(['output_generation_warehouse' => true]);
 
-      // Liberar la reserva hecha al agregar los repuestos a la OT: esa cantidad ya se
-      // está consumiendo como venta real, no debe seguir contando como "reservada".
-      // Debe hacerse antes de updateStockFromMovement, ya que removeStock() valida
-      // contra available_quantity y con la reserva aún activa siempre fallaría.
+      // NUEVO FLUJO CENTRALIZADO:
+      // Usar removeStockFromSale() con hasReservation=true porque las OTs SIEMPRE
+      // tienen reserva previa (se reserva al agregar repuestos a la OT)
       foreach ($productParts as $part) {
-        $this->stockService->releaseReservedStock($part->product_id, $warehouse->id, $part->quantity_used);
+        $this->stockService->removeStockFromSale(
+          $part->product_id,
+          $warehouse->id,
+          $part->quantity_used,
+          true // Las OTs SIEMPRE tienen reserva previa
+        );
       }
 
-      // Update stock automatically
-      $this->stockService->updateStockFromMovement($movement->fresh('details'));
+      // Ya no es necesario llamar a updateStockFromMovement porque removeStockFromSale
+      // ya actualizó el stock correctamente
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * NUEVO: Create SYMBOLIC SALE movement for Quotation (without touching reserved_quantity)
+   *
+   * IMPORTANTE: Este método es para casos especiales donde se necesita un movimiento
+   * contable/simbólico de SALIDA que NO afecte las reservas existentes.
+   *
+   * CASO DE USO:
+   * - Anulación de factura no contabilizada (CASO 2 en cancelInNubefact):
+   *   Se genera SALIDA simbólica + INGRESO para cumplir con registros de Dynamics,
+   *   pero las reservas deben quedar intactas porque la venta nunca se completó.
+   *
+   * DIFERENCIA CON createSaleFromQuotation():
+   * - createSaleFromQuotation(): Libera reservas (flujo normal de venta)
+   * - createSymbolicSaleFromQuotation(): NO toca reservas (solo resta quantity)
+   *
+   * @param int $quotationId
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createSymbolicSaleFromQuotation(int $quotationId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $quotation = ApOrderQuotations::with('details.product')->find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Get warehouse
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($quotation->sede_id);
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén para la cotización');
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'reference_type' => ApOrderQuotations::class,
+        'reference_id' => $quotation->id,
+        'notes' => "Salida simbólica (anulación) - {$quotation->quotation_number}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details and update stock SYMBOLICALLY
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      $productDetails = $quotation->details()
+        ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+        ->where('is_traverse', false)
+        ->whereNotNull('product_id')
+        ->get();
+
+      foreach ($productDetails as $detail) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $detail->product_id,
+          'quantity' => $detail->quantity,
+          'unit_cost' => $detail->unit_price,
+          'total_cost' => $detail->total_cost,
+          'notes' => "Salida simbólica - {$detail->product->descripcion}",
+        ]);
+
+        // IMPORTANTE: Usar removeStockSymbolic() que NO toca reserved_quantity
+        $this->stockService->removeStockSymbolic(
+          $detail->product_id,
+          $warehouse->id,
+          $detail->quantity
+        );
+
+        $totalItems++;
+        $totalQuantity += $detail->quantity;
+      }
+
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update quotation output flag
+      $quotation->update(['output_generation_warehouse' => true]);
+
+      DB::commit();
+      return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * NUEVO: Create SYMBOLIC SALE movement for Work Order (without touching reserved_quantity)
+   *
+   * IMPORTANTE: Este método es para casos especiales donde se necesita un movimiento
+   * contable/simbólico de SALIDA que NO afecte las reservas existentes.
+   *
+   * CASO DE USO:
+   * - Anulación de factura no contabilizada (CASO 2 en cancelInNubefact):
+   *   Se genera SALIDA simbólica + INGRESO para cumplir con registros de Dynamics,
+   *   pero las reservas deben quedar intactas porque la venta nunca se completó.
+   *
+   * DIFERENCIA CON createSaleFromWorkOrder():
+   * - createSaleFromWorkOrder(): Libera reservas (flujo normal de venta)
+   * - createSymbolicSaleFromWorkOrder(): NO toca reservas (solo resta quantity)
+   *
+   * @param int $workOrderId
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function createSymbolicSaleFromWorkOrder(int $workOrderId): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $workOrder = ApWorkOrder::with('parts.product')->find($workOrderId);
+
+      if (!$workOrder) {
+        throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      // Get warehouse
+      $warehouse = Warehouse::getPhysicalWarehouseForPostsale($workOrder->sede_id);
+
+      if (!$warehouse) {
+        throw new Exception('No se encontró almacén para la orden de trabajo');
+      }
+
+      // Create movement header
+      $movement = InventoryMovement::create([
+        'movement_number' => InventoryMovement::generateMovementNumber(),
+        'movement_type' => InventoryMovement::TYPE_SALE,
+        'movement_date' => now(),
+        'warehouse_id' => $warehouse->id,
+        'user_id' => Auth::id(),
+        'status' => InventoryMovement::STATUS_APPROVED,
+        'reference_type' => ApWorkOrder::class,
+        'reference_id' => $workOrder->id,
+        'notes' => "Salida simbólica (anulación) - {$workOrder->correlative}",
+        'total_items' => 0,
+        'total_quantity' => 0,
+      ]);
+
+      // Create movement details and update stock SYMBOLICALLY
+      $totalItems = 0;
+      $totalQuantity = 0;
+
+      $productParts = $workOrder->parts()
+        ->where('is_traverse', false)
+        ->whereNotNull('product_id')
+        ->get();
+
+      foreach ($productParts as $part) {
+        InventoryMovementDetail::create([
+          'inventory_movement_id' => $movement->id,
+          'product_id' => $part->product_id,
+          'quantity' => $part->quantity_used,
+          'unit_cost' => $part->unit_price,
+          'total_cost' => $part->total_cost,
+          'notes' => "Salida simbólica - {$part->product->descripcion}",
+        ]);
+
+        // IMPORTANTE: Usar removeStockSymbolic() que NO toca reserved_quantity
+        $this->stockService->removeStockSymbolic(
+          $part->product_id,
+          $warehouse->id,
+          $part->quantity_used
+        );
+
+        $totalItems++;
+        $totalQuantity += $part->quantity_used;
+      }
+
+      $movement->update([
+        'total_items' => $totalItems,
+        'total_quantity' => $totalQuantity,
+      ]);
+
+      // Update work order flags
+      $workOrder->update([
+        'output_generation_warehouse' => true,
+        'is_invoiced' => true,
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+      ]);
 
       DB::commit();
       return $movement->load(['warehouse', 'user', 'details.product', 'reference']);
@@ -1601,6 +2169,26 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+      if ($relatedDocument) {
+        $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+          ->where('reference_id', $relatedDocument->id)
+          ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+          ->first();
+
+        if ($existingReturn) {
+          Log::info('⚠️ [CREATE-RETURN] Movimiento de devolución ya existe - Retornando existente', [
+            'existing_movement_id' => $existingReturn->id,
+            'existing_movement_number' => $existingReturn->movement_number,
+            'credit_note_id' => $relatedDocument->id,
+            'credit_note_number' => $relatedDocument->full_number,
+            'work_order_id' => $workOrder->id,
+          ]);
+          DB::commit();
+          return $existingReturn->load(['warehouse', 'user', 'details.product', 'reference']);
+        }
+      }
+
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $workOrder->sede_id)
         ->where('is_physical_warehouse', true)
@@ -1765,6 +2353,26 @@ class InventoryMovementService extends BaseService
   {
     DB::beginTransaction();
     try {
+      // ✅ VALIDAR SI YA EXISTE UN RETURN_IN PARA ESTA NC/DOCUMENTO
+      if ($relatedDocument) {
+        $existingReturn = InventoryMovement::where('reference_type', ElectronicDocument::class)
+          ->where('reference_id', $relatedDocument->id)
+          ->where('movement_type', InventoryMovement::TYPE_RETURN_IN)
+          ->first();
+
+        if ($existingReturn) {
+          Log::info('⚠️ [CREATE-RETURN] Movimiento de devolución ya existe - Retornando existente', [
+            'existing_movement_id' => $existingReturn->id,
+            'existing_movement_number' => $existingReturn->movement_number,
+            'credit_note_id' => $relatedDocument->id,
+            'credit_note_number' => $relatedDocument->full_number,
+            'quotation_id' => $quotation->id,
+          ]);
+          DB::commit();
+          return $existingReturn->load(['warehouse', 'user', 'details.product', 'reference']);
+        }
+      }
+
       // Get warehouse from sede
       $warehouse = Warehouse::where('sede_id', $quotation->sede_id)
         ->where('is_physical_warehouse', true)

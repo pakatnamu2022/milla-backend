@@ -183,6 +183,12 @@ class ProductWarehouseStockService extends BaseService
       return $stock;
     } catch (Exception $e) {
       DB::rollBack();
+      Log::error('❌ [ADD-STOCK] Error al agregar stock', [
+        'product_id' => $productId,
+        'warehouse_id' => $warehouseId,
+        'quantity' => $quantity,
+        'error' => $e->getMessage(),
+      ]);
       throw $e;
     }
   }
@@ -414,25 +420,21 @@ class ProductWarehouseStockService extends BaseService
    * @return ProductWarehouseStock
    * @throws Exception
    */
+  /**
+   * @deprecated Use removeStockFromSale() o removeStockWithoutReservation() en su lugar
+   *
+   * IMPORTANTE: Este método tiene un bug cuando se usa después de liberar una reserva.
+   * Valida contra available_quantity, que puede ser 0 después de liberar la reserva,
+   * causando que falle incorrectamente.
+   *
+   * Para mantener compatibilidad con código existente, ahora delega al nuevo método
+   * removeStockWithoutReservation() que valida correctamente.
+   */
   public function removeStock(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
   {
-    DB::beginTransaction();
-    try {
-      $stock = ProductWarehouseStock::where('product_id', $productId)
-        ->where('warehouse_id', $warehouseId)
-        ->firstOrFail();
-
-      // Check if there's enough stock
-      if (!$stock->removeStock($quantity)) {
-        throw new Exception("No hay suficiente stock disponible para el producto ID {$productId} en el almacén ID {$warehouseId}. Disponible: {$stock->available_quantity}, Solicitado: {$quantity}");
-      }
-
-      DB::commit();
-      return $stock;
-    } catch (Exception $e) {
-      DB::rollBack();
-      throw $e;
-    }
+    // Delegar al nuevo método centralizado
+    // Asumimos que NO tiene reserva previa (comportamiento del método original)
+    return $this->removeStockWithoutReservation($productId, $warehouseId, $quantity);
   }
 
   /**
@@ -647,7 +649,6 @@ class ProductWarehouseStockService extends BaseService
       // Obtener el último snapshot
       $lastSnapshot = WeightedAverageCostHistory::getLatestSnapshot($productId, $warehouseId);
 
-      $previousStock = $lastSnapshot ? (float)$lastSnapshot->stock_after_movement : 0;
       $previousAvgCost = $lastSnapshot ? (float)$lastSnapshot->average_cost_after_movement : 0;
 
       // Obtener detalle del movimiento
@@ -666,29 +667,28 @@ class ProductWarehouseStockService extends BaseService
         $movement->exchange_rate
       );
 
-      // Calcular nuevo stock y costo promedio
+      // IMPORTANTE: El stock YA fue actualizado por addStock() o removeStock()
+      // NO debemos recalcularlo aquí, solo usamos el valor ACTUAL
+      $currentStock = (float)$stock->quantity;
+
+      // Calcular nuevo costo promedio (pero NO el stock)
       $isInbound = $movement->is_inbound;
 
       if ($isInbound) {
-        // ENTRADA: Aumentar stock y recalcular costo promedio
-        $newStock = $previousStock + $quantity;
+        // ENTRADA: Recalcular costo promedio
+        if ($unitCost > 0 && $currentStock > 0) {
+          // Calcular el stock previo basado en el actual menos la cantidad que se agregó
+          $previousStock = $currentStock - $quantity;
 
-        if ($unitCost > 0) {
           // Aplicar fórmula de costo promedio ponderado
-          $newAvgCost = $newStock > 0
-            ? (($previousStock * $previousAvgCost) + ($quantity * $unitCost)) / $newStock
-            : 0;
+          $newAvgCost = (($previousStock * $previousAvgCost) + ($quantity * $unitCost)) / $currentStock;
           $newAvgCost = round($newAvgCost, 2);
         } else {
           // Si el costo es 0 (ej: ajustes, donaciones), el costo promedio NO cambia
           $newAvgCost = $previousAvgCost;
         }
       } else {
-        // SALIDA: Solo reducir stock, costo promedio NO cambia
-        $newStock = $previousStock - $quantity;
-        if ($newStock < 0) {
-          $newStock = 0;
-        }
+        // SALIDA: Costo promedio NO cambia
         $newAvgCost = $previousAvgCost;
       }
 
@@ -703,13 +703,12 @@ class ProductWarehouseStockService extends BaseService
         'quantity_in' => $isInbound ? $quantity : 0,
         'quantity_out' => !$isInbound ? $quantity : 0,
         'unit_cost_pen' => $unitCost,
-        'stock_after_movement' => $newStock,
+        'stock_after_movement' => $currentStock,
         'average_cost_after_movement' => $newAvgCost,
         'recalculated_at' => null, // NULL = no es recálculo, es tiempo real
       ]);
 
-      // Actualizar ProductWarehouseStock con los nuevos valores
-      $stock->quantity = $newStock;
+      // Actualizar SOLO average_cost (NO quantity, ya fue actualizado por addStock)
       $stock->average_cost = $newAvgCost;
 
       if ($isInbound && $unitCost > 0) {
@@ -795,6 +794,242 @@ class ProductWarehouseStockService extends BaseService
         ->firstOrFail();
 
       $stock->releaseReservedStock($quantity);
+
+      DB::commit();
+      return $stock;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * MÉTODO CENTRALIZADO: Liberar reserva y remover stock de forma atómica
+   *
+   * Este método es la ÚNICA FUENTE DE VERDAD para procesar salidas de stock que tienen reserva previa.
+   *
+   * CASOS DE USO:
+   * - Órdenes de Trabajo: Los repuestos SIEMPRE tienen reserva previa
+   * - Cotizaciones de Mesón con supply_type = 'STOCK': Tienen reserva previa
+   *
+   * FLUJO CORRECTO:
+   * 1. Valida que hay stock físico suficiente (quantity >= cantidad)
+   * 2. Libera la reserva (reserved_quantity -= cantidad)
+   * 3. Actualiza available_quantity (quantity - reserved_quantity)
+   * 4. Remueve del stock físico (quantity -= cantidad)
+   * 5. Actualiza available_quantity nuevamente
+   *
+   * INVARIANTE: quantity = available_quantity + reserved_quantity
+   *
+   * EJEMPLO:
+   * Estado inicial: quantity=15, reserved=18, available=-3
+   * Liberar y remover 3:
+   *   1. Validar: quantity(15) >= 3 ✓
+   *   2. Liberar: reserved=18-3=15, available=15-15=0
+   *   3. Remover: quantity=15-3=12, available=12-15=-3 ❌ (esto está mal, hay sobre-reserva)
+   *
+   * Para evitar esto, se valida primero que reserved_quantity >= cantidad
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param float $quantity Cantidad a liberar y remover
+   * @return ProductWarehouseStock
+   * @throws Exception
+   */
+  public function releaseReservedStockAndRemove(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
+  {
+    DB::beginTransaction();
+    try {
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->firstOrFail();
+
+      // VALIDACIÓN 1: Verificar que hay stock reservado suficiente
+      if ($stock->reserved_quantity < $quantity) {
+        throw new Exception(
+          "Stock reservado insuficiente para el producto ID {$productId} en almacén ID {$warehouseId}. " .
+          "Reservado: {$stock->reserved_quantity}, Requerido: {$quantity}"
+        );
+      }
+
+      // VALIDACIÓN 2: Verificar que hay stock físico suficiente
+      if ($stock->quantity < $quantity) {
+        throw new Exception(
+          "Stock físico insuficiente para el producto ID {$productId} en almacén ID {$warehouseId}. " .
+          "Stock físico: {$stock->quantity}, Requerido: {$quantity}"
+        );
+      }
+
+      // PASO 1: Liberar la reserva
+      // Esto actualiza: reserved_quantity -= cantidad
+      // Y recalcula: available_quantity = quantity - reserved_quantity
+      $stock->releaseReservedStock($quantity);
+
+      // PASO 2: Remover del stock físico
+      // Esto actualiza: quantity -= cantidad
+      // Y recalcula: available_quantity = quantity - reserved_quantity
+      $stock->quantity -= $quantity;
+      $stock->updateAvailableQuantity();
+      $stock->last_movement_date = now();
+      $stock->save();
+
+      DB::commit();
+      return $stock;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * MÉTODO CENTRALIZADO: Remover stock SIN liberar reserva
+   *
+   * Este método es la ÚNICA FUENTE DE VERDAD para procesar salidas de stock que NO tienen reserva previa.
+   *
+   * CASOS DE USO:
+   * - Cotizaciones de Mesón con supply_type != 'STOCK' (LOCAL, CENTRAL, IMPORTACION)
+   * - Cualquier venta directa sin reserva previa
+   *
+   * FLUJO CORRECTO:
+   * 1. Valida que hay stock disponible suficiente (available_quantity >= cantidad)
+   * 2. Remueve del stock físico (quantity -= cantidad)
+   * 3. Actualiza available_quantity (quantity - reserved_quantity)
+   *
+   * INVARIANTE: quantity = available_quantity + reserved_quantity
+   *
+   * EJEMPLO:
+   * Estado inicial: quantity=10, reserved=2, available=8
+   * Remover 5:
+   *   1. Validar: available(8) >= 5 ✓
+   *   2. Remover: quantity=10-5=5
+   *   3. Actualizar: available=5-2=3 ✓
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param float $quantity Cantidad a remover
+   * @return ProductWarehouseStock
+   * @throws Exception
+   */
+  public function removeStockWithoutReservation(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
+  {
+    DB::beginTransaction();
+    try {
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->firstOrFail();
+
+      // VALIDACIÓN: Verificar que hay stock disponible (libre) suficiente
+      if ($stock->available_quantity < $quantity) {
+        throw new Exception(
+          "Stock disponible insuficiente para el producto ID {$productId} en almacén ID {$warehouseId}. " .
+          "Disponible: {$stock->available_quantity}, Requerido: {$quantity}"
+        );
+      }
+
+      // Remover del stock físico
+      $stock->quantity -= $quantity;
+      $stock->updateAvailableQuantity();
+      $stock->last_movement_date = now();
+      $stock->save();
+
+      DB::commit();
+      return $stock;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * MÉTODO CENTRALIZADO: Remover stock de una venta (con o sin reserva)
+   *
+   * Este método decide automáticamente si debe liberar reserva o no según el contexto.
+   * Es el método de más alto nivel y debe usarse en la mayoría de casos.
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param float $quantity
+   * @param bool $hasReservation TRUE si el producto tiene reserva previa (OT, supply_type=STOCK)
+   * @return ProductWarehouseStock
+   * @throws Exception
+   */
+  public function removeStockFromSale(int $productId, int $warehouseId, float $quantity, bool $hasReservation): ProductWarehouseStock
+  {
+    if ($hasReservation) {
+      // Flujo con reserva: Órdenes de Trabajo o Cotizaciones con supply_type=STOCK
+      return $this->releaseReservedStockAndRemove($productId, $warehouseId, $quantity);
+    } else {
+      // Flujo sin reserva: Cotizaciones con supply_type!=STOCK
+      return $this->removeStockWithoutReservation($productId, $warehouseId, $quantity);
+    }
+  }
+
+  /**
+   * MÉTODO CENTRALIZADO: Remover stock de forma SIMBÓLICA (sin tocar reservas)
+   *
+   * IMPORTANTE: Este método es para casos especiales donde se necesita un movimiento
+   * contable/simbólico de salida que NO afecte las reservas existentes.
+   *
+   * CASOS DE USO:
+   * - Anulación de factura no contabilizada (CASO 2 en cancelInNubefact):
+   *   Se genera SALIDA + INGRESO simbólicos para cumplir con registros de Dynamics,
+   *   pero las reservas deben quedar intactas porque la venta nunca se completó.
+   *
+   * DIFERENCIA CON OTROS MÉTODOS:
+   * - releaseReservedStockAndRemove(): Libera reserva Y remueve stock (venta real)
+   * - removeStockWithoutReservation(): Remueve de available (venta sin reserva previa)
+   * - removeStockSymbolic(): SOLO remueve de quantity, NO toca reserved_quantity
+   *
+   * FLUJO:
+   * 1. Valida que hay stock físico suficiente (quantity >= cantidad)
+   * 2. Remueve del stock físico (quantity -= cantidad)
+   * 3. Actualiza available_quantity (quantity - reserved_quantity)
+   * 4. reserved_quantity NO SE MODIFICA
+   *
+   * INVARIANTE: quantity = available_quantity + reserved_quantity
+   *
+   * EJEMPLO (Anulación de factura no contabilizada):
+   * Estado inicial: quantity=100, reserved=15, available=85
+   *
+   * SALIDA simbólica de 10 unidades:
+   *   quantity = 100 - 10 = 90
+   *   reserved_quantity = 15 (sin cambios)
+   *   available_quantity = 90 - 15 = 75
+   *
+   * INGRESO posterior (addStock) de 10 unidades:
+   *   quantity = 90 + 10 = 100
+   *   reserved_quantity = 15 (sin cambios)
+   *   available_quantity = 100 - 15 = 85
+   *
+   * RESULTADO FINAL: Volvemos al estado inicial, reservas intactas ✓
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param float $quantity Cantidad a remover (solo de quantity)
+   * @return ProductWarehouseStock
+   * @throws Exception
+   */
+  public function removeStockSymbolic(int $productId, int $warehouseId, float $quantity): ProductWarehouseStock
+  {
+    DB::beginTransaction();
+    try {
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->firstOrFail();
+
+      // VALIDACIÓN: Verificar que hay stock físico suficiente
+      if ($stock->quantity < $quantity) {
+        throw new Exception(
+          "Stock físico insuficiente para el producto ID {$productId} en almacén ID {$warehouseId}. " .
+          "Stock físico: {$stock->quantity}, Requerido: {$quantity}"
+        );
+      }
+
+      // IMPORTANTE: Solo removemos de quantity, NO tocamos reserved_quantity
+      $stock->quantity -= $quantity;
+      $stock->updateAvailableQuantity(); // available = quantity - reserved
+      $stock->last_movement_date = now();
+      $stock->save();
 
       DB::commit();
       return $stock;

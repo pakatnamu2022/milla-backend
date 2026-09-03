@@ -79,6 +79,18 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('Documento electrónico no encontrado');
     }
 
+    if ($document->status === ElectronicDocument::STATUS_DRAFT) {
+      throw new Exception('El documento está en estado borrador y no puede sincronizarse');
+    }
+
+    if ($document->status === ElectronicDocument::STATUS_REJECTED) {
+      throw new Exception('El documento está en estado rechazado y no puede sincronizarse');
+    }
+
+    if ($document->status === ElectronicDocument::STATUS_CANCELLED) {
+      throw new Exception('El documento está en estado cancelado y no puede sincronizarse');
+    }
+
     if ($document->migration_status === 'completed') {
       throw new Exception('El documento ya está sincronizado completamente');
     }
@@ -1479,20 +1491,24 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             ]);
           }
         }
-      } // CASO 2: ANULADO + NO CONTABILIZADO → Generar SALIDA + INGRESO (2 movimientos)
+      } // CASO 2: ANULADO + NO CONTABILIZADO → Generar SALIDA SIMBÓLICA + INGRESO (2 movimientos)
       else if ($isAnnulledInDynamics && !$isAccountedInDynamics) {
         // Solo para facturas finales
         if ($document->is_advance_payment == 0) {
           $inventoryMovementService = app(InventoryMovementService::class);
 
-          // Cotizaciones: Generar salida por venta + reversión
+          // Cotizaciones: Generar salida SIMBÓLICA + reversión
+          // IMPORTANTE: Usamos createSymbolicSaleFromQuotation() en lugar de createSaleFromQuotation()
+          // para NO liberar las reservas, ya que es un movimiento contable/simbólico.
+          // La venta nunca se completó, por lo que las reservas deben quedar intactas.
           if ($document->order_quotation_id) {
             try {
-              // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
-              $saleMovement = $inventoryMovementService->createSaleFromQuotation($document->order_quotation_id);
+              // 1. SALIDA SIMBÓLICA: Solo remueve quantity, NO toca reserved_quantity
+              $saleMovement = $inventoryMovementService->createSymbolicSaleFromQuotation($document->order_quotation_id);
               $saleMovement->update(['electronic_document_id' => $document->id]);
 
-              // 2. INGRESO: Reversión por anulación
+              // 2. INGRESO: Reversión por anulación (addStock solo suma quantity, NO toca reserved)
+              // Resultado: quantity vuelve a su valor original, reserved_quantity queda intacto
               $reversalService = app(ApOrderQuotationsReversalService::class);
               $reversalService->reverseQuotationStatus($document->order_quotation_id, $document);
 
@@ -1506,24 +1522,42 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             }
           }
 
-          // Órdenes de trabajo: Generar salida por venta + reversión
+          // Órdenes de trabajo: Generar salida SIMBÓLICA + reversión
+          // IMPORTANTE: Usamos createSymbolicSaleFromWorkOrder() en lugar de createSaleFromWorkOrder()
+          // para NO liberar las reservas, ya que es un movimiento contable/simbólico.
           if ($document->work_order_id) {
-            try {
-              // 1. SALIDA: Generar venta (que nunca se generó porque no se contabilizó)
-              $saleMovement = $inventoryMovementService->createSaleFromWorkOrder($document->work_order_id);
-              $saleMovement->update(['electronic_document_id' => $document->id]);
+            // Validar si la orden de trabajo tiene repuestos antes de procesar
+            $workOrder = ApWorkOrder::with('parts')->find($document->work_order_id);
+            $hasProductParts = $workOrder && $workOrder->parts()
+                ->whereNotNull('product_id')
+                ->where('is_traverse', false)
+                ->exists();
 
-              // 2. INGRESO: Reversión por anulación
-              $reversalService = app(ApWorkOrderReversalService::class);
-              $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+            if ($hasProductParts) {
+              try {
+                // 1. SALIDA SIMBÓLICA: Solo remueve quantity, NO toca reserved_quantity
+                $saleMovement = $inventoryMovementService->createSymbolicSaleFromWorkOrder($document->work_order_id);
+                $saleMovement->update(['electronic_document_id' => $document->id]);
 
-            } catch (Exception $e) {
-              Log::error('Error al procesar anulación de OT no contabilizada', [
+                // 2. INGRESO: Reversión por anulación (addStock solo suma quantity, NO toca reserved)
+                // Resultado: quantity vuelve a su valor original, reserved_quantity queda intacto
+                $reversalService = app(ApWorkOrderReversalService::class);
+                $reversalService->reverseWorkOrderStatus($document->work_order_id, $document);
+
+              } catch (Exception $e) {
+                Log::error('Error al procesar anulación de OT no contabilizada', [
+                  'document_id' => $document->id,
+                  'work_order_id' => $document->work_order_id,
+                  'error' => $e->getMessage(),
+                ]);
+                throw $e;
+              }
+            } else {
+              // Log informativo: OT sin repuestos, se omite proceso de inventario
+              Log::info('OT sin repuestos - se omite proceso de inventario', [
                 'document_id' => $document->id,
                 'work_order_id' => $document->work_order_id,
-                'error' => $e->getMessage(),
               ]);
-              throw $e;
             }
           }
         }
@@ -1751,18 +1785,22 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       throw new Exception('El documento original no tiene ítems');
     }
 
-    // Si el documento original tenía anticipos, escalar los ítems al total neto
-    // para que la NC sume exactamente el monto que fue facturado (sin anticipo).
+    // Escalar los ítems al total del documento para que la NC sume exactamente
+    // el monto que fue facturado. Esto es necesario cuando:
+    // 1. El documento tiene items de anticipo (descuento implícito)
+    // 2. El documento tiene descuentos globales no reflejados en items
     $scale = 1.0;
-    $hasAnticipo = $document->items->contains('anticipo_regularizacion', true);
-    if ($hasAnticipo) {
-      $sumProductTotal = $normalItems->sum(fn($i) => (float)$i->total);
-      if ($sumProductTotal != 0) {
-        $scale = (float)$document->total / $sumProductTotal;
+    $sumProductTotal = $normalItems->sum(fn($i) => (float)$i->total);
+
+    if ($sumProductTotal != 0) {
+      $documentTotal = (float)$document->total;
+      // Aplicar escala si hay diferencia significativa (>0.01) entre suma de items y total documento
+      if (abs($sumProductTotal - $documentTotal) > 0.01) {
+        $scale = $documentTotal / $sumProductTotal;
       }
     }
 
-    return $normalItems->map(function (ElectronicDocumentItem $item) use ($scale) {
+    $items = $normalItems->map(function (ElectronicDocumentItem $item) use ($scale) {
       $scaledSubtotal = round((float)$item->subtotal * $scale, 2);
       $scaledIgv = round((float)$item->igv * $scale, 2);
       $scaledTotal = round((float)$item->total * $scale, 2);
@@ -1789,6 +1827,56 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'total' => $scaledTotal,
       ];
     })->values()->toArray();
+
+    // Solo ajustar redondeo si hubo escalamiento (descuentos globales o anticipos)
+    if ($scale != 1.0) {
+      $items = $this->adjustRoundingDifference($items, $document);
+    }
+
+    return $items;
+  }
+
+  /**
+   * Ajusta la diferencia de redondeo en el último item para que la suma total
+   * coincida exactamente con el total del documento original.
+   * Solo se debe llamar cuando se aplicó escalamiento.
+   *
+   * @param array $items Items procesados con escalamiento
+   * @param ElectronicDocument $document Documento original
+   * @return array Items ajustados
+   */
+  private function adjustRoundingDifference(array $items, ElectronicDocument $document): array
+  {
+    if (empty($items)) {
+      return $items;
+    }
+
+    $documentTotal = (float)$document->total;
+    $documentSubtotal = (float)$document->total_gravada;
+    $documentIgv = (float)$document->total_igv;
+
+    $sumTotal = array_sum(array_column($items, 'total'));
+    $sumSubtotal = array_sum(array_column($items, 'subtotal'));
+    $sumIgv = array_sum(array_column($items, 'igv'));
+
+    $diffTotal = round($documentTotal - $sumTotal, 2);
+    $diffSubtotal = round($documentSubtotal - $sumSubtotal, 2);
+    $diffIgv = round($documentIgv - $sumIgv, 2);
+
+    // Aplicar ajuste al último item si hay diferencias
+    if ($diffTotal != 0 || $diffSubtotal != 0 || $diffIgv != 0) {
+      $lastIndex = count($items) - 1;
+      $items[$lastIndex]['subtotal'] = round($items[$lastIndex]['subtotal'] + $diffSubtotal, 2);
+      $items[$lastIndex]['igv'] = round($items[$lastIndex]['igv'] + $diffIgv, 2);
+      $items[$lastIndex]['total'] = round($items[$lastIndex]['total'] + $diffTotal, 2);
+
+      // Recalcular precios unitarios del último item
+      $cantidad = max((float)$items[$lastIndex]['cantidad'], 0.000001);
+      $items[$lastIndex]['valor_unitario'] = round($items[$lastIndex]['subtotal'] / $cantidad, 10);
+      $items[$lastIndex]['precio_unitario'] = round($items[$lastIndex]['total'] / $cantidad, 10);
+    }
+
+    return $items;
   }
 
   /**

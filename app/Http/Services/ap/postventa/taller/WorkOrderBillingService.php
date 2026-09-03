@@ -63,15 +63,17 @@ class WorkOrderBillingService
       $totalIgv += $item['igv'];
     }
 
-    // Si la OT tiene un deducible activo, ya fue cubierto por ese comprobante (aunque
+    // Si la OT tiene deducibles activos, ya fueron cubiertos por esos comprobantes (aunque
     // el ítem "Deducible" no aparece como línea en items_invoice, ver buildInvoiceItems()),
     // así que se descuenta su gravada e IGV de los totales, igual que calculateTotals()
     // ya neteaba el deducible completo (con IGV) en subtotal/tax_amount/final_amount de
     // la OT. Así invoice_preview.total vuelve a cuadrar con final_amount.
-    $activeDeductible = $workOrder->deductibles->whereNull('deleted_at')->first();
-    if ($activeDeductible && $activeDeductible->electronicDocument) {
-      $totalGravada -= (float)$activeDeductible->electronicDocument->total_gravada;
-      $totalIgv -= (float)$activeDeductible->electronicDocument->total_igv;
+    $activeDeductibles = $workOrder->deductibles->whereNull('deleted_at');
+    foreach ($activeDeductibles as $deductible) {
+      if ($deductible->electronicDocument) {
+        $totalGravada -= (float)$deductible->electronicDocument->total_gravada;
+        $totalIgv -= (float)$deductible->electronicDocument->total_igv;
+      }
     }
 
     // total_anticipo es informativo (lo ya cobrado en anticipos), por eso se mantiene
@@ -186,13 +188,24 @@ class WorkOrderBillingService
       $items[] = $this->buildAdvanceInvoiceItem($advance);
     }
 
-    // Si hay deducible, agregar el texto a la descripción del último item
+    // Si hay deducibles, agregar el texto a la descripción del último item
     if ($workOrder->deductible_amount > 0 && count($items) > 0) {
-      $firstDeductible = $workOrder->deductibles->first();
-      if ($firstDeductible && $firstDeductible->electronicDocument) {
+      $activeDeductibles = $workOrder->deductibles->whereNull('deleted_at');
+
+      if ($activeDeductibles->isNotEmpty()) {
         $lastIndex = count($items) - 1;
-        $items[$lastIndex]['descripcion'] .= "\nPLACA: " . $workOrder->vehicle_plate .
-          " - DSCTO POR PAGO DE DEDUCIBLE - Doc: " . $firstDeductible->electronicDocument->full_number;
+        $deductibleTexts = [];
+
+        foreach ($activeDeductibles as $deductible) {
+          if ($deductible->electronicDocument) {
+            $deductibleTexts[] = $deductible->electronicDocument->full_number;
+          }
+        }
+
+        if (!empty($deductibleTexts)) {
+          $items[$lastIndex]['descripcion'] .= "\nPLACA: " . $workOrder->vehicle_plate .
+            " - DSCTO POR PAGO DE DEDUCIBLE - Doc: " . implode(', ', $deductibleTexts);
+        }
       }
     }
 

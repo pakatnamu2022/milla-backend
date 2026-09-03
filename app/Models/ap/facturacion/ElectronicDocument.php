@@ -135,7 +135,8 @@ class ElectronicDocument extends BaseModel
     'updated_by',
     'card_last4',
     'internal_note',
-    'consolidation_type'
+    'consolidation_type',
+    're_invoice'
   ];
 
   protected $casts = [
@@ -170,6 +171,7 @@ class ElectronicDocument extends BaseModel
     'was_dyn_requested' => 'boolean',
     'is_accounted' => 'boolean',
     'is_annulled' => 'boolean',
+    're_invoice' => 'boolean',
     'sent_at' => 'datetime',
     'accepted_at' => 'datetime',
     'migrated_at' => 'datetime',
@@ -178,6 +180,7 @@ class ElectronicDocument extends BaseModel
 
   const array filters = [
     'search' => ['full_number', 'cliente_denominacion', 'cliente_numero_de_documento', 'vehicleMovement.vehicle.vin', 'workOrder.correlative', 'orderQuotation.quotation_number'],
+    'is_accounted' => 'scope',
     'original_document_id' => '=',
     'is_advance_payment' => '=',
     'sunat_concept_document_type_id' => '=',
@@ -553,8 +556,41 @@ class ElectronicDocument extends BaseModel
   }
 
   /**
+   * Scope para filtrar por is_accounted
+   * Cuando el valor es 0 o false, incluye también los registros donde is_accounted sea null
+   *
+   * @param \Illuminate\Database\Eloquent\Builder $query
+   * @param mixed $value
+   * @return \Illuminate\Database\Eloquent\Builder
+   */
+  public function scopeIsAccounted($query, $value)
+  {
+    // Convertir el valor a booleano
+    $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($bool === null && ($value === '0' || $value === 0)) {
+      $bool = false;
+    }
+
+    if ($bool) {
+      // Si es true, buscar solo los que son 1 o true
+      return $query->where('is_accounted', true);
+    } else {
+      // Si es false, buscar los que son 0, false o null
+      return $query->where(function ($q) {
+        $q->where('is_accounted', false)
+          ->orWhereNull('is_accounted');
+      });
+    }
+  }
+
+  /**
    * Accessors
    */
+  public function getIsAccountedAttribute($value): bool
+  {
+    return (bool) $value;
+  }
+
   public function getDocumentNumberAttribute(): string
   {
     return "{$this->serie}-{$this->numero}";

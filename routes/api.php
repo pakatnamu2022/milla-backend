@@ -69,6 +69,7 @@ use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
 use App\Http\Controllers\ap\postventa\Dashboard\TechnicianProductivityDetailController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
+use App\Http\Controllers\ap\postventa\gestionProductos\ProductShelfController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockController;
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
@@ -1029,6 +1030,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
         Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
         Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+        Route::post('/bulk-store', [AttendanceSyncController::class, 'bulkStore']);
 
         // Exclusiones permanentes por persona
         Route::resource('exclusions', AttendanceExclusionController::class)->only([
@@ -1668,6 +1670,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('inventoryMovements/transfers/{id}/cancel', [InventoryMovementController::class, 'cancelTransfer']);
       Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
       Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
+      Route::get('inventoryMovements/kardex/export', [InventoryMovementController::class, 'exportKardex']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
@@ -1691,6 +1694,20 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
+      Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
+
+      // Product Shelves - Estantes de Productos
+      Route::apiResource('productShelves', ProductShelfController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::post('productShelves/assign-products', [ProductShelfController::class, 'assignProducts']);
+      Route::post('productShelves/remove-product', [ProductShelfController::class, 'removeProduct']);
+      Route::get('productShelves/{shelfId}/products', [ProductShelfController::class, 'getShelfProducts']);
+
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
         'index',
@@ -2033,7 +2050,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
       Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
-
+      
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
       Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);

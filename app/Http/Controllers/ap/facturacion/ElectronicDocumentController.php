@@ -20,8 +20,10 @@ use App\Http\Requests\ap\facturacion\StoreHistoricalFinalSaleRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Resources\Dynamics\SalesDocumentPreviewResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Http\Services\ap\postventa\gestionProductos\InventoryOutputValidationService;
 use App\Jobs\SyncAccountingStatusJob;
 use App\Http\Traits\HasApiResponse;
+use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
@@ -525,18 +527,60 @@ class ElectronicDocumentController extends Controller
 
   /**
    * Sync accounting status for a single document synchronously and return the result.
+   *
+   * IMPORTANTE: Para áreas 881 (TALLER) y 882 (MESON), este endpoint valida
+   * ANTES de ejecutar el Job que hay stock suficiente, reservas correctas, etc.
+   * Si hay errores en la validación, NO se ejecuta el Job y se retorna el error.
    */
   public function syncAccountingStatusForDocument(int $id): JsonResponse
   {
-    $document = ElectronicDocument::findOrFail($id);
-    SyncAccountingStatusJob::dispatchSync($id);
-    $document->refresh();
-    return $this->success([
-      'id' => $document->id,
-      'full_number' => $document->full_number,
-      'is_accounted' => $document->is_accounted,
-      'is_annulled' => $document->is_annulled,
-    ]);
+    try {
+      $document = ElectronicDocument::findOrFail($id);
+
+      // Si el documento ya está contabilizado, no ejecutar nada
+      if ($document->is_accounted) {
+        return response()->json([
+          'message' => 'El documento ya está contabilizado, no se puede procesar nuevamente',
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'is_accounted' => true,
+        ], 422);
+      }
+
+      // VALIDACIÓN PRE-EJECUCIÓN para áreas 881 (TALLER) y 882 (MESON)
+      // Solo para documentos que NO son notas de crédito/débito
+      $validationService = new InventoryOutputValidationService();
+      $validation = $validationService->validateInventoryOutput($id);
+
+      // Si la validación falló, retornar error SIN ejecutar el Job
+      if (!$validation['valid']) {
+        return response()->json([
+          'message' => 'No se puede procesar el comprobante debido a problemas de inventario',
+          'document_id' => $document->id,
+          'full_number' => $document->full_number,
+          'area_id' => $document->area_id,
+          'errors' => $validation['errors'],
+          'details' => $validation['details'],
+        ], 422);
+      }
+
+      // Si la validación pasó (o no era necesaria), ejecutar el Job
+      SyncAccountingStatusJob::dispatchSync($id);
+      $document->refresh();
+
+      return $this->success([
+        'id' => $document->id,
+        'full_number' => $document->full_number,
+        'is_accounted' => $document->is_accounted,
+        'is_annulled' => $document->is_annulled,
+        'validation' => [
+          'performed' => in_array($document->area_id, [ApMasters::AREA_TALLER, ApMasters::AREA_MESON]),
+          'result' => $validation['valid'] ? 'passed' : 'skipped',
+        ],
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
   }
 
   /**
@@ -725,7 +769,7 @@ class ElectronicDocumentController extends Controller
       $document = ElectronicDocument::find($id);
 
       if (!$document) {
-        return $this->error('Documento electrónico no encontrado', 404);
+        return response()->json(['message' => 'Documento electrónico no encontrado'], 404);
       }
 
       $preview = new SalesDocumentPreviewResource($document);

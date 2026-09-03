@@ -69,6 +69,8 @@ class ApOrderQuotations extends Model
     'has_invoice_generated',
     'is_fully_paid',
     'output_generation_warehouse',
+    'had_credit_note',
+    'stock_re_reserved',
     'discard_reason_id',
     'discarded_note',
     'discarded_by',
@@ -127,6 +129,8 @@ class ApOrderQuotations extends Model
     'confirmed_at' => 'datetime',
     'confirmation_metadata' => 'array',
     'is_sold_at_valid_price' => 'boolean',
+    'had_credit_note' => 'boolean',
+    'stock_re_reserved' => 'boolean',
   ];
 
   // DIAS PERMITIDOS PARA EDITAR O ELIMINAR UNA COTIZACION

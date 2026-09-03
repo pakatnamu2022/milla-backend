@@ -4,9 +4,11 @@ namespace App\Http\Services\ap\postventa\Shared;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\postventa\taller\ApCampaignSchedule;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
+use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -529,8 +531,19 @@ class BilledHoursCalculationService
         })
         ->count();
 
-      // Horas estándar: 8h × días con check_in
-      $standardHours = $daysWorked * 8;
+      // Verificar días programados en campaña (fuera de su centro laboral)
+      $daysInCampaign = $this->countCampaignDaysWithoutAttendance(
+        $workerId,
+        $startDate,
+        $endDate,
+        $attendanceData['daily'] ?? []
+      );
+
+      // Total de días trabajados: días con check_in + días en campaña sin asistencia
+      $totalDaysWorked = $daysWorked + $daysInCampaign;
+
+      // Horas estándar: 8h × total de días trabajados
+      $standardHours = $totalDaysWorked * 8;
 
       // Horas reales: Parsear del formato "XXXh YYmin"
       $realHours = $this->parseHoursFromString($attendanceData['hours_worked']);
@@ -538,7 +551,7 @@ class BilledHoursCalculationService
       return [
         'standard_hours' => $standardHours,
         'real_hours' => $realHours,
-        'days_worked' => $daysWorked,
+        'days_worked' => $totalDaysWorked,
         'attendance_data' => $attendanceData, // Datos completos por si se necesitan
       ];
     } catch (\Exception $e) {
@@ -549,6 +562,67 @@ class BilledHoursCalculationService
         'days_worked' => 0,
         'attendance_data' => [],
       ];
+    }
+  }
+
+  /**
+   * Cuenta días programados en campaña (fuera de su centro laboral) sin asistencia registrada
+   *
+   * @param int $workerId ID del técnico
+   * @param string $startDate Fecha inicio (Y-m-d)
+   * @param string $endDate Fecha fin (Y-m-d)
+   * @param array $attendanceDaily Array de días de asistencia del trabajador
+   * @return int Cantidad de días en campaña sin asistencia
+   */
+  private function countCampaignDaysWithoutAttendance(int $workerId, string $startDate, string $endDate, array $attendanceDaily): int
+  {
+    try {
+      // Obtener el trabajador para tener su sede_id
+      $worker = Worker::find($workerId);
+
+      if (!$worker || !$worker->sede_id) {
+        return 0;
+      }
+
+      // Crear colección de días de asistencia indexada por fecha
+      $attendanceDays = collect($attendanceDaily)->keyBy('date');
+
+      // Generar todas las fechas del rango
+      $start = new \DateTime($startDate);
+      $end = new \DateTime($endDate);
+      $interval = new \DateInterval('P1D');
+      $dateRange = new \DatePeriod($start, $interval, $end->modify('+1 day'));
+
+      $campaignDaysCount = 0;
+
+      foreach ($dateRange as $date) {
+        $dateString = $date->format('Y-m-d');
+
+        // Verificar si el día tiene asistencia registrada
+        $dayAttendance = $attendanceDays->get($dateString);
+
+        // Si NO tiene check_in o no existe el día de tipo work
+        $hasCheckIn = $dayAttendance &&
+                      isset($dayAttendance['type']) &&
+                      $dayAttendance['type'] === 'work' &&
+                      !empty($dayAttendance['check_in']);
+
+        if (!$hasCheckIn) {
+          // Consultar si existe registro en ApCampaignSchedule para este día
+          $campaignSchedule = ApCampaignSchedule::where('worker_id', $workerId)
+            ->where('sede_id', $worker->sede_id)
+            ->where('date', $dateString)
+            ->first();
+
+          if ($campaignSchedule) {
+            $campaignDaysCount++;
+          }
+        }
+      }
+
+      return $campaignDaysCount;
+    } catch (\Exception $e) {
+      return 0;
     }
   }
 

@@ -48,7 +48,7 @@ class TechnicianProductivityDetailService
     // Get attendance data
     $attendanceData = $this->getAttendanceData($workerId, $startDate, $endDate);
 
-    // Calculate summary
+    // Calculate summary (incluye days_worked real del técnico)
     $summary = $this->calculateSummaryFromBilledData(
       $billedData['total_billed_hours'],
       $attendanceData,
@@ -118,13 +118,20 @@ class TechnicianProductivityDetailService
   {
     $standardHours = $attendanceData['standard_hours'];
     $realHours = $attendanceData['real_hours'];
+    $daysWorked = $attendanceData['days_worked'];
 
     // Calculate productivity hours
     $productivityHours = $totalBilledHours - $standardHours;
 
-    // Calculate commission (only positive productivity hours)
+    // Calculate commission
+    // IMPORTANTE: Si standard_hours = 0, NO hay comisión (alerta para regularizar asistencias)
+    // Esto evita dar comisiones falsas a técnicos sin asistencias registradas
     $earningsPerHour = 8.0;
-    $commission = max(0, $productivityHours) * $earningsPerHour;
+    if ($standardHours > 0) {
+      $commission = max(0, $productivityHours) * $earningsPerHour;
+    } else {
+      $commission = 0; // No hay asistencias registradas
+    }
 
     // Calculate productivity percentage
     $productivityPercentage = $standardHours > 0
@@ -132,6 +139,7 @@ class TechnicianProductivityDetailService
       : 0;
 
     return [
+      'days_worked' => $daysWorked,
       'real_hours' => round($realHours, 2),
       'standard_hours' => round($standardHours, 2),
       'billed_hours' => round($totalBilledHours, 2),

@@ -153,8 +153,6 @@ class InvoiceAccountedNotificationService
     $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
     // Enviar correo a cada gerente
-    // TODO: TESTING - Comentar estas líneas después de las pruebas
-    $testEmail = 'wsuclupef2001@gmail.com'; // 👈 Pon tu correo aquí
 
     foreach ($managers as $manager) {
       $managerEmail = $manager->person?->email2;
@@ -162,7 +160,7 @@ class InvoiceAccountedNotificationService
       if ($managerEmail) {
         try {
           $this->emailService->queue([
-            'to' => $testEmail, // 👈 Enviando a correo de prueba
+            'to' => $managerEmail,
             'subject' => $subject,
             'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [

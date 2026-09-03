@@ -51,7 +51,7 @@ class ApWorkOrderPlanning extends Model
   const WORK_END_TIME = '23:59';
 
   const filters = [
-    'search' => ['description', 'workOrder.correlative'],
+    'search' => ['description', 'workOrder.correlative', 'workOrder.vehicle.plate', 'workOrder.vehicle.vin'],
     'worker_id' => '=',
     'work_order_id' => '=',
     'planned_start_datetime' => 'date_between',
