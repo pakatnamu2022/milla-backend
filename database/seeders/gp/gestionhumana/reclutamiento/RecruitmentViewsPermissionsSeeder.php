@@ -57,6 +57,12 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
           'icon'        => 'ClipboardList',
           'module'      => 'reclutamiento',
         ],
+        [
+          'descripcion' => 'Administracion de Postulantes',
+          'route'       => 'postulantes',
+          'icon'        => 'Users',
+          'module'      => 'reclutamiento',
+        ],
       ];
 
       $permissionIds = [];

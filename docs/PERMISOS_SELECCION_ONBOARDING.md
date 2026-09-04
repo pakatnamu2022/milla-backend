@@ -70,7 +70,7 @@ Ruta frontend base: `/gp/gestion-humana/gestion-de-personal/<route>`.
 | route | descripción | icon | permisos | estado |
 |-------|-------------|------|----------|--------|
 | `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **588**, permisos creados, roles 98/102/127/68/24/138) |
-| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | pendiente |
+| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **589**, permisos creados, roles 98/102/127/68/24/138) |
 
 Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostulanteController` (idVista 52).
 
@@ -81,6 +81,29 @@ Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostul
 Frontend: `src/features/gp/gestionhumana/gestion-de-personal/procesos-postulacion/` + páginas en
 `src/app/gp/gestion-humana/gestion-de-personal/procesos-postulacion/{page,agregar,actualizar/[id]}`
 + rutas en `App.tsx` vía `RouterCrud("gestion-de-personal/procesos-postulacion", ...)`.
+
+**Re-ejecutado el 03/09/2026** — añadió la vista **589** `postulantes` (hija de 456) y los 4 permisos
+`postulantes.*` para los mismos 6 roles. Frontend:
+`src/features/gp/gestionhumana/gestion-de-personal/postulantes/` (constant/interface/schema/actions/hook
++ Columns/Table/Options/Actions/Form/StatusDialog) + páginas
+`src/app/gp/gestion-humana/gestion-de-personal/postulantes/{page,agregar,actualizar/[id]}`
++ `RouterCrud("gestion-de-personal/postulantes", ...)`.
+
+### Backend F1 — Administración de Postulantes (implementado)
+
+- `app/Models/gp/gestionhumana/reclutamiento/Applicant.php` (`rrhh_persona`, scope: status_deleted=1,
+  b_empleado=1, proceso_postulacion_id NOT NULL, tipo_trabajador_id ∈ {1,3,4,5,6}).
+- `ApplicantService` / `ApplicantController` / `ApplicantResource` + Requests
+  (`Index/Store/Update/ChangeApplicantStatusRequest`).
+- Rutas (prefix `gp/gh/reclutamiento`): `apiResource('applicant')` (sin create/edit) +
+  `POST applicant/{id}/status` (cambio de estado SELECCIONADO 6 / RECHAZADO 3 / FUERA DE CUPO 4 / LISTA NEGRA 5).
+- `store`: valida duplicado (`b_empleado=1` + sede del proceso + `vat`); crea `rrhh_persona`
+  (tipo 1, hereda sede/área/cargo/centro_costo del proceso), crea `usr_users` (username=DNI,
+  password=DNI), asigna docs de `config_doc_obligatorio_inic` (FIND_IN_SET sede/área/cargo,
+  status 6) a `rrhh_asig_doc_obligatorio`, mueve el proceso 9→10, registra en `rrhh_log_data_persona`.
+- CV/foto: multipart `file_cv` / `file_foto` → disco `private` (`resources_personas/{cv,profile}/{id}`).
+- **Diferido a F2 (`seleccionados`)**: carta oferta, cronograma asignado, email de bienvenida, alta.
+  El endpoint `status` con tipo 6 solo marca el tipo + asigna docs de seleccionado.
 
 ### Backend F1 — Procesos de Postulación (implementado)
 
