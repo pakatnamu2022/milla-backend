@@ -1938,6 +1938,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
       Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
       Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
+      Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
+      Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
+      Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
