@@ -21,6 +21,11 @@ class AttendanceSyncController extends Controller
     return $this->service->list($request);
   }
 
+  public function export(Request $request): Response|BinaryFileResponse
+  {
+    return $this->service->export($request);
+  }
+
   public function show(string $id): JsonResponse
   {
     return $this->service->show($id);

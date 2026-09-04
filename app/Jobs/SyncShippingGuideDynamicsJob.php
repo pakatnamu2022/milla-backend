@@ -279,11 +279,14 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
       // movimiento falla (p. ej. "Stock en tránsito insuficiente"), el flag NO
       // debe quedar seteado, de lo contrario la guía queda marcada como
       // contabilizada sin haberse movido el stock y el reintento queda bloqueado.
-      DB::transaction(function () use ($shippingGuide, $isCancelled, $isAccounted, $transactionId) {
+      DB::transaction(function () use ($shippingGuide, $isCancelled, $isAccounted, $transactionId, $dynSeriesFromDynamics) {
         // Actualizar el campo correspondiente según si está cancelada o no
         if ($isCancelled) {
+          // Al confirmarse la reversión, dyn_series pasa a ser la serie que Dynamics
+          // devolvió (Documento del SP), que es la serie de reversión vigente.
           $shippingGuide->update([
             'is_annulled' => $isAccounted,
+            'dyn_series'  => $isAccounted ? $dynSeriesFromDynamics : $shippingGuide->dyn_series,
           ]);
 
           if (!$isAccounted) {
@@ -442,13 +445,19 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
    * Maneja la guía de venta COMERCIAL cuando está cancelada.
    * Consulta neIvConsultarAjustesInventario buscando el reversal (dyn_series + '*').
    * Cuando Dynamics confirma que el reversal está contabilizado:
-   *   - guía: is_annulled = true
+   *   - guía: is_annulled = true, dyn_series se actualiza a la serie de reversión
+   *     (con '*'), que pasa a ser la serie vigente para futuras consultas/copias.
    *   - delivery: status_delivery = 'cancelled', is_accounted = true
    * El is_accounted=true en un delivery cancelado significa "reversal contabilizado en Dynamics".
+   *
+   * annul() marca is_annulled = true de inmediato (sin esperar a Dynamics), por lo que
+   * este método NO debe cortar por is_annulled: debe seguir consultando Dynamics hasta
+   * que la reversión quede confirmada. El guard real es dyn_series ya terminado en '*',
+   * que indica que la actualización de abajo ya se aplicó.
    */
   protected function processCancelledCommercialDeliveryGuide(ShippingGuides $shippingGuide): void
   {
-    if ($shippingGuide->is_annulled) {
+    if (str_ends_with((string) $shippingGuide->dyn_series, '*')) {
       return;
     }
 
@@ -467,7 +476,10 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
       return;
     }
 
-    $shippingGuide->update(['is_annulled' => true]);
+    $shippingGuide->update([
+      'is_annulled' => true,
+      'dyn_series'  => $reversalDynSeries,
+    ]);
 
     ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)
       ->update([
@@ -507,7 +519,13 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
     $isAccounted = ($result->Estado === 'CONTABILIZADO');
 
     if ($isCancelled) {
-      $shippingGuide->update(['is_annulled' => $isAccounted]);
+      // $transactionId ya viene con '*' (getDynamicsTransferTransactionId($isCancelled)).
+      // Al confirmarse contabilizada, dyn_series se actualiza a esa serie de reversión
+      // para que quede como la serie vigente de la guía (consultas y copiado en UI).
+      $shippingGuide->update([
+        'is_annulled' => $isAccounted,
+        'dyn_series'  => $isAccounted ? $transactionId : $shippingGuide->dyn_series,
+      ]);
       if (!$isAccounted) {
         Log::info('La reversión comercial aún no está contabilizada en Dynamics', [
           'shipping_guide_id' => $shippingGuide->id,
