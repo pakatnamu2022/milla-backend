@@ -72,12 +72,17 @@ class ApCampaignService extends BaseService
     return response()->json(['message' => 'Campaña eliminada correctamente']);
   }
 
-  public function active(): ApCampaignResource
+  public function active()
   {
     $campaign = ApCampaign::with('area')->active()->first();
+
     if (!$campaign) {
-      throw new Exception('No hay ninguna campaña activa en este momento');
+      return response()->json([
+        'message' => 'No hay ninguna campaña activa en este momento',
+        'data' => null
+      ], 200);
     }
+
     return new ApCampaignResource($campaign);
   }
 }

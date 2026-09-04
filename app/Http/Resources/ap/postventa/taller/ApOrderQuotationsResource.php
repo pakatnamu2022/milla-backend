@@ -7,6 +7,7 @@ use App\Http\Resources\ap\comercial\ShippingGuidesResource;
 use App\Http\Resources\ap\comercial\VehiclesResource;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\DiscountRequestsOrderQuotation;
+use App\Models\ap\postventa\taller\ApOrderQuotationDetails;
 use App\Models\GeneralMaster;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -109,7 +110,7 @@ class ApOrderQuotationsResource extends JsonResource
       ),
 
       // Relations
-      'details' => ApOrderQuotationDetailsResource::collection($this->details),
+      'details' => ApOrderQuotationDetailsResource::collection($this->getSortedDetails()),
       'invoice_to_client' => $this->whenLoaded('invoiceTo', fn() => BusinessPartnersResource::make($this->invoiceTo)),
       'vouchers' => $this->when(
         $this->relationLoaded('advancesOrderQuotation'),
@@ -133,5 +134,35 @@ class ApOrderQuotationsResource extends JsonResource
       'has_management_discount' => $this->discountRequests && $this->discountRequests->where('status', DiscountRequestsOrderQuotation::STATUS_APPROVED)->isNotEmpty(),
       'shipping_guide' => $this->when('shippingGuide', fn() => new ShippingGuidesResource($this->shippingGuide)),
     ];
+  }
+
+  /**
+   * Obtiene los detalles ordenados por bloques
+   * Bloque 1: LABOR + MATERIAL (ordenados por campo 'order')
+   * Bloque 2: PRODUCT (ordenados por campo 'order')
+   *
+   * @return \Illuminate\Support\Collection
+   */
+  protected function getSortedDetails()
+  {
+    // Si no hay detalles cargados, retornar colección vacía
+    if (!$this->relationLoaded('details')) {
+      return collect([]);
+    }
+
+    // Bloque 1: LABOR + MATERIAL (mano de obra)
+    $laborMaterialDetails = $this->details
+      ->whereIn('item_type', [ApOrderQuotationDetails::ITEM_TYPE_LABOR, ApOrderQuotationDetails::ITEM_TYPE_MATERIAL])
+      ->sortBy('order')
+      ->values();
+
+    // Bloque 2: PRODUCT (repuestos/recambios)
+    $productDetails = $this->details
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->sortBy('order')
+      ->values();
+
+    // Combinar los bloques ordenados: primero LABOR+MATERIAL, luego PRODUCT
+    return $laborMaterialDetails->merge($productDetails);
   }
 }
