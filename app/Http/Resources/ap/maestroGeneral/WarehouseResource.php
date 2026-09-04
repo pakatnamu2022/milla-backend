@@ -24,6 +24,7 @@ class WarehouseResource extends JsonResource
       'is_received'               => $this->is_received,
       'inventory_account'         => $this->inventory_account,
       'counterparty_account'      => $this->counterparty_account,
+      'asset_account'             => $this->asset_account,
       'is_physical_warehouse'     => $this->is_physical_warehouse,
       'parent_warehouse_id'       => $this->parent_warehouse_id ?? "",
       'parent_warehouse_dyn_code' => $this->parentWarehouse ? $this->parentWarehouse->dyn_code : "-",

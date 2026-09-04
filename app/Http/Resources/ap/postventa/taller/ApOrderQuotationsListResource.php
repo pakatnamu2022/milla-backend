@@ -83,6 +83,9 @@ class ApOrderQuotationsListResource extends JsonResource
       //Aprobado por
       'chief_approval_by_name' => $this->chiefApprovalBy?->name,
       'manager_approval_by_name' => $this->managerApprovalBy?->name,
+
+      // Esta tomado a una OT
+      'is_take_ot' => (bool)$this->is_take_ot,
     ];
   }
 }

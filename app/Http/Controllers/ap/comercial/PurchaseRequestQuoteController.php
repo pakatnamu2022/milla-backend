@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
 use App\Http\Requests\ap\comercial\DuplicatePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\SwapVehicleRequest;
+use App\Http\Requests\ap\comercial\UnassignVehicleFromQuoteRequest;
 use App\Http\Requests\ap\comercial\ExportPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\IndexPurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\StorePurchaseRequestQuoteRequest;
@@ -72,10 +73,11 @@ class PurchaseRequestQuoteController extends Controller
     }
   }
 
-  public function unassignVehicle(int $id): JsonResponse
+  public function unassignVehicle(UnassignVehicleFromQuoteRequest $request, int $id): JsonResponse
   {
     try {
-      return $this->success($this->service->unassignVehicle($id));
+      $data = array_merge($request->validated(), ['id' => $id]);
+      return $this->success($this->service->unassignVehicle($data));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

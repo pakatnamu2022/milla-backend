@@ -114,13 +114,6 @@ class PurchaseRequestQuote extends BaseModel
   }
 
 
-  /**
-   * Determina si la cotización está pagada comparando el total de los documentos electrónicos asociados con el precio de venta de la cotización.
-   * Solo se consideran los documentos electrónicos que han sido aceptados por SUNAT, que no están anulados, que no han sido eliminados.
-   * Las notas de crédito restan del total facturado y las notas de débito suman, ya que representan
-   * devoluciones/anulaciones y cargos adicionales de importe respectivamente.
-   * @return bool
-   */
   public function getIsPaidAttribute(): bool
   {
     $baseQuery = fn($q) => $q
@@ -154,12 +147,9 @@ class PurchaseRequestQuote extends BaseModel
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
       ->sum('total');
 
-    $totalDebitNotes = $this->electronicDocuments()
-      ->tap($baseQuery)
-      ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-      ->sum('total');
-
-    $total = $totalInvoiced - $totalCreditNotes + $totalDebitNotes;
+    // Las notas de débito son cargos adicionales más allá del precio cotizado,
+    // no se incluyen en la verificación de pago de la cotización.
+    $total = $totalInvoiced - $totalCreditNotes;
 
     return $this->sale_price == $total;
   }

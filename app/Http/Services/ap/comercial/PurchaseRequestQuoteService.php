@@ -122,6 +122,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       // Generar el correlativo
       $correlative = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
 
+      // El VIN debe pertenecer a la sede de la cotización
+      if (!empty($data['ap_vehicle_id'])) {
+        $this->assertVehicleBelongsToSede((int)$data['ap_vehicle_id'], $data['sede_id'] ?? null);
+      }
+
       // Preparar datos para crear el PurchaseRequestQuote
       $quoteData = [
         'correlative'          => $correlative,
@@ -201,14 +206,16 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         throw new Exception('No se puede editar esta solicitud/cotización porque ya fue pagada en su totalidad.');
       }
 
-      $isApproved = (bool)$purchaseRequestQuote->is_approved;
+      $isApproved = (bool)$purchaseRequestQuote->is_invoiced;
 
       if ($isApproved) {
-        // Aprobada (y aún no pagada en su totalidad): el precio de venta y la
-        // moneda de facturación quedan fijos. El vehículo/modelo/color SÍ se
-        // pueden seguir cambiando (no afectan el precio ya fijado), igual que
-        // bonos, obsequios (no afectan el precio final, solo el margen) y
-        // "otros costos" (margen).
+        // Facturada (y aún no pagada en su totalidad): el precio de venta y la
+        // moneda de facturación quedan fijos. Estar solo "aprobada" ya NO
+        // bloquea nada: mientras no exista factura/boleta final aceptada, se
+        // puede seguir negociando con el cliente (agregar accesorios, cambiar
+        // precio, etc). El vehículo/modelo/color SÍ se pueden seguir cambiando
+        // (no afectan el precio ya fijado), igual que bonos, obsequios (no
+        // afectan el precio final, solo el margen) y "otros costos" (margen).
         foreach ([
                    'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
                  ] as $lockedField) {
@@ -231,6 +238,16 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
           throw new Exception('El vehículo ya está asociado a otra cotización.');
         }
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+      }
+
+      // El VIN asignado (nuevo o el existente) debe pertenecer a la sede de la cotización,
+      // ya sea que cambie el vehículo o que cambie la sede.
+      $effectiveVehicleId = $data['ap_vehicle_id'] ?? $purchaseRequestQuote->ap_vehicle_id;
+      if (!empty($effectiveVehicleId)) {
+        $this->assertVehicleBelongsToSede(
+          (int)$effectiveVehicleId,
+          $data['sede_id'] ?? $purchaseRequestQuote->sede_id
+        );
       }
 
       // Si viene con VIN y sin color/modelo, tomar esos valores del vehículo asignado
@@ -352,6 +369,31 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
    * (es decir, no cancelada por notas de crédito). Esto protege contra reasignaciones manuales
    * de vehículos ya vendidos aunque su status haya sido revertido directamente en BD.
    */
+  /**
+   * Verifica que el vehículo (VIN) pertenezca a la sede de la cotización.
+   * El almacén del vehículo (`warehouse_id`) debe estar en la misma sede.
+   *
+   * Se usa `warehouse` y no `warehousePhysical` porque `warehouse_physical_id`
+   * está casi siempre en NULL en producción; con esa relación el chequeo nunca
+   * disparaba y en la práctica no validaba nada.
+   */
+  private function assertVehicleBelongsToSede(int $vehicleId, ?int $sedeId): void
+  {
+    if (empty($sedeId)) {
+      return;
+    }
+
+    $vehicle = Vehicles::with('warehouse')->find($vehicleId);
+    if (!$vehicle) {
+      return;
+    }
+
+    $vehicleSedeId = $vehicle->warehouse?->sede_id;
+    if ($vehicleSedeId !== null && (int)$vehicleSedeId !== (int)$sedeId) {
+      throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+    }
+  }
+
   private function assertVehicleNotEffectivelyInvoiced(int $vehicleId): void
   {
     $invoices = DB::table('ap_billing_electronic_documents as ed')
@@ -406,6 +448,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote = $this->find($data['id']);
       if (!empty($data['ap_vehicle_id'])) {
         $this->assertVehicleNotEffectivelyInvoiced((int)$data['ap_vehicle_id']);
+        // El VIN debe pertenecer a la sede de la cotización (el frontend antiguo
+        // no filtra por sede, así que el backend debe garantizarlo).
+        $this->assertVehicleBelongsToSede((int)$data['ap_vehicle_id'], $purchaseRequestQuote->sede_id);
       }
       $purchaseRequestQuote->update($data);
       $this->refreshMargin($purchaseRequestQuote);
@@ -417,14 +462,21 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
   }
 
-  public function unassignVehicle(int $id): JsonResource
+  public function unassignVehicle(mixed $data): JsonResource
   {
     DB::beginTransaction();
     try {
+      $id = (int)$data['id'];
+      $vehicleId = (int)$data['ap_vehicle_id'];
+
       $purchaseRequestQuote = $this->find($id);
       $vehicle = $purchaseRequestQuote->vehicle;
       if (!$vehicle) {
         throw new Exception('No hay un vehículo asignado a esta cotización.');
+      }
+
+      if ((int)$purchaseRequestQuote->ap_vehicle_id !== $vehicleId) {
+        throw new Exception('El vehículo indicado no coincide con el asignado a esta cotización.');
       }
 
       $baseDocsQuery = fn($q) => $q
@@ -433,8 +485,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         ->where('is_advance_payment', false)
         ->whereNull('ap_billing_electronic_documents.deleted_at');
 
+      // Solo bloquean las facturas/boletas finales emitidas para ESTA cotización.
+      // Un mismo VIN puede haber quedado (por el bug de doble asignación) enlazado
+      // a otra cotización que sí tiene la venta real facturada; esa factura no debe
+      // impedir desasignar el VIN de la cotización equivocada.
       $finalDocumentsQuery = fn() => $vehicle->electronicDocuments()
         ->tap($baseDocsQuery)
+        ->where('ap_billing_electronic_documents.purchase_request_quote_id', $id)
         ->whereIn('sunat_concept_document_type_id', [ElectronicDocument::TYPE_FACTURA, ElectronicDocument::TYPE_BOLETA])
         ->where('status', ElectronicDocument::STATUS_ACCEPTED);
 
@@ -519,6 +576,10 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       if (!$newVehicle) {
         throw new Exception('Vehículo no encontrado.');
       }
+
+      // El VIN nuevo debe pertenecer a la sede de la cotización (el frontend
+      // antiguo no filtra por sede, así que el backend debe garantizarlo).
+      $this->assertVehicleBelongsToSede($newVehicleId, $quote->sede_id);
 
       // Bloquear si hay documentos de venta final aceptados
       $hasFinalSale = $quote->electronicDocuments()
@@ -859,16 +920,13 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         $valorUnitario = $precioUnitario / 1.18;
       }
 
-      $concept = $concepts->get($discount['concept_id']);
-      $isNegative = $concept && is_null($concept->parent_id);
-
       DiscountCoupons::create([
         'type'                      => $discount['type'],
         'percentage'                => $percentage,
         'amount'                    => $amount,
         'valor_unitario'            => $valorUnitario,
         'precio_unitario'           => $precioUnitario,
-        'is_negative'               => $isNegative,
+        'is_negative'               => (bool) ($discount['is_negative'] ?? false),
         'has_retention'             => $hasRetention,
         'concept_code_id'           => $discount['concept_id'],
         'purchase_request_quote_id' => $purchaseRequestQuoteId,

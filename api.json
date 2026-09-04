@@ -63837,6 +63837,22 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ap_vehicle_id": {
+                    "type": "integer"
+                  }
+                },
+                "required": ["ap_vehicle_id"]
+              }
+            }
+          }
+        },
         "responses": {
           "500": {
             "description": "",

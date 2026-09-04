@@ -66,6 +66,15 @@ class SalesDynamicsBuilder
       }
     }
 
+    // Agregar ítem de deducible si el documento tiene cotización de mesón con deducible
+    if ($document->order_quotation_id && $document->orderQuotation) {
+      $deductibleItem = $this->buildDeductibleLineForQuotation($document, $nextLine);
+      if ($deductibleItem !== null) {
+        $items->push($deductibleItem);
+        $nextLine++;
+      }
+    }
+
     // Si hubo repuestos en travesía, agregar UN item consolidado al final
     if ($hasTraverseParts && $traversePartsTotal > 0) {
       $traverseItem = $this->buildTraversePartsLine($document, $nextLine, $traversePartsTotal, $sparePartsRoadAccount);
@@ -78,7 +87,7 @@ class SalesDynamicsBuilder
   }
 
   /**
-   * Construye el array de una línea de deducible para Dynamics.
+   * Construye el array de una línea de deducible para Dynamics (Orden de Trabajo).
    * Retorna null si no hay deducible activo o el monto es 0.
    */
   public function buildDeductibleLine(ElectronicDocument $document, int $linea): ?array
@@ -110,6 +119,60 @@ class SalesDynamicsBuilder
 
     // Obtener el deducible sin IGV (en negativo porque es un descuento)
     $deductibleWithoutTax = -round($workOrder->deductible_amount_without_tax, 2);
+
+    // Usar el full_number del documento electrónico del deducible como descripción
+    $description = 'DEDUCIBLE - DOC: ' . $firstDeductible->electronicDocument->full_number;
+
+    return [
+      'EmpresaId' => Company::AP_DYNAMICS,
+      'DocumentoId' => $document->full_number,
+      'Linea' => $linea,
+      'ArticuloId' => $deductibleAccountPlan->code_dynamics,
+      'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
+      'ArticuloDescripcionLarga' => Str::upper($description),
+      'SitioId' => $document->warehouse()
+        ?? throw new Exception('El documento no tiene almacén asociado.'),
+      'UnidadMedidaId' => $unidadMedidaId,
+      'Cantidad' => 1,
+      'PrecioUnitario' => $deductibleWithoutTax, // Negativo
+      'DescuentoUnitario' => 0,
+      'PrecioTotal' => $deductibleWithoutTax, // Negativo
+    ];
+  }
+
+  /**
+   * Construye el array de una línea de deducible para Dynamics (Cotización de Mesón).
+   * Retorna null si no hay deducible activo o el monto es 0.
+   */
+  public function buildDeductibleLineForQuotation(ElectronicDocument $document, int $linea): ?array
+  {
+    $orderQuotation = $document->orderQuotation;
+
+    // Verificar que haya deducible_amount > 0
+    if (!$orderQuotation->deductible_amount || $orderQuotation->deductible_amount <= 0) {
+      return null;
+    }
+
+    // Obtener el primer deducible no eliminado
+    $firstDeductible = $orderQuotation->deductibles()->whereNull('deleted_at')->first();
+
+    // Si no hay deducible registrado, no agregar la línea
+    if (!$firstDeductible || !$firstDeductible->electronicDocument) {
+      return null;
+    }
+
+    // Obtener el código del artículo de deducible
+    $deductibleAccountPlan = ApAccountingAccountPlan::find(ApAccountingAccountPlan::CUSTOMER_DEDUCTIBLE_ID);
+    if (!$deductibleAccountPlan || !$deductibleAccountPlan->code_dynamics) {
+      throw new Exception('No se encontró el plan contable de deducible o no tiene código Dynamics definido.');
+    }
+
+    // Obtener la unidad de medida de servicio
+    $serviceUnit = UnitMeasurement::find(UnitMeasurement::SERVICE_ID);
+    $unidadMedidaId = $serviceUnit?->dyn_code ?? 'UNS';
+
+    // Obtener el deducible sin IGV (en negativo porque es un descuento)
+    $deductibleWithoutTax = -round($orderQuotation->deductible_amount_without_tax, 2);
 
     // Usar el full_number del documento electrónico del deducible como descripción
     $description = 'DEDUCIBLE - DOC: ' . $firstDeductible->electronicDocument->full_number;

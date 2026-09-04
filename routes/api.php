@@ -4,6 +4,7 @@ use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApBonusReportController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
+use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
+use App\Http\Controllers\ap\comercial\AssetController;
 use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
 use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
@@ -153,6 +155,8 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
@@ -1024,6 +1028,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //    ATTENDANCE — ZKBioTime
       Route::group(['prefix' => 'attendance'], function () {
         Route::get('/', [AttendanceSyncController::class, 'index']);
+        Route::get('/export', [AttendanceSyncController::class, 'export']);
         Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
         Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
         Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
@@ -1522,6 +1527,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Activos (vehículo VN → activo fijo)
+      Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
+      Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
+      Route::post('assets/{id}/dispatch-migration', [AssetController::class, 'dispatchMigration']);
+      Route::apiResource('assets', AssetController::class)->only([
+        'index',
+        'show',
+        'store',
+        'destroy',
+      ]);
+
       // Reports
       Route::prefix('reports')->group(function () {
         Route::get('daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
@@ -1532,6 +1548,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
 
         Route::get('bonus/export', [ApBonusReportController::class, 'export']);
+
+        Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
+        Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
       });
 
       // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
@@ -1921,6 +1940,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
       Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
       Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
+      Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
+      Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
+      Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -2254,6 +2276,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
     Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
 
+    // Histórico de conceptos variables (para completar meses anteriores al sistema)
+    Route::get('calculations/historical-template', [PayrollCalculationController::class, 'historicalTemplate']);
+    Route::post('calculations/historical-import', [PayrollCalculationController::class, 'historicalImport']);
+    Route::get('calculations/historical-bonus-template', [PayrollCalculationController::class, 'historicalBonusTemplate']);
+    Route::post('calculations/historical-bonus-import', [PayrollCalculationController::class, 'historicalBonusImport']);
+    Route::get('calculations/historical-salary-template', [PayrollCalculationController::class, 'historicalSalaryTemplate']);
+    Route::post('calculations/historical-salary-import', [PayrollCalculationController::class, 'historicalSalaryImport']);
+
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);
@@ -2298,6 +2328,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
     Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
     Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
+    Route::get('liquidation-bbss/pivot', [PayrollLiquidationBbssController::class, 'indexPivot']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
@@ -2338,6 +2369,29 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('register', [PayrollRegisterController::class, 'index']);
     Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
     Route::post('register/export', [PayrollRegisterController::class, 'export']);
+  });
+
+  // GP - Gestión Humana - Reclutamiento y Selección
+  Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
+    // Procesos de postulación (F1) — legacy idVista 50
+    Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
+    Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
+
+    // Administración de postulantes (F1) — legacy idVista 52
+    Route::post('applicant/{id}/status', [ApplicantController::class, 'changeStatus']);
+    Route::apiResource('applicant', ApplicantController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
   });
 
   /**

@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsListResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
+use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsSimpleResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
@@ -89,6 +90,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'created_by',
       'chief_approval_by',
       'manager_approval_by',
+      'is_take_ot'
     ])->with([
       // Cliente: solo full_name
       'client:id,full_name',
@@ -519,6 +521,18 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
   }
 
+  public function showSimple($id)
+  {
+    $quotation = $this->find($id);
+    $quotation->load([
+      'typeCurrency',
+      'vehicle.model.family.brand',
+      'vehicle.customer',
+      'client'
+    ]);
+
+    return new ApOrderQuotationsSimpleResource($quotation);
+  }
 
   public function update(mixed $data)
   {
@@ -1034,8 +1048,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_km'] = 'N/A';
     }
 
-    // Filtrar detalles según el parámetro with_labor
-    $details = $quotation->details;
+    // Ordenar detalles por campo 'order' de forma independiente por bloque
+    // Bloque 1: LABOR + MATERIAL (mano de obra)
+    $laborMaterialDetails = $quotation->details
+      ->whereIn('item_type', [ApOrderQuotationDetails::ITEM_TYPE_LABOR, ApOrderQuotationDetails::ITEM_TYPE_MATERIAL])
+      ->sortBy('order')
+      ->values();
+
+    // Bloque 2: PRODUCT (repuestos/recambios)
+    $productDetails = $quotation->details
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->sortBy('order')
+      ->values();
+
+    // Combinar los bloques ordenados: primero LABOR+MATERIAL, luego PRODUCT
+    $details = $laborMaterialDetails->merge($productDetails);
 
     // Detalles de la cotización
     $data['details'] = $details->map(function ($detail) use ($showCodes) {
@@ -1198,8 +1225,21 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_km'] = 'N/A';
     }
 
-    // Incluir TODOS los detalles (mano de obra y repuestos)
-    $details = $quotation->details;
+    // Ordenar detalles por campo 'order' de forma independiente por bloque
+    // Bloque 1: LABOR + MATERIAL (mano de obra)
+    $laborMaterialDetails = $quotation->details
+      ->whereIn('item_type', [ApOrderQuotationDetails::ITEM_TYPE_LABOR, ApOrderQuotationDetails::ITEM_TYPE_MATERIAL])
+      ->sortBy('order')
+      ->values();
+
+    // Bloque 2: PRODUCT (repuestos/recambios)
+    $productDetails = $quotation->details
+      ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+      ->sortBy('order')
+      ->values();
+
+    // Combinar los bloques ordenados: primero LABOR+MATERIAL, luego PRODUCT
+    $details = $laborMaterialDetails->merge($productDetails);
 
     // Detalles de la cotización
     $data['details'] = $details->map(function ($detail) use ($showCodes) {
@@ -1360,8 +1400,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_color'] = 'N/A';
     }
 
-    // Filtrar solo repuestos (excluir mano de obra)
-    $repuestosDetails = $quotation->details->where('item_type', '!=', 'labor');
+    // Filtrar solo repuestos (excluir mano de obra) y ordenar por campo 'order'
+    $repuestosDetails = $quotation->details
+      ->where('item_type', '!=', 'labor')
+      ->sortBy('order')
+      ->values();
 
     // Detalles de la cotización (solo repuestos)
     $data['details'] = $repuestosDetails->map(function ($detail) use ($showCodes) {
@@ -1487,8 +1530,11 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $data['vehicle_color'] = 'N/A';
     }
 
-    // Filtrar solo repuestos (excluir mano de obra)
-    $repuestosDetails = $quotation->details->where('item_type', '!=', 'labor');
+    // Filtrar solo repuestos (excluir mano de obra) y ordenar por campo 'order'
+    $repuestosDetails = $quotation->details
+      ->where('item_type', '!=', 'labor')
+      ->sortBy('order')
+      ->values();
 
     // Detalles de la cotización (solo repuestos)
     $data['details'] = $repuestosDetails->map(function ($detail) use ($showCodes) {
@@ -3278,6 +3324,115 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $orderQuotation->load('deductibles.electronicDocument', 'deductibles.creator');
 
       return new ApOrderQuotationsResource($orderQuotation);
+    });
+  }
+
+  /**
+   * Reordena los detalles de una cotización
+   * Permite ordenar items de forma independiente por tipo:
+   * - Bloque 1: LABOR + MATERIAL (mano de obra)
+   * - Bloque 2: PRODUCT (repuestos/recambios)
+   *
+   * @param int $quotationId ID de la cotización
+   * @param array $items Array de items con formato: [['id' => 1, 'order' => 0], ['id' => 2, 'order' => 1]]
+   * @return ApOrderQuotationsResource
+   * @throws Exception
+   */
+  public function reorderDetails(int $quotationId, array $items)
+  {
+    return DB::transaction(function () use ($quotationId, $items) {
+      // Verificar que la cotización existe
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Actualizar el orden de cada item de forma eficiente
+      foreach ($items as $item) {
+        ApOrderQuotationDetails::where('id', $item['id'])
+          ->where('order_quotation_id', $quotationId)
+          ->update(['order' => $item['order']]);
+      }
+
+      // Recargar la cotización con los detalles ordenados
+      $quotation->load(['details' => function ($query) {
+        $query->orderBy('order', 'asc');
+      }]);
+
+      return new ApOrderQuotationsResource($quotation);
+    });
+  }
+
+  /**
+   * Aplica descuento de manera masiva a los items de una cotización
+   * Permite aplicar descuento por bloques:
+   * - type 'labor': afecta a items con item_type 'labor' Y 'material'
+   * - type 'product': afecta solo a items con item_type 'product'
+   *
+   * @param int $quotationId ID de la cotización
+   * @param string $type Tipo de descuento: 'labor' o 'product'
+   * @param float $discountPercentage Porcentaje de descuento a aplicar
+   * @return ApOrderQuotationsResource
+   * @throws Exception
+   */
+  public function applyBulkDiscount(int $quotationId, string $type, float $discountPercentage)
+  {
+    return DB::transaction(function () use ($quotationId, $type, $discountPercentage) {
+      // Verificar que la cotización existe
+      $quotation = ApOrderQuotations::find($quotationId);
+
+      if (!$quotation) {
+        throw new Exception('Cotización no encontrada');
+      }
+
+      // Determinar qué tipos de items incluir según el type
+      $itemTypes = [];
+      if ($type === 'labor') {
+        // Si es 'labor', afectar a 'labor' Y 'material'
+        $itemTypes = [
+          ApOrderQuotationDetails::ITEM_TYPE_LABOR,
+          ApOrderQuotationDetails::ITEM_TYPE_MATERIAL,
+        ];
+      } elseif ($type === 'product') {
+        // Si es 'product', solo afectar a 'product'
+        $itemTypes = [ApOrderQuotationDetails::ITEM_TYPE_PRODUCT];
+      } else {
+        throw new Exception('Tipo de descuento no válido. Debe ser "labor" o "product".');
+      }
+
+      // Obtener todos los detalles de los tipos especificados
+      $details = $quotation->details()
+        ->whereIn('item_type', $itemTypes)
+        ->get();
+
+      if ($details->isEmpty()) {
+        $typesText = count($itemTypes) > 1 ? implode(' y ', $itemTypes) : $itemTypes[0];
+        throw new Exception('No se encontraron detalles del tipo ' . $typesText . ' en la cotización.');
+      }
+
+      // Aplicar el descuento a cada detalle
+      foreach ($details as $detail) {
+        $unitPrice = (float)$detail->unit_price;
+        $quantity = (float)$detail->quantity;
+
+        // Calcular totales usando PriceRounding (misma lógica que DiscountRequestsOrderQuotationService)
+        $totals = PriceRounding::calculateLineTotals($unitPrice, $quantity, $discountPercentage);
+
+        // Actualizar el detalle con el nuevo descuento y los campos calculados
+        $detail->update([
+          'discount_percentage' => $discountPercentage,
+          ...$totals,
+        ]);
+      }
+
+      // Recalcular totales de la cotización
+      $quotation->load('details');
+      $quotation->calculateTotals();
+      $quotation->save();
+
+      // Recargar la cotización con los detalles actualizados
+      return new ApOrderQuotationsResource($quotation->fresh());
     });
   }
 }
