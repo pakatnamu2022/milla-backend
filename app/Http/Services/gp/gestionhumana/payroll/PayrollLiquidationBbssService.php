@@ -49,6 +49,93 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
         );
     }
 
+    /**
+     * Orden canónico de los conceptos del catálogo LIQUIDATION_BBSS, ver
+     * Database\Seeders\gp\gestionhumana\payroll\PayrollLiquidationBbssTypeSeeder.
+     */
+    private const CONCEPT_LABELS = [
+        PayrollLiquidationBbss::TYPE_GRATIFICACION_NAVIDAD => 'Gratificación',
+        PayrollLiquidationBbss::TYPE_BONIF_EXTRAORD_NAVIDAD => 'Bonif. Extraord. 9%',
+        PayrollLiquidationBbss::TYPE_CTS_SEMESTRAL => 'CTS Semestral',
+        PayrollLiquidationBbss::TYPE_CTS_TRUNCADA => 'CTS Truncada',
+        PayrollLiquidationBbss::TYPE_GRATIFICACION_TRUNCADA => 'Gratif. Truncada',
+        PayrollLiquidationBbss::TYPE_BONIFICACION_EXTRAORDINARIA => 'Bonif. Extraord.',
+        PayrollLiquidationBbss::TYPE_VACACIONES_TRUNCADAS => 'Vacaciones Truncadas',
+        PayrollLiquidationBbss::TYPE_AGUINALDO => 'Aguinaldo',
+    ];
+
+    /**
+     * Igual que list(), pero pivoteado: una sola fila por trabajador+periodo con un valor por
+     * cada concepto (tipo) que tenga registrado, en vez de una fila por cada tipo — evita que un
+     * trabajador con gratificación + bono extraordinario (o CTS) en el mismo periodo aparezca
+     * dos veces. Requiere period_id porque, a diferencia de list(), no pagina: junta todas las
+     * filas del periodo en memoria antes de agrupar (mismo patrón que PayrollRegisterService).
+     */
+    public function listPivoted(Request $request): array
+    {
+        $periodId = (int) $request->query('period_id');
+        if (!$periodId) {
+            throw new Exception('Debe seleccionar un periodo.');
+        }
+
+        $search = trim((string) $request->query('search', ''));
+
+        $rows = PayrollLiquidationBbss::with(['worker', 'type', 'period'])
+            ->where('period_id', $periodId)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->whereHas('worker', function ($q) use ($search) {
+                    $q->where('nombre_completo', 'like', "%{$search}%")
+                        ->orWhere('vat', 'like', "%{$search}%");
+                });
+            })
+            ->get();
+
+        $grouped = [];
+        $codesPresent = [];
+
+        foreach ($rows as $row) {
+            $workerId = $row->worker_id;
+            $code = $row->type?->code;
+            if (!$code) {
+                continue;
+            }
+
+            if (!isset($grouped[$workerId])) {
+                $grouped[$workerId] = [
+                    'worker_id' => $workerId,
+                    'worker' => $row->worker?->nombre_completo,
+                    'worker_vat' => $row->worker?->vat,
+                    'period_id' => $row->period_id,
+                    'period' => $row->period?->name,
+                    'amounts' => [],
+                    'ids' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $amount = (float) $row->amount;
+            $grouped[$workerId]['amounts'][$code] = $amount;
+            $grouped[$workerId]['ids'][$code] = $row->id;
+            $grouped[$workerId]['total'] += $amount;
+            $codesPresent[$code] = true;
+        }
+
+        $data = array_values($grouped);
+        usort($data, fn($a, $b) => strcmp((string) $a['worker'], (string) $b['worker']));
+
+        $columns = [];
+        foreach (self::CONCEPT_LABELS as $code => $label) {
+            if (isset($codesPresent[$code])) {
+                $columns[] = ['code' => $code, 'label' => $label];
+            }
+        }
+
+        return [
+            'data' => $data,
+            'columns' => $columns,
+        ];
+    }
+
     public function find($id)
     {
         $record = PayrollLiquidationBbss::find($id);
@@ -278,12 +365,21 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             ? (float)GeneralMaster::valueAt('FAMILY_ALLOWANCE', $referenceDate, self::FAMILY_ALLOWANCE_AMOUNT)
             : 0.0;
 
-        $avgVariable = (float)(PayrollCalculation::calcularPromedioUltimos6Meses($periodId, $worker->id, $companyId)->total_avg ?? 0);
+        $avgDetail = PayrollCalculation::calcularPromedioUltimos6Meses($periodId, $worker->id, $companyId);
+        $avgVariable = (float)($avgDetail->total_avg ?? 0);
 
         return [
             'salary' => $salary,
             'family_allowance' => $familyAllowance,
             'avg_variable' => $avgVariable,
+            'avg_breakdown' => [
+                'overtime' => (float)($avgDetail->avg_overtime ?? 0),
+                'holiday' => (float)($avgDetail->avg_holiday ?? 0),
+                'compensatory' => (float)($avgDetail->avg_compensatory ?? 0),
+                'night_bonus' => (float)($avgDetail->avg_night_bonus ?? 0),
+                'bonus' => (float)($avgDetail->avg_bonus ?? 0),
+                'months_counted' => (int)($avgDetail->months_counted ?? 0),
+            ],
             'computable' => $salary + $familyAllowance + $avgVariable,
         ];
     }
@@ -628,6 +724,7 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             'period' => $period,
             'company' => $period->company,
             'company_logo' => $this->companyLogoBase64($period->company),
+            'legal_representative' => $this->companyLegalRepresentative($period->company_id),
             'worker' => $worker,
             'semester_start' => $semesterStart,
             'semester_end' => $semesterEnd,
@@ -635,7 +732,34 @@ class PayrollLiquidationBbssService extends BaseService implements BaseServiceIn
             'base' => $base,
             'extra' => $extra,
             'amount' => (float)$liquidation->amount,
+            'amount_words' => $this->numberToWords((float)$liquidation->amount),
         ];
+    }
+
+    /**
+     * Representante legal de la empresa para la constancia de CTS ("debidamente representado
+     * por..."). Se guarda como GeneralMaster (code = LEGAL_REPRESENTATIVE_COMPANY_{id}, value =
+     * id del Worker que lo representa) porque general_masters no tiene columna company_id propia
+     * y así cada empresa puede tener el suyo; si no está configurado, se omite en la boleta.
+     */
+    private function companyLegalRepresentative(int $companyId): ?Worker
+    {
+        $workerId = GeneralMaster::valueAt('LEGAL_REPRESENTATIVE_COMPANY_' . $companyId, now(), null);
+
+        return $workerId ? Worker::find($workerId) : null;
+    }
+
+    /**
+     * Monto en letras para la constancia de CTS ("SON: MIL CIENTO SETENTA Y OCHO CON 71/100"),
+     * mismo patrón que ElectronicDocumentService::convertNumberToWords().
+     */
+    private function numberToWords(float $amount): string
+    {
+        $formatter = new \NumberFormatter('es', \NumberFormatter::SPELLOUT);
+        $integerPart = floor($amount);
+        $decimalPart = round(($amount - $integerPart) * 100);
+
+        return strtoupper($formatter->format($integerPart)) . ' CON ' . str_pad((string)$decimalPart, 2, '0', STR_PAD_LEFT) . '/100';
     }
 
     /**

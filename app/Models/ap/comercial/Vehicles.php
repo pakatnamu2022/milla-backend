@@ -62,6 +62,7 @@ class Vehicles extends BaseModel
     'ap_models_vn_id'                    => '=',
     'model.class_id'                     => '=',
     'model.family_id'                    => '=',
+    'model.family.brand_id'              => '=',
     'warehouse_id'                       => '=',
     'ap_vehicle_status_id'               => 'in_or_equal',
     'vehicle_color_id'                   => '=',

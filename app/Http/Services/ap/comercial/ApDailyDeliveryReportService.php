@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\comercial;
 
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\ApVehicleDelivery;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -73,6 +74,9 @@ class ApDailyDeliveryReportService
     // Paso 10: Detalle de refacturaciones / NC parcial (trazabilidad)
     $refacturadas = $this->buildRefacturadasDetail($invoicing);
 
+    // Paso 11: Detalle de entregas del periodo por asesor (trazabilidad — acordeón en frontend)
+    $entregasDetalle = $this->buildDeliveriesDetail($vehiclesWithDelivery);
+
     return [
       'fecha_inicio'      => $fechaInicio,
       'fecha_fin'         => $fechaFin,
@@ -88,6 +92,7 @@ class ApDailyDeliveryReportService
       'current_inventory' => $currentInventory,
       'refacturadas'      => $refacturadas['en_periodo'],
       'refacturadas_fuera_periodo' => $refacturadas['fuera_periodo'],
+      'entregas_detalle'  => $entregasDetalle,
     ];
   }
 
@@ -222,6 +227,7 @@ class ApDailyDeliveryReportService
   protected function getDeliveredVehicles(string $fechaInicio, string $fechaFin, Collection $invoicedQuoteIds): Collection
   {
     $invoicedQuoteIdList = $invoicedQuoteIds->all() ?: [0];
+    $fechaFinFull = $fechaFin . ' 23:59:59';
 
     $vehicles = DB::table('ap_vehicles')
       ->leftJoin('ap_vehicle_delivery', function ($join) {
@@ -237,21 +243,39 @@ class ApDailyDeliveryReportService
       ->join('ap_class_article', 'ap_models_vn.class_id', '=', 'ap_class_article.id')
       ->leftJoin('ap_families', 'ap_models_vn.family_id', '=', 'ap_families.id')
       ->leftJoin('ap_vehicle_brand', 'ap_families.brand_id', '=', 'ap_vehicle_brand.id')
+      ->leftJoin('business_partners', 'ap_vehicle_delivery.client_id', '=', 'business_partners.id')
       ->leftJoin('config_sede', DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id)'), '=', 'config_sede.id')
-      ->where(function ($query) use ($fechaInicio, $fechaFin, $invoicedQuoteIdList) {
-        $fechaFinFull = $fechaFin . ' 23:59:59';
-        // Tiene entrega en el rango de fechas
+      ->where(function ($query) use ($fechaInicio, $fechaFinFull, $invoicedQuoteIdList) {
+        // Tiene entrega PROGRAMADA en el rango. Mismo criterio que el reporte
+        // "Entregas de Vehículos" (vehiclesDelivery/export): filtra por
+        // scheduled_delivery_date y excluye las entregas anuladas.
         $query->where(function ($q) use ($fechaInicio, $fechaFinFull) {
-          $q->whereBetween('ap_vehicle_delivery.real_delivery_date', [$fechaInicio, $fechaFinFull])
-            ->whereNotNull('ap_vehicle_delivery.real_delivery_date');
+          $q->whereBetween('ap_vehicle_delivery.scheduled_delivery_date', [$fechaInicio, $fechaFinFull])
+            ->where('ap_vehicle_delivery.status_delivery', '!=', ApVehicleDelivery::STATUS_CANCELLED);
         })
           // O tiene venta facturada real atribuible al periodo (aplica NC, ND y refacturaciones)
           ->orWhereIn('purchase_request_quote.id', $invoicedQuoteIdList);
       })
       ->whereNull('ap_vehicles.deleted_at')
-      ->select([
+      // entrega_periodo: no es NULL sólo cuando la entrega está PROGRAMADA dentro del
+      // rango del reporte y no está anulada. Un vehículo puede entrar además por
+      // facturación/refacturación atribuida al periodo sin tener entrega en el rango;
+      // en ese caso entrega_periodo queda NULL y NO cuenta como entrega.
+      // Todos los consumidores usan !is_null($v->entrega_periodo) === "entregado en el periodo".
+      ->selectRaw(
+        'CASE WHEN ap_vehicle_delivery.scheduled_delivery_date BETWEEN ? AND ? '
+        . 'AND ap_vehicle_delivery.status_delivery <> ? '
+        . 'THEN ap_vehicle_delivery.scheduled_delivery_date END as entrega_periodo',
+        [$fechaInicio, $fechaFinFull, ApVehicleDelivery::STATUS_CANCELLED]
+      )
+      ->addSelect([
         'ap_vehicles.id as vehicle_id',
+        'ap_vehicles.vin',
+        'ap_vehicles.plate',
+        'ap_vehicle_delivery.id as delivery_id',
+        'ap_vehicle_delivery.scheduled_delivery_date',
         'ap_vehicle_delivery.real_delivery_date',
+        'ap_vehicle_delivery.status_delivery',
         DB::raw('COALESCE(ap_opportunity.worker_id, ap_vehicle_delivery.advisor_id) as advisor_id'),
         DB::raw('COALESCE(purchase_request_quote.sede_id, ap_vehicle_delivery.sede_id) as sede_id'),
         'config_sede.abreviatura as sede_name',
@@ -262,9 +286,62 @@ class ApDailyDeliveryReportService
         'ap_vehicle_brand.id as brand_id',
         'ap_vehicle_brand.name as brand_name',
         'ap_vehicle_brand.group_id as brand_group_id',
+        'ap_families.description as family_description',
+        'ap_models_vn.version as model_version',
+        'ap_models_vn.model_year',
+        'business_partners.full_name as client_name',
       ])
       ->get();
     return $vehicles;
+  }
+
+  /**
+   * Construye el detalle de entregas del periodo agrupado por asesor, para trazabilidad
+   * en el frontend (acordeón por asesor). La clave es el advisor_id; los vehículos sin
+   * asesor van bajo la clave 'sin_asesor'. Sólo incluye entregas programadas dentro del
+   * rango (entrega_periodo no nulo) — el mismo universo que el conteo de "entregas".
+   *
+   * @param Collection $vehicles Resultado de getDeliveredVehicles()
+   * @return array<string,array<int,array>>
+   */
+  protected function buildDeliveriesDetail(Collection $vehicles): array
+  {
+    $detail = [];
+
+    foreach ($vehicles as $v) {
+      if (is_null($v->entrega_periodo)) {
+        continue;
+      }
+
+      $key = $v->advisor_id ? (string) $v->advisor_id : 'sin_asesor';
+
+      $modelo = trim(implode(' ', array_filter([
+        $v->model_version ?: ($v->family_description ?? null),
+        $v->model_year ?? null,
+      ])));
+
+      $detail[$key][] = [
+        'delivery_id'       => $v->delivery_id,
+        'vehicle_id'        => $v->vehicle_id,
+        'vin'              => $v->vin,
+        'placa'            => $v->plate,
+        'marca'            => $v->brand_name,
+        'modelo'          => $modelo ?: null,
+        'sede'            => $v->sede_name,
+        'cliente'          => $v->client_name,
+        'fecha_programada' => $v->scheduled_delivery_date,
+        'fecha_real'       => $v->real_delivery_date,
+        'estado'          => $v->status_delivery,
+      ];
+    }
+
+    // Ordenar cada grupo por fecha programada
+    foreach ($detail as &$rows) {
+      usort($rows, fn($a, $b) => strcmp((string) $a['fecha_programada'], (string) $b['fecha_programada']));
+    }
+    unset($rows);
+
+    return $detail;
   }
 
   /**
@@ -324,7 +401,7 @@ class ApDailyDeliveryReportService
 
     $calc = function (Collection $group) use ($invoicedQuoteIds): array {
       return [
-        'entregas'                 => $group->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'entregas'                 => $group->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
         'facturadas'               => $group->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         'reporteria_dealer_portal' => null,
       ];
@@ -444,7 +521,7 @@ class ApDailyDeliveryReportService
 
       // Entregas: solo vehículos con fecha de entrega real
       $entregas = $advisorVehicles->filter(function ($vehicle) {
-        return !is_null($vehicle->real_delivery_date);
+        return !is_null($vehicle->entrega_periodo);
       })->count();
 
       // Facturadas: vehículos con factura válida (independiente de la entrega)
@@ -621,7 +698,7 @@ class ApDailyDeliveryReportService
 
       $calcSinAsesor = function (Collection $g) use ($invoicedQuoteIds): array {
         return [
-          'entregas'   => $g->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'entregas'   => $g->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
           'facturadas' => $g->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         ];
       };
@@ -1015,7 +1092,7 @@ class ApDailyDeliveryReportService
       $key = $advisorId ?: 'sin_asesor';
 
       $counts[$key] = [
-        'entregas'   => $advisorVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'entregas'   => $advisorVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
         'facturadas' => $advisorVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
       ];
     }
@@ -1086,7 +1163,7 @@ class ApDailyDeliveryReportService
       });
 
       if ($orphanVehicles->isNotEmpty()) {
-        $orphanEntregas = $orphanVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+        $orphanEntregas = $orphanVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count();
         $orphanFacturadas = $orphanVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
         $managerNode['children'][] = [
           'id'                       => null,
@@ -1490,11 +1567,11 @@ class ApDailyDeliveryReportService
   protected function buildTotalSection(Collection $livianos, Collection $camiones, Collection $invoicedQuoteIds): array
   {
     $livianosCompras = $livianos->whereNotNull('purchase_order_id')->count();
-    $livianosEntregas = $livianos->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $livianosEntregas = $livianos->filter(fn($v) => !is_null($v->entrega_periodo))->count();
     $livianosFacturadas = $livianos->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     $camionesCompras = $camiones->whereNotNull('purchase_order_id')->count();
-    $camionesEntregas = $camiones->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $camionesEntregas = $camiones->filter(fn($v) => !is_null($v->entrega_periodo))->count();
     $camionesFacturadas = $camiones->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
 
     return [
@@ -1606,7 +1683,7 @@ class ApDailyDeliveryReportService
     $items = [];
 
     $totalCompras = $purchaseOrders->count();
-    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
     $totalLibre = 0;
 
@@ -1626,7 +1703,7 @@ class ApDailyDeliveryReportService
         'name'                     => $sedeName,
         'level'                    => 'sede',
         'compras'                  => $sedePurchases->count(),
-        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
         'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
@@ -1640,7 +1717,7 @@ class ApDailyDeliveryReportService
           'name'                     => $brandName,
           'level'                    => 'brand',
           'compras'                  => $brandPurchases->count(),
-          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
           'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
           'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
@@ -1669,7 +1746,7 @@ class ApDailyDeliveryReportService
     $items = [];
 
     $totalCompras = $purchaseOrders->count();
-    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
     $totalLibre = 0;
 
@@ -1689,7 +1766,7 @@ class ApDailyDeliveryReportService
         'name'                     => $sedeName,
         'level'                    => 'sede',
         'compras'                  => $sedePurchases->count(),
-        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
         'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
@@ -1703,7 +1780,7 @@ class ApDailyDeliveryReportService
           'name'                     => $brandName,
           'level'                    => 'brand',
           'compras'                  => $brandPurchases->count(),
-          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
           'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
           'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
@@ -1730,7 +1807,7 @@ class ApDailyDeliveryReportService
     $items = [];
 
     $totalCompras = $purchaseOrders->count();
-    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+    $totalEntregas = $vehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count();
     $totalFacturadas = $vehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count();
     $totalLibre = 0;
 
@@ -1759,7 +1836,7 @@ class ApDailyDeliveryReportService
         'name'                     => $sedeName,
         'level'                    => 'sede',
         'compras'                  => $sedePurchases->count(),
-        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+        'entregas'                 => $sedeVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
         'facturadas'               => $sedeVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
         'stock_libre'              => $sedeLibre,
         'reporteria_dealer_portal' => null,
@@ -1773,7 +1850,7 @@ class ApDailyDeliveryReportService
           'name'                     => $brandName,
           'level'                    => 'brand',
           'compras'                  => $brandPurchases->count(),
-          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count(),
+          'entregas'                 => $brandVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count(),
           'facturadas'               => $brandVehicles->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
           'stock_libre'              => $stockLibreMap[$sedeId][$brandId] ?? 0,
           'reporteria_dealer_portal' => null,
@@ -1813,7 +1890,7 @@ class ApDailyDeliveryReportService
       $v->advisor_shop_id = $advisorSedeAssignments[$v->advisor_id]['sede_id'] ?? ($sedeToShopMap[$v->sede_id] ?? null);
       return $v;
     });
-    $deliveriesOnly = $deliveredVehicles->filter(fn($v) => !is_null($v->real_delivery_date));
+    $deliveriesOnly = $deliveredVehicles->filter(fn($v) => !is_null($v->entrega_periodo));
 
     $goalsIn = $this->getGoalsForPeriod($year, $month, 'IN');
     $goalsOut = $this->getGoalsForPeriod($year, $month, 'OUT');
@@ -2117,7 +2194,7 @@ class ApDailyDeliveryReportService
 
         // SECCIÓN 1: Sell Out (Entregas)
         $objetivoApEntregas = $goalsOut->where('shop_id', $shopId)->where('brand_id', $brandId)->sum('goal');
-        $resultadoEntrega = $brandVehicles->filter(fn($v) => !is_null($v->real_delivery_date))->count();
+        $resultadoEntrega = $brandVehicles->filter(fn($v) => !is_null($v->entrega_periodo))->count();
         $cumplimientoEntrega = $objetivoApEntregas > 0 ? round(($resultadoEntrega / $objetivoApEntregas) * 100, 2) : 0;
 
         // SECCIÓN 2: Reportes (Inchcape = sell out, Dealer Portal pendiente)

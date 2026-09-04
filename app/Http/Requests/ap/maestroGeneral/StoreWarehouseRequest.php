@@ -49,6 +49,11 @@ class StoreWarehouseRequest extends StoreRequest
         'string',
         'max:50',
       ],
+      'asset_account' => [
+        'nullable',
+        'string',
+        'max:50',
+      ],
       'parent_warehouse_id' => [
         'nullable',
         'integer',
@@ -92,6 +97,8 @@ class StoreWarehouseRequest extends StoreRequest
       'inventory_account.max' => 'La cuenta de inventario no puede exceder los 50 caracteres.',
       'counterparty_account.string' => 'La cuenta contrapartida debe ser un texto.',
       'counterparty_account.max' => 'La cuenta contrapartida no puede exceder los 50 caracteres.',
+      'asset_account.string' => 'La cuenta de activos debe ser un texto.',
+      'asset_account.max' => 'La cuenta de activos no puede exceder los 50 caracteres.',
       'parent_warehouse_id.integer' => 'El campo encabezado de almacén debe ser un número entero.',
       'parent_warehouse_id.exists' => 'El encabezado de almacén seleccionado no existe.',
       'is_physical_warehouse' => 'El campo de almacén físico es obligatorio.',

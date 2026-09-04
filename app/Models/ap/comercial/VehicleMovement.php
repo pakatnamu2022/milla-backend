@@ -65,6 +65,7 @@ class VehicleMovement extends BaseModel
   const INTERNAL_TRANSFER = 'TRASLADO INTERNO';
   const EN_CURSO = 'EN CURSO';
   const UNASSIGN_REVERT = 'DESASIGNACION';
+  const ASSET = 'ACTIVO';
 
   public function vehicleStatus(): BelongsTo
   {

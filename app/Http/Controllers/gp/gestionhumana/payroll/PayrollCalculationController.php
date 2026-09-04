@@ -5,6 +5,9 @@ namespace App\Http\Controllers\gp\gestionhumana\payroll;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\CalculatePayrollRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollCalculatorService;
+use App\Http\Services\gp\gestionhumana\payroll\PayrollHistoricalBonusService;
+use App\Http\Services\gp\gestionhumana\payroll\PayrollHistoricalCalculationService;
+use App\Http\Services\gp\gestionhumana\payroll\PayrollHistoricalSalaryService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollPrintService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollReportService;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollSummaryService;
@@ -18,18 +21,27 @@ class PayrollCalculationController extends Controller
   protected PayrollReportService $reportService;
   protected PayrollSummaryService $summaryService;
   protected PayrollPrintService $printService;
+  protected PayrollHistoricalCalculationService $historicalService;
+  protected PayrollHistoricalBonusService $historicalBonusService;
+  protected PayrollHistoricalSalaryService $historicalSalaryService;
 
   public function __construct(
     PayrollCalculatorService $calculatorService,
     PayrollReportService     $reportService,
     PayrollSummaryService    $summaryService,
-    PayrollPrintService      $printService
+    PayrollPrintService      $printService,
+    PayrollHistoricalCalculationService $historicalService,
+    PayrollHistoricalBonusService $historicalBonusService,
+    PayrollHistoricalSalaryService $historicalSalaryService
   )
   {
     $this->calculatorService = $calculatorService;
     $this->reportService = $reportService;
     $this->summaryService = $summaryService;
     $this->printService = $printService;
+    $this->historicalService = $historicalService;
+    $this->historicalBonusService = $historicalBonusService;
+    $this->historicalSalaryService = $historicalSalaryService;
   }
 
   /**
@@ -181,6 +193,131 @@ class PayrollCalculationController extends Controller
     try {
       $biweekly = $request->query('biweekly') !== null ? (int)$request->query('biweekly') : null;
       return $this->printService->generateExcel($periodId, $biweekly);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Descarga la plantilla para cargar el histórico de conceptos variables mensuales (horas
+   * extra, feriado, DDT, bonif. nocturna) de meses anteriores a la existencia del sistema.
+   * Query params: company_id, periods[] (cada uno "YYYY-MM", ej. periods[]=2025-06&periods[]=2025-07)
+   */
+  public function historicalTemplate(Request $request)
+  {
+    try {
+      $companyId = (int) $request->query('company_id');
+      if (!$companyId) {
+        return $this->error('company_id es requerido');
+      }
+
+      $periods = array_map(function ($code) {
+        [$year, $month] = explode('-', $code);
+        return ['year' => (int) $year, 'month' => (int) $month];
+      }, (array) $request->query('periods', []));
+
+      return $this->historicalService->downloadTemplate($companyId, $periods);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Sube el Excel con el histórico de conceptos variables mensuales (mismo formato que
+   * historicalTemplate) y lo registra en gh_payroll_calculations, creando el periodo si no existe.
+   */
+  public function historicalImport(Request $request)
+  {
+    try {
+      $request->validate([
+        'company_id' => 'required|integer',
+        'file' => 'required|file|mimes:xlsx,xls',
+      ]);
+
+      $result = $this->historicalService->import($request->file('file'), (int) $request->input('company_id'));
+
+      return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Descarga la plantilla para cargar el histórico mensual de bono/comisión (BONO_CONDUCTOR).
+   * Query params: company_id, periods[] (cada uno "YYYY-MM").
+   */
+  public function historicalBonusTemplate(Request $request)
+  {
+    try {
+      $companyId = (int) $request->query('company_id');
+      if (!$companyId) {
+        return $this->error('company_id es requerido');
+      }
+
+      $periods = array_map(function ($code) {
+        [$year, $month] = explode('-', $code);
+        return ['year' => (int) $year, 'month' => (int) $month];
+      }, (array) $request->query('periods', []));
+
+      return $this->historicalBonusService->downloadTemplate($companyId, $periods);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Sube el Excel con el histórico mensual de bono/comisión (mismo formato que
+   * historicalBonusTemplate) y lo registra en gh_payroll_bonuses.
+   */
+  public function historicalBonusImport(Request $request)
+  {
+    try {
+      $request->validate([
+        'company_id' => 'required|integer',
+        'file' => 'required|file|mimes:xlsx,xls',
+      ]);
+
+      $result = $this->historicalBonusService->import($request->file('file'), (int) $request->input('company_id'));
+
+      return $this->success($result);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Descarga la plantilla para cargar el histórico de sueldos (rrhh_contrato).
+   * Query params: company_id.
+   */
+  public function historicalSalaryTemplate(Request $request)
+  {
+    try {
+      $companyId = (int) $request->query('company_id');
+      if (!$companyId) {
+        return $this->error('company_id es requerido');
+      }
+
+      return $this->historicalSalaryService->downloadTemplate($companyId);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Sube el Excel con el histórico de sueldos (mismo formato que historicalSalaryTemplate) y
+   * registra/actualiza el historial de contratos (rrhh_contrato) por trabajador.
+   */
+  public function historicalSalaryImport(Request $request)
+  {
+    try {
+      $request->validate([
+        'company_id' => 'required|integer',
+        'file' => 'required|file|mimes:xlsx,xls',
+      ]);
+
+      $result = $this->historicalSalaryService->import($request->file('file'), (int) $request->input('company_id'));
+
+      return $this->success($result);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

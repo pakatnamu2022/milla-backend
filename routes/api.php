@@ -23,6 +23,7 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
+use App\Http\Controllers\ap\comercial\AssetController;
 use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
 use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
@@ -154,6 +155,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
@@ -1523,6 +1525,17 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
+      // Activos (vehículo VN → activo fijo)
+      Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
+      Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
+      Route::post('assets/{id}/dispatch-migration', [AssetController::class, 'dispatchMigration']);
+      Route::apiResource('assets', AssetController::class)->only([
+        'index',
+        'show',
+        'store',
+        'destroy',
+      ]);
+
       // Reports
       Route::prefix('reports')->group(function () {
         Route::get('daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
@@ -2258,6 +2271,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   Route::group(['prefix' => 'gp/gh/payroll'], function () {
     Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
 
+    // Histórico de conceptos variables (para completar meses anteriores al sistema)
+    Route::get('calculations/historical-template', [PayrollCalculationController::class, 'historicalTemplate']);
+    Route::post('calculations/historical-import', [PayrollCalculationController::class, 'historicalImport']);
+    Route::get('calculations/historical-bonus-template', [PayrollCalculationController::class, 'historicalBonusTemplate']);
+    Route::post('calculations/historical-bonus-import', [PayrollCalculationController::class, 'historicalBonusImport']);
+    Route::get('calculations/historical-salary-template', [PayrollCalculationController::class, 'historicalSalaryTemplate']);
+    Route::post('calculations/historical-salary-import', [PayrollCalculationController::class, 'historicalSalaryImport']);
+
     // Attendance Rules
     Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
     Route::apiResource('attendance-rules', AttendanceRuleController::class);
@@ -2302,6 +2323,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
     Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
     Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
+    Route::get('liquidation-bbss/pivot', [PayrollLiquidationBbssController::class, 'indexPivot']);
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
@@ -2342,6 +2364,19 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('register', [PayrollRegisterController::class, 'index']);
     Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
     Route::post('register/export', [PayrollRegisterController::class, 'export']);
+  });
+
+  // GP - Gestión Humana - Reclutamiento y Selección
+  Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
+    // Procesos de postulación (F1) — legacy idVista 50
+    Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
+    Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
   });
 
   /**
