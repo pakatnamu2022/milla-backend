@@ -206,14 +206,16 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         throw new Exception('No se puede editar esta solicitud/cotización porque ya fue pagada en su totalidad.');
       }
 
-      $isApproved = (bool)$purchaseRequestQuote->is_approved;
+      $isApproved = (bool)$purchaseRequestQuote->is_invoiced;
 
       if ($isApproved) {
-        // Aprobada (y aún no pagada en su totalidad): el precio de venta y la
-        // moneda de facturación quedan fijos. El vehículo/modelo/color SÍ se
-        // pueden seguir cambiando (no afectan el precio ya fijado), igual que
-        // bonos, obsequios (no afectan el precio final, solo el margen) y
-        // "otros costos" (margen).
+        // Facturada (y aún no pagada en su totalidad): el precio de venta y la
+        // moneda de facturación quedan fijos. Estar solo "aprobada" ya NO
+        // bloquea nada: mientras no exista factura/boleta final aceptada, se
+        // puede seguir negociando con el cliente (agregar accesorios, cambiar
+        // precio, etc). El vehículo/modelo/color SÍ se pueden seguir cambiando
+        // (no afectan el precio ya fijado), igual que bonos, obsequios (no
+        // afectan el precio final, solo el margen) y "otros costos" (margen).
         foreach ([
                    'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
                  ] as $lockedField) {
