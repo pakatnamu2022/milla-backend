@@ -63,13 +63,13 @@ Seeder objetivo: `Database\Seeders\gp\gestionhumana\personal\WorkerDetailViewsPe
 
 ## 2. Reclutamiento — Fase 1 (Postulación, 04–25/09)
 
-Contenedor: **Reclutamiento y Seleccion** — `submodule`, `parent_id = 77` (Gestión Humana),
-slug `reclutamiento-y-seleccion`, icon `UserSearch`, sin ruta propia.
-Ruta frontend base: `/gp/gestion-humana/reclutamiento-y-seleccion/<route>`.
+**Decisión (03/09/2026):** las vistas de reclutamiento **NO** llevan contenedor propio —
+cuelgan directamente de **Gestión de Personal (vista 456)**, como **hermanas de Trabajadores (457)**.
+Ruta frontend base: `/gp/gestion-humana/gestion-de-personal/<route>`.
 
 | route | descripción | icon | permisos | estado |
 |-------|-------------|------|----------|--------|
-| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ⏳ backend listo, falta frontend |
+| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **588**, permisos creados, roles 98/102/127/68/24/138) |
 | `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | pendiente |
 
 Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostulanteController` (idVista 52).
@@ -77,7 +77,10 @@ Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostul
 **Seeder:** `Database\Seeders\gp\gestionhumana\reclutamiento\RecruitmentViewsPermissionsSeeder`
 (ya creado con `procesos-postulacion`). Roles destino: 98 TICS, 102 TIC's TP, 127 Gerente GH,
 68 Analista Proyectos GH, 24 Gestión Humana, 138 Gestión Humana AP.
-**No ejecutar hasta que exista la pantalla en namu-frontend** (si no, aparece en el menú y da 404).
+**Ejecutado el 04/09/2026** — creó la vista **588** (hija de 456) y los 4 permisos `procesos-postulacion.*`.
+Frontend: `src/features/gp/gestionhumana/gestion-de-personal/procesos-postulacion/` + páginas en
+`src/app/gp/gestion-humana/gestion-de-personal/procesos-postulacion/{page,agregar,actualizar/[id]}`
++ rutas en `App.tsx` vía `RouterCrud("gestion-de-personal/procesos-postulacion", ...)`.
 
 ### Backend F1 — Procesos de Postulación (implementado)
 
