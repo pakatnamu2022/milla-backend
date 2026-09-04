@@ -1028,6 +1028,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       //    ATTENDANCE — ZKBioTime
       Route::group(['prefix' => 'attendance'], function () {
         Route::get('/', [AttendanceSyncController::class, 'index']);
+        Route::get('/export', [AttendanceSyncController::class, 'export']);
         Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
         Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
         Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);

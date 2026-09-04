@@ -11,6 +11,7 @@ use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Jobs\SyncAttendanceJob;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +42,176 @@ class AttendanceSyncService extends BaseService
     $record = AttendanceSync::with('person')->findOrFail($id);
 
     return response()->json(new AttendanceSyncResource($record));
+  }
+
+  public function export(Request $request): Response|BinaryFileResponse
+  {
+    $data = $this->buildActiveWorkersAttendanceRows($request);
+
+    $columns = [
+      'emp_code' => 'Código',
+      'full_name' => 'Colaborador',
+      'date' => 'Fecha',
+      'cargo' => 'Cargo',
+      'sede' => 'Sede',
+      'time' => 'Hora',
+      'horario' => 'Horario Configurado',
+      'diferencia_minutos' => 'Diferencia (min)',
+      'situacion' => 'Situación',
+    ];
+
+    // Colores por situación (fondo/texto en hex, sin '#')
+    $cellColors = [
+      'situacion' => [
+        'Marcó' => ['bg' => 'C6EFCE', 'text' => '006100'],
+        'Tardanza' => ['bg' => 'FFEB9C', 'text' => '9C6500'],
+        'No Marcó' => ['bg' => 'FFC7CE', 'text' => '9C0006'],
+        'Exonerado' => ['bg' => 'D9D9D9', 'text' => '404040'],
+      ],
+    ];
+
+    $filename = 'asistencias_' . now()->format('Y-m-d_H-i-s');
+
+    if ($request->get('format') === 'pdf') {
+      $pdf = Pdf::loadView('exports.pdf-template', [
+        'data' => $data,
+        'columns' => $columns,
+        'title' => 'Reporte de Asistencias',
+        'summary' => [
+          'Total Registros' => $data->count(),
+          'Fecha Generación' => now()->format('d/m/Y H:i:s'),
+        ],
+        'getColumnClass' => fn($key) => match (true) {
+          str_contains($key, 'date') => 'col-date',
+          str_contains($key, 'name') => 'col-name',
+          default => '',
+        },
+        'cellColors' => $cellColors,
+      ]);
+      $pdf->setPaper('a4', 'landscape');
+
+      return $pdf->download($filename . '.pdf');
+    }
+
+    return Excel::download(
+      new GeneralExport($data, $columns, 'Asistencias', [], $cellColors),
+      $filename . '.xlsx',
+    );
+  }
+
+  /**
+   * Construye, para cada trabajador activo que cumpla los filtros de búsqueda/sede,
+   * una fila por día (dentro del rango filtrado) con su situación de asistencia:
+   * "No Marcó" (sin check_in registrado), "Tardanza" (marcó fuera de tolerancia)
+   * o "Marcó" (dentro de horario).
+   */
+  private function buildActiveWorkersAttendanceRows(Request $request): \Illuminate\Support\Collection
+  {
+    $dates = $this->resolveExportDates($request);
+
+    $effectiveCheckin = "CASE
+      WHEN rc.name LIKE '%AGENTE DE SEGURIDAD%' AND ps.code IN ('D','DDT','FDT') THEN '07:00:00'
+      WHEN rc.name LIKE '%AGENTE DE SEGURIDAD%' AND ps.code IN ('N','DNT','FNT') THEN '19:00:00'
+      ELSE COALESCE(wsd.checkin, ws.checkin, '08:00:00')
+    END";
+
+    $rows = collect();
+
+    foreach ($dates as $dateStr) {
+      $query = DB::table('rrhh_persona as p')
+        ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
+          $join->on(function ($j) {
+            $j->on('a.person_id', '=', 'p.id')
+              ->orOn('a.emp_code', '=', 'p.vat');
+          })
+            ->where('a.date', '=', $dateStr)
+            ->where('a.mark_type', '=', 'check_in');
+        })
+        ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+        ->leftJoin('work_schedule_details as wsd', function ($join) use ($dateStr) {
+          $join->on('wsd.work_schedule_id', '=', 'p.work_schedule_id')
+            ->whereRaw('wsd.day_of_week = DAYOFWEEK(?)', [$dateStr]);
+        })
+        ->leftJoin('gh_payroll_schedules as ps', function ($join) use ($dateStr) {
+          $join->on('ps.worker_id', '=', 'p.id')
+            ->where('ps.work_date', '=', $dateStr)
+            ->whereNull('ps.deleted_at');
+        })
+        ->leftJoin('rrhh_cargo as rc', 'rc.id', '=', 'p.cargo_id')
+        ->leftJoin('config_sede as cs', 'cs.id', '=', 'p.sede_id')
+        ->where('p.status_id', Constants::WORKER_ACTIVE)
+        ->where('p.status_deleted', 1)
+        ->select(
+          DB::raw("COALESCE(p.vat, '') AS emp_code"),
+          DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
+          DB::raw("COALESCE(rc.name, '') AS cargo"),
+          DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
+          DB::raw("a.time AS time"),
+          DB::raw("CASE WHEN rc.no_attendance_required = 1 THEN NULL ELSE {$effectiveCheckin} END AS horario"),
+          DB::raw("CASE
+            WHEN rc.no_attendance_required = 1 OR a.time IS NULL THEN NULL
+            ELSE ROUND((TIME_TO_SEC(a.time) - TIME_TO_SEC({$effectiveCheckin})) / 60)
+          END AS diferencia_minutos"),
+          DB::raw("CASE
+            WHEN rc.no_attendance_required = 1 THEN 'Exonerado'
+            WHEN a.time IS NULL THEN 'No Marcó'
+            WHEN a.time > ADDTIME({$effectiveCheckin}, SEC_TO_TIME(" . (self::LATE_TOLERANCE_MINUTES * 60) . ")) THEN 'Tardanza'
+            ELSE 'Marcó'
+          END AS situacion"),
+        )
+        ->orderBy('p.nombre_completo');
+
+      if ($request->filled('person$sede_id')) {
+        $query->where('p.sede_id', $request->get('person$sede_id'));
+      }
+
+      if ($request->filled('search')) {
+        $term = $request->get('search');
+        $query->where(function ($q) use ($term) {
+          $q->where('p.vat', 'like', "%{$term}%")
+            ->orWhere('p.nombre_completo', 'like', "%{$term}%");
+        });
+      }
+
+      foreach ($query->get() as $row) {
+        $rows->push([
+          'emp_code' => $row->emp_code,
+          'full_name' => $row->full_name,
+          'date' => Carbon::parse($dateStr)->format('d/m/Y'),
+          'cargo' => $row->cargo,
+          'sede' => $row->sede,
+          'time' => $row->time ? substr($row->time, 0, 5) : null,
+          'horario' => $row->horario ? substr($row->horario, 0, 5) : null,
+          'diferencia_minutos' => $row->diferencia_minutos,
+          'situacion' => $row->situacion,
+        ]);
+      }
+    }
+
+    return $rows;
+  }
+
+  /**
+   * Determina el rango de fechas a exportar a partir de los filtros de la request:
+   * fecha exacta si viene `date`, rango si vienen `date_from`/`date_to`, o el día
+   * de hoy por defecto.
+   */
+  private function resolveExportDates(Request $request): array
+  {
+    if ($request->filled('date_from') || $request->filled('date_to')) {
+      $from = $request->get('date_from') ?: $request->get('date_to');
+      $to = $request->get('date_to') ?: $request->get('date_from');
+
+      return collect(CarbonPeriod::create($from, $to))
+        ->map(fn(Carbon $day) => $day->toDateString())
+        ->all();
+    }
+
+    if ($request->filled('date')) {
+      return [$request->get('date')];
+    }
+
+    return [now('America/Lima')->toDateString()];
   }
 
   public function bulkStore(StoreBulkAttendanceSyncRequest $request): JsonResponse
