@@ -242,7 +242,20 @@
   @foreach($data as $row)
     <tr>
       @foreach($columns as $key => $column)
-        <td class="{{ $getColumnClass($key) }} {{ is_numeric(data_get($row, $key)) ? 'numeric' : '' }}">
+        @php
+          $cellStyle = '';
+          if (!empty($cellColors[$key])) {
+            $rawValue = is_array($row) ? ($row[$key] ?? null) : data_get($row, $key);
+            if (isset($cellColors[$key][$rawValue])) {
+              $colorDef = $cellColors[$key][$rawValue];
+              $bg = is_array($colorDef) ? ($colorDef['bg'] ?? null) : $colorDef;
+              $txt = is_array($colorDef) ? ($colorDef['text'] ?? null) : null;
+              if ($bg) $cellStyle .= "background-color:#{$bg};";
+              if ($txt) $cellStyle .= "color:#{$txt};";
+            }
+          }
+        @endphp
+        <td class="{{ $getColumnClass($key) }} {{ is_numeric(data_get($row, $key)) ? 'numeric' : '' }}" style="{{ $cellStyle }}">
           @php
             // Si hay un accessor definido, usarlo
             if (is_array($column) && isset($column['accessor'])) {
