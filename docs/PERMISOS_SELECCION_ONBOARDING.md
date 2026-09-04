@@ -105,6 +105,19 @@ Frontend: `src/features/gp/gestionhumana/gestion-de-personal/procesos-postulacio
 - **Diferido a F2 (`seleccionados`)**: carta oferta, cronograma asignado, email de bienvenida, alta.
   El endpoint `status` con tipo 6 solo marca el tipo + asigna docs de seleccionado.
 
+### Frontend F1 — mejoras adicionales (04/09/2026)
+
+- **Pantalla "Postulantes del proceso"** (`procesos-postulacion/postulantes?proceso_id=<id>`, sin
+  vista/permiso propio — reutiliza el permiso de `procesos-postulacion`): detalle filtrado de un
+  solo proceso, accesible desde el botón "Ver postulantes" (icono `Users`) en cada fila de
+  `procesos-postulacion`. Desde ahí solo se puede agregar un postulante nuevo (el proceso llega
+  bloqueado/preseleccionado en el formulario vía `?proceso_id=`) y gestionar los ya existentes de
+  ese proceso (cambiar estado, anular); no reemplaza el listado general de `postulantes`.
+- **Consulta por DNI (RENIEC)** en `ApplicantForm`: botón de búsqueda dentro del campo `vat` que
+  llama a `useDniValidation` (infraestructura ya existente en `shared/hooks/useDocumentValidation.ts`
+  + `DocumentValidationController`/`DocumentValidationService`, provider Factiliza) y autocompleta
+  nombre completo, sexo, fecha de nacimiento, departamento/provincia/distrito y dirección.
+
 ### Backend F1 — Procesos de Postulación (implementado)
 
 - `app/Models/gp/gestionhumana/reclutamiento/RecruitmentProcess.php` (`rrhh_proceso_postulacion`)

@@ -1213,8 +1213,19 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
     }
 
-    if ($shippingGuide->is_accounted && $shippingGuide->is_annulled) {
-      throw new Exception('La guía de remisión ya ha sido contabilizada y ya fue anulada');
+    // Una guía anulada que ya fue contabilizada solo bloquea el re-sync cuando la
+    // reversión en Dynamics (dyn_series + '*') ya quedó confirmada — dyn_series ya
+    // habrá sido actualizado a esa serie por SyncShippingGuideDynamicsJob. Mientras
+    // eso no ocurra, se permite despachar el job para que consulte Dynamics y la
+    // sincronización apunte a la nueva serie (con '*'), no a la original ya contabilizada.
+    if (
+      $shippingGuide->is_accounted
+      && $shippingGuide->is_annulled
+      && str_ends_with((string) $shippingGuide->dyn_series, '*')
+    ) {
+      throw new Exception(
+        "La guía de remisión ya fue anulada y su reversión ({$shippingGuide->dyn_series}) ya está contabilizada en Dynamics"
+      );
     }
 
     if ($shippingGuide->area_id === ApMasters::AREA_POSVENTA) {
@@ -1532,6 +1543,9 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
     $deletedFromIntermediate = [];
 
     if ($dynSeries) {
+      // dyn_series puede haber quedado actualizado a la serie de reversión (con '*')
+      // si la guía llegó a anularse; se limpia el sufijo para no generar '**'.
+      $baseDynSeries = rtrim($dynSeries, '*');
       $isSale = $guide->transfer_reason_id === SunatConcepts::TRANSFER_REASON_VENTA;
 
       if ($isSale) {
@@ -1540,14 +1554,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
           ['table' => 'neInTbTransaccionInventarioDet', 'key' => 'TransaccionId'],
           ['table' => 'neInTbTransaccionInventario',    'key' => 'TransaccionId'],
         ];
-        $ids = [$dynSeries, $dynSeries . '*'];
+        $ids = [$baseDynSeries, $baseDynSeries . '*'];
       } else {
         $tables = [
           ['table' => 'neInTbTransferenciaInventarioDtS', 'key' => 'TransferenciaId'],
           ['table' => 'neInTbTransferenciaInventarioDet', 'key' => 'TransferenciaId'],
           ['table' => 'neInTbTransferenciaInventario',    'key' => 'TransferenciaId'],
         ];
-        $ids = [$dynSeries, $dynSeries . '*'];
+        $ids = [$baseDynSeries, $baseDynSeries . '*'];
       }
 
       foreach ($tables as $entry) {
