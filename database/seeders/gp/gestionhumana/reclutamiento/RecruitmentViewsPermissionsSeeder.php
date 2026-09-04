@@ -12,8 +12,9 @@ use Illuminate\Support\Facades\DB;
  * Vistas (config_vista) y permisos del modulo "Reclutamiento y Seleccion" en namu-frontend,
  * migracion incremental desde web_millagp_2 (controllers app/Http/Controllers/Reclutamiento/*).
  *
- * Fase 1 (Postulacion): contenedor "Reclutamiento y Seleccion" (hijo de Gestion Humana = 77)
- * + vista hija "Procesos de Postulacion" (legacy idVista 50, ProcesoPostulacionController).
+ * Fase 1 (Postulacion): las vistas de reclutamiento cuelgan de "Gestion de Personal" (vista 456),
+ * como hermanas de "Trabajadores" (457). Empieza con "Procesos de Postulacion"
+ * (legacy idVista 50, ProcesoPostulacionController).
  *
  * Idempotente: updateOrCreate en vistas/permisos + PermissionService::savePermissionsToRole (upsert).
  *
@@ -23,9 +24,9 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
 {
   public function run(): void
   {
-    $GP = 4;              // company_id del arbol "Gestion Humana"
-    $ghRootId = 77;       // Vista raiz "Gestion Humana"
-    $idPadre = 381;       // idPadre legacy del arbol GH
+    $GP = 4;                  // company_id del arbol "Gestion Humana"
+    $personalMgmtId = 456;    // Vista "Gestion de Personal" (padre de "Trabajadores" = 457)
+    $idPadre = 381;           // idPadre legacy del arbol GH
 
     // Roles del cluster de Gestion Humana que ya ven "Trabajadores" (permisos 410-413).
     $roleIds = [
@@ -48,28 +49,18 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
 
     DB::beginTransaction();
     try {
-      // ── Contenedor: "Reclutamiento y Seleccion" (submodule, sin ruta propia) ──
-      $container = View::updateOrCreate(
-        ['slug' => 'reclutamiento-y-seleccion', 'company_id' => $GP, 'parent_id' => $ghRootId],
-        [
-          'descripcion' => 'Reclutamiento y Seleccion',
-          'submodule'   => true,
-          'route'       => '',
-          'ruta'        => '-',
-          'icon'        => 'UserSearch',
-          'company_id'  => $GP,
-          'parent_id'   => $ghRootId,
-          'idPadre'     => $idPadre,
-        ]
-      );
-      $this->command->info("  Contenedor: Reclutamiento y Seleccion (ID: {$container->id})");
-
-      // ── Vistas hoja de la fase 1 ──
+      // ── Vistas hoja de la fase 1 (hermanas de "Trabajadores", hijas de 456) ──
       $modules = [
         [
           'descripcion' => 'Procesos de Postulacion',
           'route'       => 'procesos-postulacion',
           'icon'        => 'ClipboardList',
+          'module'      => 'reclutamiento',
+        ],
+        [
+          'descripcion' => 'Administracion de Postulantes',
+          'route'       => 'postulantes',
+          'icon'        => 'Users',
           'module'      => 'reclutamiento',
         ],
       ];
@@ -78,7 +69,7 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
 
       foreach ($modules as $mod) {
         $view = View::updateOrCreate(
-          ['route' => $mod['route'], 'company_id' => $GP, 'parent_id' => $container->id],
+          ['route' => $mod['route'], 'company_id' => $GP, 'parent_id' => $personalMgmtId],
           [
             'descripcion' => $mod['descripcion'],
             'submodule'   => false,
@@ -87,7 +78,7 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
             'ruta'        => '-',
             'icon'        => $mod['icon'],
             'company_id'  => $GP,
-            'parent_id'   => $container->id,
+            'parent_id'   => $personalMgmtId,
             'idPadre'     => $idPadre,
           ]
         );
@@ -123,8 +114,8 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
       DB::commit();
 
       $this->command->info('════════════════════════════════════════════════════════');
-      $this->command->info('  Reclutamiento y Seleccion — Fase 1');
-      $this->command->info('  Contenedor + ' . count($modules) . ' vista(s), ' . count($permissionIds) . ' permisos.');
+      $this->command->info('  Reclutamiento — Fase 1 (hijas de Gestion de Personal / 456)');
+      $this->command->info('  ' . count($modules) . ' vista(s), ' . count($permissionIds) . ' permisos.');
       $this->command->info('  Roles actualizados: ' . implode(', ', $roleIds));
       $this->command->info('════════════════════════════════════════════════════════');
     } catch (\Exception $e) {
