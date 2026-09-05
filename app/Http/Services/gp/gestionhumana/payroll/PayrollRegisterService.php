@@ -7,7 +7,7 @@ use App\Http\Resources\gp\gestionhumana\payroll\PayrollRegisterResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
-use App\Models\gp\gestionhumana\payroll\PayrollFamilyAllowance;
+use App\Models\gp\gestionhumana\payroll\PayrollExclusion;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
@@ -24,6 +24,13 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PayrollRegisterService extends BaseService
 {
+    /**
+     * Monto fijo de asignación familiar (10% RMV) usado como default si GeneralMaster
+     * no tiene un valor vigente para 'FAMILY_ALLOWANCE' en la fecha de referencia — mismo
+     * valor/patrón que PayrollLiquidationBbssService::FAMILY_ALLOWANCE_AMOUNT.
+     */
+    private const FAMILY_ALLOWANCE_AMOUNT = 113.00;
+
     public function list(Request $request)
     {
         return $this->getFilteredResults(
@@ -109,14 +116,20 @@ class PayrollRegisterService extends BaseService
                     ->where('company_id', $companyId)
                     ->first();
 
-                // Obtener asignación familiar
-                $familyAllowances = PayrollFamilyAllowance::where('period_id', $periodId)
-                    ->where('worker_id', $worker->id)
-                    ->where('applies', true)
-                    ->get();
+                // Asignación familiar: automática (monto fijo) para todo trabajador con
+                // rrhh_persona.asignacion = 'SI', salvo exclusión puntual en
+                // gh_payroll_exclusions — mismo criterio que PayrollLiquidationBbssService,
+                // en vez del registro manual en gh_payroll_family_allowance (esa tabla nunca
+                // se llenaba en la práctica, dejando a trabajadores con hijos sin el monto).
+                $familyAllowanceExcluded = PayrollExclusion::where('worker_id', $worker->id)
+                    ->where('period_id', $periodId)
+                    ->where('concept', PayrollExclusion::CONCEPT_FAMILY_ALLOWANCE)
+                    ->exists();
 
-                $familyAllowanceAmount = $familyAllowances->sum('amount');
-                $hasFamilyAllowance = $familyAllowances->isNotEmpty();
+                $hasFamilyAllowance = $worker->asignacion === 'SI' && !$familyAllowanceExcluded;
+                $familyAllowanceAmount = $hasFamilyAllowance
+                    ? (float)GeneralMaster::valueAt('FAMILY_ALLOWANCE', $period->end_date, self::FAMILY_ALLOWANCE_AMOUNT)
+                    : 0.0;
 
                 // Obtener bonificaciones (ejemplo: bono comercial, producción, etc.)
                 $bonuses = PayrollBonus::where('period_id', $periodId)
@@ -203,6 +216,16 @@ class PayrollRegisterService extends BaseService
                     $vacationPay = round($daysVacation * $vacationHourValue, 2);
                 }
 
+                // Básico "de contrato" (sin la excepción de indeterminado): SCTR y
+                // Vida Ley se cotizan ante la aseguradora con el sueldo tal como consta
+                // en rrhh_contrato, aunque esté desactualizado frente al sueldo actual
+                // de rrhh_persona que sí usamos para basic_salary/monthly_salary.
+                $contractMonthlySalary = WorkerContract::contractSalaryForWorkerAtDate($worker->id, $period->end_date)
+                    ?? $monthlySalary;
+                $contractBasicSalary = $contractMonthlySalary == $monthlySalary
+                    ? $basicSalary
+                    : round($contractMonthlySalary / 30 * $daysWorked, 2);
+
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
                     'family_allowance' => $familyAllowanceAmount,
@@ -217,8 +240,14 @@ class PayrollRegisterService extends BaseService
                     'vacation_pay' => $vacationPay,
                 ]);
 
+                // Base de ingresos para SCTR: igual a total_income pero con el básico
+                // de contrato en vez del básico actual (ver $contractBasicSalary arriba).
+                $sctrTotalIncome = $contractBasicSalary == $basicSalary
+                    ? $totalIncome
+                    : round($totalIncome - $basicSalary + $contractBasicSalary, 2);
+
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
-                $employerContributions = $this->calculateEmployerContributions($worker, $basicSalary, $totalIncome, $period->end_date);
+                $employerContributions = $this->calculateEmployerContributions($worker, $contractBasicSalary, $familyAllowanceAmount, $totalIncome, $sctrTotalIncome, $period->end_date);
 
                 // Descuentos ONP/AFP (según rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones)
                 $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome);
@@ -513,17 +542,29 @@ class PayrollRegisterService extends BaseService
      * - SCTR (salud + pensión): 0.50% + 0.50% sobre el total de ingresos, solo si el
      *   trabajador está afiliado (rrhh_persona.estado_sctr = 'SI'). SCTR pensión tiene
      *   tope en la RMA (Remuneración Máxima Asegurable).
-     * - Vida Ley: (sueldo básico x 3.12%) x (1 + IGV) / 12, prorrateado a cuota mensual
-     *   (fórmula confirmada contra "CALCULO VIDA LEY TP - POR PERSONA POLIZA 2025-2026.xlsx").
+     * - Vida Ley: ((sueldo básico + asignación familiar) x 3.12%) x (1 + IGV) / 12,
+     *   prorrateado a cuota mensual (fórmula confirmada contra "CALCULO VIDA LEY TP - POR
+     *   PERSONA POLIZA 2025-2026.xlsx": la aseguradora factura sobre básico + asignación,
+     *   no sobre el básico solo).
+     *
+     * SCTR y Vida Ley usan el sueldo básico TAL COMO CONSTA EN EL CONTRATO
+     * (rrhh_contrato), no el sueldo actual de rrhh_persona — se cotizan/declaran ante
+     * la aseguradora/SUNAT con el sueldo contractual, aunque esté desactualizado
+     * frente a un aumento reciente que no reemplazó el contrato (caso indeterminado).
+     * EsSalud, en cambio, sí usa el total de ingresos "real" del periodo.
      *
      * @param Worker $worker
-     * @param float $basicSalary
-     * @param float $totalIncome
+     * @param float $contractBasicSalary Básico según rrhh_contrato (sin la excepción de
+     *        indeterminado) — base de Vida Ley y, dentro de $sctrTotalIncome, de SCTR.
+     * @param float $familyAllowance
+     * @param float $totalIncome Total de ingresos real del periodo — base de EsSalud.
+     * @param float $sctrTotalIncome Igual a $totalIncome pero con el básico de contrato
+     *        en vez del básico actual — base de SCTR.
      * @param string|null $referenceDate Fecha (fin del periodo) para resolver las tasas/RMV
      *        vigentes en ese momento, no las de hoy — ver GeneralMaster::valueAt().
      * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, life_insurance: float, total: float}
      */
-    private function calculateEmployerContributions(Worker $worker, float $basicSalary, float $totalIncome, ?string $referenceDate = null): array
+    private function calculateEmployerContributions(Worker $worker, float $contractBasicSalary, float $familyAllowance, float $totalIncome, float $sctrTotalIncome, ?string $referenceDate = null): array
     {
         $referenceDate = $referenceDate ?? now()->format('Y-m-d');
 
@@ -544,14 +585,16 @@ class PayrollRegisterService extends BaseService
         $sctrHealth = 0.0;
         $sctrPension = 0.0;
         if ($isSctrAffiliated) {
-            $sctrHealth = round($totalIncome * $sctrHealthRate, 2);
-            $sctrPensionBase = min($totalIncome, $insurableMaxRemuneration);
+            $sctrHealth = round($sctrTotalIncome * $sctrHealthRate, 2);
+            $sctrPensionBase = min($sctrTotalIncome, $insurableMaxRemuneration);
             $sctrPension = round($sctrPensionBase * $sctrPensionRate, 2);
         }
         $sctrTotal = round($sctrHealth + $sctrPension, 2);
 
-        // Vida Ley: prima anual por persona sobre el básico, + IGV, prorrateada a 12 meses.
-        $lifeInsuranceAnnualCost = $basicSalary * $lifeInsuranceRate;
+        // Vida Ley: prima anual por persona sobre básico (de contrato) + asignación
+        // familiar, + IGV, prorrateada a 12 meses.
+        $lifeInsuranceBase = $contractBasicSalary + $familyAllowance;
+        $lifeInsuranceAnnualCost = $lifeInsuranceBase * $lifeInsuranceRate;
         $lifeInsuranceAnnualWithIgv = $lifeInsuranceAnnualCost * (1 + $igvRate);
         $lifeInsurance = round($lifeInsuranceAnnualWithIgv / 12, 2);
 

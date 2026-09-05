@@ -29,6 +29,29 @@ class WorkerContract extends BaseModel
     }
 
     /**
+     * ID de rrhh_tipo_contrato para "INDETERMINADO" (cacheado por request).
+     * A diferencia de los contratos a plazo fijo (que sí se renuevan/reemplazan
+     * en rrhh_contrato cada vez que cambia el sueldo), a los trabajadores con
+     * contrato indeterminado no se les vuelve a contratar tras un aumento —
+     * RRHH solo actualiza rrhh_persona.sueldo directamente — así que el monto
+     * guardado en su último contrato queda desactualizado indefinidamente.
+     */
+    private static function indeterminadoTipoContratoId(): ?int
+    {
+        static $id = null;
+        static $resolved = false;
+
+        if (!$resolved) {
+            $id = \DB::table('rrhh_tipo_contrato')
+                ->where('descripcion', 'INDETERMINADO')
+                ->value('id');
+            $resolved = true;
+        }
+
+        return $id;
+    }
+
+    /**
      * Sueldo vigente de un trabajador en una fecha dada, según su historial de
      * contratos (rrhh_contrato) — evita usar rrhh_persona.sueldo (siempre el
      * sueldo ACTUAL) al generar planillas de periodos pasados, donde el
@@ -40,8 +63,53 @@ class WorkerContract extends BaseModel
      * había iniciado antes de esa fecha. Devuelve null si el trabajador no
      * tiene ningún contrato con sueldo registrado — el llamador debe hacer
      * fallback a rrhh_persona.sueldo.
+     *
+     * Excepción: si el contrato resuelto es el ÚLTIMO contrato del trabajador
+     * (no existe uno posterior) y es de tipo INDETERMINADO, se devuelve null
+     * a propósito para que el llamador use rrhh_persona.sueldo — un contrato
+     * indeterminado nunca se reemplaza al subir el sueldo, así que su columna
+     * `sueldo` no es confiable como fuente de verdad para ese caso.
      */
     public static function salaryForWorkerAtDate(int $workerId, string $date): ?float
+    {
+        $contract = self::resolveContractAtDate($workerId, $date);
+
+        if (!$contract) {
+            return null;
+        }
+
+        $indeterminadoId = self::indeterminadoTipoContratoId();
+        if ($indeterminadoId !== null && $contract->tipo_contrato_id === $indeterminadoId) {
+            $isLastContract = !static::where('empleado_id', $workerId)
+                ->where('status_deleted', 1)
+                ->where('fecha_inicio_contrato', '>', $contract->fecha_inicio_contrato)
+                ->exists();
+
+            if ($isLastContract) {
+                return null;
+            }
+        }
+
+        return (float)$contract->sueldo;
+    }
+
+    /**
+     * Sueldo literal registrado en rrhh_contrato para una fecha dada, SIN la excepción
+     * de "último contrato indeterminado" que aplica salaryForWorkerAtDate().
+     *
+     * Uso: SCTR y Vida Ley se declaran/cotizan ante la aseguradora con el sueldo tal
+     * como consta en el contrato vigente, aunque esté desactualizado frente al sueldo
+     * real actual de rrhh_persona — a diferencia del básico de planilla (basic_salary/
+     * monthly_salary), que sí debe reflejar el sueldo actual para esos casos.
+     */
+    public static function contractSalaryForWorkerAtDate(int $workerId, string $date): ?float
+    {
+        $contract = self::resolveContractAtDate($workerId, $date);
+
+        return $contract ? (float)$contract->sueldo : null;
+    }
+
+    private static function resolveContractAtDate(int $workerId, string $date): ?self
     {
         $base = static::where('empleado_id', $workerId)
             ->where('status_deleted', 1)
@@ -65,6 +133,6 @@ class WorkerContract extends BaseModel
                 ->first();
         }
 
-        return $contract ? (float)$contract->sueldo : null;
+        return $contract;
     }
 }
