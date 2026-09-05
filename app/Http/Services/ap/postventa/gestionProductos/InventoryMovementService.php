@@ -312,6 +312,7 @@ class InventoryMovementService extends BaseService
         'notes' => $data['notes'] ?? $this->getDefaultNotes($data['movement_type']),
         'total_items' => 0,
         'total_quantity' => 0,
+        'movement_number_dyn' => $data['movement_number_dyn'] ?? null,
       ]);
 
       // Create movement details
