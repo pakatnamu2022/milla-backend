@@ -183,7 +183,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
             ->whereNull('deleted_at')
             ->exists();
 
-          if (!$slotTaken) {
+          // Para hoy se permite cualquier horario; para otros días debe existir
+          // ya una entrega en ese slot.
+          if (!$slotTaken && !$scheduledDate->isToday()) {
             throw new Exception('Para una entrega extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
           }
 
@@ -670,7 +672,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
             ->whereNull('deleted_at')
             ->exists();
 
-          if (!$slotTaken) {
+          // Para hoy se permite cualquier horario; para otros días debe existir
+          // ya una entrega en ese slot.
+          if (!$slotTaken && !$scheduledDate->isToday()) {
             throw new Exception('Para una entrega extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
           }
         }
@@ -753,7 +757,9 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
         ->whereNull('deleted_at')
         ->exists();
 
-      if (!$slotTaken) {
+      // Para hoy se permite cualquier horario; para otros días debe existir
+      // ya una entrega en ese slot.
+      if (!$slotTaken && !$newDate->isToday()) {
         throw new Exception('Para una reprogramación extraordinaria, el horario seleccionado debe tener ya una entrega programada.');
       }
     } else {
@@ -1378,13 +1384,16 @@ class ApVehicleDeliveryService extends BaseService implements BaseServiceInterfa
     $result = [];
 
     if ($isExtraordinary) {
-      // Extraordinario: solo slots que ya están tomados (hoy o mañana, sin filtro de hora)
+      $isToday = $day->isSameDay($now);
       foreach ($slots as $time) {
-        if (in_array($time, $takenDatetimes, true)) {
+        // Hoy: se habilitan todos los horarios. Otros días (mañana): solo los que
+        // ya tienen una entrega programada.
+        if ($isToday || in_array($time, $takenDatetimes, true)) {
           $result[] = [
             'time'      => $time,
             'datetime'  => $date . ' ' . $time . ':00',
             'available' => true,
+            'taken'     => in_array($time, $takenDatetimes, true),
           ];
         }
       }
