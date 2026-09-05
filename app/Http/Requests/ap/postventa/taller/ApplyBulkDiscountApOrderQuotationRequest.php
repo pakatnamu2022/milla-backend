@@ -89,15 +89,15 @@ class ApplyBulkDiscountApOrderQuotationRequest extends StoreRequest
     $generalMasterId = null;
 
     // Determinar qué general master usar según el cargo
-    if (in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+    if (in_array($positionId, Position::GERENTE_PV_IDS)) {
       $generalMasterId = GeneralMaster::MANAGER_DISCOUNT_PERCENTAGE_PV_ID;
-    } elseif (in_array($positionId, Position::AFTER_SALES_COORDINATOR)) {
+    } elseif (in_array($positionId, Position::COORDINADOR_PV_IDS)) {
       $generalMasterId = GeneralMaster::MANAGER_DISCOUNT_PERCENTAGE_PV_ID;
-    } elseif (in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS)) {
+    } elseif (in_array($positionId, Position::JEFE_TALLER_PV_IDS)) {
       $generalMasterId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVT_ID;
     } elseif (in_array($positionId, Position::ASESOR_SERVICIO_PV_IDS)) {
       $generalMasterId = GeneralMaster::ADVISOR_DISCOUNT_PERCENTAGE_PV_ID;
-    } elseif (in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS)) {
+    } elseif (in_array($positionId, Position::JEFE_REPUESTO_PV_IDS)) {
       $generalMasterId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID;
     }
 

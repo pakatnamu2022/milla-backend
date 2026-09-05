@@ -156,11 +156,11 @@ class DiscountRequestsWorkOrderService extends BaseService implements BaseServic
 
       //Obtenemos al Gerente y Jefe
       $manager = Worker::working()
-        ->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+        ->whereIn('cargo_id', Position::GERENTE_PV_IDS)
         ->first();
 
       $boss = Worker::working()
-        ->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
+        ->whereIn('cargo_id', Position::JEFE_TALLER_PV_IDS)
         ->first();
 
       $data['manager_id'] = $manager?->user->id;

@@ -17,7 +17,7 @@ use Throwable;
  * es recepcionado y contabilizado en Dynamics.
  *
  * Notifica a 3 grupos de stakeholders:
- * 1. Gerencia de Postventa
+ * 1. Toda la plana de Postventa (según reglas de sede y cargo)
  * 2. Jefes de Almacén
  * 3. Usuarios que solicitaron los productos
  */
@@ -46,11 +46,11 @@ class InvoiceAccountedNotificationService
    */
   public function notifyAll(PurchaseOrder $purchaseOrder): void
   {
-    // 1. Notificar a gerencia
+    // 1. Notificar a toda la plana de postventa
     try {
-      $this->notifyManagers($purchaseOrder);
+      $this->notifyPostventaTeam($purchaseOrder);
     } catch (Throwable $e) {
-      Log::error("Error al notificar a gerencia para OC #{$purchaseOrder->id}: {$e->getMessage()}");
+      Log::error("Error al notificar a plana de postventa para OC #{$purchaseOrder->id}: {$e->getMessage()}");
     }
 
     // 2. Notificar a jefes de almacén
@@ -71,13 +71,18 @@ class InvoiceAccountedNotificationService
   }
 
   /**
-   * Notifica a gerencia cuando el comprobante está recepcionado, con el detalle
-   * de los repuestos recibidos en la recepción (purchase_receptions / purchase_reception_details)
+   * Notifica a toda la plana de postventa cuando el comprobante está recepcionado,
+   * con el detalle de los repuestos recibidos en la recepción
+   *
+   * Envía correos a:
+   * - Todas las sedes: Gerente PV, Coordinador PV, Jefe Almacén, Jefe Repuesto
+   * - Según sede: Asesor Servicio, Auxiliar Servicio, Asesor Repuestos, Jefe Taller,
+   *   Coordinador Taller, Asistente PV, Asistente Almacén, Codificador
    *
    * @param PurchaseOrder $purchaseOrder
    * @return void
    */
-  public function notifyManagers(PurchaseOrder $purchaseOrder): void
+  public function notifyPostventaTeam(PurchaseOrder $purchaseOrder): void
   {
     // Cargar relaciones necesarias
     $purchaseOrder->load([
@@ -104,9 +109,38 @@ class InvoiceAccountedNotificationService
 
     $sedeId = $purchaseOrder->sede_id;
 
-    // Obtener solo usuarios con cargo de Gerente de Postventa asignados a la sede
-    $managers = User::whereHas('person', function ($query) {
-      $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+    // IDs de cargos que reciben notificaciones de TODAS LAS SEDES (sin filtro de sede)
+    $allSedesPositionIds = array_merge(
+      Position::GERENTE_PV_IDS,
+      Position::COORDINADOR_PV_IDS,
+      Position::JEFE_ALMACEN_PV_IDS,
+      Position::JEFE_REPUESTO_PV_IDS
+    );
+
+    // IDs de cargos que reciben notificaciones SEGÚN LA SEDE (con filtro de sede)
+    $sedeSpecificPositionIds = array_merge(
+      Position::ASESOR_SERVICIO_PV_IDS,
+      Position::AUXILIAR_SERVICIO_PV_IDS,
+      Position::ASESOR_REPUESTOS_PV_IDS,
+      Position::JEFE_TALLER_PV_IDS,
+      Position::COORDINADOR_TALLER_IDS,
+      Position::ASISTENTE_PV_IDS,
+      Position::ASISTENTE_ALMACEN_PV_IDS,
+      Position::CODIFICADOR_PV_IDS
+    );
+
+    // Obtener usuarios con cargos que reciben de TODAS LAS SEDES (sin filtro de sede)
+    $allSedesUsers = User::whereHas('person', function ($query) use ($allSedesPositionIds) {
+      $query->whereIn('cargo_id', $allSedesPositionIds)
+        ->where('status_deleted', 1)
+        ->where('status_id', 22);
+    })
+      ->with('person.position')
+      ->get();
+
+    // Obtener usuarios con cargos específicos de la SEDE (con filtro de sede)
+    $sedeSpecificUsers = User::whereHas('person', function ($query) use ($sedeSpecificPositionIds) {
+      $query->whereIn('cargo_id', $sedeSpecificPositionIds)
         ->where('status_deleted', 1)
         ->where('status_id', 22);
     })
@@ -114,11 +148,14 @@ class InvoiceAccountedNotificationService
         $query->where('config_sede.id', $sedeId)
           ->where('assigment_user_sede.status', true);
       })
-      ->with('person')
+      ->with('person.position')
       ->get();
 
-    if ($managers->isEmpty()) {
-      Log::warning("#{$purchaseOrder->number}: No se encontraron gerentes de postventa para la sede {$sedeId}.");
+    // Combinar ambos grupos y eliminar duplicados por ID de usuario
+    $allUsers = $allSedesUsers->merge($sedeSpecificUsers)->unique('id');
+
+    if ($allUsers->isEmpty()) {
+      Log::warning("#{$purchaseOrder->number}: No se encontraron usuarios de la plana de postventa para notificar.");
       return;
     }
 
@@ -152,27 +189,25 @@ class InvoiceAccountedNotificationService
     file_put_contents($pdfPath, $pdf->output());
     $pdfFileName = 'Recepcion_OC_' . $purchaseOrder->number . '_' . now()->format('Ymd') . '.pdf';
 
-    // Enviar correo a cada gerente
+    // Enviar correo a cada usuario de la plana de postventa
+    foreach ($allUsers as $user) {
+      $userEmail = $user->person?->email2;
 
-    foreach ($managers as $manager) {
-      $managerEmail = $manager->person?->email2;
-
-      if ($managerEmail) {
+      if ($userEmail) {
         try {
           $this->emailService->queue([
-            'to' => $managerEmail,
+            'to' => $userEmail,
             'subject' => $subject,
             'template' => 'emails.purchase-order-warehouse-notification',
             'data' => array_merge($emailData, [
-              'recipient_name' => $manager->person->nombre_completo ?? 'Gerente',
+              'recipient_name' => $user->person->nombre_completo ?? 'Usuario',
             ]),
             'attachments' => [
               ['path' => $pdfPath, 'name' => $pdfFileName, 'mime' => 'application/pdf']
             ],
           ]);
-          break; // 👈 Solo envía uno para testing
         } catch (\Exception $e) {
-          Log::error("Error al enviar correo al gerente (User ID: {$manager->id}): " . $e->getMessage());
+          Log::error("Error al enviar correo a usuario de plana PV (User ID: {$user->id}): " . $e->getMessage());
         }
       }
     }
