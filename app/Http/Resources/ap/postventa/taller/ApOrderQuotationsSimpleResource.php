@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\ap\postventa\taller;
 
+use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -48,6 +49,7 @@ class ApOrderQuotationsSimpleResource extends JsonResource
         'phone' => $this->client?->phone,
         'email' => $this->client?->email,
       ]),
+      'warehouse_id' => Warehouse::getPhysicalWarehouseForPostsale($this->sede_id)?->id,
     ];
   }
 }
