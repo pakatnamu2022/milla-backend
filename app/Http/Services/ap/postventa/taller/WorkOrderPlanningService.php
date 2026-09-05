@@ -553,26 +553,53 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       $planning->delete();
 
-      // Verificar si todos los trabajos restantes de la OT están completados
-      // Si es así, marcar la OT como trabajo terminado
-      $pendingPlannings = $workOrder->plannings()
-        ->whereIn('status', ['planned', 'in_progress'])
-        ->count();
-
-      if ($pendingPlannings === 0) {
-        // Verificar que haya al menos un trabajo completado
-        $completedPlannings = $workOrder->plannings()
-          ->where('status', 'completed')
-          ->count();
-
-        if ($completedPlannings > 0) {
-          $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
-          $workOrder->save();
-        }
-      }
+      // Recalcular el estado de la OT en base a las planificaciones restantes
+      // (por ejemplo, si se elimina por error la planificación ya completada
+      // de un técnico, la OT debe retroceder al estado que le corresponda)
+      $this->recalculateWorkOrderStatusAfterPlanningChange($workOrder);
 
       return response()->json(['message' => 'Planificación eliminada correctamente']);
     });
+  }
+
+  /**
+   * Recalcula el status_id de la orden de trabajo en base a sus planificaciones
+   * activas, después de eliminar o cancelar una de ellas.
+   *
+   * Reglas:
+   * - Si queda algún trabajo en curso (in_progress) -> AT_WORK
+   * - Si no hay ninguno en curso pero sí planificado (planned) sin iniciar -> vuelve
+   *   a RECEIVED/OPENING (según validación de recepción), porque nadie ha empezado a trabajar aún
+   * - Si no queda ningún trabajo pendiente pero sí hay completados -> END_WORK
+   * - Si no queda ningún trabajo (ni pendiente ni completado) -> RECEIVED/OPENING (según validación de recepción)
+   *
+   * No modifica el estado si la OT ya está en un estado terminal
+   * (finalizada, cerrada o anulada).
+   */
+  private function recalculateWorkOrderStatusAfterPlanningChange(ApWorkOrder $workOrder): void
+  {
+    if ($workOrder->isInTerminalState()) {
+      return;
+    }
+
+    $inProgressCount = $workOrder->plannings()->where('status', 'in_progress')->count();
+    $pendingCount = $workOrder->plannings()->whereIn('status', ['planned', 'in_progress'])->count();
+    $completedCount = $workOrder->plannings()->where('status', 'completed')->count();
+
+    if ($pendingCount > 0) {
+      $newStatusId = $inProgressCount > 0
+        ? ApMasters::AT_WORK_WORK_ORDER_ID
+        : ($workOrder->shouldValidateReceipt() ? ApMasters::RECEIVED_WORK_ORDER_ID : ApMasters::OPENING_WORK_ORDER_ID);
+    } elseif ($completedCount > 0) {
+      $newStatusId = ApMasters::END_WORK_WORK_ORDER_ID;
+    } else {
+      $newStatusId = $workOrder->shouldValidateReceipt() ? ApMasters::RECEIVED_WORK_ORDER_ID : ApMasters::OPENING_WORK_ORDER_ID;
+    }
+
+    if ($newStatusId !== $workOrder->status_id) {
+      $workOrder->status_id = $newStatusId;
+      $workOrder->save();
+    }
   }
 
   /**
@@ -1037,35 +1064,7 @@ class WorkOrderPlanningService extends BaseService implements BaseServiceInterfa
 
       // 8. Verificar si la OT debe retroceder a estado anterior o marcarla como terminada
       $workOrder = ApWorkOrder::findOrFail($planning->work_order_id);
-      $activeOrPlannedWorks = $workOrder->plannings()
-        ->whereIn('status', ['planned', 'in_progress'])
-        ->count();
-
-      if ($activeOrPlannedWorks === 0) {
-        // No hay trabajos activos ni planificados
-        // Verificar si hay al menos un trabajo completado
-        $completedWorks = $workOrder->plannings()
-          ->where('status', 'completed')
-          ->count();
-
-        if ($completedWorks > 0) {
-          // Si hay trabajos completados, marcar la OT como "trabajo terminado"
-          $workOrder->status_id = ApMasters::END_WORK_WORK_ORDER_ID;
-        } else {
-          // Si NO hay trabajos completados (solo cancelados), retroceder al estado según validación
-          $validateReceipt = $workOrder->shouldValidateReceipt();
-
-          if ($validateReceipt) {
-            // Si valida recepción, retroceder a estado "recepcionado"
-            $workOrder->status_id = ApMasters::RECEIVED_WORK_ORDER_ID;
-          } else {
-            // Si no valida recepción, retroceder a estado "aperturado"
-            $workOrder->status_id = ApMasters::OPENING_WORK_ORDER_ID;
-          }
-        }
-
-        $workOrder->save();
-      }
+      $this->recalculateWorkOrderStatusAfterPlanningChange($workOrder);
 
       return new WorkOrderPlanningResource($planning->fresh(['worker', 'workOrder', 'sessions', 'canceledBy']));
     });
