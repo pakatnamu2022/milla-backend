@@ -196,9 +196,24 @@ class AssetService extends BaseService
         throw new Exception('El trabajador seleccionado no está activo.');
       }
 
+      $guide = $this->receptionGuide($vehicle);
+
       $assignedDate = $data['assigned_date']
-        ?? $this->receptionGuide($vehicle)?->issue_date?->format('Y-m-d')
+        ?? $guide?->issue_date?->format('Y-m-d')
         ?? now()->toDateString();
+
+      // La fecha de asignación no puede ser anterior a la fecha de recepción
+      // del vehículo (guía de recepción de compra).
+      $assignedDay = \Illuminate\Support\Carbon::parse($assignedDate)->startOfDay();
+
+      $receivedDate = $guide?->received_date;
+      if ($receivedDate && $assignedDay->lt($receivedDate->copy()->startOfDay())) {
+        throw new Exception('La fecha de asignación no puede ser anterior a la fecha de recepción del vehículo (' . $receivedDate->format('d/m/Y') . ').');
+      }
+
+      if ($assignedDay->gt(now()->startOfDay())) {
+        throw new Exception('La fecha de asignación no puede ser posterior a la fecha actual.');
+      }
 
       $asset = ApAsset::create([
         'ap_vehicle_id'    => $vehicle->id,

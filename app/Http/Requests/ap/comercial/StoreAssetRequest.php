@@ -19,8 +19,9 @@ class StoreAssetRequest extends StoreRequest
         'integer',
       ],
       'assigned_date' => [
-        'nullable',
+        'required',
         'date',
+        'before_or_equal:today',
       ],
       'observation' => [
         'nullable',
@@ -36,7 +37,9 @@ class StoreAssetRequest extends StoreRequest
       'ap_vehicle_id.required' => 'El vehículo es obligatorio.',
       'ap_vehicle_id.exists'   => 'El vehículo seleccionado no existe.',
       'worker_id.required'     => 'El trabajador es obligatorio.',
+      'assigned_date.required' => 'La fecha de asignación es obligatoria.',
       'assigned_date.date'     => 'La fecha de asignación no es válida.',
+      'assigned_date.before_or_equal' => 'La fecha de asignación no puede ser posterior a hoy.',
       'observation.max'        => 'La observación no puede exceder los 1000 caracteres.',
     ];
   }

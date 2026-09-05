@@ -72,6 +72,45 @@ class WorkerContract extends BaseModel
      */
     public static function salaryForWorkerAtDate(int $workerId, string $date): ?float
     {
+        $contract = self::resolveContractAtDate($workerId, $date);
+
+        if (!$contract) {
+            return null;
+        }
+
+        $indeterminadoId = self::indeterminadoTipoContratoId();
+        if ($indeterminadoId !== null && $contract->tipo_contrato_id === $indeterminadoId) {
+            $isLastContract = !static::where('empleado_id', $workerId)
+                ->where('status_deleted', 1)
+                ->where('fecha_inicio_contrato', '>', $contract->fecha_inicio_contrato)
+                ->exists();
+
+            if ($isLastContract) {
+                return null;
+            }
+        }
+
+        return (float)$contract->sueldo;
+    }
+
+    /**
+     * Sueldo literal registrado en rrhh_contrato para una fecha dada, SIN la excepción
+     * de "último contrato indeterminado" que aplica salaryForWorkerAtDate().
+     *
+     * Uso: SCTR y Vida Ley se declaran/cotizan ante la aseguradora con el sueldo tal
+     * como consta en el contrato vigente, aunque esté desactualizado frente al sueldo
+     * real actual de rrhh_persona — a diferencia del básico de planilla (basic_salary/
+     * monthly_salary), que sí debe reflejar el sueldo actual para esos casos.
+     */
+    public static function contractSalaryForWorkerAtDate(int $workerId, string $date): ?float
+    {
+        $contract = self::resolveContractAtDate($workerId, $date);
+
+        return $contract ? (float)$contract->sueldo : null;
+    }
+
+    private static function resolveContractAtDate(int $workerId, string $date): ?self
+    {
         $base = static::where('empleado_id', $workerId)
             ->where('status_deleted', 1)
             ->whereNotNull('sueldo')
@@ -94,22 +133,6 @@ class WorkerContract extends BaseModel
                 ->first();
         }
 
-        if (!$contract) {
-            return null;
-        }
-
-        $indeterminadoId = self::indeterminadoTipoContratoId();
-        if ($indeterminadoId !== null && $contract->tipo_contrato_id === $indeterminadoId) {
-            $isLastContract = !static::where('empleado_id', $workerId)
-                ->where('status_deleted', 1)
-                ->where('fecha_inicio_contrato', '>', $contract->fecha_inicio_contrato)
-                ->exists();
-
-            if ($isLastContract) {
-                return null;
-            }
-        }
-
-        return (float)$contract->sueldo;
+        return $contract;
     }
 }
