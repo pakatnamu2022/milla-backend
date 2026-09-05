@@ -79,16 +79,20 @@ class Position extends BaseModel
     });
   }
 
-  const array ASESOR_SERVICIO_PV_IDS = [144, 145, 146];
-  const array POSITION_JEFE_TALLER_PVT_IDS = [69, 99, 143, 246];
-  const array POSITION_JEFE_REPUESTO_PVT_IDS = [344];
-  const array POSITION_GERENTE_PV_IDS = [142];
-  const array AFTER_SALES_COORDINATOR = [141];
+  const array ASESOR_SERVICIO_PV_IDS = [63, 73, 89, 131];
+  const array AUXILIAR_SERVICIO_PV_IDS = [67, 95, 137, 370];
+  const array ASESOR_REPUESTOS_PV_IDS = [62, 72, 88, 130, 318, 349];
+  const array JEFE_TALLER_PV_IDS = [69, 99, 143, 246];
+  const array JEFE_REPUESTO_PV_IDS = [344];
+  const array COORDINADOR_TALLER_IDS = [68, 78, 98, 140];
+  const array ASISTENTE_PV_IDS = [90, 133];
+  const array COORDINADOR_PV_IDS = [141];
+  const array JEFE_ALMACEN_PV_IDS = [56, 86, 248];
+  const array ASISTENTE_ALMACEN_PV_IDS = [57, 87, 129, 233, 251, 309];
+  const array CODIFICADOR_PV_IDS = [77, 97, 139];
+  const array GERENTE_PV_IDS = [142];
   const array ZONAL_ACCOUNTING_ANALYST = [301, 302];
   const array HEAD_ACCOUNTING = [44, 288];
-  const array WAREHOUSE_ASSISTANT = [57, 87, 129, 233, 251, 309];
-  const array WAREHOUSE_MANAGER = [56, 86, 248];
-  const array WORKSHOP_COORDINATOR = [68, 78, 98, 140];
   const array TICS_ANALYST = [273];
   const array JEFE_TICS = [345];
 

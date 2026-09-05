@@ -1773,7 +1773,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de gerente
       if (isset($data['manager_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+        if (!in_array($positionId, Position::GERENTE_PV_IDS)) {
           throw new Exception('Solo el Gerente puede aprobar.');
         }
         if ($quotation->manager_approval_by) {
@@ -1784,7 +1784,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS)) {
+        if (!in_array($positionId, Position::JEFE_TALLER_PV_IDS)) {
           throw new Exception('Solo el Jefe de Taller puede aprobar.');
         }
         if ($quotation->chief_approval_by) {
@@ -1805,7 +1805,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 //        $quotation,
 //        $data,
 //        $user,
-//        Position::POSITION_JEFE_TALLER_PVT_IDS,
+//        Position::JEFE_TALLER_PV_IDS,
 //        'Jefe de Taller',
 //        'Taller'
 //      );
@@ -1879,7 +1879,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // 3. Notificar a los Gerentes
       $managerUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+        $query->whereIn('cargo_id', Position::GERENTE_PV_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();
@@ -1920,7 +1920,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de gerente
       if (isset($data['manager_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_GERENTE_PV_IDS)) {
+        if (!in_array($positionId, Position::GERENTE_PV_IDS)) {
           throw new Exception('Solo el Gerente puede aprobar.');
         }
         if ($quotation->manager_approval_by) {
@@ -1931,7 +1931,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS)) {
+        if (!in_array($positionId, Position::JEFE_REPUESTO_PV_IDS)) {
           throw new Exception('Solo el Jefe de Repuesto puede aprobar.');
         }
         if ($quotation->chief_approval_by) {
@@ -1952,7 +1952,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 //        $quotation,
 //        $data,
 //        $user,
-//        Position::POSITION_JEFE_REPUESTO_PVT_IDS,
+//        Position::JEFE_REPUESTO_PV_IDS,
 //        'Jefe de Repuesto',
 //        'Repuestos'
 //      );
@@ -2018,13 +2018,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Obtener usuarios con cargo de Jefe de Taller (143) y Gerente de Taller (142)
       $chiefUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
+        $query->whereIn('cargo_id', Position::JEFE_TALLER_PV_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();
 
       $managerUsers = User::whereHas('person', function ($query) {
-        $query->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+        $query->whereIn('cargo_id', Position::GERENTE_PV_IDS)
           ->where('status_deleted', 1)
           ->where('status_id', 22);
       })->get();

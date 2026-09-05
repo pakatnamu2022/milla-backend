@@ -131,8 +131,8 @@ class LowStockNotificationService
   {
     // Combinar los IDs de cargos de almacén (asistente y jefe)
     $warehousePositionIds = array_merge(
-      Position::WAREHOUSE_ASSISTANT,
-      Position::WAREHOUSE_MANAGER
+      Position::ASISTENTE_ALMACEN_PV_IDS,
+      Position::JEFE_ALMACEN_PV_IDS
     );
 
     // Obtener los usuarios con cargo de almacén asignados a la sede

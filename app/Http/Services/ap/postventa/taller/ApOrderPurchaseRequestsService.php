@@ -707,8 +707,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $positionId = (int)($user->person?->position?->id ?? 0);
 
-      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
-      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+      $isAfterSalesCoordinator = in_array($positionId, Position::COORDINADOR_PV_IDS, true);
+      $isGerente = in_array($positionId, Position::GERENTE_PV_IDS, true);
       $isTicsAnalyst = in_array($positionId, Position::TICS_ANALYST, true);
       $isJefeTics = in_array($positionId, Position::JEFE_TICS, true);
 
@@ -755,8 +755,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
     // Combinar los IDs de cargos de almacén (asistente y jefe)
     $warehousePositionIds = array_merge(
-      Position::WAREHOUSE_ASSISTANT,
-      Position::WAREHOUSE_MANAGER
+      Position::ASISTENTE_ALMACEN_PV_IDS,
+      Position::JEFE_ALMACEN_PV_IDS
     );
 
     // Obtener los usuarios con cargo de almacén asignados a la sede
@@ -822,7 +822,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
             'template' => 'emails.purchase-request-notification',
             'data' => array_merge($emailData, [
               'recipient_name' => $user->person->nombre_completo ?? 'Encargado de Almacén',
-              'recipient_role' => in_array($user->person->cargo_id, Position::WAREHOUSE_MANAGER)
+              'recipient_role' => in_array($user->person->cargo_id, Position::JEFE_ALMACEN_PV_IDS)
                 ? 'Jefe de Almacén'
                 : 'Asistente de Almacén',
             ]),
@@ -854,8 +854,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       $positionId = (int)($user->person?->position?->id ?? 0);
 
-      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
-      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+      $isAfterSalesCoordinator = in_array($positionId, Position::COORDINADOR_PV_IDS, true);
+      $isGerente = in_array($positionId, Position::GERENTE_PV_IDS, true);
 
       if (!($isAfterSalesCoordinator || $isGerente)) {
         throw new Exception('Solo Coordinadora de Postventa o Gerente pueden cancelar esta solicitud de compra.');
@@ -898,8 +898,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
       // Obtener usuarios con cargo de Coordinadora de Postventa y Jefe de Almacén
       $managerPositionIds = array_merge(
-        Position::AFTER_SALES_COORDINATOR,
-        Position::WAREHOUSE_MANAGER
+        Position::COORDINADOR_PV_IDS,
+        Position::JEFE_ALMACEN_PV_IDS
       );
 
       $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
@@ -957,8 +957,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
         if ($managerEmail) {
           try {
-            $isCoordinadora = in_array($manager->person->cargo_id, Position::AFTER_SALES_COORDINATOR);
-            $isJefeAlmacen = in_array($manager->person->cargo_id, Position::WAREHOUSE_MANAGER);
+            $isCoordinadora = in_array($manager->person->cargo_id, Position::COORDINADOR_PV_IDS);
+            $isJefeAlmacen = in_array($manager->person->cargo_id, Position::JEFE_ALMACEN_PV_IDS);
 
             $role = 'Jefatura';
             if ($isCoordinadora) {
@@ -1030,7 +1030,7 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
 
     // Obtener solo usuarios con cargo de Jefe de Almacén asignados a la sede
     $warehouseManagers = User::whereHas('person', function ($query) {
-      $query->whereIn('cargo_id', Position::WAREHOUSE_MANAGER)
+      $query->whereIn('cargo_id', Position::JEFE_ALMACEN_PV_IDS)
         ->where('status_deleted', 1)
         ->where('status_id', 22);
     })
