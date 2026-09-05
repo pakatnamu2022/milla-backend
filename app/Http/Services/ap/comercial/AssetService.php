@@ -250,6 +250,35 @@ class AssetService extends BaseService
     return AssetResource::make($asset);
   }
 
+  /**
+   * Historial de migración a Dynamics del activo: cabecera + logs por paso
+   * (transacción de inventario, detalle y serie), identificados por el vehículo.
+   */
+  public function migrationLogs(int $id): array
+  {
+    $asset = ApAsset::with(['vehicle.model.family.brand', 'worker'])->findOrFail($id);
+
+    $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('ap_vehicles_id', $asset->ap_vehicle_id)
+      ->whereIn('step', AssetMigrationLogService::STEPS)
+      ->orderBy('id')
+      ->get();
+
+    return [
+      'asset' => [
+        'id'               => $asset->id,
+        'vin'              => $asset->vehicle?->vin,
+        'plate'            => $asset->vehicle?->plate,
+        'transaction_id'   => $this->logService->buildAssetTransactionId($asset),
+        'dyn_series'       => $asset->dyn_series,
+        'worker'           => $asset->worker?->nombre_completo,
+        'assigned_date'    => $asset->assigned_date?->format('Y-m-d'),
+        'migration_status' => $asset->migration_status,
+        'created_at'       => $asset->created_at?->format('Y-m-d H:i:s'),
+      ],
+      'logs' => \App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource::collection($logs),
+    ];
+  }
+
   public function dispatchMigration(int $id): array
   {
     $asset = ApAsset::findOrFail($id);
