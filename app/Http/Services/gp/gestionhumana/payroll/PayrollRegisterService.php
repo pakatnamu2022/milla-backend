@@ -7,7 +7,7 @@ use App\Http\Resources\gp\gestionhumana\payroll\PayrollRegisterResource;
 use App\Http\Services\BaseService;
 use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
-use App\Models\gp\gestionhumana\payroll\PayrollFamilyAllowance;
+use App\Models\gp\gestionhumana\payroll\PayrollExclusion;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
@@ -24,6 +24,13 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PayrollRegisterService extends BaseService
 {
+    /**
+     * Monto fijo de asignación familiar (10% RMV) usado como default si GeneralMaster
+     * no tiene un valor vigente para 'FAMILY_ALLOWANCE' en la fecha de referencia — mismo
+     * valor/patrón que PayrollLiquidationBbssService::FAMILY_ALLOWANCE_AMOUNT.
+     */
+    private const FAMILY_ALLOWANCE_AMOUNT = 113.00;
+
     public function list(Request $request)
     {
         return $this->getFilteredResults(
@@ -109,14 +116,20 @@ class PayrollRegisterService extends BaseService
                     ->where('company_id', $companyId)
                     ->first();
 
-                // Obtener asignación familiar
-                $familyAllowances = PayrollFamilyAllowance::where('period_id', $periodId)
-                    ->where('worker_id', $worker->id)
-                    ->where('applies', true)
-                    ->get();
+                // Asignación familiar: automática (monto fijo) para todo trabajador con
+                // rrhh_persona.asignacion = 'SI', salvo exclusión puntual en
+                // gh_payroll_exclusions — mismo criterio que PayrollLiquidationBbssService,
+                // en vez del registro manual en gh_payroll_family_allowance (esa tabla nunca
+                // se llenaba en la práctica, dejando a trabajadores con hijos sin el monto).
+                $familyAllowanceExcluded = PayrollExclusion::where('worker_id', $worker->id)
+                    ->where('period_id', $periodId)
+                    ->where('concept', PayrollExclusion::CONCEPT_FAMILY_ALLOWANCE)
+                    ->exists();
 
-                $familyAllowanceAmount = $familyAllowances->sum('amount');
-                $hasFamilyAllowance = $familyAllowances->isNotEmpty();
+                $hasFamilyAllowance = $worker->asignacion === 'SI' && !$familyAllowanceExcluded;
+                $familyAllowanceAmount = $hasFamilyAllowance
+                    ? (float)GeneralMaster::valueAt('FAMILY_ALLOWANCE', $period->end_date, self::FAMILY_ALLOWANCE_AMOUNT)
+                    : 0.0;
 
                 // Obtener bonificaciones (ejemplo: bono comercial, producción, etc.)
                 $bonuses = PayrollBonus::where('period_id', $periodId)
