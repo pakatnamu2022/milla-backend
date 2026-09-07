@@ -1683,7 +1683,17 @@ class ProductWarehouseStockService extends BaseService
                 ->where('warehouse_id', $warehouseId);
             });
         })
-        ->where('status', InventoryMovement::STATUS_APPROVED);
+        ->where(function ($q) {
+          // Incluir movimientos APPROVED
+          $q->where('status', InventoryMovement::STATUS_APPROVED)
+            // TAMBIÉN incluir TRANSFER_OUT que están IN_TRANSIT
+            // (el producto ya salió físicamente del almacén origen, aunque no se haya recepcionado en el destino)
+            ->orWhere(function ($subQ) {
+              $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+                ->where('status', InventoryMovement::STATUS_IN_TRANSIT);
+            });
+        })
+        ->where('is_ignored', false); // Excluir movimientos descartados
 
       // Build movement type filter
       $movementTypes = [
@@ -2431,7 +2441,11 @@ class ProductWarehouseStockService extends BaseService
         ->first();
 
       if ($stock) {
-        $stock->quantity = $finalStock;
+        // IMPORTANTE: NO actualizamos quantity aquí porque ya se actualiza correctamente
+        // cuando se crean/aprueban/cancelan/ignoran movimientos (via moveStockToInTransit, addStock, removeStock, etc.)
+        // Solo recalculamos los COSTOS y PRECIOS basados en el historial
+        // $stock->quantity = $finalStock;  // ❌ NO - El stock físico ya está correcto
+
         $stock->average_cost = $finalAverageCost;
         $stock->cost_price = $lastCostPrice;
         $stock->sale_price = $salePrice;

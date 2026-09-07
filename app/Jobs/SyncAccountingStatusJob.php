@@ -120,7 +120,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           $document->update([
             'is_accounted' => true,
-            'is_annulled'  => $isAnnulled,
+            'is_annulled' => $isAnnulled,
           ]);
 
           if (!$wasAccounted && !$isAnnulled) {
@@ -144,30 +144,6 @@ class SyncAccountingStatusJob implements ShouldQueue
               'was_accounted_before' => $wasAccounted,
             ]);
 
-            // ⚠️ SIMULACIÓN: Loguear QUÉ VA A HACER antes de ejecutar
-            if (in_array($document->area_id, [ApMasters::AREA_TALLER, ApMasters::AREA_MESON])) {
-              $this->logSimulationBeforeProcessing($document);
-            }
-
-            // ⚠️ DD TEMPORAL - COMENTADO PARA EJECUTAR
-            // if (in_array($document->area_id, [ApMasters::AREA_TALLER, ApMasters::AREA_MESON])) {
-            //   dd([
-            //     'mensaje' => '🛑 PROCESO DETENIDO - Revisa storage/logs/laravel.log',
-            //     'document_id' => $document->id,
-            //     'full_number' => $document->full_number,
-            //     'area' => $document->area_id === ApMasters::AREA_TALLER ? 'TALLER' : 'MESON',
-            //     'credit_note_type' => $document->sunat_concept_credit_note_type_id,
-            //     'work_order_id' => $document->work_order_id,
-            //     'original_document_id' => $document->original_document_id,
-            //     'instrucciones' => [
-            //       '1. Busca en laravel.log: [STOCK-BEFORE] = Estado actual',
-            //       '2. Busca en laravel.log: [SIMULATION] = Qué va a hacer',
-            //       '3. Compara los valores para identificar el problema',
-            //       '4. Cuando lo arregles, comenta o elimina este dd()',
-            //     ]
-            //   ]);
-            // }
-
             if ($document->area_id === ApMasters::AREA_COMERCIAL) {
               // Comercial ya tiene su lógica (no tocar)
               $this->restoreVehicleToInventoryIfApplicable($document);
@@ -189,14 +165,14 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           $document->update([
             'is_accounted' => false,
-            'is_annulled'  => false,
+            'is_annulled' => false,
           ]);
         }
       } catch (Throwable $e) {
         Log::error('❌ [SYNC-ACCOUNTING] Error al sincronizar estado contable desde Dynamics', [
           'document_id' => $document->id,
           'full_number' => $document->full_number,
-          'error'       => $e->getMessage(),
+          'error' => $e->getMessage(),
         ]);
       }
     }
@@ -325,8 +301,8 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la cotización como totalmente pagada y facturada (con o sin repuestos)
       $quotation->update([
-        'is_fully_paid'               => true,
-        'status_id'                   => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
+        'is_fully_paid' => true,
+        'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURADO,
         'output_generation_warehouse' => true,
       ]);
 
@@ -339,7 +315,7 @@ class SyncAccountingStatusJob implements ShouldQueue
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para cotización', [
         'quotation_id' => $quotationId,
-        'error'        => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -403,15 +379,15 @@ class SyncAccountingStatusJob implements ShouldQueue
 
       // Marcar la OT como facturada y cerrada (con o sin repuestos)
       $workOrder->update([
-        'is_invoiced'                 => true,
-        'status_id'                   => ApMasters::CLOSED_WORK_ORDER_ID,
+        'is_invoiced' => true,
+        'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
         'output_generation_warehouse' => true,
-        'official_closing_date'       => $finalInvoice->fecha_de_emision,
+        'official_closing_date' => $finalInvoice->fecha_de_emision,
       ]);
     } catch (Exception $e) {
       Log::error('Error al crear movimiento de inventario para orden de trabajo', [
         'work_order_id' => $workOrderId,
-        'error'         => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -465,8 +441,8 @@ class SyncAccountingStatusJob implements ShouldQueue
       default:
         // Otros tipos de NC (descuentos, bonificaciones, etc.) no requieren reversión de estados/inventario
         Log::info('NC contabilizada sin reversión de estados', [
-          'credit_note_id'       => $document->id,
-          'credit_note_type_id'  => $creditNoteType,
+          'credit_note_id' => $document->id,
+          'credit_note_type_id' => $creditNoteType,
           'original_document_id' => $originalDocument->id,
         ]);
         break;
@@ -516,7 +492,7 @@ class SyncAccountingStatusJob implements ShouldQueue
         // 2. Cambiar el status de la internal_note de 'invoiced' a 'pending'
         if ($internalNote->status === ApInternalNote::STATUS_INVOICED) {
           $internalNote->update([
-            'status'      => ApInternalNote::STATUS_PENDING,
+            'status' => ApInternalNote::STATUS_PENDING,
             'closed_date' => null,
           ]);
         }
@@ -630,8 +606,8 @@ class SyncAccountingStatusJob implements ShouldQueue
           if ($workOrderPart->is_traverse) {
             Log::info('Repuesto de travesía ignorado en NC parcial (no afecta inventario)', [
               'credit_note_id' => $creditNote->id,
-              'work_order_id'  => $workOrder->id,
-              'product_id'     => $item->product_id,
+              'work_order_id' => $workOrder->id,
+              'product_id' => $item->product_id,
             ]);
             continue;
           }
@@ -642,7 +618,7 @@ class SyncAccountingStatusJob implements ShouldQueue
           // Guardar para el movimiento de inventario
           $itemsToReturn[] = [
             'product_id' => $item->product_id,
-            'quantity'   => $quantityToReturn,
+            'quantity' => $quantityToReturn,
           ];
 
           // Actualizar la cantidad en ApWorkOrderParts
@@ -682,9 +658,9 @@ class SyncAccountingStatusJob implements ShouldQueue
       }
     } catch (Exception $e) {
       Log::error('Error al procesar NC por ítem', [
-        'credit_note_id'       => $creditNote->id,
+        'credit_note_id' => $creditNote->id,
         'original_document_id' => $originalDocument->id,
-        'error'                => $e->getMessage(),
+        'error' => $e->getMessage(),
       ]);
     }
   }
@@ -763,88 +739,6 @@ class SyncAccountingStatusJob implements ShouldQueue
       Log::error('Error general en re-reserva automática', [
         'credit_note_id' => $creditNote->id,
         'original_document_id' => $originalDocument->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Loguear SIMULACIÓN de lo que va a hacer (sin ejecutar)
-   *
-   * @param ElectronicDocument $document
-   * @return void
-   */
-  private function logSimulationBeforeProcessing(ElectronicDocument $document): void
-  {
-    try {
-      $originalDocument = $document->originalDocument;
-      if (!$originalDocument) {
-        return;
-      }
-
-      $workOrder = null;
-      if ($originalDocument->work_order_id) {
-        $workOrder = ApWorkOrder::with(['parts.product'])->find($originalDocument->work_order_id);
-      }
-
-      if (!$workOrder) {
-        return;
-      }
-
-      Log::info('🎯 [SIMULATION] ============ QUÉ VA A HACER ============', [
-        'credit_note_id' => $document->id,
-        'credit_note_number' => $document->full_number,
-        'credit_note_type' => $document->sunat_concept_credit_note_type_id,
-        'accion' => 'CREAR MOVIMIENTO DE DEVOLUCIÓN (RETURN_IN)',
-      ]);
-
-      // Obtener warehouse de la sede
-      $warehouse = \App\Models\ap\maestroGeneral\Warehouse::where('sede_id', $workOrder->sede_id)
-        ->where('is_physical_warehouse', true)
-        ->where('status', true)
-        ->first();
-
-      if (!$warehouse) {
-        Log::warning('🎯 [SIMULATION] No se encontró almacén para la sede', [
-          'sede_id' => $workOrder->sede_id,
-        ]);
-        return;
-      }
-
-      // Simular qué productos se van a devolver
-      foreach ($workOrder->parts as $part) {
-        if (!$part->product_id || $part->is_traverse) {
-          continue;
-        }
-
-        $stock = \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::where('product_id', $part->product_id)
-          ->where('warehouse_id', $warehouse->id)
-          ->first();
-
-        if ($stock) {
-          $quantityToAdd = $part->quantity_used;
-          $expectedQuantityAfter = $stock->quantity + $quantityToAdd;
-          $expectedAvailableAfter = $expectedQuantityAfter - $stock->reserved_quantity;
-
-          Log::info('🎯 [SIMULATION] Producto que se devolverá', [
-            'product_id' => $part->product_id,
-            'product_code' => $part->product->code ?? 'N/A',
-            'product_name' => $part->product->name ?? 'N/A',
-            'quantity_to_add' => $quantityToAdd,
-            'ACTUAL_quantity' => $stock->quantity,
-            'ACTUAL_reserved' => $stock->reserved_quantity,
-            'ACTUAL_available' => $stock->available_quantity,
-            'ESPERADO_quantity_after' => $expectedQuantityAfter,
-            'ESPERADO_reserved_after' => $stock->reserved_quantity . ' (NO debe cambiar)',
-            'ESPERADO_available_after' => $expectedAvailableAfter,
-          ]);
-        }
-      }
-
-      Log::info('🎯 [SIMULATION] ========================================');
-    } catch (Exception $e) {
-      Log::error('❌ [SIMULATION] Error al simular', [
-        'credit_note_id' => $document->id,
         'error' => $e->getMessage(),
       ]);
     }
