@@ -250,4 +250,18 @@ class VehiclesController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function updateOcsiInvoiceByVin(Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'file'    => 'required|file|mimes:xlsx,xls,csv',
+        'dry_run' => 'nullable|boolean',
+      ]);
+      $dryRun = $request->boolean('dry_run', true);
+      return $this->success($this->service->updateOcsiInvoiceByVin($request->file('file'), $dryRun));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

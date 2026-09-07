@@ -13,6 +13,7 @@ use App\Http\Services\common\ExportService;
 use App\Http\Utils\Constants;
 use App\Imports\ap\comercial\VehicleUpdateByVinImport;
 use App\Imports\ap\comercial\VehiclePurchaseOrderUpdateByVinImport;
+use App\Imports\ap\comercial\VehicleOcsiInvoiceUpdateByVinImport;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApReceivingAccessoryStatus;
 use App\Models\ap\comercial\VehicleMovement;
@@ -872,6 +873,13 @@ class VehiclesService extends BaseService implements BaseServiceInterface
   public function updatePurchaseOrderByVin(UploadedFile $file): array
   {
     $import = new VehiclePurchaseOrderUpdateByVinImport();
+    Excel::import($import, $file);
+    return $import->getResults();
+  }
+
+  public function updateOcsiInvoiceByVin(UploadedFile $file, bool $dryRun): array
+  {
+    $import = new VehicleOcsiInvoiceUpdateByVinImport($dryRun);
     Excel::import($import, $file);
     return $import->getResults();
   }
