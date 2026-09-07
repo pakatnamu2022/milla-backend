@@ -1139,8 +1139,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   /**
    * Resuelve la carrocería (body_type_id) del modelo VN de la solicitud, que es
    * la que determina qué precio de cada accesorio homologado aplica.
+   *
+   * Público a propósito: reutilizado por PurchaseRequestQuoteAdjustmentRequestService
+   * para resolver el precio de un obsequio agregado vía solicitud de ajuste.
    */
-  private function bodyTypeIdForModel(?int $apModelsVnId): ?int
+  public function bodyTypeIdForModel(?int $apModelsVnId): ?int
   {
     if (!$apModelsVnId) {
       return null;
