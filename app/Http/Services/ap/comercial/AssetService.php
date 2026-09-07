@@ -250,9 +250,58 @@ class AssetService extends BaseService
     return AssetResource::make($asset);
   }
 
+  /**
+   * Historial de migración a Dynamics del activo: cabecera + logs por paso
+   * (transacción de inventario, detalle y serie), identificados por el vehículo.
+   */
+  public function migrationLogs(int $id): array
+  {
+    $asset = ApAsset::with(['vehicle.model.family.brand', 'worker'])->findOrFail($id);
+
+    $logs = \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('ap_vehicles_id', $asset->ap_vehicle_id)
+      ->whereIn('step', AssetMigrationLogService::STEPS)
+      ->orderBy('id')
+      ->get();
+
+    return [
+      'asset' => [
+        'id'               => $asset->id,
+        'vin'              => $asset->vehicle?->vin,
+        'plate'            => $asset->vehicle?->plate,
+        'transaction_id'   => $this->logService->buildAssetTransactionId($asset),
+        'dyn_series'       => $asset->dyn_series,
+        'worker'           => $asset->worker?->nombre_completo,
+        'assigned_date'    => $asset->assigned_date?->format('Y-m-d'),
+        'migration_status' => $asset->migration_status,
+        'created_at'       => $asset->created_at?->format('Y-m-d H:i:s'),
+      ],
+      'logs' => \App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource::collection($logs),
+    ];
+  }
+
   public function dispatchMigration(int $id): array
   {
     $asset = ApAsset::findOrFail($id);
+
+    if ($asset->migration_status === ApAsset::MIGRATION_STATUS_COMPLETED) {
+      throw new Exception('El activo ya está sincronizado con Dynamics.');
+    }
+
+    // Si quedó en 'failed', reiniciar activo + logs a 'pending' para poder reintentar
+    // (el job solo procesa pending | in_progress).
+    if ($asset->migration_status === ApAsset::MIGRATION_STATUS_FAILED) {
+      $asset->update(['migration_status' => ApAsset::MIGRATION_STATUS_PENDING]);
+
+      \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('ap_vehicles_id', $asset->ap_vehicle_id)
+        ->whereIn('step', AssetMigrationLogService::STEPS)
+        ->where('status', \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::STATUS_FAILED)
+        ->update([
+          'status'        => \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          'error_message' => null,
+          'attempts'      => 0,
+        ]);
+    }
+
     VerifyAndMigrateAssetJob::dispatch($asset->id);
     return ['message' => 'Migración despachada correctamente'];
   }

@@ -61,6 +61,15 @@ class AssetController extends Controller
     }
   }
 
+  public function migrationLogs(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->migrationLogs($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function dispatchMigration(int $id): JsonResponse
   {
     try {
