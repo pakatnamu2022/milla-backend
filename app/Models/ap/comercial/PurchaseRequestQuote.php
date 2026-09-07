@@ -537,6 +537,72 @@ class PurchaseRequestQuote extends BaseModel
     return $this->hasMany(ElectronicDocument::class, 'purchase_request_quote_id');
   }
 
+  /**
+   * Retorna los anticipos activos de esta cotización.
+   *
+   * Un anticipo se excluye si:
+   *   - status = 'cancelled'
+   *   - anulado = 1
+   *   - Tiene una NC de tipo ANULACION o DEVOLUCION_TOTAL (que lo revierte por completo)
+   *
+   * Las NC parciales (DESCUENTO_GLOBAL, DEVOLUCION_ITEM) no anulan el anticipo;
+   * solo reducen su monto neto. Ver getNetAdvancesTotal().
+   */
+  public function getActiveAdvances(): \Illuminate\Database\Eloquent\Collection
+  {
+    $annullingTypes = [
+      \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    return $this->electronicDocuments()
+      ->where('is_advance_payment', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->where('status', '!=', ElectronicDocument::STATUS_CANCELLED)
+      ->where(function ($query) use ($annullingTypes) {
+        $query->whereNull('credit_note_id')
+          ->orWhereDoesntHave('creditNote', function ($q) use ($annullingTypes) {
+            $q->whereIn('sunat_concept_credit_note_type_id', $annullingTypes);
+          });
+      })
+      ->get();
+  }
+
+  /**
+   * Retorna el monto neto total de los anticipos activos, descontando las NC parciales
+   * (DESCUENTO_GLOBAL / DEVOLUCION_ITEM) y sumando notas de débito sobre cada anticipo.
+   */
+  public function getNetAdvancesTotal(): float
+  {
+    $annullingTypes = [
+      \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_ANULACION,
+      \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
+    ];
+
+    $total = 0.0;
+    foreach ($this->getActiveAdvances() as $advance) {
+      $net = (float)$advance->total;
+
+      $partialNCTotal = ElectronicDocument::where('original_document_id', $advance->id)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->whereNotIn('sunat_concept_credit_note_type_id', $annullingTypes)
+        ->sum('total');
+
+      $debitNoteTotal = ElectronicDocument::where('original_document_id', $advance->id)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->sum('total');
+
+      $total += $net - $partialNCTotal + $debitNoteTotal;
+    }
+
+    return $total;
+  }
+
   public function kycDeclaration(): HasOne
   {
     return $this->hasOne(CustomerKycDeclaration::class, 'purchase_request_quote_id');

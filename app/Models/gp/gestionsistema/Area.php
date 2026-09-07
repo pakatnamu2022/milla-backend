@@ -10,11 +10,10 @@ class Area extends BaseModel
   protected $table = 'rrhh_area';
 
   const filters = [
-    'id',
-    'name',
-    'sede_id',
+    'search'        => ['name'],
+    'sede_id'       => '=',
     // 'centro_costo_id',
-    'status_active',
+    'status_active' => '=',
   ];
 
   const sorts = [
