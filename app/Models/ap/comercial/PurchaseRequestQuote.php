@@ -548,25 +548,32 @@ class PurchaseRequestQuote extends BaseModel
    * Las NC parciales (DESCUENTO_GLOBAL, DEVOLUCION_ITEM) no anulan el anticipo;
    * solo reducen su monto neto. Ver getNetAdvancesTotal().
    */
-  public function getActiveAdvances(): \Illuminate\Database\Eloquent\Collection
+  public function getActiveAdvances(): \Illuminate\Support\Collection
   {
     $annullingTypes = [
       \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_ANULACION,
       \App\Models\gp\maestroGeneral\SunatConcepts::ID_CREDIT_NOTE_DEVOLUCION_TOTAL,
     ];
 
-    return $this->electronicDocuments()
+    $advances = $this->electronicDocuments()
       ->where('is_advance_payment', 1)
       ->where('aceptada_por_sunat', true)
       ->where('anulado', false)
       ->where('status', '!=', ElectronicDocument::STATUS_CANCELLED)
-      ->where(function ($query) use ($annullingTypes) {
-        $query->whereNull('credit_note_id')
-          ->orWhereDoesntHave('creditNote', function ($q) use ($annullingTypes) {
-            $q->whereIn('sunat_concept_credit_note_type_id', $annullingTypes);
-          });
-      })
+      ->whereNotIn('sunat_concept_document_type_id', [
+        ElectronicDocument::TYPE_NOTA_CREDITO,
+        ElectronicDocument::TYPE_NOTA_DEBITO,
+      ])
       ->get();
+
+    return $advances->filter(function ($advance) use ($annullingTypes) {
+      return !ElectronicDocument::where('original_document_id', $advance->id)
+        ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
+        ->where('aceptada_por_sunat', true)
+        ->where('anulado', 0)
+        ->whereIn('sunat_concept_credit_note_type_id', $annullingTypes)
+        ->exists();
+    })->values();
   }
 
   /**
