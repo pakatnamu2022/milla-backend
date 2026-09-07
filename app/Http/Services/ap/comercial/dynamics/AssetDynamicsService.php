@@ -236,7 +236,7 @@ class AssetDynamicsService
       'TransaccionId'       => $this->logService->buildAssetTransactionId($asset),
       'Linea'               => 1,
       'ArticuloId'          => $vehicle->model->code ?? 'N/A',
-      'Motivo'              => 'Conversion de vehiculo VN en activo fijo',
+      'Motivo'              => '',
       'UnidadMedidaId'      => 'UND',
       'Cantidad'            => -1,
       'AlmacenId'           => $warehouse->dyn_code ?? '',
