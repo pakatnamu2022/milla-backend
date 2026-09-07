@@ -3373,13 +3373,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if ($purchaseRequestQuote) {
         $entityTotal = (float)$purchaseRequestQuote->doc_sale_price;
         $entityName = 'solicitud de cotización';
-        // For purchase request quotes, keep the original logic
-        $totalAdvances = ElectronicDocument::where('purchase_request_quote_id', $entityId)
-          ->where('is_advance_payment', 1)
-          ->where('aceptada_por_sunat', true)
-          ->where('anulado', false)
-          ->whereNull('deleted_at')
-          ->sum('total');
+        $totalAdvances = $purchaseRequestQuote->getNetAdvancesTotal();
       }
     }
 
