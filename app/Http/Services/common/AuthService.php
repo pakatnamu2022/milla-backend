@@ -93,10 +93,54 @@ class AuthService
     }
   }
 
+  /**
+   * TTL del cache del árbol de permisos por usuario.
+   * Se invalida explícitamente con AuthService::forgetPermissions($userId)
+   * cuando cambian roles, asignaciones vista-rol o permisos granulares.
+   */
+  private const PERMISSIONS_TTL = 600;
+
+  /**
+   * Versión global del esquema de permisos. Cualquier cambio de rol,
+   * asignación vista-rol o permiso granular la incrementa y así invalida
+   * el cache de TODOS los usuarios de una sola vez.
+   */
+  public static function bumpPermissionsVersion(): void
+  {
+    $current = (int) Cache::get("auth:permissions:version", 1);
+    Cache::forever("auth:permissions:version", $current + 1);
+  }
+
+  private static function permissionsVersion(): int
+  {
+    return (int) Cache::get("auth:permissions:version", 1);
+  }
+
+  public static function permissionsCacheKey(int $userId): string
+  {
+    return "auth:permissions:v" . self::permissionsVersion() . ":user:{$userId}";
+  }
+
+  public static function forgetPermissions(?int $userId = null): void
+  {
+    if ($userId) {
+      Cache::forget(self::permissionsCacheKey($userId));
+    }
+  }
+
   public function permissions(?int $userId = null)
   {
     $userId = $userId ?? Auth::id();
 
+    return Cache::remember(
+      self::permissionsCacheKey($userId),
+      self::PERMISSIONS_TTL,
+      fn() => $this->buildPermissions($userId),
+    );
+  }
+
+  private function buildPermissions(int $userId): array
+  {
     // Árbol de Access (permisos básicos CRUD por vista)
     $vistas = $this->getAllVistasConEmpresa();
     $permitidas = $this->getVistasPermitidas($userId);

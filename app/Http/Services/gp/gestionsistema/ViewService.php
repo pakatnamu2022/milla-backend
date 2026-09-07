@@ -46,6 +46,7 @@ class ViewService extends BaseService
   {
     $data = $this->enrichViewData($data);
     $view = View::create($data);
+    \App\Http\Services\common\AuthService::bumpPermissionsVersion();
     return new ViewResource($view);
   }
 
@@ -69,6 +70,7 @@ class ViewService extends BaseService
 
     $data = $this->enrichViewData($data);
     $view->update($data);
+    \App\Http\Services\common\AuthService::bumpPermissionsVersion();
     return new ViewResource($view);
   }
 
@@ -109,6 +111,7 @@ class ViewService extends BaseService
     $view = $this->find($id);
     $view->status_deleted = 0;
     $view->save();
+    \App\Http\Services\common\AuthService::bumpPermissionsVersion();
     return response()->json(['message' => 'Vista eliminada correctamente']);
   }
 

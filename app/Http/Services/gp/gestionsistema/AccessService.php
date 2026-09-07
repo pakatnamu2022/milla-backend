@@ -34,6 +34,7 @@ class AccessService extends BaseService
     public function store($data)
     {
         $access = Access::create($data);
+        \App\Http\Services\common\AuthService::bumpPermissionsVersion();
         return new AccessResource(Access::find($access->id));
     }
 
@@ -59,6 +60,8 @@ class AccessService extends BaseService
             );
         }
 
+        \App\Http\Services\common\AuthService::bumpPermissionsVersion();
+
         return ['message' => 'Permisos actualizados correctamente'];
     }
 
@@ -72,6 +75,7 @@ class AccessService extends BaseService
     {
         $access = $this->find($data['id']);
         $access->update($data);
+        \App\Http\Services\common\AuthService::bumpPermissionsVersion();
         return new EquipmentResource($access);
     }
 
@@ -80,6 +84,7 @@ class AccessService extends BaseService
         $access = $this->find($id);
         $access->status_deleted = 0;
         $access->save();
+        \App\Http\Services\common\AuthService::bumpPermissionsVersion();
         return response()->json(['message' => 'Acceso eliminado correctamente']);
     }
 

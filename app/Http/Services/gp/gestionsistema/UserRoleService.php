@@ -77,6 +77,7 @@ class UserRoleService extends BaseService
     if ($userRole) {
       // Si ya tiene un rol, actualizarlo
       $userRole->update(['role_id' => $data['role_id']]);
+      \App\Http\Services\common\AuthService::forgetPermissions((int) $userId);
       return new UserRoleResource($userRole->fresh(['role', 'user']));
     } else {
       // Si no tiene rol, crear uno nuevo
@@ -85,6 +86,7 @@ class UserRoleService extends BaseService
         'role_id' => $data['role_id'],
         'status_deleted' => 1
       ]);
+      \App\Http\Services\common\AuthService::forgetPermissions((int) $userId);
       return new UserRoleResource($newUserRole->load(['role', 'user']));
     }
   }
