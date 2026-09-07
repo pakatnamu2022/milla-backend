@@ -1200,7 +1200,14 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         && $shippingGuide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_VENTA;
 
       if (!$isEligibleComercialTransfer) {
-        throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
+        // Para guías de VENTA ya contabilizadas, permitir re-sync si el delivery aún no llegó a 'delivered'.
+        // El job consultará Dynamics y avanzará el estado sin re-disparar el asiento contable.
+        $delivery = ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)->first();
+        $alreadyDelivered = !$delivery || $delivery->status_delivery === ApVehicleDelivery::STATUS_DELIVERED;
+
+        if ($alreadyDelivered) {
+          throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
+        }
       }
 
       // GUIA_REMISION de TRASLADO_SEDE requiere recepción antes de sincronizar

@@ -534,6 +534,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $movementService = new VehicleMovementService();
 
       if (ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)) {
+        if ($vehicle->ap_vehicle_status_id === ApVehicleStatus::VENDIDO_ENTREGADO) {
+          throw new Exception('No se puede desasignar un vehículo que ya fue entregado al cliente.');
+        }
         // Vehicle was invoiced (e.g. by an advance payment anticipo) — revert to best prior warehouse state
         $movementService->storeUnassignRevertMovement($vehicle);
       } else {
