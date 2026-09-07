@@ -282,6 +282,26 @@ class AssetService extends BaseService
   public function dispatchMigration(int $id): array
   {
     $asset = ApAsset::findOrFail($id);
+
+    if ($asset->migration_status === ApAsset::MIGRATION_STATUS_COMPLETED) {
+      throw new Exception('El activo ya está sincronizado con Dynamics.');
+    }
+
+    // Si quedó en 'failed', reiniciar activo + logs a 'pending' para poder reintentar
+    // (el job solo procesa pending | in_progress).
+    if ($asset->migration_status === ApAsset::MIGRATION_STATUS_FAILED) {
+      $asset->update(['migration_status' => ApAsset::MIGRATION_STATUS_PENDING]);
+
+      \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::where('ap_vehicles_id', $asset->ap_vehicle_id)
+        ->whereIn('step', AssetMigrationLogService::STEPS)
+        ->where('status', \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::STATUS_FAILED)
+        ->update([
+          'status'        => \App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog::STATUS_PENDING,
+          'error_message' => null,
+          'attempts'      => 0,
+        ]);
+    }
+
     VerifyAndMigrateAssetJob::dispatch($asset->id);
     return ['message' => 'Migración despachada correctamente'];
   }
