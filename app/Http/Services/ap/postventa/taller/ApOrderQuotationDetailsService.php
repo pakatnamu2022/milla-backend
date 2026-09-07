@@ -24,6 +24,50 @@ class ApOrderQuotationDetailsService extends BaseService implements BaseServiceI
 
   public function list(Request $request)
   {
+    // Si se filtra por order_quotation_id, aplicar ordenamiento personalizado por bloques
+    if ($request->has('order_quotation_id')) {
+      $query = ApOrderQuotationDetails::query();
+
+      // Aplicar filtro de cotización
+      $query->where('order_quotation_id', $request->order_quotation_id);
+
+      // Aplicar otros filtros si existen
+      if ($request->has('item_type')) {
+        $query->where('item_type', $request->item_type);
+      }
+      if ($request->has('status')) {
+        $query->where('status', $request->status);
+      }
+      if ($request->has('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+          $q->where('description', 'like', "%{$search}%")
+            ->orWhere('observations', 'like', "%{$search}%");
+        });
+      }
+
+      // Obtener todos los resultados
+      $allDetails = $query->get();
+
+      // Ordenar por bloques: LABOR+MATERIAL primero, luego PRODUCT
+      $laborMaterialDetails = $allDetails
+        ->whereIn('item_type', [ApOrderQuotationDetails::ITEM_TYPE_LABOR, ApOrderQuotationDetails::ITEM_TYPE_MATERIAL])
+        ->sortBy('order')
+        ->values();
+
+      $productDetails = $allDetails
+        ->where('item_type', ApOrderQuotationDetails::ITEM_TYPE_PRODUCT)
+        ->sortBy('order')
+        ->values();
+
+      // Combinar bloques ordenados
+      $sortedDetails = $laborMaterialDetails->merge($productDetails);
+
+      // Retornar como resource collection
+      return ApOrderQuotationDetailsResource::collection($sortedDetails);
+    }
+
+    // Si no hay filtro de order_quotation_id, usar el método estándar
     return $this->getFilteredResults(
       ApOrderQuotationDetails::class,
       $request,

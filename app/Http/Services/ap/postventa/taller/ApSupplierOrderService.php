@@ -532,8 +532,8 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
 
       $positionId = $user->person?->position?->id;
 
-      $isAfterSalesCoordinator = in_array($positionId, Position::AFTER_SALES_COORDINATOR, true);
-      $isGerente = in_array($positionId, Position::POSITION_GERENTE_PV_IDS, true);
+      $isAfterSalesCoordinator = in_array($positionId, Position::COORDINADOR_PV_IDS, true);
+      $isGerente = in_array($positionId, Position::GERENTE_PV_IDS, true);
 
       if (!($isAfterSalesCoordinator || $isGerente)) {
         throw new Exception('Solo Gerente o Coordinadora de Postventa pueden aprobar este pedido.');
@@ -681,7 +681,7 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       }
 
       // Obtener usuarios con cargo de Coordinadora de Postventa
-      $managerPositionIds = Position::AFTER_SALES_COORDINATOR;
+      $managerPositionIds = Position::COORDINADOR_PV_IDS;
 
       $managers = User::whereHas('person', function ($query) use ($managerPositionIds) {
         $query->whereIn('cargo_id', $managerPositionIds)

@@ -92,6 +92,11 @@ class UpdateApOrderQuotationWithProductsRequest extends StoreRequest
         'nullable',
         'boolean',
       ],
+      'details.*.order' => [
+        'nullable',
+        'integer',
+        'min:0',
+      ],
     ];
   }
 

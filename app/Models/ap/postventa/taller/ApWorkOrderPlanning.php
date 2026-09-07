@@ -129,8 +129,10 @@ class ApWorkOrderPlanning extends Model
     // }
 
     $workOrder = $this->workOrder;
-    $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
-    $workOrder->save();
+    if (!$workOrder->isInTerminalState()) {
+      $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
+      $workOrder->save();
+    }
 
     $session = new ApWorkOrderPlanningSession([
       'work_order_planning_id' => $this->id,
@@ -186,8 +188,10 @@ class ApWorkOrderPlanning extends Model
     }
 
     $workOrder = $this->workOrder;
-    $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
-    $workOrder->save();
+    if (!$workOrder->isInTerminalState()) {
+      $workOrder->status_id = ApMasters::AT_WORK_WORK_ORDER_ID;
+      $workOrder->save();
+    }
 
     $session = new ApWorkOrderPlanningSession([
       'work_order_planning_id' => $this->id,
@@ -236,6 +240,12 @@ class ApWorkOrderPlanning extends Model
     $workOrder = $this->workOrder;
 
     if (!$workOrder) {
+      return;
+    }
+
+    // No tocar el estado si la OT ya está finalizada, cerrada o anulada
+    // (evita que una sesión completada fuera de tiempo reabra una OT ya facturada)
+    if ($workOrder->isInTerminalState()) {
       return;
     }
 

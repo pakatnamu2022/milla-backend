@@ -985,7 +985,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
     // Obtener firma del coordinador de taller de la sede de la OT
     $workshopCoordinator = Worker::where('sede_id', $workOrder->sede_id)
-      ->whereIn('cargo_id', Position::WORKSHOP_COORDINATOR)
+      ->whereIn('cargo_id', Position::COORDINADOR_TALLER_IDS)
       ->where('status_id', 22)
       ->first();
 
@@ -999,7 +999,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       }
     } else {
       $workJefeTaller = Worker::where('sede_id', $workOrder->sede_id)
-        ->whereIn('cargo_id', Position::POSITION_JEFE_TALLER_PVT_IDS)
+        ->whereIn('cargo_id', Position::JEFE_TALLER_PV_IDS)
         ->where('status_id', 22)
         ->first();
 

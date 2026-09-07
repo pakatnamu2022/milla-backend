@@ -80,6 +80,7 @@ class ProductMovementHistoryResource extends JsonResource
       'cliente_numero_de_documento' => $doc->cliente_numero_de_documento,
       'credit_note_id' => $doc->credit_note_id,
       'credit_note_number' => $doc->creditNote?->full_number,
+      'credit_note_status' => $doc->creditNote?->status,
     ];
   }
 

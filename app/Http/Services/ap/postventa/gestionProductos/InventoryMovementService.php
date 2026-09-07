@@ -312,6 +312,7 @@ class InventoryMovementService extends BaseService
         'notes' => $data['notes'] ?? $this->getDefaultNotes($data['movement_type']),
         'total_items' => 0,
         'total_quantity' => 0,
+        'movement_number_dyn' => $data['movement_number_dyn'] ?? null,
       ]);
 
       // Create movement details
@@ -1213,7 +1214,7 @@ class InventoryMovementService extends BaseService
             'credit_note_id',
             'total',
             'fecha_de_emision'
-          )->with('creditNote:id,full_number'); // Load the credit note relation if exists
+          )->with('creditNote:id,full_number,status,anulado'); // Load the credit note relation if exists
         }
       ]);
 

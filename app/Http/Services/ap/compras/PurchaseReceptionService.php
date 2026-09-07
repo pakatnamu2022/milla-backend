@@ -25,6 +25,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseReceptionService extends BaseService implements BaseServiceInterface
 {
@@ -440,11 +441,6 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
 
         // Enviar correo usando cola de trabajo
         $emailService->queue($emailConfig);
-
-        $sentCount++;
-        if ($sentCount >= 1) {
-          break; // 👈 Solo envía uno para testing
-        }
       } catch (\Exception $e) {
         \Log::error('Error al enviar notificación de recepción de orden de compra a ' . $email . ': ' . $e->getMessage());
       }
@@ -464,15 +460,39 @@ class PurchaseReceptionService extends BaseService implements BaseServiceInterfa
       throw new Exception("No hay recepción vinculada a esta factura");
     }
 
-    // 2. Verificar si ya existe un movimiento de inventario para esta recepción
-    $existingMovement = InventoryMovement::where('reference_type', get_class($reception))
-      ->where('reference_id', $reception->id)
-      ->exists();
+    // 2. LOCK PESSIMISTIC: Bloquear la recepción para evitar procesamiento simultáneo
+    // Esto previene race conditions cuando múltiples usuarios o procesos ejecutan el job al mismo tiempo
+    DB::transaction(function () use ($reception, $purchaseOrder, $stockService) {
+      // Bloquear el registro de recepción (lockForUpdate espera si otro proceso lo está usando)
+      $lockedReception = PurchaseReception::where('id', $reception->id)
+        ->lockForUpdate()
+        ->first();
 
-    if ($existingMovement) {
-      // Ya existe un movimiento de inventario para esta recepción, no crear duplicado
-      return;
-    }
+      if (!$lockedReception) {
+        throw new Exception("No se pudo obtener el lock de la recepción");
+      }
+
+      // 3. Verificar si ya existe un movimiento de inventario para esta recepción (dentro del lock)
+      $existingMovement = InventoryMovement::where('reference_type', PurchaseReception::class)
+        ->where('reference_id', $reception->id)
+        ->exists();
+
+      if ($existingMovement) {
+        // Ya existe un movimiento de inventario para esta recepción, no crear duplicado
+        Log::info("Procesamiento de stock omitido: ya existe movimiento de inventario para recepción #{$reception->id}");
+        return;
+      }
+
+      // 4. Procesar dentro del lock para garantizar atomicidad
+      $this->processReceptionStockInternal($lockedReception, $purchaseOrder, $stockService);
+    });
+  }
+
+  /**
+   * Lógica interna de procesamiento de stock (ejecutada dentro del lock)
+   */
+  protected function processReceptionStockInternal(PurchaseReception $reception, PurchaseOrder $purchaseOrder, $stockService): void
+  {
 
     // 3. Procesar cada detalle de la recepción
     foreach ($reception->details as $index => $receptionDetail) {

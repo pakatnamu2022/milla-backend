@@ -538,7 +538,7 @@ class ElectronicDocumentController extends Controller
       $document = ElectronicDocument::findOrFail($id);
 
       // Si el documento ya está contabilizado, no ejecutar nada
-      if ($document->is_accounted) {
+      if ($document->is_accounted && $document->status !== ElectronicDocument::STATUS_CANCELLED) {
         return response()->json([
           'message' => 'El documento ya está contabilizado, no se puede procesar nuevamente',
           'document_id' => $document->id,

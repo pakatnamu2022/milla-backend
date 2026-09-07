@@ -954,6 +954,20 @@ class ApWorkOrder extends Model
   }
 
   /**
+   * Indica si la orden de trabajo está en un estado terminal
+   * (anulada, finalizada o cerrada), es decir, ya no debería
+   * ser modificada por acciones de planificación/sesiones de trabajo.
+   */
+  public function isInTerminalState(): bool
+  {
+    return in_array($this->status_id, [
+      ApMasters::CANCELED_WORK_ORDER_ID,
+      ApMasters::FINISHED_WORK_ORDER_ID,
+      ApMasters::CLOSED_WORK_ORDER_ID,
+    ], true);
+  }
+
+  /**
    * Get all documents organized in a tree structure with cancelled and active documents.
    * Active documents include their credit/debit note modifications.
    *

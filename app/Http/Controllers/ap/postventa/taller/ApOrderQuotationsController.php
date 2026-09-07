@@ -12,6 +12,8 @@ use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreDeductibleOrderQuotationRequest;
+use App\Http\Requests\ap\postventa\taller\ReorderApOrderQuotationDetailsRequest;
+use App\Http\Requests\ap\postventa\taller\ApplyBulkDiscountApOrderQuotationRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
@@ -78,6 +80,15 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->success($this->service->show($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function showSimple($id)
+  {
+    try {
+      return $this->success($this->service->showSimple($id));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -408,6 +419,42 @@ class ApOrderQuotationsController extends Controller
   {
     try {
       return $this->success($this->service->deleteDeductible($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Reordena los detalles de una cotización
+   * Permite ordenar items de forma independiente por tipo (LABOR+MATERIAL vs PRODUCT)
+   *
+   * @param ReorderApOrderQuotationDetailsRequest $request
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function reorderDetails(ReorderApOrderQuotationDetailsRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      return $this->success($this->service->reorderDetails($id, $data['items']));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Aplica descuento masivo a los items de una cotización
+   * Permite aplicar descuento por bloques (LABOR+MATERIAL o PRODUCT)
+   *
+   * @param ApplyBulkDiscountApOrderQuotationRequest $request
+   * @param int $id ID de la cotización
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function applyBulkDiscount(ApplyBulkDiscountApOrderQuotationRequest $request, $id)
+  {
+    try {
+      $data = $request->validated();
+      return $this->success($this->service->applyBulkDiscount($id, $data['type'], $data['discount_percentage']));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

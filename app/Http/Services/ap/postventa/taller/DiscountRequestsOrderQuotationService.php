@@ -113,13 +113,13 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
 
     // Obtener el gerente (cargo 142) - mismo para ambas áreas
     $manager = Worker::working()
-      ->whereIn('cargo_id', Position::POSITION_GERENTE_PV_IDS)
+      ->whereIn('cargo_id', Position::GERENTE_PV_IDS)
       ->first();
 
     // Obtener el jefe según el área
     $bossPositionIds = $apOrderQuotation->area_id === ApMasters::AREA_TALLER
-      ? Position::POSITION_JEFE_TALLER_PVT_IDS  // Taller: cargo 143
-      : Position::POSITION_JEFE_REPUESTO_PVT_IDS; // Repuestos: cargo 344
+      ? Position::JEFE_TALLER_PV_IDS  // Taller: cargo 143
+      : Position::JEFE_REPUESTO_PV_IDS; // Repuestos: cargo 344
 
     $boss = Worker::working()
       ->whereIn('cargo_id', $bossPositionIds)
@@ -819,17 +819,17 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 3. Determinar si es gerente
-    $isManager = in_array($positionId, Position::POSITION_GERENTE_PV_IDS);
+    $isManager = in_array($positionId, Position::GERENTE_PV_IDS);
 
     // 4. Determinar si es jefe del área correspondiente
     $isBoss = false;
     $bossDiscountSettingId = null;
 
     if ($areaId === ApMasters::AREA_TALLER) {
-      $isBoss = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS);
+      $isBoss = in_array($positionId, Position::JEFE_TALLER_PV_IDS);
       $bossDiscountSettingId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVT_ID;
     } elseif ($areaId === ApMasters::AREA_MESON) {
-      $isBoss = in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS);
+      $isBoss = in_array($positionId, Position::JEFE_REPUESTO_PV_IDS);
       $bossDiscountSettingId = GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVR_ID;
     } else {
       throw new Exception('El área de la cotización no es válida para solicitudes de descuento.');
@@ -886,15 +886,15 @@ class DiscountRequestsOrderQuotationService extends BaseService implements BaseS
     }
 
     // 3. Determinar si es gerente
-    $isManager = in_array($positionId, Position::POSITION_GERENTE_PV_IDS);
+    $isManager = in_array($positionId, Position::GERENTE_PV_IDS);
 
     // 4. Determinar si es jefe del área correspondiente
     $isBoss = false;
 
     if ($areaId === ApMasters::AREA_TALLER) {
-      $isBoss = in_array($positionId, Position::POSITION_JEFE_TALLER_PVT_IDS);
+      $isBoss = in_array($positionId, Position::JEFE_TALLER_PV_IDS);
     } elseif ($areaId === ApMasters::AREA_MESON) {
-      $isBoss = in_array($positionId, Position::POSITION_JEFE_REPUESTO_PVT_IDS);
+      $isBoss = in_array($positionId, Position::JEFE_REPUESTO_PV_IDS);
     } else {
       throw new Exception('El área de la cotización no es válida para solicitudes de descuento.');
     }

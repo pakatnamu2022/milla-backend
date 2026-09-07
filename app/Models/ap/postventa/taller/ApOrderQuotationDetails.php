@@ -33,10 +33,11 @@ class ApOrderQuotationDetails extends Model
     'exchange_rate',
     'freight_commission',
     'created_by',
-    'supply_type',
     'status',
     'is_traverse',
     'is_deductible',
+    'supply_type',
+    'order',
   ];
 
   const filters = [
@@ -52,6 +53,7 @@ class ApOrderQuotationDetails extends Model
     'quantity',
     'total_cost',
     'created_at',
+    'order',
   ];
 
   protected $casts = [
