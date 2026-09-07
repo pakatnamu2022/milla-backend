@@ -42,13 +42,19 @@ class InventoryMovement extends Model
     'reason_in_out_id',
     'created_at',
     'updated_at',
-    'item_type'
+    'item_type',
+    'is_ignored',
+    'ignored_at',
+    'ignored_by',
+    'ignore_reason'
   ];
 
   protected $casts = [
     'movement_date' => 'date',
     'total_items' => 'integer',
     'total_quantity' => 'decimal:2',
+    'is_ignored' => 'boolean',
+    'ignored_at' => 'datetime',
   ];
 
   const filters = [
@@ -187,6 +193,11 @@ class InventoryMovement extends Model
     return $this->belongsTo(ElectronicDocument::class, 'electronic_document_id');
   }
 
+  public function ignoredByUser(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'ignored_by');
+  }
+
   // Accessors
   public function getIsDraftAttribute(): bool
   {
@@ -276,6 +287,16 @@ class InventoryMovement extends Model
       $q->where('warehouse_id', $warehouseId)
         ->orWhere('warehouse_destination_id', $warehouseId);
     });
+  }
+
+  public function scopeIgnored($query)
+  {
+    return $query->where('is_ignored', true);
+  }
+
+  public function scopeNotIgnored($query)
+  {
+    return $query->where('is_ignored', false);
   }
 
   public function scopeInbound($query)

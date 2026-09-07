@@ -1690,6 +1690,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
       Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history/export', [InventoryMovementController::class, 'exportProductPurchaseHistory']);
+      // Ignorar/Restaurar movimientos
+      Route::post('inventoryMovements/{id}/ignore', [InventoryMovementController::class, 'ignoreMovement']);
+      Route::post('inventoryMovements/{id}/restore', [InventoryMovementController::class, 'restoreMovement']);
+      Route::get('inventoryMovements/ignored', [InventoryMovementController::class, 'getIgnoredMovements']);
       Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
         'index',
         'show',
