@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\ap\postVenta;
 
+use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\ap\postventa\gestionProductos\InventoryMovement;
 use App\Models\ap\postventa\gestionProductos\InventoryMovementDetail;
 use App\Models\ap\postventa\gestionProductos\Products;
-use App\Models\ap\maestroGeneral\TypeCurrency;
-use App\Models\ap\maestroGeneral\Warehouse;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class CreateHistoricalInventoryMovementCommand extends Command
