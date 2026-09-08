@@ -424,7 +424,47 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
   public function show(int $id)
   {
-    $electronicDocument = ElectronicDocument::find($id);
+    $electronicDocument = ElectronicDocument::with([
+      'documentType',
+      'transactionType',
+      'identityDocumentType',
+      'currency',
+      'detractionType',
+      'creditNoteType',
+      'debitNoteType',
+      'items.igvType',
+      'guides',
+      'installments',
+      'bank',
+      'exchangeRate',
+      'creator',
+      'updater',
+      'seriesModel.sede.shop',
+      'vehicleMovement.warehouse',
+      'vehicleMovement.originWarehouse',
+      'vehicleMovement.vehicle.model.family.brand',
+      'vehicleMovement.vehicle.color',
+      'vehicleMovement.vehicle.engineType',
+      'vehicleMovement.vehicle.vehicleStatus',
+      'vehicleMovement.vehicle.warehousePhysical',
+      'vehicle.model.family.brand',
+      'vehicle.color',
+      'vehicle.engineType',
+      'vehicle.vehicleStatus',
+      'vehicle.warehousePhysical',
+      'purchaseRequestQuote.opportunity.worker',
+      'purchaseRequestQuote.holder',
+      'purchaseRequestQuote.vehicle.model.family.brand',
+      'purchaseRequestQuote.vehicle.color',
+      'purchaseRequestQuote.vehicle.engineType',
+      'purchaseRequestQuote.vehicle.vehicleStatus',
+      'purchaseRequestQuote.vehicle.warehousePhysical',
+      'orderQuotation',
+      'workOrder',
+      'creditNote',
+      'debitNote',
+      'originalDocument.documentType',
+    ])->findOrFail($id);
     return new ElectronicDocumentResource($electronicDocument);
   }
 
