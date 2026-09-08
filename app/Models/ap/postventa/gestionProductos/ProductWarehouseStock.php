@@ -92,7 +92,7 @@ class ProductWarehouseStock extends Model
       'product_warehouse_shelf',
       'product_warehouse_stock_id',
       'product_shelf_id'
-    )->withPivot('position')->withTimestamps();
+    )->withPivot('position')->withTimestamps()->orderBy('position');
   }
 
   // Accessors
