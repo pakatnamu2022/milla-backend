@@ -1164,9 +1164,12 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  /**
+   * Centraliza la lógica para construir el historial de movimientos de un producto
+   * Este método es usado tanto para mostrar como para exportar el historial
+   */
+  private function buildProductMovementHistoryData(int $productId, int $warehouseId, Request $request, bool $loadFullRelations = true)
   {
-    // Base query: get all movements that have details for this product in this warehouse
     // Por defecto, excluir movimientos ignorados a menos que se solicite incluirlos
     $includeIgnored = $request->get('include_ignored', false);
 
@@ -1199,8 +1202,11 @@ class InventoryMovementService extends BaseService
                   ->orWhere('warehouse_destination_id', $warehouseId);
               });
           });
-      })
-      ->with([
+      });
+
+    // Cargar relaciones según el contexto (vista o exportación)
+    if ($loadFullRelations) {
+      $query->with([
         'details' => function ($q) use ($productId) {
           $q->where('product_id', $productId)
             ->with('product:id,code,dyn_code,name');
@@ -1222,9 +1228,22 @@ class InventoryMovementService extends BaseService
             'credit_note_id',
             'total',
             'fecha_de_emision'
-          )->with('creditNote:id,full_number,status,anulado'); // Load the credit note relation if exists
+          )->with('creditNote:id,full_number,status,anulado');
         }
       ]);
+    } else {
+      $query->with([
+        'details' => function ($q) use ($productId) {
+          $q->where('product_id', $productId)
+            ->with('product');
+        },
+        'warehouse',
+        'warehouseDestination',
+        'user',
+        'reasonInOut',
+        'reference'
+      ]);
+    }
 
     // Apply date range filter if provided
     if ($request->has('date_from')) {
@@ -1250,46 +1269,47 @@ class InventoryMovementService extends BaseService
       ->orderBy('created_at', 'asc')
       ->get();
 
-    // Eager load specific reference relations to avoid N+1 queries
-    // Group movements by reference_type and load only the necessary relations for each type
-    $allMovements->load([
-      // PURCHASE_RECEPTION - load purchaseOrder
-      'reference' => function ($query) {
-        $query->when(
-          function ($q) {
-            return $q->getModel() instanceof PurchaseReception;
-          },
-          function ($q) {
-            $q->with([
-              'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
-              'purchaseOrder.supplier:id,full_name,num_doc'
-            ]);
-          }
-        );
-      },
-    ]);
+    // Eager load specific reference relations to avoid N+1 queries (solo para vista completa)
+    if ($loadFullRelations) {
+      $allMovements->load([
+        // PURCHASE_RECEPTION - load purchaseOrder
+        'reference' => function ($query) {
+          $query->when(
+            function ($q) {
+              return $q->getModel() instanceof PurchaseReception;
+            },
+            function ($q) {
+              $q->with([
+                'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
+                'purchaseOrder.supplier:id,full_name,num_doc'
+              ]);
+            }
+          );
+        },
+      ]);
 
-    // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
-    foreach ($allMovements as $movement) {
-      if ($movement->reference instanceof ShippingGuides) {
-        $movement->reference->load([
-          'receiver:id,description,code',
-          'transmitter:id,description,code'
-        ]);
-      } elseif ($movement->reference instanceof TransferReception) {
-        $movement->reference->load([
-          'shippingGuide' => function ($q) {
-            $q->select('id', 'document_number')
-              ->with('transmitter:id,description,code');
-          }
-        ]);
-      } elseif ($movement->reference instanceof ApOrderQuotations) {
-        $movement->reference->load('client:id,full_name,num_doc');
-      } elseif ($movement->reference instanceof SupplierCreditNote) {
-        $movement->reference->load([
-          'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
-          'purchaseOrder.supplier:id,full_name,num_doc'
-        ]);
+      // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
+      foreach ($allMovements as $movement) {
+        if ($movement->reference instanceof ShippingGuides) {
+          $movement->reference->load([
+            'receiver:id,description,code',
+            'transmitter:id,description,code'
+          ]);
+        } elseif ($movement->reference instanceof TransferReception) {
+          $movement->reference->load([
+            'shippingGuide' => function ($q) {
+              $q->select('id', 'document_number')
+                ->with('transmitter:id,description,code');
+            }
+          ]);
+        } elseif ($movement->reference instanceof ApOrderQuotations) {
+          $movement->reference->load('client:id,full_name,num_doc');
+        } elseif ($movement->reference instanceof SupplierCreditNote) {
+          $movement->reference->load([
+            'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
+            'purchaseOrder.supplier:id,full_name,num_doc'
+          ]);
+        }
       }
     }
 
@@ -1364,13 +1384,26 @@ class InventoryMovementService extends BaseService
         $runningBalance -= $quantity;
       }
 
+      // Redondear el balance a 3 decimales y quitar ceros innecesarios
+      $formattedBalance = round($runningBalance, 3);
+      // Convertir a string y quitar ceros innecesarios del final
+      $formattedBalance = rtrim(rtrim(number_format($formattedBalance, 3, '.', ''), '0'), '.');
+
       // Add calculated fields to the movement object
       $movement->quantity_in = $quantityIn;
       $movement->quantity_out = $quantityOut;
-      $movement->balance = $runningBalance;
+      $movement->balance = $formattedBalance;
 
       return $movement;
     });
+
+    return $movementsWithBalance;
+  }
+
+  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    // Usar el método centralizado
+    $movementsWithBalance = $this->buildProductMovementHistoryData($productId, $warehouseId, $request, true);
 
     // Manual pagination
     $perPage = $request->get('per_page', 15);
@@ -2743,114 +2776,21 @@ class InventoryMovementService extends BaseService
       throw new Exception('Almacén no encontrado');
     }
 
-    // Base query: get all movements that have details for this product in this warehouse
-    $query = InventoryMovement::query()
-      ->whereHas('details', function ($q) use ($productId) {
-        $q->where('product_id', $productId);
-      })
-      ->where(function ($q) use ($warehouseId) {
-        // TRANSFER_OUT: solo mostrar en el almacén de origen (warehouse_id)
-        $q->where(function ($subQ) use ($warehouseId) {
-          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
-            ->where('warehouse_id', $warehouseId);
-        })
-          // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
-          ->orWhere(function ($subQ) use ($warehouseId) {
-            $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
-              ->where('warehouse_destination_id', $warehouseId);
-          })
-          // Todos los demás tipos de movimientos (no transferencias)
-          ->orWhere(function ($subQ) use ($warehouseId) {
-            $subQ->whereNotIn('movement_type', [
-              InventoryMovement::TYPE_TRANSFER_OUT,
-              InventoryMovement::TYPE_TRANSFER_IN
-            ])
-              ->where(function ($q2) use ($warehouseId) {
-                $q2->where('warehouse_id', $warehouseId)
-                  ->orWhere('warehouse_destination_id', $warehouseId);
-              });
-          });
-      })
-      ->with([
-        'details' => function ($q) use ($productId) {
-          $q->where('product_id', $productId)
-            ->with('product');
-        },
-        'warehouse',
-        'warehouseDestination',
-        'user',
-        'reasonInOut',
-        'reference'
-      ]);
-
-    // Apply date range filter if provided
-    if ($request->has('date_from')) {
-      $query->where('movement_date', '>=', $request->date_from);
-    }
-
-    if ($request->has('date_to')) {
-      $query->where('movement_date', '<=', $request->date_to);
-    }
-
-    // Apply movement type filter if provided
-    if ($request->has('movement_type')) {
-      $query->where('movement_type', $request->movement_type);
-    }
-
-    // Apply status filter if provided
-    if ($request->has('status')) {
-      $query->where('status', $request->status);
-    }
-
-    // Get all movements ordered chronologically
-    $allMovements = $query->orderBy('movement_date', 'asc')
-      ->orderBy('created_at', 'asc')
-      ->get();
-
-    // Calculate quantity_in, quantity_out, and running balance for each movement
-    $runningBalance = 0;
-    $currentStock = $this->stockService->getStock($productId, $warehouseId);
-
-    if ($allMovements->isNotEmpty() && $currentStock) {
-      $totalIn = 0;
-      $totalOut = 0;
-
-      foreach ($allMovements as $movement) {
-        $quantity = $movement->details->first()->quantity ?? 0;
-
-        if ($movement->is_inbound) {
-          $totalIn += $quantity;
-        } else {
-          $totalOut += $quantity;
-        }
-      }
-
-      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
-    }
+    // Usar el método centralizado con relaciones básicas (no necesitamos todas las relaciones para exportar)
+    $movementsWithBalance = $this->buildProductMovementHistoryData($productId, $warehouseId, $request, false);
 
     // Transform data for export
-    $exportData = $allMovements->map(function ($movement) use (&$runningBalance) {
-      $quantity = $movement->details->first()->quantity ?? 0;
-      $quantityIn = 0;
-      $quantityOut = 0;
-
-      if ($movement->is_inbound) {
-        $quantityIn = $quantity;
-        $runningBalance += $quantity;
-      } else {
-        $quantityOut = $quantity;
-        $runningBalance -= $quantity;
-      }
-
+    $exportData = $movementsWithBalance->map(function ($movement) {
       return [
         'movement_date' => $movement->movement_date?->format('Y-m-d'),
         'movement_number' => $movement->movement_number,
         'movement_type' => InventoryMovement::getMovementTypeLabel($movement->movement_type),
         'warehouse' => $movement->warehouse?->description,
         'warehouse_destination' => $movement->warehouseDestination?->description,
-        'quantity_in' => $quantityIn,
-        'quantity_out' => $quantityOut,
-        'balance' => $runningBalance,
+        'quantity_in' => $movement->quantity_in,
+        'quantity_out' => $movement->quantity_out,
+        // Convertir el balance a float para que Excel lo maneje como número
+        'balance' => floatval($movement->balance),
         'status' => InventoryMovement::getStatusLabel($movement->status),
         'reason' => $movement->reasonInOut?->name,
         'user' => $movement->user?->name,
@@ -2865,19 +2805,26 @@ class InventoryMovementService extends BaseService
       'movement_type' => ['label' => 'Tipo'],
       'warehouse' => ['label' => 'Almacén Origen'],
       'warehouse_destination' => ['label' => 'Almacén Destino'],
-      'quantity_in' => ['label' => 'Entrada', 'formatter' => 'number'],
-      'quantity_out' => ['label' => 'Salida', 'formatter' => 'number'],
-      'balance' => ['label' => 'Saldo', 'formatter' => 'number'],
+      'quantity_in' => ['label' => 'Entrada'],
+      'quantity_out' => ['label' => 'Salida'],
+      'balance' => ['label' => 'Saldo'],
       'status' => ['label' => 'Estado'],
       'reason' => ['label' => 'Motivo'],
       'user' => ['label' => 'Usuario'],
       'notes' => ['label' => 'Notas'],
     ];
 
+    // Formato de números de Excel: 0.### muestra hasta 3 decimales sin ceros innecesarios
+    $columnFormats = [
+      'quantity_in' => '0.###',
+      'quantity_out' => '0.###',
+      'balance' => '0.###',
+    ];
+
     $title = "Historial_{$product->code}_{$warehouse->name}";
     $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-    $export = new GeneralExport($exportData, $columns, $title);
+    $export = new GeneralExport($exportData, $columns, $title, [], [], $columnFormats);
 
     return Excel::download($export, $filename);
   }
