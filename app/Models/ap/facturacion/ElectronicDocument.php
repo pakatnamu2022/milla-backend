@@ -1017,6 +1017,14 @@ class ElectronicDocument extends BaseModel
       'label' => 'SEDE',
       'formatter' => null,
     ],
+    'orderQuotation.createdBy.name' => [
+      'label' => 'ASESOR COTIZACIÓN MESÓN',
+      'formatter' => null,
+    ],
+    'workOrder.advisor.nombre_completo' => [
+      'label' => 'ASESOR ORDEN TRABAJO',
+      'formatter' => null,
+    ],
   ];
 
   /**
@@ -1031,8 +1039,8 @@ class ElectronicDocument extends BaseModel
     'vehicle.model.family.brand',
     'vehicle.color',
     'vehicleMovement.vehicle.warehousePhysical',
-    'orderQuotation',
-    'workOrder',
+    'orderQuotation.createdBy',
+    'workOrder.advisor',
     'creator',
   ];
 
