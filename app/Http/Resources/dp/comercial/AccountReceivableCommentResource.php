@@ -22,7 +22,7 @@ class AccountReceivableCommentResource extends JsonResource
       'user'       => $this->whenLoaded('user', fn() => [
         'id'   => $this->user->id,
         'name' => $this->user->name,
-        'sede' => $this->user->person->sede->abreviatura,
+        'sede' => $this->user?->person?->sede?->abreviatura ?? null,
       ]),
       'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
     ];

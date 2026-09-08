@@ -4,14 +4,14 @@ namespace App\Models\ap\postventa\repuestos;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class ApprovedAccessories extends Model
+class ApprovedAccessories extends BaseModel
 {
   use SoftDeletes;
 
@@ -27,11 +27,11 @@ class ApprovedAccessories extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description'],
-    'status' => '=',
-    'type_currency_id' => '=',
+    'search'            => ['code', 'description'],
+    'status'            => '=',
+    'type_currency_id'  => '=',
     'type_operation_id' => '=',
-    'body_type_id' => 'scope',
+    'body_type_id'      => 'scope',
   ];
 
   const sorts = [

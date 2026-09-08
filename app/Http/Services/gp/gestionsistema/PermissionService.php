@@ -72,6 +72,8 @@ class PermissionService extends BaseService
 
       DB::commit();
 
+      \App\Http\Services\common\AuthService::bumpPermissionsVersion();
+
       return ['permissions' => $this->getPermissionsByRole($roleId)];
     } catch (\Exception $e) {
       DB::rollBack();

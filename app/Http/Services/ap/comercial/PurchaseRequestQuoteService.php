@@ -534,6 +534,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $movementService = new VehicleMovementService();
 
       if (ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)) {
+        if ($vehicle->ap_vehicle_status_id === ApVehicleStatus::VENDIDO_ENTREGADO) {
+          throw new Exception('No se puede desasignar un vehículo que ya fue entregado al cliente.');
+        }
         // Vehicle was invoiced (e.g. by an advance payment anticipo) — revert to best prior warehouse state
         $movementService->storeUnassignRevertMovement($vehicle);
       } else {
@@ -1136,8 +1139,11 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
   /**
    * Resuelve la carrocería (body_type_id) del modelo VN de la solicitud, que es
    * la que determina qué precio de cada accesorio homologado aplica.
+   *
+   * Público a propósito: reutilizado por PurchaseRequestQuoteAdjustmentRequestService
+   * para resolver el precio de un obsequio agregado vía solicitud de ajuste.
    */
-  private function bodyTypeIdForModel(?int $apModelsVnId): ?int
+  public function bodyTypeIdForModel(?int $apModelsVnId): ?int
   {
     if (!$apModelsVnId) {
       return null;
