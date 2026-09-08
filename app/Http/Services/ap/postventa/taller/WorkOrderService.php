@@ -2067,18 +2067,46 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         ApMasters::CLOSED_WORK_ORDER_ID,
       ], 'cancelar');
 
-      if ($workOrder->hasAdvances()) {
-        throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
-      }
+      // Si está en estado finalizada (892), aplicar validaciones especiales
+      if ($workOrder->status_id === ApMasters::FINISHED_WORK_ORDER_ID) {
+        // Validar si existe una factura final en borrador
+        if ($workOrder->hasDraftFinalInvoice()) {
+          throw new Exception("No se puede anular la orden de trabajo porque existe un comprobante final en borrador");
+        }
 
-      if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
-        throw new Exception('No se puede anular una orden de trabajo que se encuentra en trabajo');
+        // Validar si existe una factura final generada
+        $finalInvoice = $workOrder->getFinalInvoice();
+        if ($finalInvoice) {
+          throw new Exception("No se puede anular la orden de trabajo porque ya se generó el comprobante final {$finalInvoice->full_number}");
+        }
+
+        // Validar si tiene anticipos activos
+        if ($workOrder->hasAdvances()) {
+          throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
+        }
+
+        // Validar si tiene anticipos en borrador
+        if ($workOrder->hasDraftAdvance()) {
+          throw new Exception('No se puede anular una orden de trabajo que tiene anticipos en borrador');
+        }
       } else {
-        $hasPlanning = $workOrder->plannings()->where('status', '!=', 'canceled')->count();
-        if ($hasPlanning > 0) {
-          throw new Exception("No se puede anular una orden de trabajo que tiene planificación de trabajo registrada. Encontrados: {$hasPlanning}");
+        // Para otros estados, aplicar las validaciones originales
+        if ($workOrder->hasAdvances()) {
+          throw new Exception('No se puede anular una orden de trabajo que tiene anticipos registrados');
+        }
+
+        if ($workOrder->status_id === ApMasters::AT_WORK_WORK_ORDER_ID) {
+          throw new Exception('No se puede anular una orden de trabajo que se encuentra en trabajo');
+        } else {
+          $hasPlanning = $workOrder->plannings()->where('status', '!=', 'canceled')->count();
+          if ($hasPlanning > 0) {
+            throw new Exception("No se puede anular una orden de trabajo que tiene planificación de trabajo registrada. Encontrados: {$hasPlanning}");
+          }
         }
       }
+
+      // Liberar stock reservado de los repuestos antes de cancelar
+      $this->releaseReservedStockFromParts($workOrder);
 
       $workOrder->update([
         'status_id' => ApMasters::CANCELED_WORK_ORDER_ID,
@@ -2100,6 +2128,31 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       return new WorkOrderResource($workOrder);
     });
+  }
+
+  /**
+   * Libera el stock reservado de todos los repuestos de una orden de trabajo
+   *
+   * @param ApWorkOrder $workOrder
+   * @return void
+   */
+  private function releaseReservedStockFromParts(ApWorkOrder $workOrder): void
+  {
+    // Obtener todos los repuestos de la orden de trabajo
+    $workOrderParts = ApWorkOrderParts::where('work_order_id', $workOrder->id)->get();
+
+    foreach ($workOrderParts as $part) {
+      // Solo liberar stock si NO es travesía
+      if (!$part->is_traverse) {
+        $stock = ProductWarehouseStock::where('product_id', $part->product_id)
+          ->where('warehouse_id', $part->warehouse_id)
+          ->first();
+
+        if ($stock) {
+          $stock->releaseReservedStock($part->quantity_used);
+        }
+      }
+    }
   }
 
   /**
