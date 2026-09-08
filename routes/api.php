@@ -1528,7 +1528,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      // Activos (vehículo VN → activo fijo)
+      // Activos (vehículo VN → activo fijo)accountsReceivableaccountsReceivable
       Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
       Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
       Route::get('assets/{id}/migration-logs', [AssetController::class, 'migrationLogs']);
@@ -2074,7 +2074,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
       Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
       Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
-      
+
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
       Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
