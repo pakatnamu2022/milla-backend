@@ -721,6 +721,27 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Registro masivo de ventas finales históricas desde un Excel (stock inicial ya
+   * vendido/entregado sin factura). dry_run = true sólo analiza, no persiste.
+   */
+  public function bulkRegisterHistoricalFinalSale(Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'file'    => 'required|file|mimes:xlsx,xls,csv',
+        'dry_run' => 'nullable|boolean',
+      ]);
+      $dryRun = $request->boolean('dry_run', true);
+
+      return $this->success(
+        $this->service->bulkRegisterHistoricalFinalSale($request->file('file'), $dryRun)
+      );
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Store a newly created electronic document for historical final sale with advance
    */
   public function registerHistoricalFinalSaleWithAdvance(StoreElectronicDocumentRequest $request): JsonResponse
