@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
+use App\Exports\ap\postventa\ProductShelfExport;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductShelfResource;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseShelfResource;
 use App\Http\Services\BaseService;
@@ -12,6 +13,7 @@ use App\Models\ap\postventa\gestionProductos\ProductWarehouseShelf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use Exception;
 
 class ProductShelfService extends BaseService implements BaseServiceInterface
@@ -114,7 +116,7 @@ class ProductShelfService extends BaseService implements BaseServiceInterface
       return 'EST-001';
     }
 
-    $lastNumber = (int) substr($lastShelf->code, 4);
+    $lastNumber = (int)substr($lastShelf->code, 4);
     $newNumber = $lastNumber + 1;
 
     return 'EST-' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
@@ -187,5 +189,72 @@ class ProductShelfService extends BaseService implements BaseServiceInterface
       ->get();
 
     return ProductWarehouseShelfResource::collection($products);
+  }
+
+  public function updatePosition(mixed $data)
+  {
+    DB::beginTransaction();
+    try {
+      $assignment = ProductWarehouseShelf::where('product_warehouse_stock_id', $data['product_warehouse_stock_id'])
+        ->where('product_shelf_id', $data['product_shelf_id'])
+        ->first();
+
+      if (!$assignment) {
+        throw new Exception('La asignación del producto al estante no existe');
+      }
+
+      $assignment->position = $data['position'] ?? null;
+      $assignment->save();
+
+      DB::commit();
+      return response()->json([
+        'message' => 'Posición actualizada correctamente',
+        'data' => new ProductWarehouseShelfResource($assignment->load(['productWarehouseStock.product', 'productWarehouseStock.warehouse']))
+      ]);
+    } catch (\Throwable $th) {
+      DB::rollBack();
+      throw $th;
+    }
+  }
+
+  public function exportShelfProducts($shelfId)
+  {
+    try {
+      $shelf = $this->find($shelfId);
+
+      // Obtener productos del estante con todas las relaciones necesarias
+      $shelfProducts = ProductWarehouseShelf::where('product_shelf_id', $shelfId)
+        ->with([
+          'productWarehouseStock.product.category',
+          'productWarehouseStock.product.brand',
+          'productWarehouseStock.product.unitMeasurement',
+        ])
+        ->orderByRaw('CASE WHEN position IS NULL THEN 1 ELSE 0 END, position ASC')
+        ->get();
+
+      // Mapear los datos para el export
+      $data = $shelfProducts->map(function ($item) use ($shelf) {
+        $product = $item->productWarehouseStock->product;
+
+        return [
+          'shelf_code' => $shelf->code ?? 'N/A',
+          'shelf_label' => $shelf->label ?? 'N/A',
+          'position' => $item->position ?? '-',
+          'product_code' => $product->code ?? 'N/A',
+          'product_dyn_code' => $product->dyn_code ?? 'N/A',
+          'product_name' => $product->name ?? 'N/A',
+          'category' => $product->category->description ?? 'N/A',
+          'brand' => $product->brand->name ?? 'N/A',
+          'unit_measurement' => $product->unitMeasurement->dyn_code ?? 'N/A',
+        ];
+      });
+
+      $filename = 'Productos_Estante_' . $shelf->code . '_' . date('Y-m-d_His') . '.xlsx';
+      $title = 'Productos - Estante ' . $shelf->label;
+
+      return Excel::download(new ProductShelfExport($data, $title), $filename);
+    } catch (\Throwable $th) {
+      throw $th;
+    }
   }
 }

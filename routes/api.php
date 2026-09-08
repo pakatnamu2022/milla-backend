@@ -1727,7 +1727,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
       Route::post('productShelves/assign-products', [ProductShelfController::class, 'assignProducts']);
       Route::post('productShelves/remove-product', [ProductShelfController::class, 'removeProduct']);
+      Route::post('productShelves/update-position', [ProductShelfController::class, 'updatePosition']);
       Route::get('productShelves/{shelfId}/products', [ProductShelfController::class, 'getShelfProducts']);
+      Route::get('productShelves/{shelfId}/export', [ProductShelfController::class, 'export']);
 
       // Transfer Receptions - Recepciones de Transferencias
       Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
