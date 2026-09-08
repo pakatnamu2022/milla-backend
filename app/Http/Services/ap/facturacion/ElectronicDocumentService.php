@@ -40,6 +40,11 @@ use App\Models\GeneralMaster;
 use App\Models\gp\gestionsistema\Company;
 use App\Models\gp\maestroGeneral\Sede;
 use App\Models\gp\maestroGeneral\SunatConcepts;
+use App\Models\ap\comercial\Opportunity;
+use App\Models\ap\comercial\PotentialBuyers;
+use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\maestroGeneral\ExchangeRate;
+use App\Imports\ap\facturacion\VehicleHistoricalFinalSaleBulkImport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
@@ -5473,5 +5478,304 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       DB::rollBack();
       throw new Exception('Error al registrar venta final histórica: ' . $e->getMessage());
     }
+  }
+
+  /**
+   * Registro masivo de ventas finales históricas (stock inicial ya vendido/entregado
+   * pero cargado sin factura). Un Excel = N vehículos. Con $dryRun = true no se
+   * persiste nada: se devuelve el detalle fila por fila para que el usuario confirme.
+   *
+   * @return array{created:int, skipped:int, errors:array, rows_processed:int, dry_run:bool, rows:array}
+   */
+  public function bulkRegisterHistoricalFinalSale(UploadedFile $file, bool $dryRun): array
+  {
+    $import = new VehicleHistoricalFinalSaleBulkImport($dryRun);
+    Excel::import($import, $file);
+    return $import->getResults();
+  }
+
+  /**
+   * Núcleo transaccional de una fila del registro masivo de venta final histórica.
+   * Recibe los ids ya resueltos por el Import. Crea/reutiliza la solicitud, le asigna
+   * el asesor vía una oportunidad SOLD, registra la factura como REGISTRO EXTERNO y
+   * crea un movimiento FACTURADO FINAL nuevo (no reutiliza el último) para que el
+   * reporte de entregas reconozca el vehículo como facturado sin listas hardcodeadas.
+   *
+   * @param array $data vin, client_id, worker_id, sunat_concept_document_type_id, serie,
+   *   numero, area_id, sede_id, sunat_concept_currency_id, doc_type_currency_id,
+   *   type_currency_id, total, descripcion, emission_date (Y-m-d)
+   */
+  public function createHistoricalFinalSaleFromBulkRow(array $data): ElectronicDocument
+  {
+    $emissionDate = $data['emission_date'];
+    $emissionCarbon = Carbon::parse($emissionDate);
+
+    $serie = strtoupper(trim($data['serie']));
+    $numero = (int)$data['numero'];
+    $docTypeId = (int)$data['sunat_concept_document_type_id'];
+
+    if (!ElectronicDocument::validateSerie($docTypeId, $serie)) {
+      throw new Exception("La serie {$serie} no es válida para el tipo de comprobante");
+    }
+
+    if (
+      ElectronicDocument::whereNull('deleted_at')
+        ->where('serie', $serie)->where('numero', $numero)->exists()
+    ) {
+      throw new Exception("Ya existe un documento activo con la serie {$serie} y número {$numero}");
+    }
+
+    $docTypeToReceiptMap = [
+      AssignSalesSeries::FACTURA_NUBEFACT => AssignSalesSeries::FACTURA,
+      AssignSalesSeries::BOLETA_NUBEFACT  => AssignSalesSeries::BOLETA,
+    ];
+    $typeReceiptId = $docTypeToReceiptMap[$docTypeId] ?? null;
+    if (!$typeReceiptId) {
+      throw new Exception('El tipo de comprobante no es compatible con series de venta');
+    }
+
+    $vehicle = Vehicles::where('vin', $data['vin'])->whereNull('deleted_at')->first();
+    if (!$vehicle) {
+      throw new Exception('Vehículo no encontrado para el VIN proporcionado');
+    }
+
+    $client = BusinessPartners::find($data['client_id']);
+    if (!$client) {
+      throw new Exception('Cliente no encontrado');
+    }
+
+    $seriesRecord = AssignSalesSeries::whereNull('deleted_at')->where('series', $serie)->first()
+      ?: AssignSalesSeries::create([
+        'series'            => $serie,
+        'correlative_start' => 1,
+        'type'              => AssignSalesSeries::SALE,
+        'type_receipt_id'   => $typeReceiptId,
+        'type_operation_id' => ApMasters::TIPO_OPERACION_COMERCIAL,
+        'sede_id'           => $data['sede_id'],
+        'status'            => false,
+      ]);
+
+    // Oportunidad SOLD para poder colgar el asesor de la solicitud.
+    $family = $vehicle->model?->family;
+    if (!$family) {
+      throw new Exception('El vehículo no tiene familia asociada; no se puede crear la oportunidad del asesor');
+    }
+    $familyId = $family->id;
+
+    // La oportunidad exige un lead (potential_buyers.lead_id NOT NULL). Reutilizamos
+    // uno del cliente o creamos uno mínimo para el registro histórico.
+    $lead = PotentialBuyers::where('num_doc', $client->num_doc)->whereNull('deleted_at')
+      ->orderByDesc('id')->first();
+    if (!$lead) {
+      $lead = PotentialBuyers::create([
+        'registration_date' => $emissionDate,
+        'num_doc'           => $client->num_doc,
+        'full_name'         => $client->full_name,
+        'phone'             => $client->phone,
+        'email'             => $client->email,
+        'campaign'          => 'REGISTRO HISTORICO STOCK INICIAL',
+        'type'              => PotentialBuyers::EXTERNO,
+        'income_sector_id'  => 827, // SECTOR_INGRESO: SHOWROOM
+        'sede_id'           => $data['sede_id'],
+        'vehicle_brand_id'  => $family->brand_id,
+        'document_type_id'  => $client->document_type_id,
+        'area_id'           => $data['area_id'],
+        'worker_id'         => (int)$data['worker_id'],
+        'use'               => PotentialBuyers::USED,
+        'comment'           => 'Generado por registro masivo de venta histórica (stock inicial)',
+      ]);
+    }
+
+    $opportunity = Opportunity::create([
+      'worker_id'             => (int)$data['worker_id'],
+      'client_id'             => $client->id,
+      'lead_id'               => $lead->id,
+      'family_id'             => $familyId,
+      'opportunity_type_id'   => 839, // VENTA VN
+      'client_status_id'      => 853,
+      'opportunity_status_id' => Opportunity::SOLD_ID,
+      'comment'               => 'Generada por registro masivo de venta histórica (stock inicial)',
+    ]);
+
+    $exchangeRate = $this->resolveExchangeRateForHistoricalSale($emissionDate);
+
+    // Precio de venta de la cotización: se reconstruye del margen (puede diferir del
+    // total de la última factura si hubo anticipos). Si no viene, cae al total.
+    $salePrice = round((float)($data['sale_price'] ?? $data['total']), 2);
+    $marginAmount = isset($data['margin_amount']) ? round((float)$data['margin_amount'], 4) : null;
+    $marginPct = isset($data['margin_pct']) ? round((float)$data['margin_pct'], 4) : null;
+
+    $quote = PurchaseRequestQuote::where('ap_vehicle_id', $vehicle->id)->whereNull('deleted_at')->first();
+    if (!$quote) {
+      $correlative = $this->nextCorrelativeField(PurchaseRequestQuote::class, 'correlative', 8);
+      $quote = PurchaseRequestQuote::create([
+        'correlative'         => $correlative,
+        'type_document'       => 'SOLICITUD_COMPRA',
+        'opportunity_id'      => $opportunity->id,
+        'holder_id'           => $client->id,
+        'ap_vehicle_id'       => $vehicle->id,
+        'ap_models_vn_id'     => $vehicle->ap_models_vn_id,
+        'vehicle_color_id'    => $vehicle->vehicle_color_id,
+        'type_currency_id'    => $data['type_currency_id'],
+        'doc_type_currency_id' => $data['doc_type_currency_id'],
+        'exchange_rate_id'    => $exchangeRate->id,
+        'base_selling_price'  => $salePrice,
+        'sale_price'          => $salePrice,
+        'doc_sale_price'      => $salePrice,
+        'margin_amount'       => $marginAmount,
+        'margin_pct'          => $marginPct,
+        'warranty_years'      => 1,
+        'warranty_km'         => 1,
+        'is_approved'         => 1,
+        'sede_id'             => $data['sede_id'],
+      ]);
+    } else {
+      if (!$quote->opportunity_id) {
+        $quote->update(['opportunity_id' => $opportunity->id]);
+      } else {
+        // La solicitud ya tenía oportunidad: descartamos la recién creada.
+        $opportunity->delete();
+      }
+      // Completa datos comerciales faltantes sin pisar valores ya cargados.
+      $fill = [];
+      if (!$quote->base_selling_price) $fill['base_selling_price'] = $salePrice;
+      if (!$quote->sale_price) $fill['sale_price'] = $salePrice;
+      if (!$quote->doc_sale_price) $fill['doc_sale_price'] = $salePrice;
+      if ($marginAmount !== null && $quote->margin_amount === null) $fill['margin_amount'] = $marginAmount;
+      if ($marginPct !== null && $quote->margin_pct === null) $fill['margin_pct'] = $marginPct;
+      if ($fill) $quote->update($fill);
+    }
+
+    $documentType = SunatConcepts::where('tribute_code', $client->document_type_id)
+      ->where('type', SunatConcepts::TYPE_DOCUMENT)
+      ->first();
+
+    $igvRate = ($client->taxClassType->igv ?? 18) / 100;
+    $totalInput = round((float)$data['total'], 2);
+    $totalGravada = round($totalInput / (1 + $igvRate), 2);
+    $totalIgv = round($totalInput - $totalGravada, 2);
+
+    $hasActiveAdvances = ElectronicDocument::where('purchase_request_quote_id', $quote->id)
+      ->where('is_advance_payment', 1)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', 0)
+      ->whereNull('deleted_at')
+      ->exists();
+
+    $document = ElectronicDocument::create([
+      'sunat_concept_document_type_id' => $docTypeId,
+      'series_id'                      => $seriesRecord->id,
+      'serie'                          => $serie,
+      'numero'                         => $numero,
+      'full_number'                    => $serie . '-' . str_pad($numero, 8, '0', STR_PAD_LEFT),
+      'is_advance_payment'             => 0,
+      'sunat_concept_transaction_type_id' => $hasActiveAdvances
+        ? SunatConcepts::ID_VENTA_INTERNA_ANTICIPOS
+        : SunatConcepts::ID_VENTA_INTERNA,
+
+      'area_id'                  => $data['area_id'],
+      'purchase_request_quote_id' => $quote->id,
+
+      'client_id'                => $client->id,
+      'sunat_concept_identity_document_type_id' => $documentType?->id,
+      'cliente_numero_de_documento' => $client->num_doc,
+      'cliente_denominacion'     => $client->full_name . ($client->spouse_full_name ? ' - ' . $client->spouse_full_name : ''),
+      'cliente_direccion'        => $client->direction,
+      'cliente_email'            => $client->email,
+
+      'fecha_de_emision'         => $emissionDate,
+      'fecha_de_vencimiento'     => $emissionDate,
+
+      'sunat_concept_currency_id' => $data['sunat_concept_currency_id'],
+      'tipo_de_cambio'           => $exchangeRate->rate,
+      'exchange_rate_id'         => $exchangeRate->id,
+      'porcentaje_de_igv'        => $client->taxClassType->igv ?? 18,
+
+      'total_gravada'            => $totalGravada,
+      'total_inafecta'          => 0,
+      'total_exonerada'         => 0,
+      'total_igv'               => $totalIgv,
+      'total'                   => $totalInput,
+
+      'observaciones'           => '[REGISTRO EXTERNO - NO EMITIDO POR NUBEFACT]',
+      'condiciones_de_pago'     => 'CONTADO',
+
+      'status'                  => ElectronicDocument::STATUS_ACCEPTED,
+      'aceptada_por_sunat'      => 1,
+      'anulado'                 => 0,
+      'is_annulled'             => 0,
+      'migration_status'        => 'completed',
+      'is_accounted'            => 1,
+      'sent_at'                 => $emissionCarbon,
+      'accepted_at'             => $emissionCarbon,
+      'migrated_at'             => $emissionCarbon,
+
+      'internal_note'           => 'REGISTRO_EXTERNO',
+      'created_by'              => auth()->id(),
+    ]);
+
+    // Movimiento FACTURADO FINAL nuevo (no reutilizamos el último). No tocamos el
+    // estado actual del vehículo: ya fue entregado, sólo dejamos el rastro para el reporte.
+    $previousStatusId = $vehicle->ap_vehicle_status_id;
+    $movement = VehicleMovement::create([
+      'movement_type'        => 'VENTA',
+      'ap_vehicle_id'        => $vehicle->id,
+      'ap_vehicle_status_id' => ApVehicleStatus::FACTURADO_FINAL,
+      'movement_date'        => $emissionCarbon,
+      'observation'          => "Venta histórica stock inicial - Documento: {$serie}-{$numero}",
+      'warehouse_id'         => $vehicle->warehouse_id,
+      'origin_warehouse_id'  => $vehicle->warehouse_id,
+      'previous_status_id'   => $previousStatusId,
+      'new_status_id'        => ApVehicleStatus::FACTURADO_FINAL,
+      'created_by'           => auth()->id(),
+    ]);
+    $document->update(['ap_vehicle_movement_id' => $movement->id]);
+
+    ElectronicDocumentItem::create([
+      'ap_billing_electronic_document_id' => $document->id,
+      'account_plan_id'      => 2,
+      'line_number'          => 1,
+      'codigo'              => 'VENTA',
+      'descripcion'         => $data['descripcion'],
+      'unidad_de_medida'   => 'ZZ',
+      'cantidad'            => 1,
+      'valor_unitario'     => $totalGravada,
+      'precio_unitario'    => $totalInput,
+      'descuento'          => 0,
+      'descuento_unitario' => 0,
+      'subtotal'           => $totalGravada,
+      'sunat_concept_igv_type_id' => SunatConcepts::ID_IGV_GRAVADO_ONEROSA,
+      'igv'                => $totalIgv,
+      'total'              => $totalInput,
+      'anticipo_regularizacion' => 0,
+    ]);
+
+    $vehicle->update(['is_paid' => true]);
+
+    return $document;
+  }
+
+  /**
+   * Tasa de cambio a USD para la fecha de emisión; si no hay registro exacto,
+   * usa la última tasa VENDER con fecha <= emisión.
+   */
+  private function resolveExchangeRateForHistoricalSale(string $emissionDate): ExchangeRate
+  {
+    $rate = (new ExchangeRateService())->getExchangeRate(TypeCurrency::USD_ID, $emissionDate);
+    if ($rate) {
+      return $rate;
+    }
+
+    $rate = ExchangeRate::where('to_currency_id', TypeCurrency::USD_ID)
+      ->where('type', ExchangeRate::TYPE_VENTA)
+      ->whereDate('date', '<=', $emissionDate)
+      ->orderBy('date', 'desc')
+      ->first();
+
+    if (!$rate) {
+      throw new Exception("No se encontró tasa de cambio USD para la fecha {$emissionDate} ni anteriores");
+    }
+
+    return $rate;
   }
 }
