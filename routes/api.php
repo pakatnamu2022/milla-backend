@@ -2102,6 +2102,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
       Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
 
+      // Registro masivo de ventas finales históricas desde Excel (stock inicial vendido sin factura)
+      Route::post('electronic-documents/bulk-register-historical-final-sale', [ElectronicDocumentController::class, 'bulkRegisterHistoricalFinalSale']);
+
       //Registrar venta final histórica (factura con anticipo para OTs) con anticipo histórico
       Route::post('electronic-documents/register-historical-final-sale-with-advance', [ElectronicDocumentController::class, 'registerHistoricalFinalSaleWithAdvance']);
 
