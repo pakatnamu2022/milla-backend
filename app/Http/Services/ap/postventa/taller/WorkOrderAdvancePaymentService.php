@@ -60,7 +60,7 @@ class WorkOrderAdvancePaymentService
     // porque esas ya están excluidas por getActiveAdvances()
     $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->whereNotIn('sunat_concept_credit_note_type_id', [
         SunatConcepts::ID_CREDIT_NOTE_ANULACION,
@@ -75,7 +75,7 @@ class WorkOrderAdvancePaymentService
     // Sumar notas de débito sobre este anticipo
     $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->get();
 
@@ -121,7 +121,7 @@ class WorkOrderAdvancePaymentService
     // Restar subtotales de notas de crédito sobre este anticipo
     $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->whereNotIn('sunat_concept_credit_note_type_id', [
         SunatConcepts::ID_CREDIT_NOTE_ANULACION,
@@ -136,7 +136,7 @@ class WorkOrderAdvancePaymentService
     // Sumar subtotales de notas de débito sobre este anticipo
     $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->get();
 
@@ -182,7 +182,7 @@ class WorkOrderAdvancePaymentService
     // Restar total gravada de notas de crédito sobre este anticipo
     $creditNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->whereNotIn('sunat_concept_credit_note_type_id', [
         SunatConcepts::ID_CREDIT_NOTE_ANULACION,
@@ -197,7 +197,7 @@ class WorkOrderAdvancePaymentService
     // Sumar total gravada de notas de débito sobre este anticipo
     $debitNotesOnAdvance = ElectronicDocument::where('original_document_id', $advance->id)
       ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-      ->where('aceptada_por_sunat', true)
+      ->where('status', ElectronicDocument::STATUS_ACCEPTED)
       ->where('anulado', 0)
       ->get();
 
