@@ -2797,7 +2797,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
   });
-  
+
   // NOTIFICATIONS
   Route::group(['prefix' => 'notifications'], function () {
     Route::get('/', [NotificationController::class, 'index']);
