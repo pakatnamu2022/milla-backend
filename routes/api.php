@@ -2436,6 +2436,366 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
             'destroy',
         ]);
     });
+    //      POST-VENTA
+    Route::group(['prefix' => 'postVenta'], function () {
+      // Products - Gestión de Productos
+      Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
+      Route::get('products/featured', [ProductsController::class, 'featured']);
+      Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
+      Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+      Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
+      Route::get('products/export/excel', [ProductsController::class, 'exportProducts']);
+      Route::apiResource('products', ProductsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Purchase Receptions - Recepciones de Compra
+      Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+      Route::post('purchaseReceptions/mark-defective-products', [PurchaseReceptionController::class, 'markDefectiveProducts']);
+      Route::post('purchaseReceptions/unmark-defective-product', [PurchaseReceptionController::class, 'unmarkDefectiveProduct']);
+      Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Purchase Reception Details - Detalles de Recepción de Compra
+      Route::patch('purchaseReceptionDetails/{id}/credit-note', [PurchaseReceptionDetailController::class, 'updateCreditNote']);
+
+      // Inventory Movements - Movimientos de Inventario
+      Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
+      Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
+      Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
+      Route::post('inventoryMovements/transfers/{id}/cancel', [InventoryMovementController::class, 'cancelTransfer']);
+      Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
+      Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
+      Route::get('inventoryMovements/kardex/export', [InventoryMovementController::class, 'exportKardex']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
+      Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history/export', [InventoryMovementController::class, 'exportProductPurchaseHistory']);
+      // Ignorar/Restaurar movimientos
+      Route::post('inventoryMovements/{id}/ignore', [InventoryMovementController::class, 'ignoreMovement']);
+      Route::post('inventoryMovements/{id}/restore', [InventoryMovementController::class, 'restoreMovement']);
+      Route::get('inventoryMovements/ignored', [InventoryMovementController::class, 'getIgnoredMovements']);
+      Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
+        'index',
+        'show',
+        'update',
+        'destroy'
+      ]);
+
+      // Product Warehouse Stock - Stock de Productos por Almacén
+      Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
+        'index',
+        'update'
+      ]);
+      Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
+      Route::get('productWarehouseStock/export/inventory', [ProductWarehouseStockController::class, 'exportInventory']);
+      Route::get('productWarehouseStock/compare-dynamics', [ProductWarehouseStockController::class, 'compareStockWithDynamics']);
+      Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
+      Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
+      Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
+      Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
+      Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
+
+      // Product Shelves - Estantes de Productos
+      Route::apiResource('productShelves', ProductShelfController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::post('productShelves/assign-products', [ProductShelfController::class, 'assignProducts']);
+      Route::post('productShelves/remove-product', [ProductShelfController::class, 'removeProduct']);
+      Route::post('productShelves/update-position', [ProductShelfController::class, 'updatePosition']);
+      Route::get('productShelves/{shelfId}/products', [ProductShelfController::class, 'getShelfProducts']);
+      Route::get('productShelves/{shelfId}/export', [ProductShelfController::class, 'export']);
+
+      // Transfer Receptions - Recepciones de Transferencias
+      Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
+        'index',
+        'show',
+        'store',
+        'destroy'
+      ]);
+
+      Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+      Route::get('appointmentPlanning/available-slots-by-sede', [AppointmentPlanningController::class, 'availableSlotsBySede']);
+      Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
+      Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
+      Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Types planifications - Tipos de planificación
+      Route::apiResource('typePlanningWorkOrder', TypePlanningWorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+
+      // Concept Objective Master PV - Conceptos Objetivos Master PV
+      Route::get('conceptObjectiveMasterPv', [ConceptObjectiveMasterPvController::class, 'index']);
+      Route::post('conceptObjectiveMasterPv/updateOrCreate', [ConceptObjectiveMasterPvController::class, 'updateOrCreate']);
+      Route::delete('conceptObjectiveMasterPv/{id}', [ConceptObjectiveMasterPvController::class, 'destroy']);
+
+      // Objective Sede Period PV - Objetivos por Sede y Período PV
+      Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
+      Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+      Route::post('objectiveSedePeriodPv/bulk-generate', [ObjectiveSedePeriodPvController::class, 'bulkGenerate']);
+      Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
+      Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
+      Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
+
+      // Concept Objective Period PV - Conceptos Objetivos por Período PV
+      Route::get('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'index']);
+      Route::post('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'store']);
+      Route::get('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'show']);
+      Route::put('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'update']);
+      Route::delete('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'destroy']);
+
+      // Work Orders - Órdenes de Trabajo
+      Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
+      Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
+      Route::get('workOrders/export', [WorkOrderController::class, 'exportWorkOrders']);
+      Route::post('workOrders/by-ids', [WorkOrderController::class, 'getByIds']);
+      Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
+      Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
+      Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
+      Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
+      Route::patch('workOrders/{id}/update-pickup-person', [WorkOrderController::class, 'updatePickupPerson']);
+      Route::patch('workOrders/{id}/change-advisor', [WorkOrderController::class, 'changeAdvisor']);
+      Route::patch('workOrders/{id}/update-items', [WorkOrderController::class, 'updateItems']);
+      Route::patch('workOrders/{id}/change-currency', [WorkOrderController::class, 'changeCurrency']);
+      Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
+      Route::patch('workOrders/{id}/revertir', [WorkOrderController::class, 'revertir']);
+      Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
+      Route::post('workOrders/{id}/recalculate-totals', [WorkOrderController::class, 'recalculateTotals']);
+      Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
+      Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
+      Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
+      Route::patch('workOrders/{id}/revert-internal-note', [WorkOrderController::class, 'revertInternalNote']);
+      Route::patch('workOrders/{id}/authorize-internal-note-revert', [WorkOrderController::class, 'authorizeInternalNoteRevert']);
+      Route::get('workOrders/{id}/internal-note-logs', [WorkOrderController::class, 'internalNoteLogs']);
+      Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
+      Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+      Route::post('workOrders/deductible', [WorkOrderController::class, 'storeDeductible']);
+      Route::delete('workOrders/deductible/{id}', [WorkOrderController::class, 'deleteDeductible']);
+      Route::post('workOrders/{id}/documents', [WorkOrderController::class, 'uploadDocuments']);
+      Route::get('workOrders/{id}/documents', [WorkOrderController::class, 'documents']);
+      Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
+      Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
+
+      Route::apiResource('workOrders', WorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Internal Notes - Notas Internas
+      Route::post('internalNotes/{id}/verify-internal-note-migration', [ApInternalNoteController::class, 'verifyInternalNoteMigration']);
+      Route::post('internalNotes/{id}/update-internal-note-accounting-status', [ApInternalNoteController::class, 'updateInternalNoteAccountingStatus']);
+
+      Route::apiResource('internalNotes', ApInternalNoteController::class)->only([
+        'index'
+      ]);
+
+      // Reports - Reportes de Taller
+      Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
+      Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
+      Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
+      Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
+      Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
+      Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
+      Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
+
+      // Objectives Dashboard - Dashboard de Objetivos Postventa
+      Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
+      Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
+      Route::post('reports/objectives/dashboard/export', [ObjectiveDashboardController::class, 'exportExcel']);
+
+      // Productivity Dashboard - Dashboard de Productividad de Técnicos
+      Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
+      Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
+      Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
+
+      // Technician Productivity Detail - Detalle de Productividad por Técnico
+      Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);
+
+      // Reports - Reportes de Mesón
+      Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);
+
+      // Reports - Reportes de Inventario
+      Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
+
+      // Work Order Items - Ítems de Órdenes de Trabajo
+      Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Work Order Parts - Repuestos de Órdenes de Trabajo
+      Route::apiResource('workOrderParts', ApWorkOrderPartsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+      Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
+      Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+      Route::post('workOrderParts/assign-bulk', [ApWorkOrderPartsController::class, 'assignToTechnicianBulk']);
+      Route::post('workOrderParts/{id}/unassign', [ApWorkOrderPartsController::class, 'unassignFromTechnician']);
+      Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
+      Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
+      Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);
+      Route::get('workOrderParts/work-order/{workOrderId}/report-pdf', [ApWorkOrderPartsController::class, 'generatePartsReportPDF']);
+
+      // Work Order Labour - Mano de Obra de Órdenes de Trabajo
+      Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Discount Requests Work Order - Solicitudes de Descuento de Órdenes de Trabajo
+      Route::put('discountRequestsWorkOrder/{id}/approve', [DiscountRequestsWorkOrderController::class, 'approve']);
+      Route::put('discountRequestsWorkOrder/{id}/reject', [DiscountRequestsWorkOrderController::class, 'reject']);
+      Route::apiResource('discountRequestsWorkOrder', DiscountRequestsWorkOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Campaign Schedules - Cronograma de Campañas
+      Route::get('campaignSchedules/worker-schedule', [ApCampaignScheduleController::class, 'getWorkerSchedule']);
+      Route::apiResource('campaignSchedules', ApCampaignScheduleController::class)->only([
+        'index',
+        'show',
+        'store',
+        'destroy'
+      ]);
+
+      // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
+      Route::post('orderQuotations/{id}/duplicate', [ApOrderQuotationsController::class, 'duplicate']);
+      Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadTaller']);
+      Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuesto']);
+      Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
+      Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
+      Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
+      Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
+      Route::put('orderQuotations/{id}/send-to-invoice', [ApOrderQuotationsController::class, 'sendToInvoice']);
+      Route::put('orderQuotations/{id}/set-in-editing', [ApOrderQuotationsController::class, 'setInEditing']);
+      Route::put('orderQuotations/{id}/approve-taller', [ApOrderQuotationsController::class, 'approveTaller']);
+      Route::put('orderQuotations/{id}/approve-repuesto', [ApOrderQuotationsController::class, 'approveRepuesto']);
+      Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
+      Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
+      Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
+      Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
+      Route::get('orderQuotations/for-purchase-request-taller/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestTaller']);
+      Route::get('orderQuotations/for-purchase-request-meson/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestMeson']);
+      Route::patch('orderQuotations/{id}/invoice-to', [ApOrderQuotationsController::class, 'invoiceTo']);
+      Route::post('orderQuotations/{id}/segment-by-supply-type', [ApOrderQuotationsController::class, 'segmentBySupplyType']);
+      Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
+      Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
+      Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
+      Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
+      Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
+      Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
+      Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
+      Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
+      Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
+      Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
+      Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Order Quotation Details - Detalles de Cotización (Productos y Mano de Obra)
+      Route::apiResource('orderQuotationDetails', ApOrderQuotationDetailsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Discount Requests Order Quotation - Solicitudes de Descuento de Cotizaciones
+      Route::put('discountRequestsOrderQuotation/{id}/approve', [DiscountRequestsOrderQuotationController::class, 'approve']);
+      Route::put('discountRequestsOrderQuotation/{id}/reject', [DiscountRequestsOrderQuotationController::class, 'reject']);
+      Route::put('discountRequestsOrderQuotation/{id}/revert', [DiscountRequestsOrderQuotationController::class, 'revert']);
+      Route::apiResource('discountRequestsOrderQuotation', DiscountRequestsOrderQuotationController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Order Purchase Requests - Solicitudes de Compra de Órdenes
+      Route::put('orderPurchaseRequests/{id}/approve', [ApOrderPurchaseRequestsController::class, 'approve']);
+      Route::put('orderPurchaseRequests/{id}/cancel', [ApOrderPurchaseRequestsController::class, 'cancel']);
+      Route::post('orderPurchaseRequests/{id}/notify-managers', [ApOrderPurchaseRequestsController::class, 'notifyManagers']);
+      Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
+      Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
+      Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
+      Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
+
+      // Supplier Orders - Órdenes de Proveedor
+      Route::get('supplierOrders/{id}/pending-products', [ApSupplierOrderController::class, 'pendingProducts']);
+      Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
+      Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
+      Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+      Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
+      Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
+        'index',
+        'show',
+        'store',
+        'update',
+        'destroy'
+      ]);
 
     // NOTIFICATIONS
     Route::group(['prefix' => 'notifications'], function () {
