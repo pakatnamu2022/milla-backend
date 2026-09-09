@@ -946,13 +946,22 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     // Se exceptua el vehiculo ya asignado a la cotizacion que se esta editando.
     if ($request->filled('sede_id')) {
       $sedeId = $request->get('sede_id');
-      $query->where(function ($q) use ($sedeId, $excludeQuoteId) {
+
+      // Algunas sedes tienen su almacen registrado bajo una sede_id diferente.
+      // Pimentel (sede 16) <-> sede_id 14 en almacenes: el mapeo es bidireccional.
+      $sedeToWarehouseSede = [
+        16 => 14,
+        14 => 16,
+      ];
+      $warehouseSedeId = $sedeToWarehouseSede[$sedeId] ?? $sedeId;
+
+      $query->where(function ($q) use ($warehouseSedeId, $excludeQuoteId) {
         // El almacen de la sede se determina por `warehouse_id` (almacen contable/
         // de ubicacion). `warehouse_physical_id` esta casi siempre en NULL en
         // produccion, por lo que filtrar por `warehousePhysical.sede_id` dejaba
         // la lista vacia aunque el VIN si pertenezca a la sede.
-        $q->whereHas('warehouse', function ($sub) use ($sedeId) {
-          $sub->where('sede_id', $sedeId);
+        $q->whereHas('warehouse', function ($sub) use ($warehouseSedeId) {
+          $sub->where('sede_id', $warehouseSedeId);
         });
         if ($excludeQuoteId) {
           $q->orWhereHas('purchaseRequestQuote', function ($sub) use ($excludeQuoteId) {
