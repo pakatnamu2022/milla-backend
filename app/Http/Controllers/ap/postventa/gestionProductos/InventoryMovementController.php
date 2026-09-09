@@ -256,4 +256,66 @@ class InventoryMovementController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  /**
+   * Marca un movimiento como ignorado
+   */
+  public function ignoreMovement(int $id, Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'reason' => 'nullable|string|max:1000',
+      ]);
+
+      $movement = $this->service->ignoreMovement($id, $request->reason);
+
+      return $this->success([
+        'message' => 'Movimiento ignorado correctamente. El stock y costos han sido recalculados.',
+        'movement' => $movement,
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Restaura un movimiento que fue marcado como ignorado
+   */
+  public function restoreMovement(int $id): JsonResponse
+  {
+    try {
+      $movement = $this->service->restoreMovement($id);
+
+      return $this->success([
+        'message' => 'Movimiento restaurado correctamente. El stock y costos han sido recalculados.',
+        'movement' => $movement,
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Obtiene todos los movimientos ignorados, opcionalmente filtrados por producto y almacén
+   */
+  public function getIgnoredMovements(Request $request)
+  {
+    try {
+      $request->validate([
+        'product_id' => 'sometimes|integer|exists:products,id',
+        'warehouse_id' => 'sometimes|integer|exists:warehouse,id',
+        'per_page' => 'sometimes|integer|min:1|max:100',
+      ]);
+
+      $movements = $this->service->getIgnoredMovements(
+        $request->product_id,
+        $request->warehouse_id,
+        $request
+      );
+
+      return $movements;
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

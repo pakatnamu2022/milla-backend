@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\gestionProductos;
 
 use App\Exports\GeneralExport;
+use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementIgnoredResource;
 use App\Http\Resources\ap\postventa\gestionProductos\InventoryMovementResource;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductMovementHistoryResource;
 use App\Http\Services\ap\postventa\taller\ApSupplierOrderService;
@@ -10,6 +11,7 @@ use App\Http\Services\BaseService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\BusinessPartners;
+use App\Models\ap\postventa\gestionProductos\WeightedAverageCostHistory;
 use App\Models\gp\gestionsistema\Company;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\comercial\BusinessPartnersEstablishment;
@@ -1162,10 +1164,19 @@ class InventoryMovementService extends BaseService
     }
   }
 
-  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  /**
+   * Centraliza la lógica para construir el historial de movimientos de un producto
+   * Este método es usado tanto para mostrar como para exportar el historial
+   */
+  private function buildProductMovementHistoryData(int $productId, int $warehouseId, Request $request, bool $loadFullRelations = true)
   {
-    // Base query: get all movements that have details for this product in this warehouse
+    // Por defecto, excluir movimientos ignorados a menos que se solicite incluirlos
+    $includeIgnored = $request->get('include_ignored', false);
+
     $query = InventoryMovement::query()
+      ->when(!$includeIgnored, function ($q) {
+        $q->notIgnored();
+      })
       ->whereHas('details', function ($q) use ($productId) {
         $q->where('product_id', $productId);
       })
@@ -1191,8 +1202,11 @@ class InventoryMovementService extends BaseService
                   ->orWhere('warehouse_destination_id', $warehouseId);
               });
           });
-      })
-      ->with([
+      });
+
+    // Cargar relaciones según el contexto (vista o exportación)
+    if ($loadFullRelations) {
+      $query->with([
         'details' => function ($q) use ($productId) {
           $q->where('product_id', $productId)
             ->with('product:id,code,dyn_code,name');
@@ -1214,9 +1228,22 @@ class InventoryMovementService extends BaseService
             'credit_note_id',
             'total',
             'fecha_de_emision'
-          )->with('creditNote:id,full_number,status,anulado'); // Load the credit note relation if exists
+          )->with('creditNote:id,full_number,status,anulado');
         }
       ]);
+    } else {
+      $query->with([
+        'details' => function ($q) use ($productId) {
+          $q->where('product_id', $productId)
+            ->with('product');
+        },
+        'warehouse',
+        'warehouseDestination',
+        'user',
+        'reasonInOut',
+        'reference'
+      ]);
+    }
 
     // Apply date range filter if provided
     if ($request->has('date_from')) {
@@ -1242,46 +1269,47 @@ class InventoryMovementService extends BaseService
       ->orderBy('created_at', 'asc')
       ->get();
 
-    // Eager load specific reference relations to avoid N+1 queries
-    // Group movements by reference_type and load only the necessary relations for each type
-    $allMovements->load([
-      // PURCHASE_RECEPTION - load purchaseOrder
-      'reference' => function ($query) {
-        $query->when(
-          function ($q) {
-            return $q->getModel() instanceof PurchaseReception;
-          },
-          function ($q) {
-            $q->with([
-              'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
-              'purchaseOrder.supplier:id,full_name,num_doc'
-            ]);
-          }
-        );
-      },
-    ]);
+    // Eager load specific reference relations to avoid N+1 queries (solo para vista completa)
+    if ($loadFullRelations) {
+      $allMovements->load([
+        // PURCHASE_RECEPTION - load purchaseOrder
+        'reference' => function ($query) {
+          $query->when(
+            function ($q) {
+              return $q->getModel() instanceof PurchaseReception;
+            },
+            function ($q) {
+              $q->with([
+                'purchaseOrder:id,number,supplier_id,invoice_series,invoice_number,invoice_dynamics,credit_note_dynamics,status',
+                'purchaseOrder.supplier:id,full_name,num_doc'
+              ]);
+            }
+          );
+        },
+      ]);
 
-    // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
-    foreach ($allMovements as $movement) {
-      if ($movement->reference instanceof ShippingGuides) {
-        $movement->reference->load([
-          'receiver:id,description,code',
-          'transmitter:id,description,code'
-        ]);
-      } elseif ($movement->reference instanceof TransferReception) {
-        $movement->reference->load([
-          'shippingGuide' => function ($q) {
-            $q->select('id', 'document_number')
-              ->with('transmitter:id,description,code');
-          }
-        ]);
-      } elseif ($movement->reference instanceof ApOrderQuotations) {
-        $movement->reference->load('client:id,full_name,num_doc');
-      } elseif ($movement->reference instanceof SupplierCreditNote) {
-        $movement->reference->load([
-          'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
-          'purchaseOrder.supplier:id,full_name,num_doc'
-        ]);
+      // Load specific relations for ShippingGuides (TRANSFER_OUT/IN)
+      foreach ($allMovements as $movement) {
+        if ($movement->reference instanceof ShippingGuides) {
+          $movement->reference->load([
+            'receiver:id,description,code',
+            'transmitter:id,description,code'
+          ]);
+        } elseif ($movement->reference instanceof TransferReception) {
+          $movement->reference->load([
+            'shippingGuide' => function ($q) {
+              $q->select('id', 'document_number')
+                ->with('transmitter:id,description,code');
+            }
+          ]);
+        } elseif ($movement->reference instanceof ApOrderQuotations) {
+          $movement->reference->load('client:id,full_name,num_doc');
+        } elseif ($movement->reference instanceof SupplierCreditNote) {
+          $movement->reference->load([
+            'purchaseOrder:id,supplier_id,invoice_series,invoice_number,invoice_dynamics',
+            'purchaseOrder.supplier:id,full_name,num_doc'
+          ]);
+        }
       }
     }
 
@@ -1318,6 +1346,7 @@ class InventoryMovementService extends BaseService
         ->where('inventory_movements.movement_date', '<', $request->date_from)
         ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Calculate total outbound before date_from
@@ -1332,6 +1361,7 @@ class InventoryMovementService extends BaseService
         ->where('inventory_movements.movement_date', '<', $request->date_from)
         ->when($request->has('status'), fn($q) => $q->where('inventory_movements.status', $request->status))
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Initial balance = inbound - outbound
@@ -1354,13 +1384,26 @@ class InventoryMovementService extends BaseService
         $runningBalance -= $quantity;
       }
 
+      // Redondear el balance a 3 decimales y quitar ceros innecesarios
+      $formattedBalance = round($runningBalance, 3);
+      // Convertir a string y quitar ceros innecesarios del final
+      $formattedBalance = rtrim(rtrim(number_format($formattedBalance, 3, '.', ''), '0'), '.');
+
       // Add calculated fields to the movement object
       $movement->quantity_in = $quantityIn;
       $movement->quantity_out = $quantityOut;
-      $movement->balance = $runningBalance;
+      $movement->balance = $formattedBalance;
 
       return $movement;
     });
+
+    return $movementsWithBalance;
+  }
+
+  public function getProductMovementHistory(int $productId, int $warehouseId, Request $request)
+  {
+    // Usar el método centralizado
+    $movementsWithBalance = $this->buildProductMovementHistoryData($productId, $warehouseId, $request, true);
 
     // Manual pagination
     $perPage = $request->get('per_page', 15);
@@ -1437,6 +1480,7 @@ class InventoryMovementService extends BaseService
       ->where('inventory_movements.movement_date', '>=', $dateFrom)
       ->where('inventory_movements.movement_date', '<=', $dateTo)
       ->whereNull('inventory_movements.deleted_at')
+      ->where('inventory_movements.is_ignored', false)
       ->distinct()
       ->pluck('inventory_movement_details.product_id');
 
@@ -1492,6 +1536,7 @@ class InventoryMovementService extends BaseService
         })
         ->where('inventory_movements.movement_date', '<=', $dateTo)
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Calculate total outbound up to date_to
@@ -1505,6 +1550,7 @@ class InventoryMovementService extends BaseService
         })
         ->where('inventory_movements.movement_date', '<=', $dateTo)
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Calculate balance
@@ -1569,6 +1615,7 @@ class InventoryMovementService extends BaseService
       ->where('inventory_movements.movement_date', '>=', $dateFrom)
       ->where('inventory_movements.movement_date', '<=', $dateTo)
       ->whereNull('inventory_movements.deleted_at')
+      ->where('inventory_movements.is_ignored', false)
       ->distinct()
       ->pluck('inventory_movement_details.product_id');
 
@@ -1623,6 +1670,7 @@ class InventoryMovementService extends BaseService
         })
         ->where('inventory_movements.movement_date', '<=', $dateTo)
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Calculate total outbound up to date_to
@@ -1636,6 +1684,7 @@ class InventoryMovementService extends BaseService
         })
         ->where('inventory_movements.movement_date', '<=', $dateTo)
         ->whereNull('inventory_movements.deleted_at')
+        ->where('inventory_movements.is_ignored', false)
         ->sum('imd.quantity') ?? 0;
 
       // Calculate balance
@@ -2727,114 +2776,21 @@ class InventoryMovementService extends BaseService
       throw new Exception('Almacén no encontrado');
     }
 
-    // Base query: get all movements that have details for this product in this warehouse
-    $query = InventoryMovement::query()
-      ->whereHas('details', function ($q) use ($productId) {
-        $q->where('product_id', $productId);
-      })
-      ->where(function ($q) use ($warehouseId) {
-        // TRANSFER_OUT: solo mostrar en el almacén de origen (warehouse_id)
-        $q->where(function ($subQ) use ($warehouseId) {
-          $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
-            ->where('warehouse_id', $warehouseId);
-        })
-          // TRANSFER_IN: solo mostrar en el almacén de destino (warehouse_destination_id)
-          ->orWhere(function ($subQ) use ($warehouseId) {
-            $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_IN)
-              ->where('warehouse_destination_id', $warehouseId);
-          })
-          // Todos los demás tipos de movimientos (no transferencias)
-          ->orWhere(function ($subQ) use ($warehouseId) {
-            $subQ->whereNotIn('movement_type', [
-              InventoryMovement::TYPE_TRANSFER_OUT,
-              InventoryMovement::TYPE_TRANSFER_IN
-            ])
-              ->where(function ($q2) use ($warehouseId) {
-                $q2->where('warehouse_id', $warehouseId)
-                  ->orWhere('warehouse_destination_id', $warehouseId);
-              });
-          });
-      })
-      ->with([
-        'details' => function ($q) use ($productId) {
-          $q->where('product_id', $productId)
-            ->with('product');
-        },
-        'warehouse',
-        'warehouseDestination',
-        'user',
-        'reasonInOut',
-        'reference'
-      ]);
-
-    // Apply date range filter if provided
-    if ($request->has('date_from')) {
-      $query->where('movement_date', '>=', $request->date_from);
-    }
-
-    if ($request->has('date_to')) {
-      $query->where('movement_date', '<=', $request->date_to);
-    }
-
-    // Apply movement type filter if provided
-    if ($request->has('movement_type')) {
-      $query->where('movement_type', $request->movement_type);
-    }
-
-    // Apply status filter if provided
-    if ($request->has('status')) {
-      $query->where('status', $request->status);
-    }
-
-    // Get all movements ordered chronologically
-    $allMovements = $query->orderBy('movement_date', 'asc')
-      ->orderBy('created_at', 'asc')
-      ->get();
-
-    // Calculate quantity_in, quantity_out, and running balance for each movement
-    $runningBalance = 0;
-    $currentStock = $this->stockService->getStock($productId, $warehouseId);
-
-    if ($allMovements->isNotEmpty() && $currentStock) {
-      $totalIn = 0;
-      $totalOut = 0;
-
-      foreach ($allMovements as $movement) {
-        $quantity = $movement->details->first()->quantity ?? 0;
-
-        if ($movement->is_inbound) {
-          $totalIn += $quantity;
-        } else {
-          $totalOut += $quantity;
-        }
-      }
-
-      $runningBalance = $currentStock->quantity - ($totalIn - $totalOut);
-    }
+    // Usar el método centralizado con relaciones básicas (no necesitamos todas las relaciones para exportar)
+    $movementsWithBalance = $this->buildProductMovementHistoryData($productId, $warehouseId, $request, false);
 
     // Transform data for export
-    $exportData = $allMovements->map(function ($movement) use (&$runningBalance) {
-      $quantity = $movement->details->first()->quantity ?? 0;
-      $quantityIn = 0;
-      $quantityOut = 0;
-
-      if ($movement->is_inbound) {
-        $quantityIn = $quantity;
-        $runningBalance += $quantity;
-      } else {
-        $quantityOut = $quantity;
-        $runningBalance -= $quantity;
-      }
-
+    $exportData = $movementsWithBalance->map(function ($movement) {
       return [
         'movement_date' => $movement->movement_date?->format('Y-m-d'),
         'movement_number' => $movement->movement_number,
         'movement_type' => InventoryMovement::getMovementTypeLabel($movement->movement_type),
         'warehouse' => $movement->warehouse?->description,
         'warehouse_destination' => $movement->warehouseDestination?->description,
-        'quantity_in' => $quantityIn,
-        'quantity_out' => $quantityOut,
-        'balance' => $runningBalance,
+        'quantity_in' => $movement->quantity_in,
+        'quantity_out' => $movement->quantity_out,
+        // Convertir el balance a float para que Excel lo maneje como número
+        'balance' => floatval($movement->balance),
         'status' => InventoryMovement::getStatusLabel($movement->status),
         'reason' => $movement->reasonInOut?->name,
         'user' => $movement->user?->name,
@@ -2849,19 +2805,26 @@ class InventoryMovementService extends BaseService
       'movement_type' => ['label' => 'Tipo'],
       'warehouse' => ['label' => 'Almacén Origen'],
       'warehouse_destination' => ['label' => 'Almacén Destino'],
-      'quantity_in' => ['label' => 'Entrada', 'formatter' => 'number'],
-      'quantity_out' => ['label' => 'Salida', 'formatter' => 'number'],
-      'balance' => ['label' => 'Saldo', 'formatter' => 'number'],
+      'quantity_in' => ['label' => 'Entrada'],
+      'quantity_out' => ['label' => 'Salida'],
+      'balance' => ['label' => 'Saldo'],
       'status' => ['label' => 'Estado'],
       'reason' => ['label' => 'Motivo'],
       'user' => ['label' => 'Usuario'],
       'notes' => ['label' => 'Notas'],
     ];
 
+    // Formato de números de Excel: 0.### muestra hasta 3 decimales sin ceros innecesarios
+    $columnFormats = [
+      'quantity_in' => '0.###',
+      'quantity_out' => '0.###',
+      'balance' => '0.###',
+    ];
+
     $title = "Historial_{$product->code}_{$warehouse->name}";
     $filename = \Str::slug($title) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-    $export = new GeneralExport($exportData, $columns, $title);
+    $export = new GeneralExport($exportData, $columns, $title, [], [], $columnFormats);
 
     return Excel::download($export, $filename);
   }
@@ -3262,4 +3225,269 @@ class InventoryMovementService extends BaseService
       throw $e;
     }
   }
+
+  /**
+   * Marca un movimiento como ignorado y revierte su efecto en el stock
+   *
+   * @param int $id ID del movimiento
+   * @param string|null $reason Razón por la cual se ignora
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function ignoreMovement(int $id, ?string $reason = null): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $movement = InventoryMovement::findOrFail($id);
+
+      // Validar que el movimiento no esté ya ignorado
+      if ($movement->is_ignored) {
+        throw new Exception('Este movimiento ya está ignorado');
+      }
+
+      // Validar que el movimiento esté aprobado o en tránsito
+      if (!in_array($movement->status, [InventoryMovement::STATUS_APPROVED, InventoryMovement::STATUS_IN_TRANSIT])) {
+        throw new Exception('Solo se pueden ignorar movimientos aprobados o en tránsito');
+      }
+
+      // REVERTIR el efecto del movimiento en el stock
+      foreach ($movement->details as $detail) {
+        $quantity = abs($detail->quantity);
+
+        // Casos especiales de transferencias
+        if ($movement->movement_type === InventoryMovement::TYPE_TRANSFER_OUT
+          && $movement->status === InventoryMovement::STATUS_IN_TRANSIT) {
+          // REVERTIR moveStockToInTransit: quantity += X, quantity_in_transit -= X
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $movement->warehouse_id)
+            ->first();
+
+          if ($stock) {
+            $stock->quantity += $quantity;
+            $stock->quantity_in_transit -= $quantity;
+            $stock->last_movement_date = now();
+            $stock->updateAvailableQuantity();
+          }
+        } elseif ($movement->movement_type === InventoryMovement::TYPE_TRANSFER_IN
+          && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          // REVERTIR moveFromInTransitToDestination
+          // Origin: quantity_in_transit += X
+          $originStock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $movement->warehouse_id)
+            ->first();
+
+          if ($originStock) {
+            $originStock->quantity_in_transit += $quantity;
+            $originStock->last_movement_date = now();
+            $originStock->save();
+          }
+
+          // Destination: quantity -= X
+          if ($movement->warehouse_destination_id) {
+            // Usar removeStockSymbolic() para permitir revertir incluso si el stock está reservado
+            $this->stockService->removeStockSymbolic(
+              $detail->product_id,
+              $movement->warehouse_destination_id,
+              $quantity
+            );
+          }
+        } // Movimientos de ENTRADA aprobados (agregaron stock)
+        elseif ($movement->is_inbound && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          $warehouseId = $movement->warehouse_destination_id ?? $movement->warehouse_id;
+          // REVERTIR: quitar el stock que agregó
+          // Usar removeStockSymbolic() para permitir revertir incluso si el stock está reservado
+          $this->stockService->removeStockSymbolic($detail->product_id, $warehouseId, $quantity);
+        } // Movimientos de SALIDA aprobados (quitaron stock)
+        elseif (!$movement->is_inbound && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          // REVERTIR: devolver el stock que quitó
+          $this->stockService->addStock($detail->product_id, $movement->warehouse_id, $quantity);
+        }
+      }
+
+      // Marcar como ignorado
+      $movement->update([
+        'is_ignored' => true,
+        'ignored_at' => now(),
+        'ignored_by' => Auth::id(),
+        'ignore_reason' => $reason
+      ]);
+
+      // Recalcular historial de costos y precios para cada producto afectado
+      foreach ($movement->details as $detail) {
+        $warehouseId = $movement->is_inbound
+          ? ($movement->warehouse_destination_id ?? $movement->warehouse_id)
+          : $movement->warehouse_id;
+
+        $this->stockService->rebuildWeightedAverageCostHistory(
+          $detail->product_id,
+          $warehouseId,
+          $movement->movement_date
+        );
+      }
+
+      DB::commit();
+      return $movement->fresh(['details', 'warehouse', 'warehouseDestination', 'user', 'ignoredByUser']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Restaura un movimiento ignorado y vuelve a aplicar su efecto en el stock
+   *
+   * @param int $id ID del movimiento
+   * @return InventoryMovement
+   * @throws Exception
+   */
+  public function restoreMovement(int $id): InventoryMovement
+  {
+    DB::beginTransaction();
+    try {
+      $movement = InventoryMovement::findOrFail($id);
+
+      // Validar que el movimiento esté ignorado
+      if (!$movement->is_ignored) {
+        throw new Exception('Este movimiento no está ignorado');
+      }
+
+      // VOLVER A APLICAR el efecto del movimiento en el stock
+      foreach ($movement->details as $detail) {
+        $quantity = abs($detail->quantity);
+
+        // Casos especiales de transferencias
+        if ($movement->movement_type === InventoryMovement::TYPE_TRANSFER_OUT
+          && $movement->status === InventoryMovement::STATUS_IN_TRANSIT) {
+          // RE-APLICAR moveStockToInTransit: quantity -= X, quantity_in_transit += X
+          $stock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $movement->warehouse_id)
+            ->first();
+
+          if ($stock) {
+            $stock->quantity -= $quantity;
+            $stock->quantity_in_transit += $quantity;
+            $stock->last_movement_date = now();
+            $stock->updateAvailableQuantity();
+          }
+        } elseif ($movement->movement_type === InventoryMovement::TYPE_TRANSFER_IN
+          && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          // RE-APLICAR moveFromInTransitToDestination
+          // Origin: quantity_in_transit -= X
+          $originStock = ProductWarehouseStock::where('product_id', $detail->product_id)
+            ->where('warehouse_id', $movement->warehouse_id)
+            ->first();
+
+          if ($originStock) {
+            $originStock->quantity_in_transit -= $quantity;
+            $originStock->last_movement_date = now();
+            $originStock->save();
+          }
+
+          // Destination: quantity += X
+          if ($movement->warehouse_destination_id) {
+            $this->stockService->addStock(
+              $detail->product_id,
+              $movement->warehouse_destination_id,
+              $quantity
+            );
+          }
+        } // Movimientos de ENTRADA aprobados
+        elseif ($movement->is_inbound && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          $warehouseId = $movement->warehouse_destination_id ?? $movement->warehouse_id;
+          // RE-APLICAR: agregar el stock nuevamente
+          $this->stockService->addStock($detail->product_id, $warehouseId, $quantity);
+        } // Movimientos de SALIDA aprobados
+        elseif (!$movement->is_inbound && $movement->status === InventoryMovement::STATUS_APPROVED) {
+          // RE-APLICAR: quitar el stock nuevamente
+          $this->stockService->removeStock($detail->product_id, $movement->warehouse_id, $quantity);
+        }
+      }
+
+      // Restaurar el movimiento
+      $movement->update([
+        'is_ignored' => false,
+        'ignored_at' => null,
+        'ignored_by' => null,
+        'ignore_reason' => null
+      ]);
+
+      // Recalcular historial de costos y precios para cada producto afectado
+      foreach ($movement->details as $detail) {
+        $warehouseId = $movement->is_inbound
+          ? ($movement->warehouse_destination_id ?? $movement->warehouse_id)
+          : $movement->warehouse_id;
+
+        $this->stockService->rebuildWeightedAverageCostHistory(
+          $detail->product_id,
+          $warehouseId,
+          $movement->movement_date
+        );
+      }
+
+      DB::commit();
+      return $movement->fresh(['details', 'warehouse', 'warehouseDestination', 'user']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Obtiene todos los movimientos ignorados, opcionalmente filtrados por producto y almacén
+   *
+   * @param int|null $productId
+   * @param int|null $warehouseId
+   * @param Request|null $request
+   * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+   */
+  public function getIgnoredMovements(?int $productId = null, ?int $warehouseId = null, ?Request $request = null)
+  {
+    $query = InventoryMovement::query()
+      ->ignored()
+      ->with(['user', 'ignoredByUser']);
+
+    // Cargar detalles filtrados por producto si se proporciona
+    if ($productId) {
+      $query->with(['details' => function ($q) use ($productId) {
+        $q->where('product_id', $productId);
+      }]);
+      $query->whereHas('details', function ($q) use ($productId) {
+        $q->where('product_id', $productId);
+      });
+    } else {
+      $query->with('details');
+    }
+
+    // Filtrar por almacén si se proporciona
+    if ($warehouseId) {
+      $query->where(function ($q) use ($warehouseId) {
+        $q->where('warehouse_id', $warehouseId)
+          ->orWhere('warehouse_destination_id', $warehouseId);
+      });
+    }
+
+    // Ordenar por fecha de ignorado (más recientes primero)
+    $query->orderBy('ignored_at', 'desc');
+
+    // Si se proporciona request, aplicar paginación
+    if ($request) {
+      $perPage = $request->get('per_page', 15);
+      $movements = $query->paginate($perPage);
+    } else {
+      $movements = $query->paginate(15);
+    }
+
+    // Calcular quantity_in y quantity_out para cada movimiento
+    $movements->getCollection()->transform(function ($movement) {
+      $quantity = $movement->details->sum('quantity');
+
+      $movement->quantity_in = $movement->is_inbound ? $quantity : 0;
+      $movement->quantity_out = $movement->is_outbound ? $quantity : 0;
+
+      return $movement;
+    });
+
+    return InventoryMovementIgnoredResource::collection($movements);
+  }
+
 }

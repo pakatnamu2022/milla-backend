@@ -8,6 +8,7 @@ use App\Http\Requests\ap\postventa\gestionProductos\IndexProductShelfRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\RemoveProductFromShelfRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\StoreProductShelfRequest;
 use App\Http\Requests\ap\postventa\gestionProductos\UpdateProductShelfRequest;
+use App\Http\Requests\ap\postventa\gestionProductos\UpdateProductShelfPositionRequest;
 use App\Http\Services\ap\postventa\gestionProductos\ProductShelfService;
 
 class ProductShelfController extends Controller
@@ -88,6 +89,24 @@ class ProductShelfController extends Controller
   {
     try {
       return $this->success($this->service->getShelfProducts($shelfId));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updatePosition(UpdateProductShelfPositionRequest $request)
+  {
+    try {
+      return $this->service->updatePosition($request->validated());
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function export($shelfId)
+  {
+    try {
+      return $this->service->exportShelfProducts($shelfId);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

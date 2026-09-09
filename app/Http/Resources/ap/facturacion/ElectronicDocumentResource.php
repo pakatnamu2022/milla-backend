@@ -44,6 +44,9 @@ class ElectronicDocumentResource extends JsonResource
       'related_document_type' => $this->order_quotation_id
         ? 'Cotización'
         : ($this->work_order_id ? 'Orden de Trabajo' : null),
+      'advisor_name' => $this->order_quotation_id
+        ? $this->orderQuotation?->createdBy?->name
+        : ($this->work_order_id ? $this->workOrder?->advisor?->nombre_completo : null),
       'credit_note_id' => $creditNote?->id,
       'credit_note_number' => $creditNote?->full_number,
       'credit_note_type_id' => $creditNote?->sunat_concept_credit_note_type_id,

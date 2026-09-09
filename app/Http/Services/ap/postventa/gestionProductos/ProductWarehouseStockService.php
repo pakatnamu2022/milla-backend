@@ -6,7 +6,9 @@ use App\Exceptions\ClosedPeriodException;
 use App\Http\Resources\ap\postventa\gestionProductos\ProductWarehouseStockResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
+use App\Exports\ap\postventa\ProductWarehouseStockExport;
 use App\Jobs\RecalculateProductCostJob;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReception;
 use App\Models\ap\compras\PurchaseReceptionDetail;
@@ -41,14 +43,6 @@ class ProductWarehouseStockService extends BaseService
    * false = Utilice la cantidad facturada (quantity_received + observed_quantity)
    */
   const USE_RECEIVED_QUANTITY_FOR_AVERAGE_COST = true;
-
-  /**
-   * Umbral de movimientos para decidir entre recalcular precios SYNC vs ASYNC
-   * Basado en estándares de la industria (Amazon, Shopify, SAP, Odoo)
-   * ≤ 100 movimientos = SYNC (rápido, ~1-3 segundos)
-   * > 100 movimientos = ASYNC Job (evitar timeout en productos de alta rotación)
-   */
-  const MOVEMENT_THRESHOLD = 100;
 
   private ?float $freightCommission = null;
   private ?float $profitMargin = null;
@@ -97,8 +91,23 @@ class ProductWarehouseStockService extends BaseService
 
   public function list(Request $request)
   {
+    $query = ProductWarehouseStock::with('shelves');
+
+    // Filtro por estante (product_shelf_id)
+    if ($request->filled('product_shelf_id')) {
+      $query->whereHas('shelves', function ($q) use ($request) {
+        $q->where('product_shelves.id', $request->product_shelf_id);
+      })
+      ->join('product_warehouse_shelf', function ($join) use ($request) {
+        $join->on('product_warehouse_stock.id', '=', 'product_warehouse_shelf.product_warehouse_stock_id')
+             ->where('product_warehouse_shelf.product_shelf_id', $request->product_shelf_id);
+      })
+      ->orderByRaw('COALESCE(product_warehouse_shelf.position, 999999)')
+      ->select('product_warehouse_stock.*');
+    }
+
     return $this->getFilteredResults(
-      ProductWarehouseStock::class,
+      $query,
       $request,
       ProductWarehouseStock::filters,
       ProductWarehouseStock::sorts,
@@ -1318,43 +1327,91 @@ class ProductWarehouseStockService extends BaseService
    */
   public function exportInventory(Request $request)
   {
-    $filters = [];
+    try {
+      $query = ProductWarehouseStock::with([
+        'product',
+        'warehouse',
+        'currency',
+        'shelves' // Incluir estantes
+      ]);
 
-    // Filter by warehouse
-    if ($request->filled('warehouse_id')) {
-      $filters[] = [
-        'column' => 'warehouse_id',
-        'operator' => '=',
-        'value' => $request->warehouse_id
-      ];
-    }
-
-    // Filter by stock status
-    if ($request->filled('stock_type')) {
-      if ($request->stock_type === 'with_stock') {
-        $filters[] = [
-          'column' => 'with_stock',
-          'operator' => '=',
-          'value' => true
-        ];
-      } elseif ($request->stock_type === 'without_stock') {
-        $filters[] = [
-          'column' => 'without_stock',
-          'operator' => '=',
-          'value' => true
-        ];
+      // Filter by warehouse
+      if ($request->filled('warehouse_id')) {
+        $query->where('warehouse_id', $request->warehouse_id);
       }
+
+      // Filter by stock status
+      if ($request->filled('stock_type')) {
+        if ($request->stock_type === 'with_stock') {
+          $query->where('quantity', '>', 0);
+        } elseif ($request->stock_type === 'without_stock') {
+          $query->where('quantity', '<=', 0);
+        }
+      }
+
+      $stocks = $query->get();
+
+      // Mapear los datos manteniendo la misma estructura que getReportData
+      $data = $stocks->map(function ($stock) {
+        $lastMovement = InventoryMovement::whereHas('details', function ($q) use ($stock) {
+          $q->where('product_id', $stock->product_id);
+        })
+          ->where(function ($q) use ($stock) {
+            $q->where('warehouse_id', $stock->warehouse_id)
+              ->orWhere('warehouse_destination_id', $stock->warehouse_id);
+          })
+          ->where('status', InventoryMovement::STATUS_APPROVED)
+          ->orderBy('movement_date', 'desc')
+          ->first();
+
+        // Translate stock status to Spanish
+        $statusTranslations = [
+          'OUT_OF_STOCK' => 'Sin Stock',
+          'LOW_STOCK' => 'Stock Bajo',
+          'OVER_STOCK' => 'Sobre Stock',
+          'NORMAL' => 'Normal',
+        ];
+        $translatedStatus = $statusTranslations[$stock->stock_status] ?? $stock->stock_status;
+
+        // Obtener estantes - concatenar si tiene múltiples
+        $shelves = $stock->shelves->map(function ($shelf) {
+          return $shelf->label ?? $shelf->code;
+        })->filter()->implode(', ');
+
+        return [
+          'estante' => $shelves ?: '-',
+          'codigo_producto' => $stock->product?->code ?? 'N/A',
+          'nombre_producto' => $stock->product?->name ?? 'N/A',
+          'almacen' => $stock->warehouse?->description ?? 'N/A',
+          'cantidad' => number_format($stock->quantity, 2),
+          'cantidad_en_transito' => number_format($stock->quantity_in_transit, 2),
+          'cantidad_reservada' => number_format($stock->reserved_quantity, 2),
+          'cantidad_disponible' => number_format($stock->available_quantity, 2),
+          'stock_minimo' => number_format($stock->minimum_stock, 2),
+          'stock_maximo' => number_format($stock->maximum_stock, 2),
+          'estado_stock' => $translatedStatus,
+          'costo_promedio' => number_format($stock->average_cost, 2),
+          'precio_venta' => number_format($stock->sale_price, 2),
+          'moneda' => $stock->currency?->code ?? 'N/A',
+          'ultimo_movimiento_fecha' => $lastMovement ? $lastMovement->movement_date->format('d/m/Y') : 'N/A',
+          'ultimo_movimiento_tipo' => $lastMovement ? InventoryMovement::getMovementTypeLabel($lastMovement->movement_type) : 'N/A',
+          'ultimo_movimiento_numero' => $lastMovement ? $lastMovement->movement_number : 'N/A',
+          'ultimo_movimiento_usuario' => $lastMovement ? $lastMovement->user?->name : 'N/A',
+          'fecha_ultimo_movimiento_stock' => $stock->last_movement_date ? $stock->last_movement_date->format('d/m/Y H:i:s') : 'N/A',
+        ];
+      });
+
+      $title = $request->get('title', 'Reporte de Inventario');
+      $filename = 'Reporte_Inventario_' . date('Y-m-d_His') . '.xlsx';
+
+      // Obtener reglas de color del modelo
+      $model = new ProductWarehouseStock();
+      $colorRules = method_exists($model, 'getReportColorRules') ? $model->getReportColorRules() : [];
+
+      return Excel::download(new ProductWarehouseStockExport($data, $title, $colorRules), $filename);
+    } catch (\Throwable $th) {
+      throw $th;
     }
-
-    $title = $request->get('title', 'Reporte de Inventario');
-
-    $options = [
-      'title' => $title,
-      'filters' => $filters,
-      'format' => $request->get('format', 'excel'),
-    ];
-
-    return $this->exportService->exportToExcel(ProductWarehouseStock::class, $options);
   }
 
   /**
@@ -1683,7 +1740,17 @@ class ProductWarehouseStockService extends BaseService
                 ->where('warehouse_id', $warehouseId);
             });
         })
-        ->where('status', InventoryMovement::STATUS_APPROVED);
+        ->where(function ($q) {
+          // Incluir movimientos APPROVED
+          $q->where('status', InventoryMovement::STATUS_APPROVED)
+            // TAMBIÉN incluir TRANSFER_OUT que están IN_TRANSIT
+            // (el producto ya salió físicamente del almacén origen, aunque no se haya recepcionado en el destino)
+            ->orWhere(function ($subQ) {
+              $subQ->where('movement_type', InventoryMovement::TYPE_TRANSFER_OUT)
+                ->where('status', InventoryMovement::STATUS_IN_TRANSIT);
+            });
+        })
+        ->where('is_ignored', false); // Excluir movimientos descartados
 
       // Build movement type filter
       $movementTypes = [
@@ -2431,7 +2498,11 @@ class ProductWarehouseStockService extends BaseService
         ->first();
 
       if ($stock) {
-        $stock->quantity = $finalStock;
+        // IMPORTANTE: NO actualizamos quantity aquí porque ya se actualiza correctamente
+        // cuando se crean/aprueban/cancelan/ignoran movimientos (via moveStockToInTransit, addStock, removeStock, etc.)
+        // Solo recalculamos los COSTOS y PRECIOS basados en el historial
+        // $stock->quantity = $finalStock;  // ❌ NO - El stock físico ya está correcto
+
         $stock->average_cost = $finalAverageCost;
         $stock->cost_price = $lastCostPrice;
         $stock->sale_price = $salePrice;

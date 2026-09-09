@@ -65,6 +65,7 @@ class ElectronicDocumentsReportExport implements
       'ACEPTADA SUNAT',
       'CREADO POR',
       'FECHA CREACIÓN',
+      'ASESOR',
     ];
   }
 
@@ -94,6 +95,7 @@ class ElectronicDocumentsReportExport implements
       $row['aceptada_sunat'],
       $row['creado_por'],
       $row['fecha_creacion'],
+      $row['asesor'],
     ];
   }
 
@@ -126,8 +128,8 @@ class ElectronicDocumentsReportExport implements
         $sheet = $event->sheet->getDelegate();
         $highestRow = $sheet->getHighestRow();
 
-        // Habilitar filtros en la fila de encabezado (columnas A-W, 23 columnas)
-        $sheet->setAutoFilter('A1:W1');
+        // Habilitar filtros en la fila de encabezado (columnas A-X, 24 columnas)
+        $sheet->setAutoFilter('A1:X1');
 
         // Aplicar formato de número a las columnas monetarias (columnas M-Q: totales)
         $currencyColumns = ['M', 'N', 'O', 'P', 'Q'];

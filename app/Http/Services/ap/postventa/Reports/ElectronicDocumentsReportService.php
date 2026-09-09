@@ -25,6 +25,8 @@ class ElectronicDocumentsReportService
         'client',
         'area',
         'creator',
+        'orderQuotation.createdBy',
+        'workOrder.advisor',
       ])
       ->where('anulado', false);
 
@@ -80,6 +82,9 @@ class ElectronicDocumentsReportService
       'aceptada_sunat' => $document->aceptada_por_sunat ? 'SI' : 'NO',
       'creado_por' => $document->creator?->name ?? '',
       'fecha_creacion' => $document->created_at?->format('d/m/Y H:i:s') ?? '',
+      'asesor' => $document->order_quotation_id
+        ? ($document->orderQuotation?->createdBy?->name ?? '')
+        : ($document->work_order_id ? ($document->workOrder?->advisor?->nombre_completo ?? '') : ''),
     ];
 
     $rows->push($headerRow);

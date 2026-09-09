@@ -33,6 +33,7 @@ class ProductWarehouseStockResource extends JsonResource
       'sale_price' => $this->sale_price ?? 0,
       'sale_price_min' => $this->sale_price_min ?? 0,
       'last_movement_date' => $this->last_movement_date?->format('Y-m-d H:i:s'),
+      'shelf_name' => $this->shelves->first()?->label,
 
       // Computed attributes
       'is_low_stock' => $this->is_low_stock,

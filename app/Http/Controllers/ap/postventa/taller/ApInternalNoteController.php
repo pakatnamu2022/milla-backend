@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ap\postventa\taller;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\facturacion\IndexApInternalNoteRequest;
 use App\Http\Services\ap\postventa\taller\ApInternalNoteService;
+use Illuminate\Http\Request;
 
 class ApInternalNoteController extends Controller
 {
@@ -15,7 +16,7 @@ class ApInternalNoteController extends Controller
     $this->service = $service;
   }
 
-  public function index(IndexApInternalNoteRequest $request)
+  public function index(Request $request)
   {
     try {
       return $this->service->list($request);

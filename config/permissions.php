@@ -367,6 +367,18 @@ return [
       'icon' => 'Box',
       'policy_method' => 'reReserveStock',
     ],
+    'discard' => [
+      'label' => 'Descartar',
+      'description' => 'Permite descartar (ignorar) movimientos de inventario del kardex del producto',
+      'icon' => 'XCircle',
+      'policy_method' => 'discard',
+    ],
+    'viewDiscarded' => [
+      'label' => 'Ver Movimientos Descartados',
+      'description' => 'Permite ver movimientos de inventario descartados del kardex del producto',
+      'icon' => 'Eye',
+      'policy_method' => 'viewDiscarded',
+    ],
   ],
 
 
