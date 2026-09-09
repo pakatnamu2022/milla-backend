@@ -2,9 +2,6 @@
 
 namespace App\Http\Resources\ap\comercial;
 
-use App\Http\Resources\ap\comercial\PurchaseRequestQuoteAccessoryResource;
-use App\Http\Resources\ap\comercial\PurchaseRequestQuoteDiscountResource;
-use App\Http\Resources\ap\comercial\PurchaseRequestQuoteOtherResource;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApModelsVnResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
@@ -64,7 +61,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'vehicle_color'                => $this->vehicleColor->description ?? null,
       'ap_models_vn_id'              => $this->ap_models_vn_id,
       'ap_model_vn'                  => $this->apModelsVn->code ?? null,
-      'body_type_id'                => $this->apModelsVn->body_type_id ?? null,
+      'body_type_id'                 => $this->apModelsVn->body_type_id ?? null,
       'brand_id'                     => $this->apModelsVn->family->brand_id ?? null,
       'ap_vehicle_purchase_order_id' => $this->ap_vehicle_purchase_order_id,
       'ap_vehicle_purchase_order'    => $this->vehiclePurchaseOrders->vin ?? null,
