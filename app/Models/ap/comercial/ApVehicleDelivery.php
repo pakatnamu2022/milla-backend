@@ -171,6 +171,19 @@ class ApVehicleDelivery extends Model
     };
   }
 
+  /**
+   * Kilometraje registrado en el checklist de recepción del vehículo.
+   */
+  public function getReceptionKilometersAttribute(): ?string
+  {
+    $checklist = $this->vehicle
+      ?->shippingGuideReceiving
+      ?->receivingChecklists
+      ?->first(fn($c) => $c->kilometers !== null);
+
+    return $checklist?->kilometers;
+  }
+
   public function getAccountedStatusAttribute(): string
   {
     return $this->is_accounted ? 'Contabilizado' : 'En trabajo';
@@ -280,6 +293,11 @@ class ApVehicleDelivery extends Model
       'label'     => 'CHECKLIST (SERIALES)',
       'formatter' => null,
     ],
+    'reception_kilometers'                                            => [
+      'label'     => 'KM RECEPCIÓN',
+      'formatter' => null,
+      'default'   => '-',
+    ],
     'is_accounted'                                                    => [
       'label'       => 'CONTABILIZADO',
       'formatter'   => 'boolean',
@@ -310,6 +328,7 @@ class ApVehicleDelivery extends Model
     'client.documentType',
     'ShippingGuide',
     'deliveryChecklist',
+    'vehicle.shippingGuideReceiving.receivingChecklists',
   ];
 
   protected $reportStyles = [
