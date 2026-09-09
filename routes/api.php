@@ -2796,45 +2796,45 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy'
     ]);
-
-    // NOTIFICATIONS
-    Route::group(['prefix' => 'notifications'], function () {
-      Route::get('/', [NotificationController::class, 'index']);
-      Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
-      Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
-      Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
-      Route::delete('/{id}', [NotificationController::class, 'destroy']);
-
-      // Low Stock Notifications
-      Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
-      Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
-    });
-
-    // AI
-    Route::post('/ai/generate-text', [AiController::class, 'generateText']);
-
-    // MANUALES
-    Route::get('/manuals/{id}/content', [ManualController::class, 'content']);
-    Route::apiResource('manuals', ManualController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy',
-    ]);
   });
+  
+  // NOTIFICATIONS
+  Route::group(['prefix' => 'notifications'], function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+
+    // Low Stock Notifications
+    Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
+    Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
+  });
+
+  // AI
+  Route::post('/ai/generate-text', [AiController::class, 'generateText']);
+
+  // MANUALES
+  Route::get('/manuals/{id}/content', [ManualController::class, 'content']);
+  Route::apiResource('manuals', ManualController::class)->only([
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy',
+  ]);
+});
 
 // PUBLIC ROUTES - No authentication required
-  Route::group(['prefix' => 'public'], function () {
-    // Confirmación Virtual de Cotizaciones (sin autenticación)
-    Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
-    Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
+Route::group(['prefix' => 'public'], function () {
+  // Confirmación Virtual de Cotizaciones (sin autenticación)
+  Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
+  Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
 
-    // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
-    Route::middleware(['api.key'])->prefix('external')->group(function () {
-      Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-      Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
-    });
+  // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
+  Route::middleware(['api.key'])->prefix('external')->group(function () {
+    Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+    Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
   });
-
 });
+
