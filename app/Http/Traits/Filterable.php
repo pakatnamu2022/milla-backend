@@ -103,6 +103,41 @@ trait Filterable
             }
           }
         });
+
+        // Priorizar coincidencia exacta, luego por prefijo, sobre las columnas
+        // escalares de la búsqueda. Solo cuando no hay un orden explícito para
+        // no pisar el sort elegido por el usuario.
+        $scalarSearchFields = array_values(array_filter(
+          is_array($fields) ? $fields : [],
+          fn($f) => is_string($f) && !str_contains($f, '.') && !str_starts_with($f, 'accessor:')
+        ));
+
+        if (!empty($scalarSearchFields) && !$request->filled('sort')) {
+          $exactParts = [];
+          $prefixParts = [];
+          $bindings = [];
+
+          foreach ($scalarSearchFields as $field) {
+            $qualifiedField = $this->qualifyColumn($query, $field);
+            // CAST a CHAR para evitar que columnas numéricas/boolean (ej. submodule)
+            // coaccionen el término de búsqueda a 0 y matcheen todas las filas.
+            $exactParts[] = "CAST({$qualifiedField} AS CHAR) = ?";
+            $bindings[] = $value;
+          }
+          foreach ($scalarSearchFields as $field) {
+            $qualifiedField = $this->qualifyColumn($query, $field);
+            $prefixParts[] = "CAST({$qualifiedField} AS CHAR) LIKE ?";
+            $bindings[] = $value . '%';
+          }
+
+          $exactExpr = implode(' OR ', $exactParts);
+          $prefixExpr = implode(' OR ', $prefixParts);
+
+          $query->orderByRaw(
+            "CASE WHEN {$exactExpr} THEN 0 WHEN {$prefixExpr} THEN 1 ELSE 2 END",
+            $bindings
+          );
+        }
       } elseif (str_contains($filter, '.')) {
         $parts = explode('.', $filter);
         $relation = implode('.', array_slice($parts, 0, -1));

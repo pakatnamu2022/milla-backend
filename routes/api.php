@@ -4,13 +4,14 @@ use App\Http\Controllers\AiController;
 use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApBonusReportController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
-use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
+use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
 use App\Http\Controllers\ap\comercial\ApVehicleDeliveryController;
 use App\Http\Controllers\ap\comercial\ApVehicleInventoryController;
+use App\Http\Controllers\ap\comercial\AssetController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersController;
 use App\Http\Controllers\ap\comercial\BusinessPartnersEstablishmentController;
 use App\Http\Controllers\ap\comercial\CustomerKycDeclarationController;
@@ -23,7 +24,6 @@ use App\Http\Controllers\ap\comercial\PurchaseRequestQuoteController;
 use App\Http\Controllers\ap\comercial\ShippingGuidesController;
 use App\Http\Controllers\ap\comercial\VehiclePurchaseOrderMigrationController;
 use App\Http\Controllers\ap\comercial\VehiclesController;
-use App\Http\Controllers\ap\comercial\AssetController;
 use App\Http\Controllers\ap\compras\ApPurchaseOrderReportController;
 use App\Http\Controllers\ap\compras\ApUnidadesDashboardController;
 use App\Http\Controllers\ap\compras\PurchaseOrderController;
@@ -41,10 +41,10 @@ use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignBrandConsultant
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignCompanyBranchController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApAssignmentLeadershipController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApBankController;
-use App\Http\Controllers\ap\configuracionComercial\venta\ApPeriodSnapshotController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCampaignController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApCommercialManagerBrandGroupController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApGoalSellOutInController;
+use App\Http\Controllers\ap\configuracionComercial\venta\ApPeriodSnapshotController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApSafeCreditGoalController;
 use App\Http\Controllers\ap\configuracionComercial\venta\ApShopController;
 use App\Http\Controllers\ap\facturacion\AccountingEntryController;
@@ -75,21 +75,21 @@ use App\Http\Controllers\ap\postventa\gestionProductos\ProductWarehouseStockCont
 use App\Http\Controllers\ap\postventa\gestionProductos\TransferReceptionController;
 use App\Http\Controllers\ap\postventa\Reports\ClosedWorkOrderBilledHoursReportController;
 use App\Http\Controllers\ap\postventa\Reports\ElectronicDocumentsReportController;
-use App\Http\Controllers\ap\postventa\Reports\PurchaseOrderReceiptsReportController;
 use App\Http\Controllers\ap\postventa\Reports\InventoryReportController;
 use App\Http\Controllers\ap\postventa\Reports\InvoicingWorkOrderReportController;
 use App\Http\Controllers\ap\postventa\Reports\MesonInvoicingReportController;
 use App\Http\Controllers\ap\postventa\Reports\PartsReportController;
+use App\Http\Controllers\ap\postventa\Reports\PurchaseOrderReceiptsReportController;
 use App\Http\Controllers\ap\postventa\Reports\WorkedHoursBySedeReportController;
 use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
 use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
+use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationsController;
 use App\Http\Controllers\ap\postventa\taller\AppointmentPlanningController;
-use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
 use App\Http\Controllers\ap\postventa\taller\ApSupplierOrderController;
 use App\Http\Controllers\ap\postventa\taller\ApVehicleInspectionController;
 use App\Http\Controllers\ap\postventa\taller\ApWorkOrderPartsController;
@@ -141,8 +141,8 @@ use App\Http\Controllers\gp\gestionhumana\evaluacion\HierarchicalCategoryDetailC
 use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
-use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollExclusionController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollInsuranceController;
@@ -155,12 +155,12 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollScheduleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
-use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
-use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
-use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
+use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelReservationController;
@@ -214,1440 +214,2228 @@ use App\Http\Controllers\tp\comercial\FacInvoiceController;
 use App\Http\Controllers\tp\comercial\OpFreightController;
 use App\Http\Controllers\tp\comercial\OpGoalTravelController;
 use App\Http\Controllers\tp\comercial\OpVehicleAssignmentController;
+use App\Http\Controllers\tp\comercial\SupplierController;
+use App\Http\Controllers\tp\comercial\SupplyControlController;
 use App\Http\Controllers\tp\comercial\TpTravelPhotoController;
 use App\Http\Controllers\tp\comercial\TravelControlController;
 use App\Http\Controllers\tp\configuracionComercial\TipoVehiculoController;
 use App\Http\Controllers\tp\configuracionComercial\VehiculoController;
 use Illuminate\Support\Facades\Route;
 
-//TP - Controller
-
+// TP - Controller
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('forgotPassword');
 Route::post('/reset-password-token', [AuthController::class, 'resetPasswordByToken'])->name('resetPasswordByToken');
 Route::post('/auth/2fa/verify', [TotpController::class, 'verify'])->name('2fa.verify');
 Route::group(['prefix' => 'tp/comercial/public/monitoreo'], function () {
-  Route::post('location', [DriverLocationController::class, 'store']);
-  Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
-  Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
+    Route::post('location', [DriverLocationController::class, 'store']);
+    Route::get('config/{key}', [DriverLocationConfigurationController::class, 'getPublic']);
+    Route::get('device/{deviceId}/check', [DriverController::class, 'byDeviceId']);
 });
 Route::middleware(['auth:sanctum'])->group(callback: function () {
-  Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
-  Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
-  Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-  Route::get('/active-sessions', [AuthController::class, 'activeSessions'])->name('activeSessions');
-  Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
-  Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
-  Route::post('/reset-password-by-company', [AuthController::class, 'resetPasswordByCompany'])->name('resetPasswordByCompany');
-  Route::prefix('auth/2fa')->controller(TotpController::class)->group(function () {
-    Route::post('/setup', 'setup')->name('2fa.setup');
-    Route::post('/enable', 'enable')->name('2fa.enable');
-    Route::post('/disable', 'disable')->name('2fa.disable');
-  });
-
-  //    GENERAL
-  //    SEDE
-  Route::apiResource('company', CompanyController::class)->only([
-    'index',
-    'show',
-    'update',
-  ]);
-
-  //  DIGITAL FILE
-  Route::apiResource('digital-file', DigitalFileController::class)->only([
-    'index',
-    'show',
-    'store',
-    'destroy'
-  ]);
-
-
-// TP - COMERCIAL - CONTROL VIAJES
-  Route::group(['prefix' => 'tp/comercial'], function () {
-    Route::apiResource('control-travel', TravelControlController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-    Route::put('control-travel/{id}/mileage', [TravelControlController::class, 'updateMileage'])->name('control-travel.update-mileage');
-    Route::get('control-travel/{travelId}/segments', [TravelControlController::class, 'getSegments']);
-    Route::get('control-travel/{travelId}/segments/progress', [TravelControlController::class, 'getSegmentProgress']);
-    Route::post('control-travel/{travelId}/segments/{segmentId}/start', [TravelControlController::class, 'startSegment']);
-    Route::post('control-travel/{travelId}/segments/{segmentId}/end', [TravelControlController::class, 'endSegment']);
-    Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
-    Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
-    Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
-    Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
-    Route::post('control-travel/export/all', [TravelControlController::class, 'exportAllReports'])->name('control-travel.export-all');
-    Route::post('control-travel/export/summary', [TravelControlController::class, 'exportSummaryReport'])->name('control-travel.export-summary');
-    Route::post('control-travel/{id}/export', [TravelControlController::class, 'exportReport'])->name('control-travel.export');
-    Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
-    Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
-    Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
-    Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
-    Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
-    Route::prefix('control-travel/{id}')->group(function () {
-      Route::post('/photos', [TpTravelPhotoController::class, 'store'])->name('control-travel.photos.store');
-      Route::get('/photos', [TpTravelPhotoController::class, 'index'])->name('control-travel.photos.index');
-      Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])->name('control-travel.photos.statistics');
-    });
-    Route::prefix('photos')->group(function () {
-      Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
-      Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
-
+    Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('authenticate');
+    Route::get('/permissions', [AuthController::class, 'permissions'])->name('permissions');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/active-sessions', [AuthController::class, 'activeSessions'])->name('activeSessions');
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->name('changePassword');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('resetPassword');
+    Route::post('/reset-password-by-company', [AuthController::class, 'resetPasswordByCompany'])->name('resetPasswordByCompany');
+    Route::prefix('auth/2fa')->controller(TotpController::class)->group(function () {
+        Route::post('/setup', 'setup')->name('2fa.setup');
+        Route::post('/enable', 'enable')->name('2fa.enable');
+        Route::post('/disable', 'disable')->name('2fa.disable');
     });
 
-    Route::group(['prefix' => 'vehicle-type'], function () {
-      Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
+    //    GENERAL
+    //    SEDE
+    Route::apiResource('company', CompanyController::class)->only([
         'index',
         'show',
-        'store',
         'update',
-        'destroy'
-      ]);
-      Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
-    });
-    Route::group(['prefix' => 'vehicle'], function () {
-      Route::apiResource('control-vehicle', VehiculoController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-      Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
-      Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
-    });
-
-    Route::group(['prefix' => 'freight'], function () {
-      Route::apiResource('control-freight', OpFreightController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-      Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
-      Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
-    });
-
-    Route::group(['prefix' => 'goal'], function () {
-      Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
-      Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
-      Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
-      Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
-      Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
-      Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
-      Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
-      Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
-      Route::get('control-goal/export-comparativa-clientes', [OpGoalTravelController::class, 'exportComparativaClientes'])->name('goal.export-comparativa-clientes');
-      Route::apiResource('control-goal', OpGoalTravelController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-    });
-
-    Route::group(['prefix' => 'opVehicleAssignment'], function () {
-      Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-      Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
-      Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
-
-    });
-
-
-    Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
-
-      // Ubicaciones
-      Route::prefix('locations')->controller(DriverLocationController::class)->group(function () {
-        Route::get('/', 'index');
-        Route::get('latest', 'latest');
-        Route::get('{id}', 'show');
-
-
-        Route::get('history/{driverId}', 'history');
-        Route::delete('history/clean', 'cleanHistory');
-      });
-
-      // Conductores
-      Route::prefix('drivers')->controller(DriverController::class)->group(function () {
-        Route::get('/', 'index');
-        Route::get('stats', 'stats');
-        Route::get('{id}', 'show');
-        Route::post('{id}/refresh-status', 'refreshStatus');
-        Route::post('{id}/assign-device', 'assignDevice');
-        Route::post('{id}/remove-device', 'removeDevice');
-      });
-
-      // Configuraciones
-      Route::prefix('config')->controller(DriverLocationConfigurationController::class)->group(function () {
-        Route::get('/', 'index');
-        Route::post('/', 'store');
-        Route::get('{key}', 'show');
-        Route::put('{key}', 'update');
-        Route::delete('{key}', 'destroy');
-      });
-
-      // Logs de estado
-      Route::prefix('status-logs')->controller(DriverStatusLogController::class)->group(function () {
-        Route::get('/', 'index');
-        Route::get('driver/{id}', 'byDriver');
-      });
-
-      Route::prefix('device')->controller(DeviceController::class)->group(function () {
-        Route::get('status', 'status');
-        Route::post('auto-activate', 'autoActivate');
-        Route::post('register', 'register');
-        Route::post('unregister', 'unregister');
-        Route::post('validate-serial', 'validateSerial');
-        Route::post('equipment', 'getEquipment');
-      });
-    });
-    Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
-
-  });
-
-
-  //    SYSTEM
-  Route::group(['prefix' => 'configuration'], function () {
-    //        USERS
-    Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
-    Route::get('user/my-companies', [UserController::class, 'getMyCompanies'])->name('user.my-companies');
-    Route::apiResource('user', UserController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
     ]);
 
-    //        USER-SEDE ASSIGNMENT
-    Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
-    Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
-    Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
-    Route::apiResource('user-sede', UserSedeController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
+    //  DIGITAL FILE
+    Route::apiResource('digital-file', DigitalFileController::class)->only([
+        'index',
+        'show',
+        'store',
+        'destroy',
     ]);
 
-    // ROLES
-    Route::apiResource('role', RoleController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-    Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
-    Route::post('role/{id}/duplicate', [RoleController::class, 'duplicate'])->name('role.duplicate');
-    Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
-
-    // USER-ROLE ASSIGNMENT
-    Route::get('user-role/user/{userId}/roles', [UserRoleController::class, 'rolesByUser'])->name('user-role.roles-by-user');
-    Route::get('user-role/role/{roleId}/users', [UserRoleController::class, 'usersByRole'])->name('user-role.users-by-role');
-    Route::apiResource('user-role', UserRoleController::class)->only([
-      'index',
-      'show',
-      'update'
-    ]);
-
-    //        VIEWS
-    Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
-    Route::get('view/{id}/roles', [ViewController::class, 'rolesByView'])->name('view.roles');
-    Route::post('view/{id}/duplicate', [ViewController::class, 'duplicate'])->name('view.duplicate');
-    Route::apiResource('view', ViewController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    Route::get('modules', [AuthController::class, 'modules'])->name('modules');
-
-    //        ACCESS
-    Route::apiResource('access', AccessController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // PERMISSIONS
-    Route::get('permission', [PermissionController::class, 'index'])->name('permission.index');
-    Route::post('permission', [PermissionController::class, 'store'])->name('permission.store');
-    Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
-    Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
-    Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
-    Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
-    Route::post('permission/preview-permissions-sync', [PermissionController::class, 'previewSync'])->name('permission.previewPermissionsSync');
-    Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
-  });
-
-  Route::group(['prefix' => 'gp'], function () {
-//    TICS
-    Route::group(['prefix' => 'tics'], function () {
-      //    EQUIPMENTS
-      Route::get('/equipment/useStateGraph', [EquipmentController::class, 'useStateGraph']);
-      Route::get('/equipment/sedeGraph', [EquipmentController::class, 'sedeGraph']);
-      Route::apiResource('equipment', EquipmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    TYPE EQUIPMENTS
-      Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    TELEPHONE PLANS
-      Route::apiResource('telephonePlan', TelephonePlanController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    TELEPHONE ACCOUNTS
-      Route::get('telephoneAccount/operators', [TelephoneAccountController::class, 'getOperators'])->name('telephoneAccount.operators');
-      Route::apiResource('telephoneAccount', TelephoneAccountController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    PHONE LINES
-      Route::post('phoneLine/import', [PhoneLineController::class, 'import']);
-      Route::apiResource('phoneLine', PhoneLineController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    EQUIPMENT ASSIGNMENTS
-      Route::get('equipmentAssigment/history/worker/{personaId}', [EquipmentAssigmentController::class, 'historyByWorker']);
-      Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
-      Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
-      Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
-      Route::patch('equipmentAssigment/{id}/link-phone-line', [EquipmentAssigmentController::class, 'linkPhoneLine']);
-      Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
-      Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
-      Route::post('equipmentAssigment/{id}/upload', [EquipmentAssigmentController::class, 'uploadFile']);
-      Route::get('equipmentAssigment/{id}/file/{type}', [EquipmentAssigmentController::class, 'downloadUploadedFile']);
-      Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    PHONE LINE WORKERS (ASSIGNMENTS)
-      Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
-      Route::post('phoneLineWorker/{id}/unassign', [PhoneLineWorkerController::class, 'unassign']);
-      Route::patch('phoneLineWorker/{id}/link-equipment', [PhoneLineWorkerController::class, 'linkEquipment']);
-      Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
-      Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
-      Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-    });
-
-    //    PROJECT MANAGEMENT (SCRUM)
-    Route::group(['prefix' => 'tics/pm'], function () {
-      // Projects
-      Route::apiResource('scrumProject', ScrumProjectController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
-
-      // Sprints
-      Route::post('scrumSprint/{id}/activate', [ScrumSprintController::class, 'activate']);
-      Route::post('scrumSprint/{id}/close', [ScrumSprintController::class, 'close']);
-      Route::apiResource('scrumSprint', ScrumSprintController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
-
-      // Items
-      Route::get('scrumItem/kanban/{sprintId?}', [ScrumItemController::class, 'kanban']);
-      Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
-      Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
-      Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);
-      Route::post('scrumTicket', [ScrumItemController::class, 'storeTicket']);
-      Route::apiResource('scrumItem', ScrumItemController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
-
-      // Comments
-      Route::apiResource('scrumComment', ScrumCommentController::class)->only(['index', 'store', 'update', 'destroy']);
-
-      // Tags
-      Route::apiResource('scrumTag', ScrumTagController::class)->only(['index', 'store', 'update', 'destroy']);
-
-      // History (solo lectura)
-      Route::get('scrumItemHistory', [ScrumItemHistoryController::class, 'index']);
-    });
-
-    Route::group(['prefix' => 'mg'], function () {
-      // General Master
-      Route::get('generalMaster/types', [GeneralMasterController::class, 'getTypes']);
-      Route::apiResource('generalMaster', GeneralMasterController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
-      Route::get('sede/my', [SedeController::class, 'mySedes']);
-      Route::get('sede/my-shops', [SedeController::class, 'myShops']);
-      Route::apiResource('sede', SedeController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('sunatConcepts', SunatConceptsController::class)->only([
-        'index',
-      ]);
-
-      Route::get('exchange-rate/by-date-and-currency', [ExchangeRateController::class, 'getByDateAndCurrency']);
-    });
-
-    Route::group(['prefix' => 'gs'], function () {
-
-      Route::get('/department', [DepartmentController::class, 'index']);
-      Route::get('/province', [ProvinceController::class, 'index']);
-      Route::apiResource('district', DistrictController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-    });
-
-    Route::group(['prefix' => 'gh'], function () {
-      //    PERSONAL MAIN
-      Route::group(['prefix' => 'personal'], function () {
-        //PERSON
-        Route::get('worker/birthdays', [WorkerController::class, 'birthdays'])->name('person.birthdays');
-
-        //    WORKER
-        Route::get('worker-without-categories-and-objectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
-        Route::get('worker-without-objectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
-        Route::get('worker-without-categories', [WorkerController::class, 'getWorkersWithoutCategories']);
-        Route::get('worker-without-competences', [WorkerController::class, 'getWorkersWithoutCompetences']);
-        Route::get('worker-without-evaluator', [WorkerController::class, 'getWorkersWithoutEvaluator']);
-        Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
-        Route::get('worker/my-consultants', [WorkerController::class, 'myConsultants']);
-        Route::get('worker/{id}/subordinates', [WorkerController::class, 'subordinates']);
-        Route::get('worker/{id}/search-hierarchy', [WorkerController::class, 'searchHierarchy']);
-
-        Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
-        Route::apiResource('worker', WorkerController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
+    // TP - COMERCIAL - CONTROL VIAJES
+    Route::group(['prefix' => 'tp/comercial'], function () {
+        Route::apiResource('control-travel', TravelControlController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
         ]);
+        Route::put('control-travel/{id}/mileage', [TravelControlController::class, 'updateMileage'])->name('control-travel.update-mileage');
+        Route::get('control-travel/{travelId}/segments', [TravelControlController::class, 'getSegments']);
+        Route::get('control-travel/{travelId}/segments/progress', [TravelControlController::class, 'getSegmentProgress']);
+        Route::post('control-travel/{travelId}/segments/{segmentId}/start', [TravelControlController::class, 'startSegment']);
+        Route::post('control-travel/{travelId}/segments/{segmentId}/end', [TravelControlController::class, 'endSegment']);
+        Route::post('control-travel/{id}/state', [TravelControlController::class, 'changeState'])->name('control-travel.change-state');
+        Route::post('control-travel/{id}/start', [TravelControlController::class, 'startRoute'])->name('control-travel.start');
+        Route::post('control-travel/{id}/end', [TravelControlController::class, 'endRoute'])->name('control-travel.end');
+        Route::post('control-travel/{id}/fuel', [TravelControlController::class, 'fuelRecord'])->name('control-travel.fuel-record');
+        Route::post('control-travel/export/all', [TravelControlController::class, 'exportAllReports'])->name('control-travel.export-all');
+        Route::post('control-travel/export/summary', [TravelControlController::class, 'exportSummaryReport'])->name('control-travel.export-summary');
+        Route::post('control-travel/{id}/export', [TravelControlController::class, 'exportReport'])->name('control-travel.export');
+        Route::get('control-travel/{id}/records', [TravelControlController::class, 'driverRecords'])->name('control-travel.records');
+        Route::get('control-travel/filters/states', [TravelControlController::class, 'availableStates'])->name('control-travel.states');
+        Route::get('control-travel/filters/drivers', [TravelControlController::class, 'activeDrivers'])->name('control-travel.drivers');
+        Route::get('control-travel/filters/vehicles', [TravelControlController::class, 'activeVehicles'])->name('control-travel.vehicles');
+        Route::get('control-travel/validate-mileage/{vehicle_id}', [TravelControlController::class, 'validateMileage'])->name('control-travel.validate-km');
+        Route::prefix('control-travel/{id}')->group(function () {
+            Route::post('/photos', [TpTravelPhotoController::class, 'store'])->name('control-travel.photos.store');
+            Route::get('/photos', [TpTravelPhotoController::class, 'index'])->name('control-travel.photos.index');
+            Route::get('/photos/statistics', [TpTravelPhotoController::class, 'photoStatistics'])->name('control-travel.photos.statistics');
+        });
+        Route::prefix('photos')->group(function () {
+            Route::get('/{id}', [TpTravelPhotoController::class, 'show'])->name('photos.show');
+            Route::delete('/{id}', [TpTravelPhotoController::class, 'destroy'])->name('photos.destroy');
 
-        //      ESTADO DEL TRABAJADOR (activacion/cese) - centraliza en milla-backend, coexiste con el legacy
-        Route::get('worker-status-history/worker/{workerId}/current', [WorkerStatusHistoryController::class, 'currentStatus']);
-        Route::apiResource('worker-status-history', WorkerStatusHistoryController::class)->only([
-          'index',
-          'show',
-          'store',
-        ]);
-
-        //      VACACIONES
-        Route::post('vacation/{id}/approve-jefatura', [VacationController::class, 'approveJefatura']);
-        Route::post('vacation/{id}/approve-rrhh', [VacationController::class, 'approveRrhh']);
-        Route::apiResource('vacation', VacationController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //      AREAS
-        Route::apiResource('area', AreaController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //      POSITIONS
-        Route::apiResource('position', PositionController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //      TYPE ONBOARDING
-        Route::apiResource('type-onboarding', TypeOnboardingController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //      HORARIOS DE TRABAJO
-        Route::post('work-schedule/assign/{worker}', [WorkScheduleController::class, 'assignOne']);
-        Route::post('work-schedule/assign-bulk', [WorkScheduleController::class, 'assignBulk']);
-        Route::apiResource('work-schedule', WorkScheduleController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //      AUSENTISMO LABORAL
-        Route::get('ausentismo', [AusentismoLaboralController::class, 'index']);
-        Route::post('ausentismo', [AusentismoLaboralController::class, 'store']);
-        Route::get('ausentismo/{id}', [AusentismoLaboralController::class, 'show']);
-        Route::put('ausentismo/{id}', [AusentismoLaboralController::class, 'update']);
-        Route::delete('ausentismo/{id}', [AusentismoLaboralController::class, 'destroy']);
-
-        //      PERMISOS TRABAJADOR
-        Route::get('permiso', [TrabajadorPermisoController::class, 'index']);
-        Route::post('permiso', [TrabajadorPermisoController::class, 'store']);
-        Route::get('permiso/{id}', [TrabajadorPermisoController::class, 'show']);
-        Route::put('permiso/{id}', [TrabajadorPermisoController::class, 'update']);
-        Route::delete('permiso/{id}', [TrabajadorPermisoController::class, 'destroy']);
-      });
-
-      // Accountant District Assignments
-      Route::apiResource('accountant-district-assignments', AccountantDistrictAssignmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      //    PERFORMANCE EVALUATION
-      Route::group(['prefix' => 'performanceEvaluation'], function () {
-        //        METRICS
-        Route::get('metric/export', [EvaluationMetricController::class, 'export']);
-        Route::apiResource('metric', EvaluationMetricController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        OBJECTIVES
-        Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
-        Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
-        Route::get('/objective/{id}/deactivate-in-categories/preview', [EvaluationObjectiveController::class, 'previewDeactivateInCategories']);
-        Route::post('/objective/{id}/deactivate-in-categories', [EvaluationObjectiveController::class, 'deactivateInCategories']);
-        Route::apiResource('objective', EvaluationObjectiveController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        COMPETENCES
-        Route::apiResource('competence', EvaluationCompetenceController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        PERIODS
-        Route::apiResource('period', EvaluationPeriodController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        HIERARCHICAL CATEGORIES
-        Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
-        Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
-        Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //    CATEGORY OBJECTIVE DETAILS
-        Route::get('/categoryObjectiveDetail/global-weight-report', [EvaluationCategoryObjectiveDetailController::class, 'globalWeightReport']);
-        Route::get('/categoryObjectiveDetail/export-all', [EvaluationCategoryObjectiveDetailController::class, 'exportAll']);
-        Route::get('/categoryObjectiveDetail/{category}/weight-report', [EvaluationCategoryObjectiveDetailController::class, 'weightReport']);
-        Route::post('/categoryObjectiveDetail/{category}/apply-reference-weights', [EvaluationCategoryObjectiveDetailController::class, 'applyReferenceWeights']);
-        Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
-        Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
-        Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
-        Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-        ]);
-        Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
-
-        //    CATEGORY COMPETENCE DETAILS
-        Route::get('/categoryCompetenceDetail/global-assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'globalAssignmentReport']);
-        Route::post('/categoryCompetenceDetail/fill-all-missing', [EvaluationCategoryCompetenceDetailController::class, 'fillAllMissingCompetences']);
-        Route::get('/categoryCompetenceDetail/{category}/assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'assignmentReport']);
-        Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
-        Route::post('/categoryCompetenceDetail/{category}/regenerate-person/{person}', [EvaluationCategoryCompetenceDetailController::class, 'regeneratePersonCompetences']);
-        Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-        ]);
-        Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
-
-        //        PARAMETER
-        Route::apiResource('parameter', EvaluationParameterController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        CYCLE
-        Route::get('cycle/export', [EvaluationCycleController::class, 'export']);
-        Route::apiResource('cycle', EvaluationCycleController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        CYCLE CATEGORIES
-        Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
-        Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
-        Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
-        Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
-        Route::get('/cycle/{cycle}/weights/preview', [EvaluationPersonCycleDetailController::class, 'previewWeights']);
-        Route::post('/cycle/{cycle}/weights/regenerate', [EvaluationPersonCycleDetailController::class, 'regenerateWeights']);
-        Route::get('/cycle/{cycle}/eligible-workers', [EvaluationPersonCycleDetailController::class, 'previewEligibleWorkers']);
-        Route::get('/cycle/{cycle}/workers/{worker}/validate', [EvaluationPersonCycleDetailController::class, 'validateWorkerForCycle']);
-        Route::post('/cycle/{cycle}/workers', [EvaluationPersonCycleDetailController::class, 'storeManyByWorker']);
-        Route::get('/cycle/{cycle}/objectives/{objective}/remove/preview', [EvaluationPersonCycleDetailController::class, 'previewRemoveObjectiveFromCycle']);
-        Route::delete('/cycle/{cycle}/objectives/{objective}/remove', [EvaluationPersonCycleDetailController::class, 'removeObjectiveFromCycle']);
-        Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
-        Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
-
-
-        //        PERSON CYCLE DETAILS
-        Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        PERSON CYCLE DETAILS
-        Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
-
-        //        EVALUATION
-        Route::get('/evaluation/export', [EvaluationController::class, 'export']);
-        Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
-        Route::get('/evaluation/active', [EvaluationController::class, 'active']);
-        Route::get('/evaluation/{evaluation}/preview-regenerate', [EvaluationController::class, 'previewRegenerateEvaluation']);
-        Route::post('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
-        Route::get('/evaluation/{evaluation}/eligible-workers', [EvaluationController::class, 'eligibleWorkers']);
-        Route::post('/evaluation/{evaluation}/workers', [EvaluationController::class, 'addWorkers']);
-        Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
-        Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
-        Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);
-
-        //        EVALUATION NOTIFICATIONS
-        Route::group(['prefix' => 'evaluation/notifications'], function () {
-          Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Notifica apertura de evaluación - Correo 1
-          Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Es correo de recordatorio - Correo 2
-          Route::post('/send-reminder-to-leader', [EvaluationNotificationController::class, 'sendReminderToLeader']); // Envía recordatorio a un líder específico
-          Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Notifica cierre de evaluación - Correo 3
-          Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
-          Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
-          Route::post('/test-reminder', [EvaluationNotificationController::class, 'testReminder']);
         });
 
-        Route::apiResource('evaluation', EvaluationController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::group(['prefix' => 'vehicle-type'], function () {
+            Route::apiResource('control-vehicle-type', TipoVehiculoController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::get('control-vehicle-type/form/data', [TipoVehiculoController::class, 'getFormData']);
+        });
 
-        Route::get('/evaluation/{evaluation}/competences', [EvaluationPersonCompetenceDetailController::class, 'getByEvaluation'])
-          ->name('evaluation.competences.index');
-        Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
-          ->name('evaluation.competences.create');
-        Route::get('/evaluation/{evaluation}/competences/sync-preview', [EvaluationPersonCompetenceDetailController::class, 'previewSync'])
-          ->name('evaluation.competences.sync-preview');
-        Route::post('/evaluation/{evaluation}/competences/sync', [EvaluationPersonCompetenceDetailController::class, 'syncCompetences'])
-          ->name('evaluation.competences.sync');
+        Route::group(['prefix' => 'supply'], function () {
+            Route::get('control-supply/form/data', [SupplyControlController::class, 'getFormData']);
+            Route::get('control-supply/stats', [SupplyControlController::class, 'stats']);
+            Route::post('control-supply/{id}/upload-ticket', [SupplyControlController::class, 'uploadTicketPhoto']);
+            Route::get('control-supply/{id}/photos', [SupplyControlController::class, 'getPhotos']);
+            Route::apiResource('control-supply', SupplyControlController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
 
-        // EVALUATION PERSON
-        Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+            Route::get('photo/{id}/download', [SupplyControlController::class, 'downloadPhoto']);
 
-        // PERSON RESULT
-        Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
-        Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
-        Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
-        Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
-        Route::get('personResult/evaluation/{evaluation_id}/leaders-status', [EvaluationPersonResultController::class, 'getLeadersEvaluationStatus']);
-        Route::get('personResult/evaluation/{evaluation_id}/leader/{leader_id}/team-members', [EvaluationPersonResultController::class, 'getLeaderTeamMembers']);
-        Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
-        Route::get('personResult/preview-regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'previewRegenerate']);
-        Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
-        Route::post('personResult/report-by-evaluations', [EvaluationPersonResultController::class, 'reportByEvaluations']);
-        Route::post('personResult/report-by-evaluations/export', [EvaluationPersonResultController::class, 'exportReportByEvaluations']);
-        Route::post('personResult/report-by-periods', [EvaluationPersonResultController::class, 'reportByEvaluations']);
-        Route::post('personResult/report-by-periods/export', [EvaluationPersonResultController::class, 'exportReportByEvaluations']);
-        Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+            // Grifos
+            Route::get('suppliers/active', [SupplierController::class, 'active']);
+            Route::apiResource('suppliers', SupplierController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+        });
 
-        // Agregar estas rutas dentro del grupo performanceEvaluation en routes/api.php
+        Route::group(['prefix' => 'vehicle'], function () {
+            Route::apiResource('control-vehicle', VehiculoController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::get('control-vehicle/form/data', [VehiculoController::class, 'getFormData']);
+            Route::post('control-vehicle/{id}/change-status', [VehiculoController::class, 'changeStatus']);
+        });
 
-        Route::delete('personCompetenceDetail/destroyMany', [EvaluationPersonCompetenceDetailController::class, 'destroyMany']);
-        Route::apiResource('personCompetenceDetail', EvaluationPersonCompetenceDetailController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::group(['prefix' => 'freight'], function () {
+            Route::apiResource('control-freight', OpFreightController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::get('control-freight/form/data', [OpFreightController::class, 'getFormData']);
+            Route::get('control-freight/customers/search', [OpFreightController::class, 'searchCustomers']);
+        });
 
-        // DETAILED DEVELOPMENT PLAN
-        Route::apiResource('detailedDevelopmentPlan', DetailedDevelopmentPlanController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::group(['prefix' => 'goal'], function () {
+            Route::get('control-goal/dashboard', [OpGoalTravelController::class, 'dashboard'])->name('control-goal.dashboard');
+            Route::get('control-goal/ranking', [OpGoalTravelController::class, 'ranking'])->name('control-goal.ranking');
+            Route::get('control-goal/alerts', [OpGoalTravelController::class, 'alerts'])->name('control-goal.alerts');
+            Route::get('control-goal/available-years', [OpGoalTravelController::class, 'availableYears'])->name('control-goal.available-years');
+            Route::get('control-goal/comparativa-mensual', [OpGoalTravelController::class, 'comparativaMensual']);
+            Route::get('control-goal/viajes-no-facturados', [OpGoalTravelController::class, 'viajesNoFacturados']);
+            Route::get('control-goal/analisis-estrategico', [OpGoalTravelController::class, 'analisisEstrategico']);
+            Route::get('control-goal/prediccion-ia', [OpGoalTravelController::class, 'predecirCumplimiento']);
+            Route::get('control-goal/export-comparativa-clientes', [OpGoalTravelController::class, 'exportComparativaClientes'])->name('goal.export-comparativa-clientes');
+            Route::apiResource('control-goal', OpGoalTravelController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+        });
 
-        // PAR EVALUATOR
-        Route::get('parEvaluator/worker/{workerId}', [EvaluationParEvaluatorController::class, 'getByWorker']);
-        Route::apiResource('parEvaluator', EvaluationParEvaluatorController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        Route::group(['prefix' => 'opVehicleAssignment'], function () {
+            Route::apiResource('control-vehicleAssignment', OpVehicleAssignmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::get('control-vehicleAssignment/form/data', [OpVehicleAssignmentController::class, 'getFormData']);
+            Route::get('control-vehicleAssignment/drivers/search', [OpVehicleAssignmentController::class, 'searchDrivers']);
 
-        // EVALUATION MODEL
-        Route::apiResource('evaluationModel', EvaluationModelController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+        });
 
-        // Rutas adicionales para recálculo de resultados
-        Route::post('/evaluation/{evaluation}/recalculateResults', [EvaluationPersonController::class, 'recalculateAllResults']);
-        Route::post('/evaluation/{evaluation}/person/{person}/recalculate', [EvaluationPersonController::class, 'recalculatePersonResults']);
-        Route::get('/evaluation/{evaluation}/stats', [EvaluationPersonController::class, 'getEvaluationStats']);
+        Route::group(['prefix' => 'monitoreo', 'middleware' => ['auth:sanctum']], function () {
 
-        // Ruta para crear competencias en lote
-        Route::post('/evaluation/{evaluation}/storeMany', [EvaluationPersonResultController::class, 'storeMany']);
-      });
+            // Ubicaciones
+            Route::prefix('locations')->controller(DriverLocationController::class)->group(function () {
+                Route::get('/', 'index');
+                Route::get('latest', 'latest');
+                Route::get('{id}', 'show');
 
-      //    ATTENDANCE — ZKBioTime
-      Route::group(['prefix' => 'attendance'], function () {
-        Route::get('/', [AttendanceSyncController::class, 'index']);
-        Route::get('/export', [AttendanceSyncController::class, 'export']);
-        Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
-        Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
-        Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
-        Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
-        Route::post('/sync', [AttendanceSyncController::class, 'sync']);
-        Route::post('/bulk-store', [AttendanceSyncController::class, 'bulkStore']);
+                Route::get('history/{driverId}', 'history');
+                Route::delete('history/clean', 'cleanHistory');
+            });
 
-        // Exclusiones permanentes por persona
-        Route::resource('exclusions', AttendanceExclusionController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+            // Conductores
+            Route::prefix('drivers')->controller(DriverController::class)->group(function () {
+                Route::get('/', 'index');
+                Route::get('stats', 'stats');
+                Route::get('{id}', 'show');
+                Route::post('{id}/refresh-status', 'refreshStatus');
+                Route::post('{id}/assign-device', 'assignDevice');
+                Route::post('{id}/remove-device', 'removeDevice');
+            });
 
-        // Mapeo de códigos incorrectos del dispositivo a DNI real
-        Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
-          'index',
-          'show',
-          'store',
-          'update',
-          'destroy'
-        ]);
+            // Configuraciones
+            Route::prefix('config')->controller(DriverLocationConfigurationController::class)->group(function () {
+                Route::get('/', 'index');
+                Route::post('/', 'store');
+                Route::get('{key}', 'show');
+                Route::put('{key}', 'update');
+                Route::delete('{key}', 'destroy');
+            });
 
-        Route::get('/{id}', [AttendanceSyncController::class, 'show']);
-      });
+            // Logs de estado
+            Route::prefix('status-logs')->controller(DriverStatusLogController::class)->group(function () {
+                Route::get('/', 'index');
+                Route::get('driver/{id}', 'byDriver');
+            });
+
+            Route::prefix('device')->controller(DeviceController::class)->group(function () {
+                Route::get('status', 'status');
+                Route::post('auto-activate', 'autoActivate');
+                Route::post('register', 'register');
+                Route::post('unregister', 'unregister');
+                Route::post('validate-serial', 'validateSerial');
+                Route::post('equipment', 'getEquipment');
+            });
+        });
+        Route::post('fac-invoice/sync', [FacInvoiceController::class, 'sync']);
+
     });
-  });
 
-
-  /**
-   * Routes for Automotores Pakatnamu
-   */
-  Route::group(['prefix' => 'ap'], function () {
-    // Maestros Comercial
-    Route::get('apMasters/types', [ApMastersController::class, 'getTypes']);
-    Route::apiResource('apMasters', ApMastersController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
+    //    SYSTEM
     Route::group(['prefix' => 'configuration'], function () {
-      Route::apiResource('fuelType', ApFuelTypeController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('vehicleBrand', ApVehicleBrandController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('deliveryReceivingChecklist', ApDeliveryReceivingChecklistController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::post('families/fix-codes', [ApFamiliesController::class, 'fixWrongCodes']);
-      Route::apiResource('families', ApFamiliesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('typeCurrency', TypeCurrencyController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('classArticle', ApClassArticleController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('modelsVn/export', [ApModelsVnController::class, 'export']);
-      Route::get('modelsVn/template', [ApModelsVnController::class, 'downloadTemplate']);
-      Route::post('modelsVn/import', [ApModelsVnController::class, 'import']);
-      Route::get('modelsVn/verify/template', [ApModelsVnController::class, 'downloadVerifyTemplate']);
-      Route::post('modelsVn/verify', [ApModelsVnController::class, 'verify']);
-      Route::get('modelsVn/sync-logs', [ApModelsVnController::class, 'syncLogs']);
-      Route::post('modelsVn/sync-all', [ApModelsVnController::class, 'syncAll']);
-      Route::post('modelsVn/fix-codes', [ApModelsVnController::class, 'fixWrongCodes']);
-      Route::get('modelsVn/match-excel/template', [ApModelsVnController::class, 'matchExcelTemplate']);
-      Route::post('modelsVn/match-excel', [ApModelsVnController::class, 'matchExcel']);
-      Route::get('modelsVn/initial-stock/template', [ApModelsVnController::class, 'downloadInitialStockTemplate']);
-      Route::post('modelsVn/import-initial-stock', [ApModelsVnController::class, 'importInitialStock']);
-      Route::post('modelsVn/store-automatic', [ApModelsVnController::class, 'storeAutomatic']);
-      Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
-      Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
-      Route::apiResource('modelsVn', ApModelsVnController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-      ]);
-      Route::get('assignCompanyBranch/{sedeId}/workers', [ApAssignCompanyBranchController::class, 'getWorkersBySede']);
-
-      Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
-      Route::get('assignBrandConsultant/worker/{workerId}/config', [ApAssignBrandConsultantController::class, 'getWorkerConfig']);
-      Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
-      Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
-      Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('bankAp', ApBankController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
-      Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
-      Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
-      Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::post('periodSnapshot', [ApPeriodSnapshotController::class, 'store']);
-
-      Route::get('assignmentLeadership/grouped/list', [ApAssignmentLeadershipController::class, 'grouped']);
-
-      Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy',
-      ]);
-
-      Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-      ]);
-
-      Route::apiResource('taxClassTypes', TaxClassTypesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('assignSalesSeries', AssignSalesSeriesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('userSeriesAssignment/authorized-series', [UserSeriesAssignmentController::class, 'getAuthorizedSeries']);
-      Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('warehouse/by-model-sede', [WarehouseController::class, 'getWarehousesByModelAndSede']);
-      Route::get('warehouse/warehouses-by-company', [WarehouseController::class, 'getWarehousesByCompany']);
-      Route::get('warehouse/my-physical-warehouses', [WarehouseController::class, 'getMyPhysicalWarehouses']);
-      Route::apiResource('warehouse', WarehouseController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('shop', ApShopController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('apSafeCreditGoal', ApSafeCreditGoalController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::get('campaigns/active', [ApCampaignController::class, 'active']);
-      Route::apiResource('campaigns', ApCampaignController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-    });
-
-    //      MARKETING
-    Route::group(['prefix' => 'marketing'], function () {
-      // Plans
-      Route::apiResource('plans', MktPlanController::class);
-
-      // Budgets
-      Route::apiResource('budgets', MktBudgetController::class);
-      Route::post('budgets/{id}/fundings', [MktBudgetController::class, 'addFunding']);
-
-      // Activities
-      Route::apiResource('activities', MktActivityController::class);
-      Route::post('activities/{id}/locations', [MktActivityController::class, 'addLocation']);
-      Route::post('activities/{id}/supports', [MktActivityController::class, 'addSupport']);
-      Route::patch('activities/{id}/status', [MktActivityController::class, 'changeStatus']);
-
-      // Proposals
-      Route::apiResource('proposals', MktProposalController::class);
-      Route::post('proposals/{id}/approve', [MktProposalController::class, 'approve']);
-      Route::post('proposals/{id}/reject', [MktProposalController::class, 'reject']);
-
-      // Purchase Orders
-      Route::apiResource('purchase-orders', MktPurchaseOrderController::class);
-      Route::patch('purchase-orders/{id}/status', [MktPurchaseOrderController::class, 'changeStatus']);
-
-      // Supports
-      Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'destroy']);
-
-      // KPIs
-      Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
-
-      // Dashboard
-      Route::get('dashboard', [MktDashboardController::class, 'index']);
-      Route::get('dashboard/monthly', [MktDashboardController::class, 'monthly']);
-
-      // Constants / Diccionario de enums
-      Route::get('constants', [MktConstantsController::class, 'index']);
-    });
-
-    //      COMMERCIAL
-    Route::group(['prefix' => 'commercial'], function () {
-      Route::get('businessPartners/{id}/opportunities', [BusinessPartnersController::class, 'opportunities']);
-      Route::apiResource('businessPartners', BusinessPartnersController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-      ]);
-      Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
-      Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
-      Route::post('businessPartners/{id}/reprocess-establishments', [BusinessPartnersController::class, 'reprocessEstablishments']);
-
-      // Declaración Jurada Conocimiento del Cliente (KYC)
-      Route::get('customerKycDeclarations/{id}/pdf', [CustomerKycDeclarationController::class, 'downloadPdf']);
-      Route::post('customerKycDeclarations/{id}/upload-signed', [CustomerKycDeclarationController::class, 'uploadSignedDocument']);
-      Route::post('customerKycDeclarations/{id}/confirm-legal-review', [CustomerKycDeclarationController::class, 'confirmLegalReview']);
-      Route::post('customerKycDeclarations/{id}/reject-legal-review', [CustomerKycDeclarationController::class, 'rejectLegalReview']);
-      Route::apiResource('customerKycDeclarations', CustomerKycDeclarationController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy',
-      ]);
-
-
-      Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Crear oportunidad desde un cliente
-      Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
-
-      Route::get('potentialBuyers/export', [PotentialBuyersController::class, 'export']);
-      Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
-      Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
-      Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-      Route::post('potentialBuyers/import-derco', [PotentialBuyersController::class, 'importDerco']);
-      Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
-      Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
-      Route::post('potentialBuyers/transfer-workers', [PotentialBuyersController::class, 'transferWorkers']);
-
-      // Rutas especiales de oportunidades (deben ir antes del apiResource)
-      Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
-      Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
-      Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
-      Route::get('opportunities/{id}/request-data', [OpportunityController::class, 'getRequestData']);
-      Route::put('opportunities/{opportunityId}/close', [OpportunityController::class, 'close']);
-
-      Route::apiResource('opportunities', OpportunityController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-
-      Route::get('purchaseRequestQuote/export', [PurchaseRequestQuoteController::class, 'export']);
-      Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
-      Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
-      Route::post('purchaseRequestQuote/{id}/sendEmail', [PurchaseRequestQuoteController::class, 'sendEmail']);
-      Route::post('purchaseRequestQuote/{id}/recalculateMargin', [PurchaseRequestQuoteController::class, 'recalculateMargin']);
-
-      // Discount Coupons
-      Route::get('discountCoupons/byQuote/{quoteId}', [DiscountCouponsController::class, 'byQuote']);
-      Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
-      Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
-      Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
-      Route::post('purchaseRequestQuote/{id}/duplicate', [PurchaseRequestQuoteController::class, 'duplicate']);
-      Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Ajustes de bono/descuento post-pago
-      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/approve', [PurchaseRequestQuoteAdjustmentRequestController::class, 'approve']);
-      Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/reject', [PurchaseRequestQuoteAdjustmentRequestController::class, 'reject']);
-      Route::apiResource('purchaseRequestQuoteAdjustmentRequest', PurchaseRequestQuoteAdjustmentRequestController::class)
-        ->parameters(['purchaseRequestQuoteAdjustmentRequest' => 'id'])
-        ->only([
-          'index',
-          'show',
-          'store',
-          'destroy',
+        //        USERS
+        Route::get('user/{user}/complete', [UserController::class, 'showComplete'])->name('user.showComplete');
+        Route::get('user/my-companies', [UserController::class, 'getMyCompanies'])->name('user.my-companies');
+        Route::apiResource('user', UserController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
         ]);
 
-      Route::get('vehiclePurchaseOrder/next-correlative', [PurchaseOrderController::class, 'nextCorrelative']);
-      Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
-      Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
+        //        USER-SEDE ASSIGNMENT
+        Route::post('user-sede/store-many', [UserSedeController::class, 'storeMany'])->name('user-sede.store-many');
+        Route::get('user-sede/user/{userId}/sedes', [UserSedeController::class, 'getSedesByUser'])->name('user-sede.sedes-by-user');
+        Route::get('user-sede/sede/{sedeId}/users', [UserSedeController::class, 'getUsersBySede'])->name('user-sede.users-by-sede');
+        Route::apiResource('user-sede', UserSedeController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
 
-      // Resend purchase order with credit note (creates new OC with point)
-      Route::post('vehiclePurchaseOrder/{id}/resend', [PurchaseOrderController::class, 'resend']);
-      Route::post('vehiclePurchaseOrder/{id}/resend-postventa', [PurchaseOrderController::class, 'resendPostventa']);
-      Route::get('vehiclePurchaseOrder/{id}/check-resources', [PurchaseOrderController::class, 'checkResources']);
-      Route::get('vehiclePurchaseOrder/{id}/dispatchSyncCreditNoteJob', [PurchaseOrderController::class, 'dispatchSyncCreditNoteJob']);
-      Route::get('vehiclePurchaseOrder/{id}/dispatchSyncInvoiceJob', [PurchaseOrderController::class, 'dispatchSyncInvoiceJob']);
+        // ROLES
+        Route::apiResource('role', RoleController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::get('role/{id}/users', [RoleController::class, 'users'])->name('role.users');
+        Route::post('role/{id}/duplicate', [RoleController::class, 'duplicate'])->name('role.duplicate');
+        Route::post('/roles/{role_id}/access', [AccessController::class, 'storeMany']);
 
-      // Vehicle Purchase Order Migration Monitoring
-      Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
-        Route::get('/summary', [VehiclePurchaseOrderMigrationController::class, 'summary']);
-        Route::get('/statistics', [VehiclePurchaseOrderMigrationController::class, 'statistics']);
-        Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
-        Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
-        Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
-        Route::post('/{id}/dispatch-migration', [VehiclePurchaseOrderMigrationController::class, 'dispatchMigration']);
-        Route::post('/{id}/reset-migration', [VehiclePurchaseOrderMigrationController::class, 'resetMigration']);
-        Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
-        Route::post('/logs/{logId}/reset', [VehiclePurchaseOrderMigrationController::class, 'resetLog']);
-      });
+        // USER-ROLE ASSIGNMENT
+        Route::get('user-role/user/{userId}/roles', [UserRoleController::class, 'rolesByUser'])->name('user-role.roles-by-user');
+        Route::get('user-role/role/{roleId}/users', [UserRoleController::class, 'usersByRole'])->name('user-role.users-by-role');
+        Route::apiResource('user-role', UserRoleController::class)->only([
+            'index',
+            'show',
+            'update',
+        ]);
 
-      // Vehicle Documents (Guías de Remisión/Traslado)
-      Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
-      Route::post('shippingGuides/{id}/annul', [ShippingGuidesController::class, 'annul']);
-      Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
-      Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
-      Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
-      Route::post('shippingGuides/{id}/sync-with-dynamics', [ShippingGuidesController::class, 'syncWithDynamics']);
-      Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
-      Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
-      Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
-      Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
-      Route::post('shippingGuides/{id}/reset-migration', [ShippingGuidesController::class, 'resetMigration']);
-      Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
-      Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
-      Route::post('shippingGuides/historical', [ShippingGuidesController::class, 'storeHistorical']);
-      Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
-      Route::post('shippingGuides/internal', [ShippingGuidesController::class, 'storeInternal']);
-      Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
+        //        VIEWS
+        Route::get('view/with-permissions', [ViewController::class, 'viewsWithPermissions'])->name('view.with-permissions');
+        Route::get('view/{id}/roles', [ViewController::class, 'rolesByView'])->name('view.roles');
+        Route::post('view/{id}/duplicate', [ViewController::class, 'duplicate'])->name('view.duplicate');
+        Route::apiResource('view', ViewController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
 
-      // Receiving Checklist
-      Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'getByShippingGuide']);
-      Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
-      Route::post('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
-      Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
-      Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
+        Route::get('modules', [AuthController::class, 'modules'])->name('modules');
 
-      // Vehicles
-      Route::match(['get', 'post'], 'vehicles/export', [VehiclesController::class, 'exportAll']);
-      Route::post('vehicles/export/billing', [VehiclesController::class, 'exportBilling']);
-      Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
-      Route::post('vehicles/export/inventory', [VehiclesController::class, 'exportInventory']);
-      Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
-      Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
-      Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
-      Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
-      Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
-      Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
-      Route::post('vehicles/update-purchase-order-by-vin', [VehiclesController::class, 'updatePurchaseOrderByVin']);
-      Route::post('vehicles/update-ocsi-invoice-by-vin', [VehiclesController::class, 'updateOcsiInvoiceByVin']);
-      Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
-      Route::apiResource('vehicles', VehiclesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
+        //        ACCESS
+        Route::apiResource('access', AccessController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
 
-      // Activos (vehículo VN → activo fijo)accountsReceivableaccountsReceivable
-      Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
-      Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
-      Route::get('assets/{id}/migration-logs', [AssetController::class, 'migrationLogs']);
-      Route::post('assets/{id}/dispatch-migration', [AssetController::class, 'dispatchMigration']);
-      Route::apiResource('assets', AssetController::class)->only([
-        'index',
-        'show',
-        'store',
-        'destroy',
-      ]);
-
-      // Reports
-      Route::prefix('reports')->group(function () {
-        Route::get('daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
-        Route::get('daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
-
-        Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
-
-        Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
-
-        Route::get('bonus/export', [ApBonusReportController::class, 'export']);
-
-        Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
-        Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
-      });
-
-      // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
-      Route::prefix('dashboard/unidades')->group(function () {
-        Route::get('resumen', [ApUnidadesDashboardController::class, 'resumen']);
-        Route::get('dashboard', [ApUnidadesDashboardController::class, 'dashboard']);
-        Route::get('vencimientos', [ApUnidadesDashboardController::class, 'vencimientos']);
-      });
-
-      // Delivery Checklist
-      Route::get('vehiclesDelivery/{vehicleDeliveryId}/checklist', [ApDeliveryChecklistController::class, 'getOrInitialize']);
-      Route::post('deliveryChecklist', [ApDeliveryChecklistController::class, 'store']);
-      Route::put('deliveryChecklist/{id}', [ApDeliveryChecklistController::class, 'update']);
-      Route::post('deliveryChecklist/{id}/confirm', [ApDeliveryChecklistController::class, 'confirm']);
-      Route::post('deliveryChecklist/{id}/items', [ApDeliveryChecklistController::class, 'addItem']);
-      Route::put('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'updateItem']);
-      Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
-      Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
-
-      // Vehicles Delivery - Diagnóstico de VIN
-      Route::get('vehiclesDelivery/diagnose-vin', [ApVehicleDeliveryController::class, 'diagnoseVin']);
-
-      // Vehicles Delivery - Export
-      Route::get('vehiclesDelivery/export', [ApVehicleDeliveryController::class, 'export']);
-
-      // Vehicles Delivery - Reporte CSV asientos contables por VIN
-      Route::get('vehiclesDelivery/accounting-entry-report', [ApVehicleDeliveryController::class, 'accountingEntryReport']);
-
-      // Vehicles Delivery - Stock Inicial
-      Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
-      Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
-
-      // Vehicles Delivery - Horarios disponibles
-      Route::get('vehiclesDelivery/available-slots', [ApVehicleDeliveryController::class, 'availableSlots']);
-
-      // Vehicles Delivery - Reprogramar
-      Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
-      Route::get('vehiclesDelivery/{id}/reschedule-history', [ApVehicleDeliveryController::class, 'rescheduleHistory']);
-
-      // Vehicles Delivery - Aprobación extraordinaria
-      Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
-      Route::post('vehiclesDelivery/{id}/approve-extraordinary', [ApVehicleDeliveryController::class, 'approveExtraordinary']);
-      Route::post('vehiclesDelivery/{id}/reject-extraordinary', [ApVehicleDeliveryController::class, 'rejectExtraordinary']);
-
-      // Vehicles Delivery
-      Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
-      Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
-      Route::post('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
-      Route::post('vehiclesDelivery/{id}/send-to-dynamic', [ApVehicleDeliveryController::class, 'sendToDynamic']);
-      Route::post('vehiclesDelivery/{id}/sync-accounting-entry', [ApVehicleDeliveryController::class, 'syncAccountingEntry']);
-      Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Exhibition Vehicles
-      Route::get('exhibitionVehicles/export', [ApExhibitionVehiclesController::class, 'export']);
-      Route::apiResource('exhibitionVehicles', ApExhibitionVehiclesController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Vehicle Inventory (Vehículos Inventariados)
-      Route::get('vehicleInventory/template', [ApVehicleInventoryController::class, 'downloadTemplate']);
-      Route::post('vehicleInventory/import', [ApVehicleInventoryController::class, 'import']);
-      Route::post('vehicleInventory/{id}/evaluate', [ApVehicleInventoryController::class, 'evaluate']);
-      Route::apiResource('vehicleInventory', ApVehicleInventoryController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // DASHBOARD - Indicadores Comerciales
-      Route::group(['prefix' => 'dashboard-visit-leads'], function () {
-        Route::get('/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
-        Route::get('/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
-        Route::get('/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
-        Route::get('/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
-        Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
-        Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
-        Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
-        Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
-        Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
-        Route::get('/for-sales-manager-export', [DashboardComercialController::class, 'exportStatsForSalesManager']);
-      });
+        // PERMISSIONS
+        Route::get('permission', [PermissionController::class, 'index'])->name('permission.index');
+        Route::post('permission', [PermissionController::class, 'store'])->name('permission.store');
+        Route::get('permission/available-actions', [PermissionController::class, 'getAvailableActions'])->name('permission.available-actions');
+        Route::get('permission/{id}/get-by-role', [PermissionController::class, 'getByRole'])->name('permission.getByRole');
+        Route::post('permission/bulk-sync', [PermissionController::class, 'bulkSync'])->name('permission.bulk-sync');
+        Route::post('permission/save-permissions-to-role', [PermissionController::class, 'saveToRole'])->name('permission.savePermissionsToRole');
+        Route::post('permission/preview-permissions-sync', [PermissionController::class, 'previewSync'])->name('permission.previewPermissionsSync');
+        Route::delete('permission/remove-permission-from-role', [PermissionController::class, 'removeFromRole'])->name('permission.removePermissionFromRole');
     });
 
+    Route::group(['prefix' => 'gp'], function () {
+        //    TICS
+        Route::group(['prefix' => 'tics'], function () {
+            //    EQUIPMENTS
+            Route::get('/equipment/useStateGraph', [EquipmentController::class, 'useStateGraph']);
+            Route::get('/equipment/sedeGraph', [EquipmentController::class, 'sedeGraph']);
+            Route::apiResource('equipment', EquipmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    TYPE EQUIPMENTS
+            Route::apiResource('equipmentType', EquipmentTypeController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    TELEPHONE PLANS
+            Route::apiResource('telephonePlan', TelephonePlanController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    TELEPHONE ACCOUNTS
+            Route::get('telephoneAccount/operators', [TelephoneAccountController::class, 'getOperators'])->name('telephoneAccount.operators');
+            Route::apiResource('telephoneAccount', TelephoneAccountController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    PHONE LINES
+            Route::post('phoneLine/import', [PhoneLineController::class, 'import']);
+            Route::apiResource('phoneLine', PhoneLineController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    EQUIPMENT ASSIGNMENTS
+            Route::get('equipmentAssigment/history/worker/{personaId}', [EquipmentAssigmentController::class, 'historyByWorker']);
+            Route::get('equipmentAssigment/history/equipment/{equipoId}', [EquipmentAssigmentController::class, 'historyByEquipment']);
+            Route::put('equipmentAssigment/{id}/confirm', [EquipmentAssigmentController::class, 'confirm']);
+            Route::post('equipmentAssigment/{id}/unassign', [EquipmentAssigmentController::class, 'unassign']);
+            Route::patch('equipmentAssigment/{id}/link-phone-line', [EquipmentAssigmentController::class, 'linkPhoneLine']);
+            Route::get('equipmentAssigment/{id}/pdf/assignment', [EquipmentAssigmentController::class, 'downloadAssignmentPdf']);
+            Route::get('equipmentAssigment/{id}/pdf/unassignment', [EquipmentAssigmentController::class, 'downloadUnassignmentPdf']);
+            Route::post('equipmentAssigment/{id}/upload', [EquipmentAssigmentController::class, 'uploadFile']);
+            Route::get('equipmentAssigment/{id}/file/{type}', [EquipmentAssigmentController::class, 'downloadUploadedFile']);
+            Route::apiResource('equipmentAssigment', EquipmentAssigmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    PHONE LINE WORKERS (ASSIGNMENTS)
+            Route::get('phoneLineWorker/history/{phoneLineId}', [PhoneLineWorkerController::class, 'history']);
+            Route::post('phoneLineWorker/{id}/unassign', [PhoneLineWorkerController::class, 'unassign']);
+            Route::patch('phoneLineWorker/{id}/link-equipment', [PhoneLineWorkerController::class, 'linkEquipment']);
+            Route::get('phoneLineWorker/{id}/pdf/assignment', [PhoneLineWorkerController::class, 'downloadAssignmentPdf']);
+            Route::get('phoneLineWorker/{id}/pdf/unassignment', [PhoneLineWorkerController::class, 'downloadUnassignmentPdf']);
+            Route::apiResource('phoneLineWorker', PhoneLineWorkerController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+        });
+
+        //    PROJECT MANAGEMENT (SCRUM)
+        Route::group(['prefix' => 'tics/pm'], function () {
+            // Projects
+            Route::apiResource('scrumProject', ScrumProjectController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+            // Sprints
+            Route::post('scrumSprint/{id}/activate', [ScrumSprintController::class, 'activate']);
+            Route::post('scrumSprint/{id}/close', [ScrumSprintController::class, 'close']);
+            Route::apiResource('scrumSprint', ScrumSprintController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+            // Items
+            Route::get('scrumItem/kanban/{sprintId?}', [ScrumItemController::class, 'kanban']);
+            Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
+            Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
+            Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);
+            Route::post('scrumTicket', [ScrumItemController::class, 'storeTicket']);
+            Route::apiResource('scrumItem', ScrumItemController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+
+            // Comments
+            Route::apiResource('scrumComment', ScrumCommentController::class)->only(['index', 'store', 'update', 'destroy']);
+
+            // Tags
+            Route::apiResource('scrumTag', ScrumTagController::class)->only(['index', 'store', 'update', 'destroy']);
+
+            // History (solo lectura)
+            Route::get('scrumItemHistory', [ScrumItemHistoryController::class, 'index']);
+        });
+
+        Route::group(['prefix' => 'mg'], function () {
+            // General Master
+            Route::get('generalMaster/types', [GeneralMasterController::class, 'getTypes']);
+            Route::apiResource('generalMaster', GeneralMasterController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('sede/availableLocationsShop', [SedeController::class, 'availableLocationsShop']);
+            Route::get('sede/my', [SedeController::class, 'mySedes']);
+            Route::get('sede/my-shops', [SedeController::class, 'myShops']);
+            Route::apiResource('sede', SedeController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('sunatConcepts', SunatConceptsController::class)->only([
+                'index',
+            ]);
+
+            Route::get('exchange-rate/by-date-and-currency', [ExchangeRateController::class, 'getByDateAndCurrency']);
+        });
+
+        Route::group(['prefix' => 'gs'], function () {
+
+            Route::get('/department', [DepartmentController::class, 'index']);
+            Route::get('/province', [ProvinceController::class, 'index']);
+            Route::apiResource('district', DistrictController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+        });
+
+        Route::group(['prefix' => 'gh'], function () {
+            //    PERSONAL MAIN
+            Route::group(['prefix' => 'personal'], function () {
+                // PERSON
+                Route::get('worker/birthdays', [WorkerController::class, 'birthdays'])->name('person.birthdays');
+
+                //    WORKER
+                Route::get('worker-without-categories-and-objectives', [WorkerController::class, 'getWorkersWithoutCategoriesAndObjectives']);
+                Route::get('worker-without-objectives', [WorkerController::class, 'getWorkersWithoutObjectives']);
+                Route::get('worker-without-categories', [WorkerController::class, 'getWorkersWithoutCategories']);
+                Route::get('worker-without-competences', [WorkerController::class, 'getWorkersWithoutCompetences']);
+                Route::get('worker-without-evaluator', [WorkerController::class, 'getWorkersWithoutEvaluator']);
+                Route::post('worker-assign-objectives', [WorkerController::class, 'assignObjectivesToWorkers']);
+                Route::get('worker/my-consultants', [WorkerController::class, 'myConsultants']);
+                Route::get('worker/{id}/subordinates', [WorkerController::class, 'subordinates']);
+                Route::get('worker/{id}/search-hierarchy', [WorkerController::class, 'searchHierarchy']);
+
+                Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
+                Route::apiResource('worker', WorkerController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      ESTADO DEL TRABAJADOR (activacion/cese) - centraliza en milla-backend, coexiste con el legacy
+                Route::get('worker-status-history/worker/{workerId}/current', [WorkerStatusHistoryController::class, 'currentStatus']);
+                Route::apiResource('worker-status-history', WorkerStatusHistoryController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                ]);
+
+                //      VACACIONES
+                Route::post('vacation/{id}/approve-jefatura', [VacationController::class, 'approveJefatura']);
+                Route::post('vacation/{id}/approve-rrhh', [VacationController::class, 'approveRrhh']);
+                Route::apiResource('vacation', VacationController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      AREAS
+                Route::apiResource('area', AreaController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      POSITIONS
+                Route::apiResource('position', PositionController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      TYPE ONBOARDING
+                Route::apiResource('type-onboarding', TypeOnboardingController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      HORARIOS DE TRABAJO
+                Route::post('work-schedule/assign/{worker}', [WorkScheduleController::class, 'assignOne']);
+                Route::post('work-schedule/assign-bulk', [WorkScheduleController::class, 'assignBulk']);
+                Route::apiResource('work-schedule', WorkScheduleController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //      AUSENTISMO LABORAL
+                Route::get('ausentismo', [AusentismoLaboralController::class, 'index']);
+                Route::post('ausentismo', [AusentismoLaboralController::class, 'store']);
+                Route::get('ausentismo/{id}', [AusentismoLaboralController::class, 'show']);
+                Route::put('ausentismo/{id}', [AusentismoLaboralController::class, 'update']);
+                Route::delete('ausentismo/{id}', [AusentismoLaboralController::class, 'destroy']);
+
+                //      PERMISOS TRABAJADOR
+                Route::get('permiso', [TrabajadorPermisoController::class, 'index']);
+                Route::post('permiso', [TrabajadorPermisoController::class, 'store']);
+                Route::get('permiso/{id}', [TrabajadorPermisoController::class, 'show']);
+                Route::put('permiso/{id}', [TrabajadorPermisoController::class, 'update']);
+                Route::delete('permiso/{id}', [TrabajadorPermisoController::class, 'destroy']);
+            });
+
+            // Accountant District Assignments
+            Route::apiResource('accountant-district-assignments', AccountantDistrictAssignmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            //    PERFORMANCE EVALUATION
+            Route::group(['prefix' => 'performanceEvaluation'], function () {
+                //        METRICS
+                Route::get('metric/export', [EvaluationMetricController::class, 'export']);
+                Route::apiResource('metric', EvaluationMetricController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        OBJECTIVES
+                Route::get('/objective/{id}/activate-in-categories/preview', [EvaluationObjectiveController::class, 'previewActivateInCategories']);
+                Route::post('/objective/{id}/activate-in-categories', [EvaluationObjectiveController::class, 'activateInCategories']);
+                Route::get('/objective/{id}/deactivate-in-categories/preview', [EvaluationObjectiveController::class, 'previewDeactivateInCategories']);
+                Route::post('/objective/{id}/deactivate-in-categories', [EvaluationObjectiveController::class, 'deactivateInCategories']);
+                Route::apiResource('objective', EvaluationObjectiveController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        COMPETENCES
+                Route::apiResource('competence', EvaluationCompetenceController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        PERIODS
+                Route::apiResource('period', EvaluationPeriodController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        HIERARCHICAL CATEGORIES
+                Route::get('/hierarchicalCategory/listAll', [HierarchicalCategoryController::class, 'listAll']);
+                Route::apiResource('hierarchicalCategory', HierarchicalCategoryController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                Route::post('/hierarchicalCategory/{category}/details', [HierarchicalCategoryDetailController::class, 'storeMany']);
+                Route::apiResource('hierarchicalCategoryDetail', HierarchicalCategoryDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //    CATEGORY OBJECTIVE DETAILS
+                Route::get('/categoryObjectiveDetail/global-weight-report', [EvaluationCategoryObjectiveDetailController::class, 'globalWeightReport']);
+                Route::get('/categoryObjectiveDetail/export-all', [EvaluationCategoryObjectiveDetailController::class, 'exportAll']);
+                Route::get('/categoryObjectiveDetail/{category}/weight-report', [EvaluationCategoryObjectiveDetailController::class, 'weightReport']);
+                Route::post('/categoryObjectiveDetail/{category}/apply-reference-weights', [EvaluationCategoryObjectiveDetailController::class, 'applyReferenceWeights']);
+                Route::get('/categoryObjectiveDetail/{category}/workers', [EvaluationCategoryObjectiveDetailController::class, 'workers']);
+                Route::post('/categoryObjectiveDetail/{category}/regenerate-person/{person}', [EvaluationCategoryObjectiveDetailController::class, 'regeneratePersonObjectives']);
+                Route::post('/categoryObjectiveDetail/{category}/homogeneous-weights/{person}', [EvaluationCategoryObjectiveDetailController::class, 'recalculateHomogeneousWeights']);
+                Route::apiResource('categoryObjectiveDetail', EvaluationCategoryObjectiveDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                ]);
+                Route::post('/categoryObjectiveDetail/destroy', [EvaluationCategoryObjectiveDetailController::class, 'destroy']);
+
+                //    CATEGORY COMPETENCE DETAILS
+                Route::get('/categoryCompetenceDetail/global-assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'globalAssignmentReport']);
+                Route::post('/categoryCompetenceDetail/fill-all-missing', [EvaluationCategoryCompetenceDetailController::class, 'fillAllMissingCompetences']);
+                Route::get('/categoryCompetenceDetail/{category}/assignment-report', [EvaluationCategoryCompetenceDetailController::class, 'assignmentReport']);
+                Route::get('/categoryCompetenceDetail/{category}/workers', [EvaluationCategoryCompetenceDetailController::class, 'workers']);
+                Route::post('/categoryCompetenceDetail/{category}/regenerate-person/{person}', [EvaluationCategoryCompetenceDetailController::class, 'regeneratePersonCompetences']);
+                Route::apiResource('categoryCompetenceDetail', EvaluationCategoryCompetenceDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                ]);
+                Route::post('/categoryCompetenceDetail/destroy', [EvaluationCategoryCompetenceDetailController::class, 'destroy']);
+
+                //        PARAMETER
+                Route::apiResource('parameter', EvaluationParameterController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        CYCLE
+                Route::get('cycle/export', [EvaluationCycleController::class, 'export']);
+                Route::apiResource('cycle', EvaluationCycleController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        CYCLE CATEGORIES
+                Route::get('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'index']);
+                Route::post('/cycle/{cycle}/categories', [EvaluationCycleCategoryDetailController::class, 'storeMany']);
+                Route::get('/cycle/{cycle}/details', [EvaluationPersonCycleDetailController::class, 'index']);
+                Route::get('/cycle/{cycle}/chiefs', [EvaluationPersonCycleDetailController::class, 'getChiefsByCycle']);
+                Route::get('/cycle/{cycle}/weights/preview', [EvaluationPersonCycleDetailController::class, 'previewWeights']);
+                Route::post('/cycle/{cycle}/weights/regenerate', [EvaluationPersonCycleDetailController::class, 'regenerateWeights']);
+                Route::get('/cycle/{cycle}/eligible-workers', [EvaluationPersonCycleDetailController::class, 'previewEligibleWorkers']);
+                Route::get('/cycle/{cycle}/workers/{worker}/validate', [EvaluationPersonCycleDetailController::class, 'validateWorkerForCycle']);
+                Route::post('/cycle/{cycle}/workers', [EvaluationPersonCycleDetailController::class, 'storeManyByWorker']);
+                Route::get('/cycle/{cycle}/objectives/{objective}/remove/preview', [EvaluationPersonCycleDetailController::class, 'previewRemoveObjectiveFromCycle']);
+                Route::delete('/cycle/{cycle}/objectives/{objective}/remove', [EvaluationPersonCycleDetailController::class, 'removeObjectiveFromCycle']);
+                Route::get('/cycle/{id}/participants', [EvaluationCycleController::class, 'participants']);
+                Route::get('/cycle/{id}/positions', [EvaluationCycleController::class, 'positions']);
+
+                //        PERSON CYCLE DETAILS
+                Route::apiResource('personCycleDetail', EvaluationPersonCycleDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        PERSON CYCLE DETAILS
+                Route::apiResource('evaluationPersonDetail', EvaluationPersonDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                //        EVALUATION
+                Route::get('/evaluation/export', [EvaluationController::class, 'export']);
+                Route::get('/evaluation/check', [EvaluationController::class, 'checkActiveEvaluationByDateRange']);
+                Route::get('/evaluation/active', [EvaluationController::class, 'active']);
+                Route::get('/evaluation/{evaluation}/preview-regenerate', [EvaluationController::class, 'previewRegenerateEvaluation']);
+                Route::post('/evaluation/{evaluation}/regenerateEvaluation', [EvaluationController::class, 'regenerateEvaluation']);
+                Route::get('/evaluation/{evaluation}/eligible-workers', [EvaluationController::class, 'eligibleWorkers']);
+                Route::post('/evaluation/{evaluation}/workers', [EvaluationController::class, 'addWorkers']);
+                Route::get('/evaluation/{evaluation}/participants', [EvaluationController::class, 'participants']);
+                Route::get('/evaluation/{evaluation}/positions', [EvaluationController::class, 'positions']);
+                Route::get('evaluation/{id}/testUpdateAllResultsWithGoals', [EvaluationPersonController::class, 'testUpdateAllResultsWithGoals']);
+
+                //        EVALUATION NOTIFICATIONS
+                Route::group(['prefix' => 'evaluation/notifications'], function () {
+                    Route::post('/send-opened', [EvaluationNotificationController::class, 'sendEvaluationOpened']); // Notifica apertura de evaluación - Correo 1
+                    Route::post('/send-reminders', [EvaluationNotificationController::class, 'sendReminders']); // Es correo de recordatorio - Correo 2
+                    Route::post('/send-reminder-to-leader', [EvaluationNotificationController::class, 'sendReminderToLeader']); // Envía recordatorio a un líder específico
+                    Route::post('/send-closed', [EvaluationNotificationController::class, 'sendEvaluationClosed']); // Notifica cierre de evaluación - Correo 3
+                    Route::post('/send-hr-summary', [EvaluationNotificationController::class, 'sendHrSummary']);
+                    Route::get('/pending-status', [EvaluationNotificationController::class, 'getPendingStatus']);
+                    Route::post('/test-reminder', [EvaluationNotificationController::class, 'testReminder']);
+                });
+
+                Route::apiResource('evaluation', EvaluationController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                Route::get('/evaluation/{evaluation}/competences', [EvaluationPersonCompetenceDetailController::class, 'getByEvaluation'])
+                    ->name('evaluation.competences.index');
+                Route::post('/evaluation/{evaluation}/competences', [EvaluationController::class, 'createCompetences'])
+                    ->name('evaluation.competences.create');
+                Route::get('/evaluation/{evaluation}/competences/sync-preview', [EvaluationPersonCompetenceDetailController::class, 'previewSync'])
+                    ->name('evaluation.competences.sync-preview');
+                Route::post('/evaluation/{evaluation}/competences/sync', [EvaluationPersonCompetenceDetailController::class, 'syncCompetences'])
+                    ->name('evaluation.competences.sync');
+
+                // EVALUATION PERSON
+                Route::apiResource('evaluationPerson', EvaluationPersonController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // PERSON RESULT
+                Route::get('personResult/export', [EvaluationPersonResultController::class, 'export']);
+                Route::get('personResult/getByPersonAndEvaluation', [EvaluationPersonResultController::class, 'getByPersonAndEvaluation']);
+                Route::get('personResult/evaluations-to-evaluate/{id}', [EvaluationPersonResultController::class, 'getEvaluationsByPersonToEvaluate']);
+                Route::get('personResult/evaluation/{evaluation_id}/bosses', [EvaluationPersonResultController::class, 'getBossesByEvaluation']);
+                Route::get('personResult/evaluation/{evaluation_id}/leaders-status', [EvaluationPersonResultController::class, 'getLeadersEvaluationStatus']);
+                Route::get('personResult/evaluation/{evaluation_id}/leader/{leader_id}/team-members', [EvaluationPersonResultController::class, 'getLeaderTeamMembers']);
+                Route::get('leader-dashboard/{evaluation_id}', [EvaluationPersonResultController::class, 'getLeaderDashboard']);
+                Route::get('personResult/preview-regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'previewRegenerate']);
+                Route::post('personResult/regenerate/{personId}/{evaluationId}', [EvaluationPersonResultController::class, 'regenerate']);
+                Route::post('personResult/report-by-evaluations', [EvaluationPersonResultController::class, 'reportByEvaluations']);
+                Route::post('personResult/report-by-evaluations/export', [EvaluationPersonResultController::class, 'exportReportByEvaluations']);
+                Route::post('personResult/report-by-periods', [EvaluationPersonResultController::class, 'reportByEvaluations']);
+                Route::post('personResult/report-by-periods/export', [EvaluationPersonResultController::class, 'exportReportByEvaluations']);
+                Route::apiResource('personResult', EvaluationPersonResultController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // Agregar estas rutas dentro del grupo performanceEvaluation en routes/api.php
+
+                Route::delete('personCompetenceDetail/destroyMany', [EvaluationPersonCompetenceDetailController::class, 'destroyMany']);
+                Route::apiResource('personCompetenceDetail', EvaluationPersonCompetenceDetailController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // DETAILED DEVELOPMENT PLAN
+                Route::apiResource('detailedDevelopmentPlan', DetailedDevelopmentPlanController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // PAR EVALUATOR
+                Route::get('parEvaluator/worker/{workerId}', [EvaluationParEvaluatorController::class, 'getByWorker']);
+                Route::apiResource('parEvaluator', EvaluationParEvaluatorController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // EVALUATION MODEL
+                Route::apiResource('evaluationModel', EvaluationModelController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // Rutas adicionales para recálculo de resultados
+                Route::post('/evaluation/{evaluation}/recalculateResults', [EvaluationPersonController::class, 'recalculateAllResults']);
+                Route::post('/evaluation/{evaluation}/person/{person}/recalculate', [EvaluationPersonController::class, 'recalculatePersonResults']);
+                Route::get('/evaluation/{evaluation}/stats', [EvaluationPersonController::class, 'getEvaluationStats']);
+
+                // Ruta para crear competencias en lote
+                Route::post('/evaluation/{evaluation}/storeMany', [EvaluationPersonResultController::class, 'storeMany']);
+            });
+
+            //    ATTENDANCE — ZKBioTime
+            Route::group(['prefix' => 'attendance'], function () {
+                Route::get('/', [AttendanceSyncController::class, 'index']);
+                Route::get('/export', [AttendanceSyncController::class, 'export']);
+                Route::get('/report/sunafil', [AttendanceSyncController::class, 'reportSunafil']);
+                Route::get('/report/internal', [AttendanceSyncController::class, 'reportInternal']);
+                Route::post('/report/absent', [AttendanceSyncController::class, 'reportAbsent']);
+                Route::get('/person/{person_id}', [AttendanceSyncController::class, 'personDashboard']);
+                Route::post('/sync', [AttendanceSyncController::class, 'sync']);
+                Route::post('/bulk-store', [AttendanceSyncController::class, 'bulkStore']);
+
+                // Exclusiones permanentes por persona
+                Route::resource('exclusions', AttendanceExclusionController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                // Mapeo de códigos incorrectos del dispositivo a DNI real
+                Route::resource('code-mappings', AttendanceCodeMappingController::class)->only([
+                    'index',
+                    'show',
+                    'store',
+                    'update',
+                    'destroy',
+                ]);
+
+                Route::get('/{id}', [AttendanceSyncController::class, 'show']);
+            });
+        });
+    });
+
+    /**
+     * Routes for Automotores Pakatnamu
+     */
+    Route::group(['prefix' => 'ap'], function () {
+        // Maestros Comercial
+        Route::get('apMasters/types', [ApMastersController::class, 'getTypes']);
+        Route::apiResource('apMasters', ApMastersController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        Route::group(['prefix' => 'configuration'], function () {
+            Route::apiResource('fuelType', ApFuelTypeController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('vehicleStatus', ApVehicleStatusController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('vehicleBrand', ApVehicleBrandController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('deliveryReceivingChecklist', ApDeliveryReceivingChecklistController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::post('families/fix-codes', [ApFamiliesController::class, 'fixWrongCodes']);
+            Route::apiResource('families', ApFamiliesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('typeCurrency', TypeCurrencyController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('classArticle', ApClassArticleController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('modelsVn/export', [ApModelsVnController::class, 'export']);
+            Route::get('modelsVn/template', [ApModelsVnController::class, 'downloadTemplate']);
+            Route::post('modelsVn/import', [ApModelsVnController::class, 'import']);
+            Route::get('modelsVn/verify/template', [ApModelsVnController::class, 'downloadVerifyTemplate']);
+            Route::post('modelsVn/verify', [ApModelsVnController::class, 'verify']);
+            Route::get('modelsVn/sync-logs', [ApModelsVnController::class, 'syncLogs']);
+            Route::post('modelsVn/sync-all', [ApModelsVnController::class, 'syncAll']);
+            Route::post('modelsVn/fix-codes', [ApModelsVnController::class, 'fixWrongCodes']);
+            Route::get('modelsVn/match-excel/template', [ApModelsVnController::class, 'matchExcelTemplate']);
+            Route::post('modelsVn/match-excel', [ApModelsVnController::class, 'matchExcel']);
+            Route::get('modelsVn/initial-stock/template', [ApModelsVnController::class, 'downloadInitialStockTemplate']);
+            Route::post('modelsVn/import-initial-stock', [ApModelsVnController::class, 'importInitialStock']);
+            Route::post('modelsVn/store-automatic', [ApModelsVnController::class, 'storeAutomatic']);
+            Route::post('modelsVn/{id}/sync', [ApModelsVnController::class, 'sync']);
+            Route::get('modelsVn/{id}/dynamics', [ApModelsVnController::class, 'dynamicsPreview']);
+            Route::apiResource('modelsVn', ApModelsVnController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('assignCompanyBranch', ApAssignCompanyBranchController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+            ]);
+            Route::get('assignCompanyBranch/{sedeId}/workers', [ApAssignCompanyBranchController::class, 'getWorkersBySede']);
+
+            Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+            Route::get('assignBrandConsultant/worker/{workerId}/config', [ApAssignBrandConsultantController::class, 'getWorkerConfig']);
+            Route::get('assignBrandConsultant/{sedeId}/brands', [ApAssignBrandConsultantController::class, 'getBrandsByBranch']);
+            Route::get('assignBrandConsultant/{sedeId}/brands/{brandId}/advisors', [ApAssignBrandConsultantController::class, 'getAdvisorsByBranchAndBrand']);
+            Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('bankAp', ApBankController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('assignBrandConsultant/showGrouped', [ApAssignBrandConsultantController::class, 'showGrouped']);
+            Route::apiResource('assignBrandConsultant', ApAssignBrandConsultantController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('accountingAccountPlan', ApAccountingAccountPlanController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('apGoalSellOutIn/report', [ApGoalSellOutInController::class, 'report']);
+            Route::get('apGoalSellOutIn/report/pdf', [ApGoalSellOutInController::class, 'reportPDF']); // Descargar
+            Route::apiResource('apGoalSellOutIn', ApGoalSellOutInController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::post('periodSnapshot', [ApPeriodSnapshotController::class, 'store']);
+
+            Route::get('assignmentLeadership/grouped/list', [ApAssignmentLeadershipController::class, 'grouped']);
+
+            Route::apiResource('assignmentLeadership', ApAssignmentLeadershipController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('commercialManagerBrandGroup', ApCommercialManagerBrandGroupController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+            ]);
+
+            Route::apiResource('taxClassTypes', TaxClassTypesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('assignSalesSeries', AssignSalesSeriesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('unitMeasurement', UnitMeasurementController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('userSeriesAssignment/authorized-series', [UserSeriesAssignmentController::class, 'getAuthorizedSeries']);
+            Route::apiResource('userSeriesAssignment', UserSeriesAssignmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('warehouse/by-model-sede', [WarehouseController::class, 'getWarehousesByModelAndSede']);
+            Route::get('warehouse/warehouses-by-company', [WarehouseController::class, 'getWarehousesByCompany']);
+            Route::get('warehouse/my-physical-warehouses', [WarehouseController::class, 'getMyPhysicalWarehouses']);
+            Route::apiResource('warehouse', WarehouseController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('shop', ApShopController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('apSafeCreditGoal', ApSafeCreditGoalController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('campaigns/active', [ApCampaignController::class, 'active']);
+            Route::apiResource('campaigns', ApCampaignController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+        });
+
+        //      MARKETING
+        Route::group(['prefix' => 'marketing'], function () {
+            // Plans
+            Route::apiResource('plans', MktPlanController::class);
+
+            // Budgets
+            Route::apiResource('budgets', MktBudgetController::class);
+            Route::post('budgets/{id}/fundings', [MktBudgetController::class, 'addFunding']);
+
+            // Activities
+            Route::apiResource('activities', MktActivityController::class);
+            Route::post('activities/{id}/locations', [MktActivityController::class, 'addLocation']);
+            Route::post('activities/{id}/supports', [MktActivityController::class, 'addSupport']);
+            Route::patch('activities/{id}/status', [MktActivityController::class, 'changeStatus']);
+
+            // Proposals
+            Route::apiResource('proposals', MktProposalController::class);
+            Route::post('proposals/{id}/approve', [MktProposalController::class, 'approve']);
+            Route::post('proposals/{id}/reject', [MktProposalController::class, 'reject']);
+
+            // Purchase Orders
+            Route::apiResource('purchase-orders', MktPurchaseOrderController::class);
+            Route::patch('purchase-orders/{id}/status', [MktPurchaseOrderController::class, 'changeStatus']);
+
+            // Supports
+            Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'destroy']);
+
+            // KPIs
+            Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+            // Dashboard
+            Route::get('dashboard', [MktDashboardController::class, 'index']);
+            Route::get('dashboard/monthly', [MktDashboardController::class, 'monthly']);
+
+            // Constants / Diccionario de enums
+            Route::get('constants', [MktConstantsController::class, 'index']);
+        });
+
+        //      COMMERCIAL
+        Route::group(['prefix' => 'commercial'], function () {
+            Route::get('businessPartners/{id}/opportunities', [BusinessPartnersController::class, 'opportunities']);
+            Route::apiResource('businessPartners', BusinessPartnersController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+            ]);
+            Route::patch('businessPartners/{id}/remove-type', [BusinessPartnersController::class, 'removeType']);
+            Route::get('businessPartners/{id}/validateOpportunity', [BusinessPartnersController::class, 'validateOpportunity']);
+            Route::post('businessPartners/{id}/reprocess-establishments', [BusinessPartnersController::class, 'reprocessEstablishments']);
+
+            // Declaración Jurada Conocimiento del Cliente (KYC)
+            Route::get('customerKycDeclarations/{id}/pdf', [CustomerKycDeclarationController::class, 'downloadPdf']);
+            Route::post('customerKycDeclarations/{id}/upload-signed', [CustomerKycDeclarationController::class, 'uploadSignedDocument']);
+            Route::post('customerKycDeclarations/{id}/confirm-legal-review', [CustomerKycDeclarationController::class, 'confirmLegalReview']);
+            Route::post('customerKycDeclarations/{id}/reject-legal-review', [CustomerKycDeclarationController::class, 'rejectLegalReview']);
+            Route::apiResource('customerKycDeclarations', CustomerKycDeclarationController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('businessPartnersEstablishments', BusinessPartnersEstablishmentController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Crear oportunidad desde un cliente
+            Route::post('businessPartners/{clientId}/opportunities', [OpportunityController::class, 'storeFromClient']);
+
+            Route::get('potentialBuyers/export', [PotentialBuyersController::class, 'export']);
+            Route::get('potentialBuyers/my', [PotentialBuyersController::class, 'myPotentialBuyers']);
+            Route::put('potentialBuyers/{id}/discard', [PotentialBuyersController::class, 'discard']);
+            Route::apiResource('potentialBuyers', PotentialBuyersController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::post('potentialBuyers/import-derco', [PotentialBuyersController::class, 'importDerco']);
+            Route::post('potentialBuyers/import-social-networks', [PotentialBuyersController::class, 'importSocialNetworks']);
+            Route::post('potentialBuyers/assign-workers', [PotentialBuyersController::class, 'assignWorkers']);
+            Route::post('potentialBuyers/transfer-workers', [PotentialBuyersController::class, 'transferWorkers']);
+
+            // Rutas especiales de oportunidades (deben ir antes del apiResource)
+            Route::get('opportunities/my', [OpportunityController::class, 'myOpportunities']);
+            Route::get('opportunities/agenda/my', [OpportunityController::class, 'myAgenda']);
+            Route::get('opportunities/{opportunityId}/actions', [OpportunityController::class, 'getActions']);
+            Route::get('opportunities/{id}/request-data', [OpportunityController::class, 'getRequestData']);
+            Route::put('opportunities/{opportunityId}/close', [OpportunityController::class, 'close']);
+
+            Route::apiResource('opportunities', OpportunityController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::apiResource('opportunityActions', OpportunityActionController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('purchaseRequestQuote/export', [PurchaseRequestQuoteController::class, 'export']);
+            Route::get('purchaseRequestQuote/{id}/invoices', [PurchaseRequestQuoteController::class, 'getInvoices']);
+            Route::get('purchaseRequestQuote/pdf/{purchaseRequestQuote}', [PurchaseRequestQuoteController::class, 'reportPDF']); // Descargar
+            Route::post('purchaseRequestQuote/{id}/sendEmail', [PurchaseRequestQuoteController::class, 'sendEmail']);
+            Route::post('purchaseRequestQuote/{id}/recalculateMargin', [PurchaseRequestQuoteController::class, 'recalculateMargin']);
+
+            // Discount Coupons
+            Route::get('discountCoupons/byQuote/{quoteId}', [DiscountCouponsController::class, 'byQuote']);
+            Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
+            Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
+            Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
+            Route::post('purchaseRequestQuote/{id}/duplicate', [PurchaseRequestQuoteController::class, 'duplicate']);
+            Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Ajustes de bono/descuento post-pago
+            Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/approve', [PurchaseRequestQuoteAdjustmentRequestController::class, 'approve']);
+            Route::put('purchaseRequestQuoteAdjustmentRequest/{id}/reject', [PurchaseRequestQuoteAdjustmentRequestController::class, 'reject']);
+            Route::apiResource('purchaseRequestQuoteAdjustmentRequest', PurchaseRequestQuoteAdjustmentRequestController::class)
+                ->parameters(['purchaseRequestQuoteAdjustmentRequest' => 'id'])
+                ->only([
+                    'index',
+                    'show',
+                    'store',
+                    'destroy',
+                ]);
+
+            Route::get('vehiclePurchaseOrder/next-correlative', [PurchaseOrderController::class, 'nextCorrelative']);
+            Route::get('vehiclePurchaseOrder/export', [PurchaseOrderController::class, 'export']);
+            Route::apiResource('vehiclePurchaseOrder', PurchaseOrderController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Resend purchase order with credit note (creates new OC with point)
+            Route::post('vehiclePurchaseOrder/{id}/resend', [PurchaseOrderController::class, 'resend']);
+            Route::post('vehiclePurchaseOrder/{id}/resend-postventa', [PurchaseOrderController::class, 'resendPostventa']);
+            Route::get('vehiclePurchaseOrder/{id}/check-resources', [PurchaseOrderController::class, 'checkResources']);
+            Route::get('vehiclePurchaseOrder/{id}/dispatchSyncCreditNoteJob', [PurchaseOrderController::class, 'dispatchSyncCreditNoteJob']);
+            Route::get('vehiclePurchaseOrder/{id}/dispatchSyncInvoiceJob', [PurchaseOrderController::class, 'dispatchSyncInvoiceJob']);
+
+            // Vehicle Purchase Order Migration Monitoring
+            Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
+                Route::get('/summary', [VehiclePurchaseOrderMigrationController::class, 'summary']);
+                Route::get('/statistics', [VehiclePurchaseOrderMigrationController::class, 'statistics']);
+                Route::get('/orders', [VehiclePurchaseOrderMigrationController::class, 'index']);
+                Route::get('/{id}/logs', [VehiclePurchaseOrderMigrationController::class, 'logs']);
+                Route::get('/{id}/history', [VehiclePurchaseOrderMigrationController::class, 'history']);
+                Route::post('/{id}/dispatch-migration', [VehiclePurchaseOrderMigrationController::class, 'dispatchMigration']);
+                Route::post('/{id}/reset-migration', [VehiclePurchaseOrderMigrationController::class, 'resetMigration']);
+                Route::post('/dispatch-all', [VehiclePurchaseOrderMigrationController::class, 'dispatchAll']);
+                Route::post('/logs/{logId}/reset', [VehiclePurchaseOrderMigrationController::class, 'resetLog']);
+            });
+
+            // Vehicle Documents (Guías de Remisión/Traslado)
+            Route::post('shippingGuides/{id}/cancel', [ShippingGuidesController::class, 'cancel']);
+            Route::post('shippingGuides/{id}/annul', [ShippingGuidesController::class, 'annul']);
+            Route::post('shippingGuides/{id}/send-to-nubefact', [ShippingGuidesController::class, 'sendToNubefact']);
+            Route::post('shippingGuides/{id}/query-from-nubefact', [ShippingGuidesController::class, 'queryFromNubefact']);
+            Route::post('shippingGuides/{id}/mark-as-received', [ShippingGuidesController::class, 'markAsReceived']);
+            Route::post('shippingGuides/{id}/sync-with-dynamics', [ShippingGuidesController::class, 'syncWithDynamics']);
+            Route::get('shippingGuides/{id}/check-resources', [ShippingGuidesController::class, 'checkResources']);
+            Route::get('shippingGuides/{id}/logs', [ShippingGuidesController::class, 'logs']);
+            Route::get('shippingGuides/{id}/history', [ShippingGuidesController::class, 'history']);
+            Route::post('shippingGuides/{id}/dispatch-migration', [ShippingGuidesController::class, 'dispatchMigration']);
+            Route::post('shippingGuides/{id}/reset-migration', [ShippingGuidesController::class, 'resetMigration']);
+            Route::post('shippingGuides/dispatch-all', [ShippingGuidesController::class, 'dispatchAll']);
+            Route::get('shippingGuides/next-document-number', [ShippingGuidesController::class, 'nextDocumentNumber']);
+            Route::post('shippingGuides/historical', [ShippingGuidesController::class, 'storeHistorical']);
+            Route::post('shippingGuides/consignment', [ShippingGuidesController::class, 'storeConsignment']);
+            Route::post('shippingGuides/internal', [ShippingGuidesController::class, 'storeInternal']);
+            Route::apiResource('shippingGuides', ShippingGuidesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Receiving Checklist
+            Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'getByShippingGuide']);
+            Route::get('receivingChecklist', [ApReceivingChecklistController::class, 'index']);
+            Route::post('receivingChecklist/{id}', [ApReceivingChecklistController::class, 'update']);
+            Route::delete('receivingChecklist/byShippingGuide/{shippingGuideId}', [ApReceivingChecklistController::class, 'destroyByShippingGuide']);
+            Route::get('receivingChecklist/byShippingGuide/{shippingGuideId}/vehicle', [ApReceivingChecklistController::class, 'getVehicleByShippingGuide']);
+
+            // Vehicles
+            Route::match(['get', 'post'], 'vehicles/export', [VehiclesController::class, 'exportAll']);
+            Route::post('vehicles/export/billing', [VehiclesController::class, 'exportBilling']);
+            Route::post('vehicles/export/delivery', [VehiclesController::class, 'exportDelivery']);
+            Route::post('vehicles/export/inventory', [VehiclesController::class, 'exportInventory']);
+            Route::get('vehicles/costs', [VehiclesController::class, 'getCostsData']);
+            Route::get('vehicles/{id}/invoices', [VehiclesController::class, 'getInvoices']);
+            Route::get('vehicles/{id}/client-debt-info', [VehiclesController::class, 'getVehicleClientDebtInfo']);
+            Route::get('vehicles/{id}/purchase-order', [VehiclesController::class, 'getPurchaseOrder']);
+            Route::put('vehicles/{id}/update-status', [VehiclesController::class, 'updateStatus']);
+            Route::post('vehicles/update-by-vin', [VehiclesController::class, 'updateByVin']);
+            Route::post('vehicles/update-purchase-order-by-vin', [VehiclesController::class, 'updatePurchaseOrderByVin']);
+            Route::post('vehicles/update-ocsi-invoice-by-vin', [VehiclesController::class, 'updateOcsiInvoiceByVin']);
+            Route::post('vehicles/store-replacement', [VehiclesController::class, 'storeReplacement']);
+            Route::apiResource('vehicles', VehiclesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Activos (vehículo VN → activo fijo)accountsReceivableaccountsReceivable
+            Route::get('assets/eligible-vehicles', [AssetController::class, 'eligibleVehicles']);
+            Route::get('assets/eligible-vehicles/{id}', [AssetController::class, 'eligibleVehicleDetail']);
+            Route::get('assets/{id}/migration-logs', [AssetController::class, 'migrationLogs']);
+            Route::post('assets/{id}/dispatch-migration', [AssetController::class, 'dispatchMigration']);
+            Route::apiResource('assets', AssetController::class)->only([
+                'index',
+                'show',
+                'store',
+                'destroy',
+            ]);
+
+            // Reports
+            Route::prefix('reports')->group(function () {
+                Route::get('daily-delivery', [ApDailyDeliveryReportController::class, 'index']);
+                Route::get('daily-delivery/export', [ApDailyDeliveryReportController::class, 'export']);
+
+                Route::get('purchase-request-quote/export', [ApPurchaseRequestQuoteReportController::class, 'export']);
+
+                Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
+
+                Route::get('bonus/export', [ApBonusReportController::class, 'export']);
+
+                Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
+                Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
+            });
+
+            // Dashboard - Unidades (vencimientos de órdenes de compra comerciales)
+            Route::prefix('dashboard/unidades')->group(function () {
+                Route::get('resumen', [ApUnidadesDashboardController::class, 'resumen']);
+                Route::get('dashboard', [ApUnidadesDashboardController::class, 'dashboard']);
+                Route::get('vencimientos', [ApUnidadesDashboardController::class, 'vencimientos']);
+            });
+
+            // Delivery Checklist
+            Route::get('vehiclesDelivery/{vehicleDeliveryId}/checklist', [ApDeliveryChecklistController::class, 'getOrInitialize']);
+            Route::post('deliveryChecklist', [ApDeliveryChecklistController::class, 'store']);
+            Route::put('deliveryChecklist/{id}', [ApDeliveryChecklistController::class, 'update']);
+            Route::post('deliveryChecklist/{id}/confirm', [ApDeliveryChecklistController::class, 'confirm']);
+            Route::post('deliveryChecklist/{id}/items', [ApDeliveryChecklistController::class, 'addItem']);
+            Route::put('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'updateItem']);
+            Route::delete('deliveryChecklist/{id}/items/{itemId}', [ApDeliveryChecklistController::class, 'removeItem']);
+            Route::get('deliveryChecklist/{id}/pdf', [ApDeliveryChecklistController::class, 'generatePdf']);
+
+            // Vehicles Delivery - Diagnóstico de VIN
+            Route::get('vehiclesDelivery/diagnose-vin', [ApVehicleDeliveryController::class, 'diagnoseVin']);
+
+            // Vehicles Delivery - Export
+            Route::get('vehiclesDelivery/export', [ApVehicleDeliveryController::class, 'export']);
+
+            // Vehicles Delivery - Reporte CSV asientos contables por VIN
+            Route::get('vehiclesDelivery/accounting-entry-report', [ApVehicleDeliveryController::class, 'accountingEntryReport']);
+
+            // Vehicles Delivery - Stock Inicial
+            Route::get('vehiclesDelivery/stock-inicial/available-vehicles', [ApVehicleDeliveryController::class, 'vehiclesStockInicial']);
+            Route::post('vehiclesDelivery/stock-inicial', [ApVehicleDeliveryController::class, 'storeStockInicial']);
+
+            // Vehicles Delivery - Horarios disponibles
+            Route::get('vehiclesDelivery/available-slots', [ApVehicleDeliveryController::class, 'availableSlots']);
+
+            // Vehicles Delivery - Reprogramar
+            Route::post('vehiclesDelivery/{id}/reschedule', [ApVehicleDeliveryController::class, 'reschedule']);
+            Route::get('vehiclesDelivery/{id}/reschedule-history', [ApVehicleDeliveryController::class, 'rescheduleHistory']);
+
+            // Vehicles Delivery - Aprobación extraordinaria
+            Route::post('vehiclesDelivery/{id}/resend-extraordinary-approval', [ApVehicleDeliveryController::class, 'resendExtraordinaryApproval']);
+            Route::post('vehiclesDelivery/{id}/approve-extraordinary', [ApVehicleDeliveryController::class, 'approveExtraordinary']);
+            Route::post('vehiclesDelivery/{id}/reject-extraordinary', [ApVehicleDeliveryController::class, 'rejectExtraordinary']);
+
+            // Vehicles Delivery
+            Route::post('vehiclesDelivery/{id}/generate-shipping-guide', [ApVehicleDeliveryController::class, 'generateShippingGuide']);
+            Route::post('vehiclesDelivery/{id}/send-to-nubefact', [ApVehicleDeliveryController::class, 'sendToNubefact']);
+            Route::post('vehiclesDelivery/{id}/query-from-nubefact', [ApVehicleDeliveryController::class, 'queryFromNubefact']);
+            Route::post('vehiclesDelivery/{id}/send-to-dynamic', [ApVehicleDeliveryController::class, 'sendToDynamic']);
+            Route::post('vehiclesDelivery/{id}/sync-accounting-entry', [ApVehicleDeliveryController::class, 'syncAccountingEntry']);
+            Route::apiResource('vehiclesDelivery', ApVehicleDeliveryController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Exhibition Vehicles
+            Route::get('exhibitionVehicles/export', [ApExhibitionVehiclesController::class, 'export']);
+            Route::apiResource('exhibitionVehicles', ApExhibitionVehiclesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Vehicle Inventory (Vehículos Inventariados)
+            Route::get('vehicleInventory/template', [ApVehicleInventoryController::class, 'downloadTemplate']);
+            Route::post('vehicleInventory/import', [ApVehicleInventoryController::class, 'import']);
+            Route::post('vehicleInventory/{id}/evaluate', [ApVehicleInventoryController::class, 'evaluate']);
+            Route::apiResource('vehicleInventory', ApVehicleInventoryController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // DASHBOARD - Indicadores Comerciales
+            Route::group(['prefix' => 'dashboard-visit-leads'], function () {
+                Route::get('/by-date-range-total', [DashboardComercialController::class, 'getTotalsByDateRangeTotal']);
+                Route::get('/by-date-range', [DashboardComercialController::class, 'getTotalsByDateRange']);
+                Route::get('/by-sede', [DashboardComercialController::class, 'getTotalsBySede']);
+                Route::get('/by-sede-and-brand', [DashboardComercialController::class, 'getTotalsBySedeAndBrand']);
+                Route::get('/by-advisor', [DashboardComercialController::class, 'getTotalsByAdvisor']);
+                Route::get('/by-user', [DashboardComercialController::class, 'getTotalsByUser']);
+                Route::get('/by-campaign', [DashboardComercialController::class, 'getTotalsByCampaign']);
+                Route::get('/for-sales-manager-stats', [DashboardComercialController::class, 'getStatsForSalesManager']);
+                Route::get('/for-sales-manager-details', [DashboardComercialController::class, 'getDetailsForSalesManager']);
+                Route::get('/for-sales-manager-export', [DashboardComercialController::class, 'exportStatsForSalesManager']);
+            });
+        });
+
+        //      POST-VENTA
+        Route::group(['prefix' => 'postVenta'], function () {
+            // Products - Gestión de Productos
+            Route::get('products/low-stock', [ProductsController::class, 'lowStock']);
+            Route::get('products/featured', [ProductsController::class, 'featured']);
+            Route::get('products/{id}/warehouses-availability', [ProductsController::class, 'getWarehousesAvailability']);
+            Route::post('products/{id}/update-stock', [ProductsController::class, 'updateStock']);
+            Route::post('products/assign-to-warehouse', [ProductsController::class, 'assignToWarehouse']);
+            Route::get('products/export/excel', [ProductsController::class, 'exportProducts']);
+            Route::apiResource('products', ProductsController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Purchase Receptions - Recepciones de Compra
+            Route::get('purchaseReceptions/by-order/{purchaseOrderId}', [PurchaseReceptionController::class, 'byPurchaseOrder']);
+            Route::post('purchaseReceptions/mark-defective-products', [PurchaseReceptionController::class, 'markDefectiveProducts']);
+            Route::post('purchaseReceptions/unmark-defective-product', [PurchaseReceptionController::class, 'unmarkDefectiveProduct']);
+            Route::apiResource('purchaseReceptions', PurchaseReceptionController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Purchase Reception Details - Detalles de Recepción de Compra
+            Route::patch('purchaseReceptionDetails/{id}/credit-note', [PurchaseReceptionDetailController::class, 'updateCreditNote']);
+
+            // Inventory Movements - Movimientos de Inventario
+            Route::post('inventoryMovements/adjustments', [InventoryMovementController::class, 'createAdjustment']);
+            Route::post('inventoryMovements/transfers', [InventoryMovementController::class, 'createTransfer']);
+            Route::put('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'updateTransfer']);
+            Route::post('inventoryMovements/transfers/{id}/cancel', [InventoryMovementController::class, 'cancelTransfer']);
+            Route::delete('inventoryMovements/transfers/{id}', [InventoryMovementController::class, 'destroyTransfer']);
+            Route::get('inventoryMovements/kardex', [InventoryMovementController::class, 'getKardex']);
+            Route::get('inventoryMovements/kardex/export', [InventoryMovementController::class, 'exportKardex']);
+            Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history', [InventoryMovementController::class, 'getProductMovementHistory']);
+            Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history', [InventoryMovementController::class, 'getProductPurchaseHistory']);
+            Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/history/export', [InventoryMovementController::class, 'exportProductMovementHistory']);
+            Route::get('inventoryMovements/product/{productId}/warehouse/{warehouseId}/purchase-history/export', [InventoryMovementController::class, 'exportProductPurchaseHistory']);
+            // Ignorar/Restaurar movimientos
+            Route::post('inventoryMovements/{id}/ignore', [InventoryMovementController::class, 'ignoreMovement']);
+            Route::post('inventoryMovements/{id}/restore', [InventoryMovementController::class, 'restoreMovement']);
+            Route::get('inventoryMovements/ignored', [InventoryMovementController::class, 'getIgnoredMovements']);
+            Route::apiResource('inventoryMovements', InventoryMovementController::class)->only([
+                'index',
+                'show',
+                'update',
+                'destroy',
+            ]);
+
+            // Product Warehouse Stock - Stock de Productos por Almacén
+            Route::apiResource('productWarehouseStock', ProductWarehouseStockController::class)->only([
+                'index',
+                'update',
+            ]);
+            Route::post('productWarehouseStock/by-product-ids', [ProductWarehouseStockController::class, 'getStockByProductIds']);
+            Route::get('productWarehouseStock/export/inventory', [ProductWarehouseStockController::class, 'exportInventory']);
+            Route::get('productWarehouseStock/compare-dynamics', [ProductWarehouseStockController::class, 'compareStockWithDynamics']);
+            Route::get('productWarehouseStock/movement-history', [ProductWarehouseStockController::class, 'getStockMovementHistory']);
+            Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
+            Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
+            Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
+            Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
+
+            // Product Shelves - Estantes de Productos
+            Route::apiResource('productShelves', ProductShelfController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::post('productShelves/assign-products', [ProductShelfController::class, 'assignProducts']);
+            Route::post('productShelves/remove-product', [ProductShelfController::class, 'removeProduct']);
+            Route::get('productShelves/{shelfId}/products', [ProductShelfController::class, 'getShelfProducts']);
+
+            // Transfer Receptions - Recepciones de Transferencias
+            Route::apiResource('transferReceptions', TransferReceptionController::class)->only([
+                'index',
+                'show',
+                'store',
+                'destroy',
+            ]);
+
+            Route::apiResource('approvedAccessories', ApprovedAccessoriesController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            Route::get('appointmentPlanning/available-slots', [AppointmentPlanningController::class, 'availableSlots']);
+            Route::get('appointmentPlanning/available-slots-by-sede', [AppointmentPlanningController::class, 'availableSlotsBySede']);
+            Route::get('appointmentPlanning/export', [AppointmentPlanningController::class, 'exportAppointments']);
+            Route::get('appointmentPlanning/{id}/pdf', [AppointmentPlanningController::class, 'downloadPDF']);
+            Route::apiResource('appointmentPlanning', AppointmentPlanningController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Types planifications - Tipos de planificación
+            Route::apiResource('typePlanningWorkOrder', TypePlanningWorkOrderController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Concept Objective Master PV - Conceptos Objetivos Master PV
+            Route::get('conceptObjectiveMasterPv', [ConceptObjectiveMasterPvController::class, 'index']);
+            Route::post('conceptObjectiveMasterPv/updateOrCreate', [ConceptObjectiveMasterPvController::class, 'updateOrCreate']);
+            Route::delete('conceptObjectiveMasterPv/{id}', [ConceptObjectiveMasterPvController::class, 'destroy']);
+
+            // Objective Sede Period PV - Objetivos por Sede y Período PV
+            Route::get('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'index']);
+            Route::post('objectiveSedePeriodPv', [ObjectiveSedePeriodPvController::class, 'store']);
+            Route::post('objectiveSedePeriodPv/bulk-generate', [ObjectiveSedePeriodPvController::class, 'bulkGenerate']);
+            Route::get('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'show']);
+            Route::put('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'update']);
+            Route::delete('objectiveSedePeriodPv/{id}', [ObjectiveSedePeriodPvController::class, 'destroy']);
+
+            // Concept Objective Period PV - Conceptos Objetivos por Período PV
+            Route::get('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'index']);
+            Route::post('conceptObjectivePeriodPv', [ConceptObjectivePeriodPvController::class, 'store']);
+            Route::get('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'show']);
+            Route::put('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'update']);
+            Route::delete('conceptObjectivePeriodPv/{id}', [ConceptObjectivePeriodPvController::class, 'destroy']);
+
+            // Work Orders - Órdenes de Trabajo
+            Route::get('workOrders/with-internal-notes', [WorkOrderController::class, 'listWithInternalNotes']);
+            Route::get('workOrders/vehicle/{vehicleId}/history', [WorkOrderController::class, 'vehicleHistory']);
+            Route::get('workOrders/export', [WorkOrderController::class, 'exportWorkOrders']);
+            Route::post('workOrders/by-ids', [WorkOrderController::class, 'getByIds']);
+            Route::get('workOrders/{id}/pre-liquidation', [WorkOrderController::class, 'getPreLiquidationPdf']);
+            Route::patch('workOrders/{id}/unlink-quotation', [WorkOrderController::class, 'unlinkQuotation']);
+            Route::patch('workOrders/{id}/authorization', [WorkOrderController::class, 'authorization']);
+            Route::patch('workOrders/{id}/invoice-to', [WorkOrderController::class, 'invoiceTo']);
+            Route::patch('workOrders/{id}/update-pickup-person', [WorkOrderController::class, 'updatePickupPerson']);
+            Route::patch('workOrders/{id}/change-advisor', [WorkOrderController::class, 'changeAdvisor']);
+            Route::patch('workOrders/{id}/update-items', [WorkOrderController::class, 'updateItems']);
+            Route::patch('workOrders/{id}/change-currency', [WorkOrderController::class, 'changeCurrency']);
+            Route::patch('workOrders/{id}/send-finished', [WorkOrderController::class, 'sendToFinished']);
+            Route::patch('workOrders/{id}/revertir', [WorkOrderController::class, 'revertir']);
+            Route::patch('workOrders/{id}/cancel', [WorkOrderController::class, 'cancel']);
+            Route::post('workOrders/{id}/recalculate-totals', [WorkOrderController::class, 'recalculateTotals']);
+            Route::post('workOrders/{id}/generate-delivery', [WorkOrderController::class, 'generateDelivery']);
+            Route::get('workOrders/{id}/delivery-report', [WorkOrderController::class, 'generateDeliveryReport']);
+            Route::post('workOrders/{id}/generate-internal-note', [WorkOrderController::class, 'generateInternalNote']);
+            Route::patch('workOrders/{id}/revert-internal-note', [WorkOrderController::class, 'revertInternalNote']);
+            Route::patch('workOrders/{id}/authorize-internal-note-revert', [WorkOrderController::class, 'authorizeInternalNoteRevert']);
+            Route::get('workOrders/{id}/internal-note-logs', [WorkOrderController::class, 'internalNoteLogs']);
+            Route::post('workOrders/generate-pdi/{vehicleId}', [WorkOrderController::class, 'generatePDIForVehicle']);
+            Route::post('workOrders/generate-inst-accessories/{vehicleId}', [WorkOrderController::class, 'generateInstallationAccessories']);
+            Route::post('workOrders/deductible', [WorkOrderController::class, 'storeDeductible']);
+            Route::delete('workOrders/deductible/{id}', [WorkOrderController::class, 'deleteDeductible']);
+            Route::post('workOrders/{id}/documents', [WorkOrderController::class, 'uploadDocuments']);
+            Route::get('workOrders/{id}/documents', [WorkOrderController::class, 'documents']);
+            Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
+            Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
+
+            Route::apiResource('workOrders', WorkOrderController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Internal Notes - Notas Internas
+            Route::post('internalNotes/{id}/verify-internal-note-migration', [ApInternalNoteController::class, 'verifyInternalNoteMigration']);
+            Route::post('internalNotes/{id}/update-internal-note-accounting-status', [ApInternalNoteController::class, 'updateInternalNoteAccountingStatus']);
+
+            Route::apiResource('internalNotes', ApInternalNoteController::class)->only([
+                'index',
+            ]);
+
+            // Reports - Reportes de Taller
+            Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+            Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
+            Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
+            Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
+            Route::post('reports/closed-work-order-billed-hours/export', [ClosedWorkOrderBilledHoursReportController::class, 'export']);
+            Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
+            Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
+            Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
+
+            // Objectives Dashboard - Dashboard de Objetivos Postventa
+            Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
+            Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
+            Route::post('reports/objectives/dashboard/export', [ObjectiveDashboardController::class, 'exportExcel']);
+
+            // Productivity Dashboard - Dashboard de Productividad de Técnicos
+            Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
+            Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
+            Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
+
+            // Technician Productivity Detail - Detalle de Productividad por Técnico
+            Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);
+
+            // Reports - Reportes de Mesón
+            Route::post('reports/meson-invoicing/export', [MesonInvoicingReportController::class, 'exportMesonInvoicing']);
+
+            // Reports - Reportes de Inventario
+            Route::post('reports/inventory-outputs/export', [InventoryReportController::class, 'exportInventoryOutputs']);
+
+            // Work Order Items - Ítems de Órdenes de Trabajo
+            Route::apiResource('workOrderItems', WorkOrderItemController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Work Order Parts - Repuestos de Órdenes de Trabajo
+            Route::apiResource('workOrderParts', ApWorkOrderPartsController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::post('workOrderParts/store-bulk-from-quotation', [ApWorkOrderPartsController::class, 'storeBulkFromQuotation']);
+            Route::post('workOrderParts/{id}/assign', [ApWorkOrderPartsController::class, 'assignToTechnician']);
+            Route::post('workOrderParts/assign-bulk', [ApWorkOrderPartsController::class, 'assignToTechnicianBulk']);
+            Route::post('workOrderParts/{id}/unassign', [ApWorkOrderPartsController::class, 'unassignFromTechnician']);
+            Route::post('workOrderParts/confirm-receipt', [ApWorkOrderPartsController::class, 'confirmReceipt']);
+            Route::get('workOrderParts/{id}/deliveries', [ApWorkOrderPartsController::class, 'getDeliveries']);
+            Route::get('workOrderParts/work-order/{workOrderId}/assignments', [ApWorkOrderPartsController::class, 'getAssignmentsByWorkOrder']);
+            Route::get('workOrderParts/work-order/{workOrderId}/report-pdf', [ApWorkOrderPartsController::class, 'generatePartsReportPDF']);
+
+            // Work Order Labour - Mano de Obra de Órdenes de Trabajo
+            Route::apiResource('workOrderLabour', WorkOrderLabourController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Discount Requests Work Order - Solicitudes de Descuento de Órdenes de Trabajo
+            Route::put('discountRequestsWorkOrder/{id}/approve', [DiscountRequestsWorkOrderController::class, 'approve']);
+            Route::put('discountRequestsWorkOrder/{id}/reject', [DiscountRequestsWorkOrderController::class, 'reject']);
+            Route::apiResource('discountRequestsWorkOrder', DiscountRequestsWorkOrderController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Campaign Schedules - Cronograma de Campañas
+            Route::get('campaignSchedules/worker-schedule', [ApCampaignScheduleController::class, 'getWorkerSchedule']);
+            Route::apiResource('campaignSchedules', ApCampaignScheduleController::class)->only([
+                'index',
+                'show',
+                'store',
+                'destroy',
+            ]);
+
+            // Work Order Quotations - Cotizaciones de Órdenes de Trabajo
+            Route::post('orderQuotations/{id}/duplicate', [ApOrderQuotationsController::class, 'duplicate']);
+            Route::get('orderQuotations/{id}/pdf', [ApOrderQuotationsController::class, 'downloadTaller']);
+            Route::get('orderQuotations/{id}/pdf-repuesto', [ApOrderQuotationsController::class, 'downloadRepuesto']);
+            Route::post('orderQuotations/with-products', [ApOrderQuotationsController::class, 'storeWithProducts']);
+            Route::put('orderQuotations/{id}/with-products', [ApOrderQuotationsController::class, 'updateWithProducts']);
+            Route::put('orderQuotations/{id}/discard', [ApOrderQuotationsController::class, 'discard']);
+            Route::put('orderQuotations/{id}/confirm', [ApOrderQuotationsController::class, 'confirm']);
+            Route::put('orderQuotations/{id}/send-to-invoice', [ApOrderQuotationsController::class, 'sendToInvoice']);
+            Route::put('orderQuotations/{id}/set-in-editing', [ApOrderQuotationsController::class, 'setInEditing']);
+            Route::put('orderQuotations/{id}/approve-taller', [ApOrderQuotationsController::class, 'approveTaller']);
+            Route::put('orderQuotations/{id}/approve-repuesto', [ApOrderQuotationsController::class, 'approveRepuesto']);
+            Route::post('orderQuotations/{id}/send-notification', [ApOrderQuotationsController::class, 'sendNotificationEmail']);
+            Route::post('orderQuotations/{id}/send-virtual-confirmation', [ApOrderQuotationsController::class, 'sendVirtualConfirmationLink']);
+            Route::post('orderQuotations/{id}/regenerate-token', [ApOrderQuotationsController::class, 'regenerateConfirmationToken']);
+            Route::put('orderQuotations/{id}/delivery-info', [ApOrderQuotationsController::class, 'updateDeliveryInfo']);
+            Route::get('orderQuotations/for-purchase-request-taller/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestTaller']);
+            Route::get('orderQuotations/for-purchase-request-meson/list', [ApOrderQuotationsController::class, 'listForPurchaseRequestMeson']);
+            Route::patch('orderQuotations/{id}/invoice-to', [ApOrderQuotationsController::class, 'invoiceTo']);
+            Route::post('orderQuotations/{id}/segment-by-supply-type', [ApOrderQuotationsController::class, 'segmentBySupplyType']);
+            Route::post('orderQuotations/{id}/shipping-guide/associate', [ApOrderQuotationsController::class, 'associateShippingGuide']);
+            Route::delete('orderQuotations/{id}/shipping-guide/dissociate', [ApOrderQuotationsController::class, 'dissociateShippingGuide']);
+            Route::post('orderQuotations/{id}/recalculate-totals', [ApOrderQuotationsController::class, 'recalculateTotals']);
+            Route::patch('orderQuotations/{id}/change-currency', [ApOrderQuotationsController::class, 'changeCurrency']);
+            Route::get('orderQuotations/export', [ApOrderQuotationsController::class, 'exportOrderQuotations']);
+            Route::post('orderQuotations/deductible', [ApOrderQuotationsController::class, 'storeDeductible']);
+            Route::delete('orderQuotations/deductible/{id}', [ApOrderQuotationsController::class, 'deleteDeductible']);
+            Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
+            Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
+            Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
+            Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Order Quotation Details - Detalles de Cotización (Productos y Mano de Obra)
+            Route::apiResource('orderQuotationDetails', ApOrderQuotationDetailsController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Discount Requests Order Quotation - Solicitudes de Descuento de Cotizaciones
+            Route::put('discountRequestsOrderQuotation/{id}/approve', [DiscountRequestsOrderQuotationController::class, 'approve']);
+            Route::put('discountRequestsOrderQuotation/{id}/reject', [DiscountRequestsOrderQuotationController::class, 'reject']);
+            Route::put('discountRequestsOrderQuotation/{id}/revert', [DiscountRequestsOrderQuotationController::class, 'revert']);
+            Route::apiResource('discountRequestsOrderQuotation', DiscountRequestsOrderQuotationController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Order Purchase Requests - Solicitudes de Compra de Órdenes
+            Route::put('orderPurchaseRequests/{id}/approve', [ApOrderPurchaseRequestsController::class, 'approve']);
+            Route::put('orderPurchaseRequests/{id}/cancel', [ApOrderPurchaseRequestsController::class, 'cancel']);
+            Route::post('orderPurchaseRequests/{id}/notify-managers', [ApOrderPurchaseRequestsController::class, 'notifyManagers']);
+            Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
+            Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
+            Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
+            Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Supplier Orders - Órdenes de Proveedor
+            Route::get('supplierOrders/{id}/pending-products', [ApSupplierOrderController::class, 'pendingProducts']);
+            Route::put('supplierOrders/{id}/approve', [ApSupplierOrderController::class, 'approve']);
+            Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
+            Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
+            Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
+            Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Vehicle Inspections - Inspecciones Vehiculares
+            Route::post('vehicleInspections/{id}/request-cancellation', [ApVehicleInspectionController::class, 'requestCancellation']);
+            Route::post('vehicleInspections/{id}/confirm-cancellation', [ApVehicleInspectionController::class, 'confirmCancellation']);
+            Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Work Order Planning - Planificación de Órdenes de Trabajo
+            // Consolidado por grupo (debe ir antes del apiResource para evitar conflictos)
+            Route::get('workOrderPlanning/consolidated/{workOrderId}', [WorkOrderPlanningController::class, 'consolidated']);
+            // Lista de trabajadores únicos que participaron en la orden de trabajo
+            Route::get('workOrderPlanning/workers/{workOrderId}', [WorkOrderPlanningController::class, 'getWorkers']);
+
+            Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
+                'index',
+                'show',
+                'store',
+                'update',
+                'destroy',
+            ]);
+
+            // Work Order Planning - Completar trabajo por supervisor
+            Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
+
+            // Work Order Planning - Autocompletar trabajo nunca iniciado por el técnico, respetando el horario planificado
+            Route::post('workOrderPlanning/{id}/auto-complete', [WorkOrderPlanningController::class, 'autoComplete']);
+
+            // Work Order Planning - Cancelar trabajo
+            Route::post('workOrderPlanning/{id}/cancel', [WorkOrderPlanningController::class, 'cancel']);
+
+            // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
+            Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
+            Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
+            Route::post('workOrderPlanning/{id}/continue', [WorkOrderPlanningSessionController::class, 'continue']);
+            Route::post('workOrderPlanning/{id}/complete', [WorkOrderPlanningSessionController::class, 'complete']);
+            Route::get('workOrderPlanning/{id}/status', [WorkOrderPlanningSessionController::class, 'status']);
+            Route::get('workOrderPlanning/{id}/sessions', [WorkOrderPlanningSessionController::class, 'sessions']);
+        });
+
+        //      FACTURACIÓN ELECTRÓNICA
+        Route::group(['prefix' => 'facturacion'], function () {
+
+            // Operaciones especiales de documentos
+            Route::get('electronic-documents/nextDocumentNumber', [ElectronicDocumentController::class, 'nextDocumentNumber']);
+            Route::get('electronic-documents/{id}/nextCreditNoteNumber', [ElectronicDocumentController::class, 'nextCreditNoteNumber']);
+            Route::get('electronic-documents/{id}/nextDebitNoteNumber', [ElectronicDocumentController::class, 'nextDebitNoteNumber']);
+            Route::get('electronic-documents/{id}/preview-nubefact', [ElectronicDocumentController::class, 'previewNubefactPayload']);
+            Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
+            Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
+            Route::get('electronic-documents/{id}/pre-cancel', [ElectronicDocumentController::class, 'preCancelInNubefact']);
+            Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
+            Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
+            Route::put('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'updateCreditNote']);
+            Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
+            Route::put('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'updateDebitNote']);
+            Route::get('electronic-documents/by-entity/{areaId}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
+            Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
+
+            // Sincronización con Dynamics 365
+            Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
+            Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
+            Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
+            Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
+
+            // Preview de asientos contables
+            Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
+            Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
+            Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
+            Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
+
+            // Migration logs, history and manual dispatch
+            Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
+            Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
+            Route::post('electronic-documents/{id}/dispatch-migration', [ElectronicDocumentController::class, 'dispatchMigration']);
+            Route::post('electronic-documents/{id}/reset-migration', [ElectronicDocumentController::class, 'resetMigration']);
+            Route::post('electronic-documents/dispatch-all', [ElectronicDocumentController::class, 'dispatchAll']);
+
+            // Report
+            Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
+            Route::get('electronic-documents/export/params', [ElectronicDocumentController::class, 'exportParams']);
+            Route::get('electronic-documents/export', [ElectronicDocumentController::class, 'export']);
+
+            // Consolidated invoice from work orders
+            Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
+            Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
+
+            // Regularizar anticipos (sin enviar a Nubefact)
+            Route::post('electronic-documents/regularize-advance-payment', [ElectronicDocumentController::class, 'regularizeAdvancePayment']);
+
+            // Registrar anticipo histórico externo (ya emitido fuera de Nubefact, amarrado a cotización)
+            Route::post('electronic-documents/register-historical-advance', [ElectronicDocumentController::class, 'registerHistoricalAdvance']);
+
+            // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
+            Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
+
+            // Registro masivo de ventas finales históricas desde Excel (stock inicial vendido sin factura)
+            Route::post('electronic-documents/bulk-register-historical-final-sale', [ElectronicDocumentController::class, 'bulkRegisterHistoricalFinalSale']);
+
+            // Registrar venta final histórica (factura con anticipo para OTs) con anticipo histórico
+            Route::post('electronic-documents/register-historical-final-sale-with-advance', [ElectronicDocumentController::class, 'registerHistoricalFinalSaleWithAdvance']);
+
+            // Listar solo facturas y boletas (excluyendo notas de crédito y comprobantes asociados)
+            Route::get('electronic-documents/invoices-and-tickets', [ElectronicDocumentController::class, 'listInvoicesAndTickets']);
+
+            // CRUD de Documentos Electrónicos
+            Route::apiResource('electronic-documents', ElectronicDocumentController::class);
+
+            // Catálogos de facturación (con caché)
+            Route::group(['prefix' => 'catalogs'], function () {
+                Route::get('/all', [BillingCatalogController::class, 'getAllCatalogs']);
+                Route::get('/document-types', [BillingCatalogController::class, 'getDocumentTypes']);
+                Route::get('/transaction-types', [BillingCatalogController::class, 'getTransactionTypes']);
+                Route::get('/identity-document-types', [BillingCatalogController::class, 'getIdentityDocumentTypes']);
+                Route::get('/igv-types', [BillingCatalogController::class, 'getIgvTypes']);
+                Route::get('/credit-note-types', [BillingCatalogController::class, 'getCreditNoteTypes']);
+                Route::get('/debit-note-types', [BillingCatalogController::class, 'getDebitNoteTypes']);
+                Route::get('/currencies', [BillingCatalogController::class, 'getCurrencies']);
+                Route::get('/detraction-types', [BillingCatalogController::class, 'getDetractionTypes']);
+                Route::delete('/cache', [BillingCatalogController::class, 'clearCache']);
+            });
+        });
+    });
+
+    /**
+     * Routes for Deposito Pakatnamu
+     */
+    Route::group(['prefix' => 'dp'], function () {
+        Route::group(['prefix' => 'commercial'], function () {
+            // Accounts Receivable
+            Route::post('accountsReceivable/sync', [AccountsReceivableController::class, 'sync']);
+            Route::post('accountsReceivable/sync-collections', [AccountsReceivableController::class, 'syncCollections']);
+            Route::post('accountsReceivable/send-reports', [AccountsReceivableController::class, 'sendReports']);
+            Route::post('accountsReceivable/send-due-reports', [AccountsReceivableController::class, 'sendDueReports']);
+            Route::post('accountsReceivable/send-global-excel', [AccountsReceivableController::class, 'sendGlobalExcel']);
+            Route::get('accountsReceivable/download-excel', [AccountsReceivableController::class, 'downloadExcel']);
+            Route::get('accountsReceivable/filterTree', [AccountsReceivableController::class, 'filterTree']);
+            Route::get('accountsReceivable/dashboard', [AccountsReceivableController::class, 'dashboard']);
+            Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);
+            Route::post('accountsReceivable/{id}/comments', [AccountsReceivableController::class, 'storeComment']);
+            Route::put('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'updateComment']);
+            Route::delete('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'destroyComment']);
+            Route::get('accountsReceivable', [AccountsReceivableController::class, 'index']);
+        });
+    });
+
+    // Document Validation Routes
+    Route::group(['prefix' => 'document-validation'], function () {
+        Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
+        Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
+        Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+        Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
+        Route::post('/validate/plate', [DocumentValidationController::class, 'validatePlate']);
+        Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
+        Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
+        Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
+        Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
+    });
+
+    // Audit Logs Routes
+    Route::group(['prefix' => 'audit-logs'], function () {
+        Route::get('/', [AuditLogsController::class, 'index']);
+        Route::get('/stats', [AuditLogsController::class, 'stats']);
+        Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
+        Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
+        Route::get('/export', [AuditLogsController::class, 'export']);
+        Route::get('/system-logs', [AuditLogsController::class, 'logs']);
+        Route::delete('/clean', [AuditLogsController::class, 'clean']);
+    });
+
+    // GP - Gestión Humana - Viáticos Routes
+    Route::group(['prefix' => 'gp/gestion-humana/viaticos'], function () {
+        // Per Diem Requests
+        Route::get('per-diem-requests/my-requests', [PerDiemRequestController::class, 'myRequests']);
+        Route::get('per-diem-requests/pending-approvals', [PerDiemRequestController::class, 'pendingApprovals']);
+        Route::get('per-diem-requests/pending-settlements', [PerDiemRequestController::class, 'pendingSettlements']);
+        Route::get('per-diem-requests/overdue', [PerDiemRequestController::class, 'overdue']);
+        Route::get('per-diem-requests/rates', [PerDiemRequestController::class, 'rates']);
+        Route::post('per-diem-requests/{id}/submit', [PerDiemRequestController::class, 'submit']);
+        Route::post('per-diem-requests/{id}/review', [PerDiemRequestController::class, 'review']);
+        Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
+        Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
+        Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);
+        Route::post('per-diem-requests/{id}/approve-settlement', [PerDiemRequestController::class, 'approveSettlement']);
+        Route::post('per-diem-requests/{id}/reject-settlement', [PerDiemRequestController::class, 'rejectSettlement']);
+        Route::get('per-diem-requests/{id}/expense-total-pdf', [PerDiemRequestController::class, 'expenseTotalPDF']);
+        Route::get('per-diem-requests/{id}/expense-total-with-evidence-pdf', [PerDiemRequestController::class, 'expenseTotalWithEvidencePDF']);
+        Route::get('per-diem-requests/{id}/expense-detail-pdf', [PerDiemRequestController::class, 'expenseDetailPDF']);
+        Route::post('per-diem-requests/{id}/confirm', [PerDiemRequestController::class, 'confirm']);
+        Route::post('per-diem-requests/{id}/confirm-progress', [PerDiemRequestController::class, 'confirmProgress']);
+        Route::post('per-diem-requests/{id}/cancel', [PerDiemRequestController::class, 'cancel']);
+        Route::get('per-diem-requests/{id}/available-budgets', [PerDiemRequestController::class, 'availableBudgets']);
+        Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
+        Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
+        Route::delete('per-diem-requests/{requestId}/eliminar-deposito/{fileId}', [PerDiemRequestController::class, 'eliminarDeposito']);
+        Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
+        Route::post('per-diem-requests/{id}/reset-approvals', [PerDiemRequestController::class, 'resetApprovals']);
+        Route::post('per-diem-requests/{id}/regenerate-budgets', [PerDiemRequestController::class, 'regenerateBudgets']);
+        Route::post('per-diem-requests/{id}/resend-emails', [PerDiemRequestController::class, 'resendEmails']);
+        Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        // Approvals
+        Route::get('per-diem-approvals/pending', [PerDiemApprovalController::class, 'pending']);
+        Route::post('per-diem-requests/{id}/approve', [PerDiemApprovalController::class, 'approve']);
+        Route::post('per-diem-requests/{id}/reject', [PerDiemApprovalController::class, 'reject']);
+
+        // Expenses
+        Route::get('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'index']);
+        Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
+        Route::get('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'show']);
+        Route::post('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
+        Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
+        Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
+        Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);
+        Route::get('per-diem-requests/{requestId}/remaining-budget', [PerDiemExpenseController::class, 'getRemainingBudget']);
+
+        // Hotel Reservations
+        Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);
+        Route::get('hotel-reservations/{reservationId}', [HotelReservationController::class, 'show']);
+        Route::post('hotel-reservations/{reservationId}', [HotelReservationController::class, 'update']);
+        Route::delete('hotel-reservations/{reservationId}', [HotelReservationController::class, 'destroy']);
+        Route::post('hotel-reservations/{reservationId}/mark-attended', [HotelReservationController::class, 'markAttended']);
+        Route::post('hotel-reservations/{reservationId}/release', [HotelReservationController::class, 'release']);
+
+        // Policies
+        Route::apiResource('perDiemPolicy', PerDiemPolicyController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        // Categories
+        Route::apiResource('perDiemCategory', PerDiemCategoryController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        // Rates
+        Route::apiResource('PerDiemRate', PerDiemRateController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        // Expense Types
+        Route::get('expense-types/active', [ExpenseTypeController::class, 'active']);
+        Route::get('expense-types/parents', [ExpenseTypeController::class, 'parents']);
+        Route::get('expense-types', [ExpenseTypeController::class, 'index']);
+
+        // Hotel Agreements
+        Route::get('hotel-agreements/active', [HotelAgreementController::class, 'active']);
+        Route::apiResource('hotel-agreements', HotelAgreementController::class);
+
+        // Job Status - Monitoreo de jobs en cola
+        Route::get('jobs/status', [JobStatusController::class, 'index'])->name('jobs.status');
+        Route::get('jobs/status/{jobType}', [JobStatusController::class, 'show'])->name('jobs.status.show');
+    });
+
+    // GP - Gestión Humana - Payroll (Nómina) Routes
+    Route::group(['prefix' => 'gp/gh/payroll'], function () {
+        Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
+
+        // Histórico de conceptos variables (para completar meses anteriores al sistema)
+        Route::get('calculations/historical-template', [PayrollCalculationController::class, 'historicalTemplate']);
+        Route::post('calculations/historical-import', [PayrollCalculationController::class, 'historicalImport']);
+        Route::get('calculations/historical-bonus-template', [PayrollCalculationController::class, 'historicalBonusTemplate']);
+        Route::post('calculations/historical-bonus-import', [PayrollCalculationController::class, 'historicalBonusImport']);
+        Route::get('calculations/historical-salary-template', [PayrollCalculationController::class, 'historicalSalaryTemplate']);
+        Route::post('calculations/historical-salary-import', [PayrollCalculationController::class, 'historicalSalaryImport']);
+
+        // Attendance Rules
+        Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
+        Route::apiResource('attendance-rules', AttendanceRuleController::class);
+
+        // Formula Variables
+        Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
+
+        // Periods
+        Route::get('periods/current', [PayrollPeriodController::class, 'current']);
+        Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
+        Route::post('periods/{id}/process', [PayrollPeriodController::class, 'process']);
+        Route::post('periods/{id}/reset', [PayrollPeriodController::class, 'reset']);
+        Route::apiResource('periods', PayrollPeriodController::class);
+
+        // Schedules
+        Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
+        Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
+        Route::get('schedules/attendances/{periodId}', [PayrollScheduleController::class, 'getAttendances']);
+        Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
+        Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
+        Route::apiResource('schedules', PayrollScheduleController::class);
+
+        // Worker Attendance Rules (códigos permitidos por persona)
+        Route::get('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'index']);
+        Route::post('workers/{workerId}/attendance-rules/sync', [WorkerAttendanceRuleController::class, 'sync']);
+        Route::post('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'store']);
+        Route::delete('workers/{workerId}/attendance-rules/{code}', [WorkerAttendanceRuleController::class, 'destroy']);
+
+        // Calculations
+        Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
+        Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
+        Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
+        Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
+        Route::get('calculations/print/{periodId}', [PayrollCalculationController::class, 'printReport']);
+        Route::get('calculations/export-summary/{periodId}', [PayrollCalculationController::class, 'exportSummary']);
+        Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
+        Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
+        Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
+
+        // Liquidation BBSS
+        Route::post('liquidation-bbss/calculate-gratification/{periodId}', [PayrollLiquidationBbssController::class, 'calculateGratification']);
+        Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
+        Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
+        Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
+        Route::get('liquidation-bbss/pivot', [PayrollLiquidationBbssController::class, 'indexPivot']);
+        Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
+
+        // Bonuses
+        Route::apiResource('bonuses', PayrollBonusController::class);
+
+        // Insurances
+        Route::get('insurances/template', [PayrollInsuranceController::class, 'downloadTemplate']);
+        Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
+        Route::apiResource('insurances', PayrollInsuranceController::class);
+
+        // Working Conditions
+        Route::post('working-conditions/import', [PayrollWorkingConditionController::class, 'import']);
+        Route::get('working-conditions', [PayrollWorkingConditionController::class, 'index']);
+
+        // Loans
+        Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
+        Route::post('loans/{loan}/regenerate-installments', [PayrollLoanController::class, 'regenerateInstallments']);
+        Route::apiResource('loans', PayrollLoanController::class);
+
+        // Loan Extra Discounts
+        Route::post('loan-extra-discounts/{loanExtraDiscount}/confirm', [PayrollLoanExtraDiscountController::class, 'confirm']);
+        Route::apiResource('loan-extra-discounts', PayrollLoanExtraDiscountController::class);
+
+        // Food Card
+        Route::get('food-cards', [PayrollFoodCardController::class, 'index']);
+        Route::post('food-cards', [PayrollFoodCardController::class, 'storeOrUpdate']);
+
+        // Family Allowance
+        Route::get('family-allowances', [PayrollFamilyAllowanceController::class, 'index']);
+        Route::post('family-allowances', [PayrollFamilyAllowanceController::class, 'storeOrUpdate']);
+
+        // Exclusiones (opt-out de conceptos automáticos, ej. asignación familiar)
+        Route::get('exclusions', [PayrollExclusionController::class, 'index']);
+        Route::post('exclusions', [PayrollExclusionController::class, 'store']);
+        Route::delete('exclusions/{id}', [PayrollExclusionController::class, 'destroy']);
+
+        // Register (Planilla)
+        Route::get('register', [PayrollRegisterController::class, 'index']);
+        Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
+        Route::post('register/export', [PayrollRegisterController::class, 'export']);
+    });
+
+    // GP - Gestión Humana - Reclutamiento y Selección
+    Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
+        // Procesos de postulación (F1) — legacy idVista 50
+        Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
+        Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+
+        // Administración de postulantes (F1) — legacy idVista 52
+        Route::post('applicant/{id}/status', [ApplicantController::class, 'changeStatus']);
+        Route::apiResource('applicant', ApplicantController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+    });
+
+    /**
+     * Routes for General Process Masters (GP)
+     */
+    Route::group(['prefix' => 'gp'], function () {
+        // Maestros General
+        Route::get('gpMasters/types', [GpMastersController::class, 'getTypes']);
+        Route::apiResource('gpMasters', GpMastersController::class)->only([
+            'index',
+            'show',
+            'store',
+            'update',
+            'destroy',
+        ]);
+    });
     //      POST-VENTA
     Route::group(['prefix' => 'postVenta'], function () {
       // Products - Gestión de Productos
@@ -2009,453 +2797,42 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'destroy'
       ]);
 
-      // Vehicle Inspections - Inspecciones Vehiculares
-      Route::post('vehicleInspections/{id}/request-cancellation', [ApVehicleInspectionController::class, 'requestCancellation']);
-      Route::post('vehicleInspections/{id}/confirm-cancellation', [ApVehicleInspectionController::class, 'confirmCancellation']);
-      Route::apiResource('vehicleInspections', ApVehicleInspectionController::class)->only([
+    // NOTIFICATIONS
+    Route::group(['prefix' => 'notifications'], function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+
+        // Low Stock Notifications
+        Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
+        Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
+    });
+
+    // AI
+    Route::post('/ai/generate-text', [AiController::class, 'generateText']);
+
+    // MANUALES
+    Route::get('/manuals/{id}/content', [ManualController::class, 'content']);
+    Route::apiResource('manuals', ManualController::class)->only([
         'index',
         'show',
         'store',
         'update',
-        'destroy'
-      ]);
-
-      // Work Order Planning - Planificación de Órdenes de Trabajo
-      // Consolidado por grupo (debe ir antes del apiResource para evitar conflictos)
-      Route::get('workOrderPlanning/consolidated/{workOrderId}', [WorkOrderPlanningController::class, 'consolidated']);
-      // Lista de trabajadores únicos que participaron en la orden de trabajo
-      Route::get('workOrderPlanning/workers/{workOrderId}', [WorkOrderPlanningController::class, 'getWorkers']);
-
-      Route::apiResource('workOrderPlanning', WorkOrderPlanningController::class)->only([
-        'index',
-        'show',
-        'store',
-        'update',
-        'destroy'
-      ]);
-
-      // Work Order Planning - Completar trabajo por supervisor
-      Route::post('workOrderPlanning/{id}/supervisor-complete', [WorkOrderPlanningController::class, 'supervisorComplete']);
-
-      // Work Order Planning - Autocompletar trabajo nunca iniciado por el técnico, respetando el horario planificado
-      Route::post('workOrderPlanning/{id}/auto-complete', [WorkOrderPlanningController::class, 'autoComplete']);
-
-      // Work Order Planning - Cancelar trabajo
-      Route::post('workOrderPlanning/{id}/cancel', [WorkOrderPlanningController::class, 'cancel']);
-
-      // Work Order Planning Sessions - Sesiones de Trabajo (Acciones rápidas)
-      Route::post('workOrderPlanning/{id}/start', [WorkOrderPlanningSessionController::class, 'start']);
-      Route::post('workOrderPlanning/{id}/pause', [WorkOrderPlanningSessionController::class, 'pause']);
-      Route::post('workOrderPlanning/{id}/continue', [WorkOrderPlanningSessionController::class, 'continue']);
-      Route::post('workOrderPlanning/{id}/complete', [WorkOrderPlanningSessionController::class, 'complete']);
-      Route::get('workOrderPlanning/{id}/status', [WorkOrderPlanningSessionController::class, 'status']);
-      Route::get('workOrderPlanning/{id}/sessions', [WorkOrderPlanningSessionController::class, 'sessions']);
-    });
-
-    //      FACTURACIÓN ELECTRÓNICA
-    Route::group(['prefix' => 'facturacion'], function () {
-
-      // Operaciones especiales de documentos
-      Route::get('electronic-documents/nextDocumentNumber', [ElectronicDocumentController::class, 'nextDocumentNumber']);
-      Route::get('electronic-documents/{id}/nextCreditNoteNumber', [ElectronicDocumentController::class, 'nextCreditNoteNumber']);
-      Route::get('electronic-documents/{id}/nextDebitNoteNumber', [ElectronicDocumentController::class, 'nextDebitNoteNumber']);
-      Route::get('electronic-documents/{id}/preview-nubefact', [ElectronicDocumentController::class, 'previewNubefactPayload']);
-      Route::post('electronic-documents/{id}/send', [ElectronicDocumentController::class, 'sendToNubefact']);
-      Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
-      Route::get('electronic-documents/{id}/pre-cancel', [ElectronicDocumentController::class, 'preCancelInNubefact']);
-      Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
-      Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
-      Route::put('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'updateCreditNote']);
-      Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);
-      Route::put('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'updateDebitNote']);
-      Route::get('electronic-documents/by-entity/{areaId}/{entityType}/{entityId}', [ElectronicDocumentController::class, 'getByOriginEntity']);
-      Route::get('electronic-documents/{id}/pdf', [ElectronicDocumentController::class, 'generatePDF']);
-
-      // Sincronización con Dynamics 365
-      Route::post('electronic-documents/{id}/sync-dynamics', [ElectronicDocumentController::class, 'syncToDynamics']);
-      Route::get('electronic-documents/{id}/preview-dynamics-payload', [ElectronicDocumentController::class, 'previewDynamicsPayload']);
-      Route::post('electronic-documents/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatus']);
-      Route::post('electronic-documents/{id}/sync-accounting-status', [ElectronicDocumentController::class, 'syncAccountingStatusForDocument']);
-
-      // Preview de asientos contables
-      Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
-      Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
-      Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
-      Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);
-
-      // Migration logs, history and manual dispatch
-      Route::get('electronic-documents/{id}/logs', [ElectronicDocumentController::class, 'logs']);
-      Route::get('electronic-documents/{id}/history', [ElectronicDocumentController::class, 'history']);
-      Route::post('electronic-documents/{id}/dispatch-migration', [ElectronicDocumentController::class, 'dispatchMigration']);
-      Route::post('electronic-documents/{id}/reset-migration', [ElectronicDocumentController::class, 'resetMigration']);
-      Route::post('electronic-documents/dispatch-all', [ElectronicDocumentController::class, 'dispatchAll']);
-
-      // Report
-      Route::get('electronic-documents-report', [ElectronicDocumentController::class, 'report']);
-      Route::get('electronic-documents/export/params', [ElectronicDocumentController::class, 'exportParams']);
-      Route::get('electronic-documents/export', [ElectronicDocumentController::class, 'export']);
-
-      // Consolidated invoice from work orders
-      Route::post('electronic-documents/consolidated-invoice', [ElectronicDocumentController::class, 'createConsolidatedInvoice']);
-      Route::get('electronic-documents/{id}/work-orders', [ElectronicDocumentController::class, 'getInvoiceWithWorkOrders']);
-
-      // Regularizar anticipos (sin enviar a Nubefact)
-      Route::post('electronic-documents/regularize-advance-payment', [ElectronicDocumentController::class, 'regularizeAdvancePayment']);
-
-      // Registrar anticipo histórico externo (ya emitido fuera de Nubefact, amarrado a cotización)
-      Route::post('electronic-documents/register-historical-advance', [ElectronicDocumentController::class, 'registerHistoricalAdvance']);
-
-      // Registrar venta final histórica (crea cotización + factura final, fecha fija 2026-06-30)
-      Route::post('electronic-documents/register-historical-final-sale', [ElectronicDocumentController::class, 'registerHistoricalFinalSale']);
-
-      // Registro masivo de ventas finales históricas desde Excel (stock inicial vendido sin factura)
-      Route::post('electronic-documents/bulk-register-historical-final-sale', [ElectronicDocumentController::class, 'bulkRegisterHistoricalFinalSale']);
-
-      //Registrar venta final histórica (factura con anticipo para OTs) con anticipo histórico
-      Route::post('electronic-documents/register-historical-final-sale-with-advance', [ElectronicDocumentController::class, 'registerHistoricalFinalSaleWithAdvance']);
-
-      // Listar solo facturas y boletas (excluyendo notas de crédito y comprobantes asociados)
-      Route::get('electronic-documents/invoices-and-tickets', [ElectronicDocumentController::class, 'listInvoicesAndTickets']);
-
-      // CRUD de Documentos Electrónicos
-      Route::apiResource('electronic-documents', ElectronicDocumentController::class);
-
-      // Catálogos de facturación (con caché)
-      Route::group(['prefix' => 'catalogs'], function () {
-        Route::get('/all', [BillingCatalogController::class, 'getAllCatalogs']);
-        Route::get('/document-types', [BillingCatalogController::class, 'getDocumentTypes']);
-        Route::get('/transaction-types', [BillingCatalogController::class, 'getTransactionTypes']);
-        Route::get('/identity-document-types', [BillingCatalogController::class, 'getIdentityDocumentTypes']);
-        Route::get('/igv-types', [BillingCatalogController::class, 'getIgvTypes']);
-        Route::get('/credit-note-types', [BillingCatalogController::class, 'getCreditNoteTypes']);
-        Route::get('/debit-note-types', [BillingCatalogController::class, 'getDebitNoteTypes']);
-        Route::get('/currencies', [BillingCatalogController::class, 'getCurrencies']);
-        Route::get('/detraction-types', [BillingCatalogController::class, 'getDetractionTypes']);
-        Route::delete('/cache', [BillingCatalogController::class, 'clearCache']);
-      });
-    });
-  });
-
-  /**
-   * Routes for Deposito Pakatnamu
-   */
-  Route::group(['prefix' => 'dp'], function () {
-    Route::group(['prefix' => 'commercial'], function () {
-      // Accounts Receivable
-      Route::post('accountsReceivable/sync', [AccountsReceivableController::class, 'sync']);
-      Route::post('accountsReceivable/sync-collections', [AccountsReceivableController::class, 'syncCollections']);
-      Route::post('accountsReceivable/send-reports', [AccountsReceivableController::class, 'sendReports']);
-      Route::post('accountsReceivable/send-due-reports', [AccountsReceivableController::class, 'sendDueReports']);
-      Route::post('accountsReceivable/send-global-excel', [AccountsReceivableController::class, 'sendGlobalExcel']);
-      Route::get('accountsReceivable/download-excel', [AccountsReceivableController::class, 'downloadExcel']);
-      Route::get('accountsReceivable/filterTree', [AccountsReceivableController::class, 'filterTree']);
-      Route::get('accountsReceivable/dashboard', [AccountsReceivableController::class, 'dashboard']);
-      Route::get('accountsReceivable/{id}', [AccountsReceivableController::class, 'show']);
-      Route::post('accountsReceivable/{id}/comments', [AccountsReceivableController::class, 'storeComment']);
-      Route::put('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'updateComment']);
-      Route::delete('accountsReceivable/comments/{commentId}', [AccountsReceivableController::class, 'destroyComment']);
-      Route::get('accountsReceivable', [AccountsReceivableController::class, 'index']);
-    });
-  });
-
-  // Document Validation Routes
-  Route::group(['prefix' => 'document-validation'], function () {
-    Route::post('/validate/general', [DocumentValidationController::class, 'validateGeneral']);
-    Route::post('/validate/dni', [DocumentValidationController::class, 'validateDni']);
-    Route::post('/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-    Route::post('/validate/license', [DocumentValidationController::class, 'validateLicense']);
-    Route::post('/validate/plate', [DocumentValidationController::class, 'validatePlate']);
-    Route::get('/document-types', [DocumentValidationController::class, 'documentTypes']);
-    Route::get('/provider-info', [DocumentValidationController::class, 'providerInfo']);
-    Route::delete('/cache', [DocumentValidationController::class, 'clearCache']);
-    Route::delete('/cache/all', [DocumentValidationController::class, 'clearAllCache']);
-  });
-
-  // Audit Logs Routes
-  Route::group(['prefix' => 'audit-logs'], function () {
-    Route::get('/', [AuditLogsController::class, 'index']);
-    Route::get('/stats', [AuditLogsController::class, 'stats']);
-    Route::get('/user/{userId}', [AuditLogsController::class, 'userLogs']);
-    Route::get('/model/{model}/{id}', [AuditLogsController::class, 'modelLogs']);
-    Route::get('/export', [AuditLogsController::class, 'export']);
-    Route::get('/system-logs', [AuditLogsController::class, 'logs']);
-    Route::delete('/clean', [AuditLogsController::class, 'clean']);
-  });
-
-  // GP - Gestión Humana - Viáticos Routes
-  Route::group(['prefix' => 'gp/gestion-humana/viaticos'], function () {
-    // Per Diem Requests
-    Route::get('per-diem-requests/my-requests', [PerDiemRequestController::class, 'myRequests']);
-    Route::get('per-diem-requests/pending-approvals', [PerDiemRequestController::class, 'pendingApprovals']);
-    Route::get('per-diem-requests/pending-settlements', [PerDiemRequestController::class, 'pendingSettlements']);
-    Route::get('per-diem-requests/overdue', [PerDiemRequestController::class, 'overdue']);
-    Route::get('per-diem-requests/rates', [PerDiemRequestController::class, 'rates']);
-    Route::post('per-diem-requests/{id}/submit', [PerDiemRequestController::class, 'submit']);
-    Route::post('per-diem-requests/{id}/review', [PerDiemRequestController::class, 'review']);
-    Route::post('per-diem-requests/{id}/mark-paid', [PerDiemRequestController::class, 'markAsPaid']);
-    Route::post('per-diem-requests/{id}/start-settlement', [PerDiemRequestController::class, 'startSettlement']);
-    Route::post('per-diem-requests/{id}/complete-settlement', [PerDiemRequestController::class, 'completeSettlement']);
-    Route::post('per-diem-requests/{id}/approve-settlement', [PerDiemRequestController::class, 'approveSettlement']);
-    Route::post('per-diem-requests/{id}/reject-settlement', [PerDiemRequestController::class, 'rejectSettlement']);
-    Route::get('per-diem-requests/{id}/expense-total-pdf', [PerDiemRequestController::class, 'expenseTotalPDF']);
-    Route::get('per-diem-requests/{id}/expense-total-with-evidence-pdf', [PerDiemRequestController::class, 'expenseTotalWithEvidencePDF']);
-    Route::get('per-diem-requests/{id}/expense-detail-pdf', [PerDiemRequestController::class, 'expenseDetailPDF']);
-    Route::post('per-diem-requests/{id}/confirm', [PerDiemRequestController::class, 'confirm']);
-    Route::post('per-diem-requests/{id}/confirm-progress', [PerDiemRequestController::class, 'confirmProgress']);
-    Route::post('per-diem-requests/{id}/cancel', [PerDiemRequestController::class, 'cancel']);
-    Route::get('per-diem-requests/{id}/available-budgets', [PerDiemRequestController::class, 'availableBudgets']);
-    Route::get('per-diem-requests/{id}/available-expense-types', [PerDiemRequestController::class, 'availableExpenseTypes']);
-    Route::post('per-diem-requests/{id}/agregar-deposito', [PerDiemRequestController::class, 'agregarDeposito']);
-    Route::delete('per-diem-requests/{requestId}/eliminar-deposito/{fileId}', [PerDiemRequestController::class, 'eliminarDeposito']);
-    Route::get('per-diem-requests/{id}/generate-mobility-payroll-pdf', [PerDiemRequestController::class, 'generateMobilityPayrollPDF']);
-    Route::post('per-diem-requests/{id}/reset-approvals', [PerDiemRequestController::class, 'resetApprovals']);
-    Route::post('per-diem-requests/{id}/regenerate-budgets', [PerDiemRequestController::class, 'regenerateBudgets']);
-    Route::post('per-diem-requests/{id}/resend-emails', [PerDiemRequestController::class, 'resendEmails']);
-    Route::apiResource('per-diem-requests', PerDiemRequestController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
+        'destroy',
     ]);
-
-    // Approvals
-    Route::get('per-diem-approvals/pending', [PerDiemApprovalController::class, 'pending']);
-    Route::post('per-diem-requests/{id}/approve', [PerDiemApprovalController::class, 'approve']);
-    Route::post('per-diem-requests/{id}/reject', [PerDiemApprovalController::class, 'reject']);
-
-    // Expenses
-    Route::get('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'index']);
-    Route::post('per-diem-requests/{requestId}/expenses', [PerDiemExpenseController::class, 'store']);
-    Route::get('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'show']);
-    Route::post('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'update']);
-    Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
-    Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
-    Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);
-    Route::get('per-diem-requests/{requestId}/remaining-budget', [PerDiemExpenseController::class, 'getRemainingBudget']);
-
-    // Hotel Reservations
-    Route::post('per-diem-requests/{requestId}/hotel-reservation', [HotelReservationController::class, 'store']);
-    Route::get('hotel-reservations/{reservationId}', [HotelReservationController::class, 'show']);
-    Route::post('hotel-reservations/{reservationId}', [HotelReservationController::class, 'update']);
-    Route::delete('hotel-reservations/{reservationId}', [HotelReservationController::class, 'destroy']);
-    Route::post('hotel-reservations/{reservationId}/mark-attended', [HotelReservationController::class, 'markAttended']);
-    Route::post('hotel-reservations/{reservationId}/release', [HotelReservationController::class, 'release']);
-
-    // Policies
-    Route::apiResource('perDiemPolicy', PerDiemPolicyController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Categories
-    Route::apiResource('perDiemCategory', PerDiemCategoryController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Rates
-    Route::apiResource('PerDiemRate', PerDiemRateController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-
-    // Expense Types
-    Route::get('expense-types/active', [ExpenseTypeController::class, 'active']);
-    Route::get('expense-types/parents', [ExpenseTypeController::class, 'parents']);
-    Route::get('expense-types', [ExpenseTypeController::class, 'index']);
-
-    // Hotel Agreements
-    Route::get('hotel-agreements/active', [HotelAgreementController::class, 'active']);
-    Route::apiResource('hotel-agreements', HotelAgreementController::class);
-
-    // Job Status - Monitoreo de jobs en cola
-    Route::get('jobs/status', [JobStatusController::class, 'index'])->name('jobs.status');
-    Route::get('jobs/status/{jobType}', [JobStatusController::class, 'show'])->name('jobs.status.show');
-  });
-
-  // GP - Gestión Humana - Payroll (Nómina) Routes
-  Route::group(['prefix' => 'gp/gh/payroll'], function () {
-    Route::get('test-promedio-6-meses', [PayrollCalculationController::class, 'testPromedio6Meses']);
-
-    // Histórico de conceptos variables (para completar meses anteriores al sistema)
-    Route::get('calculations/historical-template', [PayrollCalculationController::class, 'historicalTemplate']);
-    Route::post('calculations/historical-import', [PayrollCalculationController::class, 'historicalImport']);
-    Route::get('calculations/historical-bonus-template', [PayrollCalculationController::class, 'historicalBonusTemplate']);
-    Route::post('calculations/historical-bonus-import', [PayrollCalculationController::class, 'historicalBonusImport']);
-    Route::get('calculations/historical-salary-template', [PayrollCalculationController::class, 'historicalSalaryTemplate']);
-    Route::post('calculations/historical-salary-import', [PayrollCalculationController::class, 'historicalSalaryImport']);
-
-    // Attendance Rules
-    Route::get('attendance-rules/codes', [AttendanceRuleController::class, 'codes']);
-    Route::apiResource('attendance-rules', AttendanceRuleController::class);
-
-    // Formula Variables
-    Route::apiResource('formula-variables', PayrollFormulaVariableController::class);
-
-    // Periods
-    Route::get('periods/current', [PayrollPeriodController::class, 'current']);
-    Route::post('periods/{id}/close', [PayrollPeriodController::class, 'close']);
-    Route::post('periods/{id}/process', [PayrollPeriodController::class, 'process']);
-    Route::post('periods/{id}/reset', [PayrollPeriodController::class, 'reset']);
-    Route::apiResource('periods', PayrollPeriodController::class);
-
-    // Schedules
-    Route::post('schedules/bulk', [PayrollScheduleController::class, 'storeBulk']);
-    Route::get('schedules/summary/{periodId}', [PayrollScheduleController::class, 'summary']);
-    Route::get('schedules/attendances/{periodId}', [PayrollScheduleController::class, 'getAttendances']);
-    Route::post('schedules/generate-calculations/{periodId}', [PayrollScheduleController::class, 'generateCalculations']);
-    Route::post('schedules/recalculate-calculations/{periodId}', [PayrollScheduleController::class, 'recalculateCalculations']);
-    Route::apiResource('schedules', PayrollScheduleController::class);
-
-    // Worker Attendance Rules (códigos permitidos por persona)
-    Route::get('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'index']);
-    Route::post('workers/{workerId}/attendance-rules/sync', [WorkerAttendanceRuleController::class, 'sync']);
-    Route::post('workers/{workerId}/attendance-rules', [WorkerAttendanceRuleController::class, 'store']);
-    Route::delete('workers/{workerId}/attendance-rules/{code}', [WorkerAttendanceRuleController::class, 'destroy']);
-
-    // Calculations
-    Route::post('calculations/{id}/approve', [PayrollCalculationController::class, 'approve']);
-    Route::get('calculations/summary/{periodId}', [PayrollCalculationController::class, 'summary']);
-    Route::get('calculations/report/{periodId}', [PayrollCalculationController::class, 'report']);
-    Route::get('calculations/export', [PayrollCalculationController::class, 'export']);
-    Route::get('calculations/print/{periodId}', [PayrollCalculationController::class, 'printReport']);
-    Route::get('calculations/export-summary/{periodId}', [PayrollCalculationController::class, 'exportSummary']);
-    Route::get('calculations/{id}/payslip', [PayrollCalculationController::class, 'payslip']);
-    Route::post('calculations/{id}/summarize', [PayrollCalculationController::class, 'summarize']);
-    Route::apiResource('calculations', PayrollCalculationController::class)->only(['index', 'show']);
-
-    // Liquidation BBSS
-    Route::post('liquidation-bbss/calculate-gratification/{periodId}', [PayrollLiquidationBbssController::class, 'calculateGratification']);
-    Route::post('liquidation-bbss/calculate-cts/{periodId}', [PayrollLiquidationBbssController::class, 'calculateCts']);
-    Route::get('liquidation-bbss/gratification-status/{periodId}', [PayrollLiquidationBbssController::class, 'gratificationStatus']);
-    Route::get('liquidation-bbss/payslip/{periodId}/{workerId}', [PayrollLiquidationBbssController::class, 'payslip']);
-    Route::get('liquidation-bbss/pivot', [PayrollLiquidationBbssController::class, 'indexPivot']);
-    Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
-
-    // Bonuses
-    Route::apiResource('bonuses', PayrollBonusController::class);
-
-    // Insurances
-    Route::get('insurances/template', [PayrollInsuranceController::class, 'downloadTemplate']);
-    Route::post('insurances/import', [PayrollInsuranceController::class, 'import']);
-    Route::apiResource('insurances', PayrollInsuranceController::class);
-
-    // Working Conditions
-    Route::post('working-conditions/import', [PayrollWorkingConditionController::class, 'import']);
-    Route::get('working-conditions', [PayrollWorkingConditionController::class, 'index']);
-
-    // Loans
-    Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
-    Route::post('loans/{loan}/regenerate-installments', [PayrollLoanController::class, 'regenerateInstallments']);
-    Route::apiResource('loans', PayrollLoanController::class);
-
-    // Loan Extra Discounts
-    Route::post('loan-extra-discounts/{loanExtraDiscount}/confirm', [PayrollLoanExtraDiscountController::class, 'confirm']);
-    Route::apiResource('loan-extra-discounts', PayrollLoanExtraDiscountController::class);
-
-    // Food Card
-    Route::get('food-cards', [PayrollFoodCardController::class, 'index']);
-    Route::post('food-cards', [PayrollFoodCardController::class, 'storeOrUpdate']);
-
-    // Family Allowance
-    Route::get('family-allowances', [PayrollFamilyAllowanceController::class, 'index']);
-    Route::post('family-allowances', [PayrollFamilyAllowanceController::class, 'storeOrUpdate']);
-
-    // Exclusiones (opt-out de conceptos automáticos, ej. asignación familiar)
-    Route::get('exclusions', [PayrollExclusionController::class, 'index']);
-    Route::post('exclusions', [PayrollExclusionController::class, 'store']);
-    Route::delete('exclusions/{id}', [PayrollExclusionController::class, 'destroy']);
-
-    // Register (Planilla)
-    Route::get('register', [PayrollRegisterController::class, 'index']);
-    Route::post('register/generate', [PayrollRegisterController::class, 'generate']);
-    Route::post('register/export', [PayrollRegisterController::class, 'export']);
-  });
-
-  // GP - Gestión Humana - Reclutamiento y Selección
-  Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
-    // Procesos de postulación (F1) — legacy idVista 50
-    Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
-    Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy',
-    ]);
-
-    // Administración de postulantes (F1) — legacy idVista 52
-    Route::post('applicant/{id}/status', [ApplicantController::class, 'changeStatus']);
-    Route::apiResource('applicant', ApplicantController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy',
-    ]);
-  });
-
-  /**
-   * Routes for General Process Masters (GP)
-   */
-  Route::group(['prefix' => 'gp'], function () {
-    // Maestros General
-    Route::get('gpMasters/types', [GpMastersController::class, 'getTypes']);
-    Route::apiResource('gpMasters', GpMastersController::class)->only([
-      'index',
-      'show',
-      'store',
-      'update',
-      'destroy'
-    ]);
-  });
-
-  // NOTIFICATIONS
-  Route::group(['prefix' => 'notifications'], function () {
-    Route::get('/', [NotificationController::class, 'index']);
-    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
-    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
-    Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::delete('/{id}', [NotificationController::class, 'destroy']);
-
-    // Low Stock Notifications
-    Route::post('/low-stock/notify', [NotificationController::class, 'notifyLowStock']);
-    Route::get('/low-stock/stats', [NotificationController::class, 'getLowStockStats']);
-  });
-
-  // AI
-  Route::post('/ai/generate-text', [AiController::class, 'generateText']);
-
-  // MANUALES
-  Route::get('/manuals/{id}/content', [ManualController::class, 'content']);
-  Route::apiResource('manuals', ManualController::class)->only([
-    'index',
-    'show',
-    'store',
-    'update',
-    'destroy',
-  ]);
 });
 
 // PUBLIC ROUTES - No authentication required
 Route::group(['prefix' => 'public'], function () {
-  // Confirmación Virtual de Cotizaciones (sin autenticación)
-  Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
-  Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
+    // Confirmación Virtual de Cotizaciones (sin autenticación)
+    Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
+    Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
 
-  // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
-  Route::middleware(['api.key'])->prefix('external')->group(function () {
-    Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
-    Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
-  });
+    // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
+    Route::middleware(['api.key'])->prefix('external')->group(function () {
+        Route::post('/document-validation/validate/ruc', [DocumentValidationController::class, 'validateRuc']);
+        Route::post('/document-validation/validate/dni', [DocumentValidationController::class, 'validateDni']);
+    });
 });
