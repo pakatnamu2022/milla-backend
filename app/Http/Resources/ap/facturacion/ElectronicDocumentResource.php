@@ -159,8 +159,81 @@ class ElectronicDocumentResource extends JsonResource
       'items' => ElectronicDocumentItemResource::collection($this->items),
       'guides' => ElectronicDocumentGuideResource::collection($this->guides),
       'installments' => ElectronicDocumentInstallmentResource::collection($this->installments),
-      'vehicle_movement' => VehicleMovementResource::make($this->vehicleMovement)
+      'vehicle_movement' => VehicleMovementResource::make($this->vehicleMovement),
 
+      /**
+       * Datos enriquecidos para el detalle (nullable, sólo poblados en show())
+       */
+      'creator_name' => $this->creator?->name,
+      'updater_name' => $this->updater?->name,
+      'sede_shop' => $this->seriesModel?->sede?->shop?->description,
+      'sede_abrev' => $this->seriesModel?->sede?->abreviatura ?? $this->seriesModel?->sede?->suc_abrev,
+      'exchange_rate' => $this->exchangeRate ? [
+        'id' => $this->exchangeRate->id,
+        'date' => $this->exchangeRate->date,
+        'type' => $this->exchangeRate->type,
+        'rate' => (float) $this->exchangeRate->rate,
+      ] : null,
+      'vehicle' => $this->vehiclePayload(),
+      'purchase_request_quote' => $this->purchaseRequestQuote ? [
+        'id' => $this->purchaseRequestQuote->id,
+        'correlative' => $this->purchaseRequestQuote->correlative,
+        'internal_code' => $this->purchaseRequestQuote->internal_code,
+        'sale_price' => (float) $this->purchaseRequestQuote->sale_price,
+        'base_selling_price' => (float) $this->purchaseRequestQuote->base_selling_price,
+        'down_payment' => (float) $this->purchaseRequestQuote->down_payment,
+        'opportunity_code' => $this->purchaseRequestQuote->opportunity?->opportunity_code,
+        'advisor' => $this->purchaseRequestQuote->opportunity?->worker?->nombre_completo,
+        'holder' => $this->purchaseRequestQuote->holder?->full_name,
+      ] : null,
+      'order_quotation' => $this->orderQuotation ? [
+        'id' => $this->orderQuotation->id,
+        'number' => $this->orderQuotation->quotation_number ?? $this->orderQuotation->code,
+      ] : null,
+      'work_order' => $this->workOrder ? [
+        'id' => $this->workOrder->id,
+        'number' => $this->workOrder->correlative ?? $this->workOrder->workorder_number,
+      ] : null,
+      'original_document' => $this->originalDocument ? [
+        'id' => $this->originalDocument->id,
+        'full_number' => $this->originalDocument->full_number,
+        'document_type' => $this->originalDocument->documentType?->description,
+        'total' => (float) $this->originalDocument->total,
+      ] : null,
+    ];
+  }
+
+  /**
+   * Resuelve el vehículo asociado al documento a partir del movimiento de
+   * inventario o, en su defecto, de la cotización / documento original.
+   */
+  private function vehiclePayload(): ?array
+  {
+    $vehicle = $this->vehicle
+      ?? $this->purchaseRequestQuote?->vehicle
+      ?? $this->originalDocument?->vehicle
+      ?? $this->vehicleMovement?->vehicle;
+
+    if (! $vehicle) {
+      return null;
+    }
+
+    return [
+      'id' => $vehicle->id,
+      'vin' => $vehicle->vin,
+      'plate' => $vehicle->plate,
+      'engine_number' => $vehicle->engine_number,
+      'year' => $vehicle->year,
+      'mileage' => $vehicle->mileage,
+      'color' => $vehicle->color?->description,
+      'engine_type' => $vehicle->engineType?->description,
+      'status' => $vehicle->vehicleStatus?->description,
+      'status_color' => $vehicle->vehicleStatus?->color,
+      'model_code' => $vehicle->model?->code,
+      'model_version' => $vehicle->model?->version,
+      'brand' => $vehicle->model?->family?->brand?->name,
+      'family' => $vehicle->model?->family?->description,
+      'warehouse' => $vehicle->warehousePhysical?->description,
     ];
   }
 }
