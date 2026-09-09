@@ -35,7 +35,7 @@ class OrderQuotationDocumentService
     }
 
     // For facturas and other documents, must be accepted
-    return $document->aceptada_por_sunat;
+    return $document->status === ElectronicDocument::STATUS_ACCEPTED;
   }
 
   /**
@@ -291,7 +291,7 @@ class OrderQuotationDocumentService
         // For facturas, must be accepted
         ->orWhere(function ($q) {
           $q->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_FACTURA)
-            ->where('aceptada_por_sunat', true);
+            ->where('status', ElectronicDocument::STATUS_ACCEPTED);
         });
       })
       ->where('status', '!=', ElectronicDocument::STATUS_CANCELLED)
@@ -411,7 +411,7 @@ class OrderQuotationDocumentService
         // Get credit notes (excluding annulling types)
         $creditNotes = ElectronicDocument::where('original_document_id', $document->id)
           ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_CREDITO)
-          ->where('aceptada_por_sunat', true)
+          ->where('status', ElectronicDocument::STATUS_ACCEPTED)
           ->where('anulado', 0)
           ->whereNotIn('sunat_concept_credit_note_type_id', $annullingTypes)
           ->get();
@@ -419,7 +419,7 @@ class OrderQuotationDocumentService
         // Get debit notes
         $debitNotes = ElectronicDocument::where('original_document_id', $document->id)
           ->where('sunat_concept_document_type_id', ElectronicDocument::TYPE_NOTA_DEBITO)
-          ->where('aceptada_por_sunat', true)
+          ->where('status', ElectronicDocument::STATUS_ACCEPTED)
           ->where('anulado', 0)
           ->get();
 
