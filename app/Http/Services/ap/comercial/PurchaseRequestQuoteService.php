@@ -389,8 +389,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
 
     $vehicleSedeId = $vehicle->warehouse?->sede_id;
-    if ($vehicleSedeId !== null && (int)$vehicleSedeId !== (int)$sedeId) {
-      throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+    if ($vehicleSedeId !== null) {
+      $sedeToWarehouseSede = [16 => 14, 14 => 16];
+      $expectedWarehouseSedeId = $sedeToWarehouseSede[$sedeId] ?? $sedeId;
+      if ((int)$vehicleSedeId !== (int)$expectedWarehouseSedeId && (int)$vehicleSedeId !== (int)$sedeId) {
+        throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+      }
     }
   }
 
