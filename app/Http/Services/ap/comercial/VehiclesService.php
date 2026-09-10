@@ -639,11 +639,11 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
   public function list(Request $request)
   {
-    $sedeToWarehouseSede = [16 => 14, 14 => 16];
+    $linkedSedes = [16 => 14, 14 => 16];
     if ($request->filled('warehouse$sede_id')) {
       $sedeId = (int) $request->get('warehouse$sede_id');
-      if (isset($sedeToWarehouseSede[$sedeId])) {
-        $request->merge(['warehouse$sede_id' => $sedeToWarehouseSede[$sedeId]]);
+      if (isset($linkedSedes[$sedeId])) {
+        $request->merge(['warehouse$sede_id' => [$sedeId, $linkedSedes[$sedeId]]]);
       }
     }
 

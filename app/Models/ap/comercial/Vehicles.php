@@ -73,7 +73,7 @@ class Vehicles extends BaseModel
     'warehousePhysical.sede_id'          => '=',
     'warehousePhysical.is_received'      => '=',
     'warehousePhysical.article_class_id' => '=',
-    'warehouse.sede_id'                  => '=',
+    'warehouse.sede_id'                  => 'in_or_equal',
     'warehouse.is_received'              => '=',
     'warehouse.article_class_id'         => '=',
     'is_paid'                            => '=',
