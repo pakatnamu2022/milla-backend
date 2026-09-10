@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\ap\postventa\taller;
 
+use App\Exports\ap\postventa\Reports\OrderPurchaseRequestExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\postventa\taller\IndexApOrderPurchaseRequestsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderPurchaseRequestsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderPurchaseRequestsRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderPurchaseRequestsService;
+use App\Reports\ap\postventa\OrderPurchaseRequestPdf;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ApOrderPurchaseRequestsController extends Controller
 {
@@ -99,7 +102,24 @@ class ApOrderPurchaseRequestsController extends Controller
   public function downloadPDF($id)
   {
     try {
-      return $this->service->generatePurchaseRequestPDF($id);
+      $report = new OrderPurchaseRequestPdf();
+      return $report->download($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /**
+   * Descargar Excel de la solicitud de compra
+   * GET /api/ap/postVenta/orderPurchaseRequests/{id}/excel
+   */
+  public function downloadExcel($id)
+  {
+    try {
+      return Excel::download(
+        new OrderPurchaseRequestExport($id),
+        'Solicitud_Compra_' . $id . '.xlsx'
+      );
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

@@ -2003,6 +2003,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('orderPurchaseRequests/{id}/notify-managers', [ApOrderPurchaseRequestsController::class, 'notifyManagers']);
       Route::get('orderPurchaseRequests/pending-details', [ApOrderPurchaseRequestsController::class, 'getPendingDetails']);
       Route::get('orderPurchaseRequests/{id}/pdf', [ApOrderPurchaseRequestsController::class, 'downloadPDF']);
+      Route::get('orderPurchaseRequests/{id}/excel', [ApOrderPurchaseRequestsController::class, 'downloadExcel']);
       Route::patch('orderPurchaseRequests/details/{id}/reject', [ApOrderPurchaseRequestsController::class, 'rejectDetail']);
       Route::apiResource('orderPurchaseRequests', ApOrderPurchaseRequestsController::class)->only([
         'index',
@@ -2797,7 +2798,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'destroy'
     ]);
   });
-  
+
   // NOTIFICATIONS
   Route::group(['prefix' => 'notifications'], function () {
     Route::get('/', [NotificationController::class, 'index']);
