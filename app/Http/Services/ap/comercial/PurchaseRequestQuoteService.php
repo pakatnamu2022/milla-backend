@@ -565,6 +565,58 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
   }
 
+  /**
+   * Cambia la sede de la solicitud/cotización.
+   *
+   * La sede no es un dato aislado de la cotización: la asignación asesor–sede y
+   * el origen comercial viven en la oportunidad a través del lead. Por eso, al
+   * cambiar la sede aquí se propaga también al lead de la oportunidad asociada,
+   * manteniendo la coherencia. En el frontend esta acción está protegida por el
+   * permiso existente "Cambiar Ubicación" (changeLocation).
+   */
+  public function changeSede(int $quoteId, int $sedeId): JsonResource
+  {
+    return DB::transaction(function () use ($quoteId, $sedeId) {
+      $quote = $this->find($quoteId);
+
+      if ($quote->is_paid) {
+        throw new Exception('No se puede cambiar la sede porque la solicitud ya fue pagada en su totalidad.');
+      }
+
+      if ((int)$quote->sede_id === $sedeId) {
+        throw new Exception('La solicitud ya pertenece a la sede seleccionada.');
+      }
+
+      if (!empty($quote->ap_vehicle_id)) {
+        throw new Exception('Desasigna el vehículo antes de cambiar la sede: el VIN asignado pertenece a la sede actual.');
+      }
+
+      // Solo se permite mover la solicitud entre sedes de la misma tienda (shop).
+      $currentSede = \App\Models\gp\maestroGeneral\Sede::find($quote->sede_id);
+      $targetSede = \App\Models\gp\maestroGeneral\Sede::find($sedeId);
+      if (!$targetSede) {
+        throw new Exception('La sede seleccionada no existe.');
+      }
+      if (empty($currentSede?->shop_id) || (int)$currentSede->shop_id !== (int)$targetSede->shop_id) {
+        throw new Exception('Solo se puede cambiar a una sede de la misma tienda que la sede actual.');
+      }
+
+      $quote->sede_id = $sedeId;
+      $quote->save();
+
+      // Propagar el cambio al lead de la oportunidad (la oportunidad hereda la
+      // sede del lead). Si la oportunidad no tiene lead, solo cambia la sede de
+      // la cotización.
+      $lead = $quote->opportunity?->lead;
+      if ($lead) {
+        $lead->sede_id = $sedeId;
+        $lead->save();
+      }
+
+      return PurchaseRequestQuoteResource::make($quote->fresh());
+    });
+  }
+
   public function swapVehicle(int $quoteId, int $newVehicleId): JsonResource
   {
     return DB::transaction(function () use ($quoteId, $newVehicleId) {

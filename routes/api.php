@@ -1443,6 +1443,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('purchaseRequestQuote/assignVehicle/{id}', [PurchaseRequestQuoteController::class, 'assignVehicle']);
       Route::post('purchaseRequestQuote/unassignVehicle/{id}', [PurchaseRequestQuoteController::class, 'unassignVehicle']);
       Route::post('purchaseRequestQuote/swapVehicle/{id}', [PurchaseRequestQuoteController::class, 'swapVehicle']);
+      Route::post('purchaseRequestQuote/changeSede/{id}', [PurchaseRequestQuoteController::class, 'changeSede']);
       Route::post('purchaseRequestQuote/{id}/duplicate', [PurchaseRequestQuoteController::class, 'duplicate']);
       Route::apiResource('purchaseRequestQuote', PurchaseRequestQuoteController::class)->only([
         'index',
