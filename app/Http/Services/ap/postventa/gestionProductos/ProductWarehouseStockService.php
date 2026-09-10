@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Exports\ap\postventa\ProductWarehouseStockExport;
 use App\Jobs\RecalculateProductCostJob;
+use App\Models\ap\postventa\gestionProductos\Products;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReception;
@@ -98,12 +99,12 @@ class ProductWarehouseStockService extends BaseService
       $query->whereHas('shelves', function ($q) use ($request) {
         $q->where('product_shelves.id', $request->product_shelf_id);
       })
-      ->join('product_warehouse_shelf', function ($join) use ($request) {
-        $join->on('product_warehouse_stock.id', '=', 'product_warehouse_shelf.product_warehouse_stock_id')
-             ->where('product_warehouse_shelf.product_shelf_id', $request->product_shelf_id);
-      })
-      ->orderByRaw('COALESCE(product_warehouse_shelf.position, 999999)')
-      ->select('product_warehouse_stock.*');
+        ->join('product_warehouse_shelf', function ($join) use ($request) {
+          $join->on('product_warehouse_stock.id', '=', 'product_warehouse_shelf.product_warehouse_stock_id')
+            ->where('product_warehouse_shelf.product_shelf_id', $request->product_shelf_id);
+        })
+        ->orderByRaw('COALESCE(product_warehouse_shelf.position, 999999)')
+        ->select('product_warehouse_stock.*');
     }
 
     return $this->getFilteredResults(
@@ -127,6 +128,7 @@ class ProductWarehouseStockService extends BaseService
   public function update(mixed $data)
   {
     $productWarehouseStock = $this->find($data['id']);
+
     $productWarehouseStock->update($data);
     return new ProductWarehouseStockResource($productWarehouseStock);
   }
@@ -633,6 +635,7 @@ class ProductWarehouseStockService extends BaseService
       // LOCK: Adquirir lock exclusivo para prevenir race conditions
       $stock = ProductWarehouseStock::where('product_id', $productId)
         ->where('warehouse_id', $warehouseId)
+        ->with('product')
         ->lockForUpdate()
         ->first();
 
@@ -726,8 +729,11 @@ class ProductWarehouseStockService extends BaseService
 
       // Recalcular precios de venta basados en el nuevo average_cost
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
 
       if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
         $salePrice = round(
@@ -1987,8 +1993,12 @@ class ProductWarehouseStockService extends BaseService
 
       // Get configuration values
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
+
       $calculationMethod = ProductWarehouseStock::PRICE_CALCULATION_METHOD;
 
       // Get current prices from stock
@@ -2326,6 +2336,7 @@ class ProductWarehouseStockService extends BaseService
       // LOCK: Adquirir lock exclusivo para prevenir race conditions
       $stock = ProductWarehouseStock::where('product_id', $productId)
         ->where('warehouse_id', $warehouseId)
+        ->with('product')
         ->lockForUpdate()
         ->first();
 
@@ -2471,8 +2482,11 @@ class ProductWarehouseStockService extends BaseService
 
       // Calcular el sale_price basado en el nuevo average_cost
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
 
       if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
         // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)
