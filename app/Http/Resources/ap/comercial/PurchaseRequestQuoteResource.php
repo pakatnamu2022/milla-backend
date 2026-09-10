@@ -56,6 +56,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'holder_phone'                 => $this->holder->phone,
       'client_name'                  => $this->opportunity?->client->full_name ?? null,
       'opportunity_family_id'        => $this->opportunity?->family_id ?? null,
+      'opportunity_family'           => $this->opportunity?->family?->description ?? null,
       'ap_vehicle_id'                => $this->ap_vehicle_id,
       'vehicle_color_id'             => $this->vehicle_color_id,
       'vehicle_color'                => $this->vehicleColor->description ?? null,
