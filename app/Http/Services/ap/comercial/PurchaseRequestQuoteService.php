@@ -204,19 +204,9 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       $purchaseRequestQuote = $this->find($data['id']);
 
       // Pagada en su totalidad: ya no se puede modificar nada, sin excepción.
+      // Estar aprobada o tener un anticipo registrado NO restringe nada.
       if ($purchaseRequestQuote->is_paid) {
         throw new Exception('No se puede editar esta solicitud/cotización porque ya fue pagada en su totalidad.');
-      }
-
-      // Aprobada o con un anticipo registrado: se puede seguir editando todo
-      // (precio, vehículo, descuentos, accesorios, etc.), pero solo si el
-      // usuario tiene permiso para aprobar. Quien no tiene ese permiso no
-      // puede tocar una solicitud ya aprobada ni una con anticipo.
-      if (
-        ($purchaseRequestQuote->is_approved || $purchaseRequestQuote->has_advances)
-        && !auth()->user()?->hasPermission('solicitudes-cotizaciones.approve')
-      ) {
-        throw new Exception('Esta solicitud/cotización ya está aprobada o tiene un anticipo registrado; solo un usuario con permiso para aprobar puede editarla.');
       }
 
       // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
