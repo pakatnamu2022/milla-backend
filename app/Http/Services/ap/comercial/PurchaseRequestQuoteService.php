@@ -203,26 +203,20 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     return DB::transaction(function () use ($data) {
       $purchaseRequestQuote = $this->find($data['id']);
 
-      // Pagada en su totalidad: ya no se puede modificar nada.
+      // Pagada en su totalidad: ya no se puede modificar nada, sin excepción.
       if ($purchaseRequestQuote->is_paid) {
         throw new Exception('No se puede editar esta solicitud/cotización porque ya fue pagada en su totalidad.');
       }
 
-      $isApproved = (bool)$purchaseRequestQuote->is_invoiced;
-
-      if ($isApproved) {
-        // Facturada (y aún no pagada en su totalidad): el precio de venta y la
-        // moneda de facturación quedan fijos. Estar solo "aprobada" ya NO
-        // bloquea nada: mientras no exista factura/boleta final aceptada, se
-        // puede seguir negociando con el cliente (agregar accesorios, cambiar
-        // precio, etc). El vehículo/modelo/color SÍ se pueden seguir cambiando
-        // (no afectan el precio ya fijado), igual que bonos, obsequios (no
-        // afectan el precio final, solo el margen) y "otros costos" (margen).
-        foreach ([
-                   'sale_price', 'base_selling_price', 'doc_sale_price', 'doc_type_currency_id',
-                 ] as $lockedField) {
-          unset($data[$lockedField]);
-        }
+      // Aprobada o con un anticipo registrado: se puede seguir editando todo
+      // (precio, vehículo, descuentos, accesorios, etc.), pero solo si el
+      // usuario tiene permiso para aprobar. Quien no tiene ese permiso no
+      // puede tocar una solicitud ya aprobada ni una con anticipo.
+      if (
+        ($purchaseRequestQuote->is_approved || $purchaseRequestQuote->has_advances)
+        && !auth()->user()?->hasPermission('solicitudes-cotizaciones.approve')
+      ) {
+        throw new Exception('Esta solicitud/cotización ya está aprobada o tiene un anticipo registrado; solo un usuario con permiso para aprobar puede editarla.');
       }
 
       // Si se actualiza la moneda del documento, actualizar el exchange_rate_id
@@ -277,69 +271,34 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       // Si se envían bonus_discounts, reemplazar los existentes
       if (isset($data['bonus_discounts'])) {
-        if ($isApproved) {
-          // Los descuentos (conceptos raíz, sin hijos) ya no pueden agregarse,
-          // editarse ni eliminarse; solo se sincronizan los bonos.
-          DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)
-            ->where('is_negative', false)
-            ->delete();
+        // Eliminar los descuentos existentes
+        DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
 
-          $bonusesOnly = $this->filterOutDiscountConcepts($data['bonus_discounts']);
-          if (count($bonusesOnly) > 0) {
-            $this->saveBonusDiscounts($purchaseRequestQuote->id, $bonusesOnly, $purchaseRequestQuote->sale_price);
-          }
-        } else {
-          // Eliminar los descuentos existentes
-          DiscountCoupons::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
-
-          // Crear los nuevos descuentos si el array no está vacío
-          if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
-            $salePrice = $data['sale_price'];
-            $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
-            // Aplicar descuentos negativos al sale_price
-            $this->applyNegativeDiscounts($purchaseRequestQuote->id);
-          }
+        // Crear los nuevos descuentos si el array no está vacío
+        if (is_array($data['bonus_discounts']) && count($data['bonus_discounts']) > 0) {
+          $salePrice = $data['sale_price'] ?? $purchaseRequestQuote->sale_price;
+          $this->saveBonusDiscounts($purchaseRequestQuote->id, $data['bonus_discounts'], $salePrice);
+          // Aplicar descuentos negativos al sale_price
+          $this->applyNegativeDiscounts($purchaseRequestQuote->id);
         }
       }
 
       // Si se envían accessories, reemplazar los existentes
       if (isset($data['accessories'])) {
-        if ($isApproved) {
-          // ACCESORIO_ADICIONAL afecta el precio final: queda fijo. Los OBSEQUIO
-          // no afectan el precio (solo el margen), así que se pueden seguir
-          // agregando/editando/quitando libremente.
-          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)
-            ->where('type', 'OBSEQUIO')
-            ->delete();
+        // Eliminar los accesorios existentes
+        DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
 
-          $giftsOnly = array_values(array_filter(
+        // Crear los nuevos accesorios si el array no está vacío
+        if (is_array($data['accessories']) && count($data['accessories']) > 0) {
+          $this->saveAccessories(
+            $purchaseRequestQuote->id,
             $data['accessories'],
-            fn($row) => ($row['type'] ?? null) === 'OBSEQUIO'
-          ));
-          if (count($giftsOnly) > 0) {
-            $this->saveAccessories(
-              $purchaseRequestQuote->id,
-              $giftsOnly,
-              $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
-            );
-          }
-        } else {
-          // Eliminar los accesorios existentes
-          DetailsApprovedAccessoriesQuote::where('purchase_request_quote_id', $purchaseRequestQuote->id)->delete();
-
-          // Crear los nuevos accesorios si el array no está vacío
-          if (is_array($data['accessories']) && count($data['accessories']) > 0) {
-            $this->saveAccessories(
-              $purchaseRequestQuote->id,
-              $data['accessories'],
-              $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
-            );
-          }
+            $this->bodyTypeIdForModel($purchaseRequestQuote->ap_models_vn_id)
+          );
         }
       }
 
-      // Guardar costos internos (OTROS) y recalcular margen. Estos siguen editables
-      // aún con la cotización aprobada: son los que permiten ajustar el margen.
+      // Guardar costos internos (OTROS) y recalcular margen.
       if (array_key_exists('others', $data)) {
         $this->saveOthers($purchaseRequestQuote->id, $data['others'] ?? [], (float)($data['base_selling_price'] ?? $purchaseRequestQuote->base_selling_price));
       }
@@ -347,23 +306,6 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
 
       return new PurchaseRequestQuoteResource($purchaseRequestQuote->fresh(['others']));
     });
-  }
-
-  /**
-   * Filtra un arreglo de bonus_discounts dejando solo los que resuelven a un
-   * concepto "bono" (con parent_id, hijo de un concepto raíz). Los conceptos
-   * raíz (sin parent_id) son descuentos y quedan bloqueados una vez aprobada
-   * la cotización, ver PurchaseRequestQuoteService::update().
-   */
-  private function filterOutDiscountConcepts(array $bonusDiscounts): array
-  {
-    $conceptIds = array_column($bonusDiscounts, 'concept_id');
-    $concepts = ApMasters::whereIn('id', $conceptIds)->get()->keyBy('id');
-
-    return array_values(array_filter($bonusDiscounts, function ($row) use ($concepts) {
-      $concept = $concepts->get($row['concept_id']);
-      return $concept && !is_null($concept->parent_id);
-    }));
   }
 
   /**

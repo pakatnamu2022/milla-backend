@@ -41,6 +41,7 @@ class PurchaseRequestQuoteResource extends JsonResource
       'comment'                      => $this->comment,
       'is_invoiced'                  => $this->is_invoiced,
       'is_approved'                  => $this->is_approved,
+      'has_advances'                 => $this->has_advances,
       'credit_type_id'               => $this->credit_type_id,
       'credit_entity_id'             => $this->credit_entity_id,
       'insurance_entity_id'          => $this->insurance_entity_id,
