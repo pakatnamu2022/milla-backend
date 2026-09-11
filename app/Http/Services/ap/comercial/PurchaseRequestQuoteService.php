@@ -14,10 +14,12 @@ use App\Http\Services\gp\gestionhumana\personal\WorkerService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\DetailsApprovedAccessoriesQuote;
 use App\Models\ap\comercial\DiscountCoupons;
+use App\Models\ap\comercial\Opportunity;
 use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\comercial\PurchaseRequestQuoteOther;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
+use App\Models\ap\configuracionComercial\venta\ApAssignCompanyBranch;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
@@ -389,8 +391,12 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
     }
 
     $vehicleSedeId = $vehicle->warehouse?->sede_id;
-    if ($vehicleSedeId !== null && (int)$vehicleSedeId !== (int)$sedeId) {
-      throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+    if ($vehicleSedeId !== null) {
+      $sedeToWarehouseSede = [16 => 14, 14 => 16];
+      $expectedWarehouseSedeId = $sedeToWarehouseSede[$sedeId] ?? $sedeId;
+      if ((int)$vehicleSedeId !== (int)$expectedWarehouseSedeId && (int)$vehicleSedeId !== (int)$sedeId) {
+        throw new Exception('El vehículo seleccionado no pertenece a la sede de la cotización.');
+      }
     }
   }
 
@@ -451,6 +457,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         // El VIN debe pertenecer a la sede de la cotización (el frontend antiguo
         // no filtra por sede, así que el backend debe garantizarlo).
         $this->assertVehicleBelongsToSede((int)$data['ap_vehicle_id'], $purchaseRequestQuote->sede_id);
+
+        // El VIN asignado SIEMPRE debe ser de la misma familia de la oportunidad
+        // de la solicitud.
+        $opportunityFamilyId = $purchaseRequestQuote->opportunity?->family_id;
+        $vehicleFamilyId = Vehicles::find((int)$data['ap_vehicle_id'])?->model?->family_id;
+        if ($opportunityFamilyId && (int)$vehicleFamilyId !== (int)$opportunityFamilyId) {
+          throw new Exception('El vehículo debe pertenecer a la misma familia de la oportunidad de la solicitud.');
+        }
       }
       $purchaseRequestQuote->update($data);
       $this->refreshMargin($purchaseRequestQuote);
@@ -550,6 +564,27 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
         }
       }
 
+      // Cierre completo opcional: además de dejar la solicitud sin vehículo, se
+      // desactiva (status = 0) y se cierra la oportunidad asociada. Si no se
+      // envía `close` (o es false), la solicitud queda abierta con ap_vehicle_id
+      // en null y se puede volver a asignar un vehículo después.
+      if (!empty($data['close'])) {
+        $purchaseRequestQuote->desactivate();
+
+        $opportunity = $purchaseRequestQuote->opportunity;
+        if ($opportunity && !$opportunity->is_closed) {
+          $closedStatus = ApMasters::where('code', Opportunity::CLOSED)
+            ->whereNull('deleted_at')
+            ->first();
+          if ($closedStatus) {
+            $opportunity->update([
+              'opportunity_status_id' => $closedStatus->id,
+              'comment'               => 'Oportunidad cerrada al desasignar el vehículo de la solicitud ' . $purchaseRequestQuote->correlative,
+            ]);
+          }
+        }
+      }
+
       DB::commit();
       return PurchaseRequestQuoteResource::make($purchaseRequestQuote);
     } catch (Exception $e) {
@@ -559,6 +594,75 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Cambia la sede de la solicitud/cotización.
+   *
+   * La sede no es un dato aislado de la cotización: la asignación asesor–sede y
+   * el origen comercial viven en la oportunidad a través del lead. Por eso, al
+   * cambiar la sede aquí se propaga también al lead de la oportunidad asociada,
+   * manteniendo la coherencia. En el frontend esta acción está protegida por el
+   * permiso existente "Cambiar Ubicación" (changeLocation).
+   */
+  public function changeSede(int $quoteId, int $sedeId): JsonResource
+  {
+    return DB::transaction(function () use ($quoteId, $sedeId) {
+      $quote = $this->find($quoteId);
+
+      if ($quote->is_paid) {
+        throw new Exception('No se puede cambiar la sede porque la solicitud ya fue pagada en su totalidad.');
+      }
+
+      if ((int)$quote->sede_id === $sedeId) {
+        throw new Exception('La solicitud ya pertenece a la sede seleccionada.');
+      }
+
+      if (!empty($quote->ap_vehicle_id)) {
+        throw new Exception('Desasigna el vehículo antes de cambiar la sede: el VIN asignado pertenece a la sede actual.');
+      }
+
+      // Solo se permite mover la solicitud entre sedes de la misma tienda (shop).
+      $currentSede = \App\Models\gp\maestroGeneral\Sede::find($quote->sede_id);
+      $targetSede = \App\Models\gp\maestroGeneral\Sede::find($sedeId);
+      if (!$targetSede) {
+        throw new Exception('La sede seleccionada no existe.');
+      }
+      if (empty($currentSede?->shop_id) || (int)$currentSede->shop_id !== (int)$targetSede->shop_id) {
+        throw new Exception('Solo se puede cambiar a una sede de la misma tienda que la sede actual.');
+      }
+
+      // La solicitud solo se puede mover a una sede que el asesor de la
+      // oportunidad tenga asignada en el período actual (asignación sede-asesor).
+      $workerId = $quote->opportunity?->worker_id;
+      if ($workerId) {
+        $assignedSedeIds = ApAssignCompanyBranch::where('worker_id', $workerId)
+          ->where('year', (int) date('Y'))
+          ->where('month', (int) date('m'))
+          ->where('status', true)
+          ->pluck('sede_id')
+          ->map(fn($id) => (int) $id)
+          ->all();
+
+        if (!empty($assignedSedeIds) && !in_array($sedeId, $assignedSedeIds, true)) {
+          throw new Exception('El asesor de la oportunidad no tiene asignada la sede seleccionada en el período actual.');
+        }
+      }
+
+      $quote->sede_id = $sedeId;
+      $quote->save();
+
+      // Propagar el cambio al lead de la oportunidad (la oportunidad hereda la
+      // sede del lead). Si la oportunidad no tiene lead, solo cambia la sede de
+      // la cotización.
+      $lead = $quote->opportunity?->lead;
+      if ($lead) {
+        $lead->sede_id = $sedeId;
+        $lead->save();
+      }
+
+      return PurchaseRequestQuoteResource::make($quote->fresh());
+    });
   }
 
   public function swapVehicle(int $quoteId, int $newVehicleId): JsonResource
@@ -583,6 +687,14 @@ class PurchaseRequestQuoteService extends BaseService implements BaseServiceInte
       // El VIN nuevo debe pertenecer a la sede de la cotización (el frontend
       // antiguo no filtra por sede, así que el backend debe garantizarlo).
       $this->assertVehicleBelongsToSede($newVehicleId, $quote->sede_id);
+
+      // El vehículo nuevo SIEMPRE debe ser de la misma familia de la oportunidad
+      // de la solicitud (no importa el modelo puntual, sí la familia).
+      $opportunityFamilyId = $quote->opportunity?->family_id;
+      $newVehicleFamilyId = $newVehicle->model?->family_id;
+      if ($opportunityFamilyId && (int)$newVehicleFamilyId !== (int)$opportunityFamilyId) {
+        throw new Exception('El vehículo nuevo debe pertenecer a la misma familia de la oportunidad de la solicitud.');
+      }
 
       // Bloquear si hay documentos de venta final aceptados
       $hasFinalSale = $quote->electronicDocuments()

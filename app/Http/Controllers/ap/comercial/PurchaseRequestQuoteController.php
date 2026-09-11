@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ap\comercial;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\comercial\AssignVehicleToQuoteRequest;
+use App\Http\Requests\ap\comercial\ChangePurchaseRequestQuoteSedeRequest;
 use App\Http\Requests\ap\comercial\DuplicatePurchaseRequestQuoteRequest;
 use App\Http\Requests\ap\comercial\SwapVehicleRequest;
 use App\Http\Requests\ap\comercial\UnassignVehicleFromQuoteRequest;
@@ -87,6 +88,15 @@ class PurchaseRequestQuoteController extends Controller
   {
     try {
       return $this->success($this->service->swapVehicle($id, $request->validated()['ap_vehicle_id']));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function changeSede(ChangePurchaseRequestQuoteSedeRequest $request, int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->changeSede($id, (int) $request->validated()['sede_id']));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }
