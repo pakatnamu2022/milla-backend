@@ -12,6 +12,7 @@ use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\configuracionComercial\vehiculo\ApClassArticle;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
+use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -739,6 +740,72 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
         'movement_date'        => now(),
         'confirmed_at'         => now(),
         'observation'          => 'Reversión por anulación de factura SUNAT',
+        'previous_status_id'   => $vehicle->ap_vehicle_status_id,
+        'new_status_id'        => $targetStatusId,
+        'created_by'           => auth()->id(),
+      ]);
+
+      $vehicle->update(['ap_vehicle_status_id' => $targetStatusId]);
+
+      DB::commit();
+      return $vehicleMovement;
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Revert vehicle status when a credit note (anulación o devolución total) is contabilizada in Dynamics
+   * for a SUNAT invoice linked to a vehicle sale.
+   *
+   * Uses the same priority logic as storeInvoiceCancellationRevertMovement so the vehicle lands on the
+   * highest-priority pre-sale inventory status found in its history, and leaves a traceable VehicleMovement
+   * (previously this was a silent `$vehicle->update()` with no movement record).
+   *
+   * @throws Throwable
+   */
+  public function storeCreditNoteRevertMovement(
+    Vehicles          $vehicle,
+    VehicleMovement   $saleMovement,
+    ElectronicDocument $creditNote
+  ): VehicleMovement {
+    DB::beginTransaction();
+    try {
+      $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
+
+      // Collect all inventory-eligible statuses from this vehicle's history
+      $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+        ->whereIn('new_status_id', array_keys($priorityMap))
+        ->pluck('new_status_id')
+        ->unique()
+        ->toArray();
+
+      // Include the direct pre-sale status stored on the VENTA movement
+      if ($saleMovement->previous_status_id && isset($priorityMap[$saleMovement->previous_status_id])) {
+        $historicalStatuses[] = $saleMovement->previous_status_id;
+      }
+
+      // Pick the highest-priority status
+      $bestStatusId = null;
+      $bestWeight   = -1;
+      foreach ($historicalStatuses as $statusId) {
+        $weight = $priorityMap[$statusId] ?? 0;
+        if ($weight > $bestWeight) {
+          $bestWeight   = $weight;
+          $bestStatusId = $statusId;
+        }
+      }
+
+      $targetStatusId = $bestStatusId ?? ApVehicleStatus::INVENTARIO_VN;
+
+      $vehicleMovement = VehicleMovement::create([
+        'movement_type'        => VehicleMovement::CREDIT_NOTE_REVERT,
+        'ap_vehicle_id'        => $vehicle->id,
+        'ap_vehicle_status_id' => $targetStatusId,
+        'movement_date'        => now(),
+        'confirmed_at'         => now(),
+        'observation'          => "Reversión por nota de crédito - Documento: {$creditNote->serie}-{$creditNote->numero}",
         'previous_status_id'   => $vehicle->ap_vehicle_status_id,
         'new_status_id'        => $targetStatusId,
         'created_by'           => auth()->id(),
