@@ -154,6 +154,11 @@ class PurchaseRequestQuote extends BaseModel
     return $this->sale_price == $total;
   }
 
+  public function getHasAdvancesAttribute(): bool
+  {
+    return $this->getActiveAdvances()->isNotEmpty();
+  }
+
   public function getHasVehicleAttribute(): bool
   {
     return !is_null($this->ap_vehicle_id);
