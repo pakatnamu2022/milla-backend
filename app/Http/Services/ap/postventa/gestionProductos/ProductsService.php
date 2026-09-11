@@ -148,6 +148,19 @@ class ProductsService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede crear un producto con la clase de artículo "SERVICIOS".');
       }
 
+      // Validar cambio de pvp_mode si el producto tiene movimientos
+      if (isset($data['pvp_mode']) && $data['pvp_mode'] !== $product->pvp_mode) {
+        // Verificar si el producto tiene movimientos de inventario
+        $hasMovements = InventoryMovementDetail::where('product_id', $data['id'])->exists();
+
+        if ($hasMovements) {
+          throw new Exception(
+            'No se puede modificar el modo de PVP porque el producto ya tiene movimientos de inventario. ' .
+            'El modo de PVP solo puede establecerse al crear el producto y no puede modificarse después.'
+          );
+        }
+      }
+
       // Si solo se está actualizando el status, permitir la actualización sin validaciones
       $isOnlyStatusUpdate = count($data) === 2 && isset($data['id']) && isset($data['status']);
 

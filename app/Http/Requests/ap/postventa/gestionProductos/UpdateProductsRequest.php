@@ -29,8 +29,9 @@ class UpdateProductsRequest extends StoreRequest
       'brand_id' => 'nullable|exists:ap_vehicle_brand,id',
       'unit_measurement_id' => 'sometimes|required|exists:unit_measurement,id',
       'ap_class_article_id' => 'sometimes|required|exists:ap_class_article,id',
-      
+
       'warranty_months' => 'nullable|integer|min:0',
+      'pvp_mode' => 'nullable|in:conventional,local',
       'status' => 'sometimes|required|in:ACTIVE,INACTIVE,DISCONTINUED',
     ];
   }
@@ -49,6 +50,7 @@ class UpdateProductsRequest extends StoreRequest
       'unit_measurement_id.exists' => 'La unidad de medida seleccionada no es válida.',
       'sale_price.required' => 'El precio de venta es obligatorio.',
       'sale_price.min' => 'El precio de venta debe ser mayor o igual a 0.',
+      'pvp_mode.in' => 'El modo de PVP debe ser "conventional" o "local".',
       'status.required' => 'El estado es obligatorio.',
       'status.in' => 'El estado debe ser ACTIVE, INACTIVE o DISCONTINUED.',
     ];

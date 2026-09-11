@@ -9,7 +9,6 @@ use App\Http\Services\common\EmailService;
 use App\Http\Utils\Constants;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\ApMasters;
-use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseReceptionDetail;
 use App\Models\ap\postventa\taller\ApOrderPurchaseRequestDetails;
@@ -160,9 +159,8 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         throw new Exception('No se ha registrado la tasa de cambio USD para la fecha de hoy.');
       }
 
-      if ($purchaseRequest->ap_order_quotation_id) {
-        throw new Exception("No se puede modificar una solicitud de compra asociada a una cotización.");
-      }
+      // Si tiene cotización asociada, solo permitir editar tipo de abastecimiento
+      $hasQuotation = !is_null($purchaseRequest->ap_order_quotation_id);
 
       if ($purchaseRequest->status === ApOrderPurchaseRequests::CANCELLED) {
         throw new Exception("No se puede modificar una solicitud de compra que ha sido cancelada.");
@@ -182,16 +180,22 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
       $details = $data['details'] ?? null;
       unset($data['details']);
 
+      // Si tiene cotización, no permitir modificar campos principales
+      if ($hasQuotation) {
+        // Solo mantener el ID para la actualización, los demás campos se ignoran
+        $data = ['id' => $data['id']];
+      }
+
       // Ensure that all products are assigned to the warehouse if details are being updated
-      if ($details !== null && isset($data['warehouse_id'])) {
+      if (!$hasQuotation && $details !== null && isset($data['warehouse_id'])) {
         $this->ensureProductsInWarehouse($details, $data['warehouse_id']);
-      } elseif ($details !== null) {
+      } elseif (!$hasQuotation && $details !== null) {
         // If warehouse_id is not in data, use the current warehouse_id
         $this->ensureProductsInWarehouse($details, $purchaseRequest->warehouse_id);
       }
 
       // Validar decimales según la unidad de medida de cada producto
-      if ($details !== null) {
+      if (!$hasQuotation && $details !== null) {
         foreach ($details as $detail) {
           if (isset($detail['product_id']) && isset($detail['quantity'])) {
             $product = Products::find($detail['product_id']);
@@ -202,12 +206,38 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
         }
       }
 
-      // Update purchase request
-      $purchaseRequest->update($data);
+      // Update purchase request (solo si no tiene cotización)
+      if (!$hasQuotation) {
+        $purchaseRequest->update($data);
+      }
 
       // Update details if provided
       if ($details !== null) {
-        if ($purchaseRequest->approved) {
+        if ($hasQuotation) {
+          // Si tiene cotización, solo permitir editar tipo de abastecimiento
+          // No permitir agregar ni quitar repuestos
+          $existingProductIds = $purchaseRequest->details()->pluck('product_id')
+            ->map(fn($id) => (int)$id)->sort()->values()->all();
+          $incomingProductIds = collect($details)->pluck('product_id')
+            ->map(fn($id) => (int)$id)->sort()->values()->all();
+
+          if ($existingProductIds !== $incomingProductIds) {
+            throw new Exception("No se pueden agregar o quitar repuestos de una solicitud de compra asociada a una cotización.");
+          }
+
+          // Solo actualizar el tipo de abastecimiento
+          foreach ($details as $detail) {
+            $existingDetail = ApOrderPurchaseRequestDetails::where('order_purchase_request_id', $purchaseRequest->id)
+              ->where('product_id', $detail['product_id'])
+              ->first();
+
+            if ($existingDetail && isset($detail['supply_type'])) {
+              $existingDetail->update([
+                'supply_type' => $detail['supply_type'],
+              ]);
+            }
+          }
+        } elseif ($purchaseRequest->approved) {
           // Una solicitud aprobada no permite agregar ni quitar repuestos,
           // solo editar los datos (cantidad, precio, descuento, fechas, tipo de abastecimiento, etc.)
           // de los repuestos ya existentes.
@@ -481,209 +511,6 @@ class ApOrderPurchaseRequestsService extends BaseService implements BaseServiceI
     ]);
   }
 
-  public function generatePurchaseRequestPDF(int $id)
-  {
-    $purchaseRequest = ApOrderPurchaseRequests::with([
-      'apOrderQuotation.client.district',
-      'apOrderQuotation.details.product',
-      'apOrderQuotation.typeCurrency',
-      'apOrderQuotation.createdBy.person',
-      'apOrderQuotation.vehicle.model.family.brand',
-      'warehouse',
-      'warehouse.sede',
-      'requestedBy.person',
-      'details.product',
-      'typeCurrency'
-    ])->find($id);
-
-    if (!$purchaseRequest) {
-      throw new Exception('solicitud de compra no encontrada');
-    }
-
-    $quotation = $purchaseRequest->apOrderQuotation;
-    $hasQuotation = $quotation !== null;
-
-    // Datos base de la solicitud
-    $data = [
-      'request_number' => $purchaseRequest->request_number,
-      'requested_date' => $purchaseRequest->requested_date ?? $purchaseRequest->created_at,
-      'delivery_date' => '-',
-      'work_order_number' => '-',
-      'has_quotation' => $hasQuotation,
-      'quotation_number' => $hasQuotation ? $quotation->quotation_number : null,
-      'sede' => $purchaseRequest->warehouse->sede,
-    ];
-
-    // Datos del proveedor/cliente
-    if ($hasQuotation && $quotation->client) {
-      $client = $quotation->client;
-    } else {
-      $client = BusinessPartners::find(BusinessPartners::AUTOMOTORES_PAKATNAMU_ID);
-    }
-
-    $data['supplier_name'] = $client->full_name ?? '-';
-    $data['supplier_ruc'] = $client->num_doc ?? '-';
-    $data['supplier_address'] = $client->direction ?? '-';
-    $data['supplier_ubigeo'] = $client->ubigeo ?? '-';
-    $data['supplier_city'] = $client->district ? $client->district->name . ' - ' . ($client->district->province->name ?? '') : '-';
-    $data['supplier_phone'] = $client->phone ?? '-';
-    $data['supplier_email'] = $client->email ?? '-';
-
-    // Datos del vendedor/asesor
-    if ($purchaseRequest->requestedBy && $purchaseRequest->requestedBy->person) {
-      $data['advisor_name'] = ($purchaseRequest->requestedBy->person->nombre_completo ?? '-');
-    } else {
-      $data['advisor_name'] = '-';
-    }
-
-    // Datos del almacén
-    $data['warehouse_name'] = $purchaseRequest->warehouse
-      ? $purchaseRequest->warehouse->id . ' - ' . $purchaseRequest->warehouse->description
-      : '-';
-
-    // Datos del vehículo
-    if ($hasQuotation && $quotation->vehicle) {
-      $vehicle = $quotation->vehicle;
-      $data['vehicle_plate'] = $vehicle->plate ?? '-';
-      $data['vehicle_vin'] = $vehicle->vin ?? '-';
-      $data['vehicle_model'] = $vehicle->model
-        ? ($vehicle->model->family->brand->name ?? '') . ' ' . ($vehicle->model->version ?? '')
-        : '-';
-    } else {
-      $data['vehicle_plate'] = '-';
-      $data['vehicle_vin'] = '-';
-      $data['vehicle_model'] = '-';
-    }
-
-    // Forma de pago (si hay cotización)
-    $data['payment_method'] = '-';
-
-    // Preparar detalles con precios de la cotización
-    $details = [];
-    $total = 0;
-
-    foreach ($purchaseRequest->details as $detail) {
-      $product = $detail->product;
-      $code = $product ? $product->code : '-';
-      $description = $product ? $product->name : '-';
-      $quantity = $detail->quantity;
-      $supply_type = $detail->supply_type;
-      $notes = $detail->notes ?? '-';
-
-      // Obtener precios directamente del detalle de la solicitud de compra
-      $price = $detail->unit_price ?? '-';
-      $discount = ($detail->discount_percentage ?? 0) > 0 ? $detail->discount_percentage : '0';
-      $lineTotal = $detail->total_amount ?? '-';
-
-      if (is_numeric($lineTotal)) {
-        $total += $lineTotal;
-      }
-
-      $details[] = [
-        'code' => $code,
-        'description' => $description,
-        'supply_type' => $supply_type,
-        'notes' => $notes,
-        'quantity' => number_format($quantity, 2),
-        'price' => is_numeric($price) ? number_format($price, 2) : $price,
-        'discount' => is_numeric($discount) ? number_format($discount, 2) : $discount,
-        'total' => is_numeric($lineTotal) ? number_format($lineTotal, 2) : $lineTotal,
-      ];
-    }
-
-    $data['details'] = $details;
-    $data['observations'] = $purchaseRequest->observations ?? '';
-
-    // Obtener símbolo de moneda directamente de la solicitud de compra
-    $currencySymbol = '';
-    if ($purchaseRequest->typeCurrency) {
-      $currencySymbol = $purchaseRequest->typeCurrency->symbol ?? '';
-    }
-    $data['currency_symbol'] = $currencySymbol;
-
-    // Calcular subtotal, IGV y total
-    if ($total > 0) {
-      $igvRate = Constants::VAT_TAX / 100;
-      $igv = $total * $igvRate;
-      $totalWithIgv = $total + $igv;
-
-      $data['subtotal'] = number_format($total, 2);
-      $data['igv'] = number_format($igv, 2);
-      $data['total'] = number_format($totalWithIgv, 2);
-    } else {
-      $data['subtotal'] = '-';
-      $data['igv'] = '-';
-      $data['total'] = '-';
-    }
-
-    // Obtener anticipos y facturas si existe cotización
-    $electronicDocuments = [];
-    if ($hasQuotation) {
-      $documents = collect();
-
-      // Diferenciar búsqueda según area_id
-      if ($purchaseRequest->area_id == ApMasters::AREA_MESON) {
-        // Para MESON: buscar por order_quotation_id (lógica actual)
-        $documents = ElectronicDocument::where('order_quotation_id', $quotation->id)
-          ->where('anulado', false)
-          ->whereIn('status', [
-            ElectronicDocument::STATUS_SENT,
-            ElectronicDocument::STATUS_ACCEPTED
-          ])
-          ->orderBy('fecha_de_emision', 'asc')
-          ->get();
-      } elseif ($purchaseRequest->area_id == ApMasters::AREA_TALLER) {
-        // Para TALLER: buscar work_order_id usando order_quotation_id
-        $workOrder = ApWorkOrder::where('order_quotation_id', $quotation->id)->first();
-
-        if ($workOrder) {
-          $documents = ElectronicDocument::where('work_order_id', $workOrder->id)
-            ->where('anulado', false)
-            ->whereIn('status', [
-              ElectronicDocument::STATUS_SENT,
-              ElectronicDocument::STATUS_ACCEPTED
-            ])
-            ->orderBy('fecha_de_emision', 'asc')
-            ->get();
-        }
-      }
-
-      foreach ($documents as $doc) {
-        $electronicDocuments[] = [
-          'number' => $doc->full_number,
-          'date' => $doc->fecha_de_emision ? $doc->fecha_de_emision->format('d/m/Y') : '-',
-          'amount' => number_format($doc->total, 2),
-          'status' => $this->getStatusLabel($doc->status),
-          'is_advance' => $doc->is_advance_payment ? 'Sí' : 'No',
-          'type' => $doc->is_advance_payment ? 'Anticipo' : 'Factura'
-        ];
-      }
-    }
-    $data['electronic_documents'] = $electronicDocuments;
-
-    // Generar PDF
-    $pdf = Pdf::loadView('reports.ap.postventa.taller.order-purchase-request', [
-      'purchaseRequest' => $data
-    ]);
-
-    $pdf->setPaper('a4', 'portrait');
-
-    $fileName = 'Solicitud_Compra_' . $purchaseRequest->request_number . '.pdf';
-
-    return $pdf->download($fileName);
-  }
-
-  private function getStatusLabel(string $status): string
-  {
-    return match ($status) {
-      ElectronicDocument::STATUS_DRAFT => 'Borrador',
-      ElectronicDocument::STATUS_SENT => 'Enviado',
-      ElectronicDocument::STATUS_ACCEPTED => 'Aceptado',
-      ElectronicDocument::STATUS_REJECTED => 'Rechazado',
-      ElectronicDocument::STATUS_CANCELLED => 'Anulado',
-      default => $status,
-    };
-  }
 
   /**
    * Aprueba una cotización según el cargo del usuario autenticado:

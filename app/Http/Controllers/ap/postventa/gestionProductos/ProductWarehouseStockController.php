@@ -116,12 +116,17 @@ class ProductWarehouseStockController extends Controller
       $request->validate([
         'product_id' => 'required|integer|exists:products,id',
         'warehouse_id' => 'required|integer|exists:warehouse,id',
+        'per_page' => 'nullable|integer|min:1|max:500',
+        'page' => 'nullable|integer|min:1',
       ]);
 
       $productId = $request->input('product_id');
       $warehouseId = $request->input('warehouse_id');
+      $perPage = $request->input('per_page', 50); // Default 50 registros por página
+      $page = $request->input('page', 1); // Default página 1
 
-      $result = $this->service->getStockMovementHistory($productId, $warehouseId);
+      // Usar el método paginado que consulta weighted_average_cost_history
+      $result = $this->service->getStockMovementHistoryPaginated($productId, $warehouseId, $perPage, $page);
 
       return response()->json($result);
     } catch (\Throwable $th) {

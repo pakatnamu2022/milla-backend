@@ -8,6 +8,7 @@ use App\Http\Services\BaseService;
 use App\Http\Services\common\ExportService;
 use App\Exports\ap\postventa\ProductWarehouseStockExport;
 use App\Jobs\RecalculateProductCostJob;
+use App\Models\ap\postventa\gestionProductos\Products;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ap\ApMasters;
 use App\Models\ap\compras\PurchaseReception;
@@ -89,6 +90,25 @@ class ProductWarehouseStockService extends BaseService
     return $this->minimunDiscount;
   }
 
+  /**
+   * Helper para obtener el ID de una moneda por su código
+   * Cachea los resultados para mejorar performance
+   *
+   * @param string $currencyCode Código de la moneda (ej: "PEN", "USD")
+   * @return int|null
+   */
+  private function getCurrencyIdByCode(string $currencyCode): ?int
+  {
+    static $cache = [];
+
+    if (!isset($cache[$currencyCode])) {
+      $currency = TypeCurrency::where('code', $currencyCode)->first();
+      $cache[$currencyCode] = $currency?->id;
+    }
+
+    return $cache[$currencyCode];
+  }
+
   public function list(Request $request)
   {
     $query = ProductWarehouseStock::with('shelves');
@@ -98,12 +118,12 @@ class ProductWarehouseStockService extends BaseService
       $query->whereHas('shelves', function ($q) use ($request) {
         $q->where('product_shelves.id', $request->product_shelf_id);
       })
-      ->join('product_warehouse_shelf', function ($join) use ($request) {
-        $join->on('product_warehouse_stock.id', '=', 'product_warehouse_shelf.product_warehouse_stock_id')
-             ->where('product_warehouse_shelf.product_shelf_id', $request->product_shelf_id);
-      })
-      ->orderByRaw('COALESCE(product_warehouse_shelf.position, 999999)')
-      ->select('product_warehouse_stock.*');
+        ->join('product_warehouse_shelf', function ($join) use ($request) {
+          $join->on('product_warehouse_stock.id', '=', 'product_warehouse_shelf.product_warehouse_stock_id')
+            ->where('product_warehouse_shelf.product_shelf_id', $request->product_shelf_id);
+        })
+        ->orderByRaw('COALESCE(product_warehouse_shelf.position, 999999)')
+        ->select('product_warehouse_stock.*');
     }
 
     return $this->getFilteredResults(
@@ -127,6 +147,7 @@ class ProductWarehouseStockService extends BaseService
   public function update(mixed $data)
   {
     $productWarehouseStock = $this->find($data['id']);
+
     $productWarehouseStock->update($data);
     return new ProductWarehouseStockResource($productWarehouseStock);
   }
@@ -633,6 +654,7 @@ class ProductWarehouseStockService extends BaseService
       // LOCK: Adquirir lock exclusivo para prevenir race conditions
       $stock = ProductWarehouseStock::where('product_id', $productId)
         ->where('warehouse_id', $warehouseId)
+        ->with('product')
         ->lockForUpdate()
         ->first();
 
@@ -712,6 +734,9 @@ class ProductWarehouseStockService extends BaseService
         'quantity_in' => $isInbound ? $quantity : 0,
         'quantity_out' => !$isInbound ? $quantity : 0,
         'unit_cost_pen' => $unitCost,
+        'unit_cost_original' => $unitCostOriginal, // Costo en moneda original
+        'currency_id' => $movement->currency_id, // ID de la moneda
+        'exchange_rate' => $movement->exchange_rate ?? 1.0, // Tipo de cambio (default 1.0 si es PEN)
         'stock_after_movement' => $currentStock,
         'average_cost_after_movement' => $newAvgCost,
         'recalculated_at' => null, // NULL = no es recálculo, es tiempo real
@@ -726,8 +751,11 @@ class ProductWarehouseStockService extends BaseService
 
       // Recalcular precios de venta basados en el nuevo average_cost
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
 
       if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
         $salePrice = round(
@@ -1966,6 +1994,98 @@ class ProductWarehouseStockService extends BaseService
   }
 
   /**
+   * Get stock movement history using the materialized weighted_average_cost_history table
+   * This is the FAST version with pagination for UI display
+   *
+   * IMPORTANTE: Este método es para consultas rápidas con paginación.
+   * Para reconstrucción interna, usa getStockMovementHistory() (sin paginar).
+   *
+   * @param int $productId
+   * @param int $warehouseId
+   * @param int $perPage Número de registros por página (default: 50)
+   * @param int $page Página actual (default: 1)
+   * @return array
+   * @throws Exception
+   */
+  public function getStockMovementHistoryPaginated(int $productId, int $warehouseId, int $perPage = 50, int $page = 1): array
+  {
+    try {
+      // Get the stock record
+      $stock = ProductWarehouseStock::where('product_id', $productId)
+        ->where('warehouse_id', $warehouseId)
+        ->with(['product', 'warehouse'])
+        ->firstOrFail();
+
+      // Get paginated history from materialized table with currency relationship
+      $history = WeightedAverageCostHistory::forProductWarehouse($productId, $warehouseId)
+        ->with('currency') // Eager load currency relationship
+        ->chronological()
+        ->paginate($perPage, ['*'], 'page', $page);
+
+      // Transform data to match the expected format
+      $transformedHistory = $history->map(function ($snapshot) {
+        // Determine movement type label
+        $movementTypeLabel = match ($snapshot->movement_type) {
+          InventoryMovement::TYPE_PURCHASE_RECEPTION => 'Recepción de Compra',
+          InventoryMovement::TYPE_RETURN_OUT => 'Devolución a Proveedor',
+          InventoryMovement::TYPE_RETURN_IN => 'Devolución de Cliente',
+          InventoryMovement::TYPE_ADJUSTMENT_IN => 'Ajuste de Entrada',
+          InventoryMovement::TYPE_ADJUSTMENT_OUT => 'Ajuste de Salida',
+          InventoryMovement::TYPE_TRANSFER_IN => 'Transferencia Entrada',
+          InventoryMovement::TYPE_TRANSFER_OUT => 'Transferencia Salida',
+          InventoryMovement::TYPE_SALE => 'Venta',
+          default => $snapshot->movement_type,
+        };
+
+        return [
+          'movement_id' => $snapshot->movement_id,
+          'movement_date' => $snapshot->movement_date->format('Y-m-d'),
+          'movement_number' => $snapshot->movement_number,
+          'movement_type' => $snapshot->movement_type,
+          'movement_type_label' => $movementTypeLabel,
+          'is_inbound' => $snapshot->is_inbound,
+          'quantity_in' => (float)$snapshot->quantity_in,
+          'quantity_out' => (float)$snapshot->quantity_out,
+          'quantity' => $snapshot->is_inbound ? (float)$snapshot->quantity_in : (float)$snapshot->quantity_out,
+          'unit_cost' => (float)$snapshot->unit_cost_original, // Costo en moneda original
+          'unit_cost_in_pen' => (float)$snapshot->unit_cost_pen, // Costo convertido a PEN
+          'currency' => $snapshot->currency?->code ?? 'PEN', // Código de moneda (ej: USD, PEN)
+          'currency_id' => $snapshot->currency_id, // ID de la moneda
+          'exchange_rate' => (float)$snapshot->exchange_rate, // Tipo de cambio usado
+          'total_cost' => $snapshot->is_inbound ? round((float)$snapshot->quantity_in * (float)$snapshot->unit_cost_pen, 2) : 0,
+          'stock_after_movement' => (float)$snapshot->stock_after_movement,
+          'average_cost_after_movement' => (float)$snapshot->average_cost_after_movement,
+          'created_at' => $snapshot->created_at?->format('Y-m-d H:i:s'),
+          'was_recalculated' => $snapshot->was_recalculated,
+        ];
+      });
+
+      return [
+        'success' => true,
+        'product_id' => $productId,
+        'product_code' => $stock->product?->code,
+        'product_name' => $stock->product?->name,
+        'warehouse_id' => $warehouseId,
+        'warehouse_name' => $stock->warehouse?->description,
+        'current_stock_database' => (float)$stock->quantity,
+        'current_average_cost_database' => (float)$stock->average_cost,
+        'history' => $transformedHistory,
+        'pagination' => [
+          'current_page' => $history->currentPage(),
+          'last_page' => $history->lastPage(),
+          'per_page' => $history->perPage(),
+          'total' => $history->total(),
+          'from' => $history->firstItem(),
+          'to' => $history->lastItem(),
+        ],
+        'generated_at' => now()->format('Y-m-d H:i:s'),
+      ];
+    } catch (Exception $e) {
+      throw $e;
+    }
+  }
+
+  /**
    * Get detailed price calculation explanation for a product in a warehouse
    * Shows step-by-step how the PVP (public sale price) is calculated
    *
@@ -1987,8 +2107,12 @@ class ProductWarehouseStockService extends BaseService
 
       // Get configuration values
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
+
       $calculationMethod = ProductWarehouseStock::PRICE_CALCULATION_METHOD;
 
       // Get current prices from stock
@@ -2326,6 +2450,7 @@ class ProductWarehouseStockService extends BaseService
       // LOCK: Adquirir lock exclusivo para prevenir race conditions
       $stock = ProductWarehouseStock::where('product_id', $productId)
         ->where('warehouse_id', $warehouseId)
+        ->with('product')
         ->lockForUpdate()
         ->first();
 
@@ -2426,6 +2551,9 @@ class ProductWarehouseStockService extends BaseService
           'quantity_in' => $item['is_inbound'] ? $item['quantity'] : 0,
           'quantity_out' => !$item['is_inbound'] ? $item['quantity'] : 0,
           'unit_cost_pen' => $item['unit_cost_in_pen'] ?? 0,
+          'unit_cost_original' => $item['unit_cost'] ?? 0, // Costo en moneda original
+          'currency_id' => $this->getCurrencyIdByCode($item['currency'] ?? 'PEN'), // ID de la moneda
+          'exchange_rate' => $item['exchange_rate'] ?? 1.0, // Tipo de cambio
           'stock_after_movement' => $item['stock_after_movement'],
           'average_cost_after_movement' => $item['average_cost_after_movement'],
           'recalculated_at' => $now,
@@ -2471,8 +2599,11 @@ class ProductWarehouseStockService extends BaseService
 
       // Calcular el sale_price basado en el nuevo average_cost
       $profitMargin = $this->getProfitMargin();
-      $freightCommission = $this->getFreightCommission();
       $minimumDiscount = $this->getMinimunDiscount();
+
+      // Obtener freight commission basado en el pvp_mode del producto
+      // Si pvp_mode = 'local', NO considerar el porcentaje de flete
+      $freightCommission = ($stock->product->pvp_mode === Products::PVP_MODE_LOCAL) ? 0 : $this->getFreightCommission();
 
       if (ProductWarehouseStock::PRICE_CALCULATION_METHOD === 1) {
         // Método 1: PVP = Costo / (1 - margen) * (1 + impuesto)

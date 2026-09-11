@@ -49,6 +49,9 @@ class WeightedAverageCostHistory extends Model
     'quantity_in',
     'quantity_out',
     'unit_cost_pen',
+    'unit_cost_original',
+    'currency_id',
+    'exchange_rate',
     'stock_after_movement',
     'average_cost_after_movement',
     'recalculated_at',
@@ -62,6 +65,9 @@ class WeightedAverageCostHistory extends Model
     'quantity_in' => 'decimal:4',
     'quantity_out' => 'decimal:4',
     'unit_cost_pen' => 'decimal:2',
+    'unit_cost_original' => 'decimal:2',
+    'currency_id' => 'integer',
+    'exchange_rate' => 'decimal:4',
     'stock_after_movement' => 'decimal:4',
     'average_cost_after_movement' => 'decimal:2',
     'recalculated_at' => 'datetime',
@@ -110,6 +116,15 @@ class WeightedAverageCostHistory extends Model
   public function inventoryMovement(): BelongsTo
   {
     return $this->belongsTo(InventoryMovement::class, 'movement_id');
+  }
+
+  /**
+   * Moneda en la que se registró el costo original
+   * Puede ser NULL para movimientos sin costo (salidas, ajustes)
+   */
+  public function currency(): BelongsTo
+  {
+    return $this->belongsTo(\App\Models\ap\maestroGeneral\TypeCurrency::class, 'currency_id');
   }
 
   // ==========================================

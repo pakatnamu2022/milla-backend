@@ -33,6 +33,7 @@ class ProductsResource extends JsonResource
       'brand_name' => $this->brand->name ?? null,
       'category_name' => $this->category->description ?? null,
       'unit_measurement_name' => $this->unitMeasurement->description ?? null,
+      'pvp_mode' => $this->pvp_mode,
 
       // NEW: Multi-warehouse stock information
       'warehouse_stocks' => ProductWarehouseStockResource::collection($this->whenLoaded('warehouseStocks')),

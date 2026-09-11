@@ -294,11 +294,12 @@ class ProductWarehouseStock extends Model
    * @throws \Exception Si no hay suficiente stock reservado
    */
   public static function validateReservedStock(
-    int $productId,
-    int $warehouseId,
+    int   $productId,
+    int   $warehouseId,
     float $requiredQuantity,
-    bool $isTraverse = false
-  ): void {
+    bool  $isTraverse = false
+  ): void
+  {
     // Si es producto de travesía, no validamos stock reservado
     if ($isTraverse) {
       return;
