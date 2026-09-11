@@ -2,13 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\StockReReservationService;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsReversalService;
 use App\Http\Services\ap\postventa\taller\ApWorkOrderReversalService;
 use App\Models\ap\ApMasters;
+use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
-use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\postventa\taller\ApOrderQuotations;
@@ -149,9 +150,23 @@ class SyncAccountingStatusJob implements ShouldQueue
       return;
     }
 
+    // Idempotencia + backfill: si esta nota de crédito ya generó su propio movimiento de reversión,
+    // no crear otro (evita duplicados en reprocesamientos). Si no lo tiene (incluye notas de crédito
+    // procesadas antes de este fix, cuando solo se pisaba el status sin dejar historial), lo generamos
+    // ahora al volver a consultar/reprocesar el documento.
+    if ($document->ap_vehicle_movement_id) {
+      return;
+    }
+
     $originalDocument = $document->originalDocument;
 
     if (!$originalDocument || !$originalDocument->ap_vehicle_movement_id) {
+      return;
+    }
+
+    $saleMovement = VehicleMovement::find($originalDocument->ap_vehicle_movement_id);
+
+    if (!$saleMovement) {
       return;
     }
 
@@ -161,7 +176,19 @@ class SyncAccountingStatusJob implements ShouldQueue
       return;
     }
 
-    $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
+    try {
+      $vehicleMovement = app(VehicleMovementService::class)
+        ->storeCreditNoteRevertMovement($vehicle, $saleMovement, $document);
+
+      // Deja registrado en la propia nota de crédito qué movimiento generó, para la idempotencia de arriba.
+      $document->update(['ap_vehicle_movement_id' => $vehicleMovement->id]);
+    } catch (Throwable $e) {
+      Log::error('❌ [SYNC-ACCOUNTING] Error al revertir estado de vehículo por nota de crédito contabilizada', [
+        'document_id' => $document->id,
+        'ap_vehicle_movement_id' => $originalDocument->ap_vehicle_movement_id,
+        'error' => $e->getMessage(),
+      ]);
+    }
   }
 
   /**

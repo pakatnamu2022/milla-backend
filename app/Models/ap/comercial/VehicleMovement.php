@@ -66,6 +66,7 @@ class VehicleMovement extends BaseModel
   const EN_CURSO = 'EN CURSO';
   const UNASSIGN_REVERT = 'DESASIGNACION';
   const ASSET = 'ACTIVO';
+  const CREDIT_NOTE_REVERT = 'REVERSION_NOTA_CREDITO';
 
   public function vehicleStatus(): BelongsTo
   {
