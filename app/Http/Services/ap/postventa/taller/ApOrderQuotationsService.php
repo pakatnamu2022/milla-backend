@@ -71,6 +71,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       'id',
       'quotation_number',
       'parent_quotation_id',
+      'duplicated_from_quotation_id',
       'vehicle_id',
       'client_id',
       'currency_id',
@@ -1606,6 +1607,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $newQuotationData['quotation_number'] = ApOrderQuotations::generateNextQuotationNumber($originalQuotation->sede_id);
 
       // 6. Resetear campos específicos - la cotización clonada siempre se crea APERTURADA
+      $newQuotationData['duplicated_from_quotation_id'] = $id; // Guardar referencia a la cotización original duplicada
       $newQuotationData['quotation_date'] = Carbon::now()->toDateString();
       $newQuotationData['expiration_date'] = Carbon::now()->addDays(7)->toDateString();
       $newQuotationData['status_id'] = ApMasters::STATUS_ORDER_QUOTE_APERTURADO;
@@ -1626,6 +1628,12 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
       $newQuotationData['deductible_amount'] = 0;
       $newQuotationData['exchange_rate_id'] = $optimalExchangeRate->id;
       $newQuotationData['exchange_rate'] = $optimalExchangeRate->rate;
+      $newQuotationData['confirmation_token'] = null;
+      $newQuotationData['confirmation_token_expires_at'] = null;
+      $newQuotationData['confirmed_at'] = null;
+      $newQuotationData['confirmation_channel'] = null;
+      $newQuotationData['confirmation_ip'] = null;
+      $newQuotationData['confirmation_metadata'] = null;
 
       // Resetear totales en 0 (se recalcularán después basándose en los detalles nuevos)
       $newQuotationData['subtotal'] = 0;

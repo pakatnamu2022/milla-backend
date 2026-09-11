@@ -89,6 +89,7 @@ class ApOrderQuotations extends Model
     'confirmation_ip',
     'confirmation_metadata',
     'parent_quotation_id',
+    'duplicated_from_quotation_id',
     'shipping_guide_id',
     'is_sold_at_valid_price',
   ];
@@ -307,6 +308,16 @@ class ApOrderQuotations extends Model
   public function segmentedQuotations(): HasMany
   {
     return $this->hasMany(ApOrderQuotations::class, 'parent_quotation_id');
+  }
+
+  public function duplicatedFromQuotation(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotations::class, 'duplicated_from_quotation_id');
+  }
+
+  public function duplicatedQuotations(): HasMany
+  {
+    return $this->hasMany(ApOrderQuotations::class, 'duplicated_from_quotation_id');
   }
 
   public function shippingGuide(): BelongsTo
