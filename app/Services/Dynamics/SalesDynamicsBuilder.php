@@ -64,8 +64,29 @@ class SalesDynamicsBuilder
 
     $nextLine = $normalItems->max('line_number') + 1;
 
-    $items = $normalItems->map(function ($item) use ($document) {
-      return new SalesDocumentDetailDynamicsResource($item, $document, null);
+    // Calcular sumatoria de anticipos (si es NC a factura final con anticipos)
+    $totalAnticipos = 0;
+    if ($isCreditNote && $document->original_document_id) {
+      $originalDocument = ElectronicDocument::with('items')->find($document->original_document_id);
+
+      if ($originalDocument && !$originalDocument->is_advance_payment) {
+        $totalAnticipos = $originalDocument->items()
+          ->where('anticipo_regularizacion', true)
+          ->sum('subtotal');
+      }
+    }
+
+    $items = $normalItems->values()->map(function ($item, $index) use ($document, $totalAnticipos) {
+      $resource = new SalesDocumentDetailDynamicsResource($item, $document, null);
+      $itemArray = $resource->toArray(request());
+
+      // Si es el primer item y hay anticipos, agregar la suma positiva
+      if ($index === 0 && $totalAnticipos > 0) {
+        $itemArray['PrecioUnitario'] = round((float)$itemArray['PrecioUnitario'] + $totalAnticipos, 2);
+        $itemArray['PrecioTotal'] = round((float)$itemArray['PrecioTotal'] + $totalAnticipos, 2);
+      }
+
+      return $itemArray;
     });
 
     // Agregar ítem de deducible si el documento tiene orden de trabajo con deducible
@@ -287,7 +308,7 @@ class SalesDynamicsBuilder
       'EmpresaId' => Company::AP_DYNAMICS,
       'DocumentoId' => $creditNoteDocument->full_number,
       'Linea' => $linea,
-      'ArticuloId' => $anticipoItem->dyn_code ?? $anticipoItem->codigo,
+      'ArticuloId' => 'V0000002', // Código fijo para anticipos
       'ArticuloDescripcionCorta' => Str::upper(Str::limit($description, 60, '')),
       'ArticuloDescripcionLarga' => $description,
       'SitioId' => $creditNoteDocument->warehouse()
