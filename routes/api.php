@@ -2097,6 +2097,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Preview de asientos contables
       Route::get('accounting-entries/preview/{shippingGuideId}', [AccountingEntryController::class, 'preview']);
+      Route::get('accounting-entries/preview-reversal/{shippingGuideId}', [AccountingEntryController::class, 'previewReversal']);
       Route::get('accounting-entries/mappings', [AccountingEntryController::class, 'accountMappings']);
       Route::get('electronic-documents/{id}/sync-status', [ElectronicDocumentController::class, 'getSyncStatus']);
       Route::get('electronic-documents/checkResources/{id}', [ElectronicDocumentController::class, 'checkResources']);

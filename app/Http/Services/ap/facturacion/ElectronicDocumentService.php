@@ -17,6 +17,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Jobs\SyncSalesDocumentJob;
 use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\PurchaseRequestQuote;
+use App\Http\Resources\Dynamics\AccountingEntryHeaderDynamicsResource;
+use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\comercial\Vehicles;
@@ -2005,6 +2007,72 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
   }
 
   /**
+   * Si el vehículo de la factura original tiene una guía de remisión de VENTA cuya
+   * entrega ya fue contabilizada en Dynamics (asiento original enviado), bloquea la
+   * creación de la nota de crédito hasta que:
+   *   1. La guía haya sido anulada (cancel(), no annul()) — dispara la reversión de
+   *      inventario y, si corresponde, el asiento de reversión.
+   *   2. La reversión del asiento contable (ReverseAccountingEntryJob) ya se haya
+   *      enviado a la intermedia (log STEP_ACCOUNTING_ENTRY_HEADER_REVERSAL).
+   *
+   * Si el vehículo nunca tuvo un asiento contable enviado (venta aún no entregada/
+   * contabilizada, o documento sin movimiento de vehículo asociado, p.ej. postventa),
+   * no aplica ninguna restricción.
+   *
+   * @throws Exception
+   */
+  protected function assertShippingGuideReversalReadyForCreditNote(ElectronicDocument $originalDocument): void
+  {
+    // OJO: la guía de remisión de la entrega NO comparte vehicle_movement_id con la
+    // factura (la factura queda ligada al movimiento VENTA; la guía, al de entrega/
+    // travesía), así que no se pueden enlazar por ese campo. Tampoco basta con "cualquier
+    // guía de VENTA contabilizada de este VIN": un mismo vehículo puede haberse vendido y
+    // entregado más de una vez en su vida (p.ej. venta anulada + reventa), cada ciclo con
+    // su propia guía y su propio asiento. Por eso se ubica el asiento contable ORIGINAL
+    // que corresponde específicamente a ESTA factura, vía la misma Referencia que arma
+    // SyncAccountingEntryJob/ReverseAccountingEntryJob (full_number|VIN).
+    $vin = $originalDocument->vehicle?->vin;
+    if (!$vin) {
+      return;
+    }
+
+    $referencia = AccountingEntryHeaderDynamicsResource::buildReferencia($originalDocument->full_number, $vin);
+
+    $originalHeaderLog = VehiclePurchaseOrderMigrationLog::where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER)
+      ->where('external_id', $referencia)
+      ->first();
+
+    if (!$originalHeaderLog || !$originalHeaderLog->shipping_guide_id) {
+      // Esta factura nunca tuvo un asiento contable enviado a Dynamics: no aplica restricción.
+      return;
+    }
+
+    $accountedGuide = ShippingGuides::find($originalHeaderLog->shipping_guide_id);
+
+    if (!$accountedGuide) {
+      return;
+    }
+
+    if (!$accountedGuide->cancelled_at) {
+      throw new Exception(
+        'No se puede crear la nota de crédito: la entrega de este vehículo ya está contabilizada en Dynamics. ' .
+        'Primero debe anular la guía de remisión (con reversión) desde el módulo de guías.'
+      );
+    }
+
+    $reversalSent = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $accountedGuide->id)
+      ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER_REVERSAL)
+      ->exists();
+
+    if (!$reversalSent) {
+      throw new Exception(
+        'No se puede crear la nota de crédito todavía: la guía fue anulada pero la reversión del asiento ' .
+        'contable aún no se ha enviado a Dynamics. Intente nuevamente en unos minutos.'
+      );
+    }
+  }
+
+  /**
    * Create a credit note from an existing document
    * @throws Exception
    */
@@ -2018,6 +2086,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       if (!$originalDocument->aceptada_por_sunat) {
         throw new Exception('Solo se pueden crear notas de crédito para documentos aceptados por SUNAT');
       }
+
+      // Si el vehículo de esta factura ya tiene su entrega contabilizada en Dynamics,
+      // exigir que la guía se haya anulado (con reversión) y que la reversión del
+      // asiento contable ya se haya enviado a la intermedia antes de emitir la NC.
+      $this->assertShippingGuideReversalReadyForCreditNote($originalDocument);
 
       // Resolver los items según el tipo de nota de crédito
       $originalDocument->load('items');
