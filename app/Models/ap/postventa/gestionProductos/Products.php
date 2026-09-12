@@ -29,7 +29,16 @@ class Products extends Model
     'unit_measurement_id',
     'ap_class_article_id',
     'warranty_months',
+    'pvp_mode',
     'status',
+  ];
+
+  // PVP Mode constants
+  const PVP_MODE_CONVENTIONAL = 'conventional';
+  const PVP_MODE_LOCAL = 'local';
+  const PVP_MODES = [
+    self::PVP_MODE_CONVENTIONAL,
+    self::PVP_MODE_LOCAL,
   ];
 
   const filters = [

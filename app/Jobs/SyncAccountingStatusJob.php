@@ -60,33 +60,11 @@ class SyncAccountingStatusJob implements ShouldQueue
 
     foreach ($documents as $document) {
       try {
-        // ===== TEST PREVENTIVO ANTES DE CONSULTAR DYNAMICS =====
-        Log::info('🔍 [SYNC-ACCOUNTING] TEST PREVENTIVO - Iniciando validación', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'area_id' => $document->area_id,
-          'is_nota_credito' => $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO,
-          'work_order_id' => $document->work_order_id,
-          'is_accounted_before' => $document->is_accounted,
-        ]);
-
-        // Si es nota de crédito de postventa, loguear stock ANTES
-        if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO &&
-          in_array($document->area_id, [ApMasters::AREA_TALLER, ApMasters::AREA_MESON])) {
-          $this->logStockBeforeProcessing($document);
-        }
-
+        
         $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
           ->table('SOP30200')
           ->where('SOPNUMBE', $document->full_number)
           ->first();
-
-        Log::info('🔍 [SYNC-ACCOUNTING] Consulta a Dynamics SOP30200', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'found_in_sop' => $sopRecord ? 'SI' : 'NO',
-          'voidstts' => $sopRecord->VOIDSTTS ?? null,
-        ]);
 
         if ($sopRecord) {
           $isAnnulled = $sopRecord->VOIDSTTS == "1";
@@ -100,24 +78,10 @@ class SyncAccountingStatusJob implements ShouldQueue
 
             if ($rmRecord) {
               $isAnnulled = $rmRecord->VOIDSTTS == "1";
-              Log::info('🔍 [SYNC-ACCOUNTING] Consulta a Dynamics RM20101', [
-                'document_id' => $document->id,
-                'full_number' => $document->full_number,
-                'found_in_rm' => 'SI',
-                'voidstts' => $rmRecord->VOIDSTTS ?? null,
-              ]);
             }
           }
 
           $wasAccounted = $document->is_accounted;
-
-          Log::info('📝 [SYNC-ACCOUNTING] Actualizando estado del documento', [
-            'document_id' => $document->id,
-            'full_number' => $document->full_number,
-            'was_accounted_before' => $wasAccounted,
-            'is_accounted_now' => true,
-            'is_annulled' => $isAnnulled,
-          ]);
 
           $document->update([
             'is_accounted' => true,
@@ -135,15 +99,6 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           // Reversión de estados e inventario para NC contabilizadas (primera vez o re-procesamiento)
           if (!$isAnnulled && $document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
-            Log::info('🔄 [SYNC-ACCOUNTING-NC] DETECTADA NOTA DE CRÉDITO CONTABILIZADA', [
-              'document_id' => $document->id,
-              'full_number' => $document->full_number,
-              'area_id' => $document->area_id,
-              'credit_note_type_id' => $document->sunat_concept_credit_note_type_id,
-              'work_order_id' => $document->work_order_id,
-              'original_document_id' => $document->original_document_id,
-              'was_accounted_before' => $wasAccounted,
-            ]);
 
             if ($document->area_id === ApMasters::AREA_COMERCIAL) {
               // Comercial ya tiene su lógica (no tocar)
@@ -152,18 +107,8 @@ class SyncAccountingStatusJob implements ShouldQueue
               // Postventa - Nueva lógica de reversión
               $this->reversePostventaStatusIfApplicable($document);
             }
-
-            // Si es nota de crédito de postventa, loguear stock DESPUÉS
-            if (in_array($document->area_id, [ApMasters::AREA_TALLER, ApMasters::AREA_MESON])) {
-              $this->logStockAfterProcessing($document);
-            }
           }
         } else {
-          Log::info('⚠️ [SYNC-ACCOUNTING] Documento NO encontrado en Dynamics', [
-            'document_id' => $document->id,
-            'full_number' => $document->full_number,
-          ]);
-
           $document->update([
             'is_accounted' => false,
             'is_annulled' => false,
@@ -466,12 +411,6 @@ class SyncAccountingStatusJob implements ShouldQueue
         break;
 
       default:
-        // Otros tipos de NC (descuentos, bonificaciones, etc.) no requieren reversión de estados/inventario
-        Log::info('NC contabilizada sin reversión de estados', [
-          'credit_note_id' => $document->id,
-          'credit_note_type_id' => $creditNoteType,
-          'original_document_id' => $originalDocument->id,
-        ]);
         break;
     }
   }
@@ -631,11 +570,6 @@ class SyncAccountingStatusJob implements ShouldQueue
 
           // Si el repuesto es travesía, no debe devolverse porque nunca salió del inventario
           if ($workOrderPart->is_traverse) {
-            Log::info('Repuesto de travesía ignorado en NC parcial (no afecta inventario)', [
-              'credit_note_id' => $creditNote->id,
-              'work_order_id' => $workOrder->id,
-              'product_id' => $item->product_id,
-            ]);
             continue;
           }
 
@@ -766,224 +700,6 @@ class SyncAccountingStatusJob implements ShouldQueue
       Log::error('Error general en re-reserva automática', [
         'credit_note_id' => $creditNote->id,
         'original_document_id' => $originalDocument->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Loguear stock ANTES de procesar la nota de crédito
-   *
-   * @param ElectronicDocument $document
-   * @return void
-   */
-  private function logStockBeforeProcessing(ElectronicDocument $document): void
-  {
-    try {
-      $originalDocument = $document->originalDocument;
-      if (!$originalDocument) {
-        Log::warning('📊 [STOCK-BEFORE] No se encontró documento original', [
-          'credit_note_id' => $document->id,
-          'full_number' => $document->full_number,
-        ]);
-        return;
-      }
-
-      // Obtener OT relacionada
-      $workOrder = null;
-      if ($originalDocument->work_order_id) {
-        $workOrder = ApWorkOrder::with(['parts.product'])->find($originalDocument->work_order_id);
-      }
-
-      if (!$workOrder) {
-        Log::warning('📊 [STOCK-BEFORE] No se encontró orden de trabajo', [
-          'credit_note_id' => $document->id,
-          'full_number' => $document->full_number,
-          'original_document_id' => $originalDocument->id,
-        ]);
-        return;
-      }
-
-      Log::info('📊 [STOCK-BEFORE] Estado del stock ANTES de contabilizar NC', [
-        'credit_note_id' => $document->id,
-        'credit_note_number' => $document->full_number,
-        'credit_note_type' => $document->sunat_concept_credit_note_type_id,
-        'work_order_id' => $workOrder->id,
-        'work_order_correlative' => $workOrder->correlative,
-        'original_invoice_id' => $originalDocument->id,
-        'original_invoice_number' => $originalDocument->full_number,
-      ]);
-
-      // Obtener warehouse de la sede
-      $warehouse = \App\Models\ap\maestroGeneral\Warehouse::where('sede_id', $workOrder->sede_id)
-        ->where('is_physical_warehouse', true)
-        ->where('status', true)
-        ->first();
-
-      if (!$warehouse) {
-        Log::warning('📊 No se encontró almacén para la sede', [
-          'sede_id' => $workOrder->sede_id,
-        ]);
-        return;
-      }
-
-      // Loguear cada repuesto de la OT
-      foreach ($workOrder->parts as $part) {
-        if (!$part->product_id || $part->is_traverse) {
-          continue;
-        }
-
-        $stock = \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::where('product_id', $part->product_id)
-          ->where('warehouse_id', $warehouse->id)
-          ->first();
-
-        if ($stock) {
-          Log::info('📦 [STOCK-BEFORE] Producto en OT', [
-            'product_id' => $part->product_id,
-            'product_code' => $part->product->code ?? 'N/A',
-            'product_name' => $part->product->name ?? 'N/A',
-            'quantity_used_in_ot' => $part->quantity_used,
-            'stock_quantity' => $stock->quantity,
-            'stock_reserved_quantity' => $stock->reserved_quantity,
-            'stock_available_quantity' => $stock->available_quantity,
-            'warehouse_id' => $stock->warehouse_id,
-          ]);
-        } else {
-          Log::warning('⚠️ [STOCK-BEFORE] No se encontró stock para producto', [
-            'product_id' => $part->product_id,
-            'product_code' => $part->product->code ?? 'N/A',
-          ]);
-        }
-      }
-    } catch (Exception $e) {
-      Log::error('❌ [STOCK-BEFORE] Error al loguear stock antes', [
-        'credit_note_id' => $document->id,
-        'error' => $e->getMessage(),
-      ]);
-    }
-  }
-
-  /**
-   * Loguear stock DESPUÉS de procesar la nota de crédito
-   *
-   * @param ElectronicDocument $document
-   * @return void
-   */
-  private function logStockAfterProcessing(ElectronicDocument $document): void
-  {
-    try {
-      $originalDocument = $document->originalDocument;
-      if (!$originalDocument) {
-        Log::warning('📊 [STOCK-AFTER] No se encontró documento original', [
-          'credit_note_id' => $document->id,
-          'full_number' => $document->full_number,
-        ]);
-        return;
-      }
-
-      // Obtener OT relacionada
-      $workOrder = null;
-      if ($originalDocument->work_order_id) {
-        $workOrder = ApWorkOrder::with(['parts.product'])->find($originalDocument->work_order_id);
-      }
-
-      if (!$workOrder) {
-        Log::warning('📊 [STOCK-AFTER] No se encontró orden de trabajo', [
-          'credit_note_id' => $document->id,
-          'full_number' => $document->full_number,
-          'original_document_id' => $originalDocument->id,
-        ]);
-        return;
-      }
-
-      Log::info('📊 [STOCK-AFTER] Estado del stock DESPUÉS de contabilizar NC', [
-        'credit_note_id' => $document->id,
-        'credit_note_number' => $document->full_number,
-        'credit_note_type' => $document->sunat_concept_credit_note_type_id,
-        'work_order_id' => $workOrder->id,
-        'work_order_correlative' => $workOrder->correlative,
-        'original_invoice_id' => $originalDocument->id,
-        'original_invoice_number' => $originalDocument->full_number,
-      ]);
-
-      // Obtener warehouse de la sede
-      $warehouse = \App\Models\ap\maestroGeneral\Warehouse::where('sede_id', $workOrder->sede_id)
-        ->where('is_physical_warehouse', true)
-        ->where('status', true)
-        ->first();
-
-      if (!$warehouse) {
-        Log::warning('📊 No se encontró almacén para la sede', [
-          'sede_id' => $workOrder->sede_id,
-        ]);
-        return;
-      }
-
-      // Loguear cada repuesto de la OT
-      foreach ($workOrder->parts as $part) {
-        if (!$part->product_id || $part->is_traverse) {
-          continue;
-        }
-
-        $stock = \App\Models\ap\postventa\gestionProductos\ProductWarehouseStock::where('product_id', $part->product_id)
-          ->where('warehouse_id', $warehouse->id)
-          ->first();
-
-        if ($stock) {
-          Log::info('📦 [STOCK-AFTER] Producto en OT', [
-            'product_id' => $part->product_id,
-            'product_code' => $part->product->code ?? 'N/A',
-            'product_name' => $part->product->name ?? 'N/A',
-            'quantity_used_in_ot' => $part->quantity_used,
-            'stock_quantity' => $stock->quantity,
-            'stock_reserved_quantity' => $stock->reserved_quantity,
-            'stock_available_quantity' => $stock->available_quantity,
-            'warehouse_id' => $stock->warehouse_id,
-          ]);
-        } else {
-          Log::warning('⚠️ [STOCK-AFTER] No se encontró stock para producto', [
-            'product_id' => $part->product_id,
-            'product_code' => $part->product->code ?? 'N/A',
-          ]);
-        }
-      }
-
-      // Loguear movimientos de inventario creados
-      $returnMovements = \App\Models\ap\postventa\gestionProductos\InventoryMovement::where('reference_type', ElectronicDocument::class)
-        ->where('reference_id', $document->id)
-        ->where('movement_type', \App\Models\ap\postventa\gestionProductos\InventoryMovement::TYPE_RETURN_IN)
-        ->with(['details'])
-        ->get();
-
-      if ($returnMovements->isNotEmpty()) {
-        foreach ($returnMovements as $movement) {
-          Log::info('🔄 [STOCK-AFTER] Movimiento de devolución creado', [
-            'movement_id' => $movement->id,
-            'movement_number' => $movement->movement_number,
-            'movement_type' => $movement->movement_type,
-            'status' => $movement->status,
-            'total_items' => $movement->total_items,
-            'total_quantity' => $movement->total_quantity,
-            'details_count' => $movement->details->count(),
-          ]);
-
-          foreach ($movement->details as $detail) {
-            Log::info('📦 [STOCK-AFTER] Detalle de devolución', [
-              'product_id' => $detail->product_id,
-              'quantity' => $detail->quantity,
-              'unit_cost' => $detail->unit_cost,
-              'total_cost' => $detail->total_cost,
-            ]);
-          }
-        }
-      } else {
-        Log::warning('⚠️ [STOCK-AFTER] No se encontraron movimientos de devolución', [
-          'credit_note_id' => $document->id,
-        ]);
-      }
-    } catch (Exception $e) {
-      Log::error('❌ [STOCK-AFTER] Error al loguear stock después', [
-        'credit_note_id' => $document->id,
         'error' => $e->getMessage(),
       ]);
     }

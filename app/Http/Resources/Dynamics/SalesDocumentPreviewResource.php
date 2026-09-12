@@ -154,6 +154,8 @@ class SalesDocumentPreviewResource extends JsonResource
     $items = [];
 
     // Obtener los items construidos por el builder
+    // NOTA: El builder YA filtra los items de anticipo regularizado en NC
+    // y los agrega correctamente desde el documento original
     $builtItems = $builder->buildItems($document);
 
     foreach ($builtItems as $index => $item) {
@@ -173,6 +175,8 @@ class SalesDocumentPreviewResource extends JsonResource
           $type = 'deductible';
         } elseif (strpos($itemData['ArticuloDescripcionLarga'] ?? '', 'ACCESORIO') !== false) {
           $type = 'accessory';
+        } elseif (strpos($itemData['ArticuloDescripcionLarga'] ?? '', 'ANTICIPO') !== false) {
+          $type = 'anticipo_reversal';
         }
       }
 

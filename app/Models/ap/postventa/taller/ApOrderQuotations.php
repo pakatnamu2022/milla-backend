@@ -89,6 +89,7 @@ class ApOrderQuotations extends Model
     'confirmation_ip',
     'confirmation_metadata',
     'parent_quotation_id',
+    'duplicated_from_quotation_id',
     'shipping_guide_id',
     'is_sold_at_valid_price',
   ];
@@ -307,6 +308,16 @@ class ApOrderQuotations extends Model
   public function segmentedQuotations(): HasMany
   {
     return $this->hasMany(ApOrderQuotations::class, 'parent_quotation_id');
+  }
+
+  public function duplicatedFromQuotation(): BelongsTo
+  {
+    return $this->belongsTo(ApOrderQuotations::class, 'duplicated_from_quotation_id');
+  }
+
+  public function duplicatedQuotations(): HasMany
+  {
+    return $this->hasMany(ApOrderQuotations::class, 'duplicated_from_quotation_id');
   }
 
   public function shippingGuide(): BelongsTo
@@ -901,240 +912,5 @@ class ApOrderQuotations extends Model
   {
     $this->status_id = $statusId;
     $this->save();
-  }
-
-  // Export Methods
-  public static function getReportData($filters = [])
-  {
-    $query = self::with([
-      'vehicle.model.family.brand',
-      'vehicle.model',
-      'client',
-      'sede',
-      'status',
-      'area',
-      'createdBy',
-      'typeCurrency',
-      'invoiceTo',
-      'details',
-      'advancesOrderQuotation',
-      'discardReason',
-      'discardedBy'
-    ]);
-
-    // Apply filters
-    foreach ($filters as $filter) {
-      $column = $filter['column'];
-      $operator = $filter['operator'];
-      $value = $filter['value'];
-
-      if ($column === 'area_id' && $operator === '=') {
-        $query->where('area_id', $value);
-      } elseif ($column === 'sede_id' && $operator === '=') {
-        $query->where('sede_id', $value);
-      } elseif ($column === 'status_id' && $operator === 'in_or_equal') {
-        if (is_array($value)) {
-          $query->whereIn('status_id', $value);
-        } else {
-          $query->where('status_id', $value);
-        }
-      } elseif ($column === 'quotation_date' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('quotation_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'estimated_delivery_date' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('estimated_delivery_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'actual_delivery_date' && $operator === 'between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'currency_id' && $operator === '=') {
-        $query->where('currency_id', $value);
-      } elseif ($column === 'quotation_number' && $operator === 'like') {
-        $query->where('quotation_number', 'like', '%' . $value . '%');
-      } elseif ($column === 'vehicle_plate' && $operator === 'like') {
-        $query->whereHas('vehicle', function ($q) use ($value) {
-          $q->where('plate', 'like', '%' . $value . '%');
-        });
-      }
-    }
-
-    $quotations = $query->get();
-
-    return $quotations->map(function ($quotation) {
-      // Obtener el primer detalle
-      $firstDetail = $quotation->details->first();
-
-      // Obtener los anticipos activos
-      $activeAdvances = $quotation->getActiveAdvances();
-
-      // Formatear anticipos: "full_number (SI/NO) | full_number (SI/NO)"
-      $advancesFormatted = '-';
-      $totalAdvances = 0;
-      $tieneAnticipo = 'NO';
-
-      if ($activeAdvances && $activeAdvances->count() > 0) {
-        $tieneAnticipo = 'SI';
-        $advancesArray = [];
-        foreach ($activeAdvances as $advance) {
-          $sunatStatus = $advance->aceptada_por_sunat == 1 ? '(SI)' : '(NO)';
-          $advancesArray[] = $advance->full_number . ' ' . $sunatStatus;
-          $totalAdvances += $advance->total ?? 0;
-        }
-        $advancesFormatted = implode(' | ', $advancesArray);
-      }
-
-      // Obtener el documento electrónico final (factura/boleta)
-      $electronicDocument = $quotation->getFinalInvoice();
-
-      $data = [
-        'sede' => $quotation->sede ? $quotation->sede->abreviatura : '',
-        'numero_cotizacion' => $quotation->quotation_number,
-        'area' => $quotation->area ? $quotation->area->description : '',
-        'estado' => $quotation->status ? $quotation->status->description : '',
-        'fecha_cotizacion' => $quotation->quotation_date ? $quotation->quotation_date->format('Y-m-d') : '',
-        'fecha_expiracion' => $quotation->expiration_date ? $quotation->expiration_date->format('Y-m-d') : '',
-        'placa_vehiculo' => $quotation->vehicle ? $quotation->vehicle->plate : '',
-        'vin_vehiculo' => $quotation->vehicle ? $quotation->vehicle->vin : '',
-        'cliente' => $quotation->client ? $quotation->client->full_name : '',
-        'moneda' => $quotation->typeCurrency ? $quotation->typeCurrency->symbol : '',
-        'cliente_facturar' => $quotation->invoiceTo ? $quotation->invoiceTo->full_name : '',
-        'subtotal' => number_format($quotation->subtotal ?? 0, 2),
-        'descuento' => number_format($quotation->discount_amount ?? 0, 2),
-        'igv' => number_format($quotation->tax_amount ?? 0, 2),
-        'total' => number_format($quotation->total_amount ?? 0, 2),
-        'tiene_anticipo' => $tieneAnticipo,
-        'anticipos' => $advancesFormatted,
-        'total_anticipos' => number_format($totalAdvances, 2),
-        'comprobante_final' => $electronicDocument?->full_number ?? '-',
-        'estado_sunat' => $electronicDocument ? ($electronicDocument->aceptada_por_sunat ? 'SI' : 'NO') : '-',
-        'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
-      ];
-
-      // Si es descartado, agregar columnas de descarte
-      if ($quotation->status_id == ApMasters::STATUS_ORDER_QUOTE_DESCARTADO) {
-        $data['motivo_descarte'] = $quotation->discardReason ? $quotation->discardReason->description : '-';
-        $data['nota_descarte'] = $quotation->discarded_note ?? '-';
-        $data['descartado_por'] = $quotation->discardedBy ? $quotation->discardedBy->name : '-';
-        $data['fecha_descarte'] = $quotation->discarded_at ? $quotation->discarded_at->format('Y-m-d H:i:s') : '-';
-      }
-
-      return $data;
-    });
-  }
-
-  public static function getReportableColumns()
-  {
-    return [
-      'sede' => 'Sede',
-      'numero_cotizacion' => 'Número Cotización',
-      'area' => 'Área',
-      'estado' => 'Estado',
-      'fecha_cotizacion' => 'Fecha Cotización',
-      'fecha_expiracion' => 'Fecha Expiración',
-      'placa_vehiculo' => 'Placa Vehículo',
-      'vin_vehiculo' => 'VIN Vehículo',
-      'cliente' => 'Cliente',
-      'moneda' => 'Moneda',
-      'cliente_facturar' => 'Cliente Facturar',
-      'subtotal' => 'Subtotal',
-      'descuento' => 'Descuento',
-      'igv' => 'IGV',
-      'total' => 'Total',
-      'tiene_anticipo' => 'Tiene Anticipo',
-      'anticipos' => 'Anticipos',
-      'total_anticipos' => 'Total Anticipos',
-      'comprobante_final' => 'Comprobante Final',
-      'estado_sunat' => 'Estado SUNAT',
-      'contabilizada' => 'Contabilizada',
-      'motivo_descarte' => 'Motivo Descarte',
-      'nota_descarte' => 'Nota Descarte',
-      'descartado_por' => 'Descartado Por',
-      'fecha_descarte' => 'Fecha Descarte',
-    ];
-  }
-
-  /**
-   * Filtra las columnas del reporte según el contexto (filtros aplicados)
-   *
-   * Lógica:
-   * - Si SOLO se filtra por DESCARTADO: ocultar columnas de anticipos/facturación
-   * - Si NO incluye descartados: ocultar columnas de descarte
-   * - Si incluye múltiples estados: mostrar todas las columnas relevantes
-   */
-  public static function filterReportColumns($columns, $context = [])
-  {
-    $statusId = $context['status_id'] ?? null;
-
-    // Si no hay filtro de status, mostrar todas las columnas menos las de descarte
-    if (!$statusId) {
-      unset($columns['motivo_descarte']);
-      unset($columns['nota_descarte']);
-      unset($columns['descartado_por']);
-      unset($columns['fecha_descarte']);
-      return $columns;
-    }
-
-    // Normalizar status_id a array
-    $statusIds = is_array($statusId) ? $statusId : [$statusId];
-
-    $onlyDescartado = count($statusIds) === 1 && in_array(ApMasters::STATUS_ORDER_QUOTE_DESCARTADO, $statusIds);
-    $includesDescartado = in_array(ApMasters::STATUS_ORDER_QUOTE_DESCARTADO, $statusIds);
-
-    // Caso 1: SOLO descartadas - ocultar columnas de anticipos/facturación, mostrar columnas de descarte
-    if ($onlyDescartado) {
-      unset($columns['tiene_anticipo']);
-      unset($columns['anticipos']);
-      unset($columns['total_anticipos']);
-      unset($columns['comprobante_final']);
-      unset($columns['estado_sunat']);
-      unset($columns['contabilizada']);
-      return $columns;
-    }
-
-    // Caso 2: NO incluye descartadas - ocultar columnas de descarte
-    if (!$includesDescartado) {
-      unset($columns['motivo_descarte']);
-      unset($columns['nota_descarte']);
-      unset($columns['descartado_por']);
-      unset($columns['fecha_descarte']);
-      return $columns;
-    }
-
-    // Caso 3: Incluye descartadas Y otros estados - mostrar todas las columnas
-    return $columns;
-  }
-
-  public static function getReportStyles()
-  {
-    return [
-      'headerBackgroundColor' => '4472C4',
-      'headerFontColor' => 'FFFFFF',
-      'headerFontSize' => 11,
-      'headerBold' => true,
-      'bodyFontSize' => 10,
-      'freezePane' => 'A2',
-      'autoFilter' => true,
-    ];
-  }
-
-  public static function getReportColorRules()
-  {
-    return [
-      'tiene_anticipo' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
-      ],
-      'estado_sunat' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
-      ],
-      'contabilizada' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'A9A9A9', 'text' => '000000'],  // Gris con texto negro
-      ],
-    ];
   }
 }

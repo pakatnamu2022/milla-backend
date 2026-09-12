@@ -29,6 +29,7 @@ class StoreProductsRequest extends StoreRequest
       'unit_measurement_id' => 'required|exists:unit_measurement,id',
       'ap_class_article_id' => 'required|exists:ap_class_article,id',
       'warranty_months' => 'nullable|integer|min:0',
+      'pvp_mode' => 'nullable|in:conventional,local',
 
       // NEW: Warehouse stock configuration
       'warehouses' => 'nullable|array',
@@ -51,6 +52,7 @@ class StoreProductsRequest extends StoreRequest
       'brand_id.exists' => 'La marca seleccionada no es válida.',
       'unit_measurement_id.required' => 'La unidad de medida es obligatoria.',
       'unit_measurement_id.exists' => 'La unidad de medida seleccionada no es válida.',
+      'pvp_mode.in' => 'El modo de PVP debe ser "conventional" o "local".',
 
       // NEW: Warehouse stock messages
       'warehouses.array' => 'Los almacenes deben ser un array.',

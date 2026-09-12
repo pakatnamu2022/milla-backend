@@ -23,6 +23,8 @@ class ApOrderQuotationsListResource extends JsonResource
       'id' => $this->id,
       'quotation_number' => $this->quotation_number,
       'parent_quotation_id' => $this->parent_quotation_id,
+      'duplicated_from_quotation_id' => $this->duplicated_from_quotation_id,
+      'duplicated_from_quotation_number' => $this->duplicatedFromQuotation?->quotation_number,
 
       // Flags para badges
       'was_segmented' => $this->whenLoaded('segmentedQuotations', function () {

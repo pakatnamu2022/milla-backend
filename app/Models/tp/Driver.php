@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\Log;
 
 class Driver extends BaseModel
 {
-    protected $table = "rrhh_persona";
+    protected $table = 'rrhh_persona';
 
-      protected $fillable = [
+    protected $fillable = [
         'id',
         'vat',
         'nombre_completo',
@@ -26,27 +26,27 @@ class Driver extends BaseModel
     ];
 
     const filters = [
-    'search' => ['nombre_completo', 'vat'],
-    'vat' => 'like',
-    'sede.empresa_id' => '=',
-    'nombre_completo' => 'like',
-    'cargo_id' => 'in',
-    'status_id' => '=',
-    'sede_id' => '=',
-    'sede.departamento' => '=',
+        'search' => ['nombre_completo', 'vat'],
+        'vat' => 'like',
+        'sede.empresa_id' => '=',
+        'nombre_completo' => 'like',
+        'cargo_id' => 'in',
+        'status_id' => '=',
+        'sede_id' => '=',
+        'sede.departamento' => '=',
     ];
 
     const sorts = [
-    'nombre_completo',
+        'nombre_completo',
     ];
 
     protected static function booted()
     {
-        static::addGlobalScope('activeDriver', function (Builder $builder){
+        static::addGlobalScope('activeDriver', function (Builder $builder) {
             $builder->where('status_deleted', 1)
-                    ->where('b_empleado', 1)
-                    ->where('status_id', 22)
-                    ->whereIn('cargo_id',[11,12]);
+                ->where('b_empleado', 1)
+                ->where('status_id', 22)
+                ->whereIn('cargo_id', [11, 12, 371]);
         });
     }
 
@@ -76,12 +76,12 @@ class Driver extends BaseModel
             ->orderBy('reported_at', 'desc')
             ->first();
 
-        if (!$latestLocation) {
+        if (! $latestLocation) {
             return 'nodata';
         }
-         $reportedAt = $this->latestLocation->reported_at;
+        $reportedAt = $this->latestLocation->reported_at;
         $now = now();
-        
+
         $reportedTimestamp = $reportedAt->timestamp;
         $nowTimestamp = $now->timestamp;
         $minutesDiff = floor(($nowTimestamp - $reportedTimestamp) / 60);
@@ -89,14 +89,15 @@ class Driver extends BaseModel
         $activeThreshold = config('monitoreo.active_threshold', 5);
         $inactiveThreshold = config('monitoreo.inactive_threshold', 30);
 
-        if($minutesDiff <= $activeThreshold){
+        if ($minutesDiff <= $activeThreshold) {
             return 'active';
-        }elseif ($minutesDiff <= $inactiveThreshold){
+        } elseif ($minutesDiff <= $inactiveThreshold) {
             return 'inactive';
-        }else{
+        } else {
             return 'disconnected';
         }
     }
+
     private function getLatestLocation()
     {
         return DriverLocation::where('driver_id', $this->id)
@@ -104,8 +105,9 @@ class Driver extends BaseModel
             ->first();
     }
 
-    public function getStatusColorAttribute(){
-        return match($this->current_status){
+    public function getStatusColorAttribute()
+    {
+        return match ($this->current_status) {
             'active' => 'green',
             'inactive' => 'yellow',
             'disconnected' => 'red',
@@ -114,8 +116,9 @@ class Driver extends BaseModel
         };
     }
 
-    public function getStatusTextAttribute(){
-        return match($this->current_status){
+    public function getStatusTextAttribute()
+    {
+        return match ($this->current_status) {
             'active' => 'Activo',
             'inactive' => 'Inactivo',
             'disconnected' => 'Desconectado',
@@ -127,11 +130,11 @@ class Driver extends BaseModel
     public function getLastLocationAttribute()
     {
         $latestLocation = $this->getLatestLocation();
-        if(!$latestLocation ){
+        if (! $latestLocation) {
             return null;
         }
 
-         return [
+        return [
             'coordinates' => $this->latestLocation->coordinates,
             'latitude' => $this->latestLocation->latitude,
             'longitude' => $this->latestLocation->longitude,
@@ -139,34 +142,36 @@ class Driver extends BaseModel
             'time_ago' => $this->latestLocation->reported_at->diffForHumans(),
             'accuracy' => $this->latestLocation->accuracy,
             'battery_level' => $this->latestLocation->battery_level,
-            'google_maps_url' => $this->latestLocation->google_maps_url
+            'google_maps_url' => $this->latestLocation->google_maps_url,
         ];
     }
 
     public function getLastUpdateMinutesAttribute()
     {
-        if(!$this->latestLocation){
+        if (! $this->latestLocation) {
             return PHP_INT_MAX;
         }
+
         return now()->diffInMinutes($this->latestLocation->reported_at);
     }
 
-    public function scopeWhereStatus($query, $status){
-        switch($status){
+    public function scopeWhereStatus($query, $status)
+    {
+        switch ($status) {
             case 'active':
-                return $query->whereHas('latestLocation', function($q) {
+                return $query->whereHas('latestLocation', function ($q) {
                     $q->where('reported_at', '>=', now()->subMinutes(config('monitoreo.active_threshold', 5)));
 
                 });
             case 'inactive':
-                return $query->whereHas('latestLocation', function($q){
+                return $query->whereHas('latestLocation', function ($q) {
                     $q->whereBetween('reported_at', [
                         now()->subMinutes(config('monitoreo.inactive_threshold', 30)),
-                        now()->subMinutes(config('monitoreo.active_threshold', 5))
+                        now()->subMinutes(config('monitoreo.active_threshold', 5)),
                     ]);
                 });
             case 'disconnected':
-                return $query->whereHas('latestLocation', function($q) {
+                return $query->whereHas('latestLocation', function ($q) {
                     $q->where('reported_at', '<', now()->subMinutes(config('monitoreo.inactive_threshold', 30)));
                 });
             case 'nodata':
@@ -176,17 +181,20 @@ class Driver extends BaseModel
         }
     }
 
-    public function scopeActive($query){
-        return $query->whereHas('latestLocation', function($q){
+    public function scopeActive($query)
+    {
+        return $query->whereHas('latestLocation', function ($q) {
             $q->where('reported_at', '>=', now()->subMinutes(config('monitoreo.active_threshold', 5)));
         });
     }
 
-    public function scopeWithLocation($query){
+    public function scopeWithLocation($query)
+    {
         return $query->has('latestLocation');
     }
 
-    public function scopeWithoutLocation($query){
+    public function scopeWithoutLocation($query)
+    {
         return $query->doesntHave('latestLocation');
     }
 
@@ -196,9 +204,9 @@ class Driver extends BaseModel
             ->orderBy('reported_at', 'desc')
             ->first();
 
-        if (!$latestLocation) {
+        if (! $latestLocation) {
             $newStatus = 'disconnected';
-        }else{
+        } else {
             $reportedAt = $latestLocation->reported_at;
             $now = now();
 
@@ -209,27 +217,28 @@ class Driver extends BaseModel
             $activeThreshold = config('monitoreo.active_threshold', 5);
             $inactiveThreshold = config('monitoreo.inactive_threshold', 30);
 
-            if($minutesDiff <= $activeThreshold){
+            if ($minutesDiff <= $activeThreshold) {
                 $newStatus = 'active';
-            }elseif($minutesDiff <= $inactiveThreshold){
+            } elseif ($minutesDiff <= $inactiveThreshold) {
                 $newStatus = 'inactive';
-            }else{
+            } else {
                 $newStatus = 'disconnected';
             }
 
         }
 
-        //obtener el ultimo log de estado para este conductor
+        // obtener el ultimo log de estado para este conductor
         $lastLog = $this->statusLogs()->latest('changed_at')->first();
 
-        //solo registrar si cambio de estado
-        if(!$lastLog || $lastLog->status !== $newStatus){
+        // solo registrar si cambio de estado
+        if (! $lastLog || $lastLog->status !== $newStatus) {
             DriverStatusLog::create([
                 'driver_id' => $this->id,
                 'status' => $newStatus,
-                'changed_at' => $latestLocation ? $latestLocation->reported_at : now()
+                'changed_at' => $latestLocation ? $latestLocation->reported_at : now(),
             ]);
         }
+
         return $newStatus;
     }
 
@@ -244,24 +253,26 @@ class Driver extends BaseModel
             'status_color' => $this->status_color,
             'last_location' => $this->last_location,
             'device_id' => $this->device_id,
-            'is_active' => true
+            'is_active' => true,
         ];
     }
 
     public function getAssignedDevice()
     {
         $service = app(DeviceAssignmentService::class);
+
         return $service->getAssignedEquipmentByDriver($this->id);
     }
+
     public function hasDeviceAssigned(): bool
     {
-        return !is_null($this->getAssignedDevice());
+        return ! is_null($this->getAssignedDevice());
     }
+
     public function getDeviceSerialAttribute(): ?string
     {
         $device = $this->getAssignedDevice();
+
         return $device?->serie;
     }
-
-
 }

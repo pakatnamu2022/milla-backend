@@ -2,22 +2,26 @@
 
 namespace App\Http\Controllers\ap\postventa\taller;
 
+use App\Exports\ap\postventa\Reports\OrderQuotationRepuestoExcel;
+use App\Exports\ap\postventa\Reports\OrderQuotationTallerExcel;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ap\postventa\taller\ApplyBulkDiscountApOrderQuotationRequest;
+use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\IndexApOrderQuotationsRequest;
+use App\Http\Requests\ap\postventa\taller\ReorderApOrderQuotationDetailsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\StoreApOrderQuotationWithProductsRequest;
+use App\Http\Requests\ap\postventa\taller\StoreDeductibleOrderQuotationRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationsRequest;
 use App\Http\Requests\ap\postventa\taller\UpdateApOrderQuotationWithProductsRequest;
-use App\Http\Requests\ap\postventa\taller\DiscardApOrderQuotationsRequest;
-use App\Http\Requests\ap\postventa\taller\ConfirmApOrderQuotationsRequest;
-use App\Http\Requests\ap\postventa\taller\ApproveApOrderQuotationsRequest;
-use App\Http\Requests\ap\postventa\taller\StoreDeductibleOrderQuotationRequest;
-use App\Http\Requests\ap\postventa\taller\ReorderApOrderQuotationDetailsRequest;
-use App\Http\Requests\ap\postventa\taller\ApplyBulkDiscountApOrderQuotationRequest;
 use App\Http\Services\ap\postventa\taller\ApOrderQuotationsService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Reports\ap\postventa\OrderQuotationRepuestoPdf;
+use App\Reports\ap\postventa\OrderQuotationTallerPdf;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -151,10 +155,12 @@ class ApOrderQuotationsController extends Controller
 
       // Llamar al método correspondiente según el formato
       if ($format === 'excel') {
-        return $this->service->generateQuotationTallerExcel($id, $showCodes);
+        $export = new OrderQuotationTallerExcel();
+        return $export->download($id, $showCodes);
       }
 
-      return $this->service->generateQuotationTallerPDF($id, $showCodes);
+      $report = new OrderQuotationTallerPdf();
+      return $report->download($id, $showCodes);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -180,10 +186,12 @@ class ApOrderQuotationsController extends Controller
 
       // Llamar al método correspondiente según el formato
       if ($format === 'excel') {
-        return $this->service->generateQuotationRepuestoExcel($id, $showCodes);
+        $export = new OrderQuotationRepuestoExcel();
+        return $export->download($id, $showCodes);
       }
 
-      return $this->service->generateQuotationRepuestoPDF($id, $showCodes);
+      $report = new OrderQuotationRepuestoPdf();
+      return $report->download($id, $showCodes);
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
