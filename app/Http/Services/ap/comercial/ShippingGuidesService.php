@@ -14,6 +14,7 @@ use App\Http\Utils\Constants;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Jobs\MigrateProductReceptionToDynamicsJob;
 use App\Jobs\SyncShippingGuideDynamicsJob;
+use App\Jobs\ReverseAccountingEntryJob;
 use App\Jobs\VerifyAndMigrateShippingGuideJob;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApVehicleDelivery;
@@ -835,8 +836,13 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       ApVehicleDelivery::where('shipping_guide_id', $document->id)
         ->update(['is_accounted' => false]);
 
-      // Sincronizar cancelación con Dynamics
+      // Sincronizar cancelación (reversión de inventario) con Dynamics
       VerifyAndMigrateShippingGuideJob::dispatchSync($document->id);
+
+      // Si la guía ya tenía un asiento contable enviado (entrega contabilizada),
+      // reversar ese asiento en Dynamics. El job internamente no hace nada si
+      // nunca se envió un asiento original para esta guía.
+      ReverseAccountingEntryJob::dispatch($document->id);
 
       return new ShippingGuidesResource($document);
     });

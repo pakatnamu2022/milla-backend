@@ -83,6 +83,10 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_ACCOUNTING_ENTRY_HEADER = 'accounting_entry_header';
   const STEP_ACCOUNTING_ENTRY_DETAIL = 'accounting_entry_detail';
 
+  // Constantes para los pasos de reversión (Cancelación de guía → reversión del asiento contable)
+  const STEP_ACCOUNTING_ENTRY_HEADER_REVERSAL = 'accounting_entry_header_REVERSAL';
+  const STEP_ACCOUNTING_ENTRY_DETAIL_REVERSAL = 'accounting_entry_detail_REVERSAL';
+
   // Constantes para los pasos de migración (Internal Notes - Notas Internas)
   const STEP_INTERNAL_NOTE_TRANSACTION = 'internal_note_transaction';
   const STEP_INTERNAL_NOTE_TRANSACTION_DETAIL = 'internal_note_transaction_detail';
@@ -131,6 +135,8 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_SALES_DOC_FV => 'RM20101_DOCFV',
     self::STEP_ACCOUNTING_ENTRY_HEADER => 'neInTbIntegracionAsientoCab',
     self::STEP_ACCOUNTING_ENTRY_DETAIL => 'neInTbIntegracionAsientoDet',
+    self::STEP_ACCOUNTING_ENTRY_HEADER_REVERSAL => 'neInTbIntegracionAsientoCab',
+    self::STEP_ACCOUNTING_ENTRY_DETAIL_REVERSAL => 'neInTbIntegracionAsientoDet',
     self::STEP_INTERNAL_NOTE_TRANSACTION => 'neInTbTransaccionInventario',
     self::STEP_INTERNAL_NOTE_TRANSACTION_DETAIL => 'neInTbTransaccionInventarioDet',
     self::STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL => 'neInTbTransaccionInventario',
