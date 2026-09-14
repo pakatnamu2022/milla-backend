@@ -27,14 +27,14 @@ class BusinessPartnersEstablishment extends BaseModel
     'sede_id',
   ];
 
-  const filters = [
+  const array filters = [
     'search'              => ['code', 'description', 'address', 'full_address'],
     'status'              => '=',
     'business_partner_id' => '=',
     'sede_id'             => '=',
   ];
 
-  const sorts = [
+  const array sorts = [
     'id',
     'code',
     'description',
@@ -47,32 +47,32 @@ class BusinessPartnersEstablishment extends BaseModel
     'business_partner_id',
   ];
 
-  public function setCodeAttribute($value)
+  public function setCodeAttribute($value): void
   {
     $this->attributes['code'] = Str::upper(Str::ascii($value));
   }
 
-  public function setDescriptionAttribute($value)
+  public function setDescriptionAttribute($value): void
   {
     $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 
-  public function setTypeAttribute($value)
+  public function setTypeAttribute($value): void
   {
     $this->attributes['type'] = Str::upper(Str::ascii($value));
   }
 
-  public function setActivityEconomicAttribute($value)
+  public function setActivityEconomicAttribute($value): void
   {
     $this->attributes['activity_economic'] = Str::upper(Str::ascii($value));
   }
 
-  public function setAddressAttribute($value)
+  public function setAddressAttribute($value): void
   {
     $this->attributes['address'] = Str::upper(Str::ascii($value));
   }
 
-  public function setFullAddressAttribute($value)
+  public function setFullAddressAttribute($value): void
   {
     $this->attributes['full_address'] = Str::upper(Str::ascii($value));
   }
