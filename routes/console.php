@@ -167,7 +167,12 @@ Schedule::job(new SyncAccountsReceivableJob('automotores'))
   ->withoutOverlapping();
 
 // Sincronizar cuentas por pagar (AP) desde Dynamics cada 5 minutos
-Schedule::job(new SyncAccountsPayableJob())
+Schedule::job(new SyncAccountsPayableJob('deposito'))
+  ->everyFiveMinutes()
+  ->timezone('America/Lima')
+  ->withoutOverlapping();
+
+Schedule::job(new SyncAccountsPayableJob('automotores'))
   ->everyFiveMinutes()
   ->timezone('America/Lima')
   ->withoutOverlapping();

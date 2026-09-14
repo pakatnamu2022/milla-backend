@@ -7,15 +7,19 @@ use Illuminate\Console\Command;
 
 class SyncAccountsPayableCommand extends Command
 {
-  protected $signature = 'ap:sync-payable';
+  protected $signature = 'ap:sync-payable {--company= : deposito|automotores, ambas si se omite}';
 
   protected $description = 'Dispatch SyncAccountsPayableJob to sync accounts payable from SP_GP_ReporteDocumentosNoAplicadosCuentaPorPagar';
 
   public function handle(): int
   {
-    $this->info('Dispatching SyncAccountsPayableJob...');
-    SyncAccountsPayableJob::dispatch();
-    $this->info('Job dispatched.');
+    $companies = $this->option('company') ? [$this->option('company')] : ['deposito', 'automotores'];
+
+    foreach ($companies as $company) {
+      $this->info("Dispatching SyncAccountsPayableJob ({$company})...");
+      SyncAccountsPayableJob::dispatch($company);
+    }
+    $this->info('Job(s) dispatched.');
 
     return Command::SUCCESS;
   }
