@@ -37,12 +37,6 @@ class UpdateEstablishments implements ShouldQueue
     }
 
     try {
-      // Si cambió el RUC, eliminar todos los establecimientos anteriores
-      if ($this->previousNumDoc && $this->previousNumDoc !== $this->numDoc) {
-        $businessPartner->establishments()->delete();
-        // Log::info("Deleted all establishments for BusinessPartner {$this->businessPartnerId} due to RUC change");
-      }
-
       // Obtener establecimientos actuales de la API
       $establishments = $documentValidationService->validateDocument(
         'anexo',
@@ -52,44 +46,46 @@ class UpdateEstablishments implements ShouldQueue
       if ($establishments['success'] && !empty($establishments['data']['establishments'] ?? [])) {
         $apiEstablishments = $establishments['data']['establishments'];
 
+        // Si cambió el RUC, eliminar los establecimientos del RUC anterior ahora que la API respondió bien
+        if ($this->previousNumDoc && $this->previousNumDoc !== $this->numDoc) {
+          $businessPartner->establishments()->delete();
+        }
+
         // Obtener códigos de establecimientos actuales en la BD
         $existingCodes = $businessPartner->establishments()->pluck('code')->toArray();
 
         // Obtener códigos de establecimientos de la API
         $apiCodes = collect($apiEstablishments)->pluck('code')->toArray();
 
-        // Eliminar establecimientos que ya no existen en la API
-        $codesToDelete = array_diff($existingCodes, $apiCodes);
+        // Eliminar solo los establecimientos secundarios que ya no existen en la API
+        // El código '0000' es el establecimiento principal y no lo retorna el endpoint anexo de SUNAT
+        $codesToDelete = array_filter(
+          array_diff($existingCodes, $apiCodes),
+          fn($code) => $code !== '0000'
+        );
         if (!empty($codesToDelete)) {
           $businessPartner->establishments()->whereIn('code', $codesToDelete)->delete();
-          // Log::info("Deleted establishments with codes: " . implode(', ', $codesToDelete));
         }
 
-        // Procesar cada establecimiento de la API
+        // Crear o actualizar cada establecimiento de la API
         foreach ($apiEstablishments as $establishment) {
           $establishmentData = [
-            'code' => $establishment['code'] ?? null,
-            'type' => $establishment['type'] ?? null,
-            'activity_economic' => $establishment['activity_economic'] ?? null,
-            'address' => $establishment['address'] ?? '-',
-            'full_address' => $establishment['full_address'] ?? null,
-            'ubigeo' => $establishment['ubigeo_sunat'] ?? null,
+            'code'                => $establishment['code'] ?? null,
+            'type'                => $establishment['type'] ?? null,
+            'activity_economic'   => $establishment['activity_economic'] ?? null,
+            'address'             => $establishment['address'] ?? '-',
+            'full_address'        => $establishment['full_address'] ?? null,
+            'ubigeo'              => $establishment['ubigeo_sunat'] ?? null,
             'business_partner_id' => $businessPartner->id,
           ];
 
-          // Crear o actualizar el establecimiento
           $businessPartner->establishments()->updateOrCreate(
             ['code' => $establishment['code'], 'business_partner_id' => $businessPartner->id],
             $establishmentData
           );
         }
-
-        // Log::info("Synchronized establishments for BusinessPartner {$this->businessPartnerId}");
-      } else {
-        // Si no hay establecimientos en la API, eliminar todos los existentes
-        $businessPartner->establishments()->delete();
-        // Log::info("No establishments found in API, deleted all for BusinessPartner {$this->businessPartnerId}");
       }
+      // Si la API falla o devuelve vacío, no se toca ningún establecimiento existente
 
       $businessPartner->update(['establishments_status' => 'completed']);
     } catch (\Exception $e) {

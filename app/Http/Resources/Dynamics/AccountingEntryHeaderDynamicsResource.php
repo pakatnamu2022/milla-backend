@@ -28,16 +28,16 @@ class AccountingEntryHeaderDynamicsResource extends JsonResource
   public function toArray(Request $request): array
   {
     return [
-      'Asiento' => $this->asientoNumber,
-      'EmpresaId' => Company::AP_DYNAMICS, // 'CTEST'
-      'LoteId' => $this->creator->person->vat,
-      'Referencia' => self::buildReferencia($this->full_number, $this->vehicle->vin),
-      'Fecha' => $this->date->format('Y-m-d H:i:s'),
-      'MonedaId' => $this->currency->iso_code,
-      'TipoTasaId' => 'NEGOCIAR',
-      'TipoCambio' => (float) ($this->tipo_de_cambio ?? throw new Exception('Tipo de cambio no existe en la factura ' . $this->full_number)),
-      'Error' => '',
-      'Estado' => 0,
+      'Asiento'     => $this->asientoNumber,
+      'EmpresaId'   => Company::AP_DYNAMICS, // 'CTEST'
+      'LoteId'      => $this->creator->person->vat,
+      'Referencia'  => self::buildReferencia($this->full_number, $this->vehicle->vin),
+      'Fecha'       => $this->date->format('Y-m-d'),
+      'MonedaId'    => $this->currency->iso_code,
+      'TipoTasaId'  => 'NEGOCIAR',
+      'TipoCambio'  => (float)($this->tipo_de_cambio ?? throw new Exception('Tipo de cambio no existe en la factura ' . $this->full_number)),
+      'Error'       => '',
+      'Estado'      => 0,
       'FechaEstado' => null,
     ];
   }

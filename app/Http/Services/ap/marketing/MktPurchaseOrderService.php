@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktPurchaseOrderResource;
+use App\Http\Services\ap\marketing\Concerns\NormalizesUppercaseText;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class MktPurchaseOrderService extends BaseService implements BaseServiceInterface
 {
+  use NormalizesUppercaseText;
+
+  const UPPERCASE_FIELDS = ['number', 'notes'];
+
   // Transiciones permitidas desde cada estado
   const ALLOWED_TRANSITIONS = [
     MktPurchaseOrder::STATUS_DRAFT           => [MktPurchaseOrder::STATUS_SENT, MktPurchaseOrder::STATUS_CANCELLED],
@@ -29,7 +34,7 @@ class MktPurchaseOrderService extends BaseService implements BaseServiceInterfac
   public function list(Request $request)
   {
     return $this->getFilteredResults(
-      MktPurchaseOrder::query()->with(['activity:id,name', 'currency:id,name,code,symbol', 'supplier:id,full_name', 'electronicDocument:id,full_number,status,enlace_del_pdf']),
+      MktPurchaseOrder::query()->with(['plan:id,name,concept,brand_id', 'plan.brand:id,name', 'activity:id,name', 'currency:id,name,code,symbol', 'supplier:id,full_name', 'electronicDocument:id,full_number,status,enlace_del_pdf']),
       $request,
       MktPurchaseOrder::filters,
       MktPurchaseOrder::sorts,
@@ -39,7 +44,7 @@ class MktPurchaseOrderService extends BaseService implements BaseServiceInterfac
 
   public function find(int $id): MktPurchaseOrder
   {
-    $order = MktPurchaseOrder::with(['activity', 'proposal', 'supplier', 'currency', 'supports', 'electronicDocument'])->find($id);
+    $order = MktPurchaseOrder::with(['plan', 'plan.brand', 'activity', 'proposal', 'supplier', 'currency', 'supports', 'electronicDocument'])->find($id);
     if (!$order) {
       throw new Exception('Orden de compra no encontrada');
     }
@@ -48,10 +53,11 @@ class MktPurchaseOrderService extends BaseService implements BaseServiceInterfac
 
   public function store(mixed $data): MktPurchaseOrderResource
   {
+    $data = $this->normalizeUpperFields($data, self::UPPERCASE_FIELDS);
     DB::beginTransaction();
     try {
       $order = MktPurchaseOrder::create($data);
-      $order->load(['activity', 'proposal', 'supplier', 'currency']);
+      $order->load(['plan', 'plan.brand', 'activity', 'proposal', 'supplier', 'currency']);
       DB::commit();
       return new MktPurchaseOrderResource($order);
     } catch (\Exception $e) {
@@ -73,10 +79,11 @@ class MktPurchaseOrderService extends BaseService implements BaseServiceInterfac
       throw new Exception('Solo se pueden editar órdenes en estado borrador o enviado');
     }
 
+    $data = $this->normalizeUpperFields($data, self::UPPERCASE_FIELDS);
     DB::beginTransaction();
     try {
       $order->update($data);
-      $order->load(['activity', 'proposal', 'supplier', 'currency']);
+      $order->load(['plan', 'plan.brand', 'activity', 'proposal', 'supplier', 'currency']);
       DB::commit();
       return new MktPurchaseOrderResource($order);
     } catch (\Exception $e) {
@@ -135,7 +142,7 @@ class MktPurchaseOrderService extends BaseService implements BaseServiceInterfac
       }
 
       $order->update($updateData);
-      $order->load(['activity', 'proposal', 'supplier', 'currency', 'electronicDocument']);
+      $order->load(['plan', 'plan.brand', 'activity', 'proposal', 'supplier', 'currency', 'electronicDocument']);
       DB::commit();
       return new MktPurchaseOrderResource($order);
     } catch (\Exception $e) {

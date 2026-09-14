@@ -37,12 +37,29 @@ class MktPurchaseOrder extends BaseModel
     'cancelled'       => 'Cancelado',
   ];
 
+  /** Marcas cuya referencia de proveedor se llama "PLANKET" en vez de "MIGO". */
+  const REFERENCE_LABEL_DEFAULT = 'MIGO';
+  const REFERENCE_LABEL_BRANDS  = [
+    'SUBARU' => 'PLANKET',
+    'DFSK'   => 'PLANKET',
+  ];
+
+  public static function referenceLabelForBrand(?string $brandName): string
+  {
+    if (!$brandName) {
+      return self::REFERENCE_LABEL_DEFAULT;
+    }
+    return self::REFERENCE_LABEL_BRANDS[strtoupper($brandName)] ?? self::REFERENCE_LABEL_DEFAULT;
+  }
+
   protected $fillable = [
+    'plan_id',
     'activity_id',
     'proposal_id',
     'supplier_id',
     'currency_id',
     'number',
+    'reference',
     'amount',
     'issue_date',
     'status',
@@ -50,6 +67,7 @@ class MktPurchaseOrder extends BaseModel
     'billed_at',
     'electronic_document_id',
     'notes',
+    'file_path',
     'created_by',
     'updated_by',
   ];
@@ -63,6 +81,7 @@ class MktPurchaseOrder extends BaseModel
 
   const filters = [
     'search'      => ['number', 'notes'],
+    'plan_id'     => '=',
     'activity_id' => '=',
     'proposal_id' => '=',
     'supplier_id' => '=',
@@ -79,6 +98,11 @@ class MktPurchaseOrder extends BaseModel
     'billed_at',
     'created_at',
   ];
+
+  public function plan(): BelongsTo
+  {
+    return $this->belongsTo(MktPlan::class, 'plan_id');
+  }
 
   public function activity(): BelongsTo
   {

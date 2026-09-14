@@ -955,21 +955,25 @@ class VehiclesService extends BaseService implements BaseServiceInterface
     if ($request->filled('sede_id')) {
       $sedeId = $request->get('sede_id');
 
-      // Algunas sedes tienen su almacen registrado bajo una sede_id diferente.
-      // Pimentel (sede 16) <-> sede_id 14 en almacenes: el mapeo es bidireccional.
-      $sedeToWarehouseSede = [
-        16 => 14,
-        14 => 16,
+      // Pimentel (sede 16) y sede 14 comparten almacenes: ambas se incluyen juntas.
+      $sedeGroups = [
+        [14, 16],
       ];
-      $warehouseSedeId = $sedeToWarehouseSede[$sedeId] ?? $sedeId;
+      $warehouseSedeIds = [$sedeId];
+      foreach ($sedeGroups as $group) {
+        if (in_array($sedeId, $group)) {
+          $warehouseSedeIds = $group;
+          break;
+        }
+      }
 
-      $query->where(function ($q) use ($warehouseSedeId, $excludeQuoteId) {
+      $query->where(function ($q) use ($warehouseSedeIds, $excludeQuoteId) {
         // El almacen de la sede se determina por `warehouse_id` (almacen contable/
         // de ubicacion). `warehouse_physical_id` esta casi siempre en NULL en
         // produccion, por lo que filtrar por `warehousePhysical.sede_id` dejaba
         // la lista vacia aunque el VIN si pertenezca a la sede.
-        $q->whereHas('warehouse', function ($sub) use ($warehouseSedeId) {
-          $sub->where('sede_id', $warehouseSedeId);
+        $q->whereHas('warehouse', function ($sub) use ($warehouseSedeIds) {
+          $sub->whereIn('sede_id', $warehouseSedeIds);
         });
         if ($excludeQuoteId) {
           $q->orWhereHas('purchaseRequestQuote', function ($sub) use ($excludeQuoteId) {

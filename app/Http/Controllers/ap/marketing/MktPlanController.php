@@ -63,4 +63,31 @@ class MktPlanController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function activate($id)
+  {
+    try {
+      return $this->success($this->service->changeStatus($id, \App\Models\ap\marketing\MktPlan::STATUS_ACTIVE));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function complete($id)
+  {
+    try {
+      return $this->success($this->service->changeStatus($id, \App\Models\ap\marketing\MktPlan::STATUS_CLOSED));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function cancel($id)
+  {
+    try {
+      return $this->success($this->service->changeStatus($id, \App\Models\ap\marketing\MktPlan::STATUS_CANCELLED));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }
