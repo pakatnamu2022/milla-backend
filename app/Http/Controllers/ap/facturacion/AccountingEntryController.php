@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Dynamics\AccountingEntryHeaderDynamicsResource;
 use App\Http\Services\ap\facturacion\AccountingEntryService;
 use App\Models\ap\comercial\ShippingGuides;
+use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Http\JsonResponse;
@@ -132,6 +133,144 @@ class AccountingEntryController extends Controller
     } catch (\Exception $e) {
       return response()->json([
         'error' => 'Error generando preview',
+        'message' => $e->getMessage(),
+        'trace' => config('app.debug') ? $e->getTraceAsString() : null
+      ], 500);
+    }
+  }
+
+  /**
+   * Preview de la REVERSIÓN del asiento contable de una guía ya cancelada/contabilizada.
+   * Replica la lógica de ReverseAccountingEntryJob (localizar el asiento original vía
+   * Referencia, invertir Débito/Crédito) pero sin escribir nada: no consume número de
+   * asiento real, no crea logs y no envía nada a la intermedia.
+   *
+   * @param int $shippingGuideId
+   * @return JsonResponse
+   */
+  public function previewReversal(int $shippingGuideId): JsonResponse
+  {
+    try {
+      $shippingGuide = ShippingGuides::with([
+        'vehicleMovement.vehicle.model.classArticle',
+        'vehicleMovement',
+      ])->find($shippingGuideId);
+
+      if (!$shippingGuide) {
+        return response()->json([
+          'error' => 'ShippingGuide no encontrada',
+          'shipping_guide_id' => $shippingGuideId
+        ], 404);
+      }
+
+      // 1. Debe existir el asiento original enviado a la intermedia
+      $originalHeaderLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER)
+        ->first();
+
+      if (!$originalHeaderLog) {
+        return response()->json([
+          'error' => 'Esta guía no tiene un asiento contable original enviado a Dynamics; no hay nada que reversar',
+          'shipping_guide_id' => $shippingGuide->id,
+        ], 400);
+      }
+
+      $existingReversalLog = VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+        ->where('step', VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER_REVERSAL)
+        ->first();
+
+      // 2. Ubicar la factura original vía Referencia (mismo método que el job real)
+      $vin = $shippingGuide->vehicleMovement->vehicle->vin;
+
+      $candidateDocuments = ElectronicDocument::with([
+        'items',
+        'creator.person',
+        'currency',
+        'seriesModel.sede',
+        'vehicleMovement.vehicle.model.classArticle',
+        'vehicle',
+      ])
+        ->where('is_advance_payment', 0)
+        ->where('aceptada_por_sunat', true)
+        ->whereIn('sunat_concept_document_type_id', [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA,
+        ])
+        ->whereHas('vehicle', function ($query) use ($vin) {
+          $query->where('vin', $vin);
+        })
+        ->get();
+
+      $electronicDocument = $candidateDocuments->first(
+        fn($inv) => AccountingEntryHeaderDynamicsResource::buildReferencia($inv->full_number, $vin) === $originalHeaderLog->external_id
+      );
+
+      if (!$electronicDocument) {
+        return response()->json([
+          'error' => 'No se pudo ubicar la factura del asiento original (ninguna Referencia coincide)',
+          'shipping_guide_id' => $shippingGuide->id,
+          'referencia_original' => $originalHeaderLog->external_id,
+        ], 404);
+      }
+
+      // 3. Generar líneas del asiento original con un número placeholder (no consume
+      //    secuencia real: getNextAsientoNumber() NO se llama aquí) e invertir Débito/Crédito
+      $placeholderAsiento = 0;
+      $forwardLines = $this->accountingService->generateAccountingLines($electronicDocument, $placeholderAsiento);
+
+      $reversedLines = array_map(function (array $line) {
+        return array_merge($line, [
+          'Debito' => $line['Credito'],
+          'Credito' => $line['Debito'],
+          // Descripcion es varchar(30) NOT NULL en Dynamics: prefijo corto + truncado defensivo.
+          'Descripcion' => substr('REV: ' . $line['Descripcion'], 0, 30),
+        ]);
+      }, $forwardLines);
+
+      $this->accountingService->validateBalance($reversedLines);
+
+      $totalDebito = array_sum(array_column($reversedLines, 'Debito'));
+      $totalCredito = array_sum(array_column($reversedLines, 'Credito'));
+
+      $reversalReferencia = substr($originalHeaderLog->external_id, 0, 30 - strlen('-REV')) . '-REV';
+
+      return response()->json([
+        'success' => true,
+        'shipping_guide' => [
+          'id' => $shippingGuide->id,
+          'series' => $shippingGuide->series,
+          'document_number' => $shippingGuide->document_number,
+          'cancelled_at' => $shippingGuide->cancelled_at,
+          'is_annulled' => $shippingGuide->is_annulled,
+          'is_accounted' => $shippingGuide->is_accounted,
+          'dyn_series' => $shippingGuide->dyn_series,
+        ],
+        'electronic_document' => [
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'fecha_emision' => $electronicDocument->fecha_de_emision,
+          'total' => $electronicDocument->total,
+        ],
+        'reversal' => [
+          'referencia_original' => $originalHeaderLog->external_id,
+          'referencia_reversion' => $reversalReferencia,
+          'ya_enviada_a_dynamics' => (bool) $existingReversalLog,
+          'estado_log_reversion' => $existingReversalLog?->status,
+          'details' => $reversedLines,
+          'summary' => [
+            'total_lines' => count($reversedLines),
+            'total_debito' => round($totalDebito, 2),
+            'total_credito' => round($totalCredito, 2),
+            'balance' => round($totalDebito - $totalCredito, 2),
+            'is_balanced' => abs($totalDebito - $totalCredito) <= 0.01,
+          ],
+        ],
+        'message' => 'Preview de REVERSIÓN generado. "Asiento"=0 es un placeholder (no se consumió número real de secuencia). No se ha enviado nada a Dynamics ni se ha creado ningún log.'
+      ], 200);
+
+    } catch (\Exception $e) {
+      return response()->json([
+        'error' => 'Error generando preview de reversión',
         'message' => $e->getMessage(),
         'trace' => config('app.debug') ? $e->getTraceAsString() : null
       ], 500);
