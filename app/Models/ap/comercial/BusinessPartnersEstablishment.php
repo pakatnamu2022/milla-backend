@@ -2,13 +2,13 @@
 
 namespace App\Models\ap\comercial;
 
+use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\Sede;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class BusinessPartnersEstablishment extends Model
+class BusinessPartnersEstablishment extends BaseModel
 {
   use SoftDeletes;
 
@@ -28,10 +28,10 @@ class BusinessPartnersEstablishment extends Model
   ];
 
   const filters = [
-    'search' => ['code', 'description', 'address', 'full_address'],
-    'status' => '=',
+    'search'              => ['code', 'description', 'address', 'full_address'],
+    'status'              => '=',
     'business_partner_id' => '=',
-    'sede_id' => '=',
+    'sede_id'             => '=',
   ];
 
   const sorts = [
