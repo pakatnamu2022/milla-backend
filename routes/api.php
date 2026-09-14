@@ -111,6 +111,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\common\NotificationController;
 use App\Http\Controllers\Dashboard\ap\comercial\DashboardComercialController;
 use App\Http\Controllers\DocumentValidationController;
+use App\Http\Controllers\ap\compras\AccountsPayableController;
 use App\Http\Controllers\dp\comercial\AccountsReceivableController;
 use App\Http\Controllers\GeneralMaster\GeneralMasterController;
 use App\Http\Controllers\gp\gestionhumana\AccountantDistrictAssignmentController;
@@ -1561,6 +1562,15 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         'store',
         'destroy',
       ]);
+
+      // Accounts Payable
+      Route::post('accountsPayable/sync', [AccountsPayableController::class, 'sync']);
+      Route::get('accountsPayable/dashboard', [AccountsPayableController::class, 'dashboard']);
+      Route::get('accountsPayable/{id}', [AccountsPayableController::class, 'show']);
+      Route::post('accountsPayable/{id}/comments', [AccountsPayableController::class, 'storeComment']);
+      Route::put('accountsPayable/comments/{commentId}', [AccountsPayableController::class, 'updateComment']);
+      Route::delete('accountsPayable/comments/{commentId}', [AccountsPayableController::class, 'destroyComment']);
+      Route::get('accountsPayable', [AccountsPayableController::class, 'index']);
 
       // Reports
       Route::prefix('reports')->group(function () {
