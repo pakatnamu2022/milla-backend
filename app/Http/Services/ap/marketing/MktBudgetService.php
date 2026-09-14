@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\marketing;
 
 use App\Http\Resources\ap\marketing\MktBudgetFundingResource;
 use App\Http\Resources\ap\marketing\MktBudgetResource;
+use App\Http\Services\ap\marketing\Concerns\NormalizesUppercaseText;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Models\ap\marketing\MktBudget;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class MktBudgetService extends BaseService implements BaseServiceInterface
 {
+  use NormalizesUppercaseText;
+
+  const UPPERCASE_FIELDS = ['notes'];
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -38,6 +43,8 @@ class MktBudgetService extends BaseService implements BaseServiceInterface
   {
     DB::beginTransaction();
     try {
+      $data['status'] = $data['status'] ?? MktBudget::STATUS_DRAFT;
+      $data = $this->normalizeUpperFields($data, self::UPPERCASE_FIELDS);
       $budget = MktBudget::create($data);
       $budget->load(['plan', 'currency', 'fundings']);
       DB::commit();
@@ -56,6 +63,7 @@ class MktBudgetService extends BaseService implements BaseServiceInterface
   public function update(mixed $data): MktBudgetResource
   {
     $budget = $this->find($data['id']);
+    $data = $this->normalizeUpperFields($data, self::UPPERCASE_FIELDS);
     DB::beginTransaction();
     try {
       $budget->update($data);
