@@ -85,6 +85,7 @@ use App\Http\Controllers\ap\postventa\Reports\WorkOrderOpeningReportController;
 use App\Http\Controllers\ap\postventa\Reports\WorkShopReportController;
 use App\Http\Controllers\ap\postventa\repuestos\ApprovedAccessoriesController;
 use App\Http\Controllers\ap\postventa\taller\ApCampaignScheduleController;
+use App\Http\Controllers\ap\postventa\VehicleLeakageController;
 use App\Http\Controllers\ap\postventa\taller\ApInternalNoteController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderPurchaseRequestsController;
 use App\Http\Controllers\ap\postventa\taller\ApOrderQuotationDetailsController;
@@ -1857,6 +1858,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Reports - Reportes de Taller
       Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+      Route::post('reports/work-orders/closed-by-vehicle/export', [WorkShopReportController::class, 'exportClosedWorkOrdersByVehicle']);
       Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
       Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
       Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
@@ -1864,6 +1866,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
       Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
       Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
+
+      // Vehicle Leakage - Enriquecimiento de Archivos de Fugado/Fuga Temprana (Background Queue)
+      Route::post('vehicle-leakage/process', [VehicleLeakageController::class, 'processLeakageFile']);
+      Route::get('vehicle-leakage/jobs', [VehicleLeakageController::class, 'listJobs'])->name('vehicle-leakage.list');
+      Route::get('vehicle-leakage/status/{jobId}', [VehicleLeakageController::class, 'checkStatus'])->name('vehicle-leakage.status');
+      Route::get('vehicle-leakage/download/{jobId}', [VehicleLeakageController::class, 'downloadFile'])->name('vehicle-leakage.download');
 
       // Objectives Dashboard - Dashboard de Objetivos Postventa
       Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
@@ -2629,6 +2637,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Reports - Reportes de Taller
     Route::post('reports/work-orders/export', [WorkShopReportController::class, 'exportWorkOrders']);
+    Route::post('reports/work-orders/closed-by-vehicle/export', [WorkShopReportController::class, 'exportClosedWorkOrdersByVehicle']);
     Route::post('reports/work-orders/openings/export', [WorkOrderOpeningReportController::class, 'exportWorkOrderOpenings']);
     Route::post('reports/work-orders/parts/export', [PartsReportController::class, 'exportParts']);
     Route::post('reports/worked-hours-by-sede/export', [WorkedHoursBySedeReportController::class, 'export']);
@@ -2636,11 +2645,6 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::post('reports/invoicing/export', [InvoicingWorkOrderReportController::class, 'exportInvoicing']);
     Route::post('reports/electronic-documents/export', [PurchaseOrderReceiptsReportController::class, 'exportElectronicDocuments']);
     Route::post('reports/electronic-documents/detailed/export', [ElectronicDocumentsReportController::class, 'export']);
-
-    // Objectives Dashboard - Dashboard de Objetivos Postventa
-    Route::get('reports/objectives/dashboard', [ObjectiveDashboardController::class, 'getDashboard']);
-    Route::post('reports/objectives/dashboard/refresh', [ObjectiveDashboardController::class, 'refreshDashboard']);
-    Route::post('reports/objectives/dashboard/export', [ObjectiveDashboardController::class, 'exportExcel']);
 
     // Productivity Dashboard - Dashboard de Productividad de Técnicos
     Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);

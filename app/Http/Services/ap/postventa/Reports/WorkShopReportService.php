@@ -558,6 +558,139 @@ class WorkShopReportService
   }
 
   /**
+   * Obtiene el reporte de Órdenes de Trabajo Cerradas por Vehículo (última OT por VIN)
+   *
+   * @param array $filters
+   * @return Collection
+   */
+  public function getClosedWorkOrdersByVehicleReport(array $filters = []): Collection
+  {
+    // Obtener sedes del usuario autenticado
+    $userSedeIds = $this->getUserSedeIds();
+
+    // Consultar OTs cerradas
+    $query = ApWorkOrder::query()
+      ->with([
+        'invoiceTo.documentType',
+        'invoiceTo.typePerson',
+        'vehicle.customer.documentType',
+        'vehicle.customer.typePerson',
+        'vehicle.model.family.brand',
+        'vehicle.model.family',
+        'vehicle.color',
+        'vehicle.typeOperation',
+        'sede',
+        'advisor',
+        'items.typePlanning',
+        'plannings.worker',
+      ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+      ->whereNotNull('actual_delivery_date'); // Solo OTs con fecha de cierre
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $query->whereIn('sede_id', $userSedeIds);
+    }
+
+    // Aplicar filtros
+    $this->applyClosedWorkOrderFilters($query, $filters);
+
+    // Obtener todas las OTs cerradas
+    $workOrders = $query->get();
+
+    // Agrupar por VIN y obtener solo la última OT por vehículo
+    $latestWorkOrdersByVin = $workOrders
+      ->groupBy('vehicle.vin')
+      ->map(function ($ordersGroup) {
+        // Ordenar por fecha de cierre descendente y tomar la primera (última OT)
+        return $ordersGroup->sortByDesc('actual_delivery_date')->first();
+      })
+      ->values();
+
+    // Transformar para el reporte
+    return $latestWorkOrdersByVin->map(function ($workOrder) {
+      return $this->transformClosedWorkOrderForReport($workOrder);
+    })->values();
+  }
+
+  /**
+   * Transforma una Orden de Trabajo Cerrada en el formato del reporte
+   *
+   * @param ApWorkOrder $workOrder
+   * @return array
+   */
+  private function transformClosedWorkOrderForReport(ApWorkOrder $workOrder): array
+  {
+    $invoiceTo = $workOrder->invoiceTo;
+    $vehicle = $workOrder->vehicle;
+    $customer = $vehicle?->customer; // Propietario del vehículo
+    $firstItem = $workOrder->items->first();
+
+    // Obtener técnicos únicos consolidados
+    $technicians = $this->getConsolidatedTechnicians($workOrder);
+
+    return [
+      'taller' => $workOrder->sede?->abreviatura ?? '',
+      'cliente_facturado' => $invoiceTo?->full_name ?? '',
+      'nombre_cliente' => $invoiceTo?->full_name ?? '',
+      'email_cliente' => $invoiceTo?->email ?? '',
+      'movil_cliente' => $invoiceTo?->phone ?? '',
+      'propietario_nombre' => $customer?->full_name ?? '',
+      'propietario_email' => $customer?->email ?? '',
+      'propietario_movil' => $customer?->phone ?? '',
+      'marca' => $vehicle?->model?->family?->brand?->name ?? '',
+      'modelo' => $vehicle?->model?->family?->description ?? '',
+      'color' => $vehicle?->color?->description ?? '',
+      'kilometraje' => $vehicle?->mileage ?? '',
+      'placa' => $vehicle?->plate ?? '',
+      'vin' => $vehicle?->vin ?? '',
+      'tipo_ingreso' => $workOrder->appointment_planning_id ? 'CON CITA' : 'SIN CITA',
+      'numero_ot' => $workOrder->correlative ?? '',
+      'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'tipo_operacion' => $vehicle?->typeOperation?->description ?? '',
+      'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+      'nombre_tecnico' => $technicians,
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+    ];
+  }
+
+  /**
+   * Aplica filtros a la query de OTs cerradas
+   *
+   * @param $query
+   * @param array $filters
+   * @return void
+   */
+  private function applyClosedWorkOrderFilters($query, array $filters): void
+  {
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      switch ($operator) {
+        case 'closingDateFilter':
+          // Filtro de rango de fechas de cierre
+          if (is_array($value) && count($value) === 2) {
+            $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+          }
+          break;
+        case '=':
+          $query->where($column, $value);
+          break;
+        case 'like':
+          $query->where($column, 'like', '%' . $value . '%');
+          break;
+      }
+    }
+  }
+
+  /**
    * Obtiene los IDs de las sedes asociadas al usuario autenticado
    *
    * @return array
