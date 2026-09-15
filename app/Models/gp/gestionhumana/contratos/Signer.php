@@ -8,6 +8,7 @@ use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Crypt;
 
 /**
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Crypt;
  */
 class Signer extends BaseModel
 {
-  use Reportable;
+  use Reportable, SoftDeletes;
 
   protected $table = 'rrhh_firmante';
 

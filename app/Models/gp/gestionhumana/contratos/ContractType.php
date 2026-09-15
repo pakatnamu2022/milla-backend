@@ -5,6 +5,7 @@ namespace App\Models\gp\gestionhumana\contratos;
 use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Catalogo de tipos de contrato, tabla legacy `rrhh_tipo_contrato`.
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ContractType extends BaseModel
 {
-  use Reportable;
+  use Reportable, SoftDeletes;
 
   protected $table = 'rrhh_tipo_contrato';
 

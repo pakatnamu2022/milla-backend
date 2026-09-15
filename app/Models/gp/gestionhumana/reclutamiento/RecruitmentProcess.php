@@ -10,6 +10,7 @@ use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Proceso de postulacion / vacante, tabla legacy `rrhh_proceso_postulacion`.
@@ -23,9 +24,9 @@ class RecruitmentProcess extends BaseModel
 
   protected $table = 'rrhh_proceso_postulacion';
 
-  const STATUS_OPEN       = 9;
+  const STATUS_OPEN = 9;
   const STATUS_IN_PROCESS = 10;
-  const STATUS_CLOSED     = 11;
+  const STATUS_CLOSED = 11;
 
   protected $fillable = [
     'nombre_postulacion',
@@ -62,17 +63,17 @@ class RecruitmentProcess extends BaseModel
   const sorts = ['id', 'nombre_postulacion', 'fecha_inicio', 'fecha_fin_plazo'];
 
   protected $reportColumns = [
-    'id'                  => ['label' => 'ID', 'width' => 8],
-    'nombre_postulacion'  => ['label' => 'PROCESO', 'width' => 30],
-    'sede.abreviatura'    => ['label' => 'SEDE', 'width' => 15],
-    'area.name'           => ['label' => 'ÁREA', 'width' => 20],
-    'position.name'       => ['label' => 'CARGO', 'width' => 20],
-    'cant_trab_solicita'  => ['label' => 'VACANTES', 'width' => 10, 'formatter' => 'number'],
-    'status.estado'       => ['label' => 'ESTADO', 'width' => 15],
-    'fecha_inicio'        => ['label' => 'FECHA INICIO', 'width' => 14, 'formatter' => 'date'],
-    'fecha_fin_plazo'     => ['label' => 'FECHA FIN PLAZO', 'width' => 14, 'formatter' => 'date'],
-    'fecha_fin_cierre'    => ['label' => 'FECHA CIERRE', 'width' => 14, 'formatter' => 'date'],
-    'dias_plazo'          => ['label' => 'DÍAS PLAZO', 'width' => 10, 'formatter' => 'number'],
+    'id'                 => ['label' => 'ID', 'width' => 8],
+    'nombre_postulacion' => ['label' => 'PROCESO', 'width' => 30],
+    'sede.abreviatura'   => ['label' => 'SEDE', 'width' => 15],
+    'area.name'          => ['label' => 'ÁREA', 'width' => 20],
+    'position.name'      => ['label' => 'CARGO', 'width' => 20],
+    'cant_trab_solicita' => ['label' => 'VACANTES', 'width' => 10, 'formatter' => 'number'],
+    'status.estado'      => ['label' => 'ESTADO', 'width' => 15],
+    'fecha_inicio'       => ['label' => 'FECHA INICIO', 'width' => 14, 'formatter' => 'date'],
+    'fecha_fin_plazo'    => ['label' => 'FECHA FIN PLAZO', 'width' => 14, 'formatter' => 'date'],
+    'fecha_fin_cierre'   => ['label' => 'FECHA CIERRE', 'width' => 14, 'formatter' => 'date'],
+    'dias_plazo'         => ['label' => 'DÍAS PLAZO', 'width' => 10, 'formatter' => 'number'],
   ];
 
   protected $reportRelations = ['sede', 'area', 'position', 'status'];
@@ -80,6 +81,11 @@ class RecruitmentProcess extends BaseModel
   protected static function booted(): void
   {
     static::addGlobalScope('active', fn(Builder $b) => $b->where('status_deleted', 1));
+  }
+
+  public function setNombrePostulacionAttribute($value): void
+  {
+    $this->attributes['nombre_postulacion'] = Str::upper(Str::ascii($value));
   }
 
   public function sede()

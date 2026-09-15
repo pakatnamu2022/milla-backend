@@ -295,6 +295,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
         'entidad_seguro' => $prq?->insuranceEntity?->description,
         'gps_hunter' => $prq?->has_gps_hunter ? 'SÍ' : 'NO',
         'gps_hunter_anios' => $prq?->has_gps_hunter ? $prq?->gps_hunter_years : null,
+        'email_cliente' => $prq?->holder?->email,
+        'telefono_cliente' => $prq?->holder?->phone,
       ];
 
       // Hoja de refacturaciones / NC parcial.
@@ -387,6 +389,8 @@ class VehiclesService extends BaseService implements BaseServiceInterface
       'entidad_seguro' => 'ENTIDAD DE SEGURO',
       'gps_hunter' => 'GPS HUNTER',
       'gps_hunter_anios' => 'AÑOS GPS HUNTER',
+      'email_cliente' => 'EMAIL CLIENTE',
+      'telefono_cliente' => 'TELÉFONO CLIENTE',
     ];
 
     $creditNoteColumns = [

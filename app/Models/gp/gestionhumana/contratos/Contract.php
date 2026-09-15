@@ -9,6 +9,7 @@ use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Contrato de trabajo, tabla legacy `rrhh_contrato`. Equivale a
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Contract extends BaseModel
 {
-  use Reportable;
+  use Reportable, SoftDeletes;
 
   protected $table = 'rrhh_contrato';
 

@@ -4,6 +4,7 @@ namespace App\Models\gp\gestionhumana\contratos;
 
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Plantilla de contrato, tabla legacy `rrhh_plantilla_contrato`.
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ContractTemplate extends BaseModel
 {
+  use SoftDeletes;
+
   protected $table = 'rrhh_plantilla_contrato';
 
   protected $fillable = [
