@@ -5,6 +5,7 @@ namespace App\Http\Controllers\gp\gestionhumana\reclutamiento;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\reclutamiento\ChangeApplicantStatusRequest;
 use App\Http\Requests\gp\gestionhumana\reclutamiento\IndexApplicantRequest;
+use App\Http\Requests\gp\gestionhumana\reclutamiento\RepostApplicantRequest;
 use App\Http\Requests\gp\gestionhumana\reclutamiento\StoreApplicantRequest;
 use App\Http\Requests\gp\gestionhumana\reclutamiento\UpdateApplicantRequest;
 use App\Http\Services\gp\gestionhumana\reclutamiento\ApplicantService;
@@ -63,6 +64,15 @@ class ApplicantController extends Controller
   {
     try {
       return $this->success($this->service->changeStatus($id, $request->validated()));
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function repost(RepostApplicantRequest $request, int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->repost($id, (int) $request->validated()['proceso_postulacion_id']));
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }

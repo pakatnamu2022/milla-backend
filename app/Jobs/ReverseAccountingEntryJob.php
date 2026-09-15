@@ -183,8 +183,7 @@ class ReverseAccountingEntryJob implements ShouldQueue
 
         $headerLog->update(['status' => VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS]);
 
-        $fecha = $shippingGuide->cancelled_at ?? now();
-        $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $fecha, $asientoNumber);
+        $headerResource = new AccountingEntryHeaderDynamicsResource($electronicDocument, $shippingGuide->issue_date, $asientoNumber);
         $headerData = $headerResource->toArray(request());
         // La Referencia del recurso corresponde al asiento original: se sobreescribe con la de reversión.
         $headerData['Referencia'] = $reversalReferencia;

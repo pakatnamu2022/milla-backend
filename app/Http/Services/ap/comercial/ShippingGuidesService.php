@@ -1206,12 +1206,21 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         && $shippingGuide->transfer_reason_id !== SunatConcepts::TRANSFER_REASON_VENTA;
 
       if (!$isEligibleComercialTransfer) {
-        // Para guías de VENTA ya contabilizadas, permitir re-sync si el delivery aún no llegó a 'delivered'.
-        // El job consultará Dynamics y avanzará el estado sin re-disparar el asiento contable.
+        // Para guías de VENTA ya contabilizadas, permitir re-sync si el delivery aún no llegó a 'delivered'
+        // o si hay logs de asiento contable en estado pending con 0 intentos (creados con documento incorrecto).
         $delivery = ApVehicleDelivery::where('shipping_guide_id', $shippingGuide->id)->first();
         $alreadyDelivered = !$delivery || $delivery->status_delivery === ApVehicleDelivery::STATUS_DELIVERED;
 
-        if ($alreadyDelivered) {
+        $hasStaleAccountingLogs = $alreadyDelivered && VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuide->id)
+          ->whereIn('step', [
+            VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
+            VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
+          ])
+          ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING)
+          ->where('attempts', 0)
+          ->exists();
+
+        if ($alreadyDelivered && !$hasStaleAccountingLogs) {
           throw new Exception('La guía de remisión ya ha sido contabilizada, no se puede sincronizar con Dynamics');
         }
       }

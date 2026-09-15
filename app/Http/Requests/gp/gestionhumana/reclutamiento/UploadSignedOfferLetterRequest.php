@@ -1,0 +1,20 @@
+<?php
+
+namespace App\Http\Requests\gp\gestionhumana\reclutamiento;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UploadSignedOfferLetterRequest extends FormRequest
+{
+  public function authorize(): bool
+  {
+    return true;
+  }
+
+  public function rules(): array
+  {
+    return [
+      'carta_oferta' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+    ];
+  }
+}
