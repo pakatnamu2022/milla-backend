@@ -20,7 +20,9 @@ use App\Models\ap\comercial\PurchaseRequestQuote;
 use App\Models\ap\facturacion\ElectronicDocument;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class BusinessPartnersService extends BaseService implements BaseServiceInterface
@@ -54,11 +56,19 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
 
   public function store(mixed $data)
   {
+    $lock = Cache::lock('create_business_partner_' . $data['num_doc'], 30);
+
+    try {
+      $lock->block(10);
+    } catch (LockTimeoutException) {
+      throw new Exception('No se pudo procesar la solicitud, intente nuevamente.');
+    }
+
     DB::beginTransaction();
     try {
       $data = $this->getData($data);
 
-      // Verificar si existe
+      // Verificar si existe (dentro del lock para evitar race condition)
       $existingPartner = BusinessPartners::where('num_doc', $data['num_doc'])
         ->whereNull('deleted_at')
         ->first();
@@ -114,6 +124,8 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
     } catch (Exception $e) {
       DB::rollBack();
       throw new Exception($e->getMessage());
+    } finally {
+      $lock->release();
     }
   }
 

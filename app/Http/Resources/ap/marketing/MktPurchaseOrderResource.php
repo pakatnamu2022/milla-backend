@@ -12,6 +12,15 @@ class MktPurchaseOrderResource extends JsonResource
   {
     return [
       'id'          => $this->id,
+      'plan_id'     => $this->plan_id,
+      'plan'        => $this->whenLoaded('plan', fn() => [
+        'id'      => $this->plan->id,
+        'name'    => $this->plan->name,
+        'concept' => $this->plan->concept,
+        'brand'   => $this->plan->relationLoaded('brand') && $this->plan->brand
+          ? ['id' => $this->plan->brand->id, 'name' => $this->plan->brand->name]
+          : null,
+      ]),
       'activity_id' => $this->activity_id,
       'activity'    => $this->whenLoaded('activity', fn() => [
         'id'   => $this->activity->id,
@@ -36,6 +45,10 @@ class MktPurchaseOrderResource extends JsonResource
         'symbol' => $this->currency->symbol,
       ]),
       'number'      => $this->number,
+      'reference'       => $this->reference,
+      'reference_label' => MktPurchaseOrder::referenceLabelForBrand(
+        $this->relationLoaded('plan') && $this->plan?->relationLoaded('brand') ? $this->plan->brand?->name : null
+      ),
       'amount'      => $this->amount,
       'issue_date'  => $this->issue_date?->format('Y-m-d'),
       'status'       => $this->status,
@@ -50,6 +63,7 @@ class MktPurchaseOrderResource extends JsonResource
         'pdf_url'     => $this->electronicDocument->enlace_del_pdf,
       ]),
       'notes'       => $this->notes,
+      'file_path'   => $this->file_path,
       'supports'    => MktSupportResource::collection($this->whenLoaded('supports')),
       'created_by'  => $this->created_by,
       'updated_by'  => $this->updated_by,

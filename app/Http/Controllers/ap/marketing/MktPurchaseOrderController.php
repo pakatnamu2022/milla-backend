@@ -7,15 +7,18 @@ use App\Http\Requests\ap\marketing\IndexMktPurchaseOrderRequest;
 use App\Http\Requests\ap\marketing\StoreMktPurchaseOrderRequest;
 use App\Http\Requests\ap\marketing\UpdateMktPurchaseOrderRequest;
 use App\Http\Services\ap\marketing\MktPurchaseOrderService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use Illuminate\Http\Request;
 
 class MktPurchaseOrderController extends Controller
 {
   protected MktPurchaseOrderService $service;
+  protected DigitalFileService $digitalFileService;
 
-  public function __construct(MktPurchaseOrderService $service)
+  public function __construct(MktPurchaseOrderService $service, DigitalFileService $digitalFileService)
   {
     $this->service = $service;
+    $this->digitalFileService = $digitalFileService;
   }
 
   public function index(IndexMktPurchaseOrderRequest $request)
@@ -30,7 +33,15 @@ class MktPurchaseOrderController extends Controller
   public function store(StoreMktPurchaseOrderRequest $request)
   {
     try {
-      return $this->success($this->service->store($request->validated()));
+      $data = $request->validated();
+
+      if ($request->hasFile('file')) {
+        $uploaded = $this->digitalFileService->store($request->file('file'), '/ap/marketing/purchase-orders/');
+        $data['file_path'] = $uploaded->url;
+      }
+      unset($data['file']);
+
+      return $this->success($this->service->store($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -50,6 +61,13 @@ class MktPurchaseOrderController extends Controller
     try {
       $data = $request->validated();
       $data['id'] = $id;
+
+      if ($request->hasFile('file')) {
+        $uploaded = $this->digitalFileService->store($request->file('file'), '/ap/marketing/purchase-orders/');
+        $data['file_path'] = $uploaded->url;
+      }
+      unset($data['file']);
+
       return $this->success($this->service->update($data));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());

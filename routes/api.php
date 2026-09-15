@@ -1325,15 +1325,21 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::group(['prefix' => 'marketing'], function () {
       // Plans
       Route::apiResource('plans', MktPlanController::class);
+      Route::post('plans/{id}/activate', [MktPlanController::class, 'activate']);
+      Route::post('plans/{id}/complete', [MktPlanController::class, 'complete']);
+      Route::post('plans/{id}/cancel', [MktPlanController::class, 'cancel']);
 
       // Budgets
       Route::apiResource('budgets', MktBudgetController::class);
       Route::post('budgets/{id}/fundings', [MktBudgetController::class, 'addFunding']);
 
       // Activities
+      Route::get('activities/activity-types', [MktActivityController::class, 'activityTypes']);
+      Route::get('activities/channels', [MktActivityController::class, 'channels']);
       Route::apiResource('activities', MktActivityController::class);
       Route::post('activities/{id}/locations', [MktActivityController::class, 'addLocation']);
       Route::post('activities/{id}/supports', [MktActivityController::class, 'addSupport']);
+      Route::get('activities/{id}/supports/pdf', [MktActivityController::class, 'supportsPdf']);
       Route::patch('activities/{id}/status', [MktActivityController::class, 'changeStatus']);
 
       // Proposals
@@ -1346,7 +1352,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('purchase-orders/{id}/status', [MktPurchaseOrderController::class, 'changeStatus']);
 
       // Supports
-      Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'destroy']);
+      Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
       // KPIs
       Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);

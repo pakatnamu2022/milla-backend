@@ -4,7 +4,7 @@ namespace App\Http\Requests\ap\marketing;
 
 use App\Http\Requests\StoreRequest;
 
-class StoreMktSupportRequest extends StoreRequest
+class UpdateMktSupportRequest extends StoreRequest
 {
   public function rules(): array
   {

@@ -85,6 +85,33 @@ class MktActivityController extends Controller
     }
   }
 
+  public function activityTypes()
+  {
+    try {
+      return $this->service->getActivityTypes();
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function channels()
+  {
+    try {
+      return $this->service->getChannels();
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function supportsPdf($id)
+  {
+    try {
+      return $this->service->generateSupportsPdf($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function changeStatus(Request $request, $id)
   {
     try {
