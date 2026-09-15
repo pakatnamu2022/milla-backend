@@ -40,6 +40,7 @@ class ObjectiveSedePeriodPv extends Model
 
   public function conceptObjectives()
   {
-    return $this->hasMany(ConceptObjectivePeriodPv::class, 'objective_sede_period_pv_id');
+    return $this->hasMany(ConceptObjectivePeriodPv::class, 'objective_sede_period_pv_id')
+      ->orderBy('order');
   }
 }

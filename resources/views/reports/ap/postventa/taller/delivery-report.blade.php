@@ -1406,7 +1406,7 @@
                  class="coordinator-signature-img">
             <div class="coordinator-signature-name">{{ $workshopCoordinator->nombre_completo }}</div>
             <div class="coordinator-signature-subtitle">(Visto Bueno
-              de {{ $isWorkshopCoordinator ? 'Técnico' : 'Jefe de Taller' }})
+              de {{ $isWorkshopCoordinator ? 'Coordinador de taller' : 'Jefe de Taller' }})
             </div>
           </div>
         @endif

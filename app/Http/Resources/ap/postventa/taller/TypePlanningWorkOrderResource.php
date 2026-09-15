@@ -23,6 +23,7 @@ class TypePlanningWorkOrderResource extends JsonResource
       'validate_labor' => $this->validate_labor,
       'type_document' => $this->type_document,
       'category_type' => $this->category_type,
+      'consider_vehicle_traffic' => $this->consider_vehicle_traffic,
       'status' => $this->status,
     ];
   }
