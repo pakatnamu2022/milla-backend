@@ -582,11 +582,12 @@ class ObjectiveDashboardService
         $conceptsSummary[] = [
           'id' => $concept['id'],
           'description' => $concept['description'],
+          'area_id' => $concept['area_id'],
           'area_name' => $concept['area_name'],
+          'is_vehicular_crossing' => $concept['is_vehicular_crossing'],
           'objective' => $concept['objective'],
           'progress' => $concept['progress'],
           'completion_percentage' => $concept['completion_percentage'],
-          'is_vehicular_crossing' => $concept['is_vehicular_crossing'],
           'status' => $concept['status']
         ];
       }

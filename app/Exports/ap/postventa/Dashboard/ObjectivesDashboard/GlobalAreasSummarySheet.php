@@ -12,7 +12,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class HeadquartersRankingSheet implements
+class GlobalAreasSummarySheet implements
   FromCollection,
   WithHeadings,
   WithMapping,
@@ -30,89 +30,40 @@ class HeadquartersRankingSheet implements
 
   public function collection()
   {
-    return collect($this->data['headquarters_comparison']['ranking']);
+    return collect($this->data['global_areas_summary']);
   }
 
   public function headings(): array
   {
     return [
-      'RANKING',
-      'SEDE',
-      'OBJETIVO (S/)',
-      'AVANCE (S/)',
+      'ÁREA',
+      'TIPO',
+      'OBJETIVO TOTAL',
+      'AVANCE TOTAL',
       'CUMPLIMIENTO (%)',
       'ESTADO',
-      'TALLER - OBJETIVO (S/)',
-      'TALLER - AVANCE (S/)',
-      'TALLER - %',
-      'MESÓN - OBJETIVO (S/)',
-      'MESÓN - AVANCE (S/)',
-      'MESÓN - %',
-      'PASO VEHICULAR - OBJETIVO',
-      'PASO VEHICULAR - AVANCE',
-      'PASO VEHICULAR - %',
     ];
   }
 
   public function map($row): array
   {
-    // Extract area summaries from concepts
-    $areasSummary = $this->extractAreasSummary($row['concepts_summary'] ?? []);
+    // Determine if it's monetary or count-based
+    $isVehicularCrossing = $row['is_vehicular_crossing'] ?? false;
+    $objectiveLabel = $isVehicularCrossing
+      ? $row['total_objective']
+      : number_format($row['total_objective'], 2);
+    $progressLabel = $isVehicularCrossing
+      ? $row['total_progress']
+      : number_format($row['total_progress'], 2);
 
     return [
-      $row['rank'],
-      $row['name'],
-      number_format($row['total_objective'], 2),
-      number_format($row['total_progress'], 2),
+      $row['area_name'],
+      $isVehicularCrossing ? 'Unidades' : 'Soles (S/)',
+      $objectiveLabel,
+      $progressLabel,
       $row['completion_percentage'],
       $this->getStatusLabel($row['status']),
-      number_format($areasSummary['taller']['objective'], 2),
-      number_format($areasSummary['taller']['progress'], 2),
-      $areasSummary['taller']['completion_percentage'],
-      number_format($areasSummary['meson']['objective'], 2),
-      number_format($areasSummary['meson']['progress'], 2),
-      $areasSummary['meson']['completion_percentage'],
-      $areasSummary['paso_vehicular']['objective'],
-      $areasSummary['paso_vehicular']['progress'],
-      $areasSummary['paso_vehicular']['completion_percentage'],
     ];
-  }
-
-  /**
-   * Extract and aggregate areas summary from concepts
-   */
-  private function extractAreasSummary(array $concepts): array
-  {
-    $summary = [
-      'taller' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
-      'meson' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
-      'paso_vehicular' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
-    ];
-
-    foreach ($concepts as $concept) {
-      $areaId = $concept['area_id'];
-      $isVehicularCrossing = $concept['is_vehicular_crossing'] ?? false;
-
-      if ($isVehicularCrossing && $areaId == \App\Models\ap\ApMasters::AREA_TALLER) {
-        $summary['paso_vehicular']['objective'] += $concept['objective'];
-        $summary['paso_vehicular']['progress'] += $concept['progress'];
-      } elseif ($areaId == \App\Models\ap\ApMasters::AREA_TALLER) {
-        $summary['taller']['objective'] += $concept['objective'];
-        $summary['taller']['progress'] += $concept['progress'];
-      } elseif ($areaId == \App\Models\ap\ApMasters::AREA_MESON) {
-        $summary['meson']['objective'] += $concept['objective'];
-        $summary['meson']['progress'] += $concept['progress'];
-      }
-    }
-
-    // Calculate completion percentages
-    foreach ($summary as $key => &$area) {
-      $area['completion_percentage'] = $area['objective'] > 0
-        ? round(($area['progress'] / $area['objective']) * 100, 2)
-        : 0;
-    }
-
-    return $summary;
   }
 
   public function styles(Worksheet $sheet)
@@ -143,23 +94,21 @@ class HeadquartersRankingSheet implements
         $sheet = $event->sheet->getDelegate();
         $highestRow = $sheet->getHighestRow();
 
-        // Habilitar filtros
-        $sheet->setAutoFilter('A1:O1');
-
-        // Aplicar estilos condicionales a columna ESTADO (F)
+        // Apply conditional formatting to STATUS column (F)
         for ($row = 2; $row <= $highestRow; $row++) {
           $statusCell = 'F' . $row;
           $statusValue = $sheet->getCell($statusCell)->getValue();
 
           $this->applyStatusStyle($sheet, $statusCell, $this->getStatusFromLabel($statusValue));
+
+          // Apply number formatting to completion percentage column (E)
+          $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('0.00"%"');
         }
 
-        // Resaltar top 3
-        for ($row = 2; $row <= min(4, $highestRow); $row++) {
-          $sheet->getStyle('A' . $row)->applyFromArray([
-            'font' => ['bold' => true, 'size' => 12],
-          ]);
-        }
+        // Center align specific columns
+        $sheet->getStyle('B2:F' . $highestRow)->getAlignment()->setHorizontal(
+          \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER
+        );
 
         $sheet->setSelectedCells('A1');
       },
@@ -168,7 +117,7 @@ class HeadquartersRankingSheet implements
 
   public function title(): string
   {
-    return 'Ranking de Sedes';
+    return 'Resumen Global por Áreas';
   }
 
   private function getStatusLabel(string $status): string
