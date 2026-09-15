@@ -137,14 +137,19 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
   {
     $action = $item['action'];
     $existing = !empty($item['discount_coupon_id']) ? $couponsById->get($item['discount_coupon_id']) : null;
+    // Al editar (update) un bono/descuento existente solo se permite ajustar el
+    // valor/retención: el concepto y el tipo (fijo/porcentaje) quedan fijos al
+    // valor original, sin importar lo que envíe el cliente, para que no se pueda
+    // "editar" y en realidad cambiar a qué bono/concepto corresponde la línea.
+    $isUpdateExisting = $action === PurchaseRequestQuoteAdjustmentItem::ACTION_UPDATE && $existing;
 
     $payload = [
       'adjustment_request_id' => $requestId,
       'action' => $action,
       'item_type' => PurchaseRequestQuoteAdjustmentItem::ITEM_TYPE_BONUS_DISCOUNT,
       'discount_coupon_id' => $item['discount_coupon_id'] ?? null,
-      'concept_code_id' => $item['concept_code_id'] ?? $existing?->concept_code_id,
-      'type' => $item['type'] ?? $existing?->type,
+      'concept_code_id' => $isUpdateExisting ? $existing->concept_code_id : ($item['concept_code_id'] ?? $existing?->concept_code_id),
+      'type' => $isUpdateExisting ? $existing->type : ($item['type'] ?? $existing?->type),
       'is_negative' => $existing?->is_negative ?? false,
       'has_retention' => (bool)($item['has_retention'] ?? $existing?->has_retention ?? false),
       'previous_valor_unitario' => $existing?->valor_unitario,
@@ -172,13 +177,18 @@ class PurchaseRequestQuoteAdjustmentRequestService extends BaseService implement
   {
     $action = $item['action'];
     $existing = !empty($item['accessory_detail_id']) ? $giftsById->get($item['accessory_detail_id']) : null;
+    // Al editar (update) un obsequio existente solo se permite ajustar cantidad
+    // y precio adicional: el accesorio homologado queda fijo al original, sin
+    // importar lo que envíe el cliente, para que no se pueda "editar" y en
+    // realidad cambiar a qué accesorio corresponde la línea.
+    $isUpdateExisting = $action === PurchaseRequestQuoteAdjustmentItem::ACTION_UPDATE && $existing;
 
     $payload = [
       'adjustment_request_id' => $requestId,
       'action' => $action,
       'item_type' => PurchaseRequestQuoteAdjustmentItem::ITEM_TYPE_GIFT,
       'accessory_detail_id' => $item['accessory_detail_id'] ?? null,
-      'approved_accessory_id' => $item['approved_accessory_id'] ?? $existing?->approved_accessory_id,
+      'approved_accessory_id' => $isUpdateExisting ? $existing->approved_accessory_id : ($item['approved_accessory_id'] ?? $existing?->approved_accessory_id),
       'body_type_id' => $existing?->body_type_id ?? $bodyTypeId,
       'quantity' => $item['quantity'] ?? $existing?->quantity,
       'additional_price' => $item['additional_price'] ?? $existing?->additional_price ?? 0,
