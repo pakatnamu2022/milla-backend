@@ -222,51 +222,64 @@ Observaciones de la traza:
 ## 6. Qué implica llevar TODO el proceso en Milla — checklist funcional
 
 ### Etapa 1 — Proceso de postulación
-- [ ] CRUD de `rrhh_proceso_postulacion` (crear / listar con paginación / editar / anular).
-- [ ] Cálculo automático de `fecha_fin_plazo` = `fecha_inicio` + `rrhh_cargo.plazo_proceso_seleccion` días hábiles.
-- [ ] Selects dependientes sede → área → cargo (`centro_costo_id` se hereda del área).
-- [ ] Acción **Finalizar proceso** (`status_id → 11`, `fecha_fin_cierre = hoy`).
-- [ ] Listado con conteo de postulantes por proceso y estado del proceso.
+- [x] CRUD de `rrhh_proceso_postulacion` (crear / listar con paginación / editar / anular).
+- [x] Cálculo automático de `fecha_fin_plazo` = `fecha_inicio` + `rrhh_cargo.plazo_proceso_seleccion` días hábiles.
+- [x] Selects dependientes sede → área → cargo (`centro_costo_id` se hereda del área).
+- [x] Acción **Finalizar proceso** (`status_id → 11`, `fecha_fin_cierre = hoy`).
+- [x] Listado con conteo de postulantes por proceso y estado del proceso.
 
 ### Etapa 2 — Administración de postulantes
-- [ ] Registrar postulante contra un proceso (nace `tipo_trabajador_id = 1`, `b_empleado = 1`,
+- [x] Registrar postulante contra un proceso (nace `tipo_trabajador_id = 1`, `b_empleado = 1`,
       hereda sede/área/cargo/centro_costo del proceso).
-- [ ] Validación anti-duplicado (`b_empleado = 1` + `sede_id` + `vat`).
-- [ ] Subida de CV y foto (disk `private`, rutas `resources_personas/cv/{id}`, `.../profile/{id}`).
-- [ ] Crear `usr_users` (username = DNI, password = DNI).
-- [ ] Asignar documentos iniciales (`config_doc_obligatorio_inic` filtrado por
+- [x] Validación anti-duplicado (`b_empleado = 1` + `sede_id` + `vat`).
+- [x] Subida de CV y foto (disk `private`, rutas `resources_personas/cv/{id}`, `.../profile/{id}`).
+- [x] Crear `usr_users` (username = DNI, password = DNI).
+- [x] Asignar documentos iniciales (`config_doc_obligatorio_inic` filtrado por
       `tipo_trabajador_id` + sede/área/cargo con `LIKE`) → `rrhh_asig_doc_obligatorio`.
-- [ ] Cambiar `rrhh_proceso_postulacion.status_id` a 10 al registrar el primer postulante.
-- [ ] Editar postulante (con `rrhh_log_data_persona` en cada cambio).
-- [ ] **Aprobar / rechazar cambios de ficha** (`rrhh_temp_data_persona` 17→19 / 17→18,
-      fusión de campos no vacíos sobre `rrhh_persona`).
-- [ ] Cambiar estado del postulante: SELECCIONADO (6) / RECHAZADO (3) / FUERA DE CUPO (4) / LISTA NEGRA (5), con `motivo_status`.
-- [ ] Vistas "Fuera de cupo" y "Lista negra / Rechazados" + acción **repostular**.
+- [x] Cambiar `rrhh_proceso_postulacion.status_id` a 10 al registrar el primer postulante.
+- [x] Editar postulante (con `rrhh_log_data_persona` en cada cambio).
+- [x] **Aprobar / rechazar cambios de ficha** (`rrhh_temp_data_persona` 17→19 / 17→18,
+      fusión de campos no vacíos sobre `rrhh_persona`). `ApplicantDataChange` +
+      `ApplicantDataChangeService/Controller` + pantalla `postulantes/aprobaciones`.
+- [x] Cambiar estado del postulante: SELECCIONADO (6) / RECHAZADO (3) / FUERA DE CUPO (4) / LISTA NEGRA (5), con `motivo_status`.
+- [x] Vistas "Fuera de cupo" y "Lista negra / Rechazados" + acción **repostular**
+      (solo RECHAZADO/FUERA DE CUPO; LISTA NEGRA no es recontratable).
 
 ### Etapa 3 — Contratación / carta oferta
-- [ ] Al marcar SELECCIONADO: capturar `fecha_inicio` (ingreso), `presupuesto`, `jefe_id`.
-- [ ] **Generar carta oferta (PDF)** desde plantilla `config_mail_carta` con merge de datos
-      (`{$cargo} {$area} {$sede} {$postulante}` + sueldo + fecha ingreso) → guardar en
-      `rrhh_persona.carta_oferta`. `status_carta_oferta_id = 20`.
-- [ ] Asignar documentos iniciales para `tipo_trabajador_id = 6`.
-- [ ] Enviar **email de carta oferta** con adjuntos (carta + `config_sede.doc1_rrhh..doc8_rrhh`), CC configurable.
+- [x] Al marcar SELECCIONADO: capturar `fecha_inicio` (ingreso), `presupuesto`, `jefe_id`.
+- [x] **Generar carta oferta (PDF)** desde plantilla `config_mail_carta` con merge de datos
+      (`{$cargo} {$area} {$sede} {$postulante}`) → guardar en `rrhh_persona.carta_oferta`
+      (disco `private`). `status_carta_oferta_id = 20`. `OfferLetterService`.
+- [x] Asignar documentos iniciales para `tipo_trabajador_id = 6` (ya existía en `ApplicantService`).
+- [x] Enviar **email de carta oferta** con adjuntos (carta + `config_sede.doc1_rrhh..doc8_rrhh`), CC `soporte@grupopakatnamu.com`.
 - [ ] ~~Instanciar cronograma de onboarding del cargo~~ → **fase posterior (Onboarding)**.
 
 ### Etapa 4 — Seleccionados / alta
-- [ ] Listado datatable de `tipo_trabajador_id IN (2, 6)` con estado de carta oferta, email y alta/baja.
-- [ ] Subir carta oferta **firmada** → `status_carta_oferta_id = 21`. **Requisito bloqueante para el alta.**
-- [ ] Enviar **email de bienvenida** (plantilla `config_onboarding`) → `status_envio_mail_carta_oferta = 21` + fecha.
-- [ ] **Generar / reactivar** `usr_users`.
-- [ ] Formulario de **ficha completa** del trabajador (datos bancarios haberes/CTS,
-      AFP/SNP + CUSPP, sueldo, asignación familiar, escolaridad, SCTR, EsSalud vida,
-      centro de costo, jefe, supervisor — con reasignación de evaluaciones pendientes al
-      cambiar supervisor).
-- [ ] Gestión de **parientes** (`rrhh_parientes`) y **experiencia laboral** (`rrhh_experiencia_laboral`).
-- [ ] **Dar de alta / baja** — solo rol RRHH central — (`rrhh_persona.status_id` 22/23 +
-      fila en `rrhh_estado_trabajador` + activar/desactivar `usr_users`). Ya existe
-      `WorkerStatusHistoryController` en milla-backend; **reusar**. Validar carta firmada antes del alta.
-- [ ] **Reingreso** de personas cesadas a un nuevo proceso (dentro del MVP).
-- [ ] PDFs: ficha del trabajador (`PartnerPDF`), carnet con QR (`carnetPdf`).
+- [x] Listado datatable de `tipo_trabajador_id IN (2, 6)` con estado de carta oferta, email y alta/baja.
+      `SelectedWorker` + `SelectedWorkerService/Controller` + pantalla `gestion-de-personal/seleccionados`
+      (idVista nueva, ver `PERMISOS_SELECCION_ONBOARDING.md`).
+- [x] Subir carta oferta **firmada** → `status_carta_oferta_id = 21`. **Requisito bloqueante para el alta**
+      (validado en `SelectedWorkerService::changeLifeStatus`).
+- [x] Enviar **email de bienvenida** (plantilla `config_onboarding`) → `status_envio_mail_carta_oferta = 21` + fecha.
+- [x] **Generar / reactivar** `usr_users`.
+- [x] Backend de **ficha completa** del trabajador (datos bancarios haberes/CTS, AFP/SNP + CUSPP,
+      sueldo, asignación familiar, escolaridad, SCTR, EsSalud vida, jefe, supervisor) vía
+      `PUT selected-worker/{id}/profile`. **Falta el formulario en namu-frontend** (por ahora solo
+      backend probado con tinker) — pendiente además la reasignación de evaluaciones pendientes
+      al cambiar supervisor (sí implementada en el legacy `grabarPersonaEditar`, no portada aún).
+- [x] Backend de **parientes** (`rrhh_parientes`) y **experiencia laboral** (`rrhh_experiencia_laboral`)
+      — CRUD completo (`Relative`, `WorkExperience` + endpoints). **Falta UI** en namu-frontend.
+- [x] **Dar de alta / baja** — (`rrhh_persona.status_id` 22/23 + fila en `rrhh_estado_trabajador`
+      vía `WorkerStatusHistoryService::store` reusado + activar/desactivar `usr_users`). Al dar de
+      alta se transiciona `tipo_trabajador_id` a CONTRATADO (2). Validado que exige carta firmada.
+- [x] **Reingreso** de personas cesadas (`status_id = 23`) a un nuevo proceso — `SelectedWorkerService::rehire`.
+- [ ] PDFs: ficha del trabajador (`PartnerPDF`), carnet con QR (`carnetPdf`). **Pendiente** — no bloquea
+      el flujo de selección → alta, se puede abordar en un follow-up.
+
+> Probado end-to-end el 15/09/2026: `changeStatus→SELECCIONADO` genera y envía la carta oferta,
+> el alta queda bloqueada hasta subir la carta firmada, `generateUser`/`sendWelcomeEmail`/`rehire`
+> funcionan contra datos reales del ambiente local (verificado en navegador con namu-frontend).
+> Backend cubierto además con pruebas en `tinker` (transacciones con rollback).
 
 ### Etapa 5 — Contratos (versión completa con firma digital)
 Legacy de referencia: `app/Http/Controllers/AdministracionPersonal/ContratoController.php`

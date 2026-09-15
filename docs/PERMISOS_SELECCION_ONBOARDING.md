@@ -69,25 +69,52 @@ Ruta frontend base: `/gp/gestion-humana/gestion-de-personal/<route>`.
 
 | route | descripción | icon | permisos | estado |
 |-------|-------------|------|----------|--------|
-| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **588**, permisos creados, roles 98/102/127/68/24/138) |
-| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **589**, permisos creados, roles 98/102/127/68/24/138) |
+| `procesos-postulacion` | Procesos de Postulación | `ClipboardList` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **599**, permisos creados, roles 98/102/127/68/24/138) |
+| `postulantes`          | Administración de Postulantes | `Users` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **600**, permisos creados, roles 98/102/127/68/24/138) |
+| `fuera-de-cupo`        | Fuera de Cupo | `UserX` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **601**) |
+| `lista-negra-rechazados` | Lista Negra y Rechazados | `ShieldOff` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **602**) |
+| `seleccionados`         | Seleccionados (F2 — hasta el alta) | `UserCheck` | `.view .create .update .delete` | ✅ backend + frontend + seeder (vista **603**, 15/09/2026) |
 
-Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostulanteController` (idVista 52).
+Mapea legacy: `ProcesoPostulacionController` (idVista 50), `AdministracionPostulanteController` (idVista 52,
+incluye `aprobar`/`rechazar` de ficha), `FueraCupoController` (idVista 57), `ListaNegraxRechazadosController` (idVista 63).
 
-**Seeder:** `Database\Seeders\gp\gestionhumana\reclutamiento\RecruitmentViewsPermissionsSeeder`
-(ya creado con `procesos-postulacion`). Roles destino: 98 TICS, 102 TIC's TP, 127 Gerente GH,
-68 Analista Proyectos GH, 24 Gestión Humana, 138 Gestión Humana AP.
-**Ejecutado el 04/09/2026** — creó la vista **588** (hija de 456) y los 4 permisos `procesos-postulacion.*`.
-Frontend: `src/features/gp/gestionhumana/gestion-de-personal/procesos-postulacion/` + páginas en
-`src/app/gp/gestion-humana/gestion-de-personal/procesos-postulacion/{page,agregar,actualizar/[id]}`
-+ rutas en `App.tsx` vía `RouterCrud("gestion-de-personal/procesos-postulacion", ...)`.
+> ⚠️ **Nota (10/09/2026):** las vistas 588/589 mencionadas en versiones anteriores de este documento
+> ya no correspondían a Reclutamiento (fueron reasignadas a otro módulo). El seeder es idempotente por
+> `route + company_id + parent_id`, así que al no encontrar coincidencia creó las vistas **599–602**.
+> IDs actualizados arriba; si vuelven a cambiar, corregir aquí antes de asumir los anteriores.
 
-**Re-ejecutado el 03/09/2026** — añadió la vista **589** `postulantes` (hija de 456) y los 4 permisos
-`postulantes.*` para los mismos 6 roles. Frontend:
-`src/features/gp/gestionhumana/gestion-de-personal/postulantes/` (constant/interface/schema/actions/hook
-+ Columns/Table/Options/Actions/Form/StatusDialog) + páginas
-`src/app/gp/gestion-humana/gestion-de-personal/postulantes/{page,agregar,actualizar/[id]}`
-+ `RouterCrud("gestion-de-personal/postulantes", ...)`.
+**Seeder:** `Database\Seeders\gp\gestionhumana\reclutamiento\RecruitmentViewsPermissionsSeeder`.
+Roles destino: 98 TICS, 102 TIC's TP, 127 Gerente GH, 68 Analista Proyectos GH, 24 Gestión Humana,
+138 Gestión Humana AP. **Re-ejecutado el 10/09/2026** — agregó las vistas **601** (`fuera-de-cupo`) y
+**602** (`lista-negra-rechazados`), 4 permisos c/u, mismos 6 roles.
+
+Frontend:
+- `src/features/gp/gestionhumana/gestion-de-personal/procesos-postulacion/` + páginas en
+  `src/app/gp/gestion-humana/gestion-de-personal/procesos-postulacion/{page,agregar,actualizar/[id]}`
+  + rutas en `App.tsx` vía `RouterCrud("gestion-de-personal/procesos-postulacion", ...)`.
+- `src/features/gp/gestionhumana/gestion-de-personal/postulantes/` (constant/interface/schema/actions/hook
+  + Columns/Table/Options/Actions/Form/StatusDialog) + páginas
+  `src/app/gp/gestion-humana/gestion-de-personal/postulantes/{page,agregar,actualizar/[id]}`
+  + `RouterCrud("gestion-de-personal/postulantes", ...)`.
+- **Cola de aprobación de ficha** (10/09/2026): subpágina `postulantes/aprobaciones` (sin vista/permiso
+  propio, reutiliza `postulantes.view`/`.update` — mismo patrón que "Postulantes del proceso"). Lista
+  `rrhh_temp_data_persona` con `status_id=17`, botones Aprobar/Rechazar (rechazar pide motivo). Accesible
+  desde un botón "Cola de aprobación" con badge de pendientes en el header de `postulantes`.
+- **Fuera de Cupo / Lista Negra y Rechazados** (10/09/2026): páginas nuevas `fuera-de-cupo` y
+  `lista-negra-rechazados`, reutilizan `ApplicantTable`/`applicantColumns` (con `onRepost` en vez de
+  editar/cambiar estado/eliminar) + `RepostApplicantDialog` (selector de proceso destino). Solo
+  RECHAZADO(3) y FUERA_CUPO(4) son repostulables; LISTA_NEGRA(5) no (decisión de negocio #6: "no
+  recontratable") — la columna oculta el botón para ese tipo.
+- **Seleccionados** (15/09/2026, F2): página nueva `src/app/.../seleccionados/page.tsx` con vista y
+  permiso propios (vista **603**, es una pantalla hermana real como `idVista 71` del legacy, no una
+  subpágina reutilizando permisos de otra). Feature folder
+  `src/features/gp/gestionhumana/gestion-de-personal/seleccionados/` (constant/interface/actions/hook/schema
+  + `SelectedWorkerColumns`, `ChangeLifeStatusDialog`, `RehireSelectedWorkerDialog`). Acciones por fila:
+  subir carta oferta firmada (input file oculto), enviar email de bienvenida, generar/reactivar usuario,
+  dar de alta/baja (bloqueado sin carta firmada) y reingresar (solo si `status_id = 23`, cesado).
+  Probado en navegador contra datos reales del ambiente local el 15/09/2026.
+  **Pendiente de UI** (backend ya listo): formulario de ficha completa (`PUT selected-worker/{id}/profile`)
+  y gestión de parientes/experiencia laboral (`selected-worker/{id}/relatives` y `/work-experiences`).
 
 ### Backend F1 — Administración de Postulantes (implementado)
 

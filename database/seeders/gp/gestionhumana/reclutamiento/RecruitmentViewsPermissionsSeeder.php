@@ -63,6 +63,24 @@ class RecruitmentViewsPermissionsSeeder extends Seeder
           'icon'        => 'Users',
           'module'      => 'reclutamiento',
         ],
+        [
+          'descripcion' => 'Fuera de Cupo',
+          'route'       => 'fuera-de-cupo',
+          'icon'        => 'UserX',
+          'module'      => 'reclutamiento',
+        ],
+        [
+          'descripcion' => 'Lista Negra y Rechazados',
+          'route'       => 'lista-negra-rechazados',
+          'icon'        => 'ShieldOff',
+          'module'      => 'reclutamiento',
+        ],
+        [
+          'descripcion' => 'Seleccionados',
+          'route'       => 'seleccionados',
+          'icon'        => 'UserCheck',
+          'module'      => 'reclutamiento',
+        ],
       ];
 
       $permissionIds = [];
