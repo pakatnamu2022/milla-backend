@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\Dashboard;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ObjectiveAdvisorsPeriodPv;
 use App\Models\ap\postventa\taller\ObjectiveSedePeriodPv;
@@ -176,6 +177,7 @@ class ObjectiveDashboardService
       ->whereBetween('fecha_de_emision', [$startDate, $endDate])
       ->where('anulado', false)
       ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+      ->where('is_advance_payment', false) // Exclude advance payments (anticipos)
       ->where(function ($q) use ($sedeId, $typePlanningIds) {
         // SIMPLE invoicing: work_order_id direct
         $q->whereHas('workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
@@ -196,9 +198,18 @@ class ObjectiveDashboardService
         'workOrder.vehicle.model.family.brand',
         'workOrder.items',
         'workOrder.advisor',
+        'workOrder.labours',
+        'workOrder.parts.product',
+        'workOrder.typeCurrency',
+        'workOrder.exchangeRate',
         'internalNotes.workOrder.vehicle.model.family.brand',
         'internalNotes.workOrder.items',
-        'internalNotes.workOrder.advisor'
+        'internalNotes.workOrder.advisor',
+        'internalNotes.workOrder.labours',
+        'internalNotes.workOrder.parts.product',
+        'internalNotes.workOrder.typeCurrency',
+        'internalNotes.workOrder.exchangeRate',
+        'exchangeRate'
       ])
       ->get();
 
@@ -224,15 +235,21 @@ class ObjectiveDashboardService
       }
 
       foreach ($workOrders as $workOrder) {
+        // CRITICAL: Filter each work order by sede_id individually (especially important for massive invoicing)
+        if ($workOrder->sede_id != $sedeId) {
+          continue;
+        }
+
         // Check if work order has items with matching type_planning_id
         $matchingItems = $workOrder->items->whereIn('type_planning_id', $typePlanningIds);
         if ($matchingItems->isEmpty()) {
           continue;
         }
 
-        // Calculate amount (considering credit notes)
+        // Calculate amount from work order items (labours + parts) WITHOUT IGV
+        // This matches the actual work done, not just the invoice amount (which may differ due to advances, discounts, etc.)
         $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
-        $amount = (float)$document->total * $multiplier;
+        $amount = $this->calculateWorkOrderAmountInSoles($workOrder, $multiplier, $document);
 
         $totalBilling += $amount;
 
@@ -342,6 +359,7 @@ class ObjectiveDashboardService
     $endDate = $startDate->copy()->endOfMonth();
 
     // Get electronic documents from ApOrderQuotations
+    // Using total_gravada (subtotal sin IGV) to match with objectives which are set without taxes
     $totalBilling = ElectronicDocument::query()
       ->whereBetween('fecha_de_emision', [$startDate, $endDate])
       ->where('anulado', false)
@@ -351,8 +369,8 @@ class ObjectiveDashboardService
           ->where('area_id', ApMasters::AREA_MESON);
       })
       ->sum(DB::raw('CASE
-        WHEN sunat_concept_document_type_id = ' . SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA . ' THEN -total
-        ELSE total
+        WHEN sunat_concept_document_type_id = ' . SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA . ' THEN -total_gravada
+        ELSE total_gravada
       END'));
 
     $completionPercentage = $totalObjective > 0 ? round(($totalBilling / $totalObjective) * 100, 2) : 0;
@@ -388,10 +406,10 @@ class ObjectiveDashboardService
     $startDate = Carbon::create($year, $month, 1)->startOfMonth();
     $endDate = $startDate->copy()->endOfMonth();
 
-    // Count work orders with vehicle_inspection_id (reception) in this period
+    // Count work orders with active vehicle inspection (reception) in this period
     $workOrdersQuery = ApWorkOrder::query()
       ->where('sede_id', $sedeId)
-      ->whereNotNull('vehicle_inspection_id')
+      ->whereHas('activeVehicleInspectionPivot')
       ->whereBetween('opening_date', [$startDate, $endDate])
       ->with('vehicle.model.family.brand');
 
@@ -531,6 +549,54 @@ class ObjectiveDashboardService
       'ranking' => $ranking,
       'chart_data' => $chartData
     ];
+  }
+
+  /**
+   * Calculate work order amount in soles from work order items (labours + parts)
+   * This method calculates the actual work value (not the invoice amount) to match objectives
+   *
+   * @param ApWorkOrder $workOrder
+   * @param float $multiplier
+   * @param ElectronicDocument|null $document
+   * @return float
+   */
+  private function calculateWorkOrderAmountInSoles($workOrder, float $multiplier = 1, ?ElectronicDocument $document = null): float
+  {
+    // Calculate base amounts from work order items (WITHOUT IGV)
+    $labourCost = $workOrder->labours->sum('net_amount');
+    $partsCost = $workOrder->parts->sum('net_amount');
+    $totalAmount = $labourCost + $partsCost;
+
+    // If work order is already in PEN, no conversion needed
+    if ($workOrder->currency_id == TypeCurrency::PEN_ID) {
+      return $totalAmount * $multiplier;
+    }
+
+    // Work order is in USD, convert to PEN
+    $exchangeRate = null;
+
+    // Try to get exchange rate from document if available
+    if ($document && $document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD && $document->exchangeRate) {
+      $exchangeRate = (float)$document->exchangeRate->rate;
+    }
+
+    // If not found, try to get from work order
+    if (!$exchangeRate && $workOrder->exchange_rate) {
+      $exchangeRate = (float)$workOrder->exchange_rate;
+    }
+
+    // If not found, try to get from work order relationship
+    if (!$exchangeRate && $workOrder->exchangeRate) {
+      $exchangeRate = (float)$workOrder->exchangeRate->rate;
+    }
+
+    // Default exchange rate if none found
+    if (!$exchangeRate) {
+      $exchangeRate = 3.75;
+    }
+
+    // Convert to PEN
+    return ($totalAmount * $exchangeRate) * $multiplier;
   }
 
   /**

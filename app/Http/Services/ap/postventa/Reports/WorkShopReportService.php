@@ -32,6 +32,8 @@ class WorkShopReportService
       ->with([
         'workOrder.invoiceTo.documentType',
         'workOrder.invoiceTo.typePerson',
+        'workOrder.vehicle.customer.documentType',
+        'workOrder.vehicle.customer.typePerson',
         'workOrder.vehicle.model.family.brand',
         'workOrder.vehicle.model.family',
         'workOrder.sede',
@@ -45,6 +47,8 @@ class WorkShopReportService
         'workOrder.internalNotes',
         'internalNotes.workOrder.invoiceTo.documentType',
         'internalNotes.workOrder.invoiceTo.typePerson',
+        'internalNotes.workOrder.vehicle.customer.documentType',
+        'internalNotes.workOrder.vehicle.customer.typePerson',
         'internalNotes.workOrder.vehicle.model.family.brand',
         'internalNotes.workOrder.vehicle.model.family',
         'internalNotes.workOrder.sede',
@@ -62,6 +66,8 @@ class WorkShopReportService
         'creditNote.exchangeRate',
         'creditNote.internalNotes.workOrder.invoiceTo.documentType',
         'creditNote.internalNotes.workOrder.invoiceTo.typePerson',
+        'creditNote.internalNotes.workOrder.vehicle.customer.documentType',
+        'creditNote.internalNotes.workOrder.vehicle.customer.typePerson',
         'creditNote.internalNotes.workOrder.vehicle.model.family.brand',
         'creditNote.internalNotes.workOrder.vehicle.model.family',
         'creditNote.internalNotes.workOrder.sede',
@@ -103,17 +109,42 @@ class WorkShopReportService
 
     $documents = $queryDocuments->get();
 
+    // Extraer el filtro de sede_id si existe
+    $sedeIdFilter = null;
+    foreach ($filters as $filter) {
+      if (isset($filter['column']) && $filter['column'] === 'sede_id' && isset($filter['value'])) {
+        $sedeIdFilter = $filter['value'];
+        break;
+      }
+    }
+
     // Transformar documentos para el reporte (igual que InvoicingReport)
-    $reportData = $documents->flatMap(function ($document) use ($amountsInSoles) {
+    $reportData = $documents->flatMap(function ($document) use ($amountsInSoles, $userSedeIds, $sedeIdFilter) {
       $rows = collect();
 
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
+        // Filtrar por sede si hay filtro específico de sede
+        if ($sedeIdFilter !== null && $document->workOrder->sede_id != $sedeIdFilter) {
+          // Esta OT no pertenece a la sede filtrada, omitirla
+        } elseif (!empty($userSedeIds) && !in_array($document->workOrder->sede_id, $userSedeIds)) {
+          // Esta OT no pertenece a las sedes del usuario, omitirla
+        } else {
+          $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
+        }
       } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
-        $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows) {
+        $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows, $userSedeIds, $sedeIdFilter) {
           if ($internalNote->workOrder) {
+            // Filtrar cada OT por sede individualmente
+            if ($sedeIdFilter !== null && $internalNote->workOrder->sede_id != $sedeIdFilter) {
+              // Esta OT no pertenece a la sede filtrada, omitirla
+              return;
+            }
+            if (!empty($userSedeIds) && !in_array($internalNote->workOrder->sede_id, $userSedeIds)) {
+              // Esta OT no pertenece a las sedes del usuario, omitirla
+              return;
+            }
             $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $document));
           }
         });
@@ -127,8 +158,17 @@ class WorkShopReportService
         // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
         // porque la NC referencia a la factura completa
         if ($document->internalNotes && $document->internalNotes->count() > 0) {
-          $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $creditNote, $document, $rows) {
+          $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $creditNote, $document, $rows, $userSedeIds, $sedeIdFilter) {
             if ($internalNote->workOrder) {
+              // Filtrar cada OT por sede individualmente
+              if ($sedeIdFilter !== null && $internalNote->workOrder->sede_id != $sedeIdFilter) {
+                // Esta OT no pertenece a la sede filtrada, omitirla
+                return;
+              }
+              if (!empty($userSedeIds) && !in_array($internalNote->workOrder->sede_id, $userSedeIds)) {
+                // Esta OT no pertenece a las sedes del usuario, omitirla
+                return;
+              }
               // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
               $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $creditNote, $document));
             }
@@ -144,6 +184,8 @@ class WorkShopReportService
       ->with([
         'invoiceTo.documentType',
         'invoiceTo.typePerson',
+        'vehicle.customer.documentType',
+        'vehicle.customer.typePerson',
         'vehicle.model.family.brand',
         'vehicle.model.family',
         'sede',
@@ -214,6 +256,7 @@ class WorkShopReportService
   {
     $invoiceTo = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
+    $customer = $vehicle?->customer; // Propietario del vehículo
     $firstItem = $workOrder->items->first();
 
     // Obtener técnicos únicos consolidados
@@ -247,12 +290,12 @@ class WorkShopReportService
     }
 
     return [
-      'tipo_documento' => $invoiceTo?->documentType?->description ?? '',
-      'numero_documento' => $invoiceTo?->num_doc ?? '',
-      'nombre_completo_razon_social' => $invoiceTo?->full_name ?? '',
-      'tipo_cliente' => $this->getCustomerType($invoiceTo),
-      'email' => $invoiceTo?->email ?? '',
-      'numero_telefonico' => $invoiceTo?->phone ?? '',
+      'tipo_documento' => $customer?->documentType?->description ?? $invoiceTo?->documentType?->description ?? '',
+      'numero_documento' => $customer?->num_doc ?? $invoiceTo?->num_doc ?? '',
+      'nombre_completo_razon_social' => $customer?->full_name ?? $invoiceTo?->full_name ?? '',
+      'tipo_cliente' => $this->getCustomerType($customer ?? $invoiceTo),
+      'email' => $customer?->email ?? $invoiceTo?->email ?? '',
+      'numero_telefonico' => $customer?->phone ?? $invoiceTo?->phone ?? '',
       'marca' => $vehicle?->model?->family?->brand?->name ?? '',
       'modelo_vehiculo' => $vehicle?->model?->family?->description ?? '',
       'kilometraje' => $vehicle?->mileage ?? '',

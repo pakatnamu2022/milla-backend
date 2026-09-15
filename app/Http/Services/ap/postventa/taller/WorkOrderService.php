@@ -1167,6 +1167,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       $validateReception = $workOrder->items->first()?->typePlanning->validate_receipt;
       $validateLabor = $workOrder->items->first()?->typePlanning->validate_labor;
 
+      if ($workOrder->vehicle->customer_id === null) {
+        throw new Exception('El vehículo no tiene un propietario asignado. No se puede finalizar la orden de trabajo.');
+      }
+
       if ($validateReception && $workOrder->status_id === ApMasters::OPENING_WORK_ORDER_ID) {
         throw new Exception('La OT se encuentra en estado abierto, debe recepcionar la orden de trabajo para iniciar el trabajo y luego generar la nota interna');
       }
@@ -1888,6 +1892,10 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 
       if (!$workOrder) {
         throw new Exception('Orden de trabajo no encontrada');
+      }
+
+      if ($workOrder->vehicle->customer_id === null) {
+        throw new Exception('El vehículo no tiene un propietario asignado. No se puede finalizar la orden de trabajo.');
       }
 
       $validateLabor = $workOrder->shouldValidateLabor();
