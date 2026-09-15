@@ -51,6 +51,7 @@ class ObjectiveDashboardService
         return [
           'period' => $period,
           'executive_summary' => $this->getEmptyExecutiveSummary(),
+          'global_areas_summary' => [],
           'headquarters_comparison' => ['ranking' => [], 'chart_data' => []],
           'headquarters_detail' => []
         ];
@@ -65,12 +66,16 @@ class ObjectiveDashboardService
       // Calculate executive summary
       $executiveSummary = $this->calculateExecutiveSummary($headquartersDetail, $period);
 
+      // Calculate global areas summary
+      $globalAreasSummary = $this->calculateGlobalAreasSummary($headquartersDetail);
+
       // Create ranking and comparison data
       $headquartersComparison = $this->createHeadquartersComparison($headquartersDetail);
 
       return [
         'period' => $period,
         'executive_summary' => $executiveSummary,
+        'global_areas_summary' => $globalAreasSummary,
         'headquarters_comparison' => $headquartersComparison,
         'headquarters_detail' => $headquartersDetail
       ];
@@ -435,6 +440,88 @@ class ObjectiveDashboardService
       $result['progress'] = round($totalBilling, 2);
       $result['completion_percentage'] = $completionPercentage;
       $result['status'] = $this->getStatus($completionPercentage);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Calculate global areas summary (Taller, Mesón, Paso Vehicular) across all headquarters
+   */
+  private function calculateGlobalAreasSummary(array $headquartersDetail): array
+  {
+    // Initialize accumulators for each area
+    $areasSummary = [
+      ApMasters::AREA_TALLER => [
+        'area_id' => ApMasters::AREA_TALLER,
+        'area_name' => null,
+        'is_vehicular_crossing' => false,
+        'total_objective' => 0,
+        'total_progress' => 0
+      ],
+      ApMasters::AREA_MESON => [
+        'area_id' => ApMasters::AREA_MESON,
+        'area_name' => null,
+        'is_vehicular_crossing' => false,
+        'total_objective' => 0,
+        'total_progress' => 0
+      ],
+      'vehicular_crossing' => [
+        'area_id' => ApMasters::AREA_TALLER,
+        'area_name' => 'Paso Vehicular',
+        'is_vehicular_crossing' => true,
+        'total_objective' => 0,
+        'total_progress' => 0
+      ]
+    ];
+
+    // Iterate through all headquarters and their concepts
+    foreach ($headquartersDetail as $headquarter) {
+      foreach ($headquarter['concepts'] as $concept) {
+        $areaId = $concept['area_id'];
+        $isVehicularCrossing = $concept['is_vehicular_crossing'];
+
+        // Determine which summary to update
+        if ($isVehicularCrossing && $areaId == ApMasters::AREA_TALLER) {
+          // Paso Vehicular
+          $areasSummary['vehicular_crossing']['total_objective'] += $concept['objective'];
+          $areasSummary['vehicular_crossing']['total_progress'] += $concept['progress'];
+        } elseif ($areaId == ApMasters::AREA_TALLER) {
+          // Taller normal
+          $areasSummary[ApMasters::AREA_TALLER]['total_objective'] += $concept['objective'];
+          $areasSummary[ApMasters::AREA_TALLER]['total_progress'] += $concept['progress'];
+          // Set area name from first occurrence
+          if ($areasSummary[ApMasters::AREA_TALLER]['area_name'] === null) {
+            $areasSummary[ApMasters::AREA_TALLER]['area_name'] = $concept['area_name'];
+          }
+        } elseif ($areaId == ApMasters::AREA_MESON) {
+          // Mesón
+          $areasSummary[ApMasters::AREA_MESON]['total_objective'] += $concept['objective'];
+          $areasSummary[ApMasters::AREA_MESON]['total_progress'] += $concept['progress'];
+          // Set area name from first occurrence
+          if ($areasSummary[ApMasters::AREA_MESON]['area_name'] === null) {
+            $areasSummary[ApMasters::AREA_MESON]['area_name'] = $concept['area_name'];
+          }
+        }
+      }
+    }
+
+    // Calculate completion percentages and status for each area
+    $result = [];
+    foreach ($areasSummary as $area) {
+      $completionPercentage = $area['total_objective'] > 0
+        ? round(($area['total_progress'] / $area['total_objective']) * 100, 2)
+        : 0;
+
+      $result[] = [
+        'area_id' => $area['area_id'],
+        'area_name' => $area['area_name'] ?? 'N/A',
+        'is_vehicular_crossing' => $area['is_vehicular_crossing'],
+        'total_objective' => round($area['total_objective'], 2),
+        'total_progress' => round($area['total_progress'], 2),
+        'completion_percentage' => $completionPercentage,
+        'status' => $this->getStatus($completionPercentage)
+      ];
     }
 
     return $result;
