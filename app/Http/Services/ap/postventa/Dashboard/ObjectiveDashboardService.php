@@ -112,22 +112,20 @@ class ObjectiveDashboardService
     $sedeId = $objective->sede_id;
     $totalObjective = (float)$objective->amount;
 
-    // Separate concepts by area
-    $workshopConcepts = $objective->conceptObjectives->where('area_id', ApMasters::AREA_TALLER);
-    $counterConcepts = $objective->conceptObjectives->where('area_id', ApMasters::AREA_MESON);
-    $vehicleCrossingConcepts = $objective->conceptObjectives->where('is_vehicular_crossing', true);
+    // Calculate progress for each concept dynamically
+    $concepts = [];
+    $totalProgress = 0;
 
-    // Calculate workshop (TALLER)
-    $workshopData = $this->calculateWorkshopProgress($workshopConcepts, $sedeId, $year, $month);
+    foreach ($objective->conceptObjectives as $conceptObjective) {
+      $conceptData = $this->calculateConceptProgress($conceptObjective, $sedeId, $year, $month);
+      $concepts[] = $conceptData;
 
-    // Calculate counter (MESON)
-    $counterData = $this->calculateCounterProgress($counterConcepts, $sedeId, $year, $month);
+      // Sum progress only for non-vehicular crossing concepts (they're counted, not billed)
+      if (!$conceptObjective->is_vehicular_crossing) {
+        $totalProgress += $conceptData['progress'];
+      }
+    }
 
-    // Calculate vehicle crossing (PASO VEHICULAR)
-    $vehicleCrossingData = $this->calculateVehicleCrossingProgress($vehicleCrossingConcepts, $sedeId, $year, $month);
-
-    // Calculate total progress
-    $totalProgress = $workshopData['progress'] + $counterData['progress'];
     $completionPercentage = $totalObjective > 0 ? round(($totalProgress / $totalObjective) * 100, 2) : 0;
 
     return [
@@ -138,321 +136,265 @@ class ObjectiveDashboardService
       'total_progress' => round($totalProgress, 2),
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage),
-      'workshop' => $workshopData,
-      'counter' => $counterData,
-      'vehicle_crossing' => $vehicleCrossingData
+      'concepts' => $concepts
     ];
   }
 
   /**
-   * Calculate workshop (TALLER) progress
+   * Calculate progress for a single concept dynamically
    */
-  private function calculateWorkshopProgress($concepts, int $sedeId, int $year, int $month): array
+  private function calculateConceptProgress($conceptObjective, int $sedeId, int $year, int $month): array
   {
-    $totalObjective = $concepts->sum('sub_amount');
+    $objective = (float)$conceptObjective->sub_amount;
+    $areaName = $conceptObjective->area->description ?? 'N/A';
 
-    if ($totalObjective == 0) {
-      return [
-        'objective' => 0,
-        'progress' => 0,
-        'completion_percentage' => 0,
-        'status' => 'not_applicable',
-        'by_concept' => [],
-        'by_brand' => [],
-        'top_advisors' => []
-      ];
+    // Base structure
+    $result = [
+      'id' => $conceptObjective->id,
+      'description' => $conceptObjective->description,
+      'area_id' => $conceptObjective->area_id,
+      'area_name' => $areaName,
+      'is_vehicular_crossing' => (bool)$conceptObjective->is_vehicular_crossing,
+      'objective' => $objective,
+      'progress' => 0,
+      'completion_percentage' => 0,
+      'status' => 'not_applicable'
+    ];
+
+    // If no objective, return empty
+    if ($objective == 0) {
+      return $result;
     }
 
-    // Get all type_planning_ids from concepts
-    $typePlanningIds = $concepts->flatMap(function ($concept) {
-      return $concept->typePlannings->pluck('id');
-    })->unique()->toArray();
-
-    // Calculate billing from work orders
     $startDate = Carbon::create($year, $month, 1)->startOfMonth();
     $endDate = $startDate->copy()->endOfMonth();
 
-    // Get electronic documents related to work orders with the specified type plannings
-    $documents = ElectronicDocument::query()
-      ->whereBetween('fecha_de_emision', [$startDate, $endDate])
-      ->where('anulado', false)
-      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-      ->where('is_advance_payment', false) // Exclude advance payments (anticipos)
-      ->where(function ($q) use ($sedeId, $typePlanningIds) {
-        // SIMPLE invoicing: work_order_id direct
-        $q->whereHas('workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
-          $subQ->where('sede_id', $sedeId)
-            ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
-              $itemQ->whereIn('type_planning_id', $typePlanningIds);
-            });
-        })
-          // MASSIVE invoicing: internal notes
-          ->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
-            $subQ->where('sede_id', $sedeId)
-              ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
-                $itemQ->whereIn('type_planning_id', $typePlanningIds);
-              });
-          });
-      })
-      ->with([
-        'workOrder.vehicle.model.family.brand',
-        'workOrder.items',
-        'workOrder.advisor',
-        'workOrder.labours',
-        'workOrder.parts.product',
-        'workOrder.typeCurrency',
-        'workOrder.exchangeRate',
-        'internalNotes.workOrder.vehicle.model.family.brand',
-        'internalNotes.workOrder.items',
-        'internalNotes.workOrder.advisor',
-        'internalNotes.workOrder.labours',
-        'internalNotes.workOrder.parts.product',
-        'internalNotes.workOrder.typeCurrency',
-        'internalNotes.workOrder.exchangeRate',
-        'exchangeRate'
-      ])
-      ->get();
+    // Determine calculation method based on concept configuration
+    if ($conceptObjective->is_vehicular_crossing) {
+      // PASO VEHICULAR: count work orders with vehicle inspection
+      $workOrders = ApWorkOrder::query()
+        ->where('sede_id', $sedeId)
+        ->whereHas('activeVehicleInspectionPivot')
+        ->whereBetween('opening_date', [$startDate, $endDate])
+        ->with('vehicle.model.family.brand')
+        ->get();
 
-    // Calculate totals
-    $totalBilling = 0;
-    $brandBreakdown = [];
-    $conceptBreakdown = [];
-    $advisorBreakdown = [];
+      $totalCount = $workOrders->count();
+      $completionPercentage = $objective > 0 ? round(($totalCount / $objective) * 100, 2) : 0;
 
-    foreach ($documents as $document) {
-      $workOrders = collect();
-
-      // SIMPLE: direct work order
-      if ($document->workOrder) {
-        $workOrders->push($document->workOrder);
-      }
-
-      // MASSIVE: work orders from internal notes
-      if ($document->internalNotes && $document->internalNotes->count() > 0) {
-        $workOrders = $workOrders->merge(
-          $document->internalNotes->pluck('workOrder')->filter()
-        );
-      }
-
+      // Group by brand
+      $brandBreakdown = [];
       foreach ($workOrders as $workOrder) {
-        // CRITICAL: Filter each work order by sede_id individually (especially important for massive invoicing)
-        if ($workOrder->sede_id != $sedeId) {
-          continue;
-        }
-
-        // Check if work order has items with matching type_planning_id
-        $matchingItems = $workOrder->items->whereIn('type_planning_id', $typePlanningIds);
-        if ($matchingItems->isEmpty()) {
-          continue;
-        }
-
-        // Calculate amount from work order items (labours + parts) WITHOUT IGV
-        // This matches the actual work done, not just the invoice amount (which may differ due to advances, discounts, etc.)
-        $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
-        $amount = $this->calculateWorkOrderAmountInSoles($workOrder, $multiplier, $document);
-
-        $totalBilling += $amount;
-
-        // By brand - check if brand is marketed
         $brand = $workOrder->vehicle?->model?->family?->brand;
         $brandName = 'OTRAS MARCAS';
 
         if ($brand) {
-          // If is_marketed = 1, use brand name; otherwise group as "OTRAS MARCAS"
           $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
         }
 
         if (!isset($brandBreakdown[$brandName])) {
           $brandBreakdown[$brandName] = [
             'brand_name' => $brandName,
-            'total_billing' => 0,
-            'vehicle_count' => 0
+            'count' => 0
           ];
         }
-        $brandBreakdown[$brandName]['total_billing'] += $amount;
-        $brandBreakdown[$brandName]['vehicle_count']++;
+        $brandBreakdown[$brandName]['count']++;
+      }
 
-        // By advisor (if applicable)
-        if ($workOrder->advisor) {
-          $advisorId = $workOrder->advisor->id;
-          $advisorName = $workOrder->advisor->nombre_completo;
+      // Calculate percentages
+      foreach ($brandBreakdown as &$brand) {
+        $brand['percentage_of_total'] = $totalCount > 0
+          ? round(($brand['count'] / $totalCount) * 100, 2)
+          : 0;
+      }
 
-          if (!isset($advisorBreakdown[$advisorId])) {
-            // Get advisor objective if exists
-            $advisorObjective = ObjectiveAdvisorsPeriodPv::whereHas('conceptObjectivePeriod', function ($q) use ($concepts) {
-              $q->whereIn('id', $concepts->pluck('id'));
-            })
-              ->where('worker_id', $advisorId)
-              ->first();
+      $result['progress'] = $totalCount;
+      $result['completion_percentage'] = $completionPercentage;
+      $result['status'] = $this->getStatus($completionPercentage);
+      $result['by_brand'] = array_values($brandBreakdown);
+    } elseif ($conceptObjective->area_id == ApMasters::AREA_TALLER) {
+      // TALLER: calculate billing from work orders with specific type_planning_ids
+      $typePlanningIds = $conceptObjective->typePlannings->pluck('id')->toArray();
 
-            $advisorBreakdown[$advisorId] = [
-              'advisor_id' => $advisorId,
-              'advisor_name' => $advisorName,
-              'objective' => $advisorObjective ? (float)$advisorObjective->amount : 0,
-              'progress' => 0
+      if (empty($typePlanningIds)) {
+        return $result;
+      }
+
+      // Get electronic documents related to work orders with the specified type plannings
+      $documents = ElectronicDocument::query()
+        ->whereBetween('fecha_de_emision', [$startDate, $endDate])
+        ->where('anulado', false)
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->where('is_advance_payment', false)
+        ->where(function ($q) use ($sedeId, $typePlanningIds) {
+          // SIMPLE invoicing: work_order_id direct
+          $q->whereHas('workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
+            $subQ->where('sede_id', $sedeId)
+              ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
+                $itemQ->whereIn('type_planning_id', $typePlanningIds);
+              });
+          })
+            // MASSIVE invoicing: internal notes
+            ->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
+              $subQ->where('sede_id', $sedeId)
+                ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
+                  $itemQ->whereIn('type_planning_id', $typePlanningIds);
+                });
+            });
+        })
+        ->with([
+          'workOrder.vehicle.model.family.brand',
+          'workOrder.items',
+          'workOrder.advisor',
+          'workOrder.labours',
+          'workOrder.parts.product',
+          'workOrder.typeCurrency',
+          'workOrder.exchangeRate',
+          'internalNotes.workOrder.vehicle.model.family.brand',
+          'internalNotes.workOrder.items',
+          'internalNotes.workOrder.advisor',
+          'internalNotes.workOrder.labours',
+          'internalNotes.workOrder.parts.product',
+          'internalNotes.workOrder.typeCurrency',
+          'internalNotes.workOrder.exchangeRate',
+          'exchangeRate'
+        ])
+        ->get();
+
+      // Calculate totals
+      $totalBilling = 0;
+      $brandBreakdown = [];
+      $advisorBreakdown = [];
+
+      foreach ($documents as $document) {
+        $workOrders = collect();
+
+        // SIMPLE: direct work order
+        if ($document->workOrder) {
+          $workOrders->push($document->workOrder);
+        }
+
+        // MASSIVE: work orders from internal notes
+        if ($document->internalNotes && $document->internalNotes->count() > 0) {
+          $workOrders = $workOrders->merge(
+            $document->internalNotes->pluck('workOrder')->filter()
+          );
+        }
+
+        foreach ($workOrders as $workOrder) {
+          // Filter by sede_id
+          if ($workOrder->sede_id != $sedeId) {
+            continue;
+          }
+
+          // Check if work order has items with matching type_planning_id
+          $matchingItems = $workOrder->items->whereIn('type_planning_id', $typePlanningIds);
+          if ($matchingItems->isEmpty()) {
+            continue;
+          }
+
+          // Calculate amount
+          $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
+          $amount = $this->calculateWorkOrderAmountInSoles($workOrder, $multiplier, $document);
+
+          $totalBilling += $amount;
+
+          // By brand
+          $brand = $workOrder->vehicle?->model?->family?->brand;
+          $brandName = 'OTRAS MARCAS';
+
+          if ($brand) {
+            $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
+          }
+
+          if (!isset($brandBreakdown[$brandName])) {
+            $brandBreakdown[$brandName] = [
+              'brand_name' => $brandName,
+              'total_billing' => 0,
+              'vehicle_count' => 0
             ];
           }
-          $advisorBreakdown[$advisorId]['progress'] += $amount;
+          $brandBreakdown[$brandName]['total_billing'] += $amount;
+          $brandBreakdown[$brandName]['vehicle_count']++;
+
+          // By advisor
+          if ($workOrder->advisor) {
+            $advisorId = $workOrder->advisor->id;
+            $advisorName = $workOrder->advisor->nombre_completo;
+
+            if (!isset($advisorBreakdown[$advisorId])) {
+              // Get advisor objective if exists
+              $advisorObjective = ObjectiveAdvisorsPeriodPv::where('concept_objective_period_pv_id', $conceptObjective->id)
+                ->where('worker_id', $advisorId)
+                ->first();
+
+              $advisorBreakdown[$advisorId] = [
+                'advisor_id' => $advisorId,
+                'advisor_name' => $advisorName,
+                'objective' => $advisorObjective ? (float)$advisorObjective->amount : 0,
+                'progress' => 0
+              ];
+            }
+            $advisorBreakdown[$advisorId]['progress'] += $amount;
+          }
         }
       }
-    }
 
-    // Calculate percentages for brands
-    foreach ($brandBreakdown as &$brand) {
-      $brand['percentage_of_total'] = $totalBilling > 0
-        ? round(($brand['total_billing'] / $totalBilling) * 100, 2)
-        : 0;
-      $brand['total_billing'] = round($brand['total_billing'], 2);
-    }
-
-    // Calculate advisor completion and rank
-    $advisorBreakdown = collect($advisorBreakdown)->map(function ($advisor) {
-      $advisor['progress'] = round($advisor['progress'], 2);
-      $advisor['completion_percentage'] = $advisor['objective'] > 0
-        ? round(($advisor['progress'] / $advisor['objective']) * 100, 2)
-        : 0;
-      $advisor['status'] = $this->getStatus($advisor['completion_percentage']);
-      return $advisor;
-    })->sortByDesc('completion_percentage')->values();
-
-    // Add ranking
-    $rank = 1;
-    $advisorBreakdown = $advisorBreakdown->map(function ($advisor) use (&$rank) {
-      $advisor['rank'] = $rank++;
-      return $advisor;
-    });
-
-    // Calculate by concept (Internas, P&P, Accesorios, etc.)
-    // This would require more detailed logic based on concept types
-    // For now, we'll leave it as empty array or implement if needed
-
-    $completionPercentage = $totalObjective > 0 ? round(($totalBilling / $totalObjective) * 100, 2) : 0;
-
-    return [
-      'objective' => (float)$totalObjective,
-      'progress' => round($totalBilling, 2),
-      'completion_percentage' => $completionPercentage,
-      'status' => $this->getStatus($completionPercentage),
-      'by_concept' => [], // Can be implemented later if needed
-      'by_brand' => array_values($brandBreakdown),
-      'top_advisors' => $advisorBreakdown->take(10)->toArray()
-    ];
-  }
-
-  /**
-   * Calculate counter (MESON) progress
-   */
-  private function calculateCounterProgress($concepts, int $sedeId, int $year, int $month): array
-  {
-    $totalObjective = $concepts->sum('sub_amount');
-
-    if ($totalObjective == 0) {
-      return [
-        'objective' => 0,
-        'progress' => 0,
-        'completion_percentage' => 0,
-        'status' => 'not_applicable'
-      ];
-    }
-
-    $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-    $endDate = $startDate->copy()->endOfMonth();
-
-    // Get electronic documents from ApOrderQuotations
-    // Using total_gravada (subtotal sin IGV) to match with objectives which are set without taxes
-    $totalBilling = ElectronicDocument::query()
-      ->whereBetween('fecha_de_emision', [$startDate, $endDate])
-      ->where('anulado', false)
-      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-      ->whereHas('orderQuotation', function ($q) use ($sedeId) {
-        $q->where('sede_id', $sedeId)
-          ->where('area_id', ApMasters::AREA_MESON);
-      })
-      ->sum(DB::raw('CASE
-        WHEN sunat_concept_document_type_id = ' . SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA . ' THEN -total_gravada
-        ELSE total_gravada
-      END'));
-
-    $completionPercentage = $totalObjective > 0 ? round(($totalBilling / $totalObjective) * 100, 2) : 0;
-
-    return [
-      'objective' => (float)$totalObjective,
-      'progress' => round($totalBilling, 2),
-      'completion_percentage' => $completionPercentage,
-      'status' => $this->getStatus($completionPercentage)
-    ];
-  }
-
-  /**
-   * Calculate vehicle crossing (PASO VEHICULAR) progress
-   */
-  private function calculateVehicleCrossingProgress($concepts, int $sedeId, int $year, int $month): array
-  {
-    // Get the objective (it's a count, not an amount)
-    $concept = $concepts->first();
-
-    if (!$concept) {
-      return [
-        'objective' => 0,
-        'progress' => 0,
-        'completion_percentage' => 0,
-        'status' => 'not_applicable',
-        'by_brand' => []
-      ];
-    }
-
-    $totalObjective = (float)$concept->sub_amount;
-
-    $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-    $endDate = $startDate->copy()->endOfMonth();
-
-    // Count work orders with active vehicle inspection (reception) in this period
-    $workOrdersQuery = ApWorkOrder::query()
-      ->where('sede_id', $sedeId)
-      ->whereHas('activeVehicleInspectionPivot')
-      ->whereBetween('opening_date', [$startDate, $endDate])
-      ->with('vehicle.model.family.brand');
-
-    $workOrders = $workOrdersQuery->get();
-    $totalCount = $workOrders->count();
-
-    // Group by brand
-    $brandBreakdown = [];
-    foreach ($workOrders as $workOrder) {
-      // Check if brand is marketed
-      $brand = $workOrder->vehicle?->model?->family?->brand;
-      $brandName = 'OTRAS MARCAS';
-
-      if ($brand) {
-        // If is_marketed = 1, use brand name; otherwise group as "OTRAS MARCAS"
-        $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
+      // Calculate percentages for brands
+      foreach ($brandBreakdown as &$brand) {
+        $brand['percentage_of_total'] = $totalBilling > 0
+          ? round(($brand['total_billing'] / $totalBilling) * 100, 2)
+          : 0;
+        $brand['total_billing'] = round($brand['total_billing'], 2);
       }
 
-      if (!isset($brandBreakdown[$brandName])) {
-        $brandBreakdown[$brandName] = [
-          'brand_name' => $brandName,
-          'count' => 0
-        ];
-      }
-      $brandBreakdown[$brandName]['count']++;
+      // Calculate advisor completion and rank
+      $advisorBreakdown = collect($advisorBreakdown)->map(function ($advisor) {
+        $advisor['progress'] = round($advisor['progress'], 2);
+        $advisor['completion_percentage'] = $advisor['objective'] > 0
+          ? round(($advisor['progress'] / $advisor['objective']) * 100, 2)
+          : 0;
+        $advisor['status'] = $this->getStatus($advisor['completion_percentage']);
+        return $advisor;
+      })->sortByDesc('completion_percentage')->values();
+
+      // Add ranking
+      $rank = 1;
+      $advisorBreakdown = $advisorBreakdown->map(function ($advisor) use (&$rank) {
+        $advisor['rank'] = $rank++;
+        return $advisor;
+      });
+
+      $completionPercentage = $objective > 0 ? round(($totalBilling / $objective) * 100, 2) : 0;
+
+      $result['progress'] = round($totalBilling, 2);
+      $result['completion_percentage'] = $completionPercentage;
+      $result['status'] = $this->getStatus($completionPercentage);
+      $result['by_brand'] = array_values($brandBreakdown);
+      $result['top_advisors'] = $advisorBreakdown->take(10)->toArray();
+    } elseif ($conceptObjective->area_id == ApMasters::AREA_MESON) {
+      // REPUESTOS/MESON: calculate billing from order quotations
+      $totalBilling = ElectronicDocument::query()
+        ->whereBetween('fecha_de_emision', [$startDate, $endDate])
+        ->where('anulado', false)
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->whereHas('orderQuotation', function ($q) use ($sedeId) {
+          $q->where('sede_id', $sedeId)
+            ->where('area_id', ApMasters::AREA_MESON);
+        })
+        ->sum(DB::raw('CASE
+          WHEN sunat_concept_document_type_id = ' . SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA . ' THEN -total_gravada
+          ELSE total_gravada
+        END'));
+
+      $completionPercentage = $objective > 0 ? round(($totalBilling / $objective) * 100, 2) : 0;
+
+      $result['progress'] = round($totalBilling, 2);
+      $result['completion_percentage'] = $completionPercentage;
+      $result['status'] = $this->getStatus($completionPercentage);
     }
 
-    // Calculate percentages
-    foreach ($brandBreakdown as &$brand) {
-      $brand['percentage_of_total'] = $totalCount > 0
-        ? round(($brand['count'] / $totalCount) * 100, 2)
-        : 0;
-    }
-
-    $completionPercentage = $totalObjective > 0 ? round(($totalCount / $totalObjective) * 100, 2) : 0;
-
-    return [
-      'objective' => (int)$totalObjective,
-      'progress' => $totalCount,
-      'completion_percentage' => $completionPercentage,
-      'status' => $this->getStatus($completionPercentage),
-      'by_brand' => array_values($brandBreakdown)
-    ];
+    return $result;
   }
 
   /**
@@ -503,6 +445,21 @@ class ObjectiveDashboardService
     $ranking = [];
     $rank = 1;
     foreach ($headquartersDetail as $hq) {
+      // Build concepts_summary dynamically - simplified version for comparison
+      $conceptsSummary = [];
+
+      foreach ($hq['concepts'] as $concept) {
+        $conceptsSummary[] = [
+          'id' => $concept['id'],
+          'description' => $concept['description'],
+          'area_name' => $concept['area_name'],
+          'objective' => $concept['objective'],
+          'progress' => $concept['progress'],
+          'completion_percentage' => $concept['completion_percentage'],
+          'status' => $concept['status']
+        ];
+      }
+
       $ranking[] = [
         'id' => $hq['id'],
         'name' => $hq['name'],
@@ -512,26 +469,7 @@ class ObjectiveDashboardService
         'completion_percentage' => $hq['completion_percentage'],
         'status' => $hq['status'],
         'rank' => $rank++,
-        'areas_summary' => [
-          'workshop' => [
-            'objective' => $hq['workshop']['objective'],
-            'progress' => $hq['workshop']['progress'],
-            'completion_percentage' => $hq['workshop']['completion_percentage'],
-            'status' => $hq['workshop']['status']
-          ],
-          'counter' => [
-            'objective' => $hq['counter']['objective'],
-            'progress' => $hq['counter']['progress'],
-            'completion_percentage' => $hq['counter']['completion_percentage'],
-            'status' => $hq['counter']['status']
-          ],
-          'vehicle_crossing' => [
-            'objective' => $hq['vehicle_crossing']['objective'],
-            'progress' => $hq['vehicle_crossing']['progress'],
-            'completion_percentage' => $hq['vehicle_crossing']['completion_percentage'],
-            'status' => $hq['vehicle_crossing']['status']
-          ]
-        ]
+        'concepts_summary' => $conceptsSummary
       ];
     }
 
