@@ -16,6 +16,7 @@ use App\Imports\ap\comercial\VehiclePurchaseOrderUpdateByVinImport;
 use App\Imports\ap\comercial\VehicleOcsiInvoiceUpdateByVinImport;
 use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ApReceivingAccessoryStatus;
+use App\Models\ap\comercial\BusinessPartners;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\comercial\Vehicles;
 use App\Models\ap\configuracionComercial\vehiculo\ApModelsVn;
@@ -751,6 +752,12 @@ class VehiclesService extends BaseService implements BaseServiceInterface
 
     if (!isset($data['warehouse_id'])) {
       $data['warehouse_id'] = $data['warehouse_physical_id'] ?? null;
+    }
+
+    // Todo VIN nace asignado a la propia empresa (AP) como titular, hasta que se
+    // facture la venta final a un cliente real (ver ElectronicDocumentService::store).
+    if (empty($data['customer_id'])) {
+      $data['customer_id'] = BusinessPartners::AUTOMOTORES_PAKATNAMU_ID;
     }
 
     return $data;

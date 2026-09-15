@@ -703,9 +703,17 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
 
-        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        // Marcar el vehículo como pagado cuando se emite el comprobante final,
+        // o revertirlo a la empresa (AP) cuando una NC anula ese comprobante final
         if (($data['is_advance_payment'] ?? 1) == 0) {
-          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+          $isCreditNote = ($data['sunat_concept_document_type_id'] ?? null) == ElectronicDocument::TYPE_NOTA_CREDITO;
+
+          Vehicles::where('id', $data['ap_vehicle_id'])->update([
+            'is_paid' => !$isCreditNote,
+            'customer_id' => $isCreditNote
+              ? BusinessPartners::AUTOMOTORES_PAKATNAMU_ID
+              : $data['client_id'],
+          ]);
         }
       }
 
@@ -928,9 +936,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'ap_vehicle_movement_id' => $vehicleMovement->id
         ]);
 
-        // Marcar el vehículo como pagado cuando se emite el comprobante final
+        // Marcar el vehículo como pagado y asignarle el titular de la venta final
         if (($data['is_advance_payment'] ?? 1) == 0) {
-          Vehicles::where('id', $data['ap_vehicle_id'])->update(['is_paid' => true]);
+          Vehicles::where('id', $data['ap_vehicle_id'])->update([
+            'is_paid' => true,
+            'customer_id' => $data['client_id'],
+          ]);
         }
       }
 
@@ -2168,6 +2179,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         if (!isset($data['detraccion_total']) && isset($data['total']) && $data['detraccion_porcentaje']) {
           $data['detraccion_total'] = round((float)$data['total'] * ((float)$data['detraccion_porcentaje'] / 100), 2);
         }
+      }
+
+      // Propagar el vehículo del documento original para que, si esta NC anula
+      // el comprobante final, el vehículo revierta su titular a la empresa (AP)
+      if (!isset($data['ap_vehicle_id']) && $originalDocument->vehicleMovement) {
+        $data['ap_vehicle_id'] = $originalDocument->vehicleMovement->ap_vehicle_id;
       }
 
       // Preparar datos de la nota de crédito
@@ -5609,7 +5626,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'anticipo_regularizacion' => 0,
       ]);
 
-      $vehicle->update(['is_paid' => true]);
+      $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);
 
       DB::commit();
 
@@ -5890,7 +5907,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'anticipo_regularizacion' => 0,
     ]);
 
-    $vehicle->update(['is_paid' => true]);
+    $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);
 
     return $document;
   }
