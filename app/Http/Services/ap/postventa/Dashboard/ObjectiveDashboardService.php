@@ -374,18 +374,43 @@ class ObjectiveDashboardService
       $result['top_advisors'] = $advisorBreakdown->take(10)->toArray();
     } elseif ($conceptObjective->area_id == ApMasters::AREA_MESON) {
       // REPUESTOS/MESON: calculate billing from order quotations
-      $totalBilling = ElectronicDocument::query()
+      // Sum the net_amount of PRODUCT details only (exclude labour)
+      $documents = ElectronicDocument::query()
+        ->with(['exchangeRate', 'orderQuotation.details'])
+        ->whereNotNull('order_quotation_id')
+        ->where('aceptada_por_sunat', true)
+        ->whereIn('sunat_concept_document_type_id', [
+          ElectronicDocument::TYPE_FACTURA,
+          ElectronicDocument::TYPE_BOLETA,
+          ElectronicDocument::TYPE_NOTA_CREDITO,
+        ])
         ->whereBetween('fecha_de_emision', [$startDate, $endDate])
-        ->where('anulado', false)
-        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
         ->whereHas('orderQuotation', function ($q) use ($sedeId) {
           $q->where('sede_id', $sedeId)
             ->where('area_id', ApMasters::AREA_MESON);
         })
-        ->sum(DB::raw('CASE
-          WHEN sunat_concept_document_type_id = ' . SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA . ' THEN -total_gravada
-          ELSE total_gravada
-        END'));
+        ->get();
+
+      $totalBilling = 0;
+
+      foreach ($documents as $document) {
+        $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+        $multiplier = $isCreditNote ? -1 : 1;
+
+        $isUSD = $document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD;
+        $exchangeRate = $isUSD ? ($document->exchangeRate?->rate ?? 1) : 1;
+
+        $quotation = $document->orderQuotation;
+        if ($quotation) {
+          foreach ($quotation->details as $detail) {
+            // Only include products, exclude labour
+            if ($detail->item_type === \App\Models\ap\postventa\taller\ApOrderQuotationDetails::ITEM_TYPE_PRODUCT && $detail->product_id) {
+              $netAmount = (float)$detail->net_amount * $exchangeRate * $multiplier;
+              $totalBilling += $netAmount;
+            }
+          }
+        }
+      }
 
       $completionPercentage = $objective > 0 ? round(($totalBilling / $objective) * 100, 2) : 0;
 
