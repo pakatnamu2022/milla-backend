@@ -161,6 +161,12 @@ use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
+use App\Http\Controllers\gp\gestionhumana\contratos\ContractController;
+use App\Http\Controllers\gp\gestionhumana\contratos\ContractSignatureController;
+use App\Http\Controllers\gp\gestionhumana\contratos\ContractTemplateController;
+use App\Http\Controllers\gp\gestionhumana\contratos\ContractTypeController;
+use App\Http\Controllers\gp\gestionhumana\contratos\PublicContractSignatureController;
+use App\Http\Controllers\gp\gestionhumana\contratos\SignerController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantDataChangeController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\SelectedWorkerController;
@@ -2433,6 +2439,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
   // GP - Gestión Humana - Reclutamiento y Selección
   Route::group(['prefix' => 'gp/gh/reclutamiento'], function () {
     // Procesos de postulación (F1) — legacy idVista 50
+    Route::get('recruitment-process/export', [RecruitmentProcessController::class, 'export']);
     Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
     Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
       'index',
@@ -2443,6 +2450,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     ]);
 
     // Administración de postulantes (F1) — legacy idVista 52
+    Route::get('applicant/export', [ApplicantController::class, 'export']);
     Route::post('applicant/{id}/status', [ApplicantController::class, 'changeStatus']);
     Route::post('applicant/{id}/repost', [ApplicantController::class, 'repost']);
     Route::apiResource('applicant', ApplicantController::class)->only([
@@ -2472,8 +2480,57 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('selected-worker/{id}/work-experiences', [SelectedWorkerController::class, 'indexWorkExperiences']);
     Route::post('selected-worker/{id}/work-experiences', [SelectedWorkerController::class, 'storeWorkExperience']);
     Route::delete('selected-worker/{id}/work-experiences/{experienceId}', [SelectedWorkerController::class, 'destroyWorkExperience']);
+    Route::get('selected-worker/export', [SelectedWorkerController::class, 'export']);
     Route::get('selected-worker', [SelectedWorkerController::class, 'index']);
     Route::get('selected-worker/{id}', [SelectedWorkerController::class, 'show']);
+  });
+
+  // GP - Gestión Humana - Contratos (F5)
+  Route::group(['prefix' => 'gp/gh/contratos'], function () {
+    // Tipos de contrato — legacy Configuraciones/TipoContratoController
+    Route::get('contract-type/export', [ContractTypeController::class, 'export']);
+    Route::apiResource('contract-type', ContractTypeController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
+
+    // Plantillas de contrato — legacy AdministracionPersonal/PlantillaContratoController
+    Route::apiResource('contract-template', ContractTemplateController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
+
+    // Firmantes con certificado X.509 — legacy Configuraciones/FirmantesController
+    Route::get('signer/export', [SignerController::class, 'export']);
+    Route::apiResource('signer', SignerController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
+
+    // Contratos — legacy AdministracionPersonal/ContratoController
+    Route::get('contract/export', [ContractController::class, 'export']);
+    Route::get('contract/expiring', [ContractSignatureController::class, 'expiring']);
+    Route::get('contract/{id}/pdf', [ContractController::class, 'pdf']);
+    Route::get('contract/{id}/download-signed', [ContractSignatureController::class, 'downloadSigned']);
+    Route::post('contract/{id}/request-approval', [ContractSignatureController::class, 'requestApproval']);
+    Route::post('contract/{id}/send-to-worker', [ContractSignatureController::class, 'sendToWorker']);
+    Route::post('contract/sign-batch', [ContractSignatureController::class, 'signBatch']);
+    Route::apiResource('contract', ContractController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
   });
 
   /**
@@ -2523,6 +2580,16 @@ Route::group(['prefix' => 'public'], function () {
   // Confirmación Virtual de Cotizaciones (sin autenticación)
   Route::get('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'show']);
   Route::post('/quotation-confirmation/{token}', [PublicQuotationConfirmationController::class, 'confirm']);
+
+  // Flujo de firma de contratos por enlace de correo (sin autenticación, URL firmada)
+  Route::middleware(['signed'])->group(function () {
+    Route::get('/contract/{contract}/approve', [PublicContractSignatureController::class, 'approve'])
+      ->name('public.contract.approve');
+    Route::get('/contract/{contract}/sign', [PublicContractSignatureController::class, 'sign'])
+      ->name('public.contract.sign');
+    Route::get('/contract/{contract}/confirm-reading', [PublicContractSignatureController::class, 'confirmReading'])
+      ->name('public.contract.confirm-reading');
+  });
 
   // External API routes — authenticated via static API Key (Authorization: ApiKey <key>)
   Route::middleware(['api.key'])->prefix('external')->group(function () {

@@ -10,6 +10,7 @@ use App\Http\Requests\gp\gestionhumana\reclutamiento\StoreApplicantRequest;
 use App\Http\Requests\gp\gestionhumana\reclutamiento\UpdateApplicantRequest;
 use App\Http\Services\gp\gestionhumana\reclutamiento\ApplicantService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ApplicantController extends Controller
 {
@@ -83,6 +84,15 @@ class ApplicantController extends Controller
     try {
       $this->service->destroy($id);
       return $this->success(['message' => 'Postulante anulado.']);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }

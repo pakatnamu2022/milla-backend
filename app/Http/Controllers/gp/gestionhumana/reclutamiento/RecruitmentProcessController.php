@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\reclutamiento\StoreRecruitmentProcessRequ
 use App\Http\Requests\gp\gestionhumana\reclutamiento\UpdateRecruitmentProcessRequest;
 use App\Http\Services\gp\gestionhumana\reclutamiento\RecruitmentProcessService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class RecruitmentProcessController extends Controller
 {
@@ -63,6 +64,15 @@ class RecruitmentProcessController extends Controller
     try {
       $this->service->destroy($id);
       return $this->success(['message' => 'Proceso anulado.']);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function export(Request $request)
+  {
+    try {
+      return $this->service->export($request);
     } catch (\Throwable $e) {
       return $this->error($e->getMessage());
     }

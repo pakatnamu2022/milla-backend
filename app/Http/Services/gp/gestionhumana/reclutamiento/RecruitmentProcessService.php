@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\reclutamiento;
 
 use App\Http\Resources\gp\gestionhumana\reclutamiento\RecruitmentProcessResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\gestionhumana\reclutamiento\RecruitmentProcess;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 class RecruitmentProcessService extends BaseService
 {
   private const RELATIONS = ['sede', 'area', 'position', 'status'];
+
+  public function __construct(private ExportService $exportService) {}
 
   public function list(Request $request): JsonResponse
   {
@@ -108,6 +111,11 @@ class RecruitmentProcessService extends BaseService
   {
     $process = RecruitmentProcess::findOrFail($id);
     $process->update(['status_deleted' => 0]);
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, RecruitmentProcess::class);
   }
 
   /**

@@ -45,6 +45,14 @@ class GenericMail extends Mailable
     foreach ($this->emailAttachments as $attachment) {
       if (is_string($attachment)) {
         $attachments[] = Attachment::fromPath($attachment);
+      } elseif (is_array($attachment) && isset($attachment['content'])) {
+        $content = $attachment['content'];
+        $name = $attachment['name'] ?? 'attachment';
+        $attachmentObj = Attachment::fromData(fn() => $content, $name);
+        if (isset($attachment['mime'])) {
+          $attachmentObj = $attachmentObj->withMime($attachment['mime']);
+        }
+        $attachments[] = $attachmentObj;
       } elseif (is_array($attachment) && isset($attachment['url'])) {
         $content = @file_get_contents($attachment['url']);
         if ($content !== false) {

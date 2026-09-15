@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\reclutamiento;
 
+use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Position;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class SelectedWorker extends BaseModel
 {
+  use Reportable;
+
   protected $table = 'rrhh_persona';
 
   const STATUS_CARTA_OFERTA_PENDIENTE  = 20;
@@ -81,6 +84,40 @@ class SelectedWorker extends BaseModel
   ];
 
   const sorts = ['id', 'nombre_completo', 'created_at'];
+
+  protected $reportColumns = [
+    'id'                 => ['label' => 'ID', 'width' => 8],
+    'nombre_completo'    => ['label' => 'NOMBRE COMPLETO', 'width' => 30],
+    'vat'                => ['label' => 'DOCUMENTO', 'width' => 15],
+    'email'              => ['label' => 'EMAIL', 'width' => 25],
+    'sede.abreviatura'   => ['label' => 'SEDE', 'width' => 15],
+    'area.name'          => ['label' => 'ÁREA', 'width' => 20],
+    'position.name'      => ['label' => 'CARGO', 'width' => 20],
+    'sueldo'             => ['label' => 'SUELDO', 'width' => 12, 'formatter' => 'currency'],
+    'fecha_inicio'       => ['label' => 'FECHA INICIO', 'width' => 14, 'formatter' => 'date'],
+    'cartaOfertaLabel'   => ['label' => 'CARTA OFERTA', 'width' => 16, 'accessor' => 'cartaOfertaLabel'],
+    'lifeStatusLabel'    => ['label' => 'ESTADO', 'width' => 14, 'accessor' => 'lifeStatusLabel'],
+  ];
+
+  protected $reportRelations = ['sede', 'area', 'position'];
+
+  public function cartaOfertaLabel(): string
+  {
+    return match ((int) $this->status_carta_oferta_id) {
+      self::STATUS_CARTA_OFERTA_COMPLETADO => 'Firmada',
+      self::STATUS_CARTA_OFERTA_PENDIENTE  => 'Pendiente',
+      default                              => 'Sin enviar',
+    };
+  }
+
+  public function lifeStatusLabel(): string
+  {
+    return match ((int) $this->status_id) {
+      self::STATUS_ALTA => 'Activo',
+      self::STATUS_BAJA => 'Cesado',
+      default           => 'En proceso',
+    };
+  }
 
   protected static function booted(): void
   {

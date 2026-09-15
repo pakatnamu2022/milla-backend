@@ -57,7 +57,7 @@ class StoreApplicantRequest extends FormRequest
       'ciclo_estudios'          => 'nullable|string|max:100',
       'anos_curso'              => 'nullable|string|max:100',
       'grado_obtenido'          => 'nullable|string|max:100',
-      'file_cv'                 => 'nullable|file|max:10240',
+      'file_cv'                 => 'nullable|file|mimes:pdf,doc,docx|max:10240',
       'file_foto'               => 'nullable|file|image|max:10240',
     ];
   }

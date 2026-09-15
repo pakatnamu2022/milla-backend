@@ -244,6 +244,11 @@ Observaciones de la traza:
 - [x] Cambiar estado del postulante: SELECCIONADO (6) / RECHAZADO (3) / FUERA DE CUPO (4) / LISTA NEGRA (5), con `motivo_status`.
 - [x] Vistas "Fuera de cupo" y "Lista negra / Rechazados" + acción **repostular**
       (solo RECHAZADO/FUERA DE CUPO; LISTA NEGRA no es recontratable).
+- [x] **F3**: `motivo_status` ahora obligatorio en `ChangeApplicantStatusRequest` al marcar
+      RECHAZADO/FUERA DE CUPO/LISTA NEGRA (antes era opcional). `Applicant`, `SelectedWorker`
+      y `RecruitmentProcess` usan el trait `Reportable` (`$reportColumns`/`$reportRelations`)
+      + endpoint `GET .../export` (excel/pdf vía `ExportService`, igual patrón que el resto
+      de módulos). Verificado en tinker: los 3 exports responden 200 (`BinaryFileResponse`).
 
 ### Etapa 3 — Contratación / carta oferta
 - [x] Al marcar SELECCIONADO: capturar `fecha_inicio` (ingreso), `presupuesto`, `jefe_id`.
@@ -342,11 +347,14 @@ app/Models/gp/gestionhumana/reclutamiento/
   Relative.php                      (rrhh_parientes)
   WorkExperience.php                (rrhh_experiencia_laboral)
 
-app/Models/gp/gestionhumana/personal/   (Fase 5 — contratos)
-  ContractTemplate.php              (rrhh_plantilla_contrato)
+app/Models/gp/gestionhumana/contratos/   (Fase 5 — contratos) ✅ completo (15/09/2026)
   ContractType.php                  (rrhh_tipo_contrato)
-  Signer.php                        (rrhh_firmante)
-  # WorkerContract.php ya existe (rrhh_contrato) — extender
+  ContractTemplate.php              (rrhh_plantilla_contrato)
+  Contract.php                      (rrhh_contrato — modelo dedicado, NO extiende
+                                      WorkerContract; misma tabla, distinto $fillable:
+                                      WorkerContract sigue de solo-lectura para nómina)
+  Signer.php                        (rrhh_firmante — certificado X.509 + llave privada en
+                                      storage/app/private, password cifrada con Crypt)
 
 app/Http/Controllers/gp/gestionhumana/reclutamiento/
   RecruitmentProcessController.php
@@ -360,17 +368,47 @@ app/Http/Services/gp/gestionhumana/reclutamiento/
   OfferLetterService.php      (carta oferta PDF + email)
   SelectedWorkerService.php   (ficha completa, alta/baja, reingreso)
 
-app/Http/Services/gp/gestionhumana/personal/   (Fase 5)
-  ContractService.php         (crear, generar PDF, lotes)
-  ContractSignatureService.php (firma digital TCPDF + certificado X.509)
+app/Http/Services/gp/gestionhumana/contratos/   (Fase 5) ✅ completo (15/09/2026)
+  ContractTypeService.php      (CRUD + export)
+  ContractTemplateService.php  (CRUD)
+  SignerService.php            (CRUD firmantes, sube cert/key/firma-imagen a
+                                 storage/app/private/certificados_firmantes/{uuid})
+  ContractService.php          (crear, PDF sin firma vía dompdf, export, mergeTemplate()
+                                 público — lo reutiliza ContractSignatureService)
+  ContractSignatureService.php (solicitud de aprobación RRHH, aprobación, firma
+                                 individual/por lote, envío al trabajador, confirmación
+                                 de lectura, contratos por vencer)
+  PdfDigitalSignatureService.php (firma X.509 embebida en el PDF: actualización
+                                 incremental del PDF — objetos /Sig, /Widget, /AcroForm —
+                                 y openssl_pkcs7_sign() sobre los bytes de /ByteRange,
+                                 sin ninguna librería de firma de PDF de terceros)
 
-routes/api.php  → grupos prefix 'gp/gestionhumana/reclutamiento' y '.../personal'
+routes/api.php  → grupos prefix 'gp/gh/reclutamiento', 'gp/gh/contratos' y
+                   'public' (acciones de firma por enlace de correo, protegidas con
+                   URL::temporarySignedRoute() + middleware 'signed', no con el token
+                   sin protección del legacy)
 ```
 
 - **Reusar** `Worker`, `WorkerStatusHistory`, `WorkerContract`, `User`, `EmailService`,
   `DigitalFileService`.
-- Contratos: paquete de firma ya disponible en el ecosistema (`elibyy/tcpdf-laravel`);
-  evaluar si milla-backend ya lo tiene o hay que añadirlo.
+- PDF de contrato: mismo patrón que `OfferLetterService` (`barryvdh/laravel-dompdf`, ya
+  en `composer.json`) — no se encontró `elibyy/tcpdf-laravel` en el proyecto, así que se
+  descarta esa opción. El PDF sin firma se genera on-demand (`stream()`), sin persistir
+  archivo, igual que el legacy `ContratoController::pdfsinfirma`. El PDF firmado sí se
+  persiste (`storage/app/private/resources_ce/CE{id}.pdf`), igual que el legacy.
+- Firma digital: no hay ningún paquete de firma/X.509 en `composer.json` ni en el legacy
+  (decisión tomada con el usuario 15/09/2026: usar la extensión `openssl` nativa de PHP).
+  El legacy usa TCPDF internamente (que a su vez llama a `openssl_pkcs7_sign()`) para
+  incrustar la firma dentro del PDF con `/ByteRange` + actualización incremental —
+  `PdfDigitalSignatureService` replica ese mismo mecanismo a mano (sin TCPDF), verificado
+  con un certificado de prueba: firma PKCS#7 detached, extraída del PDF y validada con
+  `openssl smime -verify` de forma independiente al código de la aplicación.
+- El firmante secundario (`firmante_sec_id`, solo cuando `convenio='SI'`) aporta su imagen
+  de firma al PDF pero NO firma criptográficamente — igual que el legacy, donde solo el
+  firmante principal firma con su certificado.
+- Los enlaces de acción por correo (aprobar, firmar, confirmar lectura) usan URLs firmadas
+  de Laravel (`signed` middleware), no un token de BD ni un ID plano en la URL sin
+  protección como el legacy — no requiere columnas nuevas.
 - Usar el trait `App\Http\Traits\Reportable` en los modelos que se exporten a Excel
   (ver memoria `feedback_reportable_trait`).
 - FKs a `usr_users`: usar `integer()` y tabla `usr_users` (ver memoria `feedback_fk_usr_users`).
@@ -387,10 +425,10 @@ routes/api.php  → grupos prefix 'gp/gestionhumana/reclutamiento' y '.../person
 | Pruebas F1 | 28–30/09 | 2 días internos + 1 día con área usuaria |
 | **F2 — Contratación + alta** | 01/10–28/10 | Carta oferta generada (plantilla + PDF merge + email). Pantalla "Seleccionados": subir carta firmada (bloqueante), email de bienvenida, generar usuario, ficha completa del trabajador, parientes/experiencia, **alta/baja** (reusar `WorkerStatusHistory`), **reingreso**, PDFs ficha/carnet |
 | Pruebas F2 | 29/10–02/11 | 2 días internos + 1 día con área usuaria |
-| **F3 — Cierre + permisos** | 03/11–16/11 | Vistas "Fuera de cupo" / "Lista negra" + repostular. **Permisos por vista** (50/52/71). Endurecer validaciones y reportes Excel (`Reportable`) |
+| **F3 — Cierre + permisos** ✅ backend (15/09/2026) | 03/11–16/11 | Vistas "Fuera de cupo" / "Lista negra" + repostular (ya en F1). **Permisos por vista** (50/52/71 → vistas 599–603, ya creados en F1). Endurecer validaciones (`motivo_status` obligatorio) y reportes Excel (`Reportable` + endpoint `export` en `recruitment-process`, `applicant`, `selected-worker`) |
 | Pruebas F3 | 17–19/11 | 2 días internos + 1 día con área usuaria |
 | **Presentación** | 20/11 | Selección (hasta el alta) en producción |
-| **F5 — Contratos (track paralelo)** | arranca 01/10, entrega ~2ª quincena nov | Tipos de contrato + plantillas + firmantes (certificado X.509) + crear contrato + PDF sin firma + flujo de firma individual y por lotes + confirmación de lectura + contratos vencidos. Pantalla namu: "Contratos". *Si no llega al 20/11, entrega inmediatamente después sin bloquear la presentación.* |
+| **F5 — Contratos (track paralelo)** ✅ backend completo (15/09/2026) | arranca 01/10, entrega ~2ª quincena nov | Tipos de contrato + plantillas + firmantes (certificado X.509) + crear contrato + PDF sin firma + flujo de firma individual y por lotes + confirmación de lectura + contratos vencidos. Backend 100% listo y verificado; falta permisos/vistas namu-frontend (ya documentados como pendientes en `PERMISOS_SELECCION_ONBOARDING.md` §4) y la pantalla "Contratos". *Si no llega al 20/11, entrega inmediatamente después sin bloquear la presentación.* |
 | Onboarding | Fase siguiente (post 20/11) | Tipo de onboarding por cargo, cronograma instanciado, seguimiento, inducciones SSOMA |
 
 ---

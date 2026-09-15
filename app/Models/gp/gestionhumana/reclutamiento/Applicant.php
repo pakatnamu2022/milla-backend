@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\reclutamiento;
 
+use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Position;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Applicant extends BaseModel
 {
+  use Reportable;
+
   protected $table = 'rrhh_persona';
 
   const TIPO_POSTULANTE   = 1;
@@ -109,6 +112,37 @@ class Applicant extends BaseModel
   ];
 
   const sorts = ['id', 'nombre_completo', 'created_at'];
+
+  const TIPO_LABELS = [
+    self::TIPO_POSTULANTE   => 'Postulante',
+    self::TIPO_CONTRATADO   => 'Contratado',
+    self::TIPO_RECHAZADO    => 'Rechazado',
+    self::TIPO_FUERA_CUPO   => 'Fuera de cupo',
+    self::TIPO_LISTA_NEGRA  => 'Lista negra',
+    self::TIPO_SELECCIONADO => 'Seleccionado',
+  ];
+
+  protected $reportColumns = [
+    'id'                 => ['label' => 'ID', 'width' => 8],
+    'nombre_completo'    => ['label' => 'NOMBRE COMPLETO', 'width' => 30],
+    'vat'                => ['label' => 'DOCUMENTO', 'width' => 15],
+    'email'              => ['label' => 'EMAIL', 'width' => 25],
+    'cel_personal'       => ['label' => 'CELULAR', 'width' => 15],
+    'process.nombre_postulacion' => ['label' => 'PROCESO', 'width' => 25],
+    'sede.abreviatura'   => ['label' => 'SEDE', 'width' => 15],
+    'area.name'          => ['label' => 'ÁREA', 'width' => 20],
+    'position.name'      => ['label' => 'CARGO', 'width' => 20],
+    'tipoTrabajadorLabel' => ['label' => 'ESTADO', 'width' => 15, 'accessor' => 'tipoTrabajadorLabel'],
+    'motivo_status'      => ['label' => 'MOTIVO', 'width' => 30],
+    'created_at'         => ['label' => 'FECHA REGISTRO', 'width' => 16, 'formatter' => 'datetime'],
+  ];
+
+  protected $reportRelations = ['sede', 'area', 'position', 'process'];
+
+  public function tipoTrabajadorLabel(): string
+  {
+    return self::TIPO_LABELS[(int) $this->tipo_trabajador_id] ?? (string) $this->tipo_trabajador_id;
+  }
 
   protected static function booted(): void
   {

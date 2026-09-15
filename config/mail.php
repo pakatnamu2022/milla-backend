@@ -123,6 +123,10 @@ return [
     'extraordinary_approval' => env('DELIVERY_EXTRAORDINARY_APPROVAL_EMAIL', 'eirigoins@automotorespakatnamu.com'),
   ],
 
+  'rrhh_contratos' => [
+    env('MAIL_RRHH_CONTRATOS', 'recursoshumanos@grupopakatnamu.com'),
+  ],
+
 
   'recipients' => [
     'purchase_quote'            => [

@@ -182,14 +182,16 @@ Mapea legacy: `SeleccionadoController` (idVista 71).
 
 ---
 
-## 4. Contratos con firma digital — Fase 5 (track paralelo)
+## 4. Contratos con firma digital — Fase 5 (track paralelo) ✅ vistas/permisos creados (15/09/2026)
 
-| route | descripción | icon | permisos |
-|-------|-------------|------|----------|
-| `contratos`            | Contratos | `FileText` | `.view .create .update .delete` |
-| `plantillas-contrato`  | Plantillas de Contrato | `FileCode` | `.view .create .update .delete` |
-| `tipos-contrato`       | Tipos de Contrato | `Tags` | `.view .create .update .delete` |
-| `firmantes`            | Firmantes | `PenTool` | `.view .create .update .delete` |
+Seeder: `Database\Seeders\gp\gestionhumana\contratos\ContractsViewsPermissionsSeeder` (ya ejecutado).
+
+| view id | route | descripción | icon | permisos |
+|--------:|-------|-------------|------|----------|
+| 604 | `contratos`            | Contratos | `FileText` | `.view .create .update .delete` + flujo |
+| 605 | `plantillas-contrato`  | Plantillas de Contrato | `FileCode` | `.view .create .update .delete` |
+| 606 | `tipos-contrato`       | Tipos de Contrato | `Tags` | `.view .create .update .delete` |
+| 607 | `firmantes`            | Firmantes | `PenTool` | `.view .create .update .delete` |
 
 Sub-permisos de flujo de firma (sobre `contratos`):
 
