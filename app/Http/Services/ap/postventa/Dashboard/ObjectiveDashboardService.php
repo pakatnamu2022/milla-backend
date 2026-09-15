@@ -586,7 +586,7 @@ class ObjectiveDashboardService
           'objective' => $concept['objective'],
           'progress' => $concept['progress'],
           'completion_percentage' => $concept['completion_percentage'],
-          'is_vehicular_crossing ' => $concept['is_vehicular_crossing'],
+          'is_vehicular_crossing' => $concept['is_vehicular_crossing'],
           'status' => $concept['status']
         ];
       }
