@@ -22,7 +22,7 @@ class StoreTypePlanningWorkOrderRequest extends StoreRequest
       'validate_receipt' => 'required|boolean',
       'validate_labor' => 'required|boolean',
       'type_document' => 'required|string|in:' . TypePlanningWorkOrder::INTERNA_SC . ',' . TypePlanningWorkOrder::INTERNA_CC . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
-      'category_type' => 'required|string|in:' . TypePlanningWorkOrder::ESTANDAR, ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
+      'category_type' => 'required|string|in:' . TypePlanningWorkOrder::ESTANDAR . ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
       'consider_vehicle_traffic' => 'required|boolean',
     ];
   }
