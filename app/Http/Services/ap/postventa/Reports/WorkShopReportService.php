@@ -32,6 +32,8 @@ class WorkShopReportService
       ->with([
         'workOrder.invoiceTo.documentType',
         'workOrder.invoiceTo.typePerson',
+        'workOrder.vehicle.customer.documentType',
+        'workOrder.vehicle.customer.typePerson',
         'workOrder.vehicle.model.family.brand',
         'workOrder.vehicle.model.family',
         'workOrder.sede',
@@ -45,6 +47,8 @@ class WorkShopReportService
         'workOrder.internalNotes',
         'internalNotes.workOrder.invoiceTo.documentType',
         'internalNotes.workOrder.invoiceTo.typePerson',
+        'internalNotes.workOrder.vehicle.customer.documentType',
+        'internalNotes.workOrder.vehicle.customer.typePerson',
         'internalNotes.workOrder.vehicle.model.family.brand',
         'internalNotes.workOrder.vehicle.model.family',
         'internalNotes.workOrder.sede',
@@ -62,6 +66,8 @@ class WorkShopReportService
         'creditNote.exchangeRate',
         'creditNote.internalNotes.workOrder.invoiceTo.documentType',
         'creditNote.internalNotes.workOrder.invoiceTo.typePerson',
+        'creditNote.internalNotes.workOrder.vehicle.customer.documentType',
+        'creditNote.internalNotes.workOrder.vehicle.customer.typePerson',
         'creditNote.internalNotes.workOrder.vehicle.model.family.brand',
         'creditNote.internalNotes.workOrder.vehicle.model.family',
         'creditNote.internalNotes.workOrder.sede',
@@ -103,17 +109,42 @@ class WorkShopReportService
 
     $documents = $queryDocuments->get();
 
+    // Extraer el filtro de sede_id si existe
+    $sedeIdFilter = null;
+    foreach ($filters as $filter) {
+      if (isset($filter['column']) && $filter['column'] === 'sede_id' && isset($filter['value'])) {
+        $sedeIdFilter = $filter['value'];
+        break;
+      }
+    }
+
     // Transformar documentos para el reporte (igual que InvoicingReport)
-    $reportData = $documents->flatMap(function ($document) use ($amountsInSoles) {
+    $reportData = $documents->flatMap(function ($document) use ($amountsInSoles, $userSedeIds, $sedeIdFilter) {
       $rows = collect();
 
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
       if ($document->workOrder) {
-        $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
+        // Filtrar por sede si hay filtro específico de sede
+        if ($sedeIdFilter !== null && $document->workOrder->sede_id != $sedeIdFilter) {
+          // Esta OT no pertenece a la sede filtrada, omitirla
+        } elseif (!empty($userSedeIds) && !in_array($document->workOrder->sede_id, $userSedeIds)) {
+          // Esta OT no pertenece a las sedes del usuario, omitirla
+        } else {
+          $rows->push($this->transformWorkOrderForReport($document->workOrder, $amountsInSoles, $document));
+        }
       } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
-        $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows) {
+        $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $document, $rows, $userSedeIds, $sedeIdFilter) {
           if ($internalNote->workOrder) {
+            // Filtrar cada OT por sede individualmente
+            if ($sedeIdFilter !== null && $internalNote->workOrder->sede_id != $sedeIdFilter) {
+              // Esta OT no pertenece a la sede filtrada, omitirla
+              return;
+            }
+            if (!empty($userSedeIds) && !in_array($internalNote->workOrder->sede_id, $userSedeIds)) {
+              // Esta OT no pertenece a las sedes del usuario, omitirla
+              return;
+            }
             $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $document));
           }
         });
@@ -127,8 +158,17 @@ class WorkShopReportService
         // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
         // porque la NC referencia a la factura completa
         if ($document->internalNotes && $document->internalNotes->count() > 0) {
-          $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $creditNote, $document, $rows) {
+          $document->internalNotes->each(function ($internalNote) use ($amountsInSoles, $creditNote, $document, $rows, $userSedeIds, $sedeIdFilter) {
             if ($internalNote->workOrder) {
+              // Filtrar cada OT por sede individualmente
+              if ($sedeIdFilter !== null && $internalNote->workOrder->sede_id != $sedeIdFilter) {
+                // Esta OT no pertenece a la sede filtrada, omitirla
+                return;
+              }
+              if (!empty($userSedeIds) && !in_array($internalNote->workOrder->sede_id, $userSedeIds)) {
+                // Esta OT no pertenece a las sedes del usuario, omitirla
+                return;
+              }
               // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
               $rows->push($this->transformWorkOrderForReport($internalNote->workOrder, $amountsInSoles, $creditNote, $document));
             }
@@ -144,6 +184,8 @@ class WorkShopReportService
       ->with([
         'invoiceTo.documentType',
         'invoiceTo.typePerson',
+        'vehicle.customer.documentType',
+        'vehicle.customer.typePerson',
         'vehicle.model.family.brand',
         'vehicle.model.family',
         'sede',
@@ -214,6 +256,7 @@ class WorkShopReportService
   {
     $invoiceTo = $workOrder->invoiceTo;
     $vehicle = $workOrder->vehicle;
+    $customer = $vehicle?->customer; // Propietario del vehículo
     $firstItem = $workOrder->items->first();
 
     // Obtener técnicos únicos consolidados
@@ -247,12 +290,12 @@ class WorkShopReportService
     }
 
     return [
-      'tipo_documento' => $invoiceTo?->documentType?->description ?? '',
-      'numero_documento' => $invoiceTo?->num_doc ?? '',
-      'nombre_completo_razon_social' => $invoiceTo?->full_name ?? '',
-      'tipo_cliente' => $this->getCustomerType($invoiceTo),
-      'email' => $invoiceTo?->email ?? '',
-      'numero_telefonico' => $invoiceTo?->phone ?? '',
+      'tipo_documento' => $customer?->documentType?->description ?? $invoiceTo?->documentType?->description ?? '',
+      'numero_documento' => $customer?->num_doc ?? $invoiceTo?->num_doc ?? '',
+      'nombre_completo_razon_social' => $customer?->full_name ?? $invoiceTo?->full_name ?? '',
+      'tipo_cliente' => $this->getCustomerType($customer ?? $invoiceTo),
+      'email' => $customer?->email ?? $invoiceTo?->email ?? '',
+      'numero_telefonico' => $customer?->phone ?? $invoiceTo?->phone ?? '',
       'marca' => $vehicle?->model?->family?->brand?->name ?? '',
       'modelo_vehiculo' => $vehicle?->model?->family?->description ?? '',
       'kilometraje' => $vehicle?->mileage ?? '',
@@ -545,6 +588,139 @@ class WorkShopReportService
             $query->whereHas('internalNotes', function ($q) use ($value) {
               $q->whereBetween('created_date', [$value[0], $value[1]]);
             });
+          }
+          break;
+        case '=':
+          $query->where($column, $value);
+          break;
+        case 'like':
+          $query->where($column, 'like', '%' . $value . '%');
+          break;
+      }
+    }
+  }
+
+  /**
+   * Obtiene el reporte de Órdenes de Trabajo Cerradas por Vehículo (última OT por VIN)
+   *
+   * @param array $filters
+   * @return Collection
+   */
+  public function getClosedWorkOrdersByVehicleReport(array $filters = []): Collection
+  {
+    // Obtener sedes del usuario autenticado
+    $userSedeIds = $this->getUserSedeIds();
+
+    // Consultar OTs cerradas
+    $query = ApWorkOrder::query()
+      ->with([
+        'invoiceTo.documentType',
+        'invoiceTo.typePerson',
+        'vehicle.customer.documentType',
+        'vehicle.customer.typePerson',
+        'vehicle.model.family.brand',
+        'vehicle.model.family',
+        'vehicle.color',
+        'vehicle.typeOperation',
+        'sede',
+        'advisor',
+        'items.typePlanning',
+        'plannings.worker',
+      ])
+      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+      ->whereNotNull('actual_delivery_date'); // Solo OTs con fecha de cierre
+
+    // Filtrar por sedes del usuario
+    if (!empty($userSedeIds)) {
+      $query->whereIn('sede_id', $userSedeIds);
+    }
+
+    // Aplicar filtros
+    $this->applyClosedWorkOrderFilters($query, $filters);
+
+    // Obtener todas las OTs cerradas
+    $workOrders = $query->get();
+
+    // Agrupar por VIN y obtener solo la última OT por vehículo
+    $latestWorkOrdersByVin = $workOrders
+      ->groupBy('vehicle.vin')
+      ->map(function ($ordersGroup) {
+        // Ordenar por fecha de cierre descendente y tomar la primera (última OT)
+        return $ordersGroup->sortByDesc('actual_delivery_date')->first();
+      })
+      ->values();
+
+    // Transformar para el reporte
+    return $latestWorkOrdersByVin->map(function ($workOrder) {
+      return $this->transformClosedWorkOrderForReport($workOrder);
+    })->values();
+  }
+
+  /**
+   * Transforma una Orden de Trabajo Cerrada en el formato del reporte
+   *
+   * @param ApWorkOrder $workOrder
+   * @return array
+   */
+  private function transformClosedWorkOrderForReport(ApWorkOrder $workOrder): array
+  {
+    $invoiceTo = $workOrder->invoiceTo;
+    $vehicle = $workOrder->vehicle;
+    $customer = $vehicle?->customer; // Propietario del vehículo
+    $firstItem = $workOrder->items->first();
+
+    // Obtener técnicos únicos consolidados
+    $technicians = $this->getConsolidatedTechnicians($workOrder);
+
+    return [
+      'taller' => $workOrder->sede?->abreviatura ?? '',
+      'cliente_facturado' => $invoiceTo?->full_name ?? '',
+      'nombre_cliente' => $invoiceTo?->full_name ?? '',
+      'email_cliente' => $invoiceTo?->email ?? '',
+      'movil_cliente' => $invoiceTo?->phone ?? '',
+      'propietario_nombre' => $customer?->full_name ?? '',
+      'propietario_email' => $customer?->email ?? '',
+      'propietario_movil' => $customer?->phone ?? '',
+      'marca' => $vehicle?->model?->family?->brand?->name ?? '',
+      'modelo' => $vehicle?->model?->family?->description ?? '',
+      'color' => $vehicle?->color?->description ?? '',
+      'kilometraje' => $vehicle?->mileage ?? '',
+      'placa' => $vehicle?->plate ?? '',
+      'vin' => $vehicle?->vin ?? '',
+      'tipo_ingreso' => $workOrder->appointment_planning_id ? 'CON CITA' : 'SIN CITA',
+      'numero_ot' => $workOrder->correlative ?? '',
+      'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
+      'tipo_operacion' => $vehicle?->typeOperation?->description ?? '',
+      'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
+      'nombre_tecnico' => $technicians,
+      'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+    ];
+  }
+
+  /**
+   * Aplica filtros a la query de OTs cerradas
+   *
+   * @param $query
+   * @param array $filters
+   * @return void
+   */
+  private function applyClosedWorkOrderFilters($query, array $filters): void
+  {
+    foreach ($filters as $filter) {
+      $column = $filter['column'] ?? null;
+      $operator = $filter['operator'] ?? '=';
+      $value = $filter['value'] ?? null;
+
+      if (!$column || $value === null) {
+        continue;
+      }
+
+      switch ($operator) {
+        case 'closingDateFilter':
+          // Filtro de rango de fechas de cierre
+          if (is_array($value) && count($value) === 2) {
+            $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
           }
           break;
         case '=':

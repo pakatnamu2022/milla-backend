@@ -108,18 +108,29 @@ class ProductShelfService extends BaseService implements BaseServiceInterface
 
   private function generateShelfCode($warehouseId): string
   {
-    $lastShelf = ProductShelf::where('warehouse_id', $warehouseId)
-      ->orderBy('code', 'desc')
-      ->first();
+    // Obtener el último código global (no solo por warehouse)
+    $lastShelf = ProductShelf::orderBy('code', 'desc')->first();
 
-    if (!$lastShelf) {
-      return 'EST-001';
+    $startNumber = 1;
+    if ($lastShelf) {
+      $lastNumber = (int)substr($lastShelf->code, 4);
+      $startNumber = $lastNumber + 1;
     }
 
-    $lastNumber = (int)substr($lastShelf->code, 4);
-    $newNumber = $lastNumber + 1;
+    // Intentar generar un código único, verificando que no exista
+    $maxAttempts = 1000;
+    for ($i = 0; $i < $maxAttempts; $i++) {
+      $newNumber = $startNumber + $i;
+      $code = 'EST-' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
 
-    return 'EST-' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+      // Verificar si el código ya existe
+      if (!ProductShelf::where('code', $code)->exists()) {
+        return $code;
+      }
+    }
+
+    // Si después de 1000 intentos no se encuentra un código único, lanzar excepción
+    throw new Exception('No se pudo generar un código único para el estante');
   }
 
   public function assignProducts(mixed $data)
