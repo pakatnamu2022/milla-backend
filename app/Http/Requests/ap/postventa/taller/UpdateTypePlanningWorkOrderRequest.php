@@ -25,6 +25,7 @@ class UpdateTypePlanningWorkOrderRequest extends StoreRequest
       'validate_labor' => 'sometimes|boolean',
       'type_document' => 'sometimes|string|in:' . TypePlanningWorkOrder::INTERNA_SC . ',' . TypePlanningWorkOrder::INTERNA_CC . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
       'category_type' => 'sometimes|string|in:' . TypePlanningWorkOrder::ESTANDAR . ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
+      'consider_vehicle_traffic' => 'sometimes|boolean',
       'status' => 'sometimes|boolean',
     ];
   }

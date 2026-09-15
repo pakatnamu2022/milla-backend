@@ -171,26 +171,44 @@ class ObjectiveDashboardService
 
     // Determine calculation method based on concept configuration
     if ($conceptObjective->is_vehicular_crossing) {
-      // PASO VEHICULAR: count work orders with vehicle inspection
+      // PASO VEHICULAR: count work orders with vehicle inspection and valid type planning
       $workOrders = ApWorkOrder::query()
         ->where('sede_id', $sedeId)
         ->whereHas('activeVehicleInspectionPivot')
         ->whereBetween('opening_date', [$startDate, $endDate])
+        // Only consider work orders with items that have consider_vehicle_traffic = 1
+        ->whereHas('items.typePlanning', function ($q) {
+          $q->where('consider_vehicle_traffic', true);
+        })
         ->with('vehicle.model.family.brand')
         ->get();
 
-      $totalCount = $workOrders->count();
+      // Filter work orders to exclude brand_id = 9 and only include is_marketed = 1
+      $validWorkOrders = $workOrders->filter(function ($workOrder) {
+        $brand = $workOrder->vehicle?->model?->family?->brand;
+
+        // Exclude if no brand
+        if (!$brand) {
+          return false;
+        }
+
+        // Exclude brand_id = 9 even if is_marketed = 1
+        if ($brand->id == 9) {
+          return false;
+        }
+
+        // Only include if is_marketed = 1
+        return $brand->is_marketed;
+      });
+
+      $totalCount = $validWorkOrders->count();
       $completionPercentage = $objective > 0 ? round(($totalCount / $objective) * 100, 2) : 0;
 
       // Group by brand
       $brandBreakdown = [];
-      foreach ($workOrders as $workOrder) {
+      foreach ($validWorkOrders as $workOrder) {
         $brand = $workOrder->vehicle?->model?->family?->brand;
-        $brandName = 'OTRAS MARCAS';
-
-        if ($brand) {
-          $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
-        }
+        $brandName = $brand->name ?? 'OTRAS MARCAS';
 
         if (!isset($brandBreakdown[$brandName])) {
           $brandBreakdown[$brandName] = [
