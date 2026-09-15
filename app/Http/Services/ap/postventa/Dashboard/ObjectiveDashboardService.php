@@ -243,25 +243,23 @@ class ObjectiveDashboardService
         return $result;
       }
 
-      // Get electronic documents related to work orders with the specified type plannings
+      // Get electronic documents related to work orders (same query as WorkShop Report)
+      // NO filtrar por type_planning_id porque el usuario toma TODAS las type plannings
       $documents = ElectronicDocument::query()
         ->whereBetween('fecha_de_emision', [$startDate, $endDate])
         ->where('anulado', false)
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
         ->where('is_advance_payment', false)
-        ->where(function ($q) use ($sedeId, $typePlanningIds) {
+        ->where(function ($q) use ($sedeId) {
           // SIMPLE invoicing: work_order_id direct
-          $q->whereHas('workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
-            $subQ->where('sede_id', $sedeId)
-              ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
-                $itemQ->whereIn('type_planning_id', $typePlanningIds);
-              });
+          $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
+            $subQ->where('sede_id', $sedeId);
           })
-            // MASSIVE invoicing: internal notes
-            ->orWhereHas('internalNotes.workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
-              $subQ->where('sede_id', $sedeId)
-                ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
-                  $itemQ->whereIn('type_planning_id', $typePlanningIds);
+            // MASSIVE invoicing: internal notes con status='invoiced' (igual que WorkShop Report)
+            ->orWhereHas('internalNotes', function ($subQ) use ($sedeId) {
+              $subQ->where('status', 'invoiced')
+                ->whereHas('workOrder', function ($woQ) use ($sedeId) {
+                  $woQ->where('sede_id', $sedeId);
                 });
             });
         })
@@ -280,7 +278,18 @@ class ObjectiveDashboardService
           'internalNotes.workOrder.parts.product',
           'internalNotes.workOrder.typeCurrency',
           'internalNotes.workOrder.exchangeRate',
-          'exchangeRate'
+          'exchangeRate',
+          'creditNote.workOrder.items',
+          'creditNote.workOrder.labours',
+          'creditNote.workOrder.parts.product',
+          'creditNote.workOrder.typeCurrency',
+          'creditNote.workOrder.exchangeRate',
+          'creditNote.exchangeRate',
+          'creditNote.internalNotes.workOrder.items',
+          'creditNote.internalNotes.workOrder.labours',
+          'creditNote.internalNotes.workOrder.parts.product',
+          'creditNote.internalNotes.workOrder.typeCurrency',
+          'creditNote.internalNotes.workOrder.exchangeRate'
         ])
         ->get();
 
@@ -310,11 +319,8 @@ class ObjectiveDashboardService
             continue;
           }
 
-          // Check if work order has items with matching type_planning_id
-          $matchingItems = $workOrder->items->whereIn('type_planning_id', $typePlanningIds);
-          if ($matchingItems->isEmpty()) {
-            continue;
-          }
+          // NO filtrar por type_planning_id - procesar TODAS las work orders
+          // (igual que WorkShop Report)
 
           // Calculate amount
           $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
@@ -360,6 +366,85 @@ class ObjectiveDashboardService
             }
             $advisorBreakdown[$advisorId]['progress'] += $amount;
           }
+        }
+
+        // NOTA DE CRÉDITO ASOCIADA: Si la factura tiene credit_note_id, procesar también la NC
+        // usando las MISMAS work orders (internal notes) de la factura original, pero con montos en negativo
+        // Solo para facturación MASSIVE (con internal notes), igual que WorkShop Report
+        // IMPORTANTE: WorkShop Report NO valida fecha de NC, solo procesa si factura está en rango
+        if ($document->credit_note_id && $document->creditNote && $document->internalNotes && $document->internalNotes->count() > 0) {
+          $creditNote = $document->creditNote;
+
+          // Re-procesar las MISMAS internal notes de la factura pero con la nota de crédito
+          $document->internalNotes->each(function ($internalNote) use (
+            $sedeId,
+            $typePlanningIds,
+            $creditNote,
+            $document,
+            &$totalBilling,
+            &$brandBreakdown,
+            &$advisorBreakdown,
+            $conceptObjective
+          ) {
+            if (!$internalNote->workOrder) {
+              return;
+            }
+
+            $workOrder = $internalNote->workOrder;
+
+            // Filter by sede_id
+            if ($workOrder->sede_id != $sedeId) {
+              return;
+            }
+
+            // NO filtrar por type_planning_id - procesar TODAS las work orders
+            // (igual que WorkShop Report)
+
+            // Calculate amount with NEGATIVE multiplier for credit note
+            // Pasar creditNote como documento y document (factura) como originalDocument para tipo de cambio
+            $amount = $this->calculateWorkOrderAmountInSoles($workOrder, -1, $creditNote, $document);
+
+            $totalBilling += $amount;
+
+            // By brand
+            $brand = $workOrder->vehicle?->model?->family?->brand;
+            $brandName = 'OTRAS MARCAS';
+
+            if ($brand) {
+              $brandName = $brand->is_marketed ? $brand->name : 'OTRAS MARCAS';
+            }
+
+            if (!isset($brandBreakdown[$brandName])) {
+              $brandBreakdown[$brandName] = [
+                'brand_name' => $brandName,
+                'total_billing' => 0,
+                'vehicle_count' => 0
+              ];
+            }
+            $brandBreakdown[$brandName]['total_billing'] += $amount;
+            $brandBreakdown[$brandName]['vehicle_count']++;
+
+            // By advisor
+            if ($workOrder->advisor) {
+              $advisorId = $workOrder->advisor->id;
+              $advisorName = $workOrder->advisor->nombre_completo;
+
+              if (!isset($advisorBreakdown[$advisorId])) {
+                // Get advisor objective if exists
+                $advisorObjective = ObjectiveAdvisorsPeriodPv::where('concept_objective_period_pv_id', $conceptObjective->id)
+                  ->where('worker_id', $advisorId)
+                  ->first();
+
+                $advisorBreakdown[$advisorId] = [
+                  'advisor_id' => $advisorId,
+                  'advisor_name' => $advisorName,
+                  'objective' => $advisorObjective ? (float)$advisorObjective->amount : 0,
+                  'progress' => 0
+                ];
+              }
+              $advisorBreakdown[$advisorId]['progress'] += $amount;
+            }
+          });
         }
       }
 
@@ -628,26 +713,48 @@ class ObjectiveDashboardService
    * @param ApWorkOrder $workOrder
    * @param float $multiplier
    * @param ElectronicDocument|null $document
+   * @param ElectronicDocument|null $originalDocument Original document (invoice) when $document is a NC
    * @return float
    */
-  private function calculateWorkOrderAmountInSoles($workOrder, float $multiplier = 1, ?ElectronicDocument $document = null): float
+  private function calculateWorkOrderAmountInSoles($workOrder, float $multiplier = 1, ?ElectronicDocument $document = null, ?ElectronicDocument $originalDocument = null): float
   {
     // Calculate base amounts from work order items (WITHOUT IGV)
+    // IMPORTANTE: Usar la misma lógica que WorkShop Report
     $labourCost = $workOrder->labours->sum('net_amount');
-    $partsCost = $workOrder->parts->sum('net_amount');
-    $totalAmount = $labourCost + $partsCost;
+
+    // Precio de repuestos (sin lubricantes y solo los que tienen product)
+    $partsCost = $workOrder->parts
+      ->filter(function ($part) {
+        return $part->product && $part->product->product_category_id != ApMasters::LUBRICANTE_ID;
+      })
+      ->sum('net_amount');
+
+    // Precio de lubricantes (solo los que tienen product)
+    $lubricantsCost = $workOrder->parts
+      ->filter(function ($part) {
+        return $part->product && $part->product->product_category_id == ApMasters::LUBRICANTE_ID;
+      })
+      ->sum('net_amount');
+
+    // Total
+    $totalAmount = $labourCost + $partsCost + $lubricantsCost;
 
     // If work order is already in PEN, no conversion needed
     if ($workOrder->currency_id == TypeCurrency::PEN_ID) {
       return $totalAmount * $multiplier;
     }
 
+    // Determine which document to use for exchange rate
+    // If this is a NC and we have the original document, use the original's exchange rate
+    $isCreditNote = $document && $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+    $documentForExchangeRate = ($isCreditNote && $originalDocument) ? $originalDocument : $document;
+
     // Work order is in USD, convert to PEN
     $exchangeRate = null;
 
     // Try to get exchange rate from document if available
-    if ($document && $document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD && $document->exchangeRate) {
-      $exchangeRate = (float)$document->exchangeRate->rate;
+    if ($documentForExchangeRate && $documentForExchangeRate->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD && $documentForExchangeRate->exchangeRate) {
+      $exchangeRate = (float)$documentForExchangeRate->exchangeRate->rate;
     }
 
     // If not found, try to get from work order
