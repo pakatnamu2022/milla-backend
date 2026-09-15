@@ -17,6 +17,8 @@ class ApplicantService extends BaseService
 {
   private const RELATIONS = ['sede', 'area', 'position', 'process', 'user'];
 
+  public function __construct(private OfferLetterService $offerLetterService) {}
+
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
@@ -93,7 +95,9 @@ class ApplicantService extends BaseService
 
   /**
    * Cambia el estado del postulante (SELECCIONADO / RECHAZADO / FUERA DE CUPO / LISTA NEGRA).
-   * La carta oferta, el alta y el cronograma se manejan en F2 (Seleccionados).
+   * Al marcar SELECCIONADO (Etapa 3): captura fecha_inicio/presupuesto, asigna documentos
+   * iniciales y genera + envia la carta oferta (decision de negocio #3). El alta se maneja
+   * en Seleccionados (Etapa 4, `SelectedWorkerService`).
    */
   public function changeStatus(int $id, array $data): ApplicantResource
   {
@@ -108,7 +112,12 @@ class ApplicantService extends BaseService
       ]);
 
       if ($type === Applicant::TIPO_SELECCIONADO) {
+        $applicant->update([
+          'fecha_inicio' => $data['fecha_inicio'],
+          'presupuesto'  => $data['presupuesto'],
+        ]);
         $this->assignInitialDocuments($applicant, Applicant::TIPO_SELECCIONADO);
+        $this->offerLetterService->generateAndSend($applicant->load(self::RELATIONS));
       }
 
       $this->logChange($applicant);
@@ -124,6 +133,49 @@ class ApplicantService extends BaseService
   {
     $applicant = Applicant::findOrFail($id);
     $applicant->update(['status_deleted' => 0]);
+  }
+
+  /**
+   * Repostula a un postulante RECHAZADO o FUERA DE CUPO contra un nuevo proceso
+   * (LISTA NEGRA queda fuera: es "no recontratable", ver decision de negocio #6).
+   * Equivale a `FueraCupoController::postular` del legacy.
+   */
+  public function repost(int $id, int $procesoPostulacionId): ApplicantResource
+  {
+    return DB::transaction(function () use ($id, $procesoPostulacionId) {
+      $applicant = Applicant::findOrFail($id);
+
+      if (!in_array((int) $applicant->tipo_trabajador_id, [Applicant::TIPO_RECHAZADO, Applicant::TIPO_FUERA_CUPO], true)) {
+        throw new \RuntimeException('Solo se puede repostular a un postulante rechazado o fuera de cupo.');
+      }
+
+      /** @var RecruitmentProcess $process */
+      $process = RecruitmentProcess::findOrFail($procesoPostulacionId);
+      if ($process->status_id === RecruitmentProcess::STATUS_CLOSED) {
+        throw new \RuntimeException('No se puede repostular contra un proceso cerrado.');
+      }
+
+      $applicant->update([
+        'sede_id'                => $process->sede_id,
+        'area_id'                => $process->area_id,
+        'cargo_id'                => $process->cargo_id,
+        'centro_costo_id'        => $process->centro_costo_id,
+        'proceso_postulacion_id' => $process->id,
+        'tipo_trabajador_id'     => Applicant::TIPO_POSTULANTE,
+        'motivo_status'          => null,
+        'b_empleado'             => 1,
+      ]);
+
+      if ($process->status_id === RecruitmentProcess::STATUS_OPEN) {
+        $process->update(['status_id' => RecruitmentProcess::STATUS_IN_PROCESS]);
+      }
+
+      User::where('partner_id', $applicant->id)->update(['status_deleted' => 1]);
+
+      $this->logChange($applicant);
+
+      return $this->show($applicant->id);
+    });
   }
 
   private function onlyPersonAttributes(array $data): array
@@ -208,7 +260,7 @@ class ApplicantService extends BaseService
     }
   }
 
-  private function logChange(Applicant $applicant): void
+  public function logChange(Applicant $applicant): void
   {
     DB::table('rrhh_log_data_persona')->insert([
       'empleado_id'            => $applicant->id,

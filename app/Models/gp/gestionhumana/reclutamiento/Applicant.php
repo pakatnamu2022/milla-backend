@@ -85,6 +85,10 @@ class Applicant extends BaseModel
     'b_empleado',
     'status_id',
     'status_deleted',
+    'fecha_inicio',
+    'presupuesto',
+    'carta_oferta',
+    'status_carta_oferta_id',
   ];
 
   protected $casts = [

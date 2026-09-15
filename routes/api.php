@@ -161,6 +161,8 @@ use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantDataChangeController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\SelectedWorkerController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\HotelAgreementController;
@@ -2432,6 +2434,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
     // Administración de postulantes (F1) — legacy idVista 52
     Route::post('applicant/{id}/status', [ApplicantController::class, 'changeStatus']);
+    Route::post('applicant/{id}/repost', [ApplicantController::class, 'repost']);
     Route::apiResource('applicant', ApplicantController::class)->only([
       'index',
       'show',
@@ -2439,6 +2442,28 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy',
     ]);
+
+    // Cola de aprobación de ficha del postulante (F1) — legacy aprobar/rechazar (idVista 52)
+    Route::post('applicant-data-change/{id}/approve', [ApplicantDataChangeController::class, 'approve']);
+    Route::post('applicant-data-change/{id}/reject', [ApplicantDataChangeController::class, 'reject']);
+    Route::get('applicant-data-change', [ApplicantDataChangeController::class, 'index']);
+    Route::get('applicant-data-change/{id}', [ApplicantDataChangeController::class, 'show']);
+
+    // Seleccionados — Contratación / Alta (F2) — legacy idVista 71
+    Route::post('selected-worker/{id}/signed-letter', [SelectedWorkerController::class, 'uploadSignedLetter']);
+    Route::post('selected-worker/{id}/welcome-email', [SelectedWorkerController::class, 'sendWelcomeEmail']);
+    Route::post('selected-worker/{id}/generate-user', [SelectedWorkerController::class, 'generateUser']);
+    Route::put('selected-worker/{id}/profile', [SelectedWorkerController::class, 'updateProfile']);
+    Route::post('selected-worker/{id}/life-status', [SelectedWorkerController::class, 'changeLifeStatus']);
+    Route::post('selected-worker/{id}/rehire', [SelectedWorkerController::class, 'rehire']);
+    Route::get('selected-worker/{id}/relatives', [SelectedWorkerController::class, 'indexRelatives']);
+    Route::post('selected-worker/{id}/relatives', [SelectedWorkerController::class, 'storeRelative']);
+    Route::delete('selected-worker/{id}/relatives/{relativeId}', [SelectedWorkerController::class, 'destroyRelative']);
+    Route::get('selected-worker/{id}/work-experiences', [SelectedWorkerController::class, 'indexWorkExperiences']);
+    Route::post('selected-worker/{id}/work-experiences', [SelectedWorkerController::class, 'storeWorkExperience']);
+    Route::delete('selected-worker/{id}/work-experiences/{experienceId}', [SelectedWorkerController::class, 'destroyWorkExperience']);
+    Route::get('selected-worker', [SelectedWorkerController::class, 'index']);
+    Route::get('selected-worker/{id}', [SelectedWorkerController::class, 'show']);
   });
 
   /**

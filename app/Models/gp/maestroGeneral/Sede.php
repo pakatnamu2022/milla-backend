@@ -46,6 +46,14 @@ class Sede extends BaseModel
     'status',
     'has_workshop',
     'code_afs',
+    'doc1_rrhh',
+    'doc2_rrhh',
+    'doc3_rrhh',
+    'doc4_rrhh',
+    'doc5_rrhh',
+    'doc6_rrhh',
+    'doc7_rrhh',
+    'doc8_rrhh',
   ];
 
   const filters = [

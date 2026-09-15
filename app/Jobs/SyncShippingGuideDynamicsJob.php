@@ -418,6 +418,9 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
 
     if (!$wasAlreadyAccounted) {
       SyncAccountingEntryJob::dispatch($shippingGuide->id);
+    } elseif ($this->hasStaleAccountingEntryLogs($shippingGuide->id)) {
+      $this->deleteStaleAccountingEntryLogs($shippingGuide->id);
+      SyncAccountingEntryJob::dispatch($shippingGuide->id);
     }
 
     if (!$this->isIssueDateReached($shippingGuide)) {
@@ -693,6 +696,34 @@ class SyncShippingGuideDynamicsJob implements ShouldQueue, ShouldBeUnique
       ]);
       throw $e;
     }
+  }
+
+  /**
+   * Detecta logs de asiento contable en estado pending con 0 intentos.
+   * Indica que fueron creados con un documento incorrecto (pre-fix) y nunca procesados.
+   */
+  private function hasStaleAccountingEntryLogs(int $shippingGuideId): bool
+  {
+    return VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuideId)
+      ->whereIn('step', [
+        VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
+        VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
+      ])
+      ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING)
+      ->where('attempts', 0)
+      ->exists();
+  }
+
+  private function deleteStaleAccountingEntryLogs(int $shippingGuideId): void
+  {
+    VehiclePurchaseOrderMigrationLog::where('shipping_guide_id', $shippingGuideId)
+      ->whereIn('step', [
+        VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_HEADER,
+        VehiclePurchaseOrderMigrationLog::STEP_ACCOUNTING_ENTRY_DETAIL,
+      ])
+      ->where('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING)
+      ->where('attempts', 0)
+      ->delete();
   }
 
   /**

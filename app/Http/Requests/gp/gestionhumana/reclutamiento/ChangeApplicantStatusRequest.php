@@ -15,10 +15,14 @@ class ChangeApplicantStatusRequest extends FormRequest
 
   public function rules(): array
   {
+    $isSelected = (int) $this->input('tipo_trabajador_id') === Applicant::TIPO_SELECCIONADO;
+
     return [
       'tipo_trabajador_id' => ['required', 'integer', Rule::in(Applicant::STATUS_TYPES)],
       'motivo_status'      => 'nullable|string',
       'jefe_id'            => 'nullable|integer|exists:rrhh_persona,id',
+      'fecha_inicio'       => [$isSelected ? 'required' : 'nullable', 'date'],
+      'presupuesto'        => [$isSelected ? 'required' : 'nullable', 'numeric'],
     ];
   }
 }
