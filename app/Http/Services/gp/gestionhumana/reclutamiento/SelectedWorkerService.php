@@ -7,20 +7,22 @@ use App\Http\Resources\gp\gestionhumana\reclutamiento\SelectedWorkerResource;
 use App\Http\Resources\gp\gestionhumana\reclutamiento\WorkExperienceResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\common\EmailService;
+use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionhumana\personal\WorkerStatusHistoryService;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\gp\gestionhumana\reclutamiento\Applicant;
 use App\Models\gp\gestionhumana\reclutamiento\RecruitmentProcess;
 use App\Models\gp\gestionhumana\reclutamiento\Relative;
 use App\Models\gp\gestionhumana\reclutamiento\SelectedWorker;
 use App\Models\gp\gestionhumana\reclutamiento\WelcomeEmailTemplate;
 use App\Models\gp\gestionhumana\reclutamiento\WorkExperience;
+use App\Models\gp\gestionsistema\DigitalFile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Etapa 4 del plan F2 (idVista 71, `SeleccionadoController` del legacy):
@@ -29,8 +31,13 @@ use Illuminate\Support\Facades\Storage;
 class SelectedWorkerService extends BaseService
 {
   private const RELATIONS = ['sede', 'area', 'position', 'process', 'user', 'boss', 'supervisor'];
+  private const FILE_PATH = '/gp/gestionhumana/reclutamiento/carta-oferta/';
 
-  public function __construct(private WorkerStatusHistoryService $statusHistoryService) {}
+  public function __construct(
+    private WorkerStatusHistoryService $statusHistoryService,
+    private DigitalFileService $digitalFileService,
+    private ExportService $exportService
+  ) {}
 
   public function list(Request $request): JsonResponse
   {
@@ -59,16 +66,33 @@ class SelectedWorkerService extends BaseService
       $worker = SelectedWorker::findOrFail($id);
 
       if (!is_null($worker->carta_oferta)) {
-        Storage::disk('private')->delete($worker->carta_oferta);
+        $this->deletePreviousFile($worker->carta_oferta);
       }
 
-      $path = 'resources_cartaoferta/' . $worker->id;
-      $worker->carta_oferta = $file->storeAs($path, $file->getClientOriginalName(), 'private');
+      $digitalFile = $this->digitalFileService->storeFromContent(
+        file_get_contents($file->getRealPath()),
+        $file->getClientOriginalName(),
+        self::FILE_PATH,
+        'private',
+        $file->getClientMimeType(),
+        $worker->getTable(),
+        $worker->id
+      );
+
+      $worker->carta_oferta = $digitalFile->url;
       $worker->status_carta_oferta_id = SelectedWorker::STATUS_CARTA_OFERTA_COMPLETADO;
       $worker->save();
 
       return $this->show($worker->id);
     });
+  }
+
+  private function deletePreviousFile(string $url): void
+  {
+    $digitalFile = DigitalFile::where('url', $url)->first();
+    if ($digitalFile) {
+      $this->digitalFileService->destroy($digitalFile->id);
+    }
   }
 
   public function sendWelcomeEmail(int $id): SelectedWorkerResource
@@ -234,6 +258,11 @@ class SelectedWorkerService extends BaseService
 
       return new SelectedWorkerResource($worker->load(self::RELATIONS));
     });
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, SelectedWorker::class);
   }
 
   public function listRelatives(int $workerId)

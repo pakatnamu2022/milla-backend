@@ -147,4 +147,13 @@ class SelectedWorkerController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function export(\Illuminate\Http\Request $request)
+  {
+    try {
+      return $this->service->export($request);
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

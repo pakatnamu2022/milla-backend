@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\reclutamiento;
 
+use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
 use App\Models\gp\gestionsistema\Position;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class RecruitmentProcess extends BaseModel
 {
+  use Reportable;
+
   protected $table = 'rrhh_proceso_postulacion';
 
   const STATUS_OPEN       = 9;
@@ -57,6 +60,22 @@ class RecruitmentProcess extends BaseModel
   ];
 
   const sorts = ['id', 'nombre_postulacion', 'fecha_inicio', 'fecha_fin_plazo'];
+
+  protected $reportColumns = [
+    'id'                  => ['label' => 'ID', 'width' => 8],
+    'nombre_postulacion'  => ['label' => 'PROCESO', 'width' => 30],
+    'sede.abreviatura'    => ['label' => 'SEDE', 'width' => 15],
+    'area.name'           => ['label' => 'ÁREA', 'width' => 20],
+    'position.name'       => ['label' => 'CARGO', 'width' => 20],
+    'cant_trab_solicita'  => ['label' => 'VACANTES', 'width' => 10, 'formatter' => 'number'],
+    'status.estado'       => ['label' => 'ESTADO', 'width' => 15],
+    'fecha_inicio'        => ['label' => 'FECHA INICIO', 'width' => 14, 'formatter' => 'date'],
+    'fecha_fin_plazo'     => ['label' => 'FECHA FIN PLAZO', 'width' => 14, 'formatter' => 'date'],
+    'fecha_fin_cierre'    => ['label' => 'FECHA CIERRE', 'width' => 14, 'formatter' => 'date'],
+    'dias_plazo'          => ['label' => 'DÍAS PLAZO', 'width' => 10, 'formatter' => 'number'],
+  ];
+
+  protected $reportRelations = ['sede', 'area', 'position', 'status'];
 
   protected static function booted(): void
   {

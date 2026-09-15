@@ -4,6 +4,7 @@ namespace App\Http\Services\gp\gestionhumana\reclutamiento;
 
 use App\Http\Resources\gp\gestionhumana\reclutamiento\ApplicantResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\reclutamiento\Applicant;
 use App\Models\gp\gestionhumana\reclutamiento\RecruitmentProcess;
 use App\Models\User;
@@ -17,7 +18,10 @@ class ApplicantService extends BaseService
 {
   private const RELATIONS = ['sede', 'area', 'position', 'process', 'user'];
 
-  public function __construct(private OfferLetterService $offerLetterService) {}
+  public function __construct(
+    private OfferLetterService $offerLetterService,
+    private ExportService $exportService
+  ) {}
 
   public function list(Request $request): JsonResponse
   {
@@ -176,6 +180,11 @@ class ApplicantService extends BaseService
 
       return $this->show($applicant->id);
     });
+  }
+
+  public function export(Request $request)
+  {
+    return $this->exportService->exportFromRequest($request, Applicant::class);
   }
 
   private function onlyPersonAttributes(array $data): array
