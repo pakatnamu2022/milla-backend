@@ -29,8 +29,11 @@ class PurchaseOrderReportExport implements
   protected array $cuentasPorPagar;
 
   // Total de columnas del reporte
-  private const LAST_COL = 'S';
-  private const TOTAL_COLS = 19;
+  private const LAST_COL = 'T';
+  private const TOTAL_COLS = 20;
+
+  // Prefijo de número de OC usado para el stock inicial migrado (sin factura real de Dynamics)
+  private const STOCK_INICIAL_PREFIX = 'OCSI-';
 
   public function __construct(Collection $data, ?string $fechaInicio, ?string $fechaFin, array $cuentasPorPagar = [])
   {
@@ -67,6 +70,7 @@ class PurchaseOrderReportExport implements
       'SALDO PENDIENTE (CXP)',
       'ESTADO CXP',
       'ESTATUS',
+      'ORIGEN OC',
     ];
   }
 
@@ -75,9 +79,7 @@ class PurchaseOrderReportExport implements
     $emisDate    = $row->emission_date ? Carbon::parse($row->emission_date) : null;
     $diasVencido = $emisDate ? (int) $emisDate->diffInDays(Carbon::today(), false) : 0;
 
-    $series = trim($row->invoice_series ?? '');
-    $number = trim($row->invoice_number ?? '');
-    $docKey = $series !== '' && $number !== '' ? "{$series}-{$number}" : '';
+    $docKey      = $this->buildDocKey($row->invoice_dynamics ?? '');
     $cxpEntry    = $docKey !== '' ? ($this->cuentasPorPagar[$docKey] ?? null) : null;
     $montoPendiente = $cxpEntry !== null ? $cxpEntry['montoSinAplicar'] : 0;
 
@@ -101,6 +103,7 @@ class PurchaseOrderReportExport implements
       $montoPendiente,
       $montoPendiente > 0 ? 'PENDIENTE' : 'PAGADO',
       $this->getEstatus($row),
+      $this->getOrigen($row),
     ];
   }
 
@@ -156,7 +159,7 @@ class PurchaseOrderReportExport implements
         ]);
 
         // Alineación centrada para columnas numéricas y de fecha
-        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R', 'S'];
+        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R', 'S', 'T'];
         foreach ($centeredCols as $col) {
           $sheet->getStyle($col . '3:' . $col . $lastRow)
             ->getAlignment()
@@ -205,6 +208,18 @@ class PurchaseOrderReportExport implements
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $estadoCxpColor['bg']]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
           ]);
+
+          // ORIGEN OC → columna T (STOCK INICIAL / SISTEMA)
+          $origen      = $sheet->getCell('T' . $i)->getValue();
+          $origenColor = $origen === 'STOCK INICIAL'
+            ? ['bg' => 'ECEFF1', 'text' => '546E7A']
+            : ['bg' => 'E1F5FE', 'text' => '01579B'];
+
+          $sheet->getStyle('T' . $i)->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => $origenColor['text']]],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $origenColor['bg']]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+          ]);
         }
 
         $sheet->freezePane('A3');
@@ -228,6 +243,19 @@ class PurchaseOrderReportExport implements
     return '8';
   }
 
+  private function buildDocKey(string $invoiceDynamics): string
+  {
+    $invoiceDynamics = trim($invoiceDynamics);
+    if ($invoiceDynamics === '') {
+      return '';
+    }
+
+    // "F004-00000329-FAC" → clave: "F004-00000329" (mismo criterio que ApPurchaseOrderReportService::buildCxpMap)
+    $parts = explode('-', $invoiceDynamics);
+
+    return count($parts) >= 3 ? $parts[0] . '-' . $parts[1] : $invoiceDynamics;
+  }
+
   private function getEstatus($row): string
   {
     $doc = $row->vehicle?->electronicDocumentParent;
@@ -237,5 +265,12 @@ class PurchaseOrderReportExport implements
     }
 
     return $doc->financing_type === 'CONTADO' ? 'CONTADO' : 'CREDITO';
+  }
+
+  private function getOrigen($row): string
+  {
+    return str_starts_with((string)($row->number ?? ''), self::STOCK_INICIAL_PREFIX)
+      ? 'STOCK INICIAL'
+      : 'SISTEMA';
   }
 }
