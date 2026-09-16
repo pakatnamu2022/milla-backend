@@ -462,11 +462,15 @@ class AttendanceSyncService extends BaseService
     );
 
     $personIds = $rows->pluck('person_id')->filter()->unique()->values()->toArray();
-    $vacationsByPerson = $this->loadAllPersonVacations($personIds, $request->date_from, $request->date_to);
-    $ausentismoByPerson = $this->loadAllPersonAusentismo($personIds, $request->date_from, $request->date_to);
-    $permisosByPerson = $this->loadAllPersonPermisos($personIds, $request->date_from, $request->date_to);
+    // Una misma persona puede tener varias filas en rrhh_persona (una por sede,
+    // mismo vat); hay que revisar vacaciones/ausentismo/permiso en todas ellas.
+    $relatedIdsMap = $this->buildRelatedIdsMap($personIds);
+    $allRelatedIds = array_values(array_unique(array_merge($personIds, ...array_values($relatedIdsMap))));
+    $vacationsByPerson = $this->loadAllPersonVacations($allRelatedIds, $request->date_from, $request->date_to);
+    $ausentismoByPerson = $this->loadAllPersonAusentismo($allRelatedIds, $request->date_from, $request->date_to);
+    $permisosByPerson = $this->loadAllPersonPermisos($allRelatedIds, $request->date_from, $request->date_to);
 
-    $summary = $this->buildInternalSummary($rows, $request->date_from, $request->date_to, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson);
+    $summary = $this->buildInternalSummary($rows, $request->date_from, $request->date_to, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson, $relatedIdsMap);
 
     if ($request->get('export') === 'xlsx') {
       $flat = $summary->flatMap(fn($person) => collect($person['daily'])->map(fn($day) => [
@@ -519,9 +523,24 @@ class AttendanceSyncService extends BaseService
 
     $rows = $this->buildPivotedRows($dateFrom, $dateTo, $personId, null)->keyBy('date');
     $holidays = $this->loadHolidays($dateFrom, $dateTo);
-    $vacations = $this->loadPersonVacations($personId, $dateFrom, $dateTo);
-    $ausentismo = $this->loadPersonAusentismo($personId, $dateFrom, $dateTo);
-    $permisos = $this->loadPersonPermisos($personId, $dateFrom, $dateTo);
+
+    // Una misma persona puede tener varias filas en rrhh_persona (una por sede,
+    // mismo vat); el ausentismo/vacaciones/permiso puede estar registrado contra
+    // cualquiera de esos IDs, así que hay que revisarlos todos.
+    $relatedIds = $this->resolveRelatedPersonIds([$personId]);
+    $vacationsByPerson = $this->loadAllPersonVacations($relatedIds, $dateFrom, $dateTo);
+    $ausentismoByPerson = $this->loadAllPersonAusentismo($relatedIds, $dateFrom, $dateTo);
+    $permisosByPerson = $this->loadAllPersonPermisos($relatedIds, $dateFrom, $dateTo);
+
+    $vacations = [];
+    $ausentismo = [];
+    $permisos = [];
+    foreach ($relatedIds as $relatedId) {
+      $vacations = array_merge($vacations, $vacationsByPerson[$relatedId] ?? []);
+      $ausentismo = array_merge($ausentismo, $ausentismoByPerson[$relatedId] ?? []);
+      $permisos = array_merge($permisos, $permisosByPerson[$relatedId] ?? []);
+    }
+
     $schedule = $this->getPersonScheduleRow($personId);
 
     if ($rows->isEmpty() && !$schedule) {
@@ -564,6 +583,7 @@ class AttendanceSyncService extends BaseService
         $daily->push([
           'date' => $dateStr,
           'type' => 'vacation',
+          'message' => 'Vacaciones',
           'vacation_id' => $vacations[$dateStr],
           'check_in' => null,
           'lunch_out' => null,
@@ -581,6 +601,7 @@ class AttendanceSyncService extends BaseService
         $daily->push([
           'date' => $dateStr,
           'type' => 'ausentismo',
+          'message' => 'Ausentismo: ' . $ausentismo[$dateStr]['tipo'],
           'ausentismo_id' => $ausentismo[$dateStr]['id'],
           'ausentismo_tipo' => $ausentismo[$dateStr]['tipo'],
           'check_in' => null,
@@ -847,10 +868,15 @@ class AttendanceSyncService extends BaseService
           ->whereColumn('ae.person_id', 'p.id')
           ->where('ae.active', 1);
       })
+      // Nota: se compara por p.vat (no por p.id) porque una misma persona
+      // puede tener varias filas en rrhh_persona (una por sede, mismo vat),
+      // y el registro de vacaciones/ausentismo/permiso puede estar cargado
+      // contra cualquiera de esos IDs duplicados.
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_vacaciones as v')
-          ->whereColumn('v.empleado_id', 'p.id')
+          ->join('rrhh_persona as v_p', 'v_p.id', '=', 'v.empleado_id')
+          ->whereColumn('v_p.vat', 'p.vat')
           ->where('v.status_deleted', 1)
           ->where('v.aprobacion_rrhh', 1)
           ->where('v.fecha_inicio', '<=', $dateStr)
@@ -859,7 +885,8 @@ class AttendanceSyncService extends BaseService
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_ausentismo_laboral as al')
-          ->whereColumn('al.empleado_id', 'p.id')
+          ->join('rrhh_persona as al_p', 'al_p.id', '=', 'al.empleado_id')
+          ->whereColumn('al_p.vat', 'p.vat')
           ->where('al.status_deleted', 1)
           ->where('al.fecha_inicial', '<=', $dateStr)
           ->where('al.fecha_fin', '>=', $dateStr);
@@ -869,7 +896,7 @@ class AttendanceSyncService extends BaseService
           ->from('rrhh_trabajador_permiso as tp')
           ->join('rrhh_persona as tp_p', 'tp_p.id', '=', 'tp.partner_id')
           ->leftJoin('work_schedules as tp_ws', 'tp_ws.id', '=', 'tp_p.work_schedule_id')
-          ->whereColumn('tp.partner_id', 'p.id')
+          ->whereColumn('tp_p.vat', 'p.vat')
           ->where('tp.status_deleted', 1)
           ->whereDate('tp.fecha_inicio', '<=', $dateStr)
           ->whereDate('tp.fecha_fin', '>=', $dateStr)
@@ -954,7 +981,8 @@ class AttendanceSyncService extends BaseService
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_ausentismo_laboral as al')
-          ->whereColumn('al.empleado_id', 'p.id')
+          ->join('rrhh_persona as al_p', 'al_p.id', '=', 'al.empleado_id')
+          ->whereColumn('al_p.vat', 'p.vat')
           ->where('al.status_deleted', 1)
           ->where('al.fecha_inicial', '<=', $dateStr)
           ->where('al.fecha_fin', '>=', $dateStr);
@@ -1046,16 +1074,23 @@ class AttendanceSyncService extends BaseService
     return $query->get();
   }
 
-  private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = [], array $ausentismoByPerson = [], array $permisosByPerson = []): \Illuminate\Support\Collection
+  private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = [], array $ausentismoByPerson = [], array $permisosByPerson = [], array $relatedIdsMap = []): \Illuminate\Support\Collection
   {
     $holidays = $this->loadHolidays($dateFrom, $dateTo);
 
-    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) use ($dateFrom, $dateTo, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson, $holidays) {
+    return $rows->groupBy('emp_code')->map(function ($dayRows, string $empCode) use ($dateFrom, $dateTo, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson, $relatedIdsMap, $holidays) {
       $first = $dayRows->first();
       $personId = $first->person_id;
-      $personVacations = $vacationsByPerson[$personId] ?? [];
-      $personAusentismo = $ausentismoByPerson[$personId] ?? [];
-      $personPermisos = $permisosByPerson[$personId] ?? [];
+      $relatedIds = $relatedIdsMap[$personId] ?? [$personId];
+
+      $personVacations = [];
+      $personAusentismo = [];
+      $personPermisos = [];
+      foreach ($relatedIds as $relatedId) {
+        $personVacations = array_merge($personVacations, $vacationsByPerson[$relatedId] ?? []);
+        $personAusentismo = array_merge($personAusentismo, $ausentismoByPerson[$relatedId] ?? []);
+        $personPermisos = array_merge($personPermisos, $permisosByPerson[$relatedId] ?? []);
+      }
       $attendanceByDate = $dayRows->keyBy('date');
 
       $daily = collect();
@@ -1071,6 +1106,7 @@ class AttendanceSyncService extends BaseService
           $daily->push([
             'date' => $dateStr,
             'type' => 'vacation',
+            'message' => 'Vacaciones',
             'check_in' => null,
             'lunch_out' => null,
             'lunch_in' => null,
@@ -1089,6 +1125,7 @@ class AttendanceSyncService extends BaseService
           $daily->push([
             'date' => $dateStr,
             'type' => 'ausentismo',
+            'message' => 'Ausentismo: ' . $personAusentismo[$dateStr]['tipo'],
             'ausentismo_id' => $personAusentismo[$dateStr]['id'],
             'ausentismo_tipo' => $personAusentismo[$dateStr]['tipo'],
             'check_in' => null,
@@ -1395,6 +1432,69 @@ class AttendanceSyncService extends BaseService
           $map[$permiso->partner_id][$dateStr] = ['id' => $permiso->id, 'hora_inicio' => $effectiveStart];
         }
       }
+    }
+
+    return $map;
+  }
+
+  /**
+   * Una misma persona puede tener varias filas en rrhh_persona (una por sede,
+   * mismo vat). Dado un set de person_id, devuelve todos los IDs que comparten
+   * vat con alguno de ellos (incluyéndolos a ellos mismos).
+   */
+  private function resolveRelatedPersonIds(array $personIds): array
+  {
+    if (empty($personIds)) return [];
+
+    $vats = DB::table('rrhh_persona')
+      ->whereIn('id', $personIds)
+      ->whereNotNull('vat')
+      ->pluck('vat')
+      ->unique()
+      ->values()
+      ->toArray();
+
+    if (empty($vats)) return array_values(array_unique($personIds));
+
+    $allIds = DB::table('rrhh_persona')
+      ->whereIn('vat', $vats)
+      ->where('status_deleted', 1)
+      ->pluck('id')
+      ->map(fn($id) => (int)$id)
+      ->toArray();
+
+    return array_values(array_unique(array_merge($personIds, $allIds)));
+  }
+
+  /**
+   * Igual que resolveRelatedPersonIds pero devuelve un mapa
+   * person_id => [ids relacionados], útil cuando hay que resolver varias
+   * personas a la vez y mantener la asociación original.
+   */
+  private function buildRelatedIdsMap(array $personIds): array
+  {
+    if (empty($personIds)) return [];
+
+    $vatByPerson = DB::table('rrhh_persona')
+      ->whereIn('id', $personIds)
+      ->whereNotNull('vat')
+      ->pluck('vat', 'id');
+
+    $vats = $vatByPerson->unique()->values()->toArray();
+    if (empty($vats)) return [];
+
+    $idsByVat = DB::table('rrhh_persona')
+      ->whereIn('vat', $vats)
+      ->where('status_deleted', 1)
+      ->select('id', 'vat')
+      ->get()
+      ->groupBy('vat')
+      ->map(fn($rows) => $rows->pluck('id')->map(fn($id) => (int)$id)->toArray());
+
+    $map = [];
+    foreach ($personIds as $personId) {
+      $vat = $vatByPerson[$personId] ?? null;
+      $map[$personId] = $vat && $idsByVat->has($vat) ? $idsByVat[$vat] : [$personId];
     }
 
     return $map;

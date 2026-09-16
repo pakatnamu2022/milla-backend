@@ -33,6 +33,7 @@ class SyncAttendanceJob implements ShouldQueue
 
     try {
       $personMap = $this->buildPersonMap();
+      $personIdsByVat = $this->buildPersonIdsByVat();
       $codeMap = $this->buildCodeMappings();
       $rows = $this->fetchTransactions($date);
       $grouped = $rows->groupBy('emp_code');
@@ -42,16 +43,32 @@ class SyncAttendanceJob implements ShouldQueue
 
       AttendanceSync::whereDate('date', $date)->delete();
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $codeMap, $scheduleMap, $excluded, $permisosMap, &$inserted) {
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $personIdsByVat, $codeMap, $scheduleMap, $excluded, $permisosMap, &$inserted) {
         $effectiveVat = $codeMap[$empCode] ?? $empCode;
         $personId = $personMap[$effectiveVat] ?? null;
 
-        if ($personId && isset($excluded[$personId])) {
-          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} excluido ({$excluded[$personId]}), se omite.");
+        // Una misma persona puede tener varias filas en rrhh_persona (una por sede).
+        // El ausentismo/permiso puede estar registrado contra cualquiera de esos IDs,
+        // así que hay que revisarlos todos, no solo el que ganó el pluck por vat.
+        $relatedIds = $personIdsByVat[$effectiveVat] ?? ($personId ? [$personId] : []);
+
+        $exclusionReason = null;
+        foreach ($relatedIds as $relatedId) {
+          if (isset($excluded[$relatedId])) {
+            $exclusionReason = $excluded[$relatedId];
+            break;
+          }
+        }
+
+        if ($exclusionReason !== null) {
+          Log::info("SyncAttendanceJob [{$date}]: emp_code={$empCode} excluido ({$exclusionReason}), se omite.");
           return;
         }
 
-        $permisos = $personId ? ($permisosMap[$personId] ?? []) : [];
+        $permisos = [];
+        foreach ($relatedIds as $relatedId) {
+          $permisos = array_merge($permisos, $permisosMap[$relatedId] ?? []);
+        }
         $sorted = $punches->sortBy('punch_time')->values();
         $records = $this->classifyPunches($sorted, $empCode, $date, $personId, $scheduleMap, $permisos);
 
@@ -287,6 +304,23 @@ class SyncAttendanceJob implements ShouldQueue
       ->where('status_deleted', 1)
       ->orderByRaw('CASE WHEN status_id = 22 THEN 1 ELSE 0 END ASC')
       ->pluck('id', 'vat')
+      ->toArray();
+  }
+
+  /**
+   * Una misma persona puede tener varias filas en rrhh_persona (una por sede,
+   * mismo vat). Para exclusiones/permisos hay que tratarlas como la misma
+   * persona, así que aquí se agrupan todos los IDs que comparten vat.
+   */
+  private function buildPersonIdsByVat(): array
+  {
+    return DB::table('rrhh_persona')
+      ->whereNotNull('vat')
+      ->where('status_deleted', 1)
+      ->select('id', 'vat')
+      ->get()
+      ->groupBy('vat')
+      ->map(fn($rows) => $rows->pluck('id')->map(fn($id) => (int)$id)->toArray())
       ->toArray();
   }
 
