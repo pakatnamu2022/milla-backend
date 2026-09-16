@@ -36,17 +36,26 @@ class RecruitmentProcess extends BaseModel
     'area_id',
     'cargo_id',
     'centro_costo_id',
+    'solicitante_id',
+    'prioridad',
     'fecha_inicio',
     'fecha_fin_plazo',
     'fecha_fin_cierre',
     'dias_plazo',
     'status_deleted',
+    'pausado',
+    'motivo_pausa',
+    'fecha_inicio_pausa',
+    'dias_pausados',
+    'veces_pausado',
   ];
 
   protected $casts = [
-    'fecha_inicio'     => 'date:Y-m-d',
-    'fecha_fin_plazo'  => 'date:Y-m-d',
-    'fecha_fin_cierre' => 'date:Y-m-d',
+    'fecha_inicio'       => 'date:Y-m-d',
+    'fecha_fin_plazo'    => 'date:Y-m-d',
+    'fecha_fin_cierre'   => 'date:Y-m-d',
+    'fecha_inicio_pausa' => 'datetime',
+    'pausado'            => 'boolean',
   ];
 
   const filters = [
@@ -114,5 +123,37 @@ class RecruitmentProcess extends BaseModel
   public function applicants()
   {
     return $this->hasMany(Worker::class, 'proceso_postulacion_id')->withoutGlobalScopes();
+  }
+
+  /**
+   * Subcompetencias configuradas para la etapa de entrevista de este proceso.
+   */
+  public function competences()
+  {
+    return $this->hasMany(RecruitmentProcessCompetence::class, 'proceso_postulacion_id');
+  }
+
+  /**
+   * Entrevistas realizadas dentro de este proceso.
+   */
+  public function interviews()
+  {
+    return $this->hasMany(Interview::class, 'proceso_postulacion_id');
+  }
+
+  /**
+   * Quien solicitó la posición (cliente interno / jefatura).
+   */
+  public function requester()
+  {
+    return $this->belongsTo(\App\Models\User::class, 'solicitante_id');
+  }
+
+  /**
+   * Trazabilidad de pausas/reanudaciones/ampliaciones de plazo.
+   */
+  public function history()
+  {
+    return $this->hasMany(RecruitmentProcessHistory::class, 'proceso_postulacion_id')->latest();
   }
 }

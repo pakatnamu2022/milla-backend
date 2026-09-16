@@ -20,6 +20,8 @@ class UpdateRecruitmentProcessRequest extends FormRequest
       'area_id'            => 'sometimes|required|integer|exists:rrhh_area,id',
       'cargo_id'           => 'sometimes|required|integer|exists:rrhh_cargo,id',
       'fecha_inicio'       => 'sometimes|required|date_format:Y-m-d',
+      'solicitante_id'     => 'nullable|integer|exists:usr_users,id',
+      'prioridad'          => 'nullable|integer|min:0|max:255',
     ];
   }
 }
