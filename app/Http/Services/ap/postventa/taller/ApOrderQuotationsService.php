@@ -1168,11 +1168,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
 
       // Validar aprobación de jefe
       if (isset($data['chief_approval_by'])) {
-        if (!in_array($positionId, Position::JEFE_TALLER_PV_IDS)) {
-          throw new Exception('Solo el Jefe de Taller puede aprobar.');
+        $allowedPositions = array_merge(
+          Position::JEFE_TALLER_PV_IDS,
+          Position::COORDINADOR_TALLER_IDS
+        );
+
+        if (!in_array($positionId, $allowedPositions)) {
+          throw new Exception('Solo el Jefe o Coordinador de Taller puede aprobar.');
         }
         if ($quotation->chief_approval_by) {
-          throw new Exception('Esta cotización ya fue aprobada por el Jefe de Taller.');
+          throw new Exception('Esta cotización ya fue aprobada por el Jefe o Coordinador de Taller.');
         }
         $quotation->update(['chief_approval_by' => $user->id]);
       }
