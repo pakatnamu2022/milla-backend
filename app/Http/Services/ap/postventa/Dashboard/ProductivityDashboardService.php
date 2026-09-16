@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\Dashboard;
 
 use App\Http\Services\ap\postventa\Shared\BilledHoursCalculationService;
 use App\Models\GeneralMaster;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -218,7 +219,19 @@ class ProductivityDashboardService
   {
     $technicianDetail = [];
 
+    // Obtener todos los worker_ids para consultar en una sola query
+    $workerIds = $billedData->pluck('worker_id')->unique()->toArray();
+
+    // Cargar todos los workers con sus status_id sin el scope global
+    $workers = Worker::withoutGlobalScope('working')
+      ->whereIn('id', $workerIds)
+      ->get()
+      ->keyBy('id');
+
     foreach ($billedData as $technician) {
+      // Obtener el worker y determinar si está de baja
+      $worker = $workers->get($technician['worker_id']);
+      $isOnLeave = $worker ? ($worker->status_id !== 22) : false;
       // Usar el método centralizado de BilledHoursCalculationService como ÚNICA fuente de verdad
       $attendanceData = $this->billedHoursService->getAttendanceData(
         $technician['worker_id'],
@@ -235,6 +248,7 @@ class ProductivityDashboardService
           'worker_id' => $technician['worker_id'],
           'worker_dni' => $technician['worker_dni'],
           'worker_name' => $technician['worker_name'],
+          'is_on_leave' => $isOnLeave,
           'has_error' => true,
           'error_message' => 'Error al obtener datos de asistencia',
           'days_worked' => 0,
@@ -314,6 +328,7 @@ class ProductivityDashboardService
         'worker_id' => $technician['worker_id'],
         'worker_dni' => $technician['worker_dni'],
         'worker_name' => $technician['worker_name'],
+        'is_on_leave' => $isOnLeave,
         'has_error' => false,
         'days_worked' => $daysWorked,
         'standard_hours' => round($standardHours, 2),
