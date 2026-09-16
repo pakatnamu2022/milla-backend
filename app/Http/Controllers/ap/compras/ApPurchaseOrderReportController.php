@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ap\compras;
 
-use App\Exports\ap\compras\PurchaseOrderReportExport;
+use App\Exports\ap\compras\PurchaseOrderReportMultiExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\compras\PurchaseOrderReportRequest;
 use App\Http\Services\ap\compras\ApPurchaseOrderReportService;
@@ -30,10 +30,14 @@ class ApPurchaseOrderReportController extends Controller
         $request->input('sede_id')
       );
 
-      $filename = 'Reporte_OC_' . str_replace('-', '_', $fechaInicio) . '_a_' . str_replace('-', '_', $fechaFin) . '.xlsx';
+      $filename = 'Reporte_OC_'
+        . ($fechaInicio ? str_replace('-', '_', $fechaInicio) : 'todos')
+        . '_a_'
+        . ($fechaFin ? str_replace('-', '_', $fechaFin) : 'todos')
+        . '.xlsx';
 
       return Excel::download(
-        new PurchaseOrderReportExport($result['orders'], $fechaInicio, $fechaFin, $result['cuentasPorPagar']),
+        new PurchaseOrderReportMultiExport($result['orders'], $fechaInicio, $fechaFin, $result['cuentasPorPagar']),
         $filename
       );
     } catch (\Exception $e) {

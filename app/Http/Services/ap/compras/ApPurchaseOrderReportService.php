@@ -10,8 +10,8 @@ use Illuminate\Support\Collection;
 class ApPurchaseOrderReportService
 {
   public function generate(
-    string $fechaInicio,
-    string $fechaFin,
+    ?string $fechaInicio,
+    ?string $fechaFin,
     ?array $sedeIds = null
   ): array {
     $orders = PurchaseOrder::with([
@@ -22,7 +22,10 @@ class ApPurchaseOrderReportService
       'vehicle.color',
       'vehicle.electronicDocumentParent',
     ])
-      ->whereBetween('emission_date', [$fechaInicio, $fechaFin])
+      ->when(
+        $fechaInicio && $fechaFin,
+        fn($q) => $q->whereBetween('emission_date', [$fechaInicio, $fechaFin])
+      )
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
       ->when($sedeIds, fn($q) => $q->whereIn('sede_id', $sedeIds))
       ->whereNull('deleted_at')
