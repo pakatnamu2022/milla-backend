@@ -168,6 +168,9 @@ use App\Http\Controllers\gp\gestionhumana\contratos\PublicContractSignatureContr
 use App\Http\Controllers\gp\gestionhumana\contratos\SignerController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantDataChangeController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\ApplicantStatusMessageController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\ProcessStageMessageController;
+use App\Http\Controllers\gp\gestionhumana\reclutamiento\InterviewController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\SelectedWorkerController;
 use App\Http\Controllers\gp\gestionhumana\reclutamiento\RecruitmentProcessController;
 use App\Http\Controllers\gp\gestionhumana\viaticos\ExpenseTypeController;
@@ -2431,7 +2434,25 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Procesos de postulación (F1) — legacy idVista 50
     Route::get('recruitment-process/export', [RecruitmentProcessController::class, 'export']);
     Route::post('recruitment-process/{id}/close', [RecruitmentProcessController::class, 'close']);
+    Route::post('recruitment-process/{id}/pause', [RecruitmentProcessController::class, 'pause']);
+    Route::post('recruitment-process/{id}/resume', [RecruitmentProcessController::class, 'resume']);
+    Route::post('recruitment-process/{id}/reopen', [RecruitmentProcessController::class, 'reopen']);
+    Route::post('recruitment-process/add-days', [RecruitmentProcessController::class, 'addDays']);
+    Route::get('recruitment-process/{id}/coverage', [RecruitmentProcessController::class, 'coverage']);
+    Route::get('recruitment-process/{id}/history', [RecruitmentProcessController::class, 'history']);
+    Route::get('recruitment-process/{processId}/competences', [InterviewController::class, 'competences']);
+    Route::put('recruitment-process/{processId}/competences', [InterviewController::class, 'syncCompetences']);
     Route::apiResource('recruitment-process', RecruitmentProcessController::class)->only([
+      'index',
+      'show',
+      'store',
+      'update',
+      'destroy',
+    ]);
+
+    // Entrevistas (RAR) — etapa entre postulante y seleccionado/rechazado
+    Route::put('interview/{id}/score', [InterviewController::class, 'score']);
+    Route::apiResource('interview', InterviewController::class)->only([
       'index',
       'show',
       'store',
@@ -2450,6 +2471,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       'update',
       'destroy',
     ]);
+
+    // Mensajes automáticos por estado del postulante (RAR), editables por GH
+    Route::get('applicant-status-message', [ApplicantStatusMessageController::class, 'index']);
+    Route::put('applicant-status-message/{tipoTrabajadorId}', [ApplicantStatusMessageController::class, 'update']);
+
+    // Mensajes automáticos por etapa del proceso (RAR), al cliente interno/jefatura
+    Route::get('process-stage-message', [ProcessStageMessageController::class, 'index']);
+    Route::put('process-stage-message/{etapa}', [ProcessStageMessageController::class, 'update']);
 
     // Cola de aprobación de ficha del postulante (F1) — legacy aprobar/rechazar (idVista 52)
     Route::post('applicant-data-change/{id}/approve', [ApplicantDataChangeController::class, 'approve']);

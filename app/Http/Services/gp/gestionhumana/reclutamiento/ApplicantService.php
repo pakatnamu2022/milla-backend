@@ -4,8 +4,11 @@ namespace App\Http\Services\gp\gestionhumana\reclutamiento;
 
 use App\Http\Resources\gp\gestionhumana\reclutamiento\ApplicantResource;
 use App\Http\Services\BaseService;
+use App\Http\Services\common\EmailService;
 use App\Http\Services\common\ExportService;
 use App\Models\gp\gestionhumana\reclutamiento\Applicant;
+use App\Models\gp\gestionhumana\reclutamiento\ApplicantStatusMessageTemplate;
+use App\Models\gp\gestionhumana\reclutamiento\ProcessStageMessageTemplate;
 use App\Models\gp\gestionhumana\reclutamiento\RecruitmentProcess;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +23,8 @@ class ApplicantService extends BaseService
 
   public function __construct(
     private OfferLetterService $offerLetterService,
-    private ExportService $exportService
+    private ExportService $exportService,
+    private RecruitmentProcessService $processService
   ) {}
 
   public function list(Request $request): JsonResponse
@@ -121,7 +125,20 @@ class ApplicantService extends BaseService
           'presupuesto'  => $data['presupuesto'],
         ]);
         $this->assignInitialDocuments($applicant, Applicant::TIPO_SELECCIONADO);
+        // La carta oferta ya comunica la selección al postulante — no se duplica con el mensaje parametrizable.
         $this->offerLetterService->generateAndSend($applicant->load(self::RELATIONS));
+
+        if ($applicant->process) {
+          $this->processService->notifyStage($applicant->process, ProcessStageMessageTemplate::ETAPA_SELECCIONADO, $applicant->nombre_completo);
+
+          // Al seleccionar al postulante, el proceso termina: se cierra automáticamente.
+          // Si el candidato se retracta, el proceso se puede reabrir (RecruitmentProcessService::reopen).
+          if ($applicant->process->status_id !== RecruitmentProcess::STATUS_CLOSED) {
+            $this->processService->close($applicant->process->id);
+          }
+        }
+      } else {
+        $this->sendStatusMessage($applicant->load(self::RELATIONS), $type);
       }
 
       $this->logChange($applicant);
@@ -185,6 +202,48 @@ class ApplicantService extends BaseService
   public function export(Request $request)
   {
     return $this->exportService->exportFromRequest($request, Applicant::class);
+  }
+
+  /**
+   * Envía el mensaje automático parametrizable (`rrhh_mensaje_estado`) configurado
+   * para el nuevo estado del postulante, si existe uno activo y el postulante
+   * tiene email. Editable por Gestión Humana vía ApplicantStatusMessageTemplate.
+   */
+  private function sendStatusMessage(Applicant $applicant, int $tipoTrabajadorId): void
+  {
+    if (!$applicant->email) {
+      return;
+    }
+
+    $template = ApplicantStatusMessageTemplate::where('tipo_trabajador_id', $tipoTrabajadorId)
+      ->where('activo', true)
+      ->first();
+    if (!$template) {
+      return;
+    }
+
+    $body = $this->mergeStatusTemplate($template->contenido, $applicant);
+
+    (new EmailService())->send([
+      'to'       => [$applicant->email],
+      'subject'  => $template->asunto,
+      'template' => 'emails.reclutamiento-notification',
+      'data'     => [
+        'title'     => $template->asunto,
+        'body_html' => $body,
+      ],
+    ]);
+  }
+
+  private function mergeStatusTemplate(string $content, Applicant $applicant): string
+  {
+    $content = str_replace('{$postulante}', '<strong>' . $applicant->nombre_completo . '</strong>', $content);
+    $content = str_replace('{$cargo}', '<strong>' . ($applicant->position?->name ?? '') . '</strong>', $content);
+    $content = str_replace('{$area}', '<strong>' . ($applicant->area?->name ?? '') . '</strong>', $content);
+    $content = str_replace('{$sede}', '<strong>' . ($applicant->sede?->abreviatura ?? '') . '</strong>', $content);
+    $content = str_replace('{$proceso}', '<strong>' . ($applicant->process?->nombre_postulacion ?? '') . '</strong>', $content);
+
+    return $content;
   }
 
   private function onlyPersonAttributes(array $data): array

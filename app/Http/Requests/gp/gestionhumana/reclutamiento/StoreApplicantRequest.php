@@ -59,6 +59,15 @@ class StoreApplicantRequest extends FormRequest
       'grado_obtenido'          => 'nullable|string|max:100',
       'file_cv'                 => 'nullable|file|mimes:pdf,doc,docx|max:10240',
       'file_foto'               => 'nullable|file|image|max:10240',
+      'medio_contacto'          => 'nullable|string|max:100',
+      'disponibilidad'          => 'nullable|string|max:150',
+      'condiciones_laborales'   => 'nullable|string|max:255',
+      'experiencia_laboral'     => 'nullable|string',
+      'anos_experiencia'        => 'nullable|numeric|min:0|max:99.9',
+      'enfermedad_operacion_lesion' => 'nullable|string',
+      'verificativa_status'     => 'nullable|string|max:50',
+      'observacion_verificativa' => 'nullable|string',
+      'comentarios_reclutamiento' => 'nullable|string',
     ];
   }
 
