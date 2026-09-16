@@ -159,7 +159,7 @@ class PurchaseOrderReportExport implements
         ]);
 
         // Alineación centrada para columnas numéricas y de fecha
-        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R', 'S'];
+        $centeredCols = ['C', 'D', 'E', 'L', 'O', 'P', 'Q', 'R', 'S', 'T'];
         foreach ($centeredCols as $col) {
           $sheet->getStyle($col . '3:' . $col . $lastRow)
             ->getAlignment()
@@ -206,6 +206,18 @@ class PurchaseOrderReportExport implements
           $sheet->getStyle('R' . $i)->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => $estadoCxpColor['text']]],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $estadoCxpColor['bg']]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+          ]);
+
+          // ORIGEN OC → columna T (STOCK INICIAL / SISTEMA)
+          $origen      = $sheet->getCell('T' . $i)->getValue();
+          $origenColor = $origen === 'STOCK INICIAL'
+            ? ['bg' => 'ECEFF1', 'text' => '546E7A']
+            : ['bg' => 'E1F5FE', 'text' => '01579B'];
+
+          $sheet->getStyle('T' . $i)->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => $origenColor['text']]],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $origenColor['bg']]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
           ]);
         }
