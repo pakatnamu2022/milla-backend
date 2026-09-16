@@ -868,10 +868,15 @@ class AttendanceSyncService extends BaseService
           ->whereColumn('ae.person_id', 'p.id')
           ->where('ae.active', 1);
       })
+      // Nota: se compara por p.vat (no por p.id) porque una misma persona
+      // puede tener varias filas en rrhh_persona (una por sede, mismo vat),
+      // y el registro de vacaciones/ausentismo/permiso puede estar cargado
+      // contra cualquiera de esos IDs duplicados.
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_vacaciones as v')
-          ->whereColumn('v.empleado_id', 'p.id')
+          ->join('rrhh_persona as v_p', 'v_p.id', '=', 'v.empleado_id')
+          ->whereColumn('v_p.vat', 'p.vat')
           ->where('v.status_deleted', 1)
           ->where('v.aprobacion_rrhh', 1)
           ->where('v.fecha_inicio', '<=', $dateStr)
@@ -880,7 +885,8 @@ class AttendanceSyncService extends BaseService
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_ausentismo_laboral as al')
-          ->whereColumn('al.empleado_id', 'p.id')
+          ->join('rrhh_persona as al_p', 'al_p.id', '=', 'al.empleado_id')
+          ->whereColumn('al_p.vat', 'p.vat')
           ->where('al.status_deleted', 1)
           ->where('al.fecha_inicial', '<=', $dateStr)
           ->where('al.fecha_fin', '>=', $dateStr);
@@ -890,7 +896,7 @@ class AttendanceSyncService extends BaseService
           ->from('rrhh_trabajador_permiso as tp')
           ->join('rrhh_persona as tp_p', 'tp_p.id', '=', 'tp.partner_id')
           ->leftJoin('work_schedules as tp_ws', 'tp_ws.id', '=', 'tp_p.work_schedule_id')
-          ->whereColumn('tp.partner_id', 'p.id')
+          ->whereColumn('tp_p.vat', 'p.vat')
           ->where('tp.status_deleted', 1)
           ->whereDate('tp.fecha_inicio', '<=', $dateStr)
           ->whereDate('tp.fecha_fin', '>=', $dateStr)
@@ -975,7 +981,8 @@ class AttendanceSyncService extends BaseService
       ->whereNotExists(function ($q) use ($dateStr) {
         $q->select(DB::raw(1))
           ->from('rrhh_ausentismo_laboral as al')
-          ->whereColumn('al.empleado_id', 'p.id')
+          ->join('rrhh_persona as al_p', 'al_p.id', '=', 'al.empleado_id')
+          ->whereColumn('al_p.vat', 'p.vat')
           ->where('al.status_deleted', 1)
           ->where('al.fecha_inicial', '<=', $dateStr)
           ->where('al.fecha_fin', '>=', $dateStr);
