@@ -56,6 +56,9 @@ class HeadquartersRankingSheet implements
 
   public function map($row): array
   {
+    // Extract area summaries from concepts
+    $areasSummary = $this->extractAreasSummary($row['concepts_summary'] ?? []);
+
     return [
       $row['rank'],
       $row['name'],
@@ -63,16 +66,53 @@ class HeadquartersRankingSheet implements
       number_format($row['total_progress'], 2),
       $row['completion_percentage'],
       $this->getStatusLabel($row['status']),
-      number_format($row['areas_summary']['workshop']['objective'], 2),
-      number_format($row['areas_summary']['workshop']['progress'], 2),
-      $row['areas_summary']['workshop']['completion_percentage'],
-      number_format($row['areas_summary']['counter']['objective'], 2),
-      number_format($row['areas_summary']['counter']['progress'], 2),
-      $row['areas_summary']['counter']['completion_percentage'],
-      $row['areas_summary']['vehicle_crossing']['objective'],
-      $row['areas_summary']['vehicle_crossing']['progress'],
-      $row['areas_summary']['vehicle_crossing']['completion_percentage'],
+      number_format($areasSummary['taller']['objective'], 2),
+      number_format($areasSummary['taller']['progress'], 2),
+      $areasSummary['taller']['completion_percentage'],
+      number_format($areasSummary['meson']['objective'], 2),
+      number_format($areasSummary['meson']['progress'], 2),
+      $areasSummary['meson']['completion_percentage'],
+      $areasSummary['paso_vehicular']['objective'],
+      $areasSummary['paso_vehicular']['progress'],
+      $areasSummary['paso_vehicular']['completion_percentage'],
     ];
+  }
+
+  /**
+   * Extract and aggregate areas summary from concepts
+   */
+  private function extractAreasSummary(array $concepts): array
+  {
+    $summary = [
+      'taller' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
+      'meson' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
+      'paso_vehicular' => ['objective' => 0, 'progress' => 0, 'completion_percentage' => 0],
+    ];
+
+    foreach ($concepts as $concept) {
+      $areaId = $concept['area_id'];
+      $isVehicularCrossing = $concept['is_vehicular_crossing'] ?? false;
+
+      if ($isVehicularCrossing && $areaId == \App\Models\ap\ApMasters::AREA_TALLER) {
+        $summary['paso_vehicular']['objective'] += $concept['objective'];
+        $summary['paso_vehicular']['progress'] += $concept['progress'];
+      } elseif ($areaId == \App\Models\ap\ApMasters::AREA_TALLER) {
+        $summary['taller']['objective'] += $concept['objective'];
+        $summary['taller']['progress'] += $concept['progress'];
+      } elseif ($areaId == \App\Models\ap\ApMasters::AREA_MESON) {
+        $summary['meson']['objective'] += $concept['objective'];
+        $summary['meson']['progress'] += $concept['progress'];
+      }
+    }
+
+    // Calculate completion percentages
+    foreach ($summary as $key => &$area) {
+      $area['completion_percentage'] = $area['objective'] > 0
+        ? round(($area['progress'] / $area['objective']) * 100, 2)
+        : 0;
+    }
+
+    return $summary;
   }
 
   public function styles(Worksheet $sheet)

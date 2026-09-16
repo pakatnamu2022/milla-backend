@@ -55,6 +55,7 @@ class ProductWarehouseStock extends Model
     'quantity' => '>',
     'available_quantity' => '>',
     'sale_price_min' => '>',
+    'product.brand_id' => '='
   ];
 
   const sorts = [

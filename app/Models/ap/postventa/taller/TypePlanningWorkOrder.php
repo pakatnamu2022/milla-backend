@@ -19,6 +19,7 @@ class TypePlanningWorkOrder extends Model
     'validate_labor',
     'type_document',
     'category_type',
+    'consider_vehicle_traffic',
     'status'
   ];
 
@@ -26,6 +27,7 @@ class TypePlanningWorkOrder extends Model
     'validate_receipt' => 'boolean',
     'validate_labor' => 'boolean',
     'category_type' => 'string',
+    'consider_vehicle_traffic' => 'boolean',
     'status' => 'boolean'
   ];
   // CONST ID

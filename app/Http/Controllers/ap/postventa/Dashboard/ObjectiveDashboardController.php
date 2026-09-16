@@ -94,39 +94,63 @@ class ObjectiveDashboardController extends Controller
    * Export objectives dashboard to Excel
    *
    * @param Request $request
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
    */
   public function exportExcel(Request $request)
   {
     $validated = $request->validate([
       'year' => 'required|integer|min:2020|max:2100',
       'month' => 'required|integer|min:1|max:12',
-      'sede_id' => 'nullable|integer|exists:config_sede,id'
+      'sede_id' => 'nullable|integer|exists:config_sede,id',
+      'use_cache' => 'nullable|boolean'
     ]);
 
     $year = $validated['year'];
     $month = $validated['month'];
     $sedeId = $validated['sede_id'] ?? null;
+    $useCache = $validated['use_cache'] ?? false; // Default false for exports to ensure fresh data
 
     try {
-      // Get dashboard data without cache to ensure fresh data
-      $dashboardData = $this->service->getDashboardData($year, $month, $sedeId, false);
+      $dashboardData = $this->service->getDashboardData($year, $month, $sedeId, $useCache);
 
-      // Generate filename
+      // Validate data
+      if (empty($dashboardData['headquarters_detail'])) {
+        return response()->json([
+          'success' => false,
+          'message' => 'No hay datos disponibles para exportar en el período seleccionado'
+        ], 404);
+      }
+
+      // Generate descriptive filename
       $periodName = $dashboardData['period']['name'];
-      $sedeName = $sedeId ? '_sede_' . $sedeId : '_todas_sedes';
-      $filename = 'dashboard_objetivos_' . strtolower(str_replace(' ', '_', $periodName)) . $sedeName . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+      $sedeText = $sedeId
+        ? \Illuminate\Support\Str::slug($dashboardData['headquarters_detail'][0]['name'] ?? 'sede_' . $sedeId, '_')
+        : 'todas_sedes';
 
-      // Export to Excel
+      $filename = sprintf(
+        'Dashboard_Objetivos_%s_%s_%s.xlsx',
+        \Illuminate\Support\Str::slug($periodName, '_'),
+        $sedeText,
+        now()->format('Ymd_His')
+      );
+
       return Excel::download(
         new ObjectivesDashboardExport($dashboardData),
         $filename
       );
     } catch (\Exception $e) {
+      \Log::error('Error al exportar dashboard de objetivos', [
+        'year' => $year,
+        'month' => $month,
+        'sede_id' => $sedeId,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+      ]);
+
       return response()->json([
         'success' => false,
         'message' => 'Error al exportar el dashboard',
-        'error' => $e->getMessage()
+        'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
       ], 500);
     }
   }

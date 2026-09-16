@@ -43,7 +43,7 @@ class ProductWarehouseStockExport implements
   public function headings(): array
   {
     return [
-      'ESTANTE',
+      'UBICACIÓN',
       'CÓDIGO PRODUCTO',
       'NOMBRE PRODUCTO',
       'ALMACÉN',
@@ -68,7 +68,7 @@ class ProductWarehouseStockExport implements
   public function map($row): array
   {
     return [
-      $row['estante'] ?? '-',
+      $row['ubicacion'] ?? '-',
       $row['codigo_producto'] ?? 'N/A',
       $row['nombre_producto'] ?? 'N/A',
       $row['almacen'] ?? 'N/A',

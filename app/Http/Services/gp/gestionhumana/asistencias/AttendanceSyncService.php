@@ -543,11 +543,11 @@ class AttendanceSyncService extends BaseService
         continue; // Skip Sundays
       }
 
-      if (isset($holidays[$dateStr])) {
+      if (isset($holidays[$dateStr]) && !$rows->has($dateStr)) {
         $daily->push([
           'date' => $dateStr,
           'type' => 'holiday',
-          'holiday_name' => $holidays[$dateStr],
+          'message' => $holidays[$dateStr],
           'check_in' => null,
           'lunch_out' => null,
           'lunch_in' => null,
@@ -1013,7 +1013,7 @@ class AttendanceSyncService extends BaseService
       ])
       ->whereDate('a.date', '>=', $dateFrom)
       ->whereDate('a.date', '<=', $dateTo)
-      ->where('p.status_id', 22)
+      //->where('p.status_id', 22)
       ->where('p.status_deleted', 1)
       ->groupBy(
         'a.date', 'a.emp_code', 'a.person_id',
@@ -1065,7 +1065,7 @@ class AttendanceSyncService extends BaseService
         $dayOfWeek = $day->dayOfWeek;
 
         if ($dayOfWeek === 0) continue;
-        if (isset($holidays[$dateStr])) continue;
+        if (isset($holidays[$dateStr]) && !$attendanceByDate->has($dateStr)) continue;
 
         if (isset($personVacations[$dateStr])) {
           $daily->push([

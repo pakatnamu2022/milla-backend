@@ -22,7 +22,8 @@ class StoreTypePlanningWorkOrderRequest extends StoreRequest
       'validate_receipt' => 'required|boolean',
       'validate_labor' => 'required|boolean',
       'type_document' => 'required|string|in:' . TypePlanningWorkOrder::INTERNA_SC . ',' . TypePlanningWorkOrder::INTERNA_CC . ',' . TypePlanningWorkOrder::PAYMENT_RECEIPTS,
-      'category_type' => 'required|string|in:' . TypePlanningWorkOrder::ESTANDAR, ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
+      'category_type' => 'required|string|in:' . TypePlanningWorkOrder::ESTANDAR . ',' . TypePlanningWorkOrder::INTERNA . ',' . TypePlanningWorkOrder::GARANTIA_RECALL,
+      'consider_vehicle_traffic' => 'required|boolean',
     ];
   }
 
@@ -50,6 +51,9 @@ class StoreTypePlanningWorkOrderRequest extends StoreRequest
       'category_type.required' => 'El campo categoría tipo es obligatorio.',
       'category_type.string' => 'La categoría tipo debe ser una cadena de texto.',
       'category_type.in' => 'La categoría tipo seleccionada no es válida. Los valores permitidos son: ESTANDAR, INTERNA, GARANTIA_RECALL.',
+
+      'consider_vehicle_traffic.required' => 'El campo considerar tráfico de vehículos es obligatorio.',
+      'consider_vehicle_traffic.boolean' => 'El campo considerar tráfico de vehículos debe ser un valor booleano.',
     ];
   }
 }
