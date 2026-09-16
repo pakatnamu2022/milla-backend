@@ -92,6 +92,15 @@ class Applicant extends BaseModel
     'presupuesto',
     'carta_oferta',
     'status_carta_oferta_id',
+    'medio_contacto',
+    'disponibilidad',
+    'condiciones_laborales',
+    'experiencia_laboral',
+    'anos_experiencia',
+    'enfermedad_operacion_lesion',
+    'verificativa_status',
+    'observacion_verificativa',
+    'comentarios_reclutamiento',
   ];
 
   protected $casts = [
@@ -182,5 +191,13 @@ class Applicant extends BaseModel
   public function user()
   {
     return $this->hasOne(User::class, 'partner_id', 'id');
+  }
+
+  /**
+   * Entrevistas de este postulante (no todo postulante llega a tener una).
+   */
+  public function interviews()
+  {
+    return $this->hasMany(Interview::class, 'persona_id');
   }
 }

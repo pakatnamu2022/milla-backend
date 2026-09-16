@@ -20,6 +20,8 @@ class StoreRecruitmentProcessRequest extends FormRequest
       'area_id'            => 'required|integer|exists:rrhh_area,id',
       'cargo_id'           => 'required|integer|exists:rrhh_cargo,id',
       'fecha_inicio'       => 'required|date_format:Y-m-d',
+      'solicitante_id'     => 'nullable|integer|exists:usr_users,id',
+      'prioridad'          => 'nullable|integer|min:0|max:255',
     ];
   }
 }
