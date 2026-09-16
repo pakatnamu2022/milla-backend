@@ -88,7 +88,7 @@ class MktPermissionsSeeder extends Seeder
           'route'       => 'sustentos',
           'slug'        => 'sustentos',
           'icon'        => 'Paperclip',
-          'actions'     => ['view', 'create'],                 // Sin actualizar
+          'actions'     => ['view', 'create', 'update', 'delete'],
         ],
         [
           'descripcion' => 'KPIs',

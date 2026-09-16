@@ -15,6 +15,7 @@ use App\Models\ap\marketing\MktPlan;
 use App\Models\ap\marketing\MktProposal;
 use App\Models\ap\marketing\MktPurchaseOrder;
 use App\Models\ap\marketing\MktSupport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -151,5 +152,52 @@ class MktPlanService extends BaseService implements BaseServiceInterface
       DB::rollBack();
       throw $e;
     }
+  }
+
+  /**
+   * Genera el documento completo del plan: presupuestos, actividades,
+   * órdenes de compra y sustentos, comparando lo sustentado contra cada OC.
+   */
+  public function generateFullReportPdf(int $id)
+  {
+    $plan = MktPlan::with([
+      'brand',
+      'budgets' => fn($q) => $q->orderBy('type')->orderBy('period_month'),
+      'budgets.currency',
+      'budgets.activities' => fn($q) => $q->orderBy('start_date'),
+      'budgets.activities.currency',
+      'budgets.activities.supplier',
+      'budgets.activities.purchaseOrders' => fn($q) => $q->orderBy('issue_date'),
+      'budgets.activities.purchaseOrders.currency',
+      'budgets.activities.purchaseOrders.supplier',
+      'budgets.activities.supports' => fn($q) => $q->orderBy('issue_date'),
+      'budgets.activities.supports.currency',
+      'budgets.activities.supports.supplier',
+    ])->find($id);
+
+    if (!$plan) {
+      throw new Exception('Plan de marketing no encontrado');
+    }
+
+    $activities = $plan->budgets->flatMap->activities;
+
+    $planTotals = [
+      'estimated' => $plan->budgets->sum(fn($b) => (float) $b->amount_estimated),
+      'executed'  => $plan->budgets->sum(fn($b) => (float) $b->amount_executed),
+      'orders'    => $activities->flatMap->purchaseOrders->sum(fn($o) => (float) $o->amount),
+      'supports'  => $activities->flatMap->supports->sum(fn($s) => (float) $s->amount),
+    ];
+
+    $pdf = Pdf::loadView('reports.ap.marketing.plan-report', [
+      'plan'        => $plan,
+      'activities'  => $activities,
+      'planTotals'  => $planTotals,
+    ]);
+
+    $pdf->setPaper('a4', 'portrait');
+
+    $fileName = 'Plan_Marketing_' . str_pad($plan->id, 6, '0', STR_PAD_LEFT) . '.pdf';
+
+    return $pdf->download($fileName);
   }
 }

@@ -159,7 +159,7 @@ class MktActivityService extends BaseService implements BaseServiceInterface
     }
 
     $supports = MktSupport::where('activity_id', $id)
-      ->with(['supplier', 'currency'])
+      ->with(['supplier', 'currency', 'digitalFiles'])
       ->orderBy('issue_date')
       ->get();
 
@@ -167,10 +167,13 @@ class MktActivityService extends BaseService implements BaseServiceInterface
       ->groupBy(fn($s) => $s->currency->symbol ?? $s->currency->code ?? 'S/')
       ->map(fn($group) => $group->sum('amount'));
 
+    $annexes = $this->buildSupportAnnexes($supports);
+
     $pdf = Pdf::loadView('reports.ap.marketing.activity-supports', [
       'activity' => $activity,
       'supports' => $supports,
       'totalsByCurrency' => $totalsByCurrency,
+      'annexes' => $annexes,
     ]);
 
     $pdf->setPaper('a4', 'portrait');
@@ -178,6 +181,60 @@ class MktActivityService extends BaseService implements BaseServiceInterface
     $fileName = 'Sustentos_Actividad_' . str_pad($activity->id, 6, '0', STR_PAD_LEFT) . '.pdf';
 
     return $pdf->download($fileName);
+  }
+
+  /**
+   * Arma la lista de anexos (imágenes/archivos) de cada sustento para incrustar
+   * en el PDF. Las imágenes se descargan y se embeben en base64 (dompdf no
+   * siempre puede cargar URLs remotas); los PDF adjuntos solo se listan por
+   * nombre, ya que no se pueden fusionar dentro del reporte.
+   */
+  private function buildSupportAnnexes($supports): array
+  {
+    $annexes = [];
+
+    foreach ($supports->values() as $i => $support) {
+      $files = $support->digitalFiles->isNotEmpty()
+        ? $support->digitalFiles
+        : ($support->file_path ? collect([(object) ['url' => $support->file_path, 'mimeType' => null, 'name' => null]]) : collect());
+
+      foreach ($files as $file) {
+        $mime    = $file->mimeType;
+        $url     = $file->url;
+        $isImage = $mime ? str_starts_with($mime, 'image/') : (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', $url ?? '');
+        $isPdf   = $mime === 'application/pdf' || (bool) preg_match('/\.pdf$/i', $url ?? '');
+
+        $src = $isImage ? $this->fetchAsBase64($url, $mime) : null;
+
+        $annexes[] = [
+          'support_number' => $i + 1,
+          'support_label'  => (MktSupport::TYPE_LABELS[$support->type] ?? $support->type) . ' · ' . ($support->issue_date ? $support->issue_date->format('d/m/Y') : 'S/F'),
+          'name'           => $file->name,
+          'is_image'       => $isImage && $src,
+          'is_pdf'         => $isPdf,
+          'src'            => $src,
+        ];
+      }
+    }
+
+    return $annexes;
+  }
+
+  private function fetchAsBase64(?string $url, ?string $mimeType): ?string
+  {
+    if (!$url) {
+      return null;
+    }
+    try {
+      $content = @file_get_contents($url);
+      if ($content === false) {
+        return null;
+      }
+      $mime = $mimeType ?: 'image/jpeg';
+      return 'data:' . $mime . ';base64,' . base64_encode($content);
+    } catch (\Throwable $e) {
+      return null;
+    }
   }
 
   public function changeStatus(int $id, string $status): MktActivityResource

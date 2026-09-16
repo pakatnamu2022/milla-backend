@@ -4,7 +4,9 @@ namespace App\Models\ap\marketing;
 
 use App\Models\BaseModel;
 use App\Models\ap\maestroGeneral\TypeCurrency;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MktSupport extends BaseModel
@@ -74,6 +76,12 @@ class MktSupport extends BaseModel
   public function purchaseOrder(): BelongsTo
   {
     return $this->belongsTo(MktPurchaseOrder::class, 'purchase_order_id');
+  }
+
+  /** Imágenes/comprobantes del sustento (mismo patrón que PerDiemRequest::digitalFiles). */
+  public function digitalFiles(): MorphMany
+  {
+    return $this->morphMany(DigitalFile::class, 'fileable', 'model', 'id_model');
   }
 
   public function supplier(): BelongsTo

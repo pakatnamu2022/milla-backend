@@ -42,6 +42,12 @@ class MktSupportResource extends JsonResource
       ]),
       'amount'            => $this->amount,
       'file_path'         => $this->file_path,
+      'files'             => $this->whenLoaded('digitalFiles', fn() => $this->digitalFiles->map(fn($file) => [
+        'id'       => $file->id,
+        'url'      => $file->url,
+        'name'     => $file->name,
+        'mimeType' => $file->mimeType,
+      ])),
       'notes'             => $this->notes,
       'created_by'        => $this->created_by,
       'updated_by'        => $this->updated_by,

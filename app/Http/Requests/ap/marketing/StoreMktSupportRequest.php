@@ -17,8 +17,8 @@ class StoreMktSupportRequest extends StoreRequest
       'supplier_id'       => 'nullable|integer|exists:business_partners,id',
       'currency_id'       => 'nullable|integer|exists:type_currency,id',
       'amount'            => 'required|numeric|min:0.01',
-      'file_path'         => 'nullable|string|max:500',
-      'file'              => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf',
+      'files'             => 'nullable|array|max:10',
+      'files.*'           => 'file|max:10240|mimes:jpg,jpeg,png,pdf',
       'notes'             => 'nullable|string',
     ];
   }
@@ -34,8 +34,7 @@ class StoreMktSupportRequest extends StoreRequest
       'supplier_id'       => 'proveedor',
       'currency_id'       => 'moneda',
       'amount'            => 'monto',
-      'file_path'         => 'archivo',
-      'file'              => 'archivo',
+      'files'             => 'archivos',
       'notes'             => 'notas',
     ];
   }

@@ -7,17 +7,14 @@ use App\Http\Requests\ap\marketing\IndexMktSupportRequest;
 use App\Http\Requests\ap\marketing\StoreMktSupportRequest;
 use App\Http\Requests\ap\marketing\UpdateMktSupportRequest;
 use App\Http\Services\ap\marketing\MktSupportService;
-use App\Http\Services\gp\gestionsistema\DigitalFileService;
 
 class MktSupportController extends Controller
 {
   protected MktSupportService $service;
-  protected DigitalFileService $digitalFileService;
 
-  public function __construct(MktSupportService $service, DigitalFileService $digitalFileService)
+  public function __construct(MktSupportService $service)
   {
     $this->service = $service;
-    $this->digitalFileService = $digitalFileService;
   }
 
   public function index(IndexMktSupportRequest $request)
@@ -33,14 +30,10 @@ class MktSupportController extends Controller
   {
     try {
       $data = $request->validated();
+      $files = $request->file('files', []);
+      unset($data['files'], $data['file'], $data['file_path']);
 
-      if ($request->hasFile('file')) {
-        $uploaded = $this->digitalFileService->store($request->file('file'), '/ap/marketing/supports/');
-        $data['file_path'] = $uploaded->url;
-      }
-      unset($data['file']);
-
-      return $this->success($this->service->store($data));
+      return $this->success($this->service->store($data, $files));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -60,14 +53,10 @@ class MktSupportController extends Controller
     try {
       $data = $request->validated();
       $data['id'] = $id;
+      $files = $request->file('files', []);
+      unset($data['files'], $data['file'], $data['file_path']);
 
-      if ($request->hasFile('file')) {
-        $uploaded = $this->digitalFileService->store($request->file('file'), '/ap/marketing/supports/');
-        $data['file_path'] = $uploaded->url;
-      }
-      unset($data['file']);
-
-      return $this->success($this->service->update($data));
+      return $this->success($this->service->update($data, $files));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }
@@ -77,6 +66,16 @@ class MktSupportController extends Controller
   {
     try {
       return $this->service->destroy($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  /** Elimina una imagen/archivo puntual de un sustento. */
+  public function destroyFile($id, $fileId)
+  {
+    try {
+      return $this->success($this->service->deleteFile((int) $id, (int) $fileId));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

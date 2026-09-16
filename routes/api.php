@@ -1338,6 +1338,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('plans/{id}/activate', [MktPlanController::class, 'activate']);
       Route::post('plans/{id}/complete', [MktPlanController::class, 'complete']);
       Route::post('plans/{id}/cancel', [MktPlanController::class, 'cancel']);
+      Route::get('plans/{id}/report/pdf', [MktPlanController::class, 'reportPdf']);
 
       // Budgets
       Route::apiResource('budgets', MktBudgetController::class);
@@ -1363,6 +1364,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Supports
       Route::apiResource('supports', MktSupportController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+      Route::delete('supports/{id}/archivos/{fileId}', [MktSupportController::class, 'destroyFile']);
 
       // KPIs
       Route::apiResource('kpis', MktKpiController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
