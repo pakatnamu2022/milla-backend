@@ -1401,13 +1401,15 @@ class ProductWarehouseStockService extends BaseService
         ];
         $translatedStatus = $statusTranslations[$stock->stock_status] ?? $stock->stock_status;
 
-        // Obtener estantes - concatenar si tiene múltiples
+        // Obtener ubicaciones - concatenar nombre del estante con posición usando "-"
         $shelves = $stock->shelves->map(function ($shelf) {
-          return $shelf->label ?? $shelf->code;
+          $shelfName = $shelf->label ?? $shelf->code;
+          $position = $shelf->pivot->position ?? null;
+          return $position ? "{$shelfName}-{$position}" : $shelfName;
         })->filter()->implode(', ');
 
         return [
-          'estante' => $shelves ?: '-',
+          'ubicacion' => $shelves ?: '-',
           'codigo_producto' => $stock->product?->code ?? 'N/A',
           'nombre_producto' => $stock->product?->name ?? 'N/A',
           'almacen' => $stock->warehouse?->description ?? 'N/A',
