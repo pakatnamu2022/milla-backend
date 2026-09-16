@@ -24,15 +24,15 @@ class PurchaseOrderReportExport implements
   WithEvents
 {
   protected Collection $data;
-  protected string $fechaInicio;
-  protected string $fechaFin;
+  protected ?string $fechaInicio;
+  protected ?string $fechaFin;
   protected array $cuentasPorPagar;
 
   // Total de columnas del reporte
   private const LAST_COL = 'S';
   private const TOTAL_COLS = 19;
 
-  public function __construct(Collection $data, string $fechaInicio, string $fechaFin, array $cuentasPorPagar = [])
+  public function __construct(Collection $data, ?string $fechaInicio, ?string $fechaFin, array $cuentasPorPagar = [])
   {
     $this->data            = $data;
     $this->fechaInicio     = $fechaInicio;
@@ -112,9 +112,12 @@ class PurchaseOrderReportExport implements
   public function registerEvents(): array
   {
     $fechaRef = Carbon::today()->format('d/m/Y');
+    $rangoTexto = ($this->fechaInicio && $this->fechaFin)
+      ? Carbon::parse($this->fechaInicio)->format('d/m/Y') . ' - ' . Carbon::parse($this->fechaFin)->format('d/m/Y')
+      : 'TODOS LOS REGISTROS';
 
     return [
-      AfterSheet::class => function (AfterSheet $event) use ($fechaRef) {
+      AfterSheet::class => function (AfterSheet $event) use ($fechaRef, $rangoTexto) {
         $sheet   = $event->sheet->getDelegate();
         $lastCol = self::LAST_COL;
 
@@ -125,7 +128,7 @@ class PurchaseOrderReportExport implements
         $lastRow = $sheet->getHighestRow();
 
         // Fecha de referencia en A1
-        $sheet->setCellValue('A1', 'FECHA DE REFERENCIA: ' . $fechaRef);
+        $sheet->setCellValue('A1', 'FECHA DE REFERENCIA: ' . $fechaRef . '   |   RANGO: ' . $rangoTexto);
         $sheet->mergeCells('A1:' . $lastCol . '1');
         $sheet->getRowDimension(1)->setRowHeight(20);
         $sheet->getStyle('A1')->applyFromArray([
