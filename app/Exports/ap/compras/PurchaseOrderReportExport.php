@@ -254,4 +254,11 @@ class PurchaseOrderReportExport implements
 
     return $doc->financing_type === 'CONTADO' ? 'CONTADO' : 'CREDITO';
   }
+
+  private function getOrigen($row): string
+  {
+    return str_starts_with((string)($row->number ?? ''), self::STOCK_INICIAL_PREFIX)
+      ? 'STOCK INICIAL'
+      : 'SISTEMA';
+  }
 }
