@@ -90,4 +90,13 @@ class MktPlanController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function reportPdf($id)
+  {
+    try {
+      return $this->service->generateFullReportPdf($id);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

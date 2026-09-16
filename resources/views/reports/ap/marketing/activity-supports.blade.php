@@ -10,6 +10,7 @@
   $activity = $activity ?? null;
   $supports = $supports ?? collect();
   $totalsByCurrency = $totalsByCurrency ?? collect();
+  $annexes = $annexes ?? [];
 
   $budgetTypeLabels = ['regular' => 'Regular', 'additional' => 'Adicional'];
   $planName   = optional(optional($activity->budget)->plan)->name ?? 'N/A';
@@ -221,12 +222,6 @@
       text-align: center;
     }
 
-    .link {
-      color: #1d4ed8;
-      font-size: 9px;
-      word-break: break-all;
-    }
-
     .totals {
       margin-top: 6px;
       text-align: right;
@@ -246,6 +241,45 @@
       color: #aaaaaa;
       font-size: 11px;
       margin-bottom: 11px;
+    }
+
+    .annex-title {
+      margin-top: 14px;
+      background-color: #e0e0e0;
+      color: #22293a;
+      font-weight: bold;
+      font-size: 10.5px;
+      padding: 5px 12px;
+      letter-spacing: 0.3px;
+      border-radius: 4px;
+    }
+
+    .annex-item {
+      page-break-inside: avoid;
+      border: 1px solid #d2d2d2;
+      border-radius: 7px;
+      padding: 8px 10px;
+      margin-top: 10px;
+    }
+
+    .annex-caption {
+      font-size: 10px;
+      font-weight: bold;
+      color: #22293a;
+      margin-bottom: 6px;
+    }
+
+    .annex-image {
+      display: block;
+      max-width: 100%;
+      max-height: 320px;
+      margin: 0 auto;
+    }
+
+    .annex-pdf {
+      font-size: 10px;
+      color: #777777;
+      font-style: italic;
     }
 
     .footer {
@@ -316,11 +350,16 @@
           <th style="text-align:left;">Proveedor</th>
           <th class="col-date">Fecha</th>
           <th class="col-amount">Monto</th>
-          <th style="text-align:left;">Archivo</th>
+          <th style="text-align:center; width:60px;">Adjuntos</th>
         </tr>
         </thead>
         <tbody>
         @foreach($supports->values() as $i => $support)
+          @php
+            $fileCount = $support->digitalFiles->count() > 0
+              ? $support->digitalFiles->count()
+              : ($support->file_path ? 1 : 0);
+          @endphp
           <tr>
             <td class="col-num">{{ $i + 1 }}</td>
             <td>{{ MktSupport::TYPE_LABELS[$support->type] ?? $support->type }}</td>
@@ -328,13 +367,7 @@
             <td>{{ optional($support->supplier)->full_name ?? '—' }}</td>
             <td class="col-date">{{ $support->issue_date ? $support->issue_date->format('d/m/Y') : '—' }}</td>
             <td class="col-amount">{{ $support->currency->symbol ?? 'S/' }} {{ number_format($support->amount ?? 0, 2) }}</td>
-            <td>
-              @if($support->file_path)
-                <a class="link" href="{{ $support->file_path }}">Ver archivo</a>
-              @else
-                —
-              @endif
-            </td>
+            <td style="text-align:center;">{{ $fileCount > 0 ? "Ver anexos" : '—' }}</td>
           </tr>
         @endforeach
         </tbody>
@@ -348,6 +381,22 @@
     </div>
   @else
     <div class="empty">Esta actividad aún no tiene sustentos registrados.</div>
+  @endif
+
+  @if(count($annexes) > 0)
+    <div class="annex-title">ANEXOS · COMPROBANTES ADJUNTOS</div>
+    @foreach($annexes as $annex)
+      <div class="annex-item">
+        <div class="annex-caption">Sustento N° {{ $annex['support_number'] }} — {{ $annex['support_label'] }}</div>
+        @if($annex['is_image'])
+          <img class="annex-image" src="{{ $annex['src'] }}" alt="Anexo">
+        @elseif($annex['is_pdf'])
+          <div class="annex-pdf">Documento PDF adjunto{{ $annex['name'] ? ': ' . $annex['name'] : '' }} (no se muestra en este reporte)</div>
+        @else
+          <div class="annex-pdf">Archivo adjunto no disponible para previsualizar{{ $annex['name'] ? ': ' . $annex['name'] : '' }}</div>
+        @endif
+      </div>
+    @endforeach
   @endif
 
 </div>
