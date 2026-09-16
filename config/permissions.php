@@ -379,6 +379,12 @@ return [
       'icon' => 'Eye',
       'policy_method' => 'viewDiscarded',
     ],
+    'addTraverseSparePart' => [
+      'label' => 'Agregar Repuesto Travesía',
+      'description' => 'Permite agregar repuestos en Travesía',
+      'icon' => 'Plus',
+      'policy_method' => 'addTraverseSparePart',
+    ]
   ],
 
 
