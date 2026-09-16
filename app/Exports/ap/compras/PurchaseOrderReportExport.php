@@ -29,8 +29,11 @@ class PurchaseOrderReportExport implements
   protected array $cuentasPorPagar;
 
   // Total de columnas del reporte
-  private const LAST_COL = 'S';
-  private const TOTAL_COLS = 19;
+  private const LAST_COL = 'T';
+  private const TOTAL_COLS = 20;
+
+  // Prefijo de número de OC usado para el stock inicial migrado (sin factura real de Dynamics)
+  private const STOCK_INICIAL_PREFIX = 'OCSI-';
 
   public function __construct(Collection $data, ?string $fechaInicio, ?string $fechaFin, array $cuentasPorPagar = [])
   {
@@ -67,6 +70,7 @@ class PurchaseOrderReportExport implements
       'SALDO PENDIENTE (CXP)',
       'ESTADO CXP',
       'ESTATUS',
+      'ORIGEN OC',
     ];
   }
 
@@ -75,9 +79,7 @@ class PurchaseOrderReportExport implements
     $emisDate    = $row->emission_date ? Carbon::parse($row->emission_date) : null;
     $diasVencido = $emisDate ? (int) $emisDate->diffInDays(Carbon::today(), false) : 0;
 
-    $series = trim($row->invoice_series ?? '');
-    $number = trim($row->invoice_number ?? '');
-    $docKey = $series !== '' && $number !== '' ? "{$series}-{$number}" : '';
+    $docKey      = $this->buildDocKey($row->invoice_dynamics ?? '');
     $cxpEntry    = $docKey !== '' ? ($this->cuentasPorPagar[$docKey] ?? null) : null;
     $montoPendiente = $cxpEntry !== null ? $cxpEntry['montoSinAplicar'] : 0;
 
@@ -101,6 +103,7 @@ class PurchaseOrderReportExport implements
       $montoPendiente,
       $montoPendiente > 0 ? 'PENDIENTE' : 'PAGADO',
       $this->getEstatus($row),
+      $this->getOrigen($row),
     ];
   }
 
@@ -226,6 +229,19 @@ class PurchaseOrderReportExport implements
     if ($dias <= 210) return '6';
     if ($dias <= 240) return '7';
     return '8';
+  }
+
+  private function buildDocKey(string $invoiceDynamics): string
+  {
+    $invoiceDynamics = trim($invoiceDynamics);
+    if ($invoiceDynamics === '') {
+      return '';
+    }
+
+    // "F004-00000329-FAC" → clave: "F004-00000329" (mismo criterio que ApPurchaseOrderReportService::buildCxpMap)
+    $parts = explode('-', $invoiceDynamics);
+
+    return count($parts) >= 3 ? $parts[0] . '-' . $parts[1] : $invoiceDynamics;
   }
 
   private function getEstatus($row): string
