@@ -51,6 +51,7 @@ class ObjectiveDashboardService
         return [
           'period' => $period,
           'executive_summary' => $this->getEmptyExecutiveSummary(),
+          'executive_summary_vehicular_crossing' => $this->getEmptyExecutiveSummary(),
           'global_areas_summary' => [],
           'headquarters_comparison' => ['ranking' => [], 'chart_data' => []],
           'headquarters_detail' => []
@@ -66,6 +67,9 @@ class ObjectiveDashboardService
       // Calculate executive summary
       $executiveSummary = $this->calculateExecutiveSummary($headquartersDetail, $period);
 
+      // Calculate vehicular crossing executive summary
+      $executiveSummaryVehicularCrossing = $this->calculateVehicularCrossingExecutiveSummary($headquartersDetail, $period);
+
       // Calculate global areas summary
       $globalAreasSummary = $this->calculateGlobalAreasSummary($headquartersDetail);
 
@@ -75,6 +79,7 @@ class ObjectiveDashboardService
       return [
         'period' => $period,
         'executive_summary' => $executiveSummary,
+        'executive_summary_vehicular_crossing' => $executiveSummaryVehicularCrossing,
         'global_areas_summary' => $globalAreasSummary,
         'headquarters_comparison' => $headquartersComparison,
         'headquarters_detail' => $headquartersDetail
@@ -619,6 +624,51 @@ class ObjectiveDashboardService
   {
     $totalObjective = array_sum(array_column($headquartersDetail, 'total_objective'));
     $totalProgress = array_sum(array_column($headquartersDetail, 'total_progress'));
+    $completionPercentage = $totalObjective > 0 ? round(($totalProgress / $totalObjective) * 100, 2) : 0;
+
+    // Calculate expected percentage based on days elapsed
+    $expectedPercentage = $period['days_in_month'] > 0
+      ? round(($period['days_elapsed'] / $period['days_in_month']) * 100, 2)
+      : 0;
+
+    $difference = $completionPercentage - $expectedPercentage;
+
+    // Determine trend (would need historical data, for now simplified)
+    $trend = $difference > 0 ? 'up' : ($difference < 0 ? 'down' : 'stable');
+
+    return [
+      'total_objective' => round($totalObjective, 2),
+      'total_progress' => round($totalProgress, 2),
+      'completion_percentage' => $completionPercentage,
+      'status' => $this->getStatus($completionPercentage),
+      'trend' => $trend,
+      'days_remaining' => $period['days_remaining'],
+      'expected_vs_real' => [
+        'expected_percentage' => $expectedPercentage,
+        'real_percentage' => $completionPercentage,
+        'difference' => round($difference, 2)
+      ]
+    ];
+  }
+
+  /**
+   * Calculate vehicular crossing executive summary from headquarters detail
+   */
+  private function calculateVehicularCrossingExecutiveSummary(array $headquartersDetail, array $period): array
+  {
+    $totalObjective = 0;
+    $totalProgress = 0;
+
+    // Sum only vehicular crossing concepts
+    foreach ($headquartersDetail as $headquarter) {
+      foreach ($headquarter['concepts'] as $concept) {
+        if ($concept['is_vehicular_crossing']) {
+          $totalObjective += $concept['objective'];
+          $totalProgress += $concept['progress'];
+        }
+      }
+    }
+
     $completionPercentage = $totalObjective > 0 ? round(($totalProgress / $totalObjective) * 100, 2) : 0;
 
     // Calculate expected percentage based on days elapsed
