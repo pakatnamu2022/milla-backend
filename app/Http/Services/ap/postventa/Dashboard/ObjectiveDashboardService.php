@@ -211,12 +211,14 @@ class ObjectiveDashboardService
         return $brand->is_marketed;
       });
 
-      $totalCount = $validWorkOrders->count();
+      // Count unique vehicles only (avoid counting same vehicle multiple times)
+      $uniqueVehicles = $validWorkOrders->unique('vehicle_id');
+      $totalCount = $uniqueVehicles->count();
       $completionPercentage = $objective > 0 ? round(($totalCount / $objective) * 100, 2) : 0;
 
-      // Group by brand
+      // Group by brand (using unique vehicles)
       $brandBreakdown = [];
-      foreach ($validWorkOrders as $workOrder) {
+      foreach ($uniqueVehicles as $workOrder) {
         $brand = $workOrder->vehicle?->model?->family?->brand;
         $brandName = $brand->name ?? 'OTRAS MARCAS';
 
