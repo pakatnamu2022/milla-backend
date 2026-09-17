@@ -54,7 +54,6 @@ class AttendanceSyncService extends BaseService
       'date' => 'Fecha',
       'cargo' => 'Cargo',
       'sede' => 'Sede',
-      'situacion' => 'Situación',
       'observacion' => 'Observación',
       'check_in' => 'Entrada',
       'lunch_out' => 'Salida Almuerzo',
@@ -63,6 +62,7 @@ class AttendanceSyncService extends BaseService
       'hours_worked' => 'Horas Trabajadas',
       'expected_hours' => 'Horas Esperadas',
       'balance' => 'Balance',
+      'situacion' => 'Situación',
     ];
 
     // Colores por situación (fondo/texto en hex, sin '#')
@@ -272,12 +272,20 @@ class AttendanceSyncService extends BaseService
         $hoursExpected = round(max(0, $schedIn->diffInMinutes($schedOut) - $lunchMins) / 60, 2);
       }
 
-      // Worked hours from REAL marks only (no filling in missing check_out)
+      // Fill lunch from schedule when real marks are missing (same as resolveMarks logic)
+      $effectiveLunchOut = ($checkIn && $checkOut && !$isSaturday)
+        ? ($lunchOut ?? $schedLunchOut)
+        : null;
+      $effectiveLunchIn = ($checkIn && $checkOut && !$isSaturday)
+        ? ($lunchIn ?? $schedLunchIn)
+        : null;
+
+      // Worked hours (real check_in/check_out; lunch filled from schedule if not marked)
       $hoursWorked = null;
       if ($checkIn && $checkOut) {
         $grossSecs = Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp();
-        $lunchSecs = (!$isSaturday && $lunchOut && $lunchIn)
-          ? Carbon::parse($lunchIn)->getTimestamp() - Carbon::parse($lunchOut)->getTimestamp()
+        $lunchSecs = ($effectiveLunchOut && $effectiveLunchIn)
+          ? Carbon::parse($effectiveLunchIn)->getTimestamp() - Carbon::parse($effectiveLunchOut)->getTimestamp()
           : 0;
         $hoursWorked = round(max(0, $grossSecs - $lunchSecs) / 3600, 2);
       }
@@ -295,8 +303,8 @@ class AttendanceSyncService extends BaseService
         'situacion' => $row['situacion'],
         'observacion' => $observacion,
         'check_in' => $checkIn ? substr($checkIn, 0, 5) : null,
-        'lunch_out' => $lunchOut ? substr($lunchOut, 0, 5) : null,
-        'lunch_in' => $lunchIn ? substr($lunchIn, 0, 5) : null,
+        'lunch_out' => $effectiveLunchOut ? substr($effectiveLunchOut, 0, 5) : null,
+        'lunch_in' => $effectiveLunchIn ? substr($effectiveLunchIn, 0, 5) : null,
         'check_out' => $checkOut ? substr($checkOut, 0, 5) : null,
         'hours_worked' => $this->toHm($hoursWorked),
         'expected_hours' => $this->toHm($hoursExpected),
