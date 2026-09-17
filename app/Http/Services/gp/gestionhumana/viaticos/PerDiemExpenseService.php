@@ -564,6 +564,46 @@ class PerDiemExpenseService extends BaseService
   }
 
   /**
+   * Remove validation/rejection from an expense, returning it to pending state.
+   * Only users with the 'viaticos-ap.removeValidation' permission can perform this action.
+   */
+  public function removeValidation(int $expenseId): PerDiemExpense
+  {
+    if (!auth()->user()?->hasPermission('viaticos-ap.removeValidation')) {
+      throw new Exception('No tiene permisos para quitar la validación o rechazo de un gasto.');
+    }
+
+    try {
+      DB::beginTransaction();
+
+      $expense = PerDiemExpense::findOrFail($expenseId);
+
+      if (!$expense->validated && !$expense->rejected) {
+        throw new Exception('El gasto no está validado ni rechazado.');
+      }
+
+      $expense->update([
+        'validated' => false,
+        'validated_by' => null,
+        'validated_at' => null,
+        'rejected' => false,
+        'rejected_by' => null,
+        'rejected_at' => null,
+        'rejection_reason' => null,
+      ]);
+
+      // Update request total spent since rejected/validated status changed
+      $this->updateRequestTotalSpent($expense->per_diem_request_id);
+
+      DB::commit();
+      return $expense->fresh(['expenseType', 'validator', 'rejector']);
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
    * Get total expenses by request
    */
   public function getTotalExpensesByRequest(int $requestId): array
