@@ -16,7 +16,7 @@ class StoreAppointmentPlanningRequest extends StoreRequest
       'description' => [
         'required',
         'string',
-        'max:255',
+        'max:1000',
       ],
       'delivery_date' => [
         'required',
@@ -89,7 +89,7 @@ class StoreAppointmentPlanningRequest extends StoreRequest
     return [
       'description.required' => 'El campo descripción es obligatorio.',
       'description.string' => 'El campo descripción debe ser una cadena de texto.',
-      'description.max' => 'El campo descripción no debe exceder los 255 caracteres.',
+      'description.max' => 'El campo descripción no debe exceder los 1000 caracteres.',
 
       'delivery_date.required' => 'El campo fecha de entrega es obligatorio.',
       'delivery_date.date' => 'El campo fecha de entrega debe ser una fecha válida.',

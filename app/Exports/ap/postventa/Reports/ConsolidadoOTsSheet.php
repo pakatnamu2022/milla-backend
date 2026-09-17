@@ -209,8 +209,8 @@ class ConsolidadoOTsSheet implements
       $rows->push([
         'ot_number' => $wo->correlative ?? '',
         'sede' => $wo->sede ? $wo->sede->abreviatura : 'SIN SEDE',
-        'client_name' => $wo->client_name ?? '',
-        'plate' => $wo->plate ?? '',
+        'client_name' => $wo->invoiceTo ? $wo->invoiceTo->full_name : 'SIN CLIENTE',
+        'plate' => $wo->vehicle->plate ?? '-',
         'considerada' => $considerada,
         'technician_count' => $technicianCount,
         'technicians' => $technicians ?: 'Sin técnicos',
