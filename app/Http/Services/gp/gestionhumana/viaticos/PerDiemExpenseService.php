@@ -565,11 +565,12 @@ class PerDiemExpenseService extends BaseService
 
   /**
    * Remove validation/rejection from an expense, returning it to pending state.
-   * Only users with the 'viaticos-ap.removeValidation' permission can perform this action.
+   * Reuses the same permissions as validate/reject (no dedicated permission).
    */
   public function removeValidation(int $expenseId): PerDiemExpense
   {
-    if (!auth()->user()?->hasPermission('viaticos-ap.removeValidation')) {
+    $user = auth()->user();
+    if (!$user?->hasPermission('viaticos-ap.approve') || !$user?->hasPermission('viaticos-ap.reject')) {
       throw new Exception('No tiene permisos para quitar la validación o rechazo de un gasto.');
     }
 
