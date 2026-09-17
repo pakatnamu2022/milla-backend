@@ -145,6 +145,24 @@ class PerDiemExpenseController extends Controller
   }
 
   /**
+   * Remove validation/rejection from an expense, returning it to pending state
+   */
+  public function removeValidation(int $expenseId)
+  {
+    try {
+      $expense = $this->service->removeValidation($expenseId);
+
+      return response()->json([
+        'success' => true,
+        'data' => new PerDiemExpenseResource($expense),
+        'message' => 'Validación del gasto removida exitosamente'
+      ], 200);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Get remaining budget for a specific expense type on a specific date
    */
   public function getRemainingBudget(int $requestId, GetRemainingBudgetRequest $request)
