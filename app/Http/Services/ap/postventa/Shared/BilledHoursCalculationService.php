@@ -163,9 +163,12 @@ class BilledHoursCalculationService
    *
    * @param Collection $labours Labours obtenidos de getBilledHoursData()
    * @param int $workerId ID del técnico
+   * @param Collection $workOrders Work orders del período
+   * @param string|null $startDate Fecha inicio para filtrar documentos (Y-m-d)
+   * @param string|null $endDate Fecha fin para filtrar documentos (Y-m-d)
    * @return array ['total_billed_hours' => float, 'work_orders_detail' => array, 'work_orders_without_labour' => array]
    */
-  public function calculateBilledHoursForWorker(Collection $labours, int $workerId, Collection $workOrders): array
+  public function calculateBilledHoursForWorker(Collection $labours, int $workerId, Collection $workOrders, ?string $startDate = null, ?string $endDate = null): array
   {
     $totalBilledHoursForTechnician = 0;
     $workOrdersDetail = [];
@@ -222,8 +225,8 @@ class BilledHoursCalculationService
       // Acumular para este técnico
       $totalBilledHoursForTechnician += $equalBilledHours;
 
-      // Obtener fecha de facturación
-      $invoiceDate = $this->getInvoiceDate($workOrder);
+      // Obtener fecha de facturación (dentro del rango si está disponible)
+      $invoiceDate = $this->getInvoiceDate($workOrder, $startDate, $endDate);
 
       // Agregar al detalle
       $workOrdersDetail[] = [
@@ -254,7 +257,7 @@ class BilledHoursCalculationService
 
       if ($technicianPlanning && !in_array($workOrder->id, $workOrdersWithLabourIds)) {
         $workOrderItem = $workOrder->items->first();
-        $invoiceDate = $this->getInvoiceDate($workOrder);
+        $invoiceDate = $this->getInvoiceDate($workOrder, $startDate, $endDate);
 
         $workOrdersWithoutLabour[] = [
           'work_order_id' => $workOrder->id,
@@ -428,24 +431,55 @@ class BilledHoursCalculationService
 
   /**
    * Obtiene la fecha de facturación de una work order
+   * Prioriza documentos dentro del rango de fechas si se proporcionan
    *
    * @param ApWorkOrder $workOrder
+   * @param string|null $startDate Fecha inicio del rango (Y-m-d)
+   * @param string|null $endDate Fecha fin del rango (Y-m-d)
    * @return string
    */
-  private function getInvoiceDate(ApWorkOrder $workOrder): string
+  private function getInvoiceDate(ApWorkOrder $workOrder, ?string $startDate = null, ?string $endDate = null): string
   {
     // Try to get from electronic document
-    $electronicDocument = ElectronicDocument::query()
+    $query = ElectronicDocument::query()
       ->where('work_order_id', $workOrder->id)
       ->where('anulado', false)
-      ->first();
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED]);
+
+    // Si se proporciona rango de fechas, priorizar documento dentro del rango
+    if ($startDate && $endDate) {
+      $electronicDocumentInRange = $query->clone()
+        ->whereBetween('fecha_de_emision', [$startDate, $endDate])
+        ->orderBy('fecha_de_emision', 'desc')
+        ->first();
+
+      if ($electronicDocumentInRange) {
+        return $electronicDocumentInRange->fecha_de_emision;
+      }
+    }
+
+    // Si no hay documento en el rango o no se proporcionó rango, tomar el más reciente
+    $electronicDocument = $query->orderBy('fecha_de_emision', 'desc')->first();
 
     if ($electronicDocument) {
       return $electronicDocument->fecha_de_emision;
     }
 
     // Try to get from internal note
-    $internalNote = $workOrder->internalNotes()->whereNotNull('number')->first();
+    $internalNoteQuery = $workOrder->internalNotes()->whereNotNull('number');
+
+    if ($startDate && $endDate) {
+      $internalNoteInRange = $internalNoteQuery->clone()
+        ->whereBetween('created_date', [$startDate, $endDate])
+        ->orderBy('created_date', 'desc')
+        ->first();
+
+      if ($internalNoteInRange) {
+        return $internalNoteInRange->created_date;
+      }
+    }
+
+    $internalNote = $internalNoteQuery->orderBy('created_date', 'desc')->first();
     if ($internalNote) {
       return $internalNote->created_date;
     }

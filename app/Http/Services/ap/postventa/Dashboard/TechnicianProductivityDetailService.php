@@ -43,16 +43,20 @@ class TechnicianProductivityDetailService
     $workOrders = $this->billedHoursService->getWorkOrders($startDate, $endDate, $sedeId, $userSedeIds);
 
     // Calculate billed hours for this specific worker
-    $billedData = $this->billedHoursService->calculateBilledHoursForWorker($labours, $workerId, $workOrders);
+    $billedData = $this->billedHoursService->calculateBilledHoursForWorker($labours, $workerId, $workOrders, $startDate, $endDate);
 
     // Get attendance data
     $attendanceData = $this->getAttendanceData($workerId, $startDate, $endDate);
 
+    // Consolidate work orders (group labours by OT)
+    $consolidatedWorkOrders = $this->consolidateWorkOrders($billedData['work_orders_detail']);
+
     // Calculate summary (incluye days_worked real del técnico)
+    // Usamos el count de OTs consolidadas (únicas)
     $summary = $this->calculateSummaryFromBilledData(
       $billedData['total_billed_hours'],
       $attendanceData,
-      count($billedData['work_orders_detail'])
+      count($consolidatedWorkOrders)
     );
 
     // Validate that sums match
@@ -62,7 +66,7 @@ class TechnicianProductivityDetailService
       'technician_info' => $this->getTechnicianInfo($technician),
       'period' => $period,
       'summary' => $summary,
-      'work_orders' => $billedData['work_orders_detail'],
+      'work_orders' => $consolidatedWorkOrders,
       'work_orders_without_labour' => $billedData['work_orders_without_labour'],
       'validation' => $validation
     ];
@@ -188,6 +192,56 @@ class TechnicianProductivityDetailService
         ? 'Validación correcta'
         : 'Advertencia: Diferencia mayor al 1% o 5 horas entre detalle y resumen'
     ];
+  }
+
+  /**
+   * Consolidate work orders by grouping labours/trabajos under each unique OT
+   *
+   * @param array $workOrdersDetail Raw detail with one row per labour
+   * @return array Consolidated array with one row per OT and trabajos nested inside
+   */
+  private function consolidateWorkOrders(array $workOrdersDetail): array
+  {
+    $consolidated = [];
+
+    foreach ($workOrdersDetail as $detail) {
+      $workOrderId = $detail['work_order_id'];
+
+      // If this OT hasn't been added yet, create the base structure
+      if (!isset($consolidated[$workOrderId])) {
+        $consolidated[$workOrderId] = [
+          'work_order_id' => $detail['work_order_id'],
+          'work_order_number' => $detail['work_order_number'],
+          'vehicle_plate' => $detail['vehicle_plate'],
+          'sede' => $detail['sede'],
+          'asesor' => $detail['asesor'],
+          'fecha_facturacion' => $detail['fecha_facturacion'],
+          'tipo_planificacion' => $detail['tipo_planificacion'],
+          'categoria_tipo' => $detail['categoria_tipo'],
+          'horas_facturadas_total_ot' => 0,
+          'cantidad_tecnicos' => $detail['cantidad_tecnicos'],
+          'tiene_mano_obra' => $detail['tiene_mano_obra'],
+          'trabajos' => []
+        ];
+      }
+
+      // Add this labour/trabajo to the OT's trabajos array
+      $consolidated[$workOrderId]['trabajos'][] = [
+        'descripcion_labour' => $detail['descripcion_labour'],
+        'horas_facturadas_tecnico' => $detail['horas_facturadas_tecnico'],
+        'labour_hourly_rate' => $detail['labour_hourly_rate'] ?? null,
+        'labour_current_hourly_cost' => $detail['labour_current_hourly_cost'] ?? null
+      ];
+
+      // Accumulate total hours for this OT
+      $consolidated[$workOrderId]['horas_facturadas_total_ot'] += $detail['horas_facturadas_tecnico'];
+    }
+
+    // Round total hours and return indexed array (remove keys)
+    return array_values(array_map(function ($ot) {
+      $ot['horas_facturadas_total_ot'] = round($ot['horas_facturadas_total_ot'], 2);
+      return $ot;
+    }, $consolidated));
   }
 
   /**
