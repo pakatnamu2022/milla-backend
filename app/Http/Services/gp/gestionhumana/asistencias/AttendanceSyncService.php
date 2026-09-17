@@ -54,9 +54,14 @@ class AttendanceSyncService extends BaseService
       'date' => 'Fecha',
       'cargo' => 'Cargo',
       'sede' => 'Sede',
-      'time' => 'Hora',
-      'horario' => 'Horario Configurado',
-      'diferencia_minutos' => 'Diferencia (min)',
+      'observacion' => 'Observación',
+      'check_in' => 'Entrada',
+      'lunch_out' => 'Salida Almuerzo',
+      'lunch_in' => 'Retorno Almuerzo',
+      'check_out' => 'Salida',
+      'hours_worked' => 'Horas Trabajadas',
+      'expected_hours' => 'Horas Esperadas',
+      'balance' => 'Balance',
       'situacion' => 'Situación',
     ];
 
@@ -99,12 +104,6 @@ class AttendanceSyncService extends BaseService
     );
   }
 
-  /**
-   * Construye, para cada trabajador activo que cumpla los filtros de búsqueda/sede,
-   * una fila por día (dentro del rango filtrado) con su situación de asistencia:
-   * "No Marcó" (sin check_in registrado), "Tardanza" (marcó fuera de tolerancia)
-   * o "Marcó" (dentro de horario).
-   */
   private function buildActiveWorkersAttendanceRows(Request $request): \Illuminate\Support\Collection
   {
     $dates = $this->resolveExportDates($request);
@@ -118,14 +117,26 @@ class AttendanceSyncService extends BaseService
     $rows = collect();
 
     foreach ($dates as $dateStr) {
+      $isSaturday = Carbon::parse($dateStr)->dayOfWeek === 6;
+
+      $marksSubquery = DB::table('attendance_sync')
+        ->selectRaw("
+          person_id,
+          emp_code,
+          MIN(CASE WHEN mark_type = 'check_in'  THEN time END) AS check_in,
+          MIN(CASE WHEN mark_type = 'lunch_out' THEN time END) AS lunch_out,
+          MIN(CASE WHEN mark_type = 'lunch_in'  THEN time END) AS lunch_in,
+          MAX(CASE WHEN mark_type = 'check_out' THEN time END) AS check_out
+        ")
+        ->where('date', '=', $dateStr)
+        ->groupByRaw('person_id, emp_code');
+
       $query = DB::table('rrhh_persona as p')
-        ->leftJoin('attendance_sync as a', function ($join) use ($dateStr) {
+        ->leftJoinSub($marksSubquery, 'm', function ($join) {
           $join->on(function ($j) {
-            $j->on('a.person_id', '=', 'p.id')
-              ->orOn('a.emp_code', '=', 'p.vat');
-          })
-            ->where('a.date', '=', $dateStr)
-            ->where('a.mark_type', '=', 'check_in');
+            $j->on('m.person_id', '=', 'p.id')
+              ->orOn('m.emp_code', '=', 'p.vat');
+          });
         })
         ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
         ->leftJoin('work_schedule_details as wsd', function ($join) use ($dateStr) {
@@ -142,20 +153,23 @@ class AttendanceSyncService extends BaseService
         ->where('p.status_id', Constants::WORKER_ACTIVE)
         ->where('p.status_deleted', 1)
         ->select(
+          'p.id AS person_id',
           DB::raw("COALESCE(p.vat, '') AS emp_code"),
           DB::raw("UPPER(COALESCE(p.nombre_completo, '')) AS full_name"),
           DB::raw("COALESCE(rc.name, '') AS cargo"),
           DB::raw("COALESCE(cs.abreviatura, cs.localidad, '') AS sede"),
-          DB::raw("a.time AS time"),
-          DB::raw("CASE WHEN rc.no_attendance_required = 1 THEN NULL ELSE {$effectiveCheckin} END AS horario"),
-          DB::raw("CASE
-            WHEN rc.no_attendance_required = 1 OR a.time IS NULL THEN NULL
-            ELSE ROUND((TIME_TO_SEC(a.time) - TIME_TO_SEC({$effectiveCheckin})) / 60)
-          END AS diferencia_minutos"),
+          'm.check_in',
+          'm.lunch_out',
+          'm.lunch_in',
+          'm.check_out',
+          DB::raw("CASE WHEN rc.no_attendance_required = 1 THEN NULL ELSE {$effectiveCheckin} END AS schedule_checkin"),
+          DB::raw("COALESCE(wsd.checkout,   ws.checkout,   '18:00:00') AS schedule_checkout"),
+          DB::raw("COALESCE(wsd.lunch_out,  ws.lunch_out,  '13:00:00') AS schedule_lunch_out"),
+          DB::raw("COALESCE(wsd.lunch_in,   ws.lunch_in,   '14:24:00') AS schedule_lunch_in"),
           DB::raw("CASE
             WHEN rc.no_attendance_required = 1 THEN 'Exonerado'
-            WHEN a.time IS NULL THEN 'No Marcó'
-            WHEN a.time > ADDTIME({$effectiveCheckin}, SEC_TO_TIME(" . (self::LATE_TOLERANCE_MINUTES * 60) . ")) THEN 'Tardanza'
+            WHEN m.check_in IS NULL THEN 'No Marcó'
+            WHEN m.check_in > ADDTIME({$effectiveCheckin}, SEC_TO_TIME(" . (self::LATE_TOLERANCE_MINUTES * 60) . ")) THEN 'Tardanza'
             ELSE 'Marcó'
           END AS situacion"),
         )
@@ -175,20 +189,128 @@ class AttendanceSyncService extends BaseService
 
       foreach ($query->get() as $row) {
         $rows->push([
+          '_person_id' => $row->person_id,
+          '_date_key' => $dateStr,
+          '_is_saturday' => $isSaturday,
+          '_check_in_raw' => $row->check_in,
+          '_check_out_raw' => $row->check_out,
+          '_lunch_out_raw' => $row->lunch_out,
+          '_lunch_in_raw' => $row->lunch_in,
+          '_sched_checkin' => $row->schedule_checkin,
+          '_sched_checkout' => $row->schedule_checkout,
+          '_sched_lunch_out' => $row->schedule_lunch_out,
+          '_sched_lunch_in' => $row->schedule_lunch_in,
           'emp_code' => $row->emp_code,
           'full_name' => $row->full_name,
           'date' => Carbon::parse($dateStr)->format('d/m/Y'),
           'cargo' => $row->cargo,
           'sede' => $row->sede,
-          'time' => $row->time ? substr($row->time, 0, 5) : null,
-          'horario' => $row->horario ? substr($row->horario, 0, 5) : null,
-          'diferencia_minutos' => $row->diferencia_minutos,
           'situacion' => $row->situacion,
         ]);
       }
     }
 
-    return $rows;
+    // Bulk-load vacaciones/ausentismo/permisos and compute hours per row
+    $personIds = $rows->pluck('_person_id')->filter()->unique()->values()->toArray();
+
+    $vacationsByPerson = [];
+    $ausentismoByPerson = [];
+    $permisosByPerson = [];
+    $relatedIdsMap = [];
+
+    if (!empty($personIds) && !empty($dates)) {
+      $dateFrom = min($dates);
+      $dateTo = max($dates);
+      $relatedIdsMap = $this->buildRelatedIdsMap($personIds);
+      $allRelated = array_values(array_unique(
+        array_merge($personIds, ...array_values($relatedIdsMap))
+      ));
+      $vacationsByPerson = $this->loadAllPersonVacations($allRelated, $dateFrom, $dateTo);
+      $ausentismoByPerson = $this->loadAllPersonAusentismo($allRelated, $dateFrom, $dateTo);
+      $permisosByPerson = $this->loadAllPersonPermisos($allRelated, $dateFrom, $dateTo);
+    }
+
+    return $rows->map(function (array $row) use ($relatedIdsMap, $vacationsByPerson, $ausentismoByPerson, $permisosByPerson) {
+      $personId = $row['_person_id'];
+      $dateKey = $row['_date_key'];
+      $isSaturday = $row['_is_saturday'];
+      $checkIn = $row['_check_in_raw'];
+      $checkOut = $row['_check_out_raw'];
+      $lunchOut = $row['_lunch_out_raw'];
+      $lunchIn = $row['_lunch_in_raw'];
+      $schedCheckin = $row['_sched_checkin'];
+      $schedCheckout = $row['_sched_checkout'];
+      $schedLunchOut = $row['_sched_lunch_out'];
+      $schedLunchIn = $row['_sched_lunch_in'];
+
+      // Observación: vacation → ausentismo → permiso
+      $observacion = null;
+      foreach ($relatedIdsMap[$personId] ?? [$personId] as $relId) {
+        if (isset($vacationsByPerson[$relId][$dateKey])) {
+          $observacion = 'VACACIONES';
+          break;
+        }
+        if (isset($ausentismoByPerson[$relId][$dateKey])) {
+          $observacion = 'AUSENTISMO: ' . strtoupper($ausentismoByPerson[$relId][$dateKey]['tipo']);
+          break;
+        }
+        if (isset($permisosByPerson[$relId][$dateKey])) {
+          $observacion = 'PERMISO';
+          break;
+        }
+      }
+
+      // Expected hours from configured schedule (no estimation)
+      $hoursExpected = null;
+      if ($schedCheckin && $schedCheckout) {
+        $schedIn = Carbon::createFromFormat('H:i:s', $schedCheckin);
+        $schedOut = Carbon::createFromFormat('H:i:s', $schedCheckout);
+        $lunchMins = (!$isSaturday && $schedLunchOut && $schedLunchIn)
+          ? (int)Carbon::createFromFormat('H:i:s', $schedLunchIn)
+              ->diffInMinutes(Carbon::createFromFormat('H:i:s', $schedLunchOut))
+          : 0;
+        $hoursExpected = round(max(0, $schedIn->diffInMinutes($schedOut) - $lunchMins) / 60, 2);
+      }
+
+      // Fill lunch from schedule when real marks are missing (same as resolveMarks logic)
+      $effectiveLunchOut = ($checkIn && $checkOut && !$isSaturday)
+        ? ($lunchOut ?? $schedLunchOut)
+        : null;
+      $effectiveLunchIn = ($checkIn && $checkOut && !$isSaturday)
+        ? ($lunchIn ?? $schedLunchIn)
+        : null;
+
+      // Worked hours (real check_in/check_out; lunch filled from schedule if not marked)
+      $hoursWorked = null;
+      if ($checkIn && $checkOut) {
+        $grossSecs = Carbon::parse($checkOut)->getTimestamp() - Carbon::parse($checkIn)->getTimestamp();
+        $lunchSecs = ($effectiveLunchOut && $effectiveLunchIn)
+          ? Carbon::parse($effectiveLunchIn)->getTimestamp() - Carbon::parse($effectiveLunchOut)->getTimestamp()
+          : 0;
+        $hoursWorked = round(max(0, $grossSecs - $lunchSecs) / 3600, 2);
+      }
+
+      $balance = ($hoursWorked !== null && $hoursExpected !== null)
+        ? round($hoursWorked - $hoursExpected, 2)
+        : null;
+
+      return [
+        'emp_code' => $row['emp_code'],
+        'full_name' => $row['full_name'],
+        'date' => $row['date'],
+        'cargo' => $row['cargo'],
+        'sede' => $row['sede'],
+        'situacion' => $row['situacion'],
+        'observacion' => $observacion,
+        'check_in' => $checkIn ? substr($checkIn, 0, 5) : null,
+        'lunch_out' => $effectiveLunchOut ? substr($effectiveLunchOut, 0, 5) : null,
+        'lunch_in' => $effectiveLunchIn ? substr($effectiveLunchIn, 0, 5) : null,
+        'check_out' => $checkOut ? substr($checkOut, 0, 5) : null,
+        'hours_worked' => $this->toHm($hoursWorked),
+        'expected_hours' => $this->toHm($hoursExpected),
+        'balance' => $this->toHm($balance),
+      ];
+    });
   }
 
   /**
