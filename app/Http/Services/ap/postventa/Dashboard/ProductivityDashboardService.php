@@ -505,7 +505,7 @@ class ProductivityDashboardService
   {
     if ($percentage < 70) {
       return 'critical';
-    } elseif ($percentage < 85) {
+    } elseif ($percentage < 99) {
       return 'warning';
     } elseif ($percentage <= 100) {
       return 'on_track';

@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Http\Services\ap\postventa\Shared\BilledHoursCalculationService;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use Illuminate\Support\Collection;
 
@@ -82,10 +83,17 @@ class ClosedWorkOrderBilledHoursReportService
 
       $categoryType = $workOrderItem->typePlanning->category_type;
 
-      // Calculate equivalent billed hours: (hourly_rate * time_spent) / current_hourly_cost
+      // Obtener el tipo de cambio si la OT está en dólares (USD)
+      // Si es USD (currency_id = 1), multiplicar por exchange_rate
+      // Si es PEN (currency_id = 3) o cualquier otra moneda, usar 1 como multiplicador
+      $exchangeRate = ($workOrder->currency_id == TypeCurrency::USD_ID && $workOrder->exchange_rate > 0)
+        ? $workOrder->exchange_rate
+        : 1;
+
+      // Calculate equivalent billed hours: (hourly_rate * time_spent * exchange_rate) / current_hourly_cost
       // This normalizes all hours to the same standard cost
       $billedHours = $labour->current_hourly_cost > 0
-        ? ($labour->hourly_rate * $labour->time_spent_decimal) / $labour->current_hourly_cost
+        ? (($labour->hourly_rate * $labour->time_spent_decimal) * $exchangeRate) / $labour->current_hourly_cost
         : 0;
 
       $sedeId = $workOrder->sede_id ?? 'SIN_SEDE';
@@ -267,10 +275,17 @@ class ClosedWorkOrderBilledHoursReportService
 
       $categoryType = $workOrderItem->typePlanning->category_type;
 
-      // Calculate equivalent billed hours: (hourly_rate * time_spent) / current_hourly_cost
+      // Obtener el tipo de cambio si la OT está en dólares (USD)
+      // Si es USD (currency_id = 1), multiplicar por exchange_rate
+      // Si es PEN (currency_id = 3) o cualquier otra moneda, usar 1 como multiplicador
+      $exchangeRate = ($workOrder->currency_id == TypeCurrency::USD_ID && $workOrder->exchange_rate > 0)
+        ? $workOrder->exchange_rate
+        : 1;
+
+      // Calculate equivalent billed hours: (hourly_rate * time_spent * exchange_rate) / current_hourly_cost
       // This normalizes all hours to the same standard cost
       $billedHours = $labour->current_hourly_cost > 0
-        ? ($labour->hourly_rate * $labour->time_spent_decimal) / $labour->current_hourly_cost
+        ? (($labour->hourly_rate * $labour->time_spent_decimal) * $exchangeRate) / $labour->current_hourly_cost
         : 0;
 
       $labourDescription = $labour->description ?? ''; // Descripción del labour
