@@ -98,8 +98,17 @@ class AttendanceSyncService extends BaseService
       return $pdf->download($filename . '.pdf');
     }
 
+    $rowBasedColors = [
+      [
+        'columns' => ['lunch_out', 'lunch_in'],
+        'when' => '_lunch_generated',
+        'bg' => 'FFE0B2',
+        'text' => 'BF360C',
+      ],
+    ];
+
     return Excel::download(
-      new GeneralExport($data, $columns, 'Asistencias', [], $cellColors),
+      new GeneralExport($data, $columns, 'Asistencias', [], $cellColors, [], [], $rowBasedColors),
       $filename . '.xlsx',
     );
   }
@@ -273,6 +282,7 @@ class AttendanceSyncService extends BaseService
       }
 
       // Fill lunch from schedule when real marks are missing (same as resolveMarks logic)
+      $lunchGenerated = ($checkIn && $checkOut && !$isSaturday && !$lunchOut && !$lunchIn);
       $effectiveLunchOut = ($checkIn && $checkOut && !$isSaturday)
         ? ($lunchOut ?? $schedLunchOut)
         : null;
@@ -309,6 +319,7 @@ class AttendanceSyncService extends BaseService
         'hours_worked' => $this->toHm($hoursWorked),
         'expected_hours' => $this->toHm($hoursExpected),
         'balance' => $this->toHm($balance),
+        '_lunch_generated' => $lunchGenerated,
       ];
     });
   }

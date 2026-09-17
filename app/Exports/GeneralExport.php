@@ -28,8 +28,9 @@ class GeneralExport implements
   protected $cellColorRules;
   protected $columnFormats;
   protected $wrapTextColumns;
+  protected $rowBasedColorRules;
 
-  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [], $columnFormats = [], $wrapTextColumns = [])
+  public function __construct($data, $columns, $title = 'Reporte', $styles = [], $cellColorRules = [], $columnFormats = [], $wrapTextColumns = [], $rowBasedColorRules = [])
   {
     $this->data = collect($data);
     $this->columns = $columns;
@@ -38,6 +39,7 @@ class GeneralExport implements
     $this->cellColorRules = $cellColorRules;
     $this->columnFormats = $columnFormats;
     $this->wrapTextColumns = $wrapTextColumns;
+    $this->rowBasedColorRules = $rowBasedColorRules;
   }
 
   public function collection()
@@ -264,6 +266,38 @@ class GeneralExport implements
                 }
                 if (is_array($colorDef) && !empty($colorDef['bold'])) {
                   $sheet->getStyle("{$colLetter}{$rowIndex}")->getFont()->setBold(true);
+                }
+              }
+            }
+          }
+        }
+
+        // Aplicar colores por bandera de fila (ej. valores generados por el sistema)
+        if (!empty($this->rowBasedColorRules)) {
+          $columnKeys = array_keys($this->columns);
+          for ($rowIndex = 2; $rowIndex <= $lastRow; $rowIndex++) {
+            $dataRowIndex = $rowIndex - 2;
+            $rowData = $this->data->get($dataRowIndex);
+            if ($rowData === null) continue;
+
+            foreach ($this->rowBasedColorRules as $rule) {
+              $flag = $rule['when'] ?? null;
+              if (!$flag) continue;
+              $flagValue = is_array($rowData) ? ($rowData[$flag] ?? false) : data_get($rowData, $flag, false);
+              if (!$flagValue) continue;
+
+              foreach ($rule['columns'] as $colKey) {
+                $colIdx = array_search($colKey, $columnKeys);
+                if ($colIdx === false) continue;
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx + 1);
+                if (!empty($rule['bg'])) {
+                  $sheet->getStyle("{$colLetter}{$rowIndex}")->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB($rule['bg']);
+                }
+                if (!empty($rule['text'])) {
+                  $sheet->getStyle("{$colLetter}{$rowIndex}")->getFont()
+                    ->getColor()->setRGB($rule['text']);
                 }
               }
             }
