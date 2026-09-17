@@ -2291,6 +2291,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::delete('per-diem-expenses/{expenseId}', [PerDiemExpenseController::class, 'destroy']);
     Route::post('per-diem-expenses/{expenseId}/validate', [PerDiemExpenseController::class, 'isValid']);
     Route::post('per-diem-expenses/{expenseId}/reject', [PerDiemExpenseController::class, 'reject']);
+    Route::post('per-diem-expenses/{expenseId}/remove-validation', [PerDiemExpenseController::class, 'removeValidation']);
     Route::get('per-diem-requests/{requestId}/remaining-budget', [PerDiemExpenseController::class, 'getRemainingBudget']);
 
     // Hotel Reservations
