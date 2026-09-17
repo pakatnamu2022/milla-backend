@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\postventa\Shared;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApCampaignSchedule;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
@@ -76,9 +77,16 @@ class BilledHoursCalculationService
         continue;
       }
 
-      // Calcular horas facturadas equivalentes: (hourly_rate * time_spent) / current_hourly_cost
+      // Obtener el tipo de cambio si la OT está en dólares (USD)
+      // Si es USD (currency_id = 1), multiplicar por exchange_rate
+      // Si es PEN (currency_id = 3) o cualquier otra moneda, usar 1 como multiplicador
+      $exchangeRate = ($workOrder->currency_id == TypeCurrency::USD_ID && $workOrder->exchange_rate > 0)
+        ? $workOrder->exchange_rate
+        : 1;
+
+      // Calcular horas facturadas equivalentes: (hourly_rate * time_spent * exchange_rate) / current_hourly_cost
       $billedHours = $labour->current_hourly_cost > 0
-        ? ($labour->hourly_rate * $labour->time_spent_decimal) / $labour->current_hourly_cost
+        ? (($labour->hourly_rate * $labour->time_spent_decimal) * $exchangeRate) / $labour->current_hourly_cost
         : 0;
 
       $sedeId = $workOrder->sede_id ?? 'SIN_SEDE';
@@ -171,9 +179,16 @@ class BilledHoursCalculationService
         continue;
       }
 
-      // Calcular horas facturadas equivalentes
+      // Obtener el tipo de cambio si la OT está en dólares (USD)
+      // Si es USD (currency_id = 1), multiplicar por exchange_rate
+      // Si es PEN (currency_id = 3) o cualquier otra moneda, usar 1 como multiplicador
+      $exchangeRate = ($workOrder->currency_id == TypeCurrency::USD_ID && $workOrder->exchange_rate > 0)
+        ? $workOrder->exchange_rate
+        : 1;
+
+      // Calcular horas facturadas equivalentes: (hourly_rate * time_spent * exchange_rate) / current_hourly_cost
       $billedHours = $labour->current_hourly_cost > 0
-        ? ($labour->hourly_rate * $labour->time_spent_decimal) / $labour->current_hourly_cost
+        ? (($labour->hourly_rate * $labour->time_spent_decimal) * $exchangeRate) / $labour->current_hourly_cost
         : 0;
 
       // Obtener todos los técnicos que trabajaron en esta OT
