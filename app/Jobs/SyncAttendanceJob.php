@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Utils\Constants;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -256,6 +257,9 @@ class SyncAttendanceJob implements ShouldQueue
     $byPosition = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
       ->where('p.status_deleted', 1)
+      // Solo filas activas: una fila vieja/inactiva del mismo vat con un cargo
+      // exonerado no debe excluir a la persona que sigue activa en otro cargo.
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 
