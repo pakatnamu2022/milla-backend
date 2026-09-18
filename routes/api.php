@@ -2178,6 +2178,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Listar solo facturas y boletas (excluyendo notas de crédito y comprobantes asociados)
       Route::get('electronic-documents/invoices-and-tickets', [ElectronicDocumentController::class, 'listInvoicesAndTickets']);
 
+      // Listar documentos electrónicos simplificado (solo campos esenciales para la tabla)
+      Route::get('electronic-documents/simplified', [ElectronicDocumentController::class, 'indexSimplified']);
+
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);
 
