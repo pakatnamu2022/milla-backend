@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\facturacion;
 
+use App\Http\Resources\ap\facturacion\ElectronicDocumentListResource;
 use App\Http\Resources\ap\facturacion\ElectronicDocumentResource;
 use App\Http\Services\ap\comercial\VehicleMovementService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
@@ -279,6 +280,41 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       ElectronicDocument::sorts,
       ElectronicDocumentResource::class,
       ['documentType', 'currency', 'identityDocumentType', 'items', 'creator']
+    );
+  }
+
+  /**
+   * List electronic documents with simplified data (for table view)
+   * Only returns essential fields needed for the listing table
+   */
+  public function listSimplified(Request $request): JsonResponse
+  {
+    $user = $request->user();
+
+    if ($user->role->id === Constants::TICS_ROL_ID) {
+      $query = ElectronicDocument::class;
+    } else {
+      $sedes = $user->sedes()->pluck('config_sede.id')->toArray();
+      $query = ElectronicDocument::whereHas('seriesModel', function ($q) use ($sedes) {
+        $q->whereIn('sede_id', $sedes);
+      });
+    }
+
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      ElectronicDocument::filters,
+      ElectronicDocument::sorts,
+      ElectronicDocumentListResource::class,
+      [
+        'documentType',
+        'currency',
+        'seriesModel.sede',
+        'creditNote',
+        'debitNote',
+        'orderQuotation.createdBy',
+        'workOrder.advisor'
+      ]
     );
   }
 
