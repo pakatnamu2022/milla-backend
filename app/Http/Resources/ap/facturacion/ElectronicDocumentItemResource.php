@@ -20,6 +20,8 @@ class ElectronicDocumentItemResource extends JsonResource
       'ap_billing_electronic_document_id' => $this->ap_billing_electronic_document_id,
       'reference_document_id' => $this->reference_document_id,
       'account_plan_id' => $this->account_plan_id,
+      'product_id' => $this->product_id,
+      'is_traverse' => (bool)$this->is_traverse,
       'unidad_de_medida' => $this->unidad_de_medida,
       'codigo' => $this->codigo,
       'dyn_code' => $this->dyn_code,

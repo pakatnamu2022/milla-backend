@@ -303,6 +303,7 @@ class WorkOrderBillingService
       'anticipo_documento_numero' => null,
       'reference_document_id' => null,
       'from_quotation' => false,
+      'is_traverse' => (bool)$part->is_traverse,
     ], $billing);
   }
 
@@ -360,6 +361,7 @@ class WorkOrderBillingService
       'anticipo_documento_numero' => null,
       'reference_document_id' => null,
       'from_quotation' => true,
+      'is_traverse' => (bool)$detail->is_traverse,
     ], $billing);
   }
 
@@ -417,6 +419,7 @@ class WorkOrderBillingService
       'anticipo_documento_numero' => null,
       'reference_document_id' => null,
       'from_quotation' => true,
+      'is_traverse' => (bool)$detail->is_traverse,
     ], $billing);
   }
 

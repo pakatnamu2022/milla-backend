@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\taller\WorkOrderBillingResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderListResource;
 use App\Http\Resources\ap\postventa\taller\WorkOrderResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
@@ -328,6 +329,19 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
     $workOrder->load('items', 'orderQuotation.details.product.unitMeasurement', 'labours', 'parts.product.unitMeasurement', 'advancesWorkOrder', 'deductibles.electronicDocument');
     $additionalData['includeCostManHours'] = true;
     return (new WorkOrderResource($workOrder))->additional($additionalData);
+  }
+
+  public function showForBilling($id)
+  {
+    $workOrder = $this->find($id);
+    $workOrder->load([
+      'items',
+      'orderQuotation.details',
+      'labours',
+      'parts.product',
+      'advancesWorkOrder'
+    ]);
+    return new WorkOrderBillingResource($workOrder);
   }
 
   public function update(mixed $data)

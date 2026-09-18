@@ -663,6 +663,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       /**
@@ -894,6 +899,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       /**
@@ -1234,6 +1244,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       // Actualizar guías si se proporcionan
@@ -2202,6 +2217,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'work_order_id' => $originalDocument->work_order_id ?? null,
         'consolidation_type' => $originalDocument->consolidation_type,
         'is_advance_payment' => $originalDocument->is_advance_payment,
+        'total_gratuita' => $originalDocument->total_gratuita,
       ]);
 
       // Crear la nota de crédito
@@ -4758,8 +4774,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'igv' => $itemIgv,
           'total' => $itemTotal,
           'account_plan_id' => $item['account_plan_id'] ?? null,
+          'product_id' => $item['product_id'] ?? null,
+          'is_traverse' => $item['is_traverse'] ?? null,
         ]);
       }
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $invoice->update([
+        'has_product_traverse' => $invoice->items()->where('is_traverse', true)->exists()
+      ]);
 
       // 14. Create installments if credit sale
       /**
@@ -5191,6 +5214,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           ElectronicDocumentItem::create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       DB::commit();
@@ -5379,6 +5407,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'igv' => $totalIgv,
         'total' => $totalInput,
         'anticipo_regularizacion' => 0,
+      ]);
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $document->update([
+        'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
       ]);
 
       DB::commit();
@@ -5624,6 +5657,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'igv' => $totalIgv,
         'total' => $totalInput,
         'anticipo_regularizacion' => 0,
+      ]);
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $document->update([
+        'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
       ]);
 
       $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);
@@ -5905,6 +5943,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'igv' => $totalIgv,
       'total' => $totalInput,
       'anticipo_regularizacion' => 0,
+    ]);
+
+    // Actualizar has_product_traverse si algún item tiene is_traverse = true
+    $document->update([
+      'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
     ]);
 
     $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);

@@ -135,6 +135,8 @@ class ElectronicDocumentResource extends JsonResource
       'internal_note' => $this->internal_note,
       'consolidation_type' => $this->consolidation_type,
       're_invoice' => $this->re_invoice,
+      'has_product_traverse' => $this->has_product_traverse,
+      'associate_purchase_traverse' => $this->associate_purchase_traverse,
 
       /**
        * Timestamps and users
@@ -172,16 +174,16 @@ class ElectronicDocumentResource extends JsonResource
         'id' => $this->exchangeRate->id,
         'date' => $this->exchangeRate->date,
         'type' => $this->exchangeRate->type,
-        'rate' => (float) $this->exchangeRate->rate,
+        'rate' => (float)$this->exchangeRate->rate,
       ] : null,
       'vehicle' => $this->vehiclePayload(),
       'purchase_request_quote' => $this->purchaseRequestQuote ? [
         'id' => $this->purchaseRequestQuote->id,
         'correlative' => $this->purchaseRequestQuote->correlative,
         'internal_code' => $this->purchaseRequestQuote->internal_code,
-        'sale_price' => (float) $this->purchaseRequestQuote->sale_price,
-        'base_selling_price' => (float) $this->purchaseRequestQuote->base_selling_price,
-        'down_payment' => (float) $this->purchaseRequestQuote->down_payment,
+        'sale_price' => (float)$this->purchaseRequestQuote->sale_price,
+        'base_selling_price' => (float)$this->purchaseRequestQuote->base_selling_price,
+        'down_payment' => (float)$this->purchaseRequestQuote->down_payment,
         'opportunity_code' => $this->purchaseRequestQuote->opportunity?->opportunity_code,
         'advisor' => $this->purchaseRequestQuote->opportunity?->worker?->nombre_completo,
         'holder' => $this->purchaseRequestQuote->holder?->full_name,
@@ -198,7 +200,7 @@ class ElectronicDocumentResource extends JsonResource
         'id' => $this->originalDocument->id,
         'full_number' => $this->originalDocument->full_number,
         'document_type' => $this->originalDocument->documentType?->description,
-        'total' => (float) $this->originalDocument->total,
+        'total' => (float)$this->originalDocument->total,
       ] : null,
     ];
   }
@@ -214,7 +216,7 @@ class ElectronicDocumentResource extends JsonResource
       ?? $this->originalDocument?->vehicle
       ?? $this->vehicleMovement?->vehicle;
 
-    if (! $vehicle) {
+    if (!$vehicle) {
       return null;
     }
 

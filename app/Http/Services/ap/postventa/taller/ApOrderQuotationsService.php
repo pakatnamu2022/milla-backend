@@ -522,6 +522,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
   }
 
+  public function showForBilling($id)
+  {
+    $quotation = $this->find($id);
+    $quotation->load([
+      'details.product',
+      'advancesOrderQuotation'
+    ]);
+    return new \App\Http\Resources\ap\postventa\taller\ApOrderQuotationsBillingResource($quotation);
+  }
+
   public function showSimple($id)
   {
     $quotation = $this->find($id);
