@@ -46,12 +46,8 @@ class ApOrderQuotationsBillingResource extends JsonResource
         'id' => $this->invoiceTo->id,
         'full_name' => $this->invoiceTo->full_name,
         'num_doc' => $this->invoiceTo->num_doc,
-      ] : null,
-
-      'client' => $this->client ? [
-        'id' => $this->client->id,
-        'full_name' => $this->client->full_name,
-        'num_doc' => $this->client->num_doc,
+        'tax_class_type_igv' => (float)$this->invoiceTo->taxClassType?->igv,
+        'document_type_id' => $this->invoiceTo->document_type_id,
       ] : null,
 
       // Detalles de cotización
