@@ -25,8 +25,8 @@ class OrderQuotationBillingService
   protected OrderQuotationAdvancePaymentService $advancePaymentService;
 
   public function __construct(
-    OrderQuotationDocumentService         $documentService,
-    OrderQuotationAdvancePaymentService   $advancePaymentService
+    OrderQuotationDocumentService       $documentService,
+    OrderQuotationAdvancePaymentService $advancePaymentService
   )
   {
     $this->documentService = $documentService;
@@ -192,6 +192,7 @@ class OrderQuotationBillingService
       'anticipo_documento_numero' => null,
       'reference_document_id' => null,
       'from_quotation' => true,
+      'is_traverse' => (bool)$detail->is_traverse,
     ], $billing);
   }
 
