@@ -663,6 +663,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       /**
@@ -894,6 +899,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       /**
@@ -1236,13 +1246,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         }
 
         // Actualizar has_product_traverse si algún item tiene is_traverse = true
-        $hasTraverseProduct = collect($data['items'])->contains(fn($item) => ($item['is_traverse'] ?? false) === true);
-        if ($hasTraverseProduct) {
-          $document->update(['has_product_traverse' => true]);
-        } else {
-          // Si ningún item tiene is_traverse, poner en false
-          $document->update(['has_product_traverse' => false]);
-        }
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       // Actualizar guías si se proporcionan
@@ -4774,10 +4780,9 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       }
 
       // Actualizar has_product_traverse si algún item tiene is_traverse = true
-      $hasTraverseProduct = collect($data['items'])->contains(fn($item) => ($item['is_traverse'] ?? false) === true);
-      if ($hasTraverseProduct) {
-        $invoice->update(['has_product_traverse' => true]);
-      }
+      $invoice->update([
+        'has_product_traverse' => $invoice->items()->where('is_traverse', true)->exists()
+      ]);
 
       // 14. Create installments if credit sale
       /**
@@ -5209,6 +5214,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
           ElectronicDocumentItem::create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $document->update([
+          'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
+        ]);
       }
 
       DB::commit();
@@ -5397,6 +5407,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'igv' => $totalIgv,
         'total' => $totalInput,
         'anticipo_regularizacion' => 0,
+      ]);
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $document->update([
+        'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
       ]);
 
       DB::commit();
@@ -5642,6 +5657,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'igv' => $totalIgv,
         'total' => $totalInput,
         'anticipo_regularizacion' => 0,
+      ]);
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $document->update([
+        'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
       ]);
 
       $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);
@@ -5923,6 +5943,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       'igv' => $totalIgv,
       'total' => $totalInput,
       'anticipo_regularizacion' => 0,
+    ]);
+
+    // Actualizar has_product_traverse si algún item tiene is_traverse = true
+    $document->update([
+      'has_product_traverse' => $document->items()->where('is_traverse', true)->exists()
     ]);
 
     $vehicle->update(['is_paid' => true, 'customer_id' => $client->id]);
