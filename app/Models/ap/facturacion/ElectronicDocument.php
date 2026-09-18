@@ -208,6 +208,8 @@ class ElectronicDocument extends BaseModel
     'seriesModel.sede_id' => '=',
     'consolidation_type' => '=',
     'migration_status' => '=',
+    'has_product_traverse' => '=',
+    'associate_purchase_traverse' => '='
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
