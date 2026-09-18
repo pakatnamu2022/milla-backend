@@ -397,6 +397,12 @@ return [
       'icon' => 'BarChart2',
       'policy_method' => 'viewComparisonByLocation',
     ],
+    'linkCrossingPurchase' => [
+      'label' => 'Vincular Compra Travesía',
+      'description' => 'Permite vincular una compra de travesía',
+      'icon' => 'Link',
+      'policy_method' => 'linkCrossingPurchase',
+    ],
   ],
 
 

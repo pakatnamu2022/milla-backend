@@ -7,6 +7,7 @@ use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocumentItem extends BaseModel
@@ -122,6 +123,16 @@ class ElectronicDocumentItem extends BaseModel
   public function igvType(): BelongsTo
   {
     return $this->belongsTo(SunatConcepts::class, 'sunat_concept_igv_type_id');
+  }
+
+  public function linkTransactions(): HasMany
+  {
+    return $this->hasMany(LinkPurchaseSaleTransaction::class, 'billing_electronic_document_item_id');
+  }
+
+  public function activeLinkTransactions(): HasMany
+  {
+    return $this->linkTransactions()->where('status', 'active');
   }
 
   /**
