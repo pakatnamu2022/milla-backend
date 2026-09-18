@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\IndexApFamiliesRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\StoreApFamiliesRequest;
 use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApFamiliesRequest;
+use App\Http\Requests\ap\configuracionComercial\vehiculo\UpdateApFamilyImageRequest;
 use App\Http\Services\ap\configuracionComercial\vehiculo\ApFamiliesService;
 
 class ApFamiliesController extends Controller
@@ -50,6 +51,15 @@ class ApFamiliesController extends Controller
       $data = $request->validated();
       $data['id'] = $id;
       return $this->success($this->service->update($data));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function updateImage(UpdateApFamilyImageRequest $request, $id)
+  {
+    try {
+      return $this->success($this->service->updateImage($id, $request->file('image')));
     } catch (\Throwable $th) {
       return $this->error($th->getMessage());
     }

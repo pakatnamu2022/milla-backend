@@ -5,15 +5,27 @@ namespace App\Http\Services\ap\configuracionComercial\vehiculo;
 use App\Http\Resources\ap\configuracionComercial\vehiculo\ApFamiliesResource;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
+use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\configuracionComercial\vehiculo\ApFamilies;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleBrand;
+use App\Models\gp\gestionsistema\DigitalFile;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 class ApFamiliesService extends BaseService implements BaseServiceInterface
 {
+  private const IMAGE_PATH = '/ap/familias/imagenes/';
+
+  protected DigitalFileService $digitalFileService;
+
+  public function __construct(DigitalFileService $digitalFileService)
+  {
+    $this->digitalFileService = $digitalFileService;
+  }
+
   public function list(Request $request)
   {
     return $this->getFilteredResults(
@@ -52,6 +64,31 @@ class ApFamiliesService extends BaseService implements BaseServiceInterface
 
     $family = ApFamilies::create($data);
     return new ApFamiliesResource($family);
+  }
+
+  /**
+   * Endpoint dedicado: sube/reemplaza SOLO la imagen de la familia, sin tocar el
+   * resto de sus datos. El archivo anterior (si lo había) se elimina.
+   */
+  public function updateImage($id, UploadedFile $image)
+  {
+    $family = $this->find($id);
+
+    return DB::transaction(function () use ($family, $image) {
+      $previous = $family->image
+        ? DigitalFile::where('url', $family->image)->first()
+        : null;
+
+      $digitalFile = $this->digitalFileService->store($image, self::IMAGE_PATH, 'public', $family->getTable());
+      $family->image = $digitalFile->url;
+      $family->save();
+
+      if ($previous) {
+        $this->digitalFileService->destroy($previous->id);
+      }
+
+      return new ApFamiliesResource($family);
+    });
   }
 
   public function show($id)

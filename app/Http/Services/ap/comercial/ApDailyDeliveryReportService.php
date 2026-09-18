@@ -77,6 +77,9 @@ class ApDailyDeliveryReportService
     // Paso 11: Detalle de entregas del periodo por asesor (trazabilidad — acordeón en frontend)
     $entregasDetalle = $this->buildDeliveriesDetail($vehiclesWithDelivery);
 
+    // Paso 12: Ranking por familia de vehículo (entregas / facturadas), con imagen de la familia
+    $familyReport = $this->buildFamilyReport($vehiclesWithDelivery, $invoicedQuoteIds);
+
     return [
       'fecha_inicio'      => $fechaInicio,
       'fecha_fin'         => $fechaFin,
@@ -93,7 +96,55 @@ class ApDailyDeliveryReportService
       'refacturadas'      => $refacturadas['en_periodo'],
       'refacturadas_fuera_periodo' => $refacturadas['fuera_periodo'],
       'entregas_detalle'  => $entregasDetalle,
+      'family_report'     => $familyReport,
     ];
+  }
+
+  /**
+   * Agrupa las entregas y facturadas del periodo por FAMILIA de vehículo (ej. Jimny),
+   * sin distinguir versión/año/transmisión: esas variantes se listan en `modelos`.
+   * Usa el mismo universo que el resto del reporte: entrega = entrega_periodo no nulo,
+   * facturada = quote en $invoicedQuoteIds. Ordenado por entregas desc (y facturadas desc).
+   *
+   * @param Collection $vehicles Resultado de getDeliveredVehicles()
+   * @param Collection $invoicedQuoteIds
+   * @return array<int,array>
+   */
+  protected function buildFamilyReport(Collection $vehicles, Collection $invoicedQuoteIds): array
+  {
+    $report = $vehicles
+      ->groupBy(fn($v) => $v->family_id ?? 'sin_familia')
+      ->map(function (Collection $group, $familyKey) use ($invoicedQuoteIds) {
+        $first = $group->first();
+        $delivered = $group->filter(fn($v) => !is_null($v->entrega_periodo));
+
+        $modelos = $delivered
+          ->groupBy(fn($v) => trim(implode(' ', array_filter([
+            $v->model_version ?: ($v->family_description ?? null),
+            $v->model_year ?? null,
+          ]))) ?: 'Sin modelo')
+          ->map(fn(Collection $g, $modelo) => ['modelo' => $modelo, 'entregas' => $g->count()])
+          ->sortByDesc('entregas')
+          ->values()
+          ->all();
+
+        return [
+          'family_id'  => $familyKey === 'sin_familia' ? null : (int) $familyKey,
+          'family'     => $first->family_description ?? 'Sin familia',
+          'brand'      => $first->brand_name,
+          'brand_logo' => $first->brand_logo,
+          'image'      => $first->family_image,
+          'entregas'   => $delivered->count(),
+          'facturadas' => $group->filter(fn($v) => $invoicedQuoteIds->contains($v->quote_id))->count(),
+          'modelos'    => $modelos,
+        ];
+      })
+      ->filter(fn($row) => $row['entregas'] > 0 || $row['facturadas'] > 0)
+      ->sort(fn($a, $b) => [$b['entregas'], $b['facturadas'], $a['family']] <=> [$a['entregas'], $a['facturadas'], $b['family']])
+      ->values()
+      ->all();
+
+    return $report;
   }
 
   /**
@@ -286,7 +337,10 @@ class ApDailyDeliveryReportService
         'ap_vehicle_brand.id as brand_id',
         'ap_vehicle_brand.name as brand_name',
         'ap_vehicle_brand.group_id as brand_group_id',
+        'ap_vehicle_brand.logo as brand_logo',
+        'ap_families.id as family_id',
         'ap_families.description as family_description',
+        'ap_families.image as family_image',
         'ap_models_vn.version as model_version',
         'ap_models_vn.model_year',
         'business_partners.full_name as client_name',

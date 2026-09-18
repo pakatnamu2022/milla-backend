@@ -98,8 +98,23 @@ class AttendanceSyncService extends BaseService
       return $pdf->download($filename . '.pdf');
     }
 
+    $rowBasedColors = [
+      [
+        'columns' => ['check_out'],
+        'when' => '_checkout_generated',
+        'bg' => 'FFE0B2',
+        'text' => 'BF360C',
+      ],
+      [
+        'columns' => ['lunch_out', 'lunch_in'],
+        'when' => '_lunch_generated',
+        'bg' => 'FFE0B2',
+        'text' => 'BF360C',
+      ],
+    ];
+
     return Excel::download(
-      new GeneralExport($data, $columns, 'Asistencias', [], $cellColors),
+      new GeneralExport($data, $columns, 'Asistencias', [], $cellColors, [], [], $rowBasedColors),
       $filename . '.xlsx',
     );
   }
@@ -272,7 +287,19 @@ class AttendanceSyncService extends BaseService
         $hoursExpected = round(max(0, $schedIn->diffInMinutes($schedOut) - $lunchMins) / 60, 2);
       }
 
+      // Fill check_out from schedule when missing (past days or today after checkout time)
+      $checkoutGenerated = false;
+      if ($checkIn && !$checkOut && $schedCheckout) {
+        $isPastDay = $dateKey < now()->toDateString();
+        $isToday = $dateKey === now()->toDateString();
+        if ($isPastDay || ($isToday && now()->gt(Carbon::createFromFormat('H:i:s', $schedCheckout)))) {
+          $checkOut = $schedCheckout;
+          $checkoutGenerated = true;
+        }
+      }
+
       // Fill lunch from schedule when real marks are missing (same as resolveMarks logic)
+      $lunchGenerated = ($checkIn && $checkOut && !$isSaturday && !$lunchOut && !$lunchIn);
       $effectiveLunchOut = ($checkIn && $checkOut && !$isSaturday)
         ? ($lunchOut ?? $schedLunchOut)
         : null;
@@ -309,6 +336,8 @@ class AttendanceSyncService extends BaseService
         'hours_worked' => $this->toHm($hoursWorked),
         'expected_hours' => $this->toHm($hoursExpected),
         'balance' => $this->toHm($balance),
+        '_lunch_generated' => $lunchGenerated,
+        '_checkout_generated' => $checkoutGenerated,
       ];
     });
   }
