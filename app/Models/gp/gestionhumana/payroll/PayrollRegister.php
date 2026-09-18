@@ -84,6 +84,7 @@ class PayrollRegister extends BaseModel
     'essalud_employer',
     'sctr_total',
     'life_insurance',
+    'life_insurance_policy_worker_id',
     'sctr_health',
     'sctr_pension',
     'sctr_rate_id',

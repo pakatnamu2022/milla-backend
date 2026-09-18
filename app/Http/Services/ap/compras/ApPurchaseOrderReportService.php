@@ -27,6 +27,8 @@ class ApPurchaseOrderReportService
         fn($q) => $q->whereBetween('emission_date', [$fechaInicio, $fechaFin])
       )
       ->where('type_operation_id', ApMasters::TIPO_OPERACION_COMERCIAL)
+      ->where('status', true)
+      ->whereNull('credit_note_dynamics')
       ->when($sedeIds, fn($q) => $q->whereIn('sede_id', $sedeIds))
       ->whereNull('deleted_at')
       ->orderBy('emission_date')

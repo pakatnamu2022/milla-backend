@@ -144,6 +144,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollExclusionController;
+use App\Http\Controllers\gp\gestionhumana\payroll\LifeInsurancePolicyController;
 use App\Http\Controllers\gp\gestionhumana\payroll\SctrRateController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
@@ -159,6 +160,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollWorkingConditionControl
 use App\Http\Controllers\gp\gestionhumana\payroll\WorkerAttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\permiso\TrabajadorPermisoController;
 use App\Http\Controllers\gp\gestionhumana\personal\VacationController;
+use App\Http\Controllers\gp\gestionhumana\personal\SalaryIncreaseController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkerStatusHistoryController;
 use App\Http\Controllers\gp\gestionhumana\personal\WorkScheduleController;
@@ -718,6 +720,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
           'destroy',
         ]);
 
+        //      AUMENTOS DE SUELDO (contrato indeterminado): log + actualiza rrhh_persona.sueldo
+        Route::get('salary-increases', [SalaryIncreaseController::class, 'index']);
+        Route::post('salary-increases', [SalaryIncreaseController::class, 'store']);
+
         //      ESTADO DEL TRABAJADOR (activacion/cese) - centraliza en milla-backend, coexiste con el legacy
         Route::get('worker-status-history/worker/{workerId}/current', [WorkerStatusHistoryController::class, 'currentStatus']);
         Route::apiResource('worker-status-history', WorkerStatusHistoryController::class)->only([
@@ -1144,6 +1150,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       ]);
 
       Route::post('families/fix-codes', [ApFamiliesController::class, 'fixWrongCodes']);
+      Route::post('families/{family}/image', [ApFamiliesController::class, 'updateImage']);
       Route::apiResource('families', ApFamiliesController::class)->only([
         'index',
         'show',
@@ -2440,6 +2447,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     // Tasas SCTR por empresa con vigencia (al crear una nueva se cierra la vigente)
     Route::get('sctr-rates', [SctrRateController::class, 'index']);
     Route::post('sctr-rates', [SctrRateController::class, 'store']);
+
+    // Pólizas Vida Ley (cálculo único al emitir; el register solo lee el monto mensual)
+    Route::get('life-insurance-policies', [LifeInsurancePolicyController::class, 'index']);
+    Route::get('life-insurance-policies/{id}', [LifeInsurancePolicyController::class, 'show']);
+    Route::post('life-insurance-policies', [LifeInsurancePolicyController::class, 'store']);
+    Route::post('life-insurance-policies/{id}/workers', [LifeInsurancePolicyController::class, 'addWorker']);
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);

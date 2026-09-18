@@ -15,6 +15,7 @@ class ApFamiliesResource extends JsonResource
       'description' => $this->description,
       'brand_id' => $this->brand_id,
       'brand' => $this->brand->name,
+      'image' => $this->image,
       'status' => $this->status,
       'models_count' => $this->models()->count(),
     ];

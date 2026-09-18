@@ -64,15 +64,24 @@ class WorkerContract extends BaseModel
      * tiene ningún contrato con sueldo registrado — el llamador debe hacer
      * fallback a rrhh_persona.sueldo.
      *
-     * Excepción: si el contrato resuelto es el ÚLTIMO contrato del trabajador
-     * (no existe uno posterior) y es de tipo INDETERMINADO, se devuelve null
-     * a propósito para que el llamador use rrhh_persona.sueldo — un contrato
-     * indeterminado nunca se reemplaza al subir el sueldo, así que su columna
-     * `sueldo` no es confiable como fuente de verdad para ese caso.
+     * Aumentos registrados (gh_salary_increases, solo indeterminados): si hay un aumento con
+     * fecha efectiva <= $date y posterior (o igual) al inicio del contrato resuelto, gana sobre
+     * el sueldo del contrato — es el sueldo real vigente aunque el contrato no se haya renovado.
+     *
+     * Excepción (legado): si el contrato resuelto es el ÚLTIMO contrato del trabajador y es
+     * INDETERMINADO, y el trabajador aún NO tiene aumentos registrados, se devuelve null para
+     * que el llamador use rrhh_persona.sueldo — su columna `sueldo` no es confiable porque el
+     * contrato nunca se reemplazó al subir el sueldo. Al registrar el primer aumento, el log
+     * pasa a ser la fuente de verdad y esta excepción deja de aplicar a ese trabajador.
      */
     public static function salaryForWorkerAtDate(int $workerId, string $date): ?float
     {
         $contract = self::resolveContractAtDate($workerId, $date);
+        $increase = SalaryIncrease::latestAtDate($workerId, $date);
+
+        if ($increase && (!$contract || $increase->effective_date->gte($contract->fecha_inicio_contrato))) {
+            return (float)$increase->new_salary;
+        }
 
         if (!$contract) {
             return null;
@@ -85,7 +94,7 @@ class WorkerContract extends BaseModel
                 ->where('fecha_inicio_contrato', '>', $contract->fecha_inicio_contrato)
                 ->exists();
 
-            if ($isLastContract) {
+            if ($isLastContract && !SalaryIncrease::where('worker_id', $workerId)->exists()) {
                 return null;
             }
         }
@@ -94,22 +103,26 @@ class WorkerContract extends BaseModel
     }
 
     /**
-     * Sueldo literal registrado en rrhh_contrato para una fecha dada, SIN la excepción
-     * de "último contrato indeterminado" que aplica salaryForWorkerAtDate().
-     *
-     * Uso: SCTR y Vida Ley se declaran/cotizan ante la aseguradora con el sueldo tal
-     * como consta en el contrato vigente, aunque esté desactualizado frente al sueldo
-     * real actual de rrhh_persona — a diferencia del básico de planilla (basic_salary/
-     * monthly_salary), que sí debe reflejar el sueldo actual para esos casos.
+     * Último contrato vigente (por fecha de inicio) del trabajador, o null.
+     * Lo usa el registro de aumentos: solo procede si este contrato es INDETERMINADO.
      */
-    public static function contractSalaryForWorkerAtDate(int $workerId, string $date): ?float
+    public static function latestContract(int $workerId): ?self
     {
-        $contract = self::resolveContractAtDate($workerId, $date);
-
-        return $contract ? (float)$contract->sueldo : null;
+        return static::where('empleado_id', $workerId)
+            ->where('status_deleted', 1)
+            ->orderByDesc('fecha_inicio_contrato')
+            ->orderByDesc('id')
+            ->first();
     }
 
-    private static function resolveContractAtDate(int $workerId, string $date): ?self
+    public static function isIndeterminado(self $contract): bool
+    {
+        $id = self::indeterminadoTipoContratoId();
+
+        return $id !== null && (int)$contract->tipo_contrato_id === $id;
+    }
+
+    public static function resolveContractAtDate(int $workerId, string $date): ?self
     {
         $base = static::where('empleado_id', $workerId)
             ->where('status_deleted', 1)

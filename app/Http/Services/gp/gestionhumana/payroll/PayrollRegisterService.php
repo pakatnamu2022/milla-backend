@@ -5,6 +5,7 @@ namespace App\Http\Services\gp\gestionhumana\payroll;
 use App\Exports\gp\gestionhumana\payroll\PayrollRegisterExport;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollRegisterResource;
 use App\Http\Services\BaseService;
+use App\Models\gp\gestionhumana\payroll\LifeInsurancePolicyWorker;
 use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use App\Models\gp\gestionhumana\payroll\PayrollExclusion;
@@ -217,15 +218,6 @@ class PayrollRegisterService extends BaseService
                     $vacationPay = round($daysVacation * $vacationHourValue, 2);
                 }
 
-                // Básico "de contrato" (sin la excepción de indeterminado): por ahora solo
-                // lo usa Vida Ley, hasta que ese cálculo pase a leerse de la póliza
-                // (Fase 2). SCTR usa el sueldo actual (ver calculateEmployerContributions).
-                $contractMonthlySalary = WorkerContract::contractSalaryForWorkerAtDate($worker->id, $period->end_date)
-                    ?? $monthlySalary;
-                $contractBasicSalary = $contractMonthlySalary == $monthlySalary
-                    ? $basicSalary
-                    : round($contractMonthlySalary / 30 * $daysWorked, 2);
-
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
                     'family_allowance' => $familyAllowanceAmount,
@@ -241,7 +233,7 @@ class PayrollRegisterService extends BaseService
                 ]);
 
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
-                $employerContributions = $this->calculateEmployerContributions($worker, $companyId, $basicSalary, $contractBasicSalary, $familyAllowanceAmount, $totalIncome, $period->end_date);
+                $employerContributions = $this->calculateEmployerContributions($worker, $companyId, $basicSalary, $familyAllowanceAmount, $totalIncome, $period->end_date);
 
                 // Descuentos ONP/AFP (según rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones)
                 $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome);
@@ -402,6 +394,7 @@ class PayrollRegisterService extends BaseService
                     'sctr_health' => $employerContributions['sctr_health'],
                     'sctr_pension' => $employerContributions['sctr_pension'],
                     'sctr_rate_id' => $employerContributions['sctr_rate_id'],
+                    'life_insurance_policy_worker_id' => $employerContributions['life_insurance_policy_worker_id'],
                     'employer_contributions_total' => $employerContributions['total'],
 
                     // Netos finales
@@ -539,21 +532,20 @@ class PayrollRegisterService extends BaseService
      *   (rrhh_persona.estado_sctr = 'SI'). Usa el sueldo ACTUAL de rrhh_persona (el
      *   $basicSalary del register). SCTR pensión tiene tope en la RMA (Remuneración
      *   Máxima Asegurable).
-     * - Vida Ley: ((sueldo básico + asignación familiar) x 3.12%) x (1 + IGV) / 12,
-     *   prorrateado a cuota mensual (fórmula confirmada contra "CALCULO VIDA LEY TP - POR
-     *   PERSONA POLIZA 2025-2026.xlsx"). Provisional: pasará a leerse de la póliza (Fase 2).
+     * - Vida Ley: NO se calcula aquí. El monto mensual se calculó una sola vez al emitir la
+     *   póliza de la empresa (gh_life_insurance_policies) y aquí solo se lee el del
+     *   trabajador en la póliza vigente a la fecha; si no está incluido, queda en 0.
      *
      * @param Worker $worker
      * @param int $companyId
      * @param float $basicSalary Básico del register (sueldo actual, prorrateado) — base de SCTR.
-     * @param float $contractBasicSalary Básico según rrhh_contrato — solo Vida Ley (provisional).
      * @param float $familyAllowance
      * @param float $totalIncome Total de ingresos real del periodo — base de EsSalud.
-     * @param string|null $referenceDate Fecha (fin del periodo) para resolver las tasas/RMV
+     * @param string|null $referenceDate Fecha (fin del periodo) para resolver las tasas/RMV/póliza
      *        vigentes en ese momento, no las de hoy — ver GeneralMaster::valueAt().
-     * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, sctr_rate_id: ?int, life_insurance: float, total: float}
+     * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, sctr_rate_id: ?int, life_insurance: float, life_insurance_policy_worker_id: ?int, total: float}
      */
-    private function calculateEmployerContributions(Worker $worker, int $companyId, float $basicSalary, float $contractBasicSalary, float $familyAllowance, float $totalIncome, ?string $referenceDate = null): array
+    private function calculateEmployerContributions(Worker $worker, int $companyId, float $basicSalary, float $familyAllowance, float $totalIncome, ?string $referenceDate = null): array
     {
         $referenceDate = $referenceDate ?? now()->format('Y-m-d');
 
@@ -568,8 +560,6 @@ class PayrollRegisterService extends BaseService
         $sctrPensionRate = (float)($sctrRate->pension_rate
             ?? GeneralMaster::find(GeneralMaster::SCTR_PENSION_RATE_ID)->value ?? 0.005);
         $insurableMaxRemuneration = (float)(GeneralMaster::find(GeneralMaster::INSURABLE_MAX_REMUNERATION_ID)->value ?? 12027.91);
-        $lifeInsuranceRate = (float)(GeneralMaster::find(GeneralMaster::LIFE_INSURANCE_RATE_ID)->value ?? 0.0312);
-        $igvRate = (float)(GeneralMaster::find(GeneralMaster::IGV_RATE_ID)->value ?? 0.18);
 
         // EsSalud: aplica a todos, con piso RMV.
         $essaludBase = max($totalIncome, $minimumWage);
@@ -587,12 +577,9 @@ class PayrollRegisterService extends BaseService
         }
         $sctrTotal = round($sctrHealth + $sctrPension, 2);
 
-        // Vida Ley: prima anual por persona sobre básico (de contrato) + asignación
-        // familiar, + IGV, prorrateada a 12 meses.
-        $lifeInsuranceBase = $contractBasicSalary + $familyAllowance;
-        $lifeInsuranceAnnualCost = $lifeInsuranceBase * $lifeInsuranceRate;
-        $lifeInsuranceAnnualWithIgv = $lifeInsuranceAnnualCost * (1 + $igvRate);
-        $lifeInsurance = round($lifeInsuranceAnnualWithIgv / 12, 2);
+        // Vida Ley: monto mensual ya calculado en la póliza vigente (0 si no está incluido).
+        $policyWorker = LifeInsurancePolicyWorker::resolve($worker->id, $companyId, $referenceDate);
+        $lifeInsurance = $policyWorker ? round((float)$policyWorker->monthly_amount, 2) : 0.0;
 
         return [
             'essalud' => $essalud,
@@ -601,6 +588,7 @@ class PayrollRegisterService extends BaseService
             'sctr_total' => $sctrTotal,
             'sctr_rate_id' => $isSctrAffiliated ? $sctrRate?->id : null,
             'life_insurance' => $lifeInsurance,
+            'life_insurance_policy_worker_id' => $policyWorker?->id,
             'total' => round($essalud + $sctrTotal + $lifeInsurance, 2),
         ];
     }
