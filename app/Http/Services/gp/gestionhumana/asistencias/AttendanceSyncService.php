@@ -612,6 +612,8 @@ class AttendanceSyncService extends BaseService
       $request,
     );
 
+    $rows = $rows->concat($this->buildWorkersWithoutMarks($rows, $request));
+
     $personIds = $rows->pluck('person_id')->filter()->unique()->values()->toArray();
     // Una misma persona puede tener varias filas en rrhh_persona (una por sede,
     // mismo vat); hay que revisar vacaciones/ausentismo/permiso en todas ellas.
@@ -1216,6 +1218,7 @@ class AttendanceSyncService extends BaseService
         $term = $request->search;
         $query->where(function ($q) use ($term) {
           $q->where('a.emp_code', 'like', "%{$term}%")
+            ->orWhere('p.vat', 'like', "%{$term}%")
             ->orWhere('p.nombre_completo', 'like', "%{$term}%")
             ->orWhere('a.full_name', 'like', "%{$term}%");
         });
@@ -1223,6 +1226,70 @@ class AttendanceSyncService extends BaseService
     }
 
     return $query->get();
+  }
+
+  /**
+   * SyncAttendanceJob no inserta en attendance_sync a quien está de vacaciones,
+   * ausentismo, exclusión manual, cargo exonerado o permiso de jornada completa,
+   * y buildPivotedRows parte de esa tabla: esas personas no aparecían aunque se
+   * buscaran por nombre o DNI. Cuando el reporte viene filtrado (search, emp_code
+   * o person_id) se agregan como filas sin marcaciones (no se crea ningún registro)
+   * para que salgan con sus vacaciones/ausentismo/permisos y días en cero.
+   */
+  private function buildWorkersWithoutMarks(\Illuminate\Support\Collection $rows, Request $request): \Illuminate\Support\Collection
+  {
+    if (!$request->filled('search') && !$request->filled('emp_code') && !$request->filled('person_id')) {
+      return collect();
+    }
+
+    $query = DB::table('rrhh_persona as p')
+      ->leftJoin('work_schedules as ws', 'ws.id', '=', 'p.work_schedule_id')
+      ->where('p.status_deleted', 1)
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
+      ->whereNotNull('p.vat')
+      ->select([
+        'p.id as person_id',
+        'p.vat as emp_code',
+        DB::raw('UPPER(p.nombre_completo) AS full_name'),
+        DB::raw("COALESCE(ws.checkin, '08:00:00') AS schedule_checkin"),
+      ]);
+
+    if ($request->filled('person_id')) {
+      $query->where('p.id', (int)$request->person_id);
+    }
+
+    if ($request->filled('emp_code')) {
+      $query->where('p.vat', $request->emp_code);
+    }
+
+    if ($request->filled('search')) {
+      $term = $request->search;
+      $query->where(function ($q) use ($term) {
+        $q->where('p.vat', 'like', "%{$term}%")
+          ->orWhere('p.nombre_completo', 'like', "%{$term}%");
+      });
+    }
+
+    // Personas que ya tienen marcaciones (por person_id o por emp_code = vat).
+    $presentPersonIds = $rows->pluck('person_id')->filter()->unique()->values()->all();
+    $presentVats = $rows->pluck('emp_code')->unique()->all();
+    if (!empty($presentPersonIds)) {
+      $presentVats = array_merge($presentVats, DB::table('rrhh_persona')->whereIn('id', $presentPersonIds)->pluck('vat')->all());
+    }
+    $presentVats = array_flip(array_map('strval', $presentVats));
+
+    // Una persona puede tener varias filas por sede (mismo vat): queda una sola.
+    return $query->orderBy('p.id')->get()
+      ->reject(fn($r) => isset($presentVats[(string)$r->emp_code]))
+      ->unique('emp_code')
+      ->map(fn($r) => (object)[
+        'date' => null,
+        'emp_code' => (string)$r->emp_code,
+        'full_name' => $r->full_name,
+        'person_id' => $r->person_id,
+        'schedule_checkin' => $r->schedule_checkin,
+      ])
+      ->values();
   }
 
   private function buildInternalSummary(\Illuminate\Support\Collection $rows, string $dateFrom, string $dateTo, array $vacationsByPerson = [], array $ausentismoByPerson = [], array $permisosByPerson = [], array $relatedIdsMap = []): \Illuminate\Support\Collection
