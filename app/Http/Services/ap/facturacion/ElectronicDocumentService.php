@@ -1234,6 +1234,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           $itemData['line_number'] = $index + 1;
           $document->items()->create($itemData);
         }
+
+        // Actualizar has_product_traverse si algún item tiene is_traverse = true
+        $hasTraverseProduct = collect($data['items'])->contains(fn($item) => ($item['is_traverse'] ?? false) === true);
+        if ($hasTraverseProduct) {
+          $document->update(['has_product_traverse' => true]);
+        } else {
+          // Si ningún item tiene is_traverse, poner en false
+          $document->update(['has_product_traverse' => false]);
+        }
       }
 
       // Actualizar guías si se proporcionan
@@ -2202,6 +2211,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
         'work_order_id' => $originalDocument->work_order_id ?? null,
         'consolidation_type' => $originalDocument->consolidation_type,
         'is_advance_payment' => $originalDocument->is_advance_payment,
+        'total_gratuita' => $originalDocument->total_gratuita,
       ]);
 
       // Crear la nota de crédito
@@ -4758,7 +4768,15 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'igv' => $itemIgv,
           'total' => $itemTotal,
           'account_plan_id' => $item['account_plan_id'] ?? null,
+          'product_id' => $item['product_id'] ?? null,
+          'is_traverse' => $item['is_traverse'] ?? null,
         ]);
+      }
+
+      // Actualizar has_product_traverse si algún item tiene is_traverse = true
+      $hasTraverseProduct = collect($data['items'])->contains(fn($item) => ($item['is_traverse'] ?? false) === true);
+      if ($hasTraverseProduct) {
+        $invoice->update(['has_product_traverse' => true]);
       }
 
       // 14. Create installments if credit sale

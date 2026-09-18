@@ -553,7 +553,7 @@ class ElectronicDocumentController extends Controller
       $validation = $validationService->validateInventoryOutput($id);
 
       // Si la validación falló, retornar error SIN ejecutar el Job
-      if (!$validation['valid']) {
+      if (!$validation['valid'] && $document->status !== ElectronicDocument::STATUS_CANCELLED && !$document->anulado) {
         return response()->json([
           'message' => 'No se puede procesar el comprobante debido a problemas de inventario',
           'document_id' => $document->id,
@@ -728,7 +728,7 @@ class ElectronicDocumentController extends Controller
   {
     try {
       $request->validate([
-        'file'    => 'required|file|mimes:xlsx,xls,csv',
+        'file' => 'required|file|mimes:xlsx,xls,csv',
         'dry_run' => 'nullable|boolean',
       ]);
       $dryRun = $request->boolean('dry_run', true);

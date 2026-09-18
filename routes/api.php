@@ -1870,6 +1870,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/documents', [WorkOrderController::class, 'documents']);
       Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
+      Route::get('workOrders/{id}/billing', [WorkOrderController::class, 'showForBilling']);
 
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
@@ -2008,6 +2009,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
       Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
       Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
+      Route::get('orderQuotations/{id}/billing', [ApOrderQuotationsController::class, 'showForBilling']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',

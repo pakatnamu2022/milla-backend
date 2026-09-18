@@ -137,12 +137,12 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         if (isset($item['reference_document_id'])) {
           $items[$index]['reference_document_id'] = (int)$item['reference_document_id'];
         }
-        // Convertir producto_id: si está vacío (""), convertirlo a null para que no se valide
-        if (isset($item['producto_id'])) {
-          if ($item['producto_id'] === '') {
-            $items[$index]['producto_id'] = null;
+        // Convertir product_id: si está vacío (""), convertirlo a null para que no se valide
+        if (isset($item['product_id'])) {
+          if ($item['product_id'] === '') {
+            $items[$index]['product_id'] = null;
           } else {
-            $items[$index]['producto_id'] = (int)$item['producto_id'];
+            $items[$index]['product_id'] = (int)$item['product_id'];
           }
         }
 
@@ -154,6 +154,9 @@ class UpdateElectronicDocumentRequest extends StoreRequest
         }
         if (isset($item['anticipo_regularizacion'])) {
           $items[$index]['anticipo_regularizacion'] = filter_var($item['anticipo_regularizacion'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($item['is_traverse'])) {
+          $items[$index]['is_traverse'] = filter_var($item['is_traverse'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($item['anticipo_documento_numero'])) {
           $items[$index]['anticipo_documento_numero'] = (int)$item['anticipo_documento_numero'];
@@ -359,7 +362,8 @@ class UpdateElectronicDocumentRequest extends StoreRequest
       ],
       'items.*.unidad_de_medida' => 'required_with:items|string|max:3',
       'items.*.codigo' => 'nullable|string|max:30',
-      'items.*.producto_id' => 'nullable|integer|exists:products,id',
+      'items.*.product_id' => 'nullable|integer|exists:products,id',
+      'items.*.is_traverse' => 'nullable|boolean',
       'items.*.codigo_producto_sunat' => 'nullable|string|max:8',
       'items.*.descripcion' => 'required_with:items|string',
       'items.*.cantidad' => 'required_with:items|numeric|min:0.0000000001',
