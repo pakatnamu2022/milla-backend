@@ -89,7 +89,14 @@ class AssociatePurchaseTraverseService
 
       // Si hay errores, revertir todo
       if (!empty($errors)) {
-        throw new Exception('Errores en la asociación: ' . json_encode($errors));
+        $errorMessages = [];
+        foreach ($errors as $error) {
+          $errorMessages[] = "• Producto '{$error['descripcion']}' (ID: {$error['product_id']}): {$error['error']}";
+        }
+        throw new Exception(
+          "No se pudo completar la asociación. Se encontraron los siguientes errores:\n\n" .
+          implode("\n", $errorMessages)
+        );
       }
 
       // 6. Verificar si todos los items en travesía están asociados
@@ -141,10 +148,11 @@ class AssociatePurchaseTraverseService
         // Validar que no quede negativo
         $nuevoValor = $purchaseOrderItem->quantity_available_traverse - $transaction->cantidad;
         if ($nuevoValor < 0) {
+          $purchaseOrderNumber = $purchaseOrderItem->purchaseOrder->number ?? 'N/A';
           throw new Exception(
-            "Error al revertir transacción {$transaction->id}: " .
-            "quantity_available_traverse quedaría negativo ({$nuevoValor}) para purchase_order_item_id {$purchaseOrderItem->id}. " .
-            "Posible corrupción de datos."
+            "No se puede revertir la transacción #{$transaction->id}. " .
+            "La cantidad disponible en travesía quedaría negativa ({$nuevoValor}) para el item de compra #{$purchaseOrderItem->id} " .
+            "de la orden {$purchaseOrderNumber}. Posible corrupción de datos, contacte al administrador del sistema."
           );
         }
 
