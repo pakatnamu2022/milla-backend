@@ -961,7 +961,7 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     // Definir filtros permitidos
     $filters = [
       'product_id' => '=',
-      'search' => ['ap_purchase_order_item.description', 'purchaseOrder.number'],
+      'search' => ['description', 'purchaseOrder.number'],
     ];
 
     // Definir campos de ordenamiento
