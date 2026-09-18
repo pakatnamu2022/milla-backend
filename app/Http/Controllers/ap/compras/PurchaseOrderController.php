@@ -165,4 +165,18 @@ class PurchaseOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  /**
+   * Lista items de Purchase Orders disponibles para travesía
+   * Filtra por saldo disponible (quantity > quantity_available_traverse)
+   * Permite filtrar por product_id y número de OC
+   */
+  public function listAvailableTraverseItems(Request $request)
+  {
+    try {
+      return $this->service->listAvailableTraverseItems($request);
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

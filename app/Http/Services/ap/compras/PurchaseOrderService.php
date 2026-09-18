@@ -4,6 +4,7 @@ namespace App\Http\Services\ap\compras;
 
 use App\Http\Resources\ap\compras\PurchaseOrderDynamicsResource;
 use App\Http\Resources\ap\compras\PurchaseOrderItemDynamicsResource;
+use App\Http\Resources\ap\compras\PurchaseOrderItemTraverseResource;
 use App\Http\Resources\ap\compras\PurchaseOrderResource;
 use App\Http\Services\ap\comercial\VehiclesService;
 use App\Http\Services\ap\compras\PurchaseReceptionService;
@@ -19,7 +20,10 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\ShippingGuides;
 use App\Models\ap\comercial\VehicleMovement;
 use App\Models\ap\compras\PurchaseOrder;
+use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\compras\PurchaseReception;
+use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -938,5 +942,101 @@ class PurchaseOrderService extends BaseService implements BaseServiceInterface
     if ($anticipos->isNotEmpty()) {
       $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::FACTURADO]);
     }
+  }
+
+  /**
+   * Lista items de Purchase Orders disponibles para travesía
+   * Filtra por saldo disponible: quantity > quantity_available_traverse
+   *
+   * Filtros disponibles:
+   * - product_id: ID del producto
+   * - electronic_document_id: Filtra solo items que coincidan con los product_id en travesía de ese documento
+   * - search: Búsqueda en descripción del item y número de OC
+   *
+   * @param Request $request
+   * @return \Illuminate\Http\JsonResponse
+   */
+  public function listAvailableTraverseItems(Request $request)
+  {
+    // Definir filtros permitidos
+    $filters = [
+      'product_id' => '=',
+      'search' => ['ap_purchase_order_item.description', 'purchaseOrder.number'],
+    ];
+
+    // Definir campos de ordenamiento
+    $sorts = [
+      'id',
+      'description',
+      'quantity',
+      'quantity_available_traverse',
+      'unit_price',
+    ];
+
+    // Construir query base
+    $query = PurchaseOrderItem::with([
+      'purchaseOrder:id,number,emission_date,supplier_id,sede_id,status,migration_status,invoice_dynamics,receipt_dynamics',
+      'purchaseOrder.supplier:id,full_name',
+      'product:id,name,code,dyn_code',
+      'unitMeasurement:id,dyn_code,nubefac_code,description,number_decimals',
+    ])
+      ->whereNotNull('product_id')
+      ->where('is_vehicle', false)
+      ->whereColumn('quantity', '>', 'quantity_available_traverse')
+      ->whereHas('purchaseOrder', function ($q) {
+        $q->where('status', 1)
+          ->whereIn('migration_status', ['completed', 'updated_with_nc'])
+          ->whereNotNull('invoice_dynamics')
+          ->whereNotNull('receipt_dynamics');
+      });
+
+    // Si se envía electronic_document_id, filtrar solo los items de compra
+    // que correspondan a los product_id en travesía de ese documento
+    // y que pertenezcan a la misma sede
+    if ($request->filled('electronic_document_id')) {
+      $electronicDocumentId = $request->input('electronic_document_id');
+
+      // Obtener el documento electrónico con su sede
+      $electronicDocument = ElectronicDocument::with('seriesModel:id,sede_id')
+        ->find($electronicDocumentId);
+
+      if ($electronicDocument) {
+        $sedeId = $electronicDocument->seriesModel->sede_id ?? null;
+
+        // Filtrar Purchase Orders de la misma sede
+        if ($sedeId) {
+          $query->whereHas('purchaseOrder', function ($q) use ($sedeId) {
+            $q->where('sede_id', $sedeId);
+          });
+        }
+
+        // Obtener los product_id de los items en travesía del documento electrónico
+        $traverseProductIds = ElectronicDocumentItem::where('ap_billing_electronic_document_id', $electronicDocumentId)
+          ->where('is_traverse', true)
+          ->whereNotNull('product_id')
+          ->pluck('product_id')
+          ->toArray();
+
+        // Filtrar purchase order items que tengan solo esos product_id
+        if (!empty($traverseProductIds)) {
+          $query->whereIn('product_id', $traverseProductIds);
+        } else {
+          // Si no hay items en travesía, retornar vacío
+          $query->whereRaw('1 = 0');
+        }
+      } else {
+        // Si no se encuentra el documento, retornar vacío
+        $query->whereRaw('1 = 0');
+      }
+    }
+
+    // Usar getFilteredResults con el resource extendido
+    return $this->getFilteredResults(
+      $query,
+      $request,
+      $filters,
+      $sorts,
+      PurchaseOrderItemTraverseResource::class
+    );
   }
 }
