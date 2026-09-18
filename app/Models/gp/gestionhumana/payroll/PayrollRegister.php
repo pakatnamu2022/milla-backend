@@ -86,6 +86,7 @@ class PayrollRegister extends BaseModel
     'life_insurance',
     'sctr_health',
     'sctr_pension',
+    'sctr_rate_id',
     'employer_contributions_total',
     // Netos finales
     'vacation_paid_preliminary',
@@ -192,6 +193,11 @@ class PayrollRegister extends BaseModel
   public function worker(): BelongsTo
   {
     return $this->belongsTo(Worker::class, 'worker_id');
+  }
+
+  public function sctrRate(): BelongsTo
+  {
+    return $this->belongsTo(SctrRate::class, 'sctr_rate_id');
   }
 
   public function scopeByPeriod($query, int $periodId)

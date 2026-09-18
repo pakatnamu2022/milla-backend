@@ -144,6 +144,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\AttendanceRuleController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollBonusController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollExclusionController;
+use App\Http\Controllers\gp\gestionhumana\payroll\SctrRateController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
@@ -2435,6 +2436,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('exclusions', [PayrollExclusionController::class, 'index']);
     Route::post('exclusions', [PayrollExclusionController::class, 'store']);
     Route::delete('exclusions/{id}', [PayrollExclusionController::class, 'destroy']);
+
+    // Tasas SCTR por empresa con vigencia (al crear una nueva se cierra la vigente)
+    Route::get('sctr-rates', [SctrRateController::class, 'index']);
+    Route::post('sctr-rates', [SctrRateController::class, 'store']);
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);
