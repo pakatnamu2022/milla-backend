@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Utils\Constants;
 use App\Models\gp\gestionhumana\asistencias\AttendanceSync;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,9 +42,16 @@ class SyncAttendanceJob implements ShouldQueue
       $excluded = $this->buildExclusionSet($date);
       $permisosMap = $this->buildPermisosMap($date);
 
-      AttendanceSync::whereDate('date', $date)->delete();
+      // Si ZKBio no devolvió nada (conexión caída, fecha purgada, etc.) no se
+      // toca lo ya sincronizado: borrar el día sin poder reinsertar lo vacía.
+      if ($rows->isEmpty()) {
+        Log::warning("SyncAttendanceJob [{$date}]: ZKBio no devolvió marcaciones, se conserva lo existente.");
+        return 0;
+      }
 
-      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $personIdsByVat, $codeMap, $scheduleMap, $excluded, $permisosMap, &$inserted) {
+      $toInsert = [];
+
+      $grouped->each(function ($punches, string $empCode) use ($date, $personMap, $personIdsByVat, $codeMap, $scheduleMap, $excluded, $permisosMap, &$toInsert) {
         $effectiveVat = $codeMap[$empCode] ?? $empCode;
         $personId = $personMap[$effectiveVat] ?? null;
 
@@ -78,13 +86,22 @@ class SyncAttendanceJob implements ShouldQueue
           'updated_at' => now()->toDateTimeString(),
         ]))->toArray();
 
-        if (empty($data)) {
-          return;
+        array_push($toInsert, ...$data);
+      });
+
+      // Borrado + inserción atómicos: si algo falla, el día queda como estaba.
+      // Solo se reemplazan las marcaciones automáticas; las manuales (bulkStore)
+      // no vienen de ZKBio y no deben perderse al sincronizar.
+      DB::transaction(function () use ($date, $toInsert, &$inserted) {
+        AttendanceSync::whereDate('date', $date)
+          ->where('record_type', AttendanceSync::RECORD_TYPE_AUTOMATIC)
+          ->delete();
+
+        foreach (array_chunk($toInsert, 500) as $chunk) {
+          AttendanceSync::insert($chunk);
         }
 
-        AttendanceSync::insert($data);
-
-        $inserted += count($data);
+        $inserted = count($toInsert);
       });
     } catch (\Throwable $e) {
       Log::error("SyncAttendanceJob [{$date}]: {$e->getMessage()}", ['exception' => $e]);
@@ -240,6 +257,9 @@ class SyncAttendanceJob implements ShouldQueue
     $byPosition = DB::table('rrhh_persona as p')
       ->join('rrhh_cargo as c', 'c.id', '=', 'p.cargo_id')
       ->where('p.status_deleted', 1)
+      // Solo filas activas: una fila vieja/inactiva del mismo vat con un cargo
+      // exonerado no debe excluir a la persona que sigue activa en otro cargo.
+      ->where('p.status_id', Constants::WORKER_ACTIVE)
       ->where('c.no_attendance_required', 1)
       ->pluck('p.id');
 

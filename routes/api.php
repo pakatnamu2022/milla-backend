@@ -6,6 +6,7 @@ use App\Http\Controllers\ap\comercial\ApBonusReportController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
+use App\Http\Controllers\ap\comercial\ApVehicleSalesMatrixController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
@@ -1612,6 +1613,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('purchase-order/export', [ApPurchaseOrderReportController::class, 'export']);
 
         Route::get('bonus/export', [ApBonusReportController::class, 'export']);
+
+        Route::get('vehicle-sales-matrix', [ApVehicleSalesMatrixController::class, 'index']);
+        Route::get('vehicle-sales-matrix/export', [ApVehicleSalesMatrixController::class, 'export']);
 
         Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
         Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
