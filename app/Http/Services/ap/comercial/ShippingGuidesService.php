@@ -307,17 +307,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         throw new Exception('La sede de origen y destino no pueden ser la misma para una guía interna.');
       }
 
-      $pendingGuide = ShippingGuides::where('status', true)
-        ->where('is_accounted', false)
-        ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $data['ap_vehicle_id']))
-        ->first();
-
-      if ($pendingGuide) {
-        throw new Exception(
-          "El vehículo ya tiene la guía {$pendingGuide->document_number} pendiente de contabilizar. " .
-          'Espera a que sea procesada en Dynamics antes de crear una nueva.'
-        );
-      }
+      $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
 
       $origin = BusinessPartnersEstablishment::where('business_partner_id', Constants::AP_AUTOMOTORES_PARTNER_ID)
         ->where('sede_id', $sedeTransmitterId)
@@ -1627,6 +1617,28 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       throw new Exception(
         "El vehículo ya tiene la guía {$pending->document_number} pendiente de contabilizar. " .
         'Espera a que sea procesada en Dynamics antes de crear una nueva.'
+      );
+    }
+
+    // Un traslado contabilizado sigue abierto hasta que el vehículo llega (movimiento de llegada),
+    // aunque ya esté contabilizado o facturado: no se puede volver a trasladar antes de que llegue.
+    $inTransit = ShippingGuides::where('status', true)
+      ->where('is_accounted', true)
+      ->where('is_annulled', false)
+      ->where(fn($q) => $q
+        ->where('transfer_reason_id', SunatConcepts::TRANSFER_REASON_TRASLADO_SEDE)
+        ->orWhere('document_type', ShippingGuides::DOCUMENT_TYPE_GUIA_INTERNA))
+      ->whereHas('vehicleMovement', fn($q) => $q->where('ap_vehicle_id', $vehicleId))
+      ->get()
+      ->first(fn(ShippingGuides $guide) => !VehicleMovement::where('ap_vehicle_id', $vehicleId)
+        ->where('movement_type', VehicleMovement::INTERNAL_TRANSFER)
+        ->where('observation', 'like', "%{$guide->document_number}%")
+        ->exists());
+
+    if ($inTransit) {
+      throw new Exception(
+        "El vehículo tiene el traslado {$inTransit->document_number} en camino que aún no llega. " .
+        'Espera a que llegue para crear una nueva guía.'
       );
     }
   }
