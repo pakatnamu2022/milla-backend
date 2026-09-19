@@ -18,14 +18,16 @@ class ApClassArticle extends Model
   protected $fillable = [
     'dyn_code',
     'description',
-    'account',
+    'inventory_account', //antes 'account'
+    'counterparty_account',
+    'account_sales',
     'type_operation_id',
     'type_class_id',
     'status',
   ];
 
   const filters = [
-    'search' => ['dyn_code', 'description', 'account', 'typeOperation.description'],
+    'search' => ['dyn_code', 'description', 'inventory_account', 'typeOperation.description'],
     'type_operation_id' => '='
   ];
 
@@ -57,9 +59,19 @@ class ApClassArticle extends Model
     $this->attributes['description'] = Str::upper(Str::ascii($value));
   }
 
-  public function setAccountAttribute($value)
+  public function setInventoryAccountAttribute($value)
   {
-    $this->attributes['account'] = Str::upper(Str::ascii($value));
+    $this->attributes['inventory_account'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setCounterpartyAccountAttribute($value)
+  {
+    $this->attributes['counterparty_account'] = Str::upper(Str::ascii($value));
+  }
+
+  public function setAccountSalesAttribute($value)
+  {
+    $this->attributes['account_sales'] = Str::upper(Str::ascii($value));
   }
 
   public function typeOperation(): BelongsTo

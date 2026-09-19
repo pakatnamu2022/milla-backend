@@ -50,6 +50,8 @@ class ElectronicDocumentListResource extends JsonResource
       'is_accounted' => $this->is_accounted,
       'anulado' => $this->anulado,
       'is_annulled' => $this->is_annulled,
+      'has_product_traverse' => $this->has_product_traverse,
+      'associate_purchase_traverse' => $this->associate_purchase_traverse,
 
       // Área y sede
       'area_id' => $this->area_id,

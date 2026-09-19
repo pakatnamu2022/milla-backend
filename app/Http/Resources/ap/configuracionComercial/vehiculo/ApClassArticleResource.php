@@ -13,7 +13,9 @@ class ApClassArticleResource extends JsonResource
       'id' => $this->id,
       'dyn_code' => $this->dyn_code,
       'description' => $this->description,
-      'account' => $this->account,
+      'inventory_account' => $this->inventory_account,
+      'counterparty_account' => $this->counterparty_account,
+      'account_sales' => $this->account_sales,
       'type_operation_id' => $this->type_operation_id ?? "",
       'type_operation_description' => $this->typeOperation->description ?? "",
       'status' => $this->status
