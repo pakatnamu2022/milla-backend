@@ -20,6 +20,7 @@ class VacationResource extends JsonResource
       'fecha_inicio'              => $this->fecha_inicio,
       'fecha_fin'                 => $this->fecha_fin,
       'tipo'                      => $this->tipo,
+      'tipo_nombre'               => $this->whenLoaded('vacationType', fn() => $this->vacationType?->name),
       'periodo_inicio'            => $this->periodo_inicio,
       'periodo_fin'               => $this->periodo_fin,
       'observacion'               => $this->observacion,

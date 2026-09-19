@@ -34,6 +34,7 @@ class EvaluationPersonResultResource extends JsonResource
       'result' => round($this->result, 2),
       'total_progress' => $this->total_progress,
       'is_completed' => $this->is_completed,
+      'hasObjectives' => (bool)$this->hasObjectives,
 //      'completion_percentage' => round($this->completion_percentage, 2),
     ];
 
@@ -48,7 +49,6 @@ class EvaluationPersonResultResource extends JsonResource
       $response['finalParameter'] = new EvaluationParameterResource($this->evaluation->finalParameter);
       $response['objectiveParameter'] = new EvaluationParameterResource($this->evaluation->objectiveParameter);
       $response['competenceParameter'] = new EvaluationParameterResource($this->evaluation->competenceParameter);
-      $response['hasObjectives'] = (bool)$this->hasObjectives;
     }
 
     return $response;

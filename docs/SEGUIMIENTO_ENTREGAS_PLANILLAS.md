@@ -107,7 +107,8 @@ Corresponde al cierre de **"Aportes SCTR, EsSalud, Vida Ley"** (17/08 → 28/08,
 
 - [ ] Tabla `payroll_tax_brackets` (tramos UIT 2026)
 - [ ] Proyección anual + retención en 10 cuotas desde agosto
-- [ ] Subsidios EsSalud (regla de los 20 días — pendiente de confirmar con RRHH)
+- [x] Subsidios EsSalud backend (19/09/26): `gh_payroll_subsidies` + `GET/POST/PUT/DELETE gh/payroll/subsidies` + `GET subsidies/estimate`; el register resta los días subsidiados, suma el monto en `subsidy_disability` y EsSalud/ONP se calculan sobre (ingresos − subsidio). Pendiente: pantalla en el frontend y confirmar con RRHH el caso ONP con subsidio
+- [x] Remuneración vacacional (19/09/26): (sueldo + promedio 6 meses + asignación familiar)/30 × días; se guardan `vacation_average` y `vacation_daily_value` en el register
 - [ ] LBS automática al cese (CTS trunca, vacaciones pendientes/truncas, gratificación trunca)
 
 ---

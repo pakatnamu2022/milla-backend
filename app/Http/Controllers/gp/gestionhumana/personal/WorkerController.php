@@ -80,6 +80,24 @@ class WorkerController extends Controller
     }
   }
 
+  public function contractsSummary(string $id)
+  {
+    try {
+      return response()->json($this->service->contractsSummary($id));
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function showComplete(string $id)
+  {
+    try {
+      return response()->json($this->service->showComplete($id));
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
   /**
    * @param Request $request
    * @return JsonResponse

@@ -228,4 +228,12 @@ class Worker extends BaseModel
   {
     return $this->hasOne(PensionSystem::class, 'id', 'sis_pensiones_id');
   }
+
+  /**
+   * Nivel de estudios (catálogo `rrhh_estudio`).
+   */
+  public function estudios()
+  {
+    return $this->belongsTo(Education::class, 'estudios_id');
+  }
 }
