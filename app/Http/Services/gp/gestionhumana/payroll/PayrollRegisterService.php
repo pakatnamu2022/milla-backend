@@ -232,10 +232,9 @@ class PayrollRegisterService extends BaseService
                 }
 
                 // Remuneración vacacional: (sueldo + promedio de variables de los últimos 6
-                // meses + asignación familiar) / 30 = valor del día vacacional, por los días
-                // de vacaciones. La asignación familiar siempre es el monto vigente (10% RMV),
-                // tenga o no vacaciones; como ya va dentro de la remuneración vacacional, en
-                // los ingresos solo se paga por los días que no son de vacaciones ni subsidio.
+                // meses) / 30 = valor del día vacacional, por los días de vacaciones. La
+                // asignación familiar NO va aquí: se paga completa (100% del 10% RMV) en su
+                // propia columna, tenga o no vacaciones, para no contarla dos veces.
                 $vacationAverage = 0.0;
                 $vacationDailyValue = 0.0;
                 $vacationPay = 0.00;
@@ -245,14 +244,12 @@ class PayrollRegisterService extends BaseService
                         $worker->id,
                         $companyId
                     )->total_avg, 2);
-                    $vacationDailyValue = ($monthlySalary + $vacationAverage + $familyAllowanceAmount) / self::MONTH_DAYS;
+                    $vacationDailyValue = ($monthlySalary + $vacationAverage) / self::MONTH_DAYS;
                     $vacationPay = round($daysVacation * $vacationDailyValue, 2);
                 }
 
-                $familyAllowancePaid = round(
-                    $familyAllowanceAmount * max(0, self::MONTH_DAYS - $daysVacation - $daysSubsidy) / self::MONTH_DAYS,
-                    2
-                );
+                // 100% del monto vigente, sin prorrateo por días trabajados, vacaciones ni subsidio.
+                $familyAllowancePaid = round($familyAllowanceAmount, 2);
 
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,

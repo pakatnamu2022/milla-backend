@@ -158,6 +158,15 @@ class WorkerService extends BaseService
         'sueldo' => (float)$c->sueldo,
         'es_adenda' => $c->contrato_principal !== null,
       ])->values()->all(),
+      'increases' => $increases
+        ->sortByDesc(fn(SalaryIncrease $i) => $i->effective_date->format('Y-m-d') . str_pad((string)$i->id, 10, '0', STR_PAD_LEFT))
+        ->map(fn(SalaryIncrease $i) => [
+          'id' => $i->id,
+          'fecha' => $i->effective_date->format('Y-m-d'),
+          'sueldo_anterior' => (float)$i->previous_salary,
+          'sueldo_nuevo' => (float)$i->new_salary,
+          'motivo' => $i->reason,
+        ])->values()->all(),
       'salary_history' => $history,
     ];
   }
