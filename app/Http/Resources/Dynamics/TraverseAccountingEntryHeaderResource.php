@@ -20,13 +20,19 @@ class TraverseAccountingEntryHeaderResource extends JsonResource
   public bool $isReversal;
 
   /**
+   * Fecha del comprobante
+   */
+  public string $fecha;
+
+  /**
    * Constructor
    */
-  public function __construct($resource, int $asientoNumber, bool $isReversal = false)
+  public function __construct($resource, int $asientoNumber, bool $isReversal = false, string $fecha = '')
   {
     parent::__construct($resource);
     $this->asientoNumber = $asientoNumber;
     $this->isReversal = $isReversal;
+    $this->fecha = $fecha;
   }
 
   /**
@@ -38,11 +44,19 @@ class TraverseAccountingEntryHeaderResource extends JsonResource
   {
     /** @var ElectronicDocument $this */
 
-    // NOTA: Este resource ahora retorna UN ARRAY DE HEADERS, uno por cada fecha de compra única
-    // Formato: TRV-{serie}-{numero} o TRV-{serie}-{numero}-REV
-    $referencia = "TRV-{$this->serie}-{$this->numero}";
+    // Formato: {serie}-{numero} | {fecha} o REVER {serie}-{numero} | {fecha}
+    // Límite: 30 caracteres
+    $docNumber = "{$this->serie}-{$this->numero}";
+
     if ($this->isReversal) {
-      $referencia .= '-REV';
+      $referencia = "REVER {$docNumber} | {$this->fecha}";
+    } else {
+      $referencia = "{$docNumber} | {$this->fecha}";
+    }
+
+    // Truncar si excede 30 caracteres
+    if (strlen($referencia) > 30) {
+      $referencia = substr($referencia, 0, 30);
     }
 
     // Obtener el DNI del creador del documento para LoteId

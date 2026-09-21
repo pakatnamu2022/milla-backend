@@ -26,6 +26,7 @@ class AssociatePurchaseTraverseService
     return DB::transaction(function () use ($electronicDocumentId, $purchaseOrderItemIds) {
       // 1. Validar que el documento tenga productos en travesía
       $electronicDocument = ElectronicDocument::findOrFail($electronicDocumentId);
+      $idUser = auth()->id() ?? 0;
 
       if ($electronicDocument->status !== ElectronicDocument::STATUS_ACCEPTED) {
         throw new Exception('El documento electrónico debe estar aceptado aceptado.');
@@ -76,7 +77,7 @@ class AssociatePurchaseTraverseService
 
       foreach ($traverseItems as $traverseItem) {
         try {
-          $association = $this->associateItem($traverseItem, $purchaseOrderItems);
+          $association = $this->associateItem($traverseItem, $purchaseOrderItems, $idUser);
           $associations[] = $association;
         } catch (Exception $e) {
           $errors[] = [
@@ -240,7 +241,7 @@ class AssociatePurchaseTraverseService
    * @return array
    * @throws Exception
    */
-  private function associateItem(ElectronicDocumentItem $traverseItem, $purchaseOrderItems): array
+  private function associateItem(ElectronicDocumentItem $traverseItem, $purchaseOrderItems, int $idUser): array
   {
     // Filtrar solo los items de compra del mismo producto
     $matchingItems = $purchaseOrderItems->filter(function ($item) use ($traverseItem) {
@@ -317,6 +318,7 @@ class AssociatePurchaseTraverseService
         'purchase_order_item_id' => $purchaseItem->id,
         'cantidad' => $cantidadATomar,
         'status' => 'active',
+        'create_by' => $idUser,
       ]);
 
       // Actualizar quantity_available_traverse

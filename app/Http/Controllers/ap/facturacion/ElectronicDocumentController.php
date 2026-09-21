@@ -885,6 +885,7 @@ class ElectronicDocumentController extends Controller
         'items.product.unitMeasurement',
         'items.linkTransactions.purchaseOrderItem.product',
         'items.linkTransactions.purchaseOrderItem.purchaseOrder',
+        'items.linkTransactions.creator.person',
         'creator.person',
         'currency',
         'exchangeRate',
@@ -909,81 +910,81 @@ class ElectronicDocumentController extends Controller
       // Obtener parámetro de reversión
       $isReversal = $request->boolean('is_reversal', false);
 
+      // Obtener la primera transacción activa para obtener la fecha y el creador
+      $firstTransaction = null;
+      foreach ($document->items as $item) {
+        $transaction = $item->linkTransactions()->where('status', 'active')->first();
+        if ($transaction) {
+          $firstTransaction = $transaction;
+          break;
+        }
+      }
+
+      if (!$firstTransaction) {
+        return response()->json([
+          'message' => 'No se encontraron transacciones activas para obtener la fecha y el creador'
+        ], 422);
+      }
+
+      // Obtener la fecha del created_at de la transacción
+      $transactionDate = $firstTransaction->created_at->format('Y-m-d');
+
+      // Obtener el DNI del creador de la transacción
+      $creatorVat = $firstTransaction->creator && $firstTransaction->creator->person
+        ? $firstTransaction->creator->person->vat
+        : null;
+
+      if (!$creatorVat) {
+        return response()->json([
+          'message' => 'No se pudo obtener el DNI del creador de la transacción'
+        ], 422);
+      }
+
       $logService = new TraverseMigrationLogService();
 
-      // Generar los detalles de ajuste de inventario (agrupados por purchase_date)
+      // Generar los detalles de ajuste de inventario
       $adjustmentDetailResource = new TraverseAdjustmentDetailResource($document, $isReversal);
       $adjustmentDetailLines = $adjustmentDetailResource->toArray($request);
 
-      // Generar los detalles contables (agrupados por purchase_date)
+      // Generar los detalles contables (pasando el DNI del creador)
       $asientoNumber = $logService->getNextAsientoNumber();
-      $accountingDetailResource = new TraverseAccountingEntryDetailResource($document, $asientoNumber, $isReversal);
+      $accountingDetailResource = new TraverseAccountingEntryDetailResource($document, $asientoNumber, $isReversal, $creatorVat);
       $accountingDetailLines = $accountingDetailResource->toArray($request);
 
-      // Agrupar las líneas de ajuste de inventario por purchase_date
-      $groupedAdjustmentByPurchaseDate = [];
-      foreach ($adjustmentDetailLines as $line) {
-        $purchaseDate = $line['purchase_date'];
-        if (!isset($groupedAdjustmentByPurchaseDate[$purchaseDate])) {
-          $groupedAdjustmentByPurchaseDate[$purchaseDate] = [];
-        }
-        // Remover el campo purchase_date antes de agregar a Dynamics
-        unset($line['purchase_date']);
-        $groupedAdjustmentByPurchaseDate[$purchaseDate][] = $line;
-      }
+      // Generar header de ajuste de inventario
+      $adjustmentHeaderResource = new TraverseAdjustmentHeaderResource($document, $isReversal);
+      $adjustmentHeaderData = $adjustmentHeaderResource->toArray($request);
 
-      // Agrupar las líneas de detalle contable por purchase_date
-      $groupedAccountingByPurchaseDate = [];
-      foreach ($accountingDetailLines as $line) {
-        $purchaseDate = $line['purchase_date'];
-        if (!isset($groupedAccountingByPurchaseDate[$purchaseDate])) {
-          $groupedAccountingByPurchaseDate[$purchaseDate] = [];
-        }
-        // Remover el campo purchase_date antes de agregar a Dynamics
-        unset($line['purchase_date']);
-        $groupedAccountingByPurchaseDate[$purchaseDate][] = $line;
-      }
+      // Usar la fecha de la transacción para el ajuste
+      $adjustmentHeaderData['FechaEmision'] = $transactionDate;
+      $adjustmentHeaderData['FechaContable'] = $transactionDate;
 
-      // Obtener todas las fechas de compra únicas
-      $allPurchaseDates = array_unique(array_merge(
-        array_keys($groupedAdjustmentByPurchaseDate),
-        array_keys($groupedAccountingByPurchaseDate)
-      ));
+      // Generar header contable (pasando la fecha de la transacción)
+      $accountingHeaderResource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $isReversal, $transactionDate);
+      $accountingHeaderData = $accountingHeaderResource->toArray($request);
 
-      // Generar movimientos para cada fecha de compra
-      $movimientos = [];
-      foreach ($allPurchaseDates as $purchaseDate) {
-        // Generar header de ajuste de inventario
-        $adjustmentHeaderResource = new TraverseAdjustmentHeaderResource($document, $isReversal);
-        $adjustmentHeaderData = $adjustmentHeaderResource->toArray($request);
+      // Usar la fecha de la transacción para el asiento contable
+      $accountingHeaderData['Fecha'] = $transactionDate;
 
-        // Asignar las fechas de compra al header de ajuste
-        $adjustmentHeaderData['FechaEmision'] = $purchaseDate;
-        $adjustmentHeaderData['FechaContable'] = $purchaseDate;
-
-        // Generar header contable
-        $accountingHeaderResource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $isReversal);
-        $accountingHeaderData = $accountingHeaderResource->toArray($request);
-
-        // Asignar la fecha de compra al header contable
-        $accountingHeaderData['Fecha'] = $purchaseDate;
-
-        $movimientos[] = [
-          'purchase_date' => $purchaseDate,
+      // Generar un solo movimiento con todos los detalles
+      $movimientos = [
+        [
+          'transaction_date' => $transactionDate,
+          'creator_vat' => $creatorVat,
           'paso_1_adjustment' => [
             'table_header' => 'neInTbTransaccionInventario',
             'table_detail' => 'neInTbTransaccionInventarioDet',
             'header' => $adjustmentHeaderData,
-            'details' => $groupedAdjustmentByPurchaseDate[$purchaseDate] ?? [],
+            'details' => $adjustmentDetailLines,
           ],
           'paso_2_accounting' => [
             'table_header' => 'neInTbIntegracionAsientoCab',
             'table_detail' => 'neInTbIntegracionAsientoDet',
             'header' => $accountingHeaderData,
-            'details' => $groupedAccountingByPurchaseDate[$purchaseDate] ?? [],
+            'details' => $accountingDetailLines,
           ],
-        ];
-      }
+        ]
+      ];
 
       return response()->json([
         'document_info' => [
@@ -998,9 +999,11 @@ class ElectronicDocumentController extends Controller
         'preview_mode' => $isReversal ? 'REVERSIÓN' : 'ASOCIACIÓN NORMAL',
         'dynamics_payload' => $movimientos,
         'summary' => [
-          'total_purchase_dates' => count($allPurchaseDates),
-          'purchase_dates' => $allPurchaseDates,
+          'transaction_date' => $transactionDate,
+          'creator_vat' => $creatorVat,
           'total_movements' => count($movimientos),
+          'total_adjustment_details' => count($adjustmentDetailLines),
+          'total_accounting_details' => count($accountingDetailLines),
         ],
       ]);
     } catch (Exception $e) {
