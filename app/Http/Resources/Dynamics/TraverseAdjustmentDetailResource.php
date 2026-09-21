@@ -4,6 +4,7 @@ namespace App\Http\Resources\Dynamics;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
@@ -48,7 +49,10 @@ class TraverseAdjustmentDetailResource extends JsonResource
       ->with([
         'linkTransactions' => function ($query) {
           $query->where('status', 'active')
-            ->with(['purchaseOrderItem.product.articleClass', 'purchaseOrderItem.purchaseOrder']);
+            ->with([
+              'purchaseOrderItem.product.articleClass',
+              'purchaseOrderItem.purchaseOrder.exchangeRate'
+            ]);
         },
         'product.unitMeasurement'
       ])
@@ -78,8 +82,8 @@ class TraverseAdjustmentDetailResource extends JsonResource
     $sede = $warehouse->sede;
     $allDetails = [];
 
-    // PASO 1: Agrupar por fecha de compra -> producto
-    $groupedByPurchaseDate = [];
+    // PASO 1: Agrupar por producto (sin importar la fecha de compra)
+    $groupedByProduct = [];
 
     foreach ($traverseItems as $item) {
       $product = $item->product;
@@ -119,27 +123,24 @@ class TraverseAdjustmentDetailResource extends JsonResource
         ? $productWarehouse->counterparty_account . '-' . $sede->dyn_code
         : throw new Exception("El warehouse no tiene cuenta contrapartida configurada para el producto '{$product->name}'.");
 
-      // Agrupar por fecha de compra
+      // Agrupar solo por producto (acumular todas las cantidades sin importar fecha de compra)
       foreach ($item->linkTransactions as $transaction) {
-        $purchaseOrder = $transaction->purchaseOrderItem->purchaseOrder;
-
-        if (!$purchaseOrder || !$purchaseOrder->emission_date) {
-          throw new Exception("La orden de compra no tiene fecha de emisión.");
-        }
-
-        $purchaseDate = $purchaseOrder->emission_date->format('Y-m-d');
         $quantity = (float)$transaction->cantidad;
         $unitCost = (float)$transaction->purchaseOrderItem->unit_price;
 
-        // Crear clave única por fecha + producto
-        $key = $purchaseDate . '_' . $product->id;
+        // Obtener la orden de compra
+        $purchaseOrder = $transaction->purchaseOrderItem->purchaseOrder;
 
-        if (!isset($groupedByPurchaseDate[$purchaseDate])) {
-          $groupedByPurchaseDate[$purchaseDate] = [];
+        // Si la compra fue en dólares, convertir a soles
+        if ($purchaseOrder && $purchaseOrder->currency_id == TypeCurrency::USD_ID) {
+          $purchaseExchangeRate = $purchaseOrder->exchangeRate?->rate ?? 1;
+          $unitCost = $unitCost * $purchaseExchangeRate;
         }
 
-        if (!isset($groupedByPurchaseDate[$purchaseDate][$key])) {
-          $groupedByPurchaseDate[$purchaseDate][$key] = [
+        $productId = $product->id;
+
+        if (!isset($groupedByProduct[$productId])) {
+          $groupedByProduct[$productId] = [
             'product' => $product,
             'warehouse' => $warehouse,
             'cuenta_inventario' => $cuentaInventario,
@@ -149,43 +150,40 @@ class TraverseAdjustmentDetailResource extends JsonResource
           ];
         }
 
-        $groupedByPurchaseDate[$purchaseDate][$key]['total_quantity'] += $quantity;
-        $groupedByPurchaseDate[$purchaseDate][$key]['total_cost'] += $quantity * $unitCost;
+        $groupedByProduct[$productId]['total_quantity'] += $quantity;
+        $groupedByProduct[$productId]['total_cost'] += $quantity * $unitCost;
       }
     }
 
-    // PASO 2: Generar las líneas del ajuste para cada fecha de compra
-    foreach ($groupedByPurchaseDate as $purchaseDate => $products) {
-      $lineNumber = 1;
+    // PASO 2: Generar las líneas del ajuste
+    $lineNumber = 1;
 
-      foreach ($products as $key => $data) {
-        $product = $data['product'];
-        $totalQuantity = $data['total_quantity'];
-        $totalCost = $data['total_cost'];
-        $averageCost = $totalQuantity > 0 ? $totalCost / $totalQuantity : 0;
+    foreach ($groupedByProduct as $productId => $data) {
+      $product = $data['product'];
+      $totalQuantity = $data['total_quantity'];
+      $totalCost = $data['total_cost'];
+      $averageCost = $totalQuantity > 0 ? $totalCost / $totalQuantity : 0;
 
-        // Asegurar el signo correcto de la cantidad:
-        // - Salida (normal): cantidad NEGATIVA (porque se está vendiendo/usando)
-        // - Reversión (ingreso): cantidad POSITIVA (porque se está devolviendo al inventario)
-        $cantidad = $this->isReversal ? $totalQuantity : -$totalQuantity;
+      // Asegurar el signo correcto de la cantidad:
+      // - Salida (normal): cantidad NEGATIVA (porque se está vendiendo/usando)
+      // - Reversión (ingreso): cantidad POSITIVA (porque se está devolviendo al inventario)
+      $cantidad = $this->isReversal ? $totalQuantity : -$totalQuantity;
 
-        $allDetails[] = [
-          'purchase_date' => $purchaseDate, // Metadata para agrupación posterior
-          'EmpresaId' => Company::AP_DYNAMICS,
-          'TransaccionId' => $transactionId,
-          'Linea' => $lineNumber,
-          'ArticuloId' => $product->dyn_code ?? 'N/A',
-          'Motivo' => $this->isReversal ? 'Reversión travesía' : 'Ajuste travesía',
-          'UnidadMedidaId' => $product->unitMeasurement->dyn_code ?? 'UND',
-          'Cantidad' => $cantidad,
-          'AlmacenId' => $data['warehouse']->dyn_code ?? '',
-          'CostoUnitario' => round($averageCost, 2),
-          'CuentaInventario' => $data['cuenta_inventario'],
-          'CuentaContrapartida' => $data['cuenta_contrapartida'],
-        ];
+      $allDetails[] = [
+        'EmpresaId' => Company::AP_DYNAMICS,
+        'TransaccionId' => $transactionId,
+        'Linea' => $lineNumber,
+        'ArticuloId' => $product->dyn_code ?? 'N/A',
+        'Motivo' => '',
+        'UnidadMedidaId' => $product->unitMeasurement->dyn_code ?? 'UND',
+        'Cantidad' => $cantidad,
+        'AlmacenId' => $data['warehouse']->dyn_code ?? '',
+        'CostoUnitario' => round($averageCost, 2),
+        'CuentaInventario' => $data['cuenta_inventario'],
+        'CuentaContrapartida' => $data['cuenta_contrapartida'],
+      ];
 
-        $lineNumber++;
-      }
+      $lineNumber++;
     }
 
     return $allDetails;
