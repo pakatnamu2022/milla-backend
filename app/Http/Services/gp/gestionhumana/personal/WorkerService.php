@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\personal;
 
+use App\Http\Resources\gp\gestionhumana\personal\WorkerCompleteResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerHierarchyResource;
 use App\Http\Resources\gp\gestionhumana\personal\WorkerResource;
 use App\Http\Resources\PersonBirthdayResource;
@@ -11,7 +12,10 @@ use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
 use App\Models\ap\configuracionComercial\venta\ApAssignmentLeadership;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationPersonDetail;
+use App\Models\gp\gestionhumana\contratos\Contract;
+use App\Models\gp\gestionhumana\personal\SalaryIncrease;
 use App\Models\gp\gestionhumana\personal\Worker;
+use App\Models\gp\gestionhumana\personal\WorkerContract;
 use App\Models\gp\gestionhumana\evaluacion\EvaluationCategoryObjectiveDetail;
 use App\Models\gp\gestionhumana\personal\WorkerSignature;
 use App\Models\gp\gestionsistema\DigitalFile;
@@ -62,6 +66,109 @@ class WorkerService extends BaseService
       $worker->load('workSchedule.details');
     }
     return (new WorkerResource($worker))->showExtra($showExtra);
+  }
+
+  /** Ficha completa (misma forma que el perfil de usuario) de un trabajador. */
+  public function showComplete(string $id): WorkerCompleteResource
+  {
+    $worker = $this->find($id);
+    $worker->loadMissing(['sede.company', 'position', 'estudios']);
+    return new WorkerCompleteResource($worker);
+  }
+
+  /**
+   * Contratos del trabajador con su sueldo + evolución del sueldo para la ficha.
+   *
+   * La evolución combina el sueldo declarado en cada contrato (rrhh_contrato) con los aumentos
+   * registrados (gh_salary_increases) y, al final, el sueldo actual de rrhh_persona: en contratos
+   * INDETERMINADOS el contrato no se reemplaza al subir el sueldo (ver WorkerContract), así que el
+   * sueldo real vigente solo está en la persona. Solo se conservan los puntos donde el sueldo cambia,
+   * porque el legacy repite contratos/adendas con el mismo monto.
+   */
+  public function contractsSummary(string $id): array
+  {
+    $worker = $this->find($id);
+
+    $contracts = Contract::query()
+      ->with(['contractType', 'position', 'sede'])
+      ->where('empleado_id', $worker->id)
+      ->orderByDesc('fecha_inicio_contrato')
+      ->orderByDesc('id')
+      ->get();
+
+    $increases = SalaryIncrease::where('worker_id', $worker->id)->get();
+
+    $events = collect();
+    foreach ($contracts as $contract) {
+      if ((float)$contract->sueldo > 0 && $contract->fecha_inicio_contrato) {
+        $events->push([
+          'date' => $contract->fecha_inicio_contrato->format('Y-m-d'),
+          'salary' => (float)$contract->sueldo,
+          'source' => 'CONTRATO',
+          'detail' => $contract->contractType?->descripcion,
+          'order' => 0,
+        ]);
+      }
+    }
+    foreach ($increases as $increase) {
+      $events->push([
+        'date' => $increase->effective_date->format('Y-m-d'),
+        'salary' => (float)$increase->new_salary,
+        'source' => 'AUMENTO',
+        'detail' => $increase->reason,
+        'order' => 1,
+      ]);
+    }
+
+    // En la misma fecha gana el aumento (order 1) sobre el contrato.
+    $history = [];
+    foreach ($events->sortBy([['date', 'asc'], ['order', 'asc']]) as $event) {
+      $last = end($history);
+      if ($last && abs($last['salary'] - $event['salary']) < 0.005) {
+        continue;
+      }
+      $history[] = collect($event)->except('order')->all();
+    }
+
+    $currentSalary = $worker->sueldo !== null ? (float)$worker->sueldo : null;
+    $last = end($history);
+    if ($currentSalary && $currentSalary > 0 && (!$last || abs($last['salary'] - $currentSalary) >= 0.005)) {
+      $history[] = [
+        'date' => now()->format('Y-m-d'),
+        'salary' => $currentSalary,
+        'source' => 'ACTUAL',
+        'detail' => 'Sueldo actual registrado en la ficha',
+      ];
+    }
+
+    // Misma regla que SalaryIncreaseService::store: solo si el último contrato es INDETERMINADO.
+    $latestContract = WorkerContract::latestContract($worker->id);
+
+    return [
+      'worker_id' => $worker->id,
+      'current_salary' => $currentSalary,
+      'can_register_increase' => $latestContract !== null && WorkerContract::isIndeterminado($latestContract),
+      'contracts' => $contracts->map(fn(Contract $c) => [
+        'id' => $c->id,
+        'tipo_contrato' => $c->contractType?->descripcion,
+        'cargo' => $c->position?->name,
+        'sede' => $c->sede?->abreviatura ?? $c->sede?->razon_social,
+        'fecha_inicio' => $c->fecha_inicio_contrato?->format('Y-m-d'),
+        'fecha_fin' => $c->fecha_fin_contrato?->format('Y-m-d'),
+        'sueldo' => (float)$c->sueldo,
+        'es_adenda' => $c->contrato_principal !== null,
+      ])->values()->all(),
+      'increases' => $increases
+        ->sortByDesc(fn(SalaryIncrease $i) => $i->effective_date->format('Y-m-d') . str_pad((string)$i->id, 10, '0', STR_PAD_LEFT))
+        ->map(fn(SalaryIncrease $i) => [
+          'id' => $i->id,
+          'fecha' => $i->effective_date->format('Y-m-d'),
+          'sueldo_anterior' => (float)$i->previous_salary,
+          'sueldo_nuevo' => (float)$i->new_salary,
+          'motivo' => $i->reason,
+        ])->values()->all(),
+      'salary_history' => $history,
+    ];
   }
 
   public function listBirthdays(Request $request)

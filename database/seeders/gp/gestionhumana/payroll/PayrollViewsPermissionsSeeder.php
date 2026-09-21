@@ -125,6 +125,21 @@ class PayrollViewsPermissionsSeeder extends Seeder
           'route' => 'exclusiones',
           'icon' => 'ShieldOff',
         ],
+        [
+          'descripcion' => 'Tasas SCTR',
+          'route' => 'tasas-sctr',
+          'icon' => 'Percent',
+        ],
+        [
+          'descripcion' => 'Pólizas Vida Ley',
+          'route' => 'polizas-vida-ley',
+          'icon' => 'ShieldCheck',
+        ],
+        [
+          'descripcion' => 'Subsidios',
+          'route' => 'subsidios',
+          'icon' => 'HeartPulse',
+        ],
       ];
 
       $actionConfig = [

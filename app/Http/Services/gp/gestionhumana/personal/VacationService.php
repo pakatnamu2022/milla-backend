@@ -13,7 +13,7 @@ class VacationService extends BaseService
   public function list(Request $request): JsonResponse
   {
     return $this->getFilteredResults(
-      Vacation::query()->with(['employee', 'sede', 'status']),
+      Vacation::query()->with(['employee', 'sede', 'status', 'vacationType']),
       $request,
       Vacation::filters,
       Vacation::sorts,

@@ -69,6 +69,11 @@ class Vacation extends BaseModel
     return $this->belongsTo(Status::class, 'status_id');
   }
 
+  public function vacationType()
+  {
+    return $this->belongsTo(VacationType::class, 'tipo');
+  }
+
   public function writeUser()
   {
     return $this->belongsTo(User::class, 'write_id');
