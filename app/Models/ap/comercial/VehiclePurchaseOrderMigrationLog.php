@@ -95,6 +95,22 @@ class VehiclePurchaseOrderMigrationLog extends Model
   const STEP_INTERNAL_NOTE_TRANSACTION_REVERSAL = 'internal_note_transaction_REVERSAL';
   const STEP_INTERNAL_NOTE_TRANSACTION_DETAIL_REVERSAL = 'internal_note_transaction_detail_REVERSAL';
 
+  // Constantes para los pasos de migración (Travesía - Ajuste de Inventario)
+  const STEP_TRAVERSE_ADJUSTMENT = 'traverse_adjustment';
+  const STEP_TRAVERSE_ADJUSTMENT_DETAIL = 'traverse_adjustment_detail';
+
+  // Constantes para los pasos de reversión (Travesía - Ajuste de Inventario)
+  const STEP_TRAVERSE_ADJUSTMENT_REVERSAL = 'traverse_adjustment_REVERSAL';
+  const STEP_TRAVERSE_ADJUSTMENT_DETAIL_REVERSAL = 'traverse_adjustment_detail_REVERSAL';
+
+  // Constantes para los pasos de migración (Travesía - Asiento Contable)
+  const STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER = 'traverse_accounting_entry_header';
+  const STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL = 'traverse_accounting_entry_detail';
+
+  // Constantes para los pasos de reversión (Travesía - Asiento Contable)
+  const STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER_REVERSAL = 'traverse_accounting_entry_header_REVERSAL';
+  const STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL_REVERSAL = 'traverse_accounting_entry_detail_REVERSAL';
+
   // Constantes para los estados
   const STATUS_PENDING = 'pending';
   const STATUS_IN_PROGRESS = 'in_progress';
@@ -144,6 +160,14 @@ class VehiclePurchaseOrderMigrationLog extends Model
     self::STEP_ASSET_TRANSACTION => 'neInTbTransaccionInventario',
     self::STEP_ASSET_TRANSACTION_DETAIL => 'neInTbTransaccionInventarioDet',
     self::STEP_ASSET_TRANSACTION_SERIAL => 'neInTbTransaccionInventarioDtS',
+    self::STEP_TRAVERSE_ADJUSTMENT => 'neInTbTransaccionInventario',
+    self::STEP_TRAVERSE_ADJUSTMENT_DETAIL => 'neInTbTransaccionInventarioDet',
+    self::STEP_TRAVERSE_ADJUSTMENT_REVERSAL => 'neInTbTransaccionInventario',
+    self::STEP_TRAVERSE_ADJUSTMENT_DETAIL_REVERSAL => 'neInTbTransaccionInventarioDet',
+    self::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER => 'neInTbIntegracionAsientoCab',
+    self::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL => 'neInTbIntegracionAsientoDet',
+    self::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER_REVERSAL => 'neInTbIntegracionAsientoCab',
+    self::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL_REVERSAL => 'neInTbIntegracionAsientoDet',
   ];
 
   /**

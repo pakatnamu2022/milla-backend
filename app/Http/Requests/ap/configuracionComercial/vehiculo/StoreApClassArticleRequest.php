@@ -29,22 +29,16 @@ class StoreApClassArticleRequest extends StoreRequest
         'required',
         'string',
         'max:20',
-        Rule::unique('ap_class_article', 'inventory_account')
-          ->whereNull('deleted_at'),
       ],
       'counterparty_account' => [
         'nullable',
         'string',
         'max:20',
-        Rule::unique('ap_class_article', 'counterparty_account')
-          ->whereNull('deleted_at'),
       ],
       'account_sales' => [
         'nullable',
         'string',
         'max:20',
-        Rule::unique('ap_class_article', 'account_sales')
-          ->whereNull('deleted_at'),
       ],
       'type_operation_id' => [
         'required',
@@ -70,15 +64,12 @@ class StoreApClassArticleRequest extends StoreRequest
       'inventory_account.required' => 'El campo cuenta es obligatorio.',
       'inventory_account.string' => 'La cuenta debe ser una cadena de texto.',
       'inventory_account.max' => 'La cuenta no debe exceder los 20 caracteres.',
-      'inventory_account.unique' => 'El campo cuenta ya existe.',
 
       'counterparty_account.string' => 'La cuenta contrapartida debe ser una cadena de texto.',
       'counterparty_account.max' => 'La cuenta contrapartida no debe exceder los 20 caracteres.',
-      'counterparty_account.unique' => 'El campo cuenta contrapartida ya existe.',
 
       'account_sales.string' => 'La cuenta de ventas debe ser una cadena de texto.',
       'account_sales.max' => 'La cuenta de ventas no debe exceder los 20 caracteres.',
-      'account_sales.unique' => 'El campo cuenta de ventas ya existe.',
 
       'type_operation_id.required' => 'El campo tipo de operación es obligatorio.',
       'type_operation_id.integer' => 'El campo tipo de operación debe ser un entero.',

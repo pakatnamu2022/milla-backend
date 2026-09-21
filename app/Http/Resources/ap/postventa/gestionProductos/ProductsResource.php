@@ -28,6 +28,7 @@ class ProductsResource extends JsonResource
       'brand_id' => $this->brand_id,
       'unit_measurement_id' => $this->unit_measurement_id,
       'ap_class_article_id' => $this->ap_class_article_id,
+      'ap_class_article_description' => $this->articleClass->description ?? null,
       'warranty_months' => $this->warranty_months,
       'status' => $this->status,
       'brand_name' => $this->brand->name ?? null,
