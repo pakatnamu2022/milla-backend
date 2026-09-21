@@ -2082,6 +2082,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
+      Route::put('supplierOrders/{id}/replace-product', [ApSupplierOrderController::class, 'replaceProduct']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
         'show',

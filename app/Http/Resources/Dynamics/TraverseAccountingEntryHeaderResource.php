@@ -25,14 +25,20 @@ class TraverseAccountingEntryHeaderResource extends JsonResource
   public string $fecha;
 
   /**
+   * DNI del creador de la transacción
+   */
+  public ?string $creatorVat;
+
+  /**
    * Constructor
    */
-  public function __construct($resource, int $asientoNumber, bool $isReversal = false, string $fecha = '')
+  public function __construct($resource, int $asientoNumber, bool $isReversal = false, string $fecha = '', ?string $creatorVat = null)
   {
     parent::__construct($resource);
     $this->asientoNumber = $asientoNumber;
     $this->isReversal = $isReversal;
     $this->fecha = $fecha;
+    $this->creatorVat = $creatorVat;
   }
 
   /**
@@ -59,8 +65,8 @@ class TraverseAccountingEntryHeaderResource extends JsonResource
       $referencia = substr($referencia, 0, 30);
     }
 
-    // Obtener el DNI del creador del documento para LoteId
-    $loteId = $this->creator?->person?->vat ?? 'SYSTEM';
+    // Obtener el DNI del creador de la transacción para LoteId
+    $loteId = $this->creatorVat ?? 'SYSTEM';
 
     // Obtener el código de moneda
     $monedaId = $this->currency?->iso_code ?? 'PEN';
