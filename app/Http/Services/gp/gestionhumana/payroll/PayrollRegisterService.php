@@ -14,6 +14,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollRegister;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
+use App\Models\gp\gestionhumana\payroll\PayrollSubsidy;
 use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use App\Models\gp\gestionhumana\payroll\SctrRate;
 use App\Models\gp\gestionhumana\personal\Worker;
@@ -32,6 +33,9 @@ class PayrollRegisterService extends BaseService
      * valor/patrón que PayrollLiquidationBbssService::FAMILY_ALLOWANCE_AMOUNT.
      */
     private const FAMILY_ALLOWANCE_AMOUNT = 113.00;
+
+    // Mes comercial de 30 días (mismo criterio del Excel de planilla y del resto del módulo).
+    private const MONTH_DAYS = 30;
 
     public function list(Request $request)
     {
@@ -98,6 +102,9 @@ class PayrollRegisterService extends BaseService
                 PayrollRegister::where('period_id', $periodId)->delete();
             }
 
+            // Centro de costo: rrhh_persona.centro_costo_id → rrhh_centro_costo.name
+            $costCenters = DB::table('rrhh_centro_costo')->pluck('name', 'id');
+
             $createdCount = 0;
             $skippedCount = 0;
 
@@ -148,7 +155,8 @@ class PayrollRegisterService extends BaseService
                 $workerName = $worker->nombre_completo ?? '';
                 $workerVat = $worker->vat ?? '';
                 $occupation = $worker->position->name ?? '';
-                $costCenter = $worker->sede->nombre ?? '';
+                $cuspp = trim((string)($worker->cuspp ?? '')) ?: null;
+                $costCenter = $costCenters[$worker->centro_costo_id] ?? '';
 
                 // Sueldo mensual vigente EN EL PERÍODO, resuelto contra el historial de
                 // contratos (rrhh_contrato) — nunca rrhh_persona.sueldo (sueldo ACTUAL),
@@ -186,8 +194,6 @@ class PayrollRegisterService extends BaseService
                     // donde días trabajados ya incluye DM/LCGH como día pagado).
                     $daysWorked = (int)$calculation->days_worked;
                     $basicSalary = (float)$calculation->basic_salary;
-                    $vacationHourValue = (float)($calculation->vacation_hour_value ?? 0.00);
-                    $vacationPay = round($daysVacation * $vacationHourValue, 2);
                 } else {
                     // Sin PayrollCalculation (no se corrió "Calcular asistencias" para
                     // este trabajador/período — gh_payroll_schedules quedó vacío): en vez
@@ -209,20 +215,48 @@ class PayrollRegisterService extends BaseService
                     // Sueldo básico GANADO en el período: prorrateado por días trabajados
                     // (sueldo/30*días), no el sueldo mensual pleno.
                     $basicSalary = round($monthlySalary / 30 * $daysWorked, 2);
-
-                    // Sin historial de cálculo no hay promedio de los últimos 6 meses
-                    // disponible (PayrollCalculation::calcularPromedioUltimos6Meses):
-                    // se aproxima el valor del día vacacional al sueldo/30, igual que un
-                    // día normal — documentado, RRHH puede ajustar corriendo el cálculo.
-                    $vacationHourValue = $monthlySalary / 30;
-                    $vacationPay = round($daysVacation * $vacationHourValue, 2);
                 }
+
+                // Subsidio EsSalud (incapacidad temporal / maternidad): días y monto del
+                // periodo según los certificados registrados (gh_payroll_subsidies). Esos
+                // días no los paga el empleador, así que no cuentan como días trabajados.
+                $subsidy = PayrollSubsidy::allocationForPeriod($worker->id, $period->start_date, $period->end_date);
+                $daysSubsidy = $subsidy['days'];
+                $subsidyAmount = $subsidy['amount'];
+                if ($daysSubsidy > 0) {
+                    $maxDaysWorked = max(0, self::MONTH_DAYS - $daysVacation - $daysSubsidy);
+                    if ($daysWorked > $maxDaysWorked) {
+                        $daysWorked = $maxDaysWorked;
+                        $basicSalary = round($monthlySalary / self::MONTH_DAYS * $daysWorked, 2);
+                    }
+                }
+
+                // Remuneración vacacional: (sueldo + promedio de variables de los últimos 6
+                // meses) / 30 = valor del día vacacional, por los días de vacaciones. La
+                // asignación familiar NO va aquí: se paga completa (100% del 10% RMV) en su
+                // propia columna, tenga o no vacaciones, para no contarla dos veces.
+                $vacationAverage = 0.0;
+                $vacationDailyValue = 0.0;
+                $vacationPay = 0.00;
+                if ($daysVacation > 0) {
+                    $vacationAverage = round((float)PayrollCalculation::calcularPromedioUltimos6Meses(
+                        $periodId,
+                        $worker->id,
+                        $companyId
+                    )->total_avg, 2);
+                    $vacationDailyValue = ($monthlySalary + $vacationAverage) / self::MONTH_DAYS;
+                    $vacationPay = round($daysVacation * $vacationDailyValue, 2);
+                }
+
+                // 100% del monto vigente, sin prorrateo por días trabajados, vacaciones ni subsidio.
+                $familyAllowancePaid = round($familyAllowanceAmount, 2);
 
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
-                    'family_allowance' => $familyAllowanceAmount,
+                    'family_allowance' => $familyAllowancePaid,
                     'overtime_25' => $calculation->overtime_25 ?? 0.00,
                     'overtime_35' => $calculation->overtime_35 ?? 0.00,
+                    'subsidy_disability' => $subsidyAmount,
                     'holiday_pay' => $calculation->holiday_pay ?? 0.00,
                     'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,
                     'night_bonus' => $calculation->night_bonus ?? 0.00,
@@ -233,10 +267,10 @@ class PayrollRegisterService extends BaseService
                 ]);
 
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
-                $employerContributions = $this->calculateEmployerContributions($worker, $companyId, $basicSalary, $familyAllowanceAmount, $totalIncome, $period->end_date);
+                $employerContributions = $this->calculateEmployerContributions($worker, $companyId, $basicSalary, $familyAllowanceAmount, $totalIncome, $subsidyAmount, $period->end_date);
 
                 // Descuentos ONP/AFP (según rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones)
-                $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome);
+                $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome, $subsidyAmount);
 
                 // Renta de 5ta categoría: proyección anual simplificada (ingreso mensual x 12,
                 // menos 7 UIT, tramos progresivos 8/14/17/20/30%, prorrateado a cuota mensual).
@@ -312,6 +346,7 @@ class PayrollRegisterService extends BaseService
                     'worker_vat' => $workerVat,
 
                     // Datos del período
+                    'cuspp' => $cuspp,
                     'cost_center' => $costCenter,
                     'status' => 'Activo',
                     'occupation' => $occupation,
@@ -328,25 +363,27 @@ class PayrollRegisterService extends BaseService
                     'days_absence' => $daysAbsence,
                     'days_leave_unpaid' => $daysLeaveUnpaid,
                     'days_leave_paid' => $daysLeavePaid,
-                    'days_subsidy' => 0, // TODO: sin código de asistencia dedicado a subsidio hoy
+                    'days_subsidy' => $daysSubsidy,
                     'days_not_worked' => $daysNotWorked,
-                    // days_worked ya incluye DM/LCGH como día pagado (igual que en
-                    // PayrollCalculation), por eso no se vuelven a sumar aquí.
-                    'days_effective' => $daysWorked + $daysVacation,
+                    // Días efectivos = días laborados (30 − vacaciones − subsidio −
+                    // licencia sin goce): las vacaciones NO cuentan como día efectivo.
+                    'days_effective' => $daysWorked,
                     'normal_hours' => $calculation->total_normal_hours ?? 0,
                     'has_vacation' => $daysVacation > 0,
-                    'has_subsidy' => false,
+                    'has_subsidy' => $daysSubsidy > 0,
                     'calc_days_worked' => $daysWorked,
                     'calc_days_not_worked' => $calculation->days_absent ?? 0,
 
                     // Ingresos (desde cálculos o valores por defecto)
                     'basic_salary' => $basicSalary,
-                    'family_allowance' => $familyAllowanceAmount,
+                    'family_allowance' => $familyAllowancePaid,
                     'overtime_25' => $calculation->overtime_25 ?? 0.00,
                     'overtime_35' => $calculation->overtime_35 ?? 0.00,
-                    'subsidy_disability' => 0.00, // TODO: implementar lógica
+                    'subsidy_disability' => $subsidyAmount,
                     'work_conditions' => $workConditions,
                     'vacation_pay' => $vacationPay,
+                    'vacation_average' => $vacationAverage,
+                    'vacation_daily_value' => round($vacationDailyValue, 4),
                     'production_bonus' => $productionBonus,
                     'holiday_days_pay' => $calculation->holiday_pay ?? 0.00,
                     'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,
@@ -445,12 +482,9 @@ class PayrollRegisterService extends BaseService
      * y descanso médico aprobados por RRHH pero con gh_payroll_schedules vacío, cuyo
      * registro de planilla caía a 30 días trabajados por defecto ignorando ambos.
      *
-     * Convenciones de status_deleted confirmadas empíricamente (no son iguales entre
-     * tablas):
-     * - rrhh_vacaciones: status_deleted=0 es el registro vigente (las versiones
-     *   anteriores de una solicitud editada quedan en 1) — al revés de rrhh_persona.
-     * - rrhh_ausentismo_laboral: status_deleted=1 = no eliminado/activo, como el resto
-     *   del proyecto (rrhh_persona, etc.).
+     * Convención de status_deleted: en ambas tablas status_deleted=1 = registro vigente
+     * (como el resto del proyecto y como AttendanceSyncService); status_deleted=0 son
+     * solicitudes eliminadas o versiones reemplazadas de una solicitud editada.
      *
      * @param int $workerId
      * @param PayrollPeriod $period
@@ -464,7 +498,7 @@ class PayrollRegisterService extends BaseService
         $vacations = DB::table('rrhh_vacaciones')
             ->where('empleado_id', $workerId)
             ->where('status_id', 19) // APROBADO (config_status)
-            ->where('status_deleted', 0)
+            ->where('status_deleted', 1) // vigente (0 = eliminada/reemplazada)
             ->where('fecha_inicio', '<=', $endDate)
             ->where('fecha_fin', '>=', $startDate)
             ->get(['fecha_inicio', 'fecha_fin']);
@@ -526,11 +560,14 @@ class PayrollRegisterService extends BaseService
      * Calcular aportes del empleador: SCTR (salud + pensión), EsSalud y Vida Ley.
      *
      * Tasas configurables vía GeneralMaster (patrón ya usado en PayrollScheduleService):
-     * - EsSalud: 9% sobre el total de ingresos, con piso RMV.
-     * - SCTR (salud + pensión): (básico + asignación familiar) x tasa, con la tasa de la
+     * - EsSalud: 9% sobre el total de ingresos MENOS el subsidio (el subsidio lo paga EsSalud,
+     *   no está afecto), con piso RMV cuando el total de ingresos no supera la RMV (igual que
+     *   la columna ESSALUD de la planilla Excel).
+     * - SCTR (salud + pensión): (total de ingresos - subsidio) x tasa, con la tasa de la
      *   empresa vigente a la fecha (gh_sctr_rates), solo si el trabajador está afiliado
-     *   (rrhh_persona.estado_sctr = 'SI'). Usa el sueldo ACTUAL de rrhh_persona (el
-     *   $basicSalary del register). SCTR pensión tiene tope en la RMA (Remuneración
+     *   (rrhh_persona.estado_sctr = 'SI'). La base es el total de
+     *   ingresos del periodo (antes de descuentos; incluye vacaciones, horas extra, bonos,
+     *   asignación familiar), sin el subsidio, igual que EsSalud. SCTR pensión tiene tope en la RMA (Remuneración
      *   Máxima Asegurable).
      * - Vida Ley: NO se calcula aquí. El monto mensual se calculó una sola vez al emitir la
      *   póliza de la empresa (gh_life_insurance_policies) y aquí solo se lee el del
@@ -538,14 +575,15 @@ class PayrollRegisterService extends BaseService
      *
      * @param Worker $worker
      * @param int $companyId
-     * @param float $basicSalary Básico del register (sueldo actual, prorrateado) — base de SCTR.
+     * @param float $basicSalary Básico del register (prorrateado).
      * @param float $familyAllowance
-     * @param float $totalIncome Total de ingresos real del periodo — base de EsSalud.
+     * @param float $totalIncome Total de ingresos real del periodo (incluye el subsidio) — base de EsSalud.
+     * @param float $subsidyAmount Subsidio EsSalud del periodo, que se resta de la base de EsSalud.
      * @param string|null $referenceDate Fecha (fin del periodo) para resolver las tasas/RMV/póliza
      *        vigentes en ese momento, no las de hoy — ver GeneralMaster::valueAt().
      * @return array{essalud: float, sctr_health: float, sctr_pension: float, sctr_total: float, sctr_rate_id: ?int, life_insurance: float, life_insurance_policy_worker_id: ?int, total: float}
      */
-    private function calculateEmployerContributions(Worker $worker, int $companyId, float $basicSalary, float $familyAllowance, float $totalIncome, ?string $referenceDate = null): array
+    private function calculateEmployerContributions(Worker $worker, int $companyId, float $basicSalary, float $familyAllowance, float $totalIncome, float $subsidyAmount = 0.0, ?string $referenceDate = null): array
     {
         $referenceDate = $referenceDate ?? now()->format('Y-m-d');
 
@@ -561,8 +599,9 @@ class PayrollRegisterService extends BaseService
             ?? GeneralMaster::find(GeneralMaster::SCTR_PENSION_RATE_ID)->value ?? 0.005);
         $insurableMaxRemuneration = (float)(GeneralMaster::find(GeneralMaster::INSURABLE_MAX_REMUNERATION_ID)->value ?? 12027.91);
 
-        // EsSalud: aplica a todos, con piso RMV.
-        $essaludBase = max($totalIncome, $minimumWage);
+        // EsSalud: aplica a todos. Sobre (ingresos - subsidio); si los ingresos no superan la
+        // RMV, se paga sobre la RMV.
+        $essaludBase = $totalIncome > $minimumWage ? ($totalIncome - $subsidyAmount) : $minimumWage;
         $essalud = round($essaludBase * $essaludRate, 2);
 
         // SCTR: solo trabajadores afiliados (rrhh_persona.estado_sctr = 'SI').
@@ -570,7 +609,7 @@ class PayrollRegisterService extends BaseService
         $sctrHealth = 0.0;
         $sctrPension = 0.0;
         if ($isSctrAffiliated) {
-            $sctrBase = $basicSalary + $familyAllowance;
+            $sctrBase = $totalIncome - $subsidyAmount;
             $sctrHealth = round($sctrBase * $sctrHealthRate, 2);
             $sctrPensionBase = min($sctrBase, $insurableMaxRemuneration);
             $sctrPension = round($sctrPensionBase * $sctrPensionRate, 2);
@@ -597,16 +636,18 @@ class PayrollRegisterService extends BaseService
      * Calcular descuentos ONP/AFP del trabajador según su afiliación
      * (rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones).
      *
-     * - ONP: aporte obligatorio 13% del total de ingresos, sin AFP.
+     * - ONP: aporte obligatorio 13% del total de ingresos MENOS el subsidio, sin AFP (si el
+     *   trabajador es AFP, el campo ONP queda en 0).
      * - AFP: aporte obligatorio (~10%) + prima de seguro (~1.37%) + comisión variable
      *   (según AFP), todo sobre el total de ingresos. Si no tiene sistema de pensiones
      *   asignado, no se descuenta nada (se deja para que RRHH lo configure).
      *
      * @param Worker $worker
      * @param float $totalIncome
+     * @param float $subsidyAmount Subsidio EsSalud del periodo (no afecto a ONP).
      * @return array{onp_deduction: float, afp_mandatory: float, afp_insurance: float, afp_commission: float, afp_total: float, affiliation: ?string}
      */
-    private function calculatePensionDeductions(Worker $worker, float $totalIncome): array
+    private function calculatePensionDeductions(Worker $worker, float $totalIncome, float $subsidyAmount = 0.0): array
     {
         $pension = $worker->pensionSystem;
 
@@ -623,7 +664,7 @@ class PayrollRegisterService extends BaseService
 
         if ($pension->isOnp()) {
             return [
-                'onp_deduction' => round($totalIncome * ((float)$pension->obl / 100), 2),
+                'onp_deduction' => round(($totalIncome - $subsidyAmount) * ((float)$pension->obl / 100), 2),
                 'afp_mandatory' => 0.00,
                 'afp_insurance' => 0.00,
                 'afp_commission' => 0.00,

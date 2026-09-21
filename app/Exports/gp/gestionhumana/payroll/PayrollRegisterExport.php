@@ -43,6 +43,7 @@ class PayrollRegisterExport implements
             // Información General
             'ID',
             'DNI',
+            'CUSPP',
             'Trabajador',
             'Centro de Costo',
             'Estado',
@@ -131,6 +132,7 @@ class PayrollRegisterExport implements
             // Información General
             $register->id,
             $register->worker_vat,
+            $register->cuspp,
             $register->worker_name,
             $register->cost_center,
             $register->status,
@@ -244,7 +246,7 @@ class PayrollRegisterExport implements
      * columna numérica para fines de alineación/totales.
      */
     private const TEXT_HEADINGS = [
-        'ID', 'DNI', 'Trabajador', 'Centro de Costo', 'Estado', 'Cargo', 'AFP',
+        'ID', 'DNI', 'CUSPP', 'Trabajador', 'Centro de Costo', 'Estado', 'Cargo', 'AFP',
         'Tiene Asig. Familiar', 'Tiene ESSALUD Vida',
     ];
 

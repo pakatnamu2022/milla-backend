@@ -502,11 +502,10 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
    * devuelve el código de asistencia correspondiente ('VC', 'DM', etc.) o null si no
    * hay nada registrado para ese día.
    *
-   * Nota sobre status_deleted: en rrhh_vacaciones, status_deleted=0 es el registro
-   * vigente (0=activo, al revés de la convención de rrhh_persona) — confirmado
-   * empíricamente: los duplicados/versiones anteriores de una solicitud editada quedan
-   * con status_deleted=1. En rrhh_ausentismo_laboral sí sigue la convención estándar
-   * del proyecto (status_deleted=1 = no eliminado/activo).
+   * Nota sobre status_deleted: en rrhh_vacaciones y rrhh_ausentismo_laboral
+   * status_deleted=1 = registro vigente (convención del proyecto, igual que
+   * AttendanceSyncService); status_deleted=0 son solicitudes eliminadas o versiones
+   * reemplazadas de una solicitud editada.
    *
    * @param int $workerId
    * @param string $date Y-m-d
@@ -517,7 +516,7 @@ class PayrollScheduleService extends BaseService implements BaseServiceInterface
     $onVacation = DB::table('rrhh_vacaciones')
       ->where('empleado_id', $workerId)
       ->where('status_id', 19) // APROBADO (config_status)
-      ->where('status_deleted', 0)
+      ->where('status_deleted', 1)
       ->where('fecha_inicio', '<=', $date)
       ->where('fecha_fin', '>=', $date)
       ->exists();

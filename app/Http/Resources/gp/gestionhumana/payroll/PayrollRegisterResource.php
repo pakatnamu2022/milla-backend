@@ -15,6 +15,7 @@ class PayrollRegisterResource extends JsonResource
             'worker_id'                    => $this->worker_id,
             'worker_name'                  => $this->worker_name,
             'worker_vat'                   => $this->worker_vat,
+            'cuspp'                        => $this->cuspp,
             // Datos del período
             'cost_center'                  => $this->cost_center,
             'status'                       => $this->status,
@@ -46,6 +47,8 @@ class PayrollRegisterResource extends JsonResource
             'subsidy_disability'           => $this->subsidy_disability,
             'work_conditions'              => $this->work_conditions,
             'vacation_pay'                 => $this->vacation_pay,
+            'vacation_average'             => $this->vacation_average,
+            'vacation_daily_value'         => $this->vacation_daily_value,
             'production_bonus'             => $this->production_bonus,
             'holiday_days_pay'             => $this->holiday_days_pay,
             'worked_rest_days_pay'         => $this->worked_rest_days_pay,

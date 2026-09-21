@@ -7,6 +7,7 @@ use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
 use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApVehicleSalesMatrixController;
+use App\Http\Controllers\ap\comercial\ApVehicleSaleStatusAuditController;
 use App\Http\Controllers\ap\comercial\ApExhibitionVehiclesController;
 use App\Http\Controllers\ap\comercial\ApPurchaseRequestQuoteReportController;
 use App\Http\Controllers\ap\comercial\ApReceivingChecklistController;
@@ -147,6 +148,7 @@ use App\Http\Controllers\gp\gestionhumana\payroll\PayrollCalculationController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollExclusionController;
 use App\Http\Controllers\gp\gestionhumana\payroll\LifeInsurancePolicyController;
 use App\Http\Controllers\gp\gestionhumana\payroll\SctrRateController;
+use App\Http\Controllers\gp\gestionhumana\payroll\PayrollSubsidyController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFamilyAllowanceController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFoodCardController;
 use App\Http\Controllers\gp\gestionhumana\payroll\PayrollFormulaVariableController;
@@ -713,6 +715,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('worker/{id}/search-hierarchy', [WorkerController::class, 'searchHierarchy']);
 
         Route::get('worker/revalidate', [WorkerController::class, 'revalidate']);
+        Route::get('worker/{id}/complete', [WorkerController::class, 'showComplete'])->whereNumber('id');
+        Route::get('worker/{id}/contracts-summary', [WorkerController::class, 'contractsSummary'])->whereNumber('id');
         Route::apiResource('worker', WorkerController::class)->only([
           'index',
           'show',
@@ -1617,6 +1621,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
         Route::get('vehicle-sales-matrix', [ApVehicleSalesMatrixController::class, 'index']);
         Route::get('vehicle-sales-matrix/export', [ApVehicleSalesMatrixController::class, 'export']);
 
+        Route::get('vehicle-sale-status-audit', [ApVehicleSaleStatusAuditController::class, 'index']);
+
         Route::get('discount-dynamics', [ApDiscountDynamicsReportController::class, 'index']);
         Route::get('discount-dynamics/export', [ApDiscountDynamicsReportController::class, 'export']);
       });
@@ -2461,6 +2467,14 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('exclusions', [PayrollExclusionController::class, 'index']);
     Route::post('exclusions', [PayrollExclusionController::class, 'store']);
     Route::delete('exclusions/{id}', [PayrollExclusionController::class, 'destroy']);
+
+    // Subsidios EsSalud (incapacidad temporal / maternidad): certificado con rango de fechas y monto
+    Route::get('subsidies/estimate', [PayrollSubsidyController::class, 'estimate']);
+    Route::get('subsidies', [PayrollSubsidyController::class, 'index']);
+    Route::get('subsidies/{id}', [PayrollSubsidyController::class, 'show']);
+    Route::post('subsidies', [PayrollSubsidyController::class, 'store']);
+    Route::put('subsidies/{id}', [PayrollSubsidyController::class, 'update']);
+    Route::delete('subsidies/{id}', [PayrollSubsidyController::class, 'destroy']);
 
     // Tasas SCTR por empresa con vigencia (al crear una nueva se cierra la vigente)
     Route::get('sctr-rates', [SctrRateController::class, 'index']);

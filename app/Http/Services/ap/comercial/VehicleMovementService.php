@@ -325,6 +325,12 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
     Vehicles       $vehicle,
     ShippingGuides $shippingGuide
   ): VehicleMovement {
+    // Si el vehículo se vendió durante el traslado (EN CURSO es facturable), la llegada
+    // solo actualiza el almacén: el estado de venta no debe revertirse a INVENTARIO_VN.
+    $newStatusId = ApVehicleStatus::isSaleStatus($vehicle->ap_vehicle_status_id)
+      ? $vehicle->ap_vehicle_status_id
+      : ApVehicleStatus::INVENTARIO_VN;
+
     DB::beginTransaction();
     try {
       $receiverSedeId  = $shippingGuide->sedeReceiver?->id;
@@ -350,23 +356,23 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::INTERNAL_TRANSFER,
         'ap_vehicle_id'        => $vehicle->id,
-        'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+        'ap_vehicle_status_id' => $newStatusId,
         'movement_date'        => now(),
         'confirmed_at'         => now(),
         'observation'          => $observation,
         'warehouse_id'         => $destWarehouse?->id,
         'origin_warehouse_id'  => $vehicle->warehouse_id,
         'previous_status_id'   => $vehicle->ap_vehicle_status_id,
-        'new_status_id'        => ApVehicleStatus::INVENTARIO_VN,
+        'new_status_id'        => $newStatusId,
       ]);
 
       if ($destWarehouse) {
         $vehicle->update([
           'warehouse_id'         => $destWarehouse->id,
-          'ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN,
+          'ap_vehicle_status_id' => $newStatusId,
         ]);
       } else {
-        $vehicle->update(['ap_vehicle_status_id' => ApVehicleStatus::INVENTARIO_VN]);
+        $vehicle->update(['ap_vehicle_status_id' => $newStatusId]);
       }
 
       DB::commit();
