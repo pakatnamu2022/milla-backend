@@ -263,9 +263,9 @@ Schedule::command('queue:prune-failed --hours=336')
   ->runInBackground();
 
 // Verificar y migrar documentos con travesía pendientes
-// Ejecuta cada 10 segundos; omite documentos con 3+ intentos fallidos
+// Ejecuta cada 30 segundos; omite documentos con 3+ intentos fallidos
 Schedule::command('traverse:verify-migration --all')
-  ->everyTenSeconds()
+  ->everyThirtySeconds()
   ->between('6:00', '23:59')
   ->timezone('America/Lima')
   ->withoutOverlapping()
