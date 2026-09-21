@@ -237,7 +237,7 @@ class Vehicles extends BaseModel
       'vehicle_movement_id',      // Foreign key en purchase_order que apunta a vehicle_movement
       'id',                       // Local key en vehicles
       'id'                        // Local key en vehicle_movement
-    )->whereNull('ap_purchase_order.deleted_at');
+    )->whereNull('ap_purchase_order.deleted_at')->where('ap_purchase_order.status', 1);
   }
 
   /**
