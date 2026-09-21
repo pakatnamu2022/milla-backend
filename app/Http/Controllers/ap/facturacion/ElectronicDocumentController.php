@@ -202,11 +202,16 @@ class ElectronicDocumentController extends Controller
   public function cancelInNubefact(Request $request, $id): JsonResponse
   {
     $request->validate([
-      'reason' => 'required|string|min:10|max:250'
+      'reason' => 'required|string|min:10|max:250',
+      'will_reinvoice' => 'nullable|boolean'
     ]);
 
     try {
-      return $this->service->cancelInNubefact($id, $request->input('reason'));
+      return $this->service->cancelInNubefact(
+        $id,
+        $request->input('reason'),
+        $request->input('will_reinvoice', false) // Default false
+      );
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

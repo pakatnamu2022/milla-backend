@@ -1790,7 +1790,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
-      Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
+      Route::post('productWarehouseStock/re-reserve-after-cancellation', [ProductWarehouseStockController::class, 'reReserveStockAfterCancellation']);
 
       // Product Shelves - Estantes de Productos
       Route::apiResource('productShelves', ProductShelfController::class)->only([

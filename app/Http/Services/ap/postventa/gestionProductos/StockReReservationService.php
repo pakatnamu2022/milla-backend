@@ -12,22 +12,23 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Servicio para RE-RESERVAR stock después de Notas de Crédito
+ * Servicio para RE-RESERVAR stock después de Notas de Crédito o Anulaciones
  *
  * CONTEXTO:
- * Cuando se genera una Nota de Crédito (NC), el stock regresa a quantity pero NO a reserved_quantity.
+ * Cuando se genera una Nota de Crédito (NC) o se anula un comprobante, el stock regresa a quantity pero NO a reserved_quantity.
  * Si vuelven a facturar la misma OT/Cotización, necesitan re-reservar manualmente el stock.
  *
  * CASOS DE USO:
  * - NC generada por error en datos → Vuelven a facturar → Necesitan re-reservar
- * - NC generada y NO vuelven a facturar → NO necesitan re-reservar (stock queda disponible)
+ * - Anulación de comprobante (contabilizado en Dynamics) → Vuelven a facturar → Necesitan re-reservar (MANUAL, después de que se sincronicen ajustes de Dynamics)
+ * - NC/Anulación y NO vuelven a facturar → NO necesitan re-reservar (stock queda disponible)
  *
  * Este servicio permite re-reservar MANUALMENTE cuando confirman que SÍ van a re-facturar.
  */
 class StockReReservationService
 {
   /**
-   * Re-reservar stock para una cotización de mesón que tuvo NC
+   * Re-reservar stock para una cotización de mesón que tuvo NC o fue anulada para re-facturar
    *
    * @param int $quotationId ID de la cotización
    * @return array Resultado de la operación
@@ -39,9 +40,9 @@ class StockReReservationService
     try {
       $quotation = ApOrderQuotations::with('details.product')->findOrFail($quotationId);
 
-      // Validación 1: Verificar que tuvo NC
-      if (!$quotation->had_credit_note) {
-        throw new Exception("La cotización {$quotation->quotation_number} NO tiene nota de crédito registrada. No requiere re-reserva.");
+      // Validación 1: Verificar que tuvo NC O fue anulada para re-facturar
+      if (!$quotation->had_credit_note && !$quotation->was_cancelled_for_reinvoice) {
+        throw new Exception("La cotización {$quotation->quotation_number} NO tiene nota de crédito NI fue marcada como anulada para re-facturar. No requiere re-reserva.");
       }
 
       // Validación 2: Verificar que NO se ha re-reservado ya
@@ -156,7 +157,7 @@ class StockReReservationService
   }
 
   /**
-   * Re-reservar stock para una orden de trabajo que tuvo NC
+   * Re-reservar stock para una orden de trabajo que tuvo NC o fue anulada para re-facturar
    *
    * @param int $workOrderId ID de la orden de trabajo
    * @return array Resultado de la operación
@@ -168,9 +169,9 @@ class StockReReservationService
     try {
       $workOrder = ApWorkOrder::with('parts.product')->findOrFail($workOrderId);
 
-      // Validación 1: Verificar que tuvo NC
-      if (!$workOrder->had_credit_note) {
-        throw new Exception("La OT {$workOrder->correlative} NO tiene nota de crédito registrada. No requiere re-reserva.");
+      // Validación 1: Verificar que tuvo NC O fue anulada para re-facturar
+      if (!$workOrder->had_credit_note && !$workOrder->was_cancelled_for_reinvoice) {
+        throw new Exception("La OT {$workOrder->correlative} NO tiene nota de crédito NI fue marcada como anulada para re-facturar. No requiere re-reserva.");
       }
 
       // Validación 2: Verificar que NO se ha re-reservado ya

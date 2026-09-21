@@ -1490,7 +1490,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * Cancel document in Nubefact (Comunicación de baja)
    * @throws Exception
    */
-  public function cancelInNubefact($id, string $reason): JsonResponse
+  public function cancelInNubefact($id, string $reason, bool $willReinvoice = false): JsonResponse
   {
     DB::beginTransaction();
     try {
@@ -1585,6 +1585,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
               'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
               'is_fully_paid' => false,
               'output_generation_warehouse' => false,
+              'was_cancelled_for_reinvoice' => $willReinvoice, // Marcar si se va a re-facturar
             ]);
           }
         }
@@ -1597,6 +1598,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
               'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
               'is_invoiced' => false,
               'output_generation_warehouse' => false,
+              'was_cancelled_for_reinvoice' => $willReinvoice, // Marcar si se va a re-facturar
             ]);
           }
         }
