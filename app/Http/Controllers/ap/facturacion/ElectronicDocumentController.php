@@ -959,8 +959,8 @@ class ElectronicDocumentController extends Controller
       $adjustmentHeaderData['FechaEmision'] = $transactionDate;
       $adjustmentHeaderData['FechaContable'] = $transactionDate;
 
-      // Generar header contable (pasando la fecha de la transacción)
-      $accountingHeaderResource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $isReversal, $transactionDate);
+      // Generar header contable (pasando la fecha de la transacción y el DNI del creador)
+      $accountingHeaderResource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $isReversal, $transactionDate, $creatorVat);
       $accountingHeaderData = $accountingHeaderResource->toArray($request);
 
       // Usar la fecha de la transacción para el asiento contable

@@ -121,4 +121,25 @@ class ApSupplierOrderController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function replaceProduct(Request $request, $id)
+  {
+    try {
+      $originalProductId = $request->input('original_product_id');
+      $newProductId = $request->input('new_product_id');
+      $replacementReason = $request->input('replacement_reason');
+
+      if (!$originalProductId) {
+        return $this->error('El campo original_product_id es obligatorio');
+      }
+
+      if (!$newProductId) {
+        return $this->error('El campo new_product_id es obligatorio');
+      }
+
+      return $this->success($this->service->replaceProduct($id, $originalProductId, $newProductId, $replacementReason));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

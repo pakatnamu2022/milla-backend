@@ -453,7 +453,17 @@ class VerifyAndMigrateTraverseJob implements ShouldQueue
 
       $headerLog->markAsInProgress();
 
-      $resource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $this->isReversal);
+      // Obtener el DNI del creador de la transacción para LoteId
+      $transaction = LinkPurchaseSaleTransaction::whereHas('electronicDocumentItem', function ($query) use ($document) {
+        $query->where('ap_billing_electronic_document_id', $document->id);
+      })
+        ->where('status', 'active')
+        ->with('creator.person')
+        ->first();
+
+      $creatorVat = $transaction?->creator?->person?->vat;
+
+      $resource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $this->isReversal, '', $creatorVat);
       $data = $resource->toArray(request());
 
       $syncService->sync('accounting_entry_header', $data, 'create');
@@ -519,20 +529,26 @@ class VerifyAndMigrateTraverseJob implements ShouldQueue
       return;
     }
 
-    // Obtener el número de asiento desde link_purchase_sale_transactions
-    $asientoNumber = LinkPurchaseSaleTransaction::whereHas('electronicDocumentItem', function ($query) use ($document) {
+    // Obtener el número de asiento y el creador desde link_purchase_sale_transactions
+    $transaction = LinkPurchaseSaleTransaction::whereHas('electronicDocumentItem', function ($query) use ($document) {
       $query->where('ap_billing_electronic_document_id', $document->id);
     })
       ->where('status', 'active')
       ->whereNotNull('dyn_asiento_number')
-      ->value('dyn_asiento_number');
+      ->with('creator.person')
+      ->first();
 
-    if (!$asientoNumber) {
+    if (!$transaction || !$transaction->dyn_asiento_number) {
       throw new Exception("No se encontró el número de asiento para el documento {$document->id}.");
     }
 
+    $asientoNumber = $transaction->dyn_asiento_number;
+
+    // Obtener el DNI del creador de la transacción para LoteId
+    $creatorVat = $transaction->creator?->person?->vat;
+
     // Sincronizar detalle
-    $resource = new TraverseAccountingEntryDetailResource($document, $asientoNumber, $this->isReversal);
+    $resource = new TraverseAccountingEntryDetailResource($document, $asientoNumber, $this->isReversal, $creatorVat);
     $details = $resource->toArray(request());
 
     $detailLog->markAsInProgress();
