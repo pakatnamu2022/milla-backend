@@ -18,6 +18,7 @@ class PayrollLoanExtraDiscount extends BaseModel
 
   protected $fillable = [
     'loan_id',
+    'legacy_detail_id',
     'scheduled_date',
     'concept_type',
     'amount',

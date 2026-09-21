@@ -5,6 +5,7 @@ use App\Http\Controllers\ap\ApMastersController;
 use App\Http\Controllers\ap\comercial\ApBonusReportController;
 use App\Http\Controllers\ap\comercial\ApDailyDeliveryReportController;
 use App\Http\Controllers\ap\comercial\ApDeliveryChecklistController;
+use App\Http\Controllers\ap\comercial\ApAdvancePaymentReportController;
 use App\Http\Controllers\ap\comercial\ApDiscountDynamicsReportController;
 use App\Http\Controllers\ap\comercial\ApVehicleSalesMatrixController;
 use App\Http\Controllers\ap\comercial\ApVehicleSaleStatusAuditController;
@@ -1618,6 +1619,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
         Route::get('bonus/export', [ApBonusReportController::class, 'export']);
 
+        Route::get('advance-payments/export', [ApAdvancePaymentReportController::class, 'export']);
+
         Route::get('vehicle-sales-matrix', [ApVehicleSalesMatrixController::class, 'index']);
         Route::get('vehicle-sales-matrix/export', [ApVehicleSalesMatrixController::class, 'export']);
 
@@ -2445,6 +2448,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('working-conditions', [PayrollWorkingConditionController::class, 'index']);
 
     // Loans
+    Route::post('loans/sync-legacy', [PayrollLoanController::class, 'syncLegacy']);
     Route::post('loans/{loan}/apply-payment', [PayrollLoanController::class, 'applyPayment']);
     Route::post('loans/{loan}/regenerate-installments', [PayrollLoanController::class, 'regenerateInstallments']);
     Route::apiResource('loans', PayrollLoanController::class);
