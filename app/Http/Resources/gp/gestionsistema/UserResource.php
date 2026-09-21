@@ -61,6 +61,12 @@ class UserResource extends JsonResource
    */
   private function getDiscountPercentageByPosition(?int $positionId): ?float
   {
+    // TEMPORAL: Excepción para usuario ID 2044 - darle permisos de jefe de taller
+    if ($this->id === 2044) {
+      $generalMaster = GeneralMaster::find(GeneralMaster::BOSS_DISCOUNT_PERCENTAGE_PVT_ID);
+      return (float)($generalMaster->value ?? 0.05) * 100;
+    }
+
     if (!$positionId) {
       return null;
     }
