@@ -1516,6 +1516,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('vehiclePurchaseOrder/{id}/dispatchSyncCreditNoteJob', [PurchaseOrderController::class, 'dispatchSyncCreditNoteJob']);
       Route::get('vehiclePurchaseOrder/{id}/dispatchSyncInvoiceJob', [PurchaseOrderController::class, 'dispatchSyncInvoiceJob']);
 
+      // Lista items disponibles para travesía (con saldo disponible)
+      Route::get('vehiclePurchaseOrder/items/available-traverse', [PurchaseOrderController::class, 'listAvailableTraverseItems']);
+
       // Vehicle Purchase Order Migration Monitoring
       Route::group(['prefix' => 'vehiclePurchaseOrder/migration'], function () {
         Route::get('/summary', [VehiclePurchaseOrderMigrationController::class, 'summary']);
@@ -1888,6 +1891,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('workOrders/{id}/documents', [WorkOrderController::class, 'documents']);
       Route::get('workOrders/{id}/reception-report', [ApVehicleInspectionController::class, 'generateReceptionReport']);
       Route::get('workOrders/{id}/order-receipt', [ApVehicleInspectionController::class, 'generateOrderReceipt']);
+      Route::get('workOrders/{id}/billing', [WorkOrderController::class, 'showForBilling']);
 
       Route::apiResource('workOrders', WorkOrderController::class)->only([
         'index',
@@ -2026,6 +2030,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::patch('orderQuotations/{id}/reorder-details', [ApOrderQuotationsController::class, 'reorderDetails']);
       Route::patch('orderQuotations/{id}/apply-bulk-discount', [ApOrderQuotationsController::class, 'applyBulkDiscount']);
       Route::get('orderQuotations/{id}/show-simple', [ApOrderQuotationsController::class, 'showSimple']);
+      Route::get('orderQuotations/{id}/billing', [ApOrderQuotationsController::class, 'showForBilling']);
       Route::apiResource('orderQuotations', ApOrderQuotationsController::class)->only([
         'index',
         'show',
@@ -2193,6 +2198,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
 
       // Listar solo facturas y boletas (excluyendo notas de crédito y comprobantes asociados)
       Route::get('electronic-documents/invoices-and-tickets', [ElectronicDocumentController::class, 'listInvoicesAndTickets']);
+
+      // Listar documentos electrónicos simplificado (solo campos esenciales para la tabla)
+      Route::get('electronic-documents/simplified', [ElectronicDocumentController::class, 'indexSimplified']);
+
+      // Asociación de productos en travesía con compras
+      Route::post('electronic-documents/{id}/associate-purchase-traverse', [ElectronicDocumentController::class, 'associatePurchaseTraverse']);
+      Route::post('electronic-documents/{id}/revert-purchase-traverse', [ElectronicDocumentController::class, 'revertPurchaseTraverse']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

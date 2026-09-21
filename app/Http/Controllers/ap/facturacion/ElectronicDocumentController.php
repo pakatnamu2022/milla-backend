@@ -27,6 +27,7 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
+use App\Services\Billing\AssociatePurchaseTraverseService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,19 @@ class ElectronicDocumentController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Display a simplified listing of electronic documents
+   * Returns only essential fields for table view
+   */
+  public function indexSimplified(IndexElectronicDocumentRequest $request): JsonResponse
+  {
+    try {
+      return $this->service->listSimplified($request);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
@@ -553,7 +567,7 @@ class ElectronicDocumentController extends Controller
       $validation = $validationService->validateInventoryOutput($id);
 
       // Si la validación falló, retornar error SIN ejecutar el Job
-      if (!$validation['valid']) {
+      if (!$validation['valid'] && $document->status !== ElectronicDocument::STATUS_CANCELLED && !$document->anulado) {
         return response()->json([
           'message' => 'No se puede procesar el comprobante debido a problemas de inventario',
           'document_id' => $document->id,
@@ -728,7 +742,7 @@ class ElectronicDocumentController extends Controller
   {
     try {
       $request->validate([
-        'file'    => 'required|file|mimes:xlsx,xls,csv',
+        'file' => 'required|file|mimes:xlsx,xls,csv',
         'dry_run' => 'nullable|boolean',
       ]);
       $dryRun = $request->boolean('dry_run', true);
@@ -796,6 +810,48 @@ class ElectronicDocumentController extends Controller
       $preview = new SalesDocumentPreviewResource($document);
 
       return response()->json($preview);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Asociar productos en travesía con items de compra
+   *
+   * @param int $id ID del comprobante electrónico
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function associatePurchaseTraverse(int $id, Request $request): JsonResponse
+  {
+    try {
+      $request->validate([
+        'purchase_order_item_ids' => 'required|array|min:1',
+        'purchase_order_item_ids.*' => 'required|integer|exists:ap_purchase_order_item,id',
+      ]);
+
+      $service = new AssociatePurchaseTraverseService();
+      $result = $service->associate($id, $request->input('purchase_order_item_ids'));
+
+      return $this->success($result, 'Asociación realizada exitosamente.');
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Revertir asociación de productos en travesía
+   *
+   * @param int $id ID del comprobante electrónico
+   * @return JsonResponse
+   */
+  public function revertPurchaseTraverse(int $id): JsonResponse
+  {
+    try {
+      $service = new AssociatePurchaseTraverseService();
+      $result = $service->revert($id);
+
+      return $this->success($result, 'Asociación revertida exitosamente.');
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

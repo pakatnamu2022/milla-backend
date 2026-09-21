@@ -136,7 +136,9 @@ class ElectronicDocument extends BaseModel
     'card_last4',
     'internal_note',
     'consolidation_type',
-    're_invoice'
+    're_invoice',
+    'has_product_traverse',
+    'associate_purchase_traverse'
   ];
 
   protected $casts = [
@@ -176,6 +178,8 @@ class ElectronicDocument extends BaseModel
     'accepted_at' => 'datetime',
     'migrated_at' => 'datetime',
     'cancelled_at' => 'datetime',
+    'has_product_traverse' => 'boolean',
+    'associate_purchase_traverse' => 'boolean',
   ];
 
   const array filters = [
@@ -204,6 +208,8 @@ class ElectronicDocument extends BaseModel
     'seriesModel.sede_id' => '=',
     'consolidation_type' => '=',
     'migration_status' => '=',
+    'has_product_traverse' => '=',
+    'associate_purchase_traverse' => '='
   ];
 
   const array sorts = ['id', 'fecha_de_emision', 'numero', 'total'];
@@ -588,7 +594,7 @@ class ElectronicDocument extends BaseModel
    */
   public function getIsAccountedAttribute($value): bool
   {
-    return (bool) $value;
+    return (bool)$value;
   }
 
   public function getDocumentNumberAttribute(): string

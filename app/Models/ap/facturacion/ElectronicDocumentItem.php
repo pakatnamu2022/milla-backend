@@ -3,9 +3,11 @@
 namespace App\Models\ap\facturacion;
 
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
+use App\Models\ap\postventa\gestionProductos\Products;
 use App\Models\BaseModel;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ElectronicDocumentItem extends BaseModel
@@ -18,6 +20,8 @@ class ElectronicDocumentItem extends BaseModel
     'ap_billing_electronic_document_id',
     'reference_document_id',
     'account_plan_id',
+    'product_id',
+    'is_traverse',
     'line_number',
     'unidad_de_medida',
     'unidad_medida_dyn',
@@ -50,6 +54,7 @@ class ElectronicDocumentItem extends BaseModel
     'total' => 'decimal:2',
     'anticipo_regularizacion' => 'boolean',
     'line_number' => 'integer',
+    'is_traverse' => 'boolean',
   ];
 
   /**
@@ -110,9 +115,24 @@ class ElectronicDocumentItem extends BaseModel
     return $this->belongsTo(ApAccountingAccountPlan::class, 'account_plan_id');
   }
 
+  public function product(): BelongsTo
+  {
+    return $this->belongsTo(Products::class, 'product_id');
+  }
+
   public function igvType(): BelongsTo
   {
     return $this->belongsTo(SunatConcepts::class, 'sunat_concept_igv_type_id');
+  }
+
+  public function linkTransactions(): HasMany
+  {
+    return $this->hasMany(LinkPurchaseSaleTransaction::class, 'billing_electronic_document_item_id');
+  }
+
+  public function activeLinkTransactions(): HasMany
+  {
+    return $this->linkTransactions()->where('status', 'active');
   }
 
   /**

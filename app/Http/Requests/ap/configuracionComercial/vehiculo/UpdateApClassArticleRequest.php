@@ -27,11 +27,27 @@ class UpdateApClassArticleRequest extends StoreRequest
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
-      'account' => [
+      'inventory_account' => [
         'nullable',
         'string',
-        'max:150',
-        Rule::unique('ap_class_article', 'account')
+        'max:20',
+        Rule::unique('ap_class_article', 'inventory_account')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('classArticle')),
+      ],
+      'counterparty_account' => [
+        'nullable',
+        'string',
+        'max:20',
+        Rule::unique('ap_class_article', 'counterparty_account')
+          ->whereNull('deleted_at')
+          ->ignore($this->route('classArticle')),
+      ],
+      'account_sales' => [
+        'nullable',
+        'string',
+        'max:20',
+        Rule::unique('ap_class_article', 'account_sales')
           ->whereNull('deleted_at')
           ->ignore($this->route('classArticle')),
       ],
@@ -55,9 +71,17 @@ class UpdateApClassArticleRequest extends StoreRequest
       'description.max' => 'La descripción no debe exceder los 255 caracteres.',
       'description.unique' => 'El campo descripción ya existe.',
 
-      'account.string' => 'La cuenta debe ser una cadena de texto.',
-      'account.max' => 'La cuenta no debe exceder los 150 caracteres.',
-      'account.unique' => 'El campo cuenta ya existe.',
+      'inventory_account.string' => 'La cuenta debe ser una cadena de texto.',
+      'inventory_account.max' => 'La cuenta no debe exceder los 20 caracteres.',
+      'inventory_account.unique' => 'El campo cuenta ya existe.',
+
+      'counterparty_account.string' => 'La cuenta debe ser una cadena de texto.',
+      'counterparty_account.max' => 'La cuenta no debe exceder los 20 caracteres.',
+      'counterparty_account.unique' => 'El campo cuenta ya existe.',
+
+      'account_sales.string' => 'La cuenta debe ser una cadena de texto.',
+      'account_sales.max' => 'La cuenta no debe exceder los 20 caracteres.',
+      'account_sales.unique' => 'El campo cuenta ya existe.',
 
       'type_operation_id.required' => 'El campo tipo de operación es obligatorio.',
       'type_operation_id.integer' => 'El tipo de operación debe ser un número entero.',

@@ -28,12 +28,13 @@ class Warehouse extends Model
     'parent_warehouse_id',
     'inventory_account',
     'counterparty_account',
+    'account_sales',
     'asset_account',
     'is_physical_warehouse',
   ];
 
   const filters = [
-    'search' => ['dyn_code', 'description', 'inventory_account', 'counterparty_account'],
+    'search' => ['dyn_code', 'description', 'inventory_account', 'counterparty_account', 'account_sales'],
     'article_class_id' => '=',
     'type' => '=',
     'status' => '=',

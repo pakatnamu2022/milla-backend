@@ -384,7 +384,25 @@ return [
       'description' => 'Permite agregar repuestos en Travesía',
       'icon' => 'Plus',
       'policy_method' => 'addTraverseSparePart',
-    ]
+    ],
+    'viewProductivity' => [
+      'label' => 'Ver Productividad',
+      'description' => 'Permite ver la productividad de los técnicos',
+      'icon' => 'BarChart2',
+      'policy_method' => 'viewProductivity',
+    ],
+    'viewComparisonByLocation' => [
+      'label' => 'Ver Comparación por Ubicación',
+      'description' => 'Permite ver la comparación de productividad por ubicación',
+      'icon' => 'BarChart2',
+      'policy_method' => 'viewComparisonByLocation',
+    ],
+    'linkCrossingPurchase' => [
+      'label' => 'Vincular Compra Travesía',
+      'description' => 'Permite vincular una compra de travesía',
+      'icon' => 'Link',
+      'policy_method' => 'linkCrossingPurchase',
+    ],
   ],
 
 

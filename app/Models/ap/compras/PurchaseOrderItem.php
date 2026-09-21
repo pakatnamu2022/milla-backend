@@ -2,6 +2,7 @@
 
 namespace App\Models\ap\compras;
 
+use App\Models\ap\facturacion\LinkPurchaseSaleTransaction;
 use App\Models\ap\maestroGeneral\UnitMeasurement;
 use App\Models\ap\postventa\gestionProductos\Products;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ class PurchaseOrderItem extends Model
     'quantity',
     'quantity_received',
     'quantity_pending',
+    'quantity_available_traverse',
     'total',
     'is_vehicle',
   ];
@@ -34,6 +36,7 @@ class PurchaseOrderItem extends Model
     'quantity' => 'decimal:2',
     'quantity_received' => 'decimal:2',
     'quantity_pending' => 'decimal:2',
+    'quantity_available_traverse' => 'decimal:2',
     'is_vehicle' => 'boolean',
   ];
 
@@ -56,6 +59,16 @@ class PurchaseOrderItem extends Model
   public function receptionDetails(): HasMany
   {
     return $this->hasMany(PurchaseReceptionDetail::class, 'purchase_order_item_id');
+  }
+
+  public function linkTransactions(): HasMany
+  {
+    return $this->hasMany(LinkPurchaseSaleTransaction::class, 'purchase_order_item_id');
+  }
+
+  public function activeLinkTransactions(): HasMany
+  {
+    return $this->linkTransactions()->where('status', 'active');
   }
 
   /**

@@ -89,6 +89,15 @@ class ApOrderQuotationsController extends Controller
     }
   }
 
+  public function showForBilling($id)
+  {
+    try {
+      return $this->success($this->service->showForBilling($id));
+    } catch (\Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
   public function showSimple($id)
   {
     try {

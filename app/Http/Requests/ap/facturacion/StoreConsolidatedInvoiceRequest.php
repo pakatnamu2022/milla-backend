@@ -62,6 +62,8 @@ class StoreConsolidatedInvoiceRequest extends FormRequest
       'items.*.igv' => 'required|numeric|min:0',
       'items.*.total' => 'required|numeric|min:0',
       'items.*.account_plan_id' => 'nullable|integer|exists:ap_accounting_account_plan,id',
+      'items.*.product_id' => 'nullable|integer|exists:products,id',
+      'items.*.is_traverse' => 'nullable|boolean',
 
       // Cuotas para venta al crédito (opcionales)
       'venta_al_credito' => 'nullable|array',
@@ -134,6 +136,17 @@ class StoreConsolidatedInvoiceRequest extends FormRequest
         }
         if (isset($item['account_plan_id'])) {
           $items[$index]['account_plan_id'] = (int)$item['account_plan_id'];
+        }
+        // Convertir product_id: si está vacío (""), convertirlo a null
+        if (isset($item['product_id'])) {
+          if ($item['product_id'] === '') {
+            $items[$index]['product_id'] = null;
+          } else {
+            $items[$index]['product_id'] = (int)$item['product_id'];
+          }
+        }
+        if (isset($item['is_traverse'])) {
+          $items[$index]['is_traverse'] = filter_var($item['is_traverse'], FILTER_VALIDATE_BOOLEAN);
         }
 
         $numericItemFields = ['cantidad', 'valor_unitario', 'precio_unitario', 'descuento', 'subtotal', 'igv', 'total'];

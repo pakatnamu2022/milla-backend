@@ -10,8 +10,8 @@ return new class extends Migration {
    */
   public function up(): void
   {
-    Schema::table('ap_vehicle_inspection', function (Blueprint $table) {
-      $table->boolean('tire_rotation')->default(false)->after('other_work_details')->comment('rotacion de llantas');
+    Schema::table('appointment_planning', function (Blueprint $table) {
+      $table->string('description', 1000)->change();
     });
   }
 
@@ -20,8 +20,8 @@ return new class extends Migration {
    */
   public function down(): void
   {
-    Schema::table('ap_vehicle_inspection', function (Blueprint $table) {
-      $table->dropColumn('tire_rotation');
+    Schema::table('appointment_planning', function (Blueprint $table) {
+      $table->string('description', 255)->nullable();
     });
   }
 };

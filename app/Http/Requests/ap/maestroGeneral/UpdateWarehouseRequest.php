@@ -46,12 +46,17 @@ class UpdateWarehouseRequest extends StoreRequest
       'inventory_account' => [
         'nullable',
         'string',
-        'max:50',
+        'max:20',
       ],
       'counterparty_account' => [
         'nullable',
         'string',
-        'max:50',
+        'max:20',
+      ],
+      'account_sales' => [
+        'nullable',
+        'string',
+        'max:20',
       ],
       'asset_account' => [
         'nullable',
@@ -94,8 +99,11 @@ class UpdateWarehouseRequest extends StoreRequest
       'article_class_id.exists' => 'La clase de artículo seleccionada no existe.',
       'is_received.boolean' => 'El campo de recibido debe ser verdadero o falso.',
       'inventory_account.string' => 'La cuenta de inventario debe ser un texto.',
+      'inventory_account.max' => 'La cuenta de inventario no puede exceder los 20 caracteres.',
       'counterparty_account.string' => 'La cuenta de contrapartida debe ser un texto.',
-      'counterparty_account.max' => 'La cuenta de contrapartida no puede exceder los 50 caracteres.',
+      'counterparty_account.max' => 'La cuenta de contrapartida no puede exceder los 20 caracteres.',
+      'account_sales.string' => 'La cuenta de ventas debe ser un texto.',
+      'account_sales.max' => 'La cuenta de ventas no puede exceder los 20 caracteres.',
       'asset_account.string' => 'La cuenta de activos debe ser un texto.',
       'asset_account.max' => 'La cuenta de activos no puede exceder los 50 caracteres.',
       'parent_warehouse_id.integer' => 'El almacén padre debe ser un número entero.',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\taller;
 
+use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsBillingResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsListResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsSimpleResource;
@@ -520,6 +521,16 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     }
 
     return (new ApOrderQuotationsResource($quotation))->additional($additionalData);
+  }
+
+  public function showForBilling($id)
+  {
+    $quotation = $this->find($id);
+    $quotation->load([
+      'details.product',
+      'advancesOrderQuotation'
+    ]);
+    return new ApOrderQuotationsBillingResource($quotation);
   }
 
   public function showSimple($id)
