@@ -4,6 +4,7 @@ namespace App\Http\Resources\Dynamics;
 
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\maestroGeneral\Warehouse;
 use App\Models\gp\gestionsistema\Company;
 use Exception;
@@ -48,7 +49,10 @@ class TraverseAdjustmentDetailResource extends JsonResource
       ->with([
         'linkTransactions' => function ($query) {
           $query->where('status', 'active')
-            ->with(['purchaseOrderItem.product.articleClass', 'purchaseOrderItem.purchaseOrder']);
+            ->with([
+              'purchaseOrderItem.product.articleClass',
+              'purchaseOrderItem.purchaseOrder.exchangeRate'
+            ]);
         },
         'product.unitMeasurement'
       ])
@@ -123,6 +127,15 @@ class TraverseAdjustmentDetailResource extends JsonResource
       foreach ($item->linkTransactions as $transaction) {
         $quantity = (float)$transaction->cantidad;
         $unitCost = (float)$transaction->purchaseOrderItem->unit_price;
+
+        // Obtener la orden de compra
+        $purchaseOrder = $transaction->purchaseOrderItem->purchaseOrder;
+
+        // Si la compra fue en dólares, convertir a soles
+        if ($purchaseOrder && $purchaseOrder->currency_id == TypeCurrency::USD_ID) {
+          $purchaseExchangeRate = $purchaseOrder->exchangeRate?->rate ?? 1;
+          $unitCost = $unitCost * $purchaseExchangeRate;
+        }
 
         $productId = $product->id;
 

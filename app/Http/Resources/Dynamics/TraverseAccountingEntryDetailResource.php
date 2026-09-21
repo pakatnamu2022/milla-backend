@@ -4,6 +4,7 @@ namespace App\Http\Resources\Dynamics;
 
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\Warehouse;
+use App\Models\gp\maestroGeneral\SunatConcepts;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -100,7 +101,15 @@ class TraverseAccountingEntryDetailResource extends JsonResource
       foreach ($item->linkTransactions as $transaction) {
         $quantity = (float)$transaction->cantidad;
         $discount = (float)($item->descuento ?? 0);
+
+        // Calcular monto total
         $totalAmount = ($unitPrice * $quantity) - $discount;
+
+        // Si el documento está en dólares, convertir a soles
+        if ($this->sunat_concept_currency_id == SunatConcepts::CURRENCY_USD) {
+          $exchangeRate = (float)($this->tipo_de_cambio ?? 1);
+          $totalAmount = $totalAmount * $exchangeRate;
+        }
 
         $classId = $classArticle->id;
         if (!isset($groupedByClass[$classId])) {
