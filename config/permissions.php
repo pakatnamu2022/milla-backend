@@ -403,6 +403,12 @@ return [
       'icon' => 'Link',
       'policy_method' => 'linkCrossingPurchase',
     ],
+    'unlinkCrossingPurchase' => [
+      'label' => 'Desvincular Compra Travesía',
+      'description' => 'Permite desvincular una compra de travesía',
+      'icon' => 'Unlink',
+      'policy_method' => 'unlinkCrossingPurchase',
+    ],
   ],
 
 
