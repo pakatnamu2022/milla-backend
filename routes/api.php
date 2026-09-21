@@ -2205,6 +2205,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Asociación de productos en travesía con compras
       Route::post('electronic-documents/{id}/associate-purchase-traverse', [ElectronicDocumentController::class, 'associatePurchaseTraverse']);
       Route::post('electronic-documents/{id}/revert-purchase-traverse', [ElectronicDocumentController::class, 'revertPurchaseTraverse']);
+      Route::get('electronic-documents/{id}/preview-traverse-dynamics', [ElectronicDocumentController::class, 'previewTraverseDynamicsPayload']);
+      Route::get('electronic-documents/{id}/traverse-history', [ElectronicDocumentController::class, 'traverseHistory']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

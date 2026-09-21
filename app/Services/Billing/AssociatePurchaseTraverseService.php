@@ -2,6 +2,7 @@
 
 namespace App\Services\Billing;
 
+use App\Jobs\VerifyAndMigrateTraverseJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -103,12 +104,18 @@ class AssociatePurchaseTraverseService
       $allAssociated = $this->checkAllTraverseItemsAssociated($electronicDocumentId);
 
       if ($allAssociated) {
-        $electronicDocument->update(['associate_purchase_traverse' => true]);
+        $electronicDocument->update([
+          'associate_purchase_traverse' => true,
+          'traverse_migration_status' => 'pending',
+        ]);
+
+        // Despachar job de migración automáticamente
+        VerifyAndMigrateTraverseJob::dispatch($electronicDocumentId);
       }
 
       return [
         'success' => true,
-        'message' => 'Asociación completada exitosamente.',
+        'message' => 'Asociación completada exitosamente.' . ($allAssociated ? ' Job de migración despachado.' : ''),
         'associations' => $associations,
         'all_associated' => $allAssociated,
       ];
@@ -174,12 +181,18 @@ class AssociatePurchaseTraverseService
         ];
       }
 
-      // Marcar el documento como no asociado
-      $electronicDocument->update(['associate_purchase_traverse' => false]);
+      // Marcar el documento como no asociado y resetear estado de migración
+      $electronicDocument->update([
+        'associate_purchase_traverse' => false,
+        'traverse_migration_status' => 'pending',
+      ]);
+
+      // Despachar job de reversión automáticamente
+      VerifyAndMigrateTraverseJob::dispatch($electronicDocumentId, isReversal: true);
 
       return [
         'success' => true,
-        'message' => 'Asociación revertida exitosamente.',
+        'message' => 'Asociación revertida exitosamente. Job de reversión despachado.',
         'reverted' => $reverted,
       ];
     });

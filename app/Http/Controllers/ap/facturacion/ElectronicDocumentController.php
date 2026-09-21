@@ -19,7 +19,12 @@ use App\Http\Requests\ap\facturacion\ExportElectronicDocumentRequest;
 use App\Http\Requests\ap\facturacion\StoreHistoricalFinalSaleRequest;
 use App\Http\Resources\ap\comercial\VehiclePurchaseOrderMigrationLogResource;
 use App\Http\Resources\Dynamics\SalesDocumentPreviewResource;
+use App\Http\Resources\Dynamics\TraverseAdjustmentHeaderResource;
+use App\Http\Resources\Dynamics\TraverseAdjustmentDetailResource;
+use App\Http\Resources\Dynamics\TraverseAccountingEntryHeaderResource;
+use App\Http\Resources\Dynamics\TraverseAccountingEntryDetailResource;
 use App\Http\Services\ap\facturacion\ElectronicDocumentService;
+use App\Http\Services\Billing\TraverseMigrationLogService;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryOutputValidationService;
 use App\Jobs\SyncAccountingStatusJob;
 use App\Http\Traits\HasApiResponse;
@@ -852,6 +857,273 @@ class ElectronicDocumentController extends Controller
       $result = $service->revert($id);
 
       return $this->success($result, 'Asociación revertida exitosamente.');
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Previsualiza los datos que se migrarán a Dynamics para travesía
+   * Muestra la información que se enviará a las 4 tablas:
+   * - neInTbTransaccionInventario (Adjustment Header)
+   * - neInTbTransaccionInventarioDet (Adjustment Detail)
+   * - neInTbIntegracionAsientoCab (Accounting Entry Header)
+   * - neInTbIntegracionAsientoDet (Accounting Entry Detail)
+   *
+   * Acepta parámetro opcional ?is_reversal=1 para previsualizar reversión
+   *
+   * @param int $id ID del comprobante electrónico
+   * @param Request $request
+   * @return JsonResponse
+   */
+  public function previewTraverseDynamicsPayload(int $id, Request $request): JsonResponse
+  {
+    try {
+      $document = ElectronicDocument::with([
+        'seriesModel.sede',
+        'items.product.articleClass',
+        'items.product.unitMeasurement',
+        'items.linkTransactions.purchaseOrderItem.product',
+        'items.linkTransactions.purchaseOrderItem.purchaseOrder',
+        'creator.person',
+        'currency',
+        'exchangeRate',
+      ])->find($id);
+
+      if (!$document) {
+        return response()->json(['message' => 'Documento electrónico no encontrado'], 404);
+      }
+
+      // Verificar que tenga items en travesía
+      $hasTraverseItems = $document->items()
+        ->where('is_traverse', true)
+        ->whereNotNull('product_id')
+        ->exists();
+
+      if (!$hasTraverseItems) {
+        return response()->json([
+          'message' => 'El documento no tiene items en travesía con product_id válido'
+        ], 422);
+      }
+
+      // Obtener parámetro de reversión
+      $isReversal = $request->boolean('is_reversal', false);
+
+      $logService = new TraverseMigrationLogService();
+
+      // Generar los detalles de ajuste de inventario (agrupados por purchase_date)
+      $adjustmentDetailResource = new TraverseAdjustmentDetailResource($document, $isReversal);
+      $adjustmentDetailLines = $adjustmentDetailResource->toArray($request);
+
+      // Generar los detalles contables (agrupados por purchase_date)
+      $asientoNumber = $logService->getNextAsientoNumber();
+      $accountingDetailResource = new TraverseAccountingEntryDetailResource($document, $asientoNumber, $isReversal);
+      $accountingDetailLines = $accountingDetailResource->toArray($request);
+
+      // Agrupar las líneas de ajuste de inventario por purchase_date
+      $groupedAdjustmentByPurchaseDate = [];
+      foreach ($adjustmentDetailLines as $line) {
+        $purchaseDate = $line['purchase_date'];
+        if (!isset($groupedAdjustmentByPurchaseDate[$purchaseDate])) {
+          $groupedAdjustmentByPurchaseDate[$purchaseDate] = [];
+        }
+        // Remover el campo purchase_date antes de agregar a Dynamics
+        unset($line['purchase_date']);
+        $groupedAdjustmentByPurchaseDate[$purchaseDate][] = $line;
+      }
+
+      // Agrupar las líneas de detalle contable por purchase_date
+      $groupedAccountingByPurchaseDate = [];
+      foreach ($accountingDetailLines as $line) {
+        $purchaseDate = $line['purchase_date'];
+        if (!isset($groupedAccountingByPurchaseDate[$purchaseDate])) {
+          $groupedAccountingByPurchaseDate[$purchaseDate] = [];
+        }
+        // Remover el campo purchase_date antes de agregar a Dynamics
+        unset($line['purchase_date']);
+        $groupedAccountingByPurchaseDate[$purchaseDate][] = $line;
+      }
+
+      // Obtener todas las fechas de compra únicas
+      $allPurchaseDates = array_unique(array_merge(
+        array_keys($groupedAdjustmentByPurchaseDate),
+        array_keys($groupedAccountingByPurchaseDate)
+      ));
+
+      // Generar movimientos para cada fecha de compra
+      $movimientos = [];
+      foreach ($allPurchaseDates as $purchaseDate) {
+        // Generar header de ajuste de inventario
+        $adjustmentHeaderResource = new TraverseAdjustmentHeaderResource($document, $isReversal);
+        $adjustmentHeaderData = $adjustmentHeaderResource->toArray($request);
+
+        // Asignar las fechas de compra al header de ajuste
+        $adjustmentHeaderData['FechaEmision'] = $purchaseDate;
+        $adjustmentHeaderData['FechaContable'] = $purchaseDate;
+
+        // Generar header contable
+        $accountingHeaderResource = new TraverseAccountingEntryHeaderResource($document, $asientoNumber, $isReversal);
+        $accountingHeaderData = $accountingHeaderResource->toArray($request);
+
+        // Asignar la fecha de compra al header contable
+        $accountingHeaderData['Fecha'] = $purchaseDate;
+
+        $movimientos[] = [
+          'purchase_date' => $purchaseDate,
+          'paso_1_adjustment' => [
+            'table_header' => 'neInTbTransaccionInventario',
+            'table_detail' => 'neInTbTransaccionInventarioDet',
+            'header' => $adjustmentHeaderData,
+            'details' => $groupedAdjustmentByPurchaseDate[$purchaseDate] ?? [],
+          ],
+          'paso_2_accounting' => [
+            'table_header' => 'neInTbIntegracionAsientoCab',
+            'table_detail' => 'neInTbIntegracionAsientoDet',
+            'header' => $accountingHeaderData,
+            'details' => $groupedAccountingByPurchaseDate[$purchaseDate] ?? [],
+          ],
+        ];
+      }
+
+      return response()->json([
+        'document_info' => [
+          'id' => $document->id,
+          'full_number' => $document->full_number,
+          'serie' => $document->serie,
+          'numero' => $document->numero,
+          'fecha_emision' => $document->fecha_de_emision ? $document->fecha_de_emision->format('Y-m-d') : null,
+          'traverse_migration_status' => $document->traverse_migration_status,
+          'associate_purchase_traverse' => $document->associate_purchase_traverse,
+        ],
+        'preview_mode' => $isReversal ? 'REVERSIÓN' : 'ASOCIACIÓN NORMAL',
+        'dynamics_payload' => $movimientos,
+        'summary' => [
+          'total_purchase_dates' => count($allPurchaseDates),
+          'purchase_dates' => $allPurchaseDates,
+          'total_movements' => count($movimientos),
+        ],
+      ]);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Obtener historial detallado de migración de travesía para un documento electrónico
+   * Muestra timeline de eventos para los 4 pasos de travesía (normal o reversión):
+   * - Ajuste de inventario (header y detail)
+   * - Asiento contable (header y detail)
+   *
+   * @param int $id ID del comprobante electrónico
+   * @return JsonResponse
+   */
+  public function traverseHistory(int $id): JsonResponse
+  {
+    try {
+      $electronicDocument = ElectronicDocument::find($id);
+
+      if (!$electronicDocument) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Documento electrónico no encontrado',
+        ], 404);
+      }
+
+      // Obtener todos los logs de travesía (normal y reversión)
+      $traverseSteps = [
+        // Normal
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_DETAIL,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL,
+        // Reversión
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_DETAIL_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER_REVERSAL,
+        VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL_REVERSAL,
+      ];
+
+      $logs = VehiclePurchaseOrderMigrationLog::where('electronic_document_id', $id)
+        ->whereIn('step', $traverseSteps)
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->get();
+
+      // Crear timeline de eventos
+      $timeline = $logs->map(function ($log) {
+        $events = [];
+
+        // Nombre del paso según el step
+        $stepNames = [
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT => 'Ajuste de Inventario - Header',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_DETAIL => 'Ajuste de Inventario - Detail',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER => 'Asiento Contable - Header',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL => 'Asiento Contable - Detail',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_REVERSAL => 'Ajuste de Inventario - Header (Reversión)',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ADJUSTMENT_DETAIL_REVERSAL => 'Ajuste de Inventario - Detail (Reversión)',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_HEADER_REVERSAL => 'Asiento Contable - Header (Reversión)',
+          VehiclePurchaseOrderMigrationLog::STEP_TRAVERSE_ACCOUNTING_ENTRY_DETAIL_REVERSAL => 'Asiento Contable - Detail (Reversión)',
+        ];
+
+        // Evento de creación
+        $events[] = [
+          'timestamp' => $log->created_at->format('Y-m-d H:i:s'),
+          'event' => 'created',
+          'description' => "Paso '{$log->step}' creado",
+          'status' => 'pending',
+        ];
+
+        // Eventos de intentos
+        if ($log->last_attempt_at) {
+          $events[] = [
+            'timestamp' => $log->last_attempt_at->format('Y-m-d H:i:s'),
+            'event' => 'attempt',
+            'description' => "Intento #{$log->attempts} de sincronización",
+            'status' => $log->status,
+            'error' => $log->error_message,
+          ];
+        }
+
+        // Evento de completado
+        if ($log->completed_at) {
+          $events[] = [
+            'timestamp' => $log->completed_at->format('Y-m-d H:i:s'),
+            'event' => 'completed',
+            'description' => "Paso completado exitosamente",
+            'status' => 'completed',
+            'proceso_estado' => $log->proceso_estado,
+          ];
+        }
+
+        return [
+          'step' => $log->step,
+          'step_name' => $stepNames[$log->step] ?? $log->step,
+          'table_name' => $log->table_name,
+          'external_id' => $log->external_id,
+          'current_status' => $log->status,
+          'attempts' => $log->attempts,
+          'events' => $events,
+        ];
+      });
+
+      return response()->json([
+        'electronic_document' => [
+          'id' => $electronicDocument->id,
+          'full_number' => $electronicDocument->full_number,
+          'serie' => $electronicDocument->serie,
+          'numero' => $electronicDocument->numero,
+          'traverse_migration_status' => $electronicDocument->traverse_migration_status,
+          'traverse_migrated_at' => $electronicDocument->traverse_migrated_at?->format('Y-m-d H:i:s'),
+        ],
+        'timeline' => $timeline,
+        'summary' => [
+          'total_steps' => $logs->count(),
+          'completed_steps' => $logs->where('status', VehiclePurchaseOrderMigrationLog::STATUS_COMPLETED)->count(),
+          'failed_steps' => $logs->where('status', VehiclePurchaseOrderMigrationLog::STATUS_FAILED)->count(),
+          'in_progress_steps' => $logs->where('status', VehiclePurchaseOrderMigrationLog::STATUS_IN_PROGRESS)->count(),
+          'pending_steps' => $logs->where('status', VehiclePurchaseOrderMigrationLog::STATUS_PENDING)->count(),
+        ],
+      ]);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }
