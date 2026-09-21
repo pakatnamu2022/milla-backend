@@ -294,7 +294,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
   public function storeInternal(mixed $data)
   {
     return DB::transaction(function () use ($data) {
-      $vehicle = Vehicles::with(['warehouse', 'purchaseOrder'])->findOrFail($data['ap_vehicle_id']);
+      $vehicle = Vehicles::with('warehouse')->findOrFail($data['ap_vehicle_id']);
 
       if (!$vehicle->warehouse || $vehicle->warehouse->is_received) {
         throw new Exception('El vehículo no está en un almacén de existencias pendientes de recibir (EXT).');
@@ -317,8 +317,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
         ->where('sede_id', $data['sede_receiver_id'])
         ->firstOrFail();
 
-      $issueDate = $vehicle->purchaseOrder?->emission_date
-        ?? throw new Exception('El vehículo no tiene una orden de compra registrada para obtener la fecha.');
+      $issueDate = now()->startOfDay();
 
       // Calcular número de documento antes del movimiento para usarlo como observación
       $transferSeries = AssignSalesSeries::where('sede_id', $sedeTransmitterId)
