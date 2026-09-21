@@ -897,9 +897,19 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
         throw new Exception('No se puede reemplazar productos en un pedido a proveedor que ha sido descartado.');
       }
 
-      // Validar que no tenga recepciones activas
-      if ($supplierOrder->hasActiveReceptions()) {
-        throw new Exception('No se puede reemplazar productos en un pedido a proveedor que tiene recepciones activas. Por favor, elimine o anule las recepciones primero.');
+      // Validar si el producto específico ha sido considerado en alguna recepción
+      // (recibido, observado, marcado para NC, etc.)
+      $productInReceptions = DB::table('purchase_reception_details as prd')
+        ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
+        ->where('pr.ap_supplier_order_id', $supplierOrderId)
+        ->where('prd.product_id', $originalProductId)
+        ->whereNull('pr.deleted_at')
+        ->where('pr.status', '!=', 'ANNULLED')
+        ->whereNull('prd.deleted_at')
+        ->exists();
+
+      if ($productInReceptions) {
+        throw new Exception('No se puede reemplazar el producto porque ya ha sido considerado en una recepción (recibido total o parcialmente, con observaciones, o marcado para nota de crédito). El producto debe estar completamente libre sin ninguna recepción asociada para poder reemplazarlo.');
       }
 
       // Buscar el detalle con el producto original
