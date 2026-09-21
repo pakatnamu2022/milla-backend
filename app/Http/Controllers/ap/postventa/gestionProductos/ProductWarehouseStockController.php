@@ -214,18 +214,22 @@ class ProductWarehouseStockController extends Controller
   }
 
   /**
-   * Re-reservar stock después de Nota de Crédito
+   * Re-reservar stock después de Nota de Crédito o Anulación
    *
    * CONTEXTO:
-   * Cuando se genera una NC, el stock regresa a quantity pero NO a reserved_quantity.
+   * Cuando se genera una NC o se anula un comprobante, el stock regresa a quantity pero NO a reserved_quantity.
    * Si vuelven a facturar la misma OT/Cotización, necesitan re-reservar manualmente.
+   *
+   * CASOS DE USO:
+   * - NC generada → Re-reserva MANUAL cuando confirman que van a re-facturar
+   * - Anulación (contabilizado en Dynamics) → Re-reserva MANUAL después de que se sincronicen ajustes de Dynamics
    *
    * Este endpoint permite re-reservar stock MANUALMENTE cuando confirman que SÍ van a re-facturar.
    *
    * @param Request $request
    * @return JsonResponse
    */
-  public function reReserveStockAfterCreditNote(Request $request): JsonResponse
+  public function reReserveStockAfterCancellation(Request $request): JsonResponse
   {
     try {
       // Validar que proporcionaron exactamente UNO: work_order_id O quotation_id
