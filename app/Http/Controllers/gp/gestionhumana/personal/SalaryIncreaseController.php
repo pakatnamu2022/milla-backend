@@ -28,6 +28,11 @@ class SalaryIncreaseController extends Controller
     public function store(StoreSalaryIncreaseRequest $request)
     {
         try {
+            // Solo desde Gestión Humana: requiere el permiso "Gestionar" de la vista trabajadores.
+            if (!auth()->user()?->hasPermission('trabajadores.manage')) {
+                return $this->error('No tiene permiso para registrar aumentos de sueldo');
+            }
+
             return $this->success($this->service->store($request->validated()));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());

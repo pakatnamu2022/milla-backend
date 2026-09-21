@@ -11,6 +11,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use App\Models\gp\gestionhumana\payroll\PayrollExclusion;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
+use App\Models\gp\gestionhumana\payroll\PayrollLoanExtraDiscount;
 use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
 use App\Models\gp\gestionhumana\payroll\PayrollRegister;
 use App\Models\gp\gestionhumana\payroll\PayrollSchedule;
@@ -306,8 +307,15 @@ class PayrollRegisterService extends BaseService
                     ->where('period_id', $periodId)
                     ->sum('rate_with_tax'));
 
+                // Préstamos y adelantos (incluye colaboraciones): cuotas "PAGO DE CUOTA" cuya
+                // fecha cae dentro del período. Los pagos manuales del legacy ("PAGADO EN LBS",
+                // etc.) se pagaron por otra vía y no se descuentan de nuevo.
+                $advancesLoans = (float)PayrollLoanExtraDiscount::where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+                    ->whereBetween('scheduled_date', [$period->start_date, $period->end_date])
+                    ->whereHas('loan', fn($q) => $q->where('worker_id', $worker->id))
+                    ->sum('amount');
+
                 // Fuentes de datos aún no identificadas: quedan en 0.00 (documentado en el plan).
-                $advancesLoans = 0.00;
                 $otherDeductions = 0.00;
                 $judicialDeductions = 0.00;
                 $graceAmount = 0.00;
@@ -410,7 +418,7 @@ class PayrollRegisterService extends BaseService
                     'afp_total' => $pensionDeductions['afp_total'],
                     'income_tax_5th' => $incomeTax5th,
                     'oncosalud_plan' => $oncosaludPlan, // TODO: sin fuente de datos identificada
-                    'advances_loans' => $advancesLoans, // TODO: sin fuente de datos identificada
+                    'advances_loans' => $advancesLoans,
                     'other_deductions' => $otherDeductions, // TODO: sin fuente de datos identificada
                     'judicial_deductions' => $judicialDeductions, // TODO: sin fuente de datos identificada
                     'grace_amount' => $graceAmount, // TODO: sin fuente de datos identificada

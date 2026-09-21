@@ -15,6 +15,8 @@ class PayrollLoan extends BaseModel
   protected $table = 'gh_payroll_loans';
 
   protected $fillable = [
+    'legacy_id',
+    'concept',
     'worker_id',
     'delivery_date',
     'reason',
@@ -28,20 +30,20 @@ class PayrollLoan extends BaseModel
   ];
 
   protected $casts = [
-    'loan_amount' => 'decimal:2',
+    'loan_amount'        => 'decimal:2',
     'installment_amount' => 'decimal:2',
-    'remaining_balance' => 'decimal:2',
-    'payment_days' => 'array',
-    'delivery_date' => 'date',
-    'payment_start' => 'date',
+    'remaining_balance'  => 'decimal:2',
+    'payment_days'       => 'array',
+    'delivery_date'      => 'date',
+    'payment_start'      => 'date',
     'installments_count' => 'integer',
-    'status' => 'integer',
+    'status'             => 'integer',
   ];
 
   const filters = [
-    'search' => ['reason'],
+    'search'    => ['reason', 'worker.nombre_completo'],
     'worker_id' => '=',
-    'status' => '=',
+    'status'    => '=',
   ];
 
   const sorts = [
