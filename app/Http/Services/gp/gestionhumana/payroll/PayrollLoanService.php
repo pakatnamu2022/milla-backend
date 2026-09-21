@@ -266,6 +266,230 @@ class PayrollLoanService extends BaseService implements BaseServiceInterface
         }
     }
 
+    /**
+     * Sincroniza los préstamos de web_millagp_2 (rrhh_prestamos / rrhh_detalle_prestamo,
+     * misma BD) hacia gh_payroll_loans / gh_payroll_loan_extra_discounts.
+     *
+     * - Trae todos los préstamos activos del legacy (status_deleted = 1), incluido el historial
+     *   ya pagado (préstamos, adelantos, colaboraciones, teléfono...). El concepto del legacy
+     *   (rrhh_concepto) se guarda en `concept` y el motivo en `reason`.
+     * - Cada detalle del legacy (cuota descontada por el sistema o pago manual) se importa
+     *   como cuota ya aplicada. Las cuotas descontadas por el sistema son 'PAGO DE CUOTA';
+     *   los pagos manuales conservan su comentario (p. ej. 'PAGADO EN LBS').
+     * - Las cuotas pendientes se regeneran cada vez desde el saldo y la fecha del próximo
+     *   pago del legacy: mensuales, el mismo día, de a monto_cuota (la última absorbe el resto).
+     * - Es repetible: usa legacy_id / legacy_detail_id. Un préstamo con pagos confirmados
+     *   en este sistema no se toca, y los creados aquí (legacy_id NULL) tampoco.
+     */
+    public function syncFromLegacy(): array
+    {
+        set_time_limit(0);
+
+        $localByLegacy = PayrollLoan::withTrashed()->whereNotNull('legacy_id')->get()->keyBy('legacy_id');
+        $concepts = DB::table('rrhh_concepto')->pluck('nombre', 'id');
+
+        $legacyLoans = DB::table('rrhh_prestamos')
+            ->where('status_deleted', 1)
+            ->orderBy('id')
+            ->get();
+
+        $existingWorkers = DB::table('rrhh_persona')
+            ->whereIn('id', $legacyLoans->pluck('empleado_id')->unique())
+            ->pluck('id')
+            ->flip();
+
+        $legacyDetails = DB::table('rrhh_detalle_prestamo')
+            ->where('status_deleted', 1)
+            ->whereIn('prestamo_id', $legacyLoans->pluck('id'))
+            ->orderBy('fecha')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('prestamo_id');
+
+        $result = [
+            'total_legacy' => $legacyLoans->count(),
+            'created' => 0,
+            'updated' => 0,
+            'deleted' => 0,
+            'details_imported' => 0,
+            'skipped' => [],
+        ];
+
+        foreach ($legacyLoans as $legacy) {
+            if (!isset($existingWorkers[$legacy->empleado_id])) {
+                $result['skipped'][] = "Préstamo legacy #{$legacy->id}: el empleado {$legacy->empleado_id} no existe";
+                continue;
+            }
+
+            try {
+                $outcome = DB::transaction(fn() => $this->syncLegacyLoan(
+                    $legacy,
+                    $localByLegacy->get($legacy->id),
+                    $legacyDetails->get($legacy->id, collect()),
+                    $concepts->get($legacy->concepto_id)
+                ));
+                $result[$outcome['action']]++;
+                $result['details_imported'] += $outcome['details'];
+                array_push($result['skipped'], ...$outcome['warnings']);
+            } catch (Exception $e) {
+                $result['skipped'][] = "Préstamo legacy #{$legacy->id}: {$e->getMessage()}";
+            }
+        }
+
+        // Préstamos que el legacy ya eliminó (status_deleted = 0): se eliminan aquí también.
+        $activeLegacyIds = $legacyLoans->pluck('id')->flip();
+        foreach ($localByLegacy as $legacyId => $local) {
+            if ($local->trashed() || isset($activeLegacyIds[$legacyId])) {
+                continue;
+            }
+            if ($this->hasLocalPayments($local)) {
+                $result['skipped'][] = "Préstamo legacy #{$legacyId}: eliminado en el legacy pero tiene pagos confirmados aquí";
+                continue;
+            }
+            PayrollLoanExtraDiscount::where('loan_id', $local->id)->forceDelete();
+            $local->delete();
+            $result['deleted']++;
+        }
+
+        // Con el historial completo puede haber cientos de observaciones: se devuelven las primeras.
+        $result['skipped_total'] = count($result['skipped']);
+        $result['skipped'] = array_slice($result['skipped'], 0, 20);
+
+        return $result;
+    }
+
+    private function syncLegacyLoan(object $legacy, ?PayrollLoan $local, $details, ?string $concept): array
+    {
+        if ($local && $this->hasLocalPayments($local)) {
+            throw new Exception('tiene pagos confirmados en este sistema, no se sobrescribe');
+        }
+
+        $nextPayment = $legacy->fecha_proximo_pago ? Carbon::parse($legacy->fecha_proximo_pago) : null;
+        $remaining = round((float) $legacy->monto_restante, 2);
+        $installment = round((float) $legacy->monto_cuota, 2);
+
+        $attributes = [
+            'concept' => $concept ? mb_substr(strtoupper($concept), 0, 50) : null,
+            'worker_id' => $legacy->empleado_id,
+            'delivery_date' => $legacy->fecha_entrega,
+            'reason' => mb_substr((string) $legacy->motivo, 0, 255),
+            'payment_start' => $legacy->fecha_pago,
+            'payment_days' => $nextPayment ? [(int) $nextPayment->day] : null,
+            'loan_amount' => round((float) $legacy->monto_prestamo, 2),
+            'installments_count' => (int) $legacy->numero_cuotas,
+            'installment_amount' => $installment,
+            'remaining_balance' => $remaining,
+            'status' => 1,
+        ];
+
+        $action = $local ? 'updated' : 'created';
+        if ($local) {
+            if ($local->trashed()) {
+                $local->restore();
+            }
+            $local->update($attributes);
+            $loan = $local;
+        } else {
+            $loan = PayrollLoan::create($attributes + ['legacy_id' => $legacy->id]);
+        }
+
+        $warnings = [];
+        $imported = 0;
+
+        $knownDetails = PayrollLoanExtraDiscount::withTrashed()
+            ->where('loan_id', $loan->id)
+            ->whereNotNull('legacy_detail_id')
+            ->get()
+            ->keyBy('legacy_detail_id');
+
+        foreach ($details as $detail) {
+            $paidOn = Carbon::parse($detail->fecha);
+            if ($paidOn->year > 2100) {
+                $warnings[] = "Préstamo legacy #{$legacy->id}: detalle #{$detail->id} con fecha inválida ({$detail->fecha}), se omite";
+                continue;
+            }
+
+            $known = $knownDetails->get($detail->id);
+            if ($known) {
+                if ($known->trashed()) {
+                    $known->restore();
+                }
+                continue;
+            }
+
+            $manualConcept = mb_substr(strtoupper(trim((string) $detail->comentario)), 0, 100) ?: 'PAGO MANUAL';
+            PayrollLoanExtraDiscount::create([
+                'loan_id' => $loan->id,
+                'legacy_detail_id' => $detail->id,
+                'scheduled_date' => $paidOn->toDateString(),
+                'concept_type' => $detail->realizado === 'SISTEMA'
+                    ? PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR
+                    : $manualConcept,
+                'amount' => round((float) $detail->monto_pagado, 2),
+                'applied' => true,
+                'confirmed_at' => $detail->created_at,
+                'status' => 1,
+            ]);
+            $imported++;
+        }
+
+        // Detalles ya importados que el legacy eliminó después.
+        PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+            ->whereNotNull('legacy_detail_id')
+            ->whereNotIn('legacy_detail_id', $details->pluck('id'))
+            ->forceDelete();
+
+        // Cuotas pendientes: se descartan y se vuelven a proyectar desde el saldo actual.
+        PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+            ->where('concept_type', PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR)
+            ->where('applied', false)
+            ->forceDelete();
+
+        if ($remaining > 0) {
+            if ($installment <= 0 || !$nextPayment) {
+                $warnings[] = "Préstamo legacy #{$legacy->id}: sin monto de cuota o fecha de próximo pago, no se proyectaron cuotas pendientes";
+            } else {
+                $this->projectLegacyInstallments($loan, $nextPayment, $remaining, $installment);
+            }
+        }
+
+        return ['action' => $action, 'details' => $imported, 'warnings' => $warnings];
+    }
+
+    /**
+     * Cuotas mensuales el mismo día, de a $installment. El cociente se redondea a 2
+     * decimales antes del ceil porque el legacy guarda la cuota con 4 decimales
+     * (623.71 / 3 = 207.9033) y sin redondear saldría una cuota extra de S/ 0.01.
+     */
+    private function projectLegacyInstallments(PayrollLoan $loan, Carbon $firstDate, float $remaining, float $installment): void
+    {
+        $count = max(1, (int) ceil(round($remaining / $installment, 2)));
+        $left = $remaining;
+
+        for ($i = 0; $i < $count; $i++) {
+            $amount = $i === $count - 1 ? $left : min($installment, $left);
+            $left = round($left - $amount, 2);
+
+            PayrollLoanExtraDiscount::create([
+                'loan_id' => $loan->id,
+                'scheduled_date' => $firstDate->copy()->addMonthsNoOverflow($i)->toDateString(),
+                'concept_type' => PayrollLoanExtraDiscount::CONCEPT_TYPE_REGULAR,
+                'amount' => $amount,
+                'applied' => false,
+                'status' => 1,
+            ]);
+        }
+    }
+
+    /** Pagos confirmados aquí (no importados del legacy). */
+    private function hasLocalPayments(PayrollLoan $loan): bool
+    {
+        return PayrollLoanExtraDiscount::where('loan_id', $loan->id)
+            ->whereNull('legacy_detail_id')
+            ->where('applied', true)
+            ->exists();
+    }
+
     private function generateInstallments(PayrollLoan $loan, ?string $startFrom = null): void
     {
         $paymentDays = $loan->payment_days;

@@ -84,6 +84,15 @@ class PayrollLoanController extends Controller
         }
     }
 
+    public function syncLegacy()
+    {
+        try {
+            return $this->success($this->service->syncFromLegacy());
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
     public function regenerateInstallments(int $id)
     {
         try {
