@@ -4520,7 +4520,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
     // NO actualizar para: Notas de Crédito ni Anticipos
     // Se actualiza con la fecha de emisión del documento electrónico
     if ($document->sunat_concept_document_type_id != ElectronicDocument::TYPE_NOTA_CREDITO
-        && !$document->is_advance_payment) {
+      && !$document->is_advance_payment) {
       $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
     }
   }
@@ -4817,7 +4817,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'total' => $itemTotal,
           'account_plan_id' => $item['account_plan_id'] ?? null,
           'product_id' => $item['product_id'] ?? null,
-          'is_traverse' => $item['is_traverse'] ?? null,
+          'is_traverse' => $item['is_traverse'] ?? false,
         ]);
       }
 
