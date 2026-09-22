@@ -171,10 +171,10 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
 
     // Mapeo de tipos de documento
     $documentTypeMap = [
-      'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,
-      'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,
-      //      'CE' => Constants::TYPE_DOCUMENT_CE_ID, // Carnet de extranjería
-      //      'PASAPORTE' => Constants::TYPE_DOCUMENT_PASAPORTE_ID,
+      'DNI' => ApMasters::TYPE_DOCUMENT_DNI_ID,
+      'RUC' => ApMasters::TYPE_DOCUMENT_RUC_ID,
+      //      'CE' => ApMasters::TYPE_DOCUMENT_CE_ID, // Carnet de extranjería
+      //      'PASAPORTE' => ApMasters::TYPE_DOCUMENT_PASAPORTE_ID,
     ];
 
     $documentTypeUpper = strtoupper(trim($documentType));
@@ -371,7 +371,7 @@ class PotentialBuyersSocialNetworksImport implements ToModel, WithHeadingRow, Wi
     }
 
     // Convertir a string y eliminar espacios
-    $phone = trim((string) $phone);
+    $phone = trim((string)$phone);
 
     // Eliminar el prefijo "p:+51" si existe (case insensitive)
     $phone = preg_replace('/^p:\+51/i', '', $phone);

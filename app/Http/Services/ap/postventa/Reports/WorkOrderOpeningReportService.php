@@ -89,7 +89,7 @@ class WorkOrderOpeningReportService
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'nombre_tecnico' => $technicians,
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('d/m/Y') : '',
       'precio_total' => number_format($prices['total'], 2, '.', ''),
       'moneda' => $currencySymbol,
     ];

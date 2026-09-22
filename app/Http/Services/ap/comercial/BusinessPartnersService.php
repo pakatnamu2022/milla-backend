@@ -100,12 +100,12 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       if ($data['type'] === BusinessPartners::CLIENT && $data['type_person_id'] == Constants::TYPE_NATURAL_PERSON_ID) {
         // Para clientes, crear establecimiento por defecto
         $businessPartner->establishments()->create([
-          'code'                => '0000',
-          'type'                => 'CENTRAL',
-          'activity_economic'   => $businessPartner->activityEconomic->name ?? null,
-          'address'             => $businessPartner->direction ?? '-',
-          'full_address'        => $businessPartner->direction ?? null,
-          'ubigeo'              => $businessPartner->district->ubigeo ?? null,
+          'code' => '0000',
+          'type' => 'CENTRAL',
+          'activity_economic' => $businessPartner->activityEconomic->name ?? null,
+          'address' => $businessPartner->direction ?? '-',
+          'full_address' => $businessPartner->direction ?? null,
+          'ubigeo' => $businessPartner->district->ubigeo ?? null,
           'business_partner_id' => $businessPartner->id,
         ]);
       } elseif ($data['type'] === BusinessPartners::SUPPLIER && $data['type_person_id'] == Constants::TYPE_LEGAL_PERSON_ID) {
@@ -157,17 +157,17 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         if ($establishment) {
           $establishment->update([
             'activity_economic' => $businessPartner->activityEconomic->name ?? null,
-            'address'           => $businessPartner->direction ?? '-',
-            'full_address'      => $businessPartner->direction ?? null,
-            'ubigeo'            => $businessPartner->district->ubigeo ?? null,
+            'address' => $businessPartner->direction ?? '-',
+            'full_address' => $businessPartner->direction ?? null,
+            'ubigeo' => $businessPartner->district->ubigeo ?? null,
           ]);
         }
       }
 
       // Solo procesar establecimientos si es RUC
-      if ($data['document_type_id'] == Constants::TYPE_DOCUMENT_RUC_ID) {
+      if ($data['document_type_id'] == ApMasters::TYPE_DOCUMENT_RUC_ID) {
         $rucChanged = $previousNumDoc !== $data['num_doc'];
-        $wasRuc = $previousDocumentTypeId == Constants::TYPE_DOCUMENT_RUC_ID;
+        $wasRuc = $previousDocumentTypeId == ApMasters::TYPE_DOCUMENT_RUC_ID;
 
         if (!$wasRuc) {
           ProcessEstablishments::dispatch($businessPartner->id, $data['num_doc']);
@@ -178,7 +178,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
             $rucChanged ? $previousNumDoc : null
           );
         }
-      } elseif ($previousDocumentTypeId == Constants::TYPE_DOCUMENT_RUC_ID) {
+      } elseif ($previousDocumentTypeId == ApMasters::TYPE_DOCUMENT_RUC_ID) {
         $businessPartner->establishments()->delete();
       }
 
@@ -333,7 +333,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
         if (!$hasApprovedQuote && ($sinAccionYVencida || $ultimaAccionSinResultado)) {
           $opportunity->update(
             ['opportunity_status_id' => Opportunity::CLOSED_ID,
-             'comment'               => 'Oportunidad cerrada automáticamente por falta de seguimiento después de 5 días']
+              'comment' => 'Oportunidad cerrada automáticamente por falta de seguimiento después de 5 días']
           );
         }
       }
@@ -500,7 +500,7 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       $businessPartner = $this->find($id);
 
       // Validar que sea RUC
-      if ($businessPartner->document_type_id != Constants::TYPE_DOCUMENT_RUC_ID) {
+      if ($businessPartner->document_type_id != ApMasters::TYPE_DOCUMENT_RUC_ID) {
         throw new Exception('Solo se pueden procesar establecimientos para RUC');
       }
 
@@ -516,9 +516,9 @@ class BusinessPartnersService extends BaseService implements BaseServiceInterfac
       DB::commit();
 
       return [
-        'message'             => 'Los establecimientos se están reprocesando',
+        'message' => 'Los establecimientos se están reprocesando',
         'business_partner_id' => $businessPartner->id,
-        'status'              => 'pending'
+        'status' => 'pending'
       ];
     } catch (Exception $e) {
       DB::rollBack();
