@@ -1907,6 +1907,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Internal Notes - Notas Internas
       Route::post('internalNotes/{id}/verify-internal-note-migration', [ApInternalNoteController::class, 'verifyInternalNoteMigration']);
       Route::post('internalNotes/{id}/update-internal-note-accounting-status', [ApInternalNoteController::class, 'updateInternalNoteAccountingStatus']);
+      Route::post('internalNotes/bulk-update-accounting-status', [ApInternalNoteController::class, 'bulkUpdateAccountingStatus']);
 
       Route::apiResource('internalNotes', ApInternalNoteController::class)->only([
         'index',
