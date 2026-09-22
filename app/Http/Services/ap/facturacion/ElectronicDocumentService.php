@@ -737,18 +737,25 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
        * Crear movimiento de vehículo si viene ap_vehicle_id
        */
       if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
-        $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+        $isCreditNote = ($data['sunat_concept_document_type_id'] ?? null) == ElectronicDocument::TYPE_NOTA_CREDITO;
 
-        // Actualizar el documento con el ID del movimiento
-        $document->update([
-          'ap_vehicle_movement_id' => $vehicleMovement->id
-        ]);
+        // Las notas de crédito NO generan movimiento de vehículo al crearse: la reversión de
+        // estado (a INVENTARIO/TRANSITO) la hace SyncAccountingStatusJob::restoreVehicleToInventoryIfApplicable()
+        // una vez que la NC está contabilizada en Dynamics. Crear aquí un movimiento (siempre tipo VENTA,
+        // sin efecto real cuando el vehículo ya está en estado de venta) solo dejaba el vehículo con
+        // ap_vehicle_movement_id apuntando a ese movimiento vacío, bloqueando la reversión real por idempotencia.
+        if (!$isCreditNote) {
+          $vehicleMovement = $this->createVehicleMovement($data['ap_vehicle_id'], $document);
+
+          // Actualizar el documento con el ID del movimiento
+          $document->update([
+            'ap_vehicle_movement_id' => $vehicleMovement->id
+          ]);
+        }
 
         // Marcar el vehículo como pagado cuando se emite el comprobante final,
         // o revertirlo a la empresa (AP) cuando una NC anula ese comprobante final
         if (($data['is_advance_payment'] ?? 1) == 0) {
-          $isCreditNote = ($data['sunat_concept_document_type_id'] ?? null) == ElectronicDocument::TYPE_NOTA_CREDITO;
-
           Vehicles::where('id', $data['ap_vehicle_id'])->update([
             'is_paid' => !$isCreditNote,
             'customer_id' => $isCreditNote
