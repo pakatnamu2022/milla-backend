@@ -23,370 +23,370 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
    */
   protected array $documents = [
     [
-      "dni"   => "75090837",
+      "dni" => "75090837",
       "largo" => "8",
-      "tipo"  => "DNI"
+      "tipo" => "DNI"
     ],
     [
-      "dni"   => "42772411",
+      "dni" => "42772411",
       "largo" => "8",
-      "tipo"  => "DNI"
+      "tipo" => "DNI"
     ],
     [
-      "dni"   => "42082941",
+      "dni" => "42082941",
       "largo" => "8",
-      "tipo"  => "DNI"
+      "tipo" => "DNI"
     ],
     [
-      "dni"    => "IE9692928F",
-      "largo"  => "10",
-      "tipo"   => "OTR",
+      "dni" => "IE9692928F",
+      "largo" => "10",
+      "tipo" => "OTR",
       "nombre" => "META PLATFORMS IRELAND LIMITE"
     ],
     [
-      "dni"   => "20607826308",
+      "dni" => "20607826308",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20101973922",
+      "dni" => "20101973922",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20467534026",
+      "dni" => "20467534026",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20603386541",
+      "dni" => "20603386541",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20100017491",
+      "dni" => "20100017491",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10414091038",
+      "dni" => "10414091038",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20479461156",
+      "dni" => "20479461156",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10276763984",
+      "dni" => "10276763984",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20604155879",
+      "dni" => "20604155879",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20495905552",
+      "dni" => "20495905552",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20454073143",
+      "dni" => "20454073143",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20602819834",
+      "dni" => "20602819834",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20606438975",
+      "dni" => "20606438975",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20601066018",
+      "dni" => "20601066018",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20348687191",
+      "dni" => "20348687191",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10467115273",
+      "dni" => "10467115273",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10277163778",
+      "dni" => "10277163778",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20613790692",
+      "dni" => "20613790692",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20603381697",
+      "dni" => "20603381697",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20606432446",
+      "dni" => "20606432446",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20144961146",
+      "dni" => "20144961146",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20505205791",
+      "dni" => "20505205791",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20610736778",
+      "dni" => "20610736778",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20519151279",
+      "dni" => "20519151279",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20164032613",
+      "dni" => "20164032613",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20379430377",
+      "dni" => "20379430377",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20610098259",
+      "dni" => "20610098259",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20545996252",
+      "dni" => "20545996252",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20543725821",
+      "dni" => "20543725821",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20565643496",
+      "dni" => "20565643496",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20557296973",
+      "dni" => "20557296973",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20607490229",
+      "dni" => "20607490229",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10167793431",
+      "dni" => "10167793431",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20561127311",
+      "dni" => "20561127311",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20479819051",
+      "dni" => "20479819051",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20492353214",
+      "dni" => "20492353214",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10415914321",
+      "dni" => "10415914321",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20511004251",
+      "dni" => "20511004251",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20480738676",
+      "dni" => "20480738676",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20615421791",
+      "dni" => "20615421791",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10192497936",
+      "dni" => "10192497936",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20491647770",
+      "dni" => "20491647770",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20557644416",
+      "dni" => "20557644416",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20609090791",
+      "dni" => "20609090791",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20613058878",
+      "dni" => "20613058878",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20522547957",
+      "dni" => "20522547957",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10459074525",
+      "dni" => "10459074525",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20526233329",
+      "dni" => "20526233329",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "10772384161",
+      "dni" => "10772384161",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20105354330",
+      "dni" => "20105354330",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20548704261",
+      "dni" => "20548704261",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20608652630",
+      "dni" => "20608652630",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20127765279",
+      "dni" => "20127765279",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20600509935",
+      "dni" => "20600509935",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20607596108",
+      "dni" => "20607596108",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20103117560",
+      "dni" => "20103117560",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20344877158",
+      "dni" => "20344877158",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20545621879",
+      "dni" => "20545621879",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20124148970",
+      "dni" => "20124148970",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20341841357",
+      "dni" => "20341841357",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20504292968",
+      "dni" => "20504292968",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20601415586",
+      "dni" => "20601415586",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20604093091",
+      "dni" => "20604093091",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20600057058",
+      "dni" => "20600057058",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20517342891",
+      "dni" => "20517342891",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20342868844",
+      "dni" => "20342868844",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20515339508",
+      "dni" => "20515339508",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20516711559",
+      "dni" => "20516711559",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ],
     [
-      "dni"   => "20604457948",
+      "dni" => "20604457948",
       "largo" => "11",
-      "tipo"  => "RUC"
+      "tipo" => "RUC"
     ]
   ];
 
@@ -409,8 +409,8 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
   // Ajusta los IDs si difieren en tu entorno.
   // -------------------------------------------------------------------------
   protected array $documentTypeMap = [
-    'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,  // 809
-    'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,  // 810
+    'DNI' => ApMasters::TYPE_DOCUMENT_DNI_ID,  // 809
+    'RUC' => ApMasters::TYPE_DOCUMENT_RUC_ID,  // 810
     'CEX' => 811,  // Carnet de Extranjería
     'PAS' => 973,  // Pasaporte
     'OTR' => 974,  // Otros tipos o sin RUC
@@ -462,13 +462,13 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
 
     // ── Contadores para el reporte ───────────────────────────────────────
     $report = [
-      'created'      => [],
-      'skipped'      => [],
-      'failed'       => [],
-      'no_api'       => [],
-      'synced'       => [],
+      'created' => [],
+      'skipped' => [],
+      'failed' => [],
+      'no_api' => [],
+      'synced' => [],
       'sync_skipped' => [],
-      'sync_err'     => [],
+      'sync_err' => [],
     ];
 
     foreach ($this->documents as $doc) {
@@ -728,19 +728,19 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
   ): array
   {
     $base = [
-      'num_doc'                => $numDoc,
-      'document_type_id'       => $documentTypeId,
-      'type'                   => BusinessPartners::SUPPLIER,
-      'tax_class_type_id'      => $taxClassTypeId,
-      'supplier_tax_class_id'  => $supplierTaxClassId,
-      'company_id'             => $companyId,
-      'district_id'            => $districtId,
-      'origin_id'              => $originId,
-      'type_person_id'         => $typePersonId,
-      'person_segment_id'      => $personSegmentId,
-      'activity_economic_id'   => $activityEconomicId,
-      'nationality'            => 'NACIONAL',
-      'status_ap'              => 1,
+      'num_doc' => $numDoc,
+      'document_type_id' => $documentTypeId,
+      'type' => BusinessPartners::SUPPLIER,
+      'tax_class_type_id' => $taxClassTypeId,
+      'supplier_tax_class_id' => $supplierTaxClassId,
+      'company_id' => $companyId,
+      'district_id' => $districtId,
+      'origin_id' => $originId,
+      'type_person_id' => $typePersonId,
+      'person_segment_id' => $personSegmentId,
+      'activity_economic_id' => $activityEconomicId,
+      'nationality' => 'NACIONAL',
+      'status_ap' => 1,
     ];
 
     $payload = match ($docCode) {
@@ -767,12 +767,12 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     $birthDate = isset($d['birth_date']) && $d['birth_date'] !== '' ? $d['birth_date'] : null;
 
     return [
-      'first_name'       => $firstName ?: null,
+      'first_name' => $firstName ?: null,
       'paternal_surname' => $paternalSurname ?: null,
       'maternal_surname' => $maternalSurname ?: null,
-      'full_name'        => $fullName ?: 'SIN NOMBRE',
-      'birth_date'       => $birthDate,
-      'direction'        => ($d['address'] ?? '') ?: null,
+      'full_name' => $fullName ?: 'SIN NOMBRE',
+      'birth_date' => $birthDate,
+      'direction' => ($d['address'] ?? '') ?: null,
     ];
   }
 
@@ -784,10 +784,10 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     $direction = ($d['full_address'] ?? $d['address'] ?? '') ?: null;
 
     return [
-      'full_name'         => $fullName ?: "EMPRESA {$numDoc}",
-      'company_status'    => $status,
+      'full_name' => $fullName ?: "EMPRESA {$numDoc}",
+      'company_status' => $status,
       'company_condition' => $condition,
-      'direction'         => $direction,
+      'direction' => $direction,
     ];
   }
 
@@ -799,12 +799,12 @@ class BusinessPartnersFromDocumentSeeder extends Seeder
     $fullName = ($d['names'] ?? '') ?: trim("{$paternalSurname} {$maternalSurname} {$firstName}");
 
     return [
-      'first_name'       => $firstName,
+      'first_name' => $firstName,
       'paternal_surname' => $paternalSurname,
       'maternal_surname' => $maternalSurname,
-      'full_name'        => $fullName ?: "EXTRANJERO {$numDoc}",
-      'nationality'      => 'EXTRANJERO',
-      'direction'        => null,
+      'full_name' => $fullName ?: "EXTRANJERO {$numDoc}",
+      'nationality' => 'EXTRANJERO',
+      'direction' => null,
     ];
   }
 

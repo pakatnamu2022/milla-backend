@@ -243,7 +243,7 @@ class PartsReportService
       'sede' => $workOrder->sede?->abreviatura ?? '',
       'numero_ot' => $workOrder->correlative ?? '',
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('d/m/Y') : '',
       'tipo_servicio' => $firstItem?->typePlanning?->description ?? '',
       'categoria' => $part->product?->category?->description ?? '',
       'codigo_repuesto' => $part->product?->code ?? '',
@@ -395,9 +395,9 @@ class PartsReportService
           if (is_array($value) && count($value) === 2) {
             $query->where(function ($q) use ($value) {
               $q->whereHas('workOrder', function ($subQ) use ($value) {
-                $subQ->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+                $subQ->whereBetween('official_closing_date', [$value[0], $value[1]]);
               })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($value) {
-                $subQ->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+                $subQ->whereBetween('official_closing_date', [$value[0], $value[1]]);
               });
             });
           }
@@ -452,9 +452,9 @@ class PartsReportService
 
       switch ($operator) {
         case 'workOrderDateFilter':
-          // Filtro de fecha en actual_delivery_date de la OT
+          // Filtro de fecha en official_closing_date de la OT
           if (is_array($value) && count($value) === 2) {
-            $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+            $query->whereBetween('official_closing_date', [$value[0], $value[1]]);
           }
           break;
         case '=':

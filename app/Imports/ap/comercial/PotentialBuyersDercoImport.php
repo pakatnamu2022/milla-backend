@@ -142,8 +142,8 @@ class PotentialBuyersDercoImport implements ToModel, WithHeadingRow, WithValidat
 
     // Si no encuentra, buscar en BD como fallback
     $documentTypeMap = [
-      'DNI' => Constants::TYPE_DOCUMENT_DNI_ID,
-      'RUC' => Constants::TYPE_DOCUMENT_RUC_ID,
+      'DNI' => ApMasters::TYPE_DOCUMENT_DNI_ID,
+      'RUC' => ApMasters::TYPE_DOCUMENT_RUC_ID,
     ];
 
     $documentTypeUpper = strtoupper(trim($documentType));

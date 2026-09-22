@@ -4516,9 +4516,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     $workOrder->update(['has_invoice_generated' => true]);
 
-    // Actualizar fecha de cierre oficial SOLO para facturas/boletas (NO para Notas de Crédito)
+    // Actualizar fecha de cierre oficial SOLO para facturas/boletas FINALES
+    // NO actualizar para: Notas de Crédito ni Anticipos
     // Se actualiza con la fecha de emisión del documento electrónico
-    if ($document->sunat_concept_document_type_id != ElectronicDocument::TYPE_NOTA_CREDITO) {
+    if ($document->sunat_concept_document_type_id != ElectronicDocument::TYPE_NOTA_CREDITO
+        && !$document->is_advance_payment) {
       $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
     }
   }

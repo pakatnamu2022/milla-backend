@@ -311,8 +311,8 @@ class WorkShopReportService
       'nombre_tecnico' => $technicians,
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'hora_apertura_ot' => $workOrder->created_at ? $workOrder->created_at->format('H:i') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
-      'hora_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('H:i') : '',
+      'fecha_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('d/m/Y') : '',
+      'hora_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('H:i') : '',
       'precio_mano_obra' => number_format($prices['mano_obra'], 2, '.', ''),
       'precio_repuesto' => number_format($prices['repuestos'], 2, '.', ''),
       'precio_lubricantes' => number_format($prices['lubricantes'], 2, '.', ''),
@@ -334,13 +334,13 @@ class WorkShopReportService
    */
   private function getCustomerType($invoiceTo): string
   {
-    if (!$invoiceTo || !$invoiceTo->type_person_id) {
+    if (!$invoiceTo || !$invoiceTo->document_type_id) {
       return '';
     }
 
-    if ($invoiceTo->type_person_id == ApMasters::TYPE_PERSON_NATURAL_ID) {
+    if ($invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_DNI_ID || $invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_CE_ID) {
       return 'NATURAL';
-    } elseif ($invoiceTo->type_person_id == ApMasters::TYPE_PERSON_JURIDICA_ID) {
+    } elseif ($invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_RUC_ID) {
       return 'JURIDICA';
     }
 
@@ -628,7 +628,7 @@ class WorkShopReportService
         'plannings.worker',
       ])
       ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-      ->whereNotNull('actual_delivery_date'); // Solo OTs con fecha de cierre
+      ->whereNotNull('official_closing_date'); // Solo OTs con fecha de cierre
 
     // Filtrar por sedes del usuario
     if (!empty($userSedeIds)) {
@@ -646,7 +646,7 @@ class WorkShopReportService
       ->groupBy('vehicle.vin')
       ->map(function ($ordersGroup) {
         // Ordenar por fecha de cierre descendente y tomar la primera (última OT)
-        return $ordersGroup->sortByDesc('actual_delivery_date')->first();
+        return $ordersGroup->sortByDesc('official_closing_date')->first();
       })
       ->values();
 
@@ -694,7 +694,7 @@ class WorkShopReportService
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'nombre_tecnico' => $technicians,
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('d/m/Y') : '',
     ];
   }
 
@@ -720,7 +720,7 @@ class WorkShopReportService
         case 'closingDateFilter':
           // Filtro de rango de fechas de cierre
           if (is_array($value) && count($value) === 2) {
-            $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
+            $query->whereBetween('official_closing_date', [$value[0], $value[1]]);
           }
           break;
         case '=':

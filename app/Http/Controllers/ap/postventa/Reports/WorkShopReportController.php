@@ -7,7 +7,6 @@ use App\Exports\ap\postventa\Reports\ClosedWorkOrdersByVehicleExport;
 use App\Http\Controllers\Controller;
 use App\Http\Services\ap\postventa\Reports\WorkShopReportService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Maatwebsite\Excel\Facades\Excel;
 
 class WorkShopReportController extends Controller
@@ -33,8 +32,8 @@ class WorkShopReportController extends Controller
       'advisor_id' => 'nullable|integer',
       'status_id' => 'nullable|array',
       'status_id.*' => 'integer',
-      'opening_date' => 'required|array|size:2',
-      'opening_date.*' => 'required|date',
+      'fecha_de_emision' => 'required|array|size:2',
+      'fecha_de_emision.*' => 'required|date',
       'actual_delivery_date' => 'nullable|array',
       'actual_delivery_date.*' => 'date',
       'is_invoiced' => 'nullable|boolean',
@@ -48,10 +47,6 @@ class WorkShopReportController extends Controller
 
     // Determinar si los montos deben estar en soles
     $amountsInSoles = $validated['amounts_in_soles'] ?? false;
-
-    // TEMPORAL: Ejecutar comando para actualizar fechas de entrega antes de generar el reporte
-    // TODO: Remover esto cuando se arregle la reportería
-    Artisan::call('work-orders:update-delivery-dates', ['--force' => true]);
 
     // Obtener datos del reporte
     $data = $this->service->getWorkOrdersReport($filters, $amountsInSoles);
@@ -112,7 +107,7 @@ class WorkShopReportController extends Controller
     $filters[] = [
       'column' => 'fecha_de_emision',
       'operator' => 'documentDateFilter',
-      'value' => $validated['opening_date'],
+      'value' => $validated['fecha_de_emision'],
     ];
 
     // Filtro por sede de la OT
