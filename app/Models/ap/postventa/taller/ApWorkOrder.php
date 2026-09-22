@@ -1191,7 +1191,7 @@ class ApWorkOrder extends Model
     // Obtener y retornar el valor del GeneralMaster
     $generalMaster = GeneralMaster::find($generalMasterId);
 
-    return (float) ($generalMaster->value ?? 0);
+    return (float)($generalMaster->value ?? 0);
   }
 
   public static function getReportableColumns()
