@@ -22,6 +22,16 @@ class VehicleMovementResource extends JsonResource
       'status_color'                 => $this->status_color,
       'ap_vehicle_status_id'         => $this->ap_vehicle_status_id,
       'ap_vehicle_purchase_order_id' => $this->ap_vehicle_purchase_order_id,
+      'previous_status'              => $this->when($this->previous_status_id, [
+        'id'          => $this->previousStatus?->id,
+        'description' => $this->previousStatus?->description,
+        'color'       => $this->previousStatus?->color,
+      ]),
+      'new_status'                   => $this->when($this->new_status_id, [
+        'id'          => $this->newStatus?->id,
+        'description' => $this->newStatus?->description,
+        'color'       => $this->newStatus?->color,
+      ]),
       'warehouse'                    => $this->when($this->warehouse_id, [
         'id'          => $this->warehouse?->id,
         'description' => $this->warehouse?->description,

@@ -73,6 +73,16 @@ class VehicleMovement extends BaseModel
     return $this->belongsTo(ApVehicleStatus::class, 'ap_vehicle_status_id');
   }
 
+  public function previousStatus(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleStatus::class, 'previous_status_id');
+  }
+
+  public function newStatus(): BelongsTo
+  {
+    return $this->belongsTo(ApVehicleStatus::class, 'new_status_id');
+  }
+
   public function vehicle(): BelongsTo
   {
     return $this->belongsTo(Vehicles::class, 'ap_vehicle_id');

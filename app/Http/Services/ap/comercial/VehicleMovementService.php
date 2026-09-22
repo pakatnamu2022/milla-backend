@@ -697,12 +697,46 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Revert vehicle status when a SUNAT invoice is cancelled/annulled.
+   * Picks the highest-priority inventory status from the vehicle's movement history,
+   * per ApVehicleStatus::INVENTORY_REVERT_PRIORITY. If the vehicle ever had INVENTARIO_VN
+   * it always wins over EN_CURSO, etc. Falls back to INVENTARIO_VN when nothing eligible is found.
    *
-   * Scans the vehicle's full movement history and picks the highest-priority
-   * inventory state according to ApVehicleStatus::INVENTORY_REVERT_PRIORITY.
-   * If the vehicle ever had INVENTARIO_VN it always wins over EN_CURSO, etc.
-   * Falls back to INVENTARIO_VN when nothing eligible is found.
+   * Reads `ap_vehicle_status_id` (the logical status of each movement) rather than
+   * `new_status_id`: once a vehicle reaches a SALE_STATUS, later logistics movements
+   * (e.g. warehouse reception) leave `new_status_id` unchanged by design (see
+   * storeInventoryVehicleMovement's sale-status guard), so `new_status_id` alone misses
+   * inventory events that happened after the sale.
+   */
+  private function resolveBestRevertStatus(Vehicles $vehicle, VehicleMovement $saleMovement): int
+  {
+    $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
+
+    $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
+      ->whereIn('ap_vehicle_status_id', array_keys($priorityMap))
+      ->pluck('ap_vehicle_status_id')
+      ->unique()
+      ->toArray();
+
+    // Include the direct pre-sale status stored on the VENTA movement
+    if ($saleMovement->previous_status_id && isset($priorityMap[$saleMovement->previous_status_id])) {
+      $historicalStatuses[] = $saleMovement->previous_status_id;
+    }
+
+    $bestStatusId = null;
+    $bestWeight   = -1;
+    foreach ($historicalStatuses as $statusId) {
+      $weight = $priorityMap[$statusId] ?? 0;
+      if ($weight > $bestWeight) {
+        $bestWeight   = $weight;
+        $bestStatusId = $statusId;
+      }
+    }
+
+    return $bestStatusId ?? ApVehicleStatus::INVENTARIO_VN;
+  }
+
+  /**
+   * Revert vehicle status when a SUNAT invoice is cancelled/annulled.
    *
    * @throws Throwable
    */
@@ -712,32 +746,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   ): VehicleMovement {
     DB::beginTransaction();
     try {
-      $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
-
-      // Collect all inventory-eligible statuses from this vehicle's history
-      $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
-        ->whereIn('new_status_id', array_keys($priorityMap))
-        ->pluck('new_status_id')
-        ->unique()
-        ->toArray();
-
-      // Include the direct pre-sale status stored on the VENTA movement
-      if ($saleMovement->previous_status_id && isset($priorityMap[$saleMovement->previous_status_id])) {
-        $historicalStatuses[] = $saleMovement->previous_status_id;
-      }
-
-      // Pick the highest-priority status
-      $bestStatusId = null;
-      $bestWeight   = -1;
-      foreach ($historicalStatuses as $statusId) {
-        $weight = $priorityMap[$statusId] ?? 0;
-        if ($weight > $bestWeight) {
-          $bestWeight   = $weight;
-          $bestStatusId = $statusId;
-        }
-      }
-
-      $targetStatusId = $bestStatusId ?? ApVehicleStatus::INVENTARIO_VN;
+      $targetStatusId = $this->resolveBestRevertStatus($vehicle, $saleMovement);
 
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => 'CANCELACION_FACTURA',
@@ -778,32 +787,7 @@ class VehicleMovementService extends BaseService implements BaseServiceInterface
   ): VehicleMovement {
     DB::beginTransaction();
     try {
-      $priorityMap = ApVehicleStatus::INVENTORY_REVERT_PRIORITY;
-
-      // Collect all inventory-eligible statuses from this vehicle's history
-      $historicalStatuses = VehicleMovement::where('ap_vehicle_id', $vehicle->id)
-        ->whereIn('new_status_id', array_keys($priorityMap))
-        ->pluck('new_status_id')
-        ->unique()
-        ->toArray();
-
-      // Include the direct pre-sale status stored on the VENTA movement
-      if ($saleMovement->previous_status_id && isset($priorityMap[$saleMovement->previous_status_id])) {
-        $historicalStatuses[] = $saleMovement->previous_status_id;
-      }
-
-      // Pick the highest-priority status
-      $bestStatusId = null;
-      $bestWeight   = -1;
-      foreach ($historicalStatuses as $statusId) {
-        $weight = $priorityMap[$statusId] ?? 0;
-        if ($weight > $bestWeight) {
-          $bestWeight   = $weight;
-          $bestStatusId = $statusId;
-        }
-      }
-
-      $targetStatusId = $bestStatusId ?? ApVehicleStatus::INVENTARIO_VN;
+      $targetStatusId = $this->resolveBestRevertStatus($vehicle, $saleMovement);
 
       $vehicleMovement = VehicleMovement::create([
         'movement_type'        => VehicleMovement::CREDIT_NOTE_REVERT,
