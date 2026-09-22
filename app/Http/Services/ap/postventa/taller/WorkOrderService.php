@@ -1220,6 +1220,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       //Close work order with internal note
       $workOrder->update([
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+        'actual_delivery_date' => now(),
       ]);
 
       // Validar stock en sistema externo antes de generar el ajuste de salida

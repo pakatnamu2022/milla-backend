@@ -4516,9 +4516,11 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     $workOrder->update(['has_invoice_generated' => true]);
 
-    // Actualizar fecha de cierre oficial SIEMPRE que se cree una OTE
+    // Actualizar fecha de cierre oficial SOLO para facturas/boletas (NO para Notas de Crédito)
     // Se actualiza con la fecha de emisión del documento electrónico
-    $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    if ($document->sunat_concept_document_type_id != ElectronicDocument::TYPE_NOTA_CREDITO) {
+      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    }
   }
 
   public function createConsolidatedInvoice(array $data): array
