@@ -409,6 +409,67 @@ return [
       'icon' => 'Unlink',
       'policy_method' => 'unlinkCrossingPurchase',
     ],
+    // Reportes de Post Venta (permiso por reporte individual, value = ReportConfig.id)
+    'work-orders' => [
+      'label' => 'Reporte de Órdenes de Trabajo',
+      'description' => 'Permite acceder al reporte de órdenes de trabajo',
+      'icon' => 'FileText',
+      'policy_method' => 'work-orders',
+    ],
+    'inventory-outputs' => [
+      'label' => 'Reporte de Salidas de Inventario',
+      'description' => 'Permite ver y exportar el reporte de salidas de inventario',
+      'icon' => 'FileText',
+      'policy_method' => 'inventory-outputs',
+    ],
+    'worked-hours-by-sede' => [
+      'label' => 'Reporte de Horas Trabajadas por Sede',
+      'description' => 'Permite ver y exportar el reporte de horas trabajadas por sede',
+      'icon' => 'FileText',
+      'policy_method' => 'worked-hours-by-sede',
+    ],
+    'billed-hours-by-sede' => [
+      'label' => 'Reporte de Horas Facturadas por Sede',
+      'description' => 'Permite acceder al reporte de horas facturadas por sede',
+      'icon' => 'FileText',
+      'policy_method' => 'billed-hours-by-sede',
+    ],
+    'invoicing' => [
+      'label' => 'Reporte de Facturación de Taller',
+      'description' => 'Permite acceder al reporte de facturación',
+      'icon' => 'FileText',
+      'policy_method' => 'invoicing',
+    ],
+    'work-orders-parts' => [
+      'label' => 'Reporte de Facturación Repuestos (OT)',
+      'description' => 'Permite ver y exportar el reporte de facturación de repuestos de órdenes de trabajo',
+      'icon' => 'FileText',
+      'policy_method' => 'work-orders-parts',
+    ],
+    'work-orders-openings' => [
+      'label' => 'Reporte de Órdenes de Trabajo Generadas',
+      'description' => 'Permite ver y exportar el reporte de órdenes de trabajo generadas/aperturadas',
+      'icon' => 'FileText',
+      'policy_method' => 'work-orders-openings',
+    ],
+    'work-orders-closed' => [
+      'label' => 'Reporte de Últimas OT por Vehículo',
+      'description' => 'Permite ver y exportar el reporte de últimas órdenes de trabajo cerradas por vehículo',
+      'icon' => 'FileText',
+      'policy_method' => 'work-orders-closed',
+    ],
+    'meson-invoicing' => [
+      'label' => 'Reporte de Facturación Repuestos (Mesón)',
+      'description' => 'Permite ver y exportar el reporte de facturación de repuestos',
+      'icon' => 'FileText',
+      'policy_method' => 'meson-invoicing',
+    ],
+    'electronic-documents' => [
+      'label' => 'Reporte de Ordenes de Compra / Caja',
+      'description' => 'Permite ver y exportar el reporte de órdenes de compra en caja',
+      'icon' => 'FileText',
+      'policy_method' => 'electronic-documents',
+    ],
   ],
 
 
