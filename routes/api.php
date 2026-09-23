@@ -70,6 +70,7 @@ use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
 use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\postventa\Dashboard\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
+use App\Http\Controllers\ap\postventa\Dashboard\ProductivityHistoricalController;
 use App\Http\Controllers\ap\postventa\Dashboard\TechnicianProductivityDetailController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
@@ -1939,6 +1940,12 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
       Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
       Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
+
+      // Productivity Historical Dashboard - Dashboard Histórico de Productividad
+      Route::get('dashboard/productivity/historical/trends', [ProductivityHistoricalController::class, 'getAnnualTrends']);
+      Route::get('dashboard/productivity/historical/compare-years', [ProductivityHistoricalController::class, 'compareYears']);
+      Route::get('dashboard/productivity/historical/{year}/{month}', [ProductivityHistoricalController::class, 'getMonthSnapshot']);
+      Route::get('dashboard/productivity/historical/summary', [ProductivityHistoricalController::class, 'getMultiYearSummary']);
 
       // Technician Productivity Detail - Detalle de Productividad por Técnico
       Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);

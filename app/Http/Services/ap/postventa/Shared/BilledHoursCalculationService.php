@@ -414,13 +414,16 @@ class BilledHoursCalculationService
 
     // Recargar plannings con filtros específicos para horas facturadas
     // (el servicio centralizado carga todas las relaciones, pero necesitamos filtrar plannings)
-    $workOrders->load([
-      'plannings' => function ($query) {
-        $query->where('status', 'completed')
-          ->whereNotNull('worker_id')
-          ->with('worker');
-      }
-    ]);
+    // Solo hacer load si la colección tiene modelos (es una EloquentCollection)
+    if ($workOrders->isNotEmpty() && method_exists($workOrders, 'load')) {
+      $workOrders->load([
+        'plannings' => function ($query) {
+          $query->where('status', 'completed')
+            ->whereNotNull('worker_id')
+            ->with('worker');
+        }
+      ]);
+    }
 
     return $workOrders;
   }
