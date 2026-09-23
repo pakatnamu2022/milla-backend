@@ -24,6 +24,7 @@ class UpdateScrumItemRequest extends FormRequest
         return [
             'sprint_id'       => 'nullable|integer|exists:scrum_sprints,id',
             'parent_id'       => 'nullable|integer|exists:scrum_items,id',
+            'predecessor_id'  => 'nullable|integer|exists:scrum_items,id',
             'type'            => 'sometimes|in:tarea,historia,funcion,solicitud,error',
             'title'           => 'sometimes|string|max:200',
             'description'     => 'nullable|string',
@@ -34,7 +35,8 @@ class UpdateScrumItemRequest extends FormRequest
             'estimated_hours' => 'nullable|numeric|min:0|max:999',
             'actual_hours'    => 'nullable|numeric|min:0|max:999',
             'order'           => 'nullable|integer|min:0',
-            'due_date'        => 'nullable|date',
+            'start_date'      => 'nullable|date',
+            'due_date'        => 'nullable|date|after_or_equal:start_date',
             'tag_ids'         => 'nullable|array',
             'tag_ids.*'       => 'integer|exists:scrum_tags,id',
         ];

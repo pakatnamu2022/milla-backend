@@ -61,4 +61,22 @@ class ScrumProjectController extends Controller
       return $this->error($th->getMessage());
     }
   }
+
+  public function gantt(int $id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->gantt($id));
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
+
+  public function ganttPdf(int $id)
+  {
+    try {
+      return $this->service->ganttPdf($id);
+    } catch (Throwable $th) {
+      return $this->error($th->getMessage());
+    }
+  }
 }

@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Cache;
 
 class ScrumItemService extends BaseService implements BaseServiceInterface
 {
-  private const KANBAN_TTL = 300;  // 5 min — cambia frecuente
   private const BACKLOG_TTL = 600; // 10 min
 
   public function list(Request $request)
@@ -31,21 +30,40 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
     );
   }
 
-  public function kanban(?int $sprintId = null): array
+  /**
+   * Tablero Kanban filtrable. Solo trae items de primer nivel (historias y
+   * demás tipos sin padre); las tareas de cada historia (Análisis y
+   * Desarrollo / Pruebas) van como `children`, no como tarjetas propias. Ya
+   * no requiere sprint: por defecto muestra todo el proyecto, sin importar
+   * en qué sprint (Desarrollo/Pruebas) caiga cada tarea del item.
+   */
+  public function kanban(array $filters = []): array
   {
-    $key = $sprintId ? "scrum:kanban:{$sprintId}" : "scrum:kanban:all";
-    return Cache::store('redis')->remember($key, self::KANBAN_TTL, function () use ($sprintId) {
-      $query = ScrumItem::query()
-        ->whereNull('parent_id')
-        ->with(['assignee:id,name', 'tags', 'children:id,parent_id,title,status,order'])
-        ->orderBy('order');
+    $query = ScrumItem::query()
+      ->whereNull('parent_id')
+      ->with(['assignee:id,name', 'tags', 'children:id,parent_id,title,status,order'])
+      ->orderBy('order');
 
-      if ($sprintId !== null) {
-        $query->where('sprint_id', $sprintId);
-      }
+    if (!empty($filters['project_id'])) {
+      $query->where('project_id', $filters['project_id']);
+    }
+    if (!empty($filters['sprint_id'])) {
+      $query->where('sprint_id', $filters['sprint_id']);
+    }
+    if (!empty($filters['assigned_to'])) {
+      $query->where('assigned_to', $filters['assigned_to']);
+    }
+    if (!empty($filters['priority'])) {
+      $query->where('priority', $filters['priority']);
+    }
+    if (!empty($filters['tag_id'])) {
+      $query->whereHas('tags', fn ($q) => $q->where('scrum_tags.id', $filters['tag_id']));
+    }
+    if (!empty($filters['history_id'])) {
+      $query->where('id', $filters['history_id']);
+    }
 
-      return $query->get()->groupBy('status')->toArray();
-    });
+    return $query->get()->groupBy('status')->toArray();
   }
 
   public function backlog(int $projectId): array
@@ -72,6 +90,8 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
       'project:id,name,color',
       'parent:id,title',
       'children:id,parent_id,title,status,priority,assigned_to,order',
+      'predecessor:id,title,due_date',
+      'successors:id,title,predecessor_id,start_date,due_date',
       'tags',
       'watchers:id,name',
       'comments.user:id,name',
@@ -121,6 +141,8 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
       $data['closed_at'] = null;
     }
 
+    $previousDueDate = $item->due_date;
+
     $item->update($data);
 
     if (!empty($histories)) {
@@ -131,8 +153,43 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
       $item->tags()->sync($data['tag_ids']);
     }
 
+    if (array_key_exists('due_date', $data)) {
+      $this->cascadeDueDateShift($item, $previousDueDate, $item->due_date);
+    }
+
     $this->flushItemCache($item);
     return $item->fresh()->load(['assignee:id,name', 'tags']);
+  }
+
+  /**
+   * Cuando cambia la fecha fin de un item, sus sucesores (items cuyo
+   * predecessor_id apunta a este) se desplazan la misma cantidad de días,
+   * en cascada, para respetar la duración/holgura de cada uno.
+   */
+  private function cascadeDueDateShift(ScrumItem $item, ?\Illuminate\Support\Carbon $previousDueDate, ?\Illuminate\Support\Carbon $newDueDate, array $visited = []): void
+  {
+    if (!$previousDueDate || !$newDueDate || in_array($item->id, $visited)) {
+      return;
+    }
+
+    $deltaDays = $previousDueDate->diffInDays($newDueDate, false);
+    if ($deltaDays === 0) {
+      return;
+    }
+
+    $visited[] = $item->id;
+
+    $successors = ScrumItem::where('predecessor_id', $item->id)->get();
+    foreach ($successors as $successor) {
+      $successorPreviousDue = $successor->due_date;
+
+      $successor->update([
+        'start_date' => $successor->start_date?->addDays($deltaDays),
+        'due_date'   => $successor->due_date?->addDays($deltaDays),
+      ]);
+
+      $this->cascadeDueDateShift($successor, $successorPreviousDue, $successor->due_date, $visited);
+    }
   }
 
   public function submitTicket(mixed $data): ScrumItem
@@ -181,13 +238,11 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
 
   private function flushItemCache(ScrumItem $item): void
   {
-    Cache::store('redis')->forget("scrum:kanban:{$item->sprint_id}");
     Cache::store('redis')->forget("scrum:backlog:{$item->project_id}");
   }
 
   private function flushKanbanAndBacklog(?int $sprintId, int $projectId): void
   {
-    if ($sprintId) Cache::store('redis')->forget("scrum:kanban:{$sprintId}");
     Cache::store('redis')->forget("scrum:backlog:{$projectId}");
   }
 }

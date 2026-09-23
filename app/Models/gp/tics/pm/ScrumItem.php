@@ -13,6 +13,7 @@ class ScrumItem extends BaseModel
     'project_id',
     'sprint_id',
     'parent_id',
+    'predecessor_id',
     'type',
     'title',
     'description',
@@ -24,13 +25,15 @@ class ScrumItem extends BaseModel
     'estimated_hours',
     'actual_hours',
     'order',
+    'start_date',
     'due_date',
     'closed_at',
   ];
 
   protected $casts = [
-    'due_date'  => 'date:Y-m-d',
-    'closed_at' => 'datetime',
+    'start_date' => 'date:Y-m-d',
+    'due_date'   => 'date:Y-m-d',
+    'closed_at'  => 'datetime',
   ];
 
   const filters = [
@@ -75,6 +78,16 @@ class ScrumItem extends BaseModel
   public function children()
   {
     return $this->hasMany(ScrumItem::class, 'parent_id');
+  }
+
+  public function predecessor()
+  {
+    return $this->belongsTo(ScrumItem::class, 'predecessor_id');
+  }
+
+  public function successors()
+  {
+    return $this->hasMany(ScrumItem::class, 'predecessor_id');
   }
 
   public function assignee()

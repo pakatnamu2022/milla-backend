@@ -25,10 +25,11 @@ class ScrumItemController extends Controller
     }
   }
 
-  public function kanban(?int $sprintId = null): JsonResponse
+  public function kanban(Request $request): JsonResponse
   {
     try {
-      return $this->success($this->service->kanban($sprintId));
+      $filters = $request->only(['project_id', 'sprint_id', 'assigned_to', 'priority', 'tag_id', 'history_id']);
+      return $this->success($this->service->kanban($filters));
     } catch (Throwable $th) {
       return $this->error($th->getMessage());
     }

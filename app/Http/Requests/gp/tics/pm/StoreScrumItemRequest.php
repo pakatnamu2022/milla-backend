@@ -25,6 +25,7 @@ class StoreScrumItemRequest extends FormRequest
             'project_id'      => 'required|integer|exists:scrum_projects,id',
             'sprint_id'       => 'nullable|integer|exists:scrum_sprints,id',
             'parent_id'       => 'nullable|integer|exists:scrum_items,id',
+            'predecessor_id'  => 'nullable|integer|exists:scrum_items,id',
             'type'            => 'required|in:tarea,historia,funcion,solicitud,error',
             'title'           => 'required|string|max:200',
             'description'     => 'nullable|string',
@@ -34,7 +35,8 @@ class StoreScrumItemRequest extends FormRequest
             'story_points'    => 'nullable|integer|min:0|max:100',
             'estimated_hours' => 'nullable|numeric|min:0|max:999',
             'actual_hours'    => 'nullable|numeric|min:0|max:999',
-            'due_date'        => 'nullable|date',
+            'start_date'      => 'nullable|date',
+            'due_date'        => 'nullable|date|after_or_equal:start_date',
             'tag_ids'         => 'nullable|array',
             'tag_ids.*'       => 'integer|exists:scrum_tags,id',
         ];

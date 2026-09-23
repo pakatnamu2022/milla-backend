@@ -631,6 +631,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     //    PROJECT MANAGEMENT (SCRUM)
     Route::group(['prefix' => 'tics/pm'], function () {
       // Projects
+      Route::get('scrumProject/{id}/gantt', [ScrumProjectController::class, 'gantt']);
+      Route::get('scrumProject/{id}/gantt/pdf', [ScrumProjectController::class, 'ganttPdf']);
       Route::apiResource('scrumProject', ScrumProjectController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
       // Sprints
@@ -639,7 +641,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::apiResource('scrumSprint', ScrumSprintController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
       // Items
-      Route::get('scrumItem/kanban/{sprintId?}', [ScrumItemController::class, 'kanban']);
+      Route::get('scrumItem/kanban', [ScrumItemController::class, 'kanban']);
       Route::get('scrumItem/backlog/{projectId}', [ScrumItemController::class, 'backlog']);
       Route::post('scrumItem/reorder', [ScrumItemController::class, 'reorder']);
       Route::post('scrumItem/{id}/watch', [ScrumItemController::class, 'toggleWatcher']);
