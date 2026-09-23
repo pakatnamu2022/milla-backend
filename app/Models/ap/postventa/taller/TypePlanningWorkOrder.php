@@ -36,6 +36,7 @@ class TypePlanningWorkOrder extends Model
   const int TYPE_PLANNING_DERCO_WARRANTY_ID = 9;
   const int TYPE_PLANNING_ODEBRECHT_MAINTENANCE = 13;
   const int TYPE_PLANNING_RECALL_ID = 4;
+  const int TYPE_PLANNING_REINGRESO_ID = 25; // Reingreso por fallas/apuros del técnico
 
   // TYPES DOCUMENT
   const string INTERNA_SC = 'INTERNA_SC';

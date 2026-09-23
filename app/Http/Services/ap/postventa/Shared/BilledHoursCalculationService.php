@@ -7,6 +7,7 @@ use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApCampaignSchedule;
 use App\Models\ap\postventa\taller\ApWorkOrder;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\ap\postventa\taller\WorkOrderLabour;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\gestionsistema\UserSede;
@@ -156,6 +157,109 @@ class BilledHoursCalculationService
           'worker_dni' => $worker->vat ?? '',
           'worker_name' => $worker->nombre_completo ?? '',
           'billed_hours' => round($data['total_hours'], 2),
+        ]);
+      }
+    }
+
+    return $reportData;
+  }
+
+  /**
+   * Calcula las horas de REINGRESO (type_planning_id = 25) por técnico
+   * Estas horas deben restarse del total de productividad porque representan reproceso por error del técnico
+   *
+   * @param Collection $labours Labours obtenidos de getBilledHoursData()
+   * @return Collection [sede_id][worker_id] => ['worker' => Worker, 'sede' => Sede, 'reentry_hours' => float]
+   */
+  public function calculateReentryHoursByWorker(Collection $labours): Collection
+  {
+    $workerHours = [];
+
+    foreach ($labours as $labour) {
+      $workOrder = $labour->workOrder;
+      $workOrderItem = $workOrder->items->first();
+
+      if (!$workOrderItem || !$workOrderItem->typePlanning) {
+        continue;
+      }
+
+      // Filtrar solo los labours de OTs con type_planning_id = 25 (REINGRESO)
+      if ($workOrderItem->typePlanning->id !== TypePlanningWorkOrder::TYPE_PLANNING_REINGRESO_ID) {
+        continue;
+      }
+
+      // Obtener el tipo de cambio si la OT está en dólares (USD)
+      $exchangeRate = ($workOrder->currency_id == TypeCurrency::USD_ID && $workOrder->exchange_rate > 0)
+        ? $workOrder->exchange_rate
+        : 1;
+
+      // Calcular horas facturadas equivalentes
+      $billedHours = $labour->current_hourly_cost > 0
+        ? (($labour->hourly_rate * $labour->time_spent_decimal) * $exchangeRate) / $labour->current_hourly_cost
+        : 0;
+
+      $sedeId = $workOrder->sede_id ?? 'SIN_SEDE';
+
+      // Obtener todos los técnicos que trabajaron en esta OT
+      $plannings = $workOrder->plannings;
+
+      if ($plannings->isEmpty()) {
+        continue;
+      }
+
+      // Consolidar técnicos ÚNICOS
+      $uniqueWorkers = $plannings->unique('worker_id');
+      $totalWorkers = $uniqueWorkers->count();
+
+      if ($totalWorkers <= 0) {
+        continue;
+      }
+
+      // Distribuir las horas de reingreso en partes iguales entre los técnicos ÚNICOS
+      foreach ($uniqueWorkers as $planning) {
+        $worker = $planning->worker;
+
+        if (!$worker) {
+          continue;
+        }
+
+        // Calcular la distribución igual
+        $equalReentryHours = $billedHours / $totalWorkers;
+
+        // Inicializar estructura si no existe
+        if (!isset($workerHours[$sedeId])) {
+          $workerHours[$sedeId] = [];
+        }
+
+        if (!isset($workerHours[$sedeId][$worker->id])) {
+          $workerHours[$sedeId][$worker->id] = [
+            'worker' => $worker,
+            'sede' => $workOrder->sede,
+            'reentry_hours' => 0,
+          ];
+        }
+
+        // Acumular las horas de reingreso
+        $workerHours[$sedeId][$worker->id]['reentry_hours'] += $equalReentryHours;
+      }
+    }
+
+    // Convertir la estructura a Collection
+    $reportData = collect();
+
+    foreach ($workerHours as $sedeId => $workers) {
+      foreach ($workers as $workerId => $data) {
+        $worker = $data['worker'];
+        $sede = $data['sede'];
+
+        $reportData->push([
+          'sede_id' => $sedeId,
+          'sede_name' => $sede ? $sede->abreviatura : 'SIN SEDE',
+          'sede_abbreviation' => $sede ? $sede->abreviatura : 'SIN SEDE',
+          'worker_id' => $workerId,
+          'worker_dni' => $worker->vat ?? '',
+          'worker_name' => $worker->nombre_completo ?? '',
+          'reentry_hours' => round($data['reentry_hours'], 2),
         ]);
       }
     }
