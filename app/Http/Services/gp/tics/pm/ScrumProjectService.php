@@ -192,56 +192,174 @@ class ScrumProjectService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * PDF descargable del Gantt del proyecto: reutiliza gantt() y precalcula,
-   * por cada sprint, la cuadrícula de días y el offset/ancho de cada item
-   * dentro de esa cuadrícula, para poder dibujarlo como una tabla en el PDF
-   * (dompdf no soporta flex/grid).
+   * PDF descargable del Gantt del proyecto, al estilo MS Project: una sola
+   * tabla con numeración WBS jerárquica (sprint 1, historia 1.1, tarea
+   * 1.1.1), columnas de fechas/duración/estado/predecesora, y una línea de
+   * tiempo continua a la derecha (barras posicionadas por porcentaje sobre
+   * el rango completo del proyecto, no una cuadrícula de días repetida por
+   * sprint) para que todo el proyecto se vea en una sola línea compacta.
    */
   public function ganttPdf(int $projectId)
   {
-    $gantt = $this->gantt($projectId);
+    $data = $this->ganttPdfViewData($projectId);
+    $filename = 'gantt-' . Str::slug($data['project']['name']) . '-' . now()->format('Ymd-His') . '.pdf';
 
-    $sprintRows = collect($gantt['sprints'])->map(function (array $sprint) {
-      $start = Carbon::parse($sprint['start_date']);
-      $end = Carbon::parse($sprint['end_date']);
-      $totalDays = max(1, $start->diffInDays($end) + 1);
-
-      $days = [];
-      for ($d = 0; $d < $totalDays; $d++) {
-        $days[] = $start->copy()->addDays($d);
-      }
-
-      $items = collect($sprint['items'])->map(function (array $item) use ($start, $totalDays) {
-        $itemStart = Carbon::parse($item['start_at']);
-        $itemEnd = Carbon::parse($item['end_at']);
-        $offset = max(0, min($totalDays - 1, $start->diffInDays($itemStart)));
-        $span = max(1, $itemStart->diffInDays($itemEnd) + 1);
-        $span = max(1, min($span, $totalDays - $offset));
-
-        return array_merge($item, ['offset' => $offset, 'span' => $span]);
-      })->values();
-
-      return [
-        'name' => $sprint['name'],
-        'kind' => $sprint['kind'],
-        'status' => $sprint['status'],
-        'start_date' => $sprint['start_date'],
-        'end_date' => $sprint['end_date'],
-        'days' => $days,
-        'items' => $items,
-      ];
-    })->values();
-
-    $filename = 'gantt-' . Str::slug($gantt['project']['name']) . '-' . now()->format('Ymd-His') . '.pdf';
-
-    return Pdf::loadView('exports.scrum-project-gantt', [
-      'project' => $gantt['project'],
-      'range' => $gantt['range'],
-      'sprints' => $sprintRows,
-      'generatedAt' => $gantt['generated_at'],
-    ])
+    return Pdf::loadView('exports.scrum-project-gantt', $data)
       ->setPaper('a3', 'landscape')
       ->stream($filename);
+  }
+
+  /**
+   * HTML crudo (sin pasar por dompdf) de la misma vista del Gantt, para
+   * poder inspeccionar el layout en un navegador normal mientras se ajusta
+   * el diseño — dompdf tiene soporte limitado de CSS y a veces renderiza
+   * distinto a un navegador real, así que conviene validar el HTML primero.
+   */
+  public function ganttPdfHtml(int $projectId): string
+  {
+    return view('exports.scrum-project-gantt', $this->ganttPdfViewData($projectId))->render();
+  }
+
+  private function ganttPdfViewData(int $projectId): array
+  {
+    $gantt = $this->gantt($projectId);
+
+    // El rango de sprints puede quedar corto si las fechas propias de un
+    // item (por cascadeDueDateShift) se salen de su sprint: se recalcula el
+    // rango real a partir de todas las fechas de items para que ninguna
+    // barra quede fuera de la línea de tiempo.
+    $allItemDates = collect($gantt['sprints'])
+      ->flatMap(fn (array $sprint) => collect($sprint['items'])->flatMap(fn (array $item) => [$item['start_at'], $item['end_at']]))
+      ->filter()
+      ->map(fn ($date) => Carbon::parse($date));
+
+    $rangeStart = $allItemDates->min() ?? Carbon::parse($gantt['range']['start'] ?? now());
+    $rangeEnd = $allItemDates->max() ?? Carbon::parse($gantt['range']['end'] ?? $rangeStart);
+    $totalDays = max(1, $rangeStart->diffInDays($rangeEnd) + 1);
+
+    // Ancho real (en mm) de la columna de línea de tiempo en el PDF (ver
+    // .col-timeline en la vista). Se posicionan las barras en mm en vez de
+    // en % porque dompdf no resuelve bien los % de position:absolute
+    // cuando dependen del ancho calculado de una celda de tabla.
+    $timelineWidthMm = 296;
+    $mm = function (Carbon $date) use ($rangeStart, $totalDays, $timelineWidthMm) {
+      return max(0, min($timelineWidthMm, ($rangeStart->diffInDays($date) / $totalDays) * $timelineWidthMm));
+    };
+
+    // Cabecera año/mes de la línea de tiempo, recortada al rango real.
+    $months = [];
+    $cursor = $rangeStart->copy()->startOfMonth();
+    while ($cursor->lte($rangeEnd)) {
+      $monthStart = $cursor->copy()->max($rangeStart);
+      $monthEnd = $cursor->copy()->endOfMonth()->min($rangeEnd);
+      $months[] = [
+        'year' => $cursor->year,
+        'label' => Str::ucfirst($cursor->translatedFormat('M')),
+        'left' => $mm($monthStart),
+        'width' => max(1, $mm($monthEnd->copy()->addDay()) - $mm($monthStart)),
+      ];
+      $cursor->addMonthNoOverflow();
+    }
+    $years = collect($months)
+      ->groupBy('year')
+      ->map(function ($group, $year) {
+        $left = $group->min('left');
+        return ['year' => $year, 'left' => $left, 'width' => $group->sum('width')];
+      })
+      ->values();
+
+    $todayMm = now()->between($rangeStart, $rangeEnd) ? $mm(now()) : null;
+
+    $statusLabels = [
+      'backlog' => 'Backlog',
+      'por_hacer' => 'Por hacer',
+      'en_progreso' => 'En progreso',
+      'en_revision' => 'En revisión',
+      'hecho' => 'Hecho',
+    ];
+    $sprintStatusLabels = ['planeado' => 'Planeado', 'activo' => 'Activo', 'cerrado' => 'Cerrado'];
+
+    // Arma la lista plana de filas (sprint, historia, tarea) con numeración
+    // WBS jerárquica y predecesora calculada igual que las flechas del
+    // Gantt en pantalla: por tipo, dentro del mismo sprint (una historia
+    // encadena con la historia anterior, una tarea con la tarea anterior),
+    // sin cruzar entre historias y tareas.
+    $rows = [];
+    $lastSprintWbs = null;
+    foreach ($gantt['sprints'] as $sprintIndex => $sprint) {
+      $sprintWbs = (string) ($sprintIndex + 1);
+      $sprintStart = $sprint['start_date'] ? Carbon::parse($sprint['start_date']) : null;
+      $sprintEnd = $sprint['end_date'] ? Carbon::parse($sprint['end_date']) : null;
+
+      $rows[] = [
+        'wbs' => $sprintWbs,
+        'level' => 0,
+        'type' => 'sprint',
+        'title' => Str::limit($sprint['name'], 40),
+        'start' => $sprintStart,
+        'end' => $sprintEnd,
+        'status_label' => $sprintStatusLabels[$sprint['status']] ?? ucfirst($sprint['status']),
+        'predecessor' => $lastSprintWbs,
+        'left' => $sprintStart ? $mm($sprintStart) : 0,
+        'width' => ($sprintStart && $sprintEnd) ? max(1, $mm($sprintEnd->copy()->addDay()) - $mm($sprintStart)) : 0,
+      ];
+      $lastSprintWbs = $sprintWbs;
+
+      $groupIndex = 0;
+      $taskIndexInGroup = 0;
+      $currentHistoriaWbs = null;
+      $lastByType = ['historia' => null, 'tarea' => null];
+      $lastStartByType = ['historia' => null, 'tarea' => null];
+
+      foreach ($sprint['items'] as $item) {
+        $itemStart = Carbon::parse($item['start_at']);
+        $itemEnd = Carbon::parse($item['end_at']);
+
+        if ($item['type'] === 'historia') {
+          $groupIndex++;
+          $taskIndexInGroup = 0;
+          $wbs = "{$sprintWbs}.{$groupIndex}";
+          $currentHistoriaWbs = $wbs;
+          $level = 1;
+        } else {
+          $taskIndexInGroup++;
+          $wbs = $currentHistoriaWbs !== null
+            ? "{$currentHistoriaWbs}.{$taskIndexInGroup}"
+            : "{$sprintWbs}." . ($groupIndex + 1);
+          $level = 2;
+        }
+
+        $type = $item['type'];
+        $prevStart = $lastStartByType[$type];
+        $predecessor = ($prevStart !== null && !$prevStart->isSameDay($itemStart)) ? $lastByType[$type] : null;
+        $lastByType[$type] = $wbs;
+        $lastStartByType[$type] = $itemStart;
+
+        $rows[] = [
+          'wbs' => $wbs,
+          'level' => $level,
+          'type' => $item['type'],
+          'title' => Str::limit($item['title'], $level === 1 ? 38 : 34),
+          'start' => $itemStart,
+          'end' => $itemEnd,
+          'status_label' => $statusLabels[$item['status']] ?? $item['status'],
+          'status' => $item['status'],
+          'predecessor' => $predecessor,
+          'left' => $mm($itemStart),
+          'width' => max(1, $mm($itemEnd->copy()->addDay()) - $mm($itemStart)),
+        ];
+      }
+    }
+
+    return [
+      'project' => $gantt['project'],
+      'range' => ['start' => $rangeStart->format('Y-m-d'), 'end' => $rangeEnd->format('Y-m-d')],
+      'years' => $years,
+      'months' => $months,
+      'todayMm' => $todayMm,
+      'rows' => $rows,
+      'generatedAt' => $gantt['generated_at'],
+    ];
   }
 
   private function flushProjectsCache(): void

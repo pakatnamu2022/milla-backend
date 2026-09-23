@@ -31,17 +31,16 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Tablero Kanban filtrable. Solo trae items de primer nivel (historias y
-   * demás tipos sin padre); las tareas de cada historia (Análisis y
-   * Desarrollo / Pruebas) van como `children`, no como tarjetas propias. Ya
-   * no requiere sprint: por defecto muestra todo el proyecto, sin importar
+   * Tablero Kanban filtrable. Trae tanto historias como sus tareas hijas
+   * (Análisis, Desarrollo, Pruebas...): cada una es su propia tarjeta, en la
+   * columna de su propio status, para que se puedan mover independientemente.
+   * Ya no requiere sprint: por defecto muestra todo el proyecto, sin importar
    * en qué sprint (Desarrollo/Pruebas) caiga cada tarea del item.
    */
   public function kanban(array $filters = []): array
   {
     $query = ScrumItem::query()
-      ->whereNull('parent_id')
-      ->with(['assignee:id,name', 'tags', 'children:id,parent_id,title,status,order'])
+      ->with(['assignee:id,name', 'tags', 'parent:id,title'])
       ->orderBy('order');
 
     if (!empty($filters['project_id'])) {
@@ -60,7 +59,7 @@ class ScrumItemService extends BaseService implements BaseServiceInterface
       $query->whereHas('tags', fn ($q) => $q->where('scrum_tags.id', $filters['tag_id']));
     }
     if (!empty($filters['history_id'])) {
-      $query->where('id', $filters['history_id']);
+      $query->where(fn ($q) => $q->where('id', $filters['history_id'])->orWhere('parent_id', $filters['history_id']));
     }
 
     return $query->get()->groupBy('status')->toArray();

@@ -32,3 +32,13 @@ Route::get('/preview/evaluation-closed/{chiefId}', [EvaluationNotificationContro
   ->whereNumber('chiefId')
   ->name('preview.evaluation-closed');
 
+// Preview temporal del PDF de Gantt (HTML crudo, para ajustar el diseño sin pasar por dompdf en cada vuelta)
+Route::get('/preview/scrum-project-gantt/{id}', function (int $id) {
+  return app(\App\Http\Services\gp\tics\pm\ScrumProjectService::class)->ganttPdfHtml($id);
+})->whereNumber('id')->name('preview.scrum-project-gantt');
+
+// Preview temporal del PDF de Gantt (el archivo real generado por dompdf)
+Route::get('/preview/scrum-project-gantt/{id}/pdf', function (int $id) {
+  return app(\App\Http\Services\gp\tics\pm\ScrumProjectService::class)->ganttPdf($id);
+})->whereNumber('id')->name('preview.scrum-project-gantt.pdf');
+
