@@ -3,8 +3,10 @@
 namespace App\Http\Services\ap\postventa\Reports;
 
 use App\Http\Services\ap\postventa\Shared\BilledHoursCalculationService;
+use App\Models\ap\maestroGeneral\TechnicianHourlyCost;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class ClosedWorkOrderBilledHoursReportService
@@ -51,8 +53,11 @@ class ClosedWorkOrderBilledHoursReportService
     // Get labours usando el servicio centralizado
     $labours = $this->billedHoursService->getBilledHoursData($startDate, $endDate, $sedeId, $userSedeIds);
 
+    // Calculate reentry hours by technician (horas que deben restarse)
+    $reentryData = $this->billedHoursService->calculateReentryHoursByWorker($labours);
+
     // Generar resumen y detalle de horas facturadas
-    $summaryData = $this->generateBilledHoursSummary($labours);
+    $summaryData = $this->generateBilledHoursSummary($labours, $reentryData);
     $detailData = $this->generateBilledHoursDetail($labours);
 
     return [
@@ -65,10 +70,13 @@ class ClosedWorkOrderBilledHoursReportService
    * Genera el resumen de horas facturadas agrupadas por sede y técnico
    *
    * @param Collection $labours
+   * @param Collection $reentryData Horas de reingreso por técnico
    * @return Collection
    */
-  private function generateBilledHoursSummary(Collection $labours): Collection
+  private function generateBilledHoursSummary(Collection $labours, Collection $reentryData): Collection
   {
+    // Indexar reentry data por worker_id para fácil acceso
+    $reentryByWorker = $reentryData->keyBy('worker_id');
     // Estructura para acumular horas por técnico: [sede_id][worker_id][category_type] = horas
     $workerHours = [];
 
@@ -158,6 +166,12 @@ class ClosedWorkOrderBilledHoursReportService
         $horasGarantiaRecall = $data[TypePlanningWorkOrder::GARANTIA_RECALL];
         $totalHorasFacturadas = $horasInterna + $horasEstandar + $horasGarantiaRecall;
 
+        // Obtener horas de reingreso para este técnico
+        $horasReingreso = $reentryByWorker->get($workerId)['reentry_hours'] ?? 0;
+
+        // Calcular horas efectivas (facturadas - reingreso)
+        $horasEfectivas = $totalHorasFacturadas - $horasReingreso;
+
         // Usar el método centralizado getAttendanceData (igual que ProductivityDashboardService)
         // Si no hay rango de fechas, las horas estándar serán 0
         if ($this->startDate && $this->endDate) {
@@ -171,16 +185,17 @@ class ClosedWorkOrderBilledHoursReportService
           $horasEstandarFijas = 0;
         }
 
-        // Costo por hora fijo
-        $costoPorHora = 8;
+        // Costo por hora para el periodo (histórico o general_masters ID=61)
+        $costoPorHora = $this->getCostPerHourForPeriod();
 
-        // Horas de productividad: Total facturado - Horas estándar
-        $horasProductividad = $totalHorasFacturadas - $horasEstandarFijas;
+        // Horas de productividad: Horas efectivas - Horas estándar
+        // IMPORTANTE: Usar horas efectivas (facturadas - reingreso) en lugar de total facturado
+        $horasProductividad = $horasEfectivas - $horasEstandarFijas;
 
-        // Porcentaje de productividad: (Total facturado / Horas estándar) * 100
+        // Porcentaje de productividad: (Horas efectivas / Horas estándar) * 100
         // Si las horas estándar son 0, la productividad es 0 (no usar fallback de 192)
         $porcentajeProductividad = $horasEstandarFijas > 0
-          ? ($totalHorasFacturadas / $horasEstandarFijas) * 100
+          ? ($horasEfectivas / $horasEstandarFijas) * 100
           : 0;
 
         // Comisión: Solo si hay horas estándar (días trabajados con asistencia)
@@ -201,6 +216,8 @@ class ClosedWorkOrderBilledHoursReportService
           'horas_estandar' => number_format($horasEstandar, 2, '.', ''),
           'horas_garantia_recall' => number_format($horasGarantiaRecall, 2, '.', ''),
           'total_horas' => number_format($totalHorasFacturadas, 2, '.', ''),
+          'horas_reingreso' => number_format($horasReingreso, 2, '.', ''),
+          'horas_efectivas' => number_format($horasEfectivas, 2, '.', ''),
           'horas_estandar_fijas' => number_format($horasEstandarFijas, 2, '.', ''),
           'costo_por_hora' => number_format($costoPorHora, 2, '.', ''),
           'horas_productividad' => number_format($horasProductividad, 2, '.', ''),
@@ -221,13 +238,17 @@ class ClosedWorkOrderBilledHoursReportService
     $totalGarantiaRecall = $reportData->sum(fn($row) => (float)$row['horas_garantia_recall']);
     $totalHorasFacturadas = $totalInterna + $totalEstandar + $totalGarantiaRecall;
 
+    // Total de horas de reingreso y efectivas
+    $totalHorasReingreso = $reportData->sum(fn($row) => (float)$row['horas_reingreso']);
+    $totalHorasEfectivas = $reportData->sum(fn($row) => (float)$row['horas_efectivas']);
+
     // Total de horas estándar: sumar las horas estándar de cada técnico
     $totalHorasEstandarFijas = $reportData->sum(fn($row) => (float)$row['horas_estandar_fijas']);
-    $totalHorasProductividad = $totalHorasFacturadas - $totalHorasEstandarFijas;
+    $totalHorasProductividad = $totalHorasEfectivas - $totalHorasEstandarFijas;
 
-    // Porcentaje total de productividad
+    // Porcentaje total de productividad (usando horas efectivas)
     $porcentajeTotalProductividad = $totalHorasEstandarFijas > 0
-      ? ($totalHorasFacturadas / $totalHorasEstandarFijas) * 100
+      ? ($totalHorasEfectivas / $totalHorasEstandarFijas) * 100
       : 0;
 
     // Comisión total: Sumar las comisiones de todos los técnicos
@@ -243,8 +264,10 @@ class ClosedWorkOrderBilledHoursReportService
       'horas_estandar' => number_format($totalEstandar, 2, '.', ''),
       'horas_garantia_recall' => number_format($totalGarantiaRecall, 2, '.', ''),
       'total_horas' => number_format($totalHorasFacturadas, 2, '.', ''),
+      'horas_reingreso' => number_format($totalHorasReingreso, 2, '.', ''),
+      'horas_efectivas' => number_format($totalHorasEfectivas, 2, '.', ''),
       'horas_estandar_fijas' => number_format($totalHorasEstandarFijas, 2, '.', ''),
-      'costo_por_hora' => '8.00',
+      'costo_por_hora' => number_format($this->getCostPerHourForPeriod(), 2, '.', ''),
       'horas_productividad' => number_format($totalHorasProductividad, 2, '.', ''),
       'porcentaje_productividad' => number_format($porcentajeTotalProductividad, 2, '.', ''),
       'comision' => number_format($totalComision, 2, '.', ''),
@@ -335,5 +358,27 @@ class ClosedWorkOrderBilledHoursReportService
       ['numero_ot', 'asc'],
       ['nombre_tecnico', 'asc']
     ])->values();
+  }
+
+  /**
+   * Obtiene el costo por hora para el periodo actual
+   * Usa el histórico si está disponible, fallback a general_masters (ID=61)
+   *
+   * @return float
+   */
+  private function getCostPerHourForPeriod(): float
+  {
+    // Si no hay startDate definido, usar el valor por defecto
+    if (!$this->startDate) {
+      return 8.0;
+    }
+
+    // Extraer año y mes del startDate
+    $date = Carbon::parse($this->startDate);
+    $year = $date->year;
+    $month = $date->month;
+
+    // Obtener costo para el periodo desde histórico o fallback a general_masters
+    return TechnicianHourlyCost::getCostForPeriod($year, $month);
   }
 }

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 
 use App\Http\Services\common\EmailService;
+use App\Models\GeneralMaster;
+use App\Observers\GeneralMasterObserver;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -51,6 +53,9 @@ class AppServiceProvider extends ServiceProvider
           && !($route->getAction('uses') instanceof \Closure);
       });
     }
+
+    // Registrar Observer para GeneralMaster (ID=61: costo hora técnico)
+    GeneralMaster::observe(GeneralMasterObserver::class);
 
     // Registrar Blade Directives personalizados para permisos
     $this->registerPermissionBladeDirectives();
