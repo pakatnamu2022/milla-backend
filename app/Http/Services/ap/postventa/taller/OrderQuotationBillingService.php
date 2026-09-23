@@ -267,7 +267,9 @@ class OrderQuotationBillingService
   ): array
   {
     $subtotal = round($netAmount, 2);
-    $igv = round($taxAmount, 2);
+    // NO redondear igv aquí para evitar error de redondeo acumulativo
+    // Se mantiene en 4 decimales y se redondea solo la suma final
+    $igv = $taxAmount;
     $total = round($subtotal + $igv, 2);
 
     // Según SUNAT/UBL 2.1: valor_unitario y precio_unitario deben ser ANTES del descuento

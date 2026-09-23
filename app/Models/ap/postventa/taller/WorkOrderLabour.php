@@ -79,7 +79,7 @@ class WorkOrderLabour extends Model
     'discount_percentage' => 'decimal:2',
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
-    'tax_amount' => 'decimal:2',
+    'tax_amount' => 'decimal:4',
     'is_deductible' => 'boolean',
     'current_hourly_cost' => 'decimal:2',
   ];

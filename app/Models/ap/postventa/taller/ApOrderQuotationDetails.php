@@ -60,7 +60,7 @@ class ApOrderQuotationDetails extends Model
     'discount_percentage' => 'decimal:2',
     'total_cost' => 'decimal:2',
     'net_amount' => 'decimal:2',
-    'tax_amount' => 'decimal:2',
+    'tax_amount' => 'decimal:4',
     'sale_price_min_original' => 'decimal:2',
     'is_traverse' => 'boolean',
     'is_deductible' => 'boolean',
