@@ -53,7 +53,7 @@ class MejoraProcesosApSeeder extends Seeder
   ];
 
   private const MONTHS = [
-    '2026-08', '2026-09', '2026-10', '2026-11', '2026-12',
+    '2026-09', '2026-10', '2026-11', '2026-12',
     '2027-02', '2027-03', '2027-09', '2027-10', '2027-11',
   ];
 
@@ -73,7 +73,6 @@ class MejoraProcesosApSeeder extends Seeder
   // real, lo cual no servía para ponderar la curva de esfuerzo. El reparto
   // dev/pruebas se deriva de esto (ver splitStoryPoints), no de una constante.
   private const STORY_POINTS = [
-    'APP Asesor' => 13,
     'Agendamiento Vigilante' => 3,
     'Reporte Facturación Derco' => 5,
     'IA Verificación Contacto' => 5,
@@ -107,7 +106,7 @@ class MejoraProcesosApSeeder extends Seeder
     'Encuesta WA' => 5,
     'Medición C.SAT/NPS' => 5,
     'Agendamiento Visión Taller' => 5,
-    'Dashboard Comercial' => 5,
+    'Dashboard Comercial de Posventa' => 5,
     'Segmentación SIAN' => 8,
     'CSV Asiento Planillas' => 2,
     'Central de Contacto' => 8,
@@ -139,12 +138,11 @@ class MejoraProcesosApSeeder extends Seeder
   // de proceso (clave de self::CATEGORIES) y se aplica como tag tanto a la
   // historia como a sus tareas, para que se note en la Lista.
   private const HISTORIAS = [
-    ['2026-08', 'Implementar APP para Asesor y poder usar su teléfono', '2026-08-31', 'alta', 'TICS', 'APP Asesor', 'recepcion'],
     ['2026-09', 'Implementar usuario para Agendamiento de Citas a Vigilante', '2026-09-30', 'alta', 'TICS', 'Agendamiento Vigilante', 'recepcion'],
     ['2026-09', 'Implementar reporte de facturación que incluya Anticipos y Rebates de Derco', '2026-09-30', 'alta', 'TICS + COMERCIAL', 'Reporte Facturación Derco', 'reportes'],
     ['2026-10', 'Implementar IA para comprobación de teléfono e e-mail', '2026-10-31', 'alta', 'TICS', 'IA Verificación Contacto', 'recepcion'],
     ['2026-10', 'Dashboard de Performance por Técnico mecánico: Cerradas / En curso / En pausa', '2026-10-31', 'alta', 'TICS', 'Dashboard Técnico', 'taller'],
-    ['2026-10', 'Dashboard de Performance del VAT', '2026-10-31', 'alta', 'TICS', 'Dashboard VAT', 'taller'],
+    ['2026-10', 'Dashboard de Performance del VAT (Vehículo de Asistencia Técnica)', '2026-10-31', 'alta', 'TICS', 'Dashboard VAT', 'taller'],
     ['2026-10', 'Incorporar en el dashboard los vehículos que regresan por el mismo error < 30 días', '2026-10-31', 'alta', 'TICS', 'Dashboard Reincidencias', 'taller'],
     ['2026-10', 'Implementar Reporte de Errores en email y teléfonos', '2026-10-31', 'alta', 'TICS', 'Reporte Errores Contacto', 'reportes'],
     ['2026-10', 'Implementar historial del cliente + vehículo', '2026-10-15', 'alta', 'TICS', 'Historial Cliente-Vehículo', 'recepcion'],
@@ -162,19 +160,19 @@ class MejoraProcesosApSeeder extends Seeder
     ['2027-02', 'Implementar integración de facturas por pagar con IA', '2027-02-28', 'media', 'TICS', 'IA Facturas por Pagar', 'back_office'],
     ['2027-03', 'Implementar Reportes de cartera de clientes por captar', '2027-03-31', 'media', 'TICS', 'Reporte Cartera Clientes', 'reportes'],
     ['2027-09', 'Implementar Protocolo de Asignación automática de Técnicos mecánicos', '2027-09-30', 'media', 'TICS', 'Asignación Automática Técnicos', 'taller'],
-    ['2027-09', 'Dashboard de Performance por Bahía de trabajo', '2027-09-30', 'media', 'TICS', 'Dashboard Bahías', 'taller'],
     ['2027-09', 'Implementar QR/Barcode en la bahía de trabajo', '2027-09-30', 'media', 'TICS', 'QR Bahía de Trabajo', 'taller'],
+    ['2027-09', 'Dashboard de Performance por Bahía de trabajo', '2027-09-30', 'media', 'TICS', 'Dashboard Bahías', 'taller'],
     ['2027-09', 'Implementar Reporte de Capacidad de las Bahías de trabajo', '2027-09-30', 'media', 'TICS', 'Reporte Capacidad Bahías', 'taller'],
     ['2027-10', 'Incorporar en el dashboard los errores por Técnico mecánico', '2027-10-31', 'media', 'TICS', 'Dashboard Errores Técnico', 'taller'],
     ['2027-11', 'Implementar código QR/Barcode para las OT', '2027-11-30', 'media', 'TICS', 'QR/Barcode OT', 'taller'],
     ['2027-11', 'Implementar Sistema de Cola para atención', '2027-11-30', 'media', 'TICS', 'Sistema de Cola', 'recepcion'],
-    ['2027-11', 'Implementar Protocolo de Pago con Asesor de Servicio (dejando en tesorería solo pagos en efectivo)', '2027-11-30', 'media', 'TICS + FINANZAS', 'Pago con Asesor', 'entrega'],
+    ['2027-11', 'Implementar Protocolo de Pago con Asesor de Servicio (dejando en caja solo pagos en efectivo)', '2027-11-30', 'media', 'TICS + FINANZAS', 'Pago con Asesor', 'entrega'],
     ['2027-11', 'Implementar Factura y/o boleta desde POS excepto para pagos en efectivo', '2027-11-30', 'media', 'TICS + FINANZAS', 'Factura desde POS', 'back_office'],
-    ['2027-11', 'Implementar Encuesta de satisfacción por WA', '2027-11-30', 'media', 'TICS + MARKETING', 'Encuesta WA', 'entrega'],
+    ['2027-11', 'Implementar Encuesta de satisfacción por WhatsApp', '2027-11-30', 'media', 'TICS + MARKETING', 'Encuesta WA', 'entrega'],
     ['2027-11', 'Implementar medición automatizada de C.SAT / NPS', '2027-11-30', 'media', 'TICS + MARKETING', 'Medición C.SAT/NPS', 'entrega'],
     // sin fecha -> quedan en el backlog del proyecto (sin sprint, sin escalera)
     [null, 'Implementar agendamiento con Visión Taller (agendar desde cualquier punto de contacto)', null, 'baja', 'TICS', 'Agendamiento Visión Taller', 'recepcion'],
-    [null, 'Implementar DASHBOARD Comercial', null, 'baja', 'TICS + COMERCIAL', 'Dashboard Comercial', 'reportes'],
+    [null, 'Implementar DASHBOARD Comercial de Posventa', null, 'baja', 'TICS + COMERCIAL', 'Dashboard Comercial de Posventa', 'reportes'],
     [null, 'Implementar Segmentación dentro de SIAN', null, 'baja', 'COMERCIAL + MARKETING + TICS', 'Segmentación SIAN', 'back_office'],
     [null, 'Implementar archivo CSV para integrar asiento de planillas', null, 'baja', 'TICS + RRHH', 'CSV Asiento Planillas', 'back_office'],
     [null, 'Implementar nueva Central de Contacto (Call to action)', null, 'baja', 'TICS', 'Central de Contacto', 'recepcion'],
@@ -198,22 +196,6 @@ class MejoraProcesosApSeeder extends Seeder
   // cronograma original (p.ej. la especificación de Inchcape) y debe levantarse antes de
   // poder dimensionar el desarrollo con precisión.
   private const DETALLE = [
-    'APP Asesor' => [
-      'objetivo' => 'Que el asesor de servicio atienda al cliente y gestione la OT desde su propio celular, sin depender de un puesto fijo con PC, agilizando la recepción del vehículo.',
-      'alcance' => 'App móvil (o versión responsive de SIAN) para el asesor: login, agenda de citas del día, abrir/consultar OT, checklist de recepción con fotos, captura de firma del cliente.',
-      'consideraciones' => [
-        'Definir si es app nativa o web responsive.',
-        'Validar conectividad de red en el patio/recepción.',
-        'Permisos y roles del asesor en el celular.',
-        '¿Reemplaza la tablet actual o convive con ella?',
-      ],
-      'pruebas' => [
-        'Login desde un celular real (no solo emulador).',
-        'Abrir una OT y guardar el checklist con fotos desde la cámara.',
-        'Verificar que la firma capturada se guarda correctamente en la OT.',
-        'Probar con conexión de datos móvil inestable.',
-      ],
-    ],
     'Agendamiento Vigilante' => [
       'objetivo' => 'Que el vigilante de entrada vea/registre la cita agendada del cliente al ingreso, para agilizar el control de acceso y anticipar al asesor que el cliente llegó.',
       'alcance' => 'Nuevo rol "Vigilante" en SIAN con acceso limitado a: buscar cita por placa/DNI/nombre y marcar "cliente llegó" indicando el asesor asignado.',
@@ -267,10 +249,10 @@ class MejoraProcesosApSeeder extends Seeder
       ],
     ],
     'Dashboard VAT' => [
-      'objetivo' => 'Medir el desempeño del VAT con un dashboard, en la misma línea que el de técnico mecánico.',
+      'objetivo' => 'Medir el desempeño del VAT (Vehículo de Asistencia Técnica) con un dashboard, en la misma línea que el de técnico mecánico.',
       'alcance' => 'Dashboard filtrable por sede/fecha con las métricas de desempeño que se definan para el VAT.',
       'consideraciones' => [
-        'Confirmar con negocio qué es exactamente "VAT" en este contexto (rol/puesto dentro del taller) y qué métricas de desempeño se necesitan, antes de diseñar el dashboard.',
+        'Definir con negocio qué métricas de desempeño exactas se necesitan para el VAT antes de diseñar el dashboard.',
       ],
       'pruebas' => [
         'A definir una vez confirmado el rol y las métricas con negocio.',
@@ -357,7 +339,7 @@ class MejoraProcesosApSeeder extends Seeder
       'objetivo' => 'Avisar al asesor (no al cliente) cuando el vehículo está listo, para que prepare la entrega antes de que el cliente llegue.',
       'alcance' => 'Notificación interna (push/SMS/WA) al asesor asignado cuando la OT pasa a "listo para entrega".',
       'consideraciones' => [
-        'Definir el canal interno preferido: WhatsApp, notificación dentro de la [[APP Asesor]], o ambos.',
+        'Definir el canal interno preferido para el asesor: WhatsApp, notificación push, o ambos.',
       ],
       'pruebas' => [
         'Marcar una OT como lista y verificar que el asesor asignado recibe la notificación.',
@@ -482,8 +464,7 @@ class MejoraProcesosApSeeder extends Seeder
       'objetivo' => 'Medir el desempeño (ocupación, tiempo promedio, OT atendidas) de cada bahía física de trabajo del taller.',
       'alcance' => 'Dashboard con métricas por bahía, filtrable por sede y fecha.',
       'consideraciones' => [
-        'Requiere que cada OT tenga registrada la bahía asignada (hoy puede no existir ese dato).',
-        'Depende de [[QR Bahía de Trabajo]] para la captura automática.',
+        'Depende de [[QR Bahía de Trabajo]]: el campo "bahía" en la OT recién existe una vez que esa historia se implemente, así que este dashboard va DESPUÉS.',
       ],
       'pruebas' => [
         'Verificar que las métricas de una bahía cuadran con las OT que realmente pasaron por ella.',
@@ -491,10 +472,12 @@ class MejoraProcesosApSeeder extends Seeder
     ],
     'QR Bahía de Trabajo' => [
       'objetivo' => 'Que el técnico escanee un QR/código de barras físico en la bahía para registrar automáticamente inicio/fin de trabajo en esa posición, sin digitar nada.',
-      'alcance' => 'Generación e impresión de códigos QR por bahía; app/lector para que el técnico escanee al iniciar y terminar; registro automático en la OT.',
+      'alcance' => 'Agregar el campo "bahía" a la OT (definir con negocio/Taller en qué pantalla se asigna: ¿al recibir el vehículo, al asignar técnico, u otra? hoy ese dato no existe en ningún lado); generación e impresión de códigos QR por bahía; app/lector para que el técnico escanee al iniciar y terminar; registro automático del campo "bahía" en la OT al escanear.',
       'consideraciones' => [
+        'Definir en qué pantalla/flujo se asigna la bahía a la OT (recepción, asignación de técnico, etc.).',
         'Definir el dispositivo de escaneo (celular del técnico o lector fijo).',
         '¿Qué pasa si el técnico olvida escanear? Definir fallback manual.',
+        'Esta historia va ANTES de [[Dashboard Bahías]], porque ese dashboard depende de que la OT ya tenga el campo "bahía" capturado acá.',
       ],
       'pruebas' => [
         'Escanear el QR de una bahía y verificar que se registra el inicio.',
@@ -547,15 +530,15 @@ class MejoraProcesosApSeeder extends Seeder
       ],
     ],
     'Pago con Asesor' => [
-      'objetivo' => 'Que el cliente pueda pagar con tarjeta/otros medios directamente con el asesor (POS móvil), dejando tesorería solo para pagos en efectivo, agilizando la entrega.',
-      'alcance' => 'Asignación de POS móvil (u similar) al asesor, registro del pago en la OT desde el punto de atención del asesor, y conciliación con tesorería.',
+      'objetivo' => 'Que el cliente pueda pagar con tarjeta/otros medios directamente con el asesor (POS móvil), dejando caja solo para pagos en efectivo, agilizando la entrega.',
+      'alcance' => 'Asignación de POS móvil (u similar) al asesor, registro del pago en la OT desde el punto de atención del asesor, y conciliación con caja.',
       'consideraciones' => [
         'Definir los medios de pago habilitados para el asesor (tarjeta, Yape/Plin, etc.).',
-        'Definir cómo se concilia el efectivo que sigue yendo a tesorería con lo cobrado por el asesor.',
+        'Definir cómo se concilia el efectivo que sigue yendo a caja con lo cobrado por el asesor.',
       ],
       'pruebas' => [
         'Realizar un pago con tarjeta desde el POS del asesor y verificar que se refleja en la OT.',
-        'Verificar que un pago en efectivo sigue derivando correctamente a tesorería.',
+        'Verificar que un pago en efectivo sigue derivando correctamente a caja.',
       ],
     ],
     'Factura desde POS' => [
@@ -605,8 +588,8 @@ class MejoraProcesosApSeeder extends Seeder
         'Verificar que la cita agendada por cualquier canal aparece igual en SIAN.',
       ],
     ],
-    'Dashboard Comercial' => [
-      'objetivo' => 'Dar a Comercial una vista consolidada de sus indicadores clave (ventas, sell out, captación, etc.) en un solo dashboard.',
+    'Dashboard Comercial de Posventa' => [
+      'objetivo' => 'Dar a Comercial una vista consolidada de sus indicadores clave de posventa (ventas, sell out, captación, etc.) en un solo dashboard.',
       'alcance' => 'Dashboard que reutiliza/consolida los reportes comerciales ya definidos (Sell Out, Cartera de clientes, Inteligencia comercial) en un panel único.',
       'consideraciones' => [
         'Definir con Comercial qué KPIs exactos van en el dashboard principal, para no duplicar todos los reportes existentes sin criterio.',
@@ -737,10 +720,11 @@ class MejoraProcesosApSeeder extends Seeder
       ],
     ],
     'Digitalización Flujos Taller' => [
-      'objetivo' => 'Historia paraguas para llevar a digital los flujos de taller que hoy siguen siendo manuales/en papel, más allá de los ya cubiertos por historias específicas de este proyecto.',
-      'alcance' => 'Por definir con negocio: levantar junto a Taller qué flujos concretos siguen en papel y no están cubiertos por las demás historias (QR bahía, registro de salida, ticket de salida, etc.), y priorizarlos.',
+      'objetivo' => 'Historia paraguas para llevar a digital los flujos de taller que hoy siguen siendo manuales/en papel, usando pistolas/lectores de código de barras para capturar los eventos en vez de registrarlos en papel.',
+      'alcance' => 'Por definir con negocio: levantar junto a Taller qué flujos concretos siguen en papel y no están cubiertos por las demás historias (QR bahía, registro de salida, ticket de salida, etc.), y priorizarlos para digitalizarlos con pistolas/lectores de código de barras.',
       'consideraciones' => [
         'Hacer primero un levantamiento con Taller de los flujos pendientes.',
+        'Definir qué pistolas/lectores de código de barras usar (modelo, cantidad, integración).',
         'Evitar duplicar alcance con historias ya específicas de este proyecto.',
       ],
       'pruebas' => [
@@ -817,7 +801,10 @@ class MejoraProcesosApSeeder extends Seeder
       $historiasOrdenadas[] = $h;
     }
 
-    $cursor = $this->nextWorkday(Carbon::parse(self::MONTHS[0] . '-01'));
+    // El cronograma arranca la PRÓXIMA semana (lunes) desde que se corre el
+    // seeder, no en una fecha fija: al día de hoy nada del proyecto se ha
+    // empezado, así que no tiene sentido "seedear" trabajo en el pasado.
+    $cursor = $today->copy()->next(Carbon::MONDAY);
     $previousTaskId = null;
     $sprintsByMonth = [];
     $order = 0;
