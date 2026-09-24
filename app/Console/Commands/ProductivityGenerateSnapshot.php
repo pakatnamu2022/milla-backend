@@ -17,6 +17,7 @@ class ProductivityGenerateSnapshot extends Command
                             {--year= : Year for the snapshot (default: previous month)}
                             {--month= : Month for the snapshot (1-12) (default: previous month)}
                             {--sede= : Sede ID (use "all" for all sedes with workshop, or specific ID)}
+                            {--months= : Regenerate last N months (1-3, ignores --year and --month)}
                             {--force : Overwrite existing snapshots}
                             {--dry-run : Preview data without saving}';
 
@@ -40,6 +41,23 @@ class ProductivityGenerateSnapshot extends Command
      */
     public function handle()
     {
+        $monthsOption = $this->option('months');
+        $sedeOption = $this->option('sede');
+        $force = $this->option('force');
+        $dryRun = $this->option('dry-run');
+
+        // Handle --months option (regenerate last N months)
+        if ($monthsOption) {
+            $months = (int) $monthsOption;
+
+            if ($months < 1 || $months > 3) {
+                $this->error("Invalid --months value: {$months}. Must be between 1 and 3.");
+                return Command::FAILURE;
+            }
+
+            return $this->regenerateLastMonths($months, $sedeOption, $force);
+        }
+
         // Determine year and month
         $year = $this->option('year');
         $month = $this->option('month');
@@ -61,10 +79,6 @@ class ProductivityGenerateSnapshot extends Command
             $this->error("Invalid month: {$month}. Must be between 1 and 12.");
             return Command::FAILURE;
         }
-
-        $sedeOption = $this->option('sede');
-        $force = $this->option('force');
-        $dryRun = $this->option('dry-run');
 
         $periodName = Carbon::create($year, $month, 1)->format('F Y');
 
@@ -147,6 +161,65 @@ class ProductivityGenerateSnapshot extends Command
         $this->displaySnapshotSummary($snapshot);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Regenerate snapshots for the last N months
+     */
+    protected function regenerateLastMonths(int $months, ?string $sedeOption, bool $force): int
+    {
+        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->info("  REGENERATING LAST {$months} MONTH(S)");
+        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->newLine();
+
+        $totalSuccess = 0;
+        $totalErrors = 0;
+
+        // Iterate from current month backwards
+        for ($i = 0; $i < $months; $i++) {
+            $targetMonth = Carbon::now()->subMonths($i);
+            $year = $targetMonth->year;
+            $month = $targetMonth->month;
+
+            $this->info("Processing {$targetMonth->format('F Y')}...");
+
+            try {
+                // Always use --sede=all for multi-month regeneration
+                $snapshots = $this->snapshotService->generateAllSnapshots($year, $month, true);
+
+                if (isset($snapshots['error'])) {
+                    $this->error("✗ {$targetMonth->format('F Y')}: {$snapshots['error']}");
+                    $totalErrors++;
+                } else {
+                    $successCount = 0;
+                    $errorCount = 0;
+
+                    foreach ($snapshots as $key => $snapshot) {
+                        if (is_array($snapshot) && isset($snapshot['error'])) {
+                            $errorCount++;
+                        } else {
+                            $successCount++;
+                        }
+                    }
+
+                    $this->info("✓ {$targetMonth->format('F Y')}: {$successCount} sedes updated");
+                    $totalSuccess += $successCount;
+                    $totalErrors += $errorCount;
+                }
+            } catch (\Exception $e) {
+                $this->error("✗ {$targetMonth->format('F Y')}: {$e->getMessage()}");
+                $totalErrors++;
+            }
+
+            $this->newLine();
+        }
+
+        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->info("Final Summary: {$totalSuccess} snapshots updated, {$totalErrors} errors");
+        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+        return $totalErrors > 0 ? Command::FAILURE : Command::SUCCESS;
     }
 
     /**
