@@ -248,11 +248,19 @@ class SyncInvoiceDynamicsJob implements ShouldQueue
          * Notificar a todos los stakeholders cuando el comprobante está recepcionado
          * (Gerencia, Jefes de Almacén, Usuarios Solicitantes)
          * Solo para órdenes de compra de tipo POSTVENTA
+         * Solo si NO se ha notificado antes (evitar correos duplicados)
          */
-        if ($isNotVoided && $purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA) {
+        if ($isNotVoided
+            && $purchaseOrder->type_operation_id === ApMasters::TIPO_OPERACION_POSTVENTA
+            && is_null($purchaseOrder->invoice_notification_sent_at)) {
           try {
             $notificationService = app(InvoiceAccountedNotificationService::class);
             $notificationService->notifyAll($purchaseOrder);
+
+            // Marcar como notificado para evitar envíos duplicados
+            $purchaseOrder->updateQuietly([
+              'invoice_notification_sent_at' => now()
+            ]);
           } catch (Throwable $e) {
             Log::error("Error al notificar stakeholders para OC #{$purchaseOrder->id}: {$e->getMessage()}");
           }
