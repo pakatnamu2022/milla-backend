@@ -1223,6 +1223,9 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
         'actual_delivery_date' => now(),
       ]);
 
+      // Actualizar la fecha oficial de cierre
+      $workOrder->updateOfficialClosingDate();
+
       // Validar stock en sistema externo antes de generar el ajuste de salida
       $this->validateExternalStockForInternalNote($workOrder);
 
