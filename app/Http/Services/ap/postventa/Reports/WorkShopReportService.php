@@ -558,7 +558,7 @@ class WorkShopReportService
 
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
-      'cliente_facturado' => $invoiceTo?->full_name ?? '',
+      'cliente_facturado' => $invoiceTo?->num_doc ?? '',
       'nombre_cliente' => $invoiceTo?->full_name ?? '',
       'email_cliente' => $invoiceTo?->email ?? '',
       'movil_cliente' => $invoiceTo?->phone ?? '',
