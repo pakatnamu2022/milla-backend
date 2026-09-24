@@ -271,3 +271,11 @@ Schedule::command('traverse:verify-migration --all')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Regenerar snapshots de productividad de los últimos 2 meses
+// Ejecuta diariamente a las 6:00 AM hora Lima
+Schedule::command('productivity:snapshot --months=2')
+  ->dailyAt('06:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

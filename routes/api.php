@@ -1946,6 +1946,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('dashboard/productivity/historical/compare-years', [ProductivityHistoricalController::class, 'compareYears']);
       Route::get('dashboard/productivity/historical/{year}/{month}', [ProductivityHistoricalController::class, 'getMonthSnapshot']);
       Route::get('dashboard/productivity/historical/summary', [ProductivityHistoricalController::class, 'getMultiYearSummary']);
+      Route::post('dashboard/productivity/historical/regenerate', [ProductivityHistoricalController::class, 'regenerateSnapshot']);
 
       // Technician Productivity Detail - Detalle de Productividad por Técnico
       Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);

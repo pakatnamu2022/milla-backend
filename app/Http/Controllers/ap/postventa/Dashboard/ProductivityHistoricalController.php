@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ap\postventa\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Http\Services\ap\postventa\Dashboard\ProductivitySnapshotService;
 use App\Models\ap\maestroGeneral\ProductivityMonthlySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,12 @@ use Carbon\Carbon;
 
 class ProductivityHistoricalController extends Controller
 {
+    protected ProductivitySnapshotService $snapshotService;
+
+    public function __construct(ProductivitySnapshotService $snapshotService)
+    {
+        $this->snapshotService = $snapshotService;
+    }
     /**
      * Get annual trends for a specific year
      * Returns monthly snapshots for trend analysis
@@ -53,6 +60,9 @@ class ProductivityHistoricalController extends Controller
             // Build trend data
             $trendData = $this->buildTrendData($consolidatedSnapshots);
 
+            // Get last update timestamp (most recent updated_at from all snapshots)
+            $lastUpdate = $snapshots->flatten()->max('updated_at');
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -60,6 +70,7 @@ class ProductivityHistoricalController extends Controller
                     'sede_id' => null,
                     'sede_name' => 'Consolidado (Todas las sedes con taller)',
                     'period_count' => $consolidatedSnapshots->count(),
+                    'last_update' => $lastUpdate,
                     'trends' => $trendData,
                     'summary' => $this->calculateYearSummary($consolidatedSnapshots),
                 ],
@@ -125,6 +136,9 @@ class ProductivityHistoricalController extends Controller
         // Build trend data
         $trendData = $this->buildTrendData($snapshots);
 
+        // Get last update timestamp
+        $lastUpdate = $snapshots->max('updated_at');
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -132,6 +146,7 @@ class ProductivityHistoricalController extends Controller
                 'sede_id' => $sedeId,
                 'sede_name' => $snapshots->first()->sede?->suc_abrev ?? "Sede {$sedeId}",
                 'period_count' => $snapshots->count(),
+                'last_update' => $lastUpdate,
                 'trends' => $trendData,
                 'summary' => $this->calculateYearSummary($snapshots),
             ],
@@ -678,5 +693,80 @@ class ProductivityHistoricalController extends Controller
             'technicians_warning' => $snapshots->sum('technicians_warning'),
             'technicians_critical' => $snapshots->sum('technicians_critical'),
         ];
+    }
+
+    /**
+     * Regenerate snapshot for the last month (previous month)
+     * Manual endpoint to update snapshot data
+     *
+     * @return JsonResponse
+     */
+    public function regenerateSnapshot(): JsonResponse
+    {
+        try {
+            // Get previous month (last month)
+            $previousMonth = Carbon::now()->subMonth();
+            $year = $previousMonth->year;
+            $month = $previousMonth->month;
+
+            // Generate snapshots for all sedes with workshop (with --force)
+            $snapshots = $this->snapshotService->generateAllSnapshots($year, $month, true);
+
+            // Handle error case (no sedes with workshop)
+            if (isset($snapshots['error'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $snapshots['error'],
+                ], 400);
+            }
+
+            // Count success and errors
+            $successCount = 0;
+            $errorCount = 0;
+            $details = [];
+
+            foreach ($snapshots as $key => $snapshot) {
+                if (is_array($snapshot) && isset($snapshot['error'])) {
+                    $errorCount++;
+                    $details[] = [
+                        'sede' => $key,
+                        'status' => 'error',
+                        'message' => $snapshot['error']
+                    ];
+                } else {
+                    $successCount++;
+                    $details[] = [
+                        'sede' => $key,
+                        'status' => 'success',
+                        'sede_id' => $snapshot->sede_id,
+                        'productivity_percentage' => $snapshot->average_productivity_percentage
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Snapshots regenerados exitosamente para {$previousMonth->locale('es')->isoFormat('MMMM YYYY')}",
+                'data' => [
+                    'period' => [
+                        'year' => $year,
+                        'month' => $month,
+                        'description' => $previousMonth->locale('es')->isoFormat('MMMM YYYY')
+                    ],
+                    'summary' => [
+                        'total' => count($snapshots),
+                        'success' => $successCount,
+                        'errors' => $errorCount
+                    ],
+                    'details' => $details
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al regenerar snapshots',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
