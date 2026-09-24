@@ -32,3 +32,25 @@ Route::get('/preview/evaluation-closed/{chiefId}', [EvaluationNotificationContro
   ->whereNumber('chiefId')
   ->name('preview.evaluation-closed');
 
+// Preview temporal del PDF de Gantt (HTML crudo, para ajustar el diseño sin pasar por dompdf en cada vuelta)
+Route::get('/preview/scrum-project-gantt/{id}', function (int $id) {
+  return app(\App\Http\Services\gp\tics\pm\ScrumProjectService::class)->ganttPdfHtml($id);
+})->whereNumber('id')->name('preview.scrum-project-gantt');
+
+// Preview temporal del PDF de Gantt (el archivo real generado por dompdf)
+Route::get('/preview/scrum-project-gantt/{id}/pdf', function (int $id) {
+  return app(\App\Http\Services\gp\tics\pm\ScrumProjectService::class)->ganttPdf($id);
+})->whereNumber('id')->name('preview.scrum-project-gantt.pdf');
+
+// TEMP: limpia el opcache del SAPI web (Apache/PHP-FPM cachea el bytecode
+// de las clases PHP por separado del cache de vistas compiladas de Laravel;
+// view:clear no lo toca, así que los cambios a ScrumProjectService.php no
+// se reflejaban en las descargas reales aunque sí en las pruebas por CLI).
+Route::get('/preview/opcache-reset', function () {
+  if (function_exists('opcache_reset')) {
+    opcache_reset();
+    return 'opcache reset OK';
+  }
+  return 'opcache not available';
+});
+
