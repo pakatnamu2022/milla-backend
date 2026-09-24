@@ -592,13 +592,16 @@ trait Filterable
 
     $all = $request->query('all', false) === 'true';
 
-    // Verificar si hay filtros de accessor (operadores directos o dentro del array de search)
+    // Verificar si la petición USA filtros de accessor (operadores directos o dentro del array de search).
+    // Solo en ese caso se carga toda la tabla en memoria; si no, se pagina en SQL.
     $searchFields = $filters['search'] ?? [];
     $hasAccessorSearchFields = is_array($searchFields) &&
+      filled($request->query('search')) &&
       collect($searchFields)->contains(fn($f) => str_starts_with($f, 'accessor:'));
 
-    $hasAccessorFilters = $hasAccessorSearchFields || collect($filters)->contains(function ($operator) {
-      return is_string($operator) && str_starts_with($operator, 'accessor');
+    $hasAccessorFilters = $hasAccessorSearchFields || collect($filters)->contains(function ($operator, $filter) use ($request) {
+      return is_string($operator) && str_starts_with($operator, 'accessor')
+        && $request->query(str_replace('.', '$', $filter)) !== null;
     });
 
     if ($hasAccessorFilters || $hasAccessorSort) {
