@@ -7,6 +7,7 @@ use App\Http\Services\ap\postventa\Dashboard\ProductivitySnapshotService;
 use App\Models\ap\maestroGeneral\ProductivityMonthlySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
 
 class ProductivityHistoricalController extends Controller
