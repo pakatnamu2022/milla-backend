@@ -42,3 +42,15 @@ Route::get('/preview/scrum-project-gantt/{id}/pdf', function (int $id) {
   return app(\App\Http\Services\gp\tics\pm\ScrumProjectService::class)->ganttPdf($id);
 })->whereNumber('id')->name('preview.scrum-project-gantt.pdf');
 
+// TEMP: limpia el opcache del SAPI web (Apache/PHP-FPM cachea el bytecode
+// de las clases PHP por separado del cache de vistas compiladas de Laravel;
+// view:clear no lo toca, así que los cambios a ScrumProjectService.php no
+// se reflejaban en las descargas reales aunque sí en las pruebas por CLI).
+Route::get('/preview/opcache-reset', function () {
+  if (function_exists('opcache_reset')) {
+    opcache_reset();
+    return 'opcache reset OK';
+  }
+  return 'opcache not available';
+});
+

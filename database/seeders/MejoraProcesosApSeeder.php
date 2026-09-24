@@ -66,12 +66,71 @@ class MejoraProcesosApSeeder extends Seeder
     'back_office' => ['label' => 'Back Office', 'color' => 'gray'],
   ];
 
-  // EDT estándar aplicado a cada historia: [título, fase, horas estimadas]
-  // Ambas fases ("dev" y "test") viven en el mismo sprint de Desarrollo del mes.
-  private const EDT = [
-    ['Análisis y Desarrollo', 'dev', 38],
-    ['Pruebas', 'test', 8],
+  // Story points (Fibonacci) por historia, estimados según su alcance real en
+  // self::DETALLE (integraciones externas, hardware, IA/OCR, motores de
+  // reglas, dependencias de otras historias) y no un valor fijo por EDT.
+  // Antes cada historia cargaba siempre 38h+8h sin importar su complejidad
+  // real, lo cual no servía para ponderar la curva de esfuerzo. El reparto
+  // dev/pruebas se deriva de esto (ver splitStoryPoints), no de una constante.
+  private const STORY_POINTS = [
+    'APP Asesor' => 13,
+    'Agendamiento Vigilante' => 3,
+    'Reporte Facturación Derco' => 5,
+    'IA Verificación Contacto' => 5,
+    'Dashboard Técnico' => 5,
+    'Dashboard VAT' => 5,
+    'Dashboard Reincidencias' => 8,
+    'Reporte Errores Contacto' => 3,
+    'Historial Cliente-Vehículo' => 5,
+    'SMS/WA Apertura OT' => 5,
+    'SMS/WA Trabajo OT' => 2,
+    'SMS/WA Control Calidad' => 2,
+    'SMS/WA Salida Vehículo' => 2,
+    'Campos Inchcape' => 5,
+    'Reportes por Sede' => 3,
+    'Reporte Sell Out' => 3,
+    'Reporte Anticipos Abiertos' => 3,
+    'Reporte OT No Pagadas' => 3,
+    'Dashboard Capacidad Taller' => 8,
+    'Dashboard por Posición' => 5,
+    'IA Facturas por Pagar' => 13,
+    'Reporte Cartera Clientes' => 5,
+    'Asignación Automática Técnicos' => 8,
+    'Dashboard Bahías' => 5,
+    'QR Bahía de Trabajo' => 8,
+    'Reporte Capacidad Bahías' => 3,
+    'Dashboard Errores Técnico' => 5,
+    'QR/Barcode OT' => 5,
+    'Sistema de Cola' => 8,
+    'Pago con Asesor' => 8,
+    'Factura desde POS' => 8,
+    'Encuesta WA' => 5,
+    'Medición C.SAT/NPS' => 5,
+    'Agendamiento Visión Taller' => 5,
+    'Dashboard Comercial' => 5,
+    'Segmentación SIAN' => 8,
+    'CSV Asiento Planillas' => 2,
+    'Central de Contacto' => 8,
+    'Canales IA 24/7' => 13,
+    'Registro Electrónico QR' => 5,
+    'Inteligencia Comercial Apertura' => 8,
+    'Inteligencia Comercial Trabajo' => 5,
+    'Asignación Automática Lavaderos' => 5,
+    'Inteligencia Comercial Inspección' => 3,
+    'Ticket de Salida' => 3,
+    'Registro Automático Salida' => 3,
+    'Digitalización Flujos Taller' => 5,
   ];
+
+  private const DEFAULT_STORY_POINTS = 5;
+
+  // Horas REALES por jornada dedicadas a este proyecto. 1 story point = 8h de
+  // trabajo, pero el dev no le dedica el día completo (soporte, otros
+  // pedidos, etc.), así que la duración en días hábiles de cada tarea se
+  // calcula con esta capacidad efectiva, no con 8h/día. Bajar este valor
+  // alarga el cronograma (menos horas/día -> más días hábiles por punto);
+  // subirlo lo acorta.
+  private const HOURS_PER_DAY = 6.5;
 
   // [mes|null, título, fecha límite original|null, prioridad, responsable original, etiqueta corta, categoría]
   // La etiqueta corta identifica la historia de un vistazo en listas planas
@@ -715,187 +774,140 @@ class MejoraProcesosApSeeder extends Seeder
     }
 
     $today = Carbon::today();
-    $testDurationDays = 2; // duración de la fase de Pruebas de cada historia
 
-    // Agrupar historias por mes para poder escalonar sus fechas dentro del mes
+    // Agrupar historias por mes original, solo para preservar el ORDEN DE
+    // PRIORIDAD que trae el cronograma de gerencia (mes a mes, y dentro del
+    // mes el orden original de self::HISTORIAS). Ya no se usa para acotar
+    // las fechas de cada historia a su mes calendario.
     $byMonth = [];
     foreach (self::HISTORIAS as $historia) {
       $byMonth[$historia[0] ?? '_backlog'][] = $historia;
     }
 
+    // Agendamiento CONTINUO por capacidad, no por mes calendario. Antes cada
+    // historia se comprimía dentro de su mes original: meses con muchas
+    // historias quedaban sobrecargados (oct/nov 2026 llegaban a 31 story
+    // points = ~248h en un mes, con capacidad real de 1 dev) y los meses sin
+    // historias (abr-ago 2027) quedaban en cero aunque hubiera trabajo
+    // pendiente por hacer. Ahora se agenda 1 dev full-time (1 story point =
+    // 1 jornada de 8h, solo días hábiles) 100% en serie —nunca 2 tareas al
+    // mismo tiempo, ni entre historias distintas ni entre Desarrollo y
+    // Pruebas de la misma historia— en el mismo orden de prioridad de
+    // gerencia. Si la capacidad real no alcanza para la fecha límite
+    // original, la historia simplemente cae más adelante en el tiempo (soft
+    // deadline): así el Gantt muestra el atraso real en vez de esconderlo.
+    $historiasOrdenadas = [];
+    foreach (self::MONTHS as $monthKey) {
+      foreach ($byMonth[$monthKey] ?? [] as $h) {
+        $historiasOrdenadas[] = $h;
+      }
+    }
+
+    // Historias sin mes en el cronograma original de gerencia (backlog puro):
+    // se agendan igual que las demás, pero al final de la cola, ordenadas por
+    // prioridad (alta > media > baja) ya que no traen un orden propio. Antes
+    // se quedaban sin sprint ni fechas, lo que las dejaba invisibles en el
+    // Gantt aunque sí representen trabajo real por hacer.
+    $prioridadOrden = ['alta' => 0, 'media' => 1, 'baja' => 2];
+    $backlogOrdenado = collect($byMonth['_backlog'] ?? [])
+      ->sortBy(fn($h) => $prioridadOrden[$h[3]] ?? 3)
+      ->values()
+      ->all();
+    foreach ($backlogOrdenado as $h) {
+      $historiasOrdenadas[] = $h;
+    }
+
+    $cursor = $this->nextWorkday(Carbon::parse(self::MONTHS[0] . '-01'));
+    $previousTaskId = null;
+    $sprintsByMonth = [];
     $order = 0;
 
-    foreach (self::MONTHS as $monthKey) {
-      $historiasDelMes = $byMonth[$monthKey] ?? [];
-      $n = count($historiasDelMes);
-      if ($n === 0) {
-        continue;
-      }
+    foreach ($historiasOrdenadas as [, $title, , $priority, $resp, $shortLabel, $category]) {
+      $order++;
+      $storyPoints = self::STORY_POINTS[$shortLabel] ?? self::DEFAULT_STORY_POINTS;
+      [$devPoints, $testPoints] = $this->splitStoryPoints($storyPoints);
 
-      $monthStart = Carbon::parse($monthKey . '-01');
-      $monthEnd = $monthStart->copy()->endOfMonth();
-      $devSpanDays = max(1, $monthStart->diffInDays($monthEnd));
-      $label = ucfirst($monthStart->translatedFormat('F Y'));
+      $developmentStart = $cursor->copy();
+      $developmentDue = $this->addWorkdays($developmentStart, $this->workdaysForPoints($devPoints) - 1);
+      $testStart = $this->nextWorkday($developmentDue->copy()->addDay());
+      $testDue = $this->addWorkdays($testStart, $this->workdaysForPoints($testPoints) - 1);
+      $cursor = $this->nextWorkday($testDue->copy()->addDay());
 
-      // Escalera de desarrollo: la historia i empieza su desarrollo justo donde
-      // termina la i-1 (sin traslape), repartidas en todo el mes. La fase de
-      // Pruebas de cada historia arranca apenas termina SU desarrollo (no al
-      // final del mes), así que se solapa con el desarrollo de la(s)
-      // siguiente(s) historia(s): desarrollo y pruebas avanzan en paralelo.
-      $slices = [];
-      foreach ($historiasDelMes as $i => $h) {
-        $sliceStart = (int) round(($i / $n) * $devSpanDays);
-        $sliceEnd = (int) round((($i + 1) / $n) * $devSpanDays);
+      $devSprint = $this->sprintForMonth($project->id, $developmentStart, $sprintsByMonth, $today);
+      $this->extendSprintEnd($devSprint, $developmentDue, $today);
+      $testSprint = $this->sprintForMonth($project->id, $testStart, $sprintsByMonth, $today);
+      $this->extendSprintEnd($testSprint, $testDue, $today);
 
-        $devStart = $monthStart->copy()->addDays($sliceStart);
-        $devDue = $monthStart->copy()->addDays($sliceEnd);
-        $testStart = $devDue->copy();
-        $testDue = $testStart->copy()->addDays($testDurationDays);
-
-        $slices[] = compact('devStart', 'devDue', 'testStart', 'testDue');
-      }
-
-      // El sprint de Desarrollo cubre todo el mes, extendiéndose hasta que
-      // terminan las pruebas de la última historia si eso cae después de fin
-      // de mes (ya no hay un sprint de Pruebas aparte que las contenga).
-      $sprintEnd = collect($slices)->max('testDue');
-      if ($sprintEnd->lt($monthEnd)) {
-        $sprintEnd = $monthEnd->copy();
-      }
-
-      $devSprint = ScrumSprint::create([
-        'project_id' => $project->id,
-        'name' => "Desarrollo - {$label}",
-        'start_date' => $monthStart->format('Y-m-d'),
-        'end_date' => $sprintEnd->format('Y-m-d'),
-        'status' => $this->sprintStatus($monthStart, $sprintEnd, $today),
-      ]);
-
-      $historiaStatus = match ($devSprint->status) {
+      // El estatus de cada item se calcula contra SU PROPIO rango de fechas
+      // (no contra los límites del sprint, que se van extendiendo), para que
+      // no dependa de qué tan tarde se procesó/extendió el sprint.
+      $phase = $this->sprintStatus($developmentStart, $testDue, $today);
+      $historiaStatus = match ($phase) {
         'cerrado' => 'hecho',
         'activo' => 'por_hacer',
         default => 'backlog',
       };
-      $devTaskStatus = $historiaStatus;
-      $testTaskStatus = $historiaStatus;
-
-      $previousDevTaskId = null;
-
-      foreach ($historiasDelMes as $i => [, $title, , $priority, $resp, $shortLabel, $category]) {
-        $order++;
-        ['devStart' => $developmentStart, 'devDue' => $developmentDue, 'testStart' => $testStart, 'testDue' => $testDue] = $slices[$i];
-
-        $historia = ScrumItem::create([
-          'project_id' => $project->id,
-          'sprint_id' => $devSprint->id,
-          'type' => 'historia',
-          'title' => $title,
-          'description' => $this->historiaDescription($shortLabel, $resp),
-          'status' => $historiaStatus,
-          'priority' => $priority,
-          'start_date' => $developmentStart->format('Y-m-d'),
-          'due_date' => $developmentDue->format('Y-m-d'),
-          'created_by' => self::CREATED_BY,
-          'order' => $order,
-          'closed_at' => $historiaStatus === 'hecho' ? now() : null,
-        ]);
-        $historia->tags()->attach($tagIds[$category]);
-
-        [, , $devHours] = self::EDT[0];
-        [, , $testHours] = self::EDT[1];
-
-        $devTask = ScrumItem::create([
-          'project_id' => $project->id,
-          'sprint_id' => $devSprint->id,
-          'parent_id' => $historia->id,
-          'predecessor_id' => $previousDevTaskId, // encadenada al desarrollo de la historia anterior del mes
-          'type' => 'tarea',
-          'title' => "[{$shortLabel}] Análisis y Desarrollo",
-          'description' => $this->analisisDescription($shortLabel, $title),
-          'status' => $devTaskStatus,
-          'priority' => $priority,
-          'estimated_hours' => $devHours,
-          'start_date' => $developmentStart->format('Y-m-d'),
-          'due_date' => $developmentDue->format('Y-m-d'),
-          'created_by' => self::CREATED_BY,
-          'order' => 1,
-          'closed_at' => $devTaskStatus === 'hecho' ? now() : null,
-        ]);
-        $devTask->tags()->attach($tagIds[$category]);
-
-        $testTask = ScrumItem::create([
-          'project_id' => $project->id,
-          'sprint_id' => $devSprint->id,
-          'parent_id' => $historia->id,
-          'predecessor_id' => $devTask->id, // las pruebas de la historia dependen de su propio desarrollo
-          'type' => 'tarea',
-          'title' => "Pruebas de {$shortLabel}",
-          'description' => $this->pruebasDescription($shortLabel, $title),
-          'status' => $testTaskStatus,
-          'priority' => $priority,
-          'estimated_hours' => $testHours,
-          'start_date' => $testStart->format('Y-m-d'),
-          'due_date' => $testDue->format('Y-m-d'),
-          'created_by' => self::CREATED_BY,
-          'order' => 2,
-          'closed_at' => $testTaskStatus === 'hecho' ? now() : null,
-        ]);
-        $testTask->tags()->attach($tagIds[$category]);
-
-        $previousDevTaskId = $devTask->id;
-      }
-    }
-
-    // Historias sin mes asignado: quedan en el backlog del proyecto, sin
-    // sprint, sin fechas y sin dependencias.
-    foreach ($byMonth['_backlog'] ?? [] as [, $title, , $priority, $resp, $shortLabel, $category]) {
-      $order++;
 
       $historia = ScrumItem::create([
         'project_id' => $project->id,
-        'sprint_id' => null,
+        'sprint_id' => $devSprint->id,
         'type' => 'historia',
         'title' => $title,
         'description' => $this->historiaDescription($shortLabel, $resp),
-        'status' => 'backlog',
+        'status' => $historiaStatus,
         'priority' => $priority,
+        'story_points' => $storyPoints,
+        'start_date' => $developmentStart->format('Y-m-d'),
+        'due_date' => $testDue->format('Y-m-d'),
         'created_by' => self::CREATED_BY,
         'order' => $order,
+        'closed_at' => $historiaStatus === 'hecho' ? now() : null,
       ]);
       $historia->tags()->attach($tagIds[$category]);
 
-      [, , $devHours] = self::EDT[0];
-      [, , $testHours] = self::EDT[1];
-
       $devTask = ScrumItem::create([
         'project_id' => $project->id,
+        'sprint_id' => $devSprint->id,
         'parent_id' => $historia->id,
+        'predecessor_id' => $previousTaskId, // cadena única y serial: nunca 2 tareas al mismo tiempo (1 solo dev)
         'type' => 'tarea',
         'title' => "[{$shortLabel}] Análisis y Desarrollo",
         'description' => $this->analisisDescription($shortLabel, $title),
-        'status' => 'backlog',
+        'status' => $historiaStatus,
         'priority' => $priority,
-        'estimated_hours' => $devHours,
+        'story_points' => $devPoints,
+        'estimated_hours' => $devPoints * 8,
+        'start_date' => $developmentStart->format('Y-m-d'),
+        'due_date' => $developmentDue->format('Y-m-d'),
         'created_by' => self::CREATED_BY,
         'order' => 1,
+        'closed_at' => $historiaStatus === 'hecho' ? now() : null,
       ]);
       $devTask->tags()->attach($tagIds[$category]);
 
       $testTask = ScrumItem::create([
         'project_id' => $project->id,
+        'sprint_id' => $testSprint->id,
         'parent_id' => $historia->id,
-        'predecessor_id' => $devTask->id,
+        'predecessor_id' => $devTask->id, // las pruebas de la historia dependen de su propio desarrollo
         'type' => 'tarea',
         'title' => "Pruebas de {$shortLabel}",
         'description' => $this->pruebasDescription($shortLabel, $title),
-        'status' => 'backlog',
+        'status' => $historiaStatus,
         'priority' => $priority,
-        'estimated_hours' => $testHours,
+        'story_points' => $testPoints,
+        'estimated_hours' => $testPoints * 8,
+        'start_date' => $testStart->format('Y-m-d'),
+        'due_date' => $testDue->format('Y-m-d'),
         'created_by' => self::CREATED_BY,
         'order' => 2,
+        'closed_at' => $historiaStatus === 'hecho' ? now() : null,
       ]);
       $testTask->tags()->attach($tagIds[$category]);
+
+      $previousTaskId = $testTask->id;
     }
+
   }
 
   private function bullets(array $items): string
@@ -945,5 +957,95 @@ class MejoraProcesosApSeeder extends Seeder
     if ($today->between($start, $end)) return 'activo';
     if ($end->lt($today)) return 'cerrado';
     return 'planeado';
+  }
+
+  // Reparte los story points de la historia entre sus dos tareas del EDT
+  // manteniendo la proporción original de horas (38h dev / 8h pruebas ≈
+  // 83%/17%). Ambas fases quedan con al menos 1 punto.
+  private function splitStoryPoints(int $points): array
+  {
+    $devPoints = max(1, (int) round($points * 0.83));
+    $testPoints = max(1, $points - $devPoints);
+
+    return [$devPoints, $testPoints];
+  }
+
+  // Días hábiles que toma un bloque de $points story points (8h/pt) a la
+  // capacidad efectiva real (self::HOURS_PER_DAY), redondeando hacia arriba.
+  // Con 8h/día 1 punto = 1 día; con menos horas/día, más días por punto.
+  // round() en vez de ceil(): con ceil() cada tarea paga un redondeo hacia
+  // arriba aunque falte poco para el día completo (p.ej. 3 pts a 7.9h/día son
+  // 3.03 días pero se cobraban 4), y con ~50 tareas ese sesgo se acumula en
+  // meses de diferencia. round() no tiene sesgo sistemático: en promedio la
+  // duración total refleja la capacidad real configurada.
+  private function workdaysForPoints(int $points): int
+  {
+    return max(1, (int) round($points * 8 / self::HOURS_PER_DAY));
+  }
+
+  // Adelanta $date hasta el próximo día hábil (incluido el propio $date si
+  // ya lo es). Un dev no trabaja fines de semana.
+  private function nextWorkday(Carbon $date): Carbon
+  {
+    $d = $date->copy();
+    while ($d->isWeekend()) {
+      $d->addDay();
+    }
+
+    return $d;
+  }
+
+  // Devuelve la fecha que resulta de sumarle $workdaysToAdd días HÁBILES a
+  // $start (que debe ser ya un día hábil). 0 devuelve $start tal cual (tarea
+  // de 1 sola jornada).
+  private function addWorkdays(Carbon $start, int $workdaysToAdd): Carbon
+  {
+    $d = $start->copy();
+    $remaining = $workdaysToAdd;
+    while ($remaining > 0) {
+      $d->addDay();
+      if (!$d->isWeekend()) {
+        $remaining--;
+      }
+    }
+
+    return $d;
+  }
+
+  // Sprint mensual "Desarrollo - {mes}" get-or-create, indexado por 'Y-m'.
+  // Como el agendamiento ahora es continuo (no acotado al mes original de
+  // cada historia), puede crear sprints en meses que el cronograma original
+  // de gerencia tenía vacíos (el propio gap que se está rellenando).
+  private function sprintForMonth(int $projectId, Carbon $date, array &$sprintsByMonth, Carbon $today): ScrumSprint
+  {
+    $monthKey = $date->format('Y-m');
+    if (isset($sprintsByMonth[$monthKey])) {
+      return $sprintsByMonth[$monthKey];
+    }
+
+    $monthStart = $date->copy()->startOfMonth();
+    $monthEnd = $date->copy()->endOfMonth();
+    $label = ucfirst($monthStart->translatedFormat('F Y'));
+
+    return $sprintsByMonth[$monthKey] = ScrumSprint::create([
+      'project_id' => $projectId,
+      'name' => "Desarrollo - {$label}",
+      'start_date' => $monthStart->format('Y-m-d'),
+      'end_date' => $monthEnd->format('Y-m-d'),
+      'status' => $this->sprintStatus($monthStart, $monthEnd, $today),
+    ]);
+  }
+
+  // Si una tarea asignada al sprint termina después de su end_date actual
+  // (porque el agendamiento continuo la hizo cruzar fin de mes), estira el
+  // sprint para que siga cubriéndola.
+  private function extendSprintEnd(ScrumSprint $sprint, Carbon $candidateEnd, Carbon $today): void
+  {
+    $currentEnd = Carbon::parse($sprint->end_date);
+    if ($candidateEnd->gt($currentEnd)) {
+      $sprint->end_date = $candidateEnd->format('Y-m-d');
+      $sprint->status = $this->sprintStatus(Carbon::parse($sprint->start_date), $candidateEnd, $today);
+      $sprint->save();
+    }
   }
 }

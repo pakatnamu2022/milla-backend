@@ -19,7 +19,7 @@
     .header {
       text-align: center;
       margin-bottom: 5px;
-      border-bottom: 2px solid #6366f1;
+      border-bottom: 2px solid #01237e;
       padding-bottom: 4px;
     }
 
@@ -54,8 +54,13 @@
       vertical-align: middle;
     }
 
+    /* width en mm exactos (nunca 100%): dompdf calculaba mal el 100% de la
+       tabla contra el ancho de página real de A3 horizontal, lo que
+       terminaba estirando todas las columnas (sobre todo Inicio/Fin) muy
+       por encima de su ancho declarado y empujaba la línea de tiempo fuera
+       de la página, generando una página 2 en blanco. */
     table.gantt-table {
-      width: 100%;
+      width: 410mm;
       border-collapse: collapse;
       table-layout: fixed;
     }
@@ -68,22 +73,29 @@
       vertical-align: middle;
     }
 
-    .col-wbs { width: 10mm; text-align: center !important; color: #6b7280; }
-    .col-name { width: 45mm; white-space: nowrap; overflow: hidden; }
-    .col-date { width: 13mm; text-align: center !important; }
-    .col-duration { width: 9mm; text-align: center !important; }
-    .col-status { width: 14mm; text-align: center !important; }
-    .col-predecessor { width: 10mm; text-align: center !important; color: #6b7280; }
-    /* table-layout:fixed en dompdf no reparte el ancho sobrante a una
-       columna sin width explícito: se fija el resto del ancho utilizable
-       de la página (A3 horizontal, 410mm - 5mm de margen a cada lado,
-       menos la suma de las columnas de la izquierda). */
+    /* % y no mm: dompdf con table-layout:fixed directamente IGNORA anchos
+       absolutos (mm/px/colgroup) en th/td — su Cellmap.php fuerza ese valor
+       a 0 para columnas fixed-layout y solo respeta porcentajes. Por eso
+       aunque el mm sumara exacto 410mm, la tabla igual repartía el ancho
+       según el contenido. Los % de abajo sí son leídos y respetados, y
+       sumados dan 410mm dentro de la tabla (100%). */
+    .col-wbs { width: 2.439%; text-align: center !important; color: #6b7280; }
+    /* Nunca nowrap+overflow:hidden aquí: dompdf no siempre recorta el
+       contenido que se pasa del ancho declarado en table-layout:fixed, y
+       eso terminaba empujando toda la columna (y la línea de tiempo) fuera
+       de su lugar. Con word-break cualquier texto, incluso una palabra sin
+       espacios, se parte dentro del ancho fijo en vez de expandirlo. */
+    .col-name { width: 10.976%; overflow: hidden; word-break: break-all; overflow-wrap: break-word; }
+    .col-date { width: 3.171%; text-align: center !important; }
+    .col-duration { width: 2.195%; text-align: center !important; }
+    .col-status { width: 3.415%; text-align: center !important; word-break: break-all; }
+    .col-predecessor { width: 2.439%; text-align: center !important; color: #6b7280; }
     /* OJO: dompdf no calcula bien los % de position:absolute cuando el
        contexto posicionado es la celda de tabla (th/td) misma — usa un
        ancho de referencia equivocado y el contenido termina fuera de la
        celda. Por eso el contexto posicionado (position:relative) va en un
        <div> normal DENTRO de la celda, nunca en el td/th directamente. */
-    .col-timeline { padding: 0 !important; width: 296mm; }
+    .col-timeline { padding: 0 !important; width: 72.195%; }
 
     tr.level-0 .col-name { font-weight: bold; }
     tr.level-1 .col-name { font-weight: bold; padding-left: 5px !important; }

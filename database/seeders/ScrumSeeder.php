@@ -149,18 +149,25 @@ class ScrumSeeder extends Seeder
       foreach ($historias as $i => $historia) {
         $subtareas = array_slice(self::TAREAS, $i * 3, 3);
         foreach ($subtareas as $order => $titulo) {
+          $storyPoints = collect([1, 2, 3])->random();
+          $startDate   = now()->subDays(rand(0, 10));
+          $dueDate     = (clone $startDate)->addDays($storyPoints);
+
           ScrumItem::create([
-            'project_id'   => $project->id,
-            'sprint_id'    => $historia->sprint_id,
-            'parent_id'    => $historia->id,
-            'type'         => 'tarea',
-            'title'        => $titulo,
-            'status'       => collect(['por_hacer', 'en_progreso', 'hecho'])->random(),
-            'priority'     => collect(['Alta', 'Media', 'Baja'])->random(),
-            'story_points' => collect([1, 2, 3])->random(),
-            'order'        => $order,
-            'created_by'   => $ticsUserIds->random(),
-            'assigned_to'  => $ticsUserIds->random(),
+            'project_id'      => $project->id,
+            'sprint_id'       => $historia->sprint_id,
+            'parent_id'       => $historia->id,
+            'type'            => 'tarea',
+            'title'           => $titulo,
+            'status'          => collect(['por_hacer', 'en_progreso', 'hecho'])->random(),
+            'priority'        => collect(['Alta', 'Media', 'Baja'])->random(),
+            'story_points'    => $storyPoints,
+            'estimated_hours' => $storyPoints * 8,
+            'start_date'      => $startDate->format('Y-m-d'),
+            'due_date'        => $dueDate->format('Y-m-d'),
+            'order'           => $order,
+            'created_by'      => $ticsUserIds->random(),
+            'assigned_to'     => $ticsUserIds->random(),
           ]);
         }
       }

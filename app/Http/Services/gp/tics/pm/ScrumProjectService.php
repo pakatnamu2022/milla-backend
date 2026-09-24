@@ -204,9 +204,24 @@ class ScrumProjectService extends BaseService implements BaseServiceInterface
     $data = $this->ganttPdfViewData($projectId);
     $filename = 'gantt-' . Str::slug($data['project']['name']) . '-' . now()->format('Ymd-His') . '.pdf';
 
-    return Pdf::loadView('exports.scrum-project-gantt', $data)
-      ->setPaper('a3', 'landscape')
-      ->stream($filename);
+    $pdf = Pdf::loadView('exports.scrum-project-gantt', $data)->setPaper('a3', 'landscape');
+    $dompdf = $pdf->getDomPDF();
+    $dompdf->render();
+    // La página A3 horizontal (420mm) es más ancha que cualquier pantalla,
+    // así que al abrir el PDF a zoom 100% el visor solo mostraba las
+    // columnas de texto de la izquierda y la línea de tiempo quedaba fuera
+    // de vista (parecía "columna super ancha" sin querer scrollear).
+    // FitH fuerza que el visor abra encajando el ancho completo de la
+    // página, mostrando tabla + timeline juntos desde el primer vistazo.
+    $dompdf->getCanvas()->set_default_view('FitH', [0]);
+
+    // El endpoint del frontend siempre pega a la misma URL (sin query
+    // param), así que sin esto el navegador podía servir una descarga
+    // vieja cacheada en vez de regenerar el PDF con los datos actuales.
+    return response($dompdf->output(), 200)
+      ->header('Content-Type', 'application/pdf')
+      ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
+      ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   }
 
   /**

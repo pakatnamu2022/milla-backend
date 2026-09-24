@@ -32,7 +32,7 @@ class StoreScrumItemRequest extends FormRequest
             'status'          => 'nullable|in:backlog,por_hacer,en_progreso,en_revision,hecho',
             'priority'        => 'nullable|in:alta,media,baja',
             'assigned_to'     => 'nullable|integer|exists:users,id',
-            'story_points'    => 'nullable|integer|min:0|max:100',
+            'story_points'    => 'nullable|integer|in:1,2,3,5,8,13,21',
             'estimated_hours' => 'nullable|numeric|min:0|max:999',
             'actual_hours'    => 'nullable|numeric|min:0|max:999',
             'start_date'      => 'nullable|date',
