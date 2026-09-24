@@ -7,6 +7,7 @@ use App\Http\Services\ap\postventa\Dashboard\ProductivitySnapshotService;
 use App\Models\ap\maestroGeneral\ProductivityMonthlySnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
 
 class ProductivityHistoricalController extends Controller
@@ -704,61 +705,22 @@ class ProductivityHistoricalController extends Controller
     public function regenerateSnapshot(): JsonResponse
     {
         try {
-            // Get previous month (last month)
+            // Regenerate last month using the artisan command with --months=1
+            Artisan::call('productivity:snapshot', [
+                '--months' => 1
+            ]);
+
             $previousMonth = Carbon::now()->subMonth();
-            $year = $previousMonth->year;
-            $month = $previousMonth->month;
-
-            // Generate snapshots for all sedes with workshop (with --force)
-            $snapshots = $this->snapshotService->generateAllSnapshots($year, $month, true);
-
-            // Handle error case (no sedes with workshop)
-            if (isset($snapshots['error'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $snapshots['error'],
-                ], 400);
-            }
-
-            // Count success and errors
-            $successCount = 0;
-            $errorCount = 0;
-            $details = [];
-
-            foreach ($snapshots as $key => $snapshot) {
-                if (is_array($snapshot) && isset($snapshot['error'])) {
-                    $errorCount++;
-                    $details[] = [
-                        'sede' => $key,
-                        'status' => 'error',
-                        'message' => $snapshot['error']
-                    ];
-                } else {
-                    $successCount++;
-                    $details[] = [
-                        'sede' => $key,
-                        'status' => 'success',
-                        'sede_id' => $snapshot->sede_id,
-                        'productivity_percentage' => $snapshot->average_productivity_percentage
-                    ];
-                }
-            }
 
             return response()->json([
                 'success' => true,
                 'message' => "Snapshots regenerados exitosamente para {$previousMonth->locale('es')->isoFormat('MMMM YYYY')}",
                 'data' => [
                     'period' => [
-                        'year' => $year,
-                        'month' => $month,
+                        'year' => $previousMonth->year,
+                        'month' => $previousMonth->month,
                         'description' => $previousMonth->locale('es')->isoFormat('MMMM YYYY')
-                    ],
-                    'summary' => [
-                        'total' => count($snapshots),
-                        'success' => $successCount,
-                        'errors' => $errorCount
-                    ],
-                    'details' => $details
+                    ]
                 ]
             ]);
         } catch (\Exception $e) {
