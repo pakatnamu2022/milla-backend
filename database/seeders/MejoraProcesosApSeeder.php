@@ -787,19 +787,17 @@ class MejoraProcesosApSeeder extends Seeder
       }
     }
 
-    // Historias sin mes en el cronograma original de gerencia (backlog puro):
-    // se agendan igual que las demás, pero al final de la cola, ordenadas por
-    // prioridad (alta > media > baja) ya que no traen un orden propio. Antes
-    // se quedaban sin sprint ni fechas, lo que las dejaba invisibles en el
-    // Gantt aunque sí representen trabajo real por hacer.
+    // Historias sin mes en el cronograma original de gerencia (backlog puro,
+    // procesos aún no definidos con negocio): quedan SIN fecha, SIN duración
+    // y SIN sprint -- no se les inventa una fecha agendándolas en la cola de
+    // capacidad, porque todavía no hay información para estimarlas. Se crean
+    // aparte, después del loop con fechas, ordenadas solo por prioridad
+    // (alta > media > baja) ya que no traen un orden propio.
     $prioridadOrden = ['alta' => 0, 'media' => 1, 'baja' => 2];
     $backlogOrdenado = collect($byMonth['_backlog'] ?? [])
       ->sortBy(fn($h) => $prioridadOrden[$h[3]] ?? 3)
       ->values()
       ->all();
-    foreach ($backlogOrdenado as $h) {
-      $historiasOrdenadas[] = $h;
-    }
 
     // El cronograma arranca la PRÓXIMA semana (lunes) desde que se corre el
     // seeder, no en una fecha fija: al día de hoy nada del proyecto se ha
@@ -895,6 +893,59 @@ class MejoraProcesosApSeeder extends Seeder
       $previousTaskId = $testTask->id;
     }
 
+    // Backlog sin fecha: historia + EDT (Análisis y Desarrollo, Pruebas) sin
+    // sprint_id, sin start_date/due_date, status backlog. No consumen el
+    // cursor de capacidad ni se encadenan con las historias con fecha: son
+    // procesos que negocio todavía no ha terminado de definir.
+    foreach ($backlogOrdenado as [, $title, , $priority, $resp, $shortLabel, $category]) {
+      $order++;
+      $storyPoints = self::STORY_POINTS[$shortLabel] ?? self::DEFAULT_STORY_POINTS;
+      [$devPoints, $testPoints] = $this->splitStoryPoints($storyPoints);
+
+      $historia = ScrumItem::create([
+        'project_id' => $project->id,
+        'type' => 'historia',
+        'title' => $title,
+        'description' => $this->historiaDescription($shortLabel, $resp),
+        'status' => 'backlog',
+        'priority' => $priority,
+        'story_points' => $storyPoints,
+        'created_by' => self::CREATED_BY,
+        'order' => $order,
+      ]);
+      $historia->tags()->attach($tagIds[$category]);
+
+      $devTask = ScrumItem::create([
+        'project_id' => $project->id,
+        'parent_id' => $historia->id,
+        'type' => 'tarea',
+        'title' => "[{$shortLabel}] Análisis y Desarrollo",
+        'description' => $this->analisisDescription($shortLabel, $title),
+        'status' => 'backlog',
+        'priority' => $priority,
+        'story_points' => $devPoints,
+        'estimated_hours' => $devPoints * 8,
+        'created_by' => self::CREATED_BY,
+        'order' => 1,
+      ]);
+      $devTask->tags()->attach($tagIds[$category]);
+
+      $testTask = ScrumItem::create([
+        'project_id' => $project->id,
+        'parent_id' => $historia->id,
+        'predecessor_id' => $devTask->id, // las pruebas de la historia dependen de su propio desarrollo
+        'type' => 'tarea',
+        'title' => "Pruebas de {$shortLabel}",
+        'description' => $this->pruebasDescription($shortLabel, $title),
+        'status' => 'backlog',
+        'priority' => $priority,
+        'story_points' => $testPoints,
+        'estimated_hours' => $testPoints * 8,
+        'created_by' => self::CREATED_BY,
+        'order' => 2,
+      ]);
+      $testTask->tags()->attach($tagIds[$category]);
+    }
   }
 
   private function bullets(array $items): string
