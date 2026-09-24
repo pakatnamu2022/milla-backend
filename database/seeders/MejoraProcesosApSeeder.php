@@ -123,6 +123,16 @@ class MejoraProcesosApSeeder extends Seeder
 
   private const DEFAULT_STORY_POINTS = 5;
 
+  // Historias (por su etiqueta corta) que aún NO tienen información suficiente
+  // para estimar fecha/duración -- quedan sin sprint, sin start_date/due_date
+  // y con status backlog, sin entrar a la cola de agendamiento por capacidad.
+  private const SIN_DEFINIR = [
+    'CSV Asiento Planillas',
+    'Inteligencia Comercial Apertura',
+    'Inteligencia Comercial Trabajo',
+    'Inteligencia Comercial Inspección',
+  ];
+
   // Horas REALES por jornada dedicadas a este proyecto. 1 story point = 8h de
   // trabajo, pero el dev no le dedica el día completo (soporte, otros
   // pedidos, etc.), así que la duración en días hábiles de cada tarea se
@@ -787,15 +797,25 @@ class MejoraProcesosApSeeder extends Seeder
       }
     }
 
-    // Historias sin mes en el cronograma original de gerencia (backlog puro,
-    // procesos aún no definidos con negocio): quedan SIN fecha, SIN duración
-    // y SIN sprint -- no se les inventa una fecha agendándolas en la cola de
-    // capacidad, porque todavía no hay información para estimarlas. Se crean
-    // aparte, después del loop con fechas, ordenadas solo por prioridad
-    // (alta > media > baja) ya que no traen un orden propio.
+    // Historias sin mes en el cronograma original de gerencia (backlog puro):
+    // se agendan igual que las demás, pero al final de la cola, ordenadas por
+    // prioridad (alta > media > baja) ya que no traen un orden propio.
+    // EXCEPCIÓN: self::SIN_DEFINIR son historias que todavía no tienen
+    // suficiente información de negocio para estimarlas -- esas NO se agendan
+    // (quedan sin fecha/duración/sprint, ver el loop aparte al final de run()).
     $prioridadOrden = ['alta' => 0, 'media' => 1, 'baja' => 2];
-    $backlogOrdenado = collect($byMonth['_backlog'] ?? [])
+    $backlogCollection = collect($byMonth['_backlog'] ?? []);
+    $backlogOrdenado = $backlogCollection
+      ->reject(fn($h) => in_array($h[5], self::SIN_DEFINIR, true))
       ->sortBy(fn($h) => $prioridadOrden[$h[3]] ?? 3)
+      ->values()
+      ->all();
+    foreach ($backlogOrdenado as $h) {
+      $historiasOrdenadas[] = $h;
+    }
+
+    $sinDefinir = $backlogCollection
+      ->filter(fn($h) => in_array($h[5], self::SIN_DEFINIR, true))
       ->values()
       ->all();
 
@@ -893,11 +913,11 @@ class MejoraProcesosApSeeder extends Seeder
       $previousTaskId = $testTask->id;
     }
 
-    // Backlog sin fecha: historia + EDT (Análisis y Desarrollo, Pruebas) sin
-    // sprint_id, sin start_date/due_date, status backlog. No consumen el
+    // Historias SIN_DEFINIR: historia + EDT (Análisis y Desarrollo, Pruebas)
+    // sin sprint_id, sin start_date/due_date, status backlog. No consumen el
     // cursor de capacidad ni se encadenan con las historias con fecha: son
     // procesos que negocio todavía no ha terminado de definir.
-    foreach ($backlogOrdenado as [, $title, , $priority, $resp, $shortLabel, $category]) {
+    foreach ($sinDefinir as [, $title, , $priority, $resp, $shortLabel, $category]) {
       $order++;
       $storyPoints = self::STORY_POINTS[$shortLabel] ?? self::DEFAULT_STORY_POINTS;
       [$devPoints, $testPoints] = $this->splitStoryPoints($storyPoints);
