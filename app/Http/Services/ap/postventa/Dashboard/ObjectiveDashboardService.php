@@ -136,11 +136,10 @@ class ObjectiveDashboardService
       }
     }
 
-    // NOTE: Loose invoices are NOT included in taller or meson progress
-    // They would be a separate concept if needed
-    // $looseInvoicesProgress = $this->calculateLooseInvoicesProgress($sedeId, $year, $month);
-    // $totalProgress += $looseInvoicesProgress;
-    $looseInvoicesProgress = 0; // Not included in taller/meson calculation
+    // Add loose invoices progress (invoices without work_order_id or order_quotation_id)
+    // These are invoices that come directly by sede, not through taller or mesón
+    $looseInvoicesProgress = $this->calculateLooseInvoicesProgress($sedeId, $year, $month);
+    $totalProgress += $looseInvoicesProgress;
 
     $completionPercentage = $totalObjective > 0 ? round(($totalProgress / $totalObjective) * 100, 2) : 0;
 
@@ -927,6 +926,7 @@ class ObjectiveDashboardService
         'abbreviation' => $hq['abbreviation'],
         'total_objective' => $hq['total_objective'],
         'total_progress' => $hq['total_progress'],
+        'loose_invoices_progress' => $hq['loose_invoices_progress'] ?? 0,
         'completion_percentage' => $hq['completion_percentage'],
         'status' => $hq['status'],
         'rank' => $rank++,
@@ -934,15 +934,23 @@ class ObjectiveDashboardService
       ];
     }
 
-    // Create chart data
+    // Create chart data with loose invoices breakdown
     $chartData = [
       'labels' => array_column($ranking, 'abbreviation'),
       'datasets' => [
         'objectives' => array_column($ranking, 'total_objective'),
         'progress' => array_column($ranking, 'total_progress'),
+        'loose_invoices' => [], // Will be populated below
         'completion_percentages' => array_column($ranking, 'completion_percentage')
       ]
     ];
+
+    // Extract loose_invoices for each headquarter in ranking order
+    foreach ($ranking as $hq) {
+      // Find the original headquarter detail to get loose_invoices_progress
+      $hqDetail = collect($headquartersDetail)->firstWhere('id', $hq['id']);
+      $chartData['datasets']['loose_invoices'][] = $hqDetail['loose_invoices_progress'] ?? 0;
+    }
 
     return [
       'ranking' => $ranking,
