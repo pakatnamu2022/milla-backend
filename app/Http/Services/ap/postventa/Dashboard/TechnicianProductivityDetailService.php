@@ -9,10 +9,15 @@ use Carbon\Carbon;
 class TechnicianProductivityDetailService
 {
   protected BilledHoursCalculationService $billedHoursService;
+  protected ProductivityDashboardService $productivityDashboardService;
 
-  public function __construct(BilledHoursCalculationService $billedHoursService)
+  public function __construct(
+    BilledHoursCalculationService $billedHoursService,
+    ProductivityDashboardService $productivityDashboardService
+  )
   {
     $this->billedHoursService = $billedHoursService;
+    $this->productivityDashboardService = $productivityDashboardService;
   }
   /**
    * Get detailed productivity information for a specific technician
@@ -62,13 +67,26 @@ class TechnicianProductivityDetailService
     // Validate that sums match
     $validation = $this->validateSums($billedData['work_orders_detail'], $summary);
 
+    // Get technician detail for all technicians in the sede (if sedeId is provided)
+    $technicianDetail = [];
+    if ($sedeId) {
+      $technicianDetailData = $this->productivityDashboardService->getTechnicianDetailBySede(
+        $startDate,
+        $endDate,
+        $sedeId,
+        true // use cache
+      );
+      $technicianDetail = $technicianDetailData['technician_detail'] ?? [];
+    }
+
     return [
       'technician_info' => $this->getTechnicianInfo($technician),
       'period' => $period,
       'summary' => $summary,
       'work_orders' => $consolidatedWorkOrders,
       'work_orders_without_labour' => $billedData['work_orders_without_labour'],
-      'validation' => $validation
+      'validation' => $validation,
+      'technician_detail' => $technicianDetail
     ];
   }
 
