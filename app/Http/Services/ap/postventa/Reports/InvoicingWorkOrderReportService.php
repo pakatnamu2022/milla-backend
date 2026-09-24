@@ -26,6 +26,15 @@ class InvoicingWorkOrderReportService
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
 
+    // Extraer sede_id del filtro para usarlo en la transformación
+    $filteredSedeId = null;
+    foreach ($filters as $filter) {
+      if (isset($filter['column']) && $filter['column'] === 'sede_id') {
+        $filteredSedeId = $filter['value'] ?? null;
+        break;
+      }
+    }
+
     // Para la hoja principal: Consultar TODOS los documentos electrónicos (simple y massive)
     $queryDocuments = ElectronicDocument::query()
       ->with([
@@ -148,6 +157,8 @@ class InvoicingWorkOrderReportService
         'items.typePlanning',
         'plannings.worker',
         'internalNotes',
+        'exchangeRate',
+        'typeCurrency',
       ])
       ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID) // Cerradas
       ->whereHas('internalNotes', function ($q) {
@@ -188,7 +199,7 @@ class InvoicingWorkOrderReportService
     $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
 
     // Transformar documentos finales para el reporte (Primera página)
-    $reportDataFinal = $finalDocuments->flatMap(function ($document) {
+    $reportDataFinal = $finalDocuments->flatMap(function ($document) use ($filteredSedeId) {
       $rows = collect();
 
       // SIMPLE: tiene work_order_id directo → 1 documento = 1 fila
@@ -196,8 +207,12 @@ class InvoicingWorkOrderReportService
         $rows->push($this->transformDocumentForReport($document, $document->workOrder));
       } // MASSIVE: tiene notas internas → 1 documento = MÚLTIPLES filas (una por cada nota interna)
       elseif ($document->internalNotes && $document->internalNotes->count() > 0) {
-        $document->internalNotes->each(function ($internalNote) use ($document, $rows) {
+        $document->internalNotes->each(function ($internalNote) use ($document, $rows, $filteredSedeId) {
           if ($internalNote->workOrder) {
+            // Si hay filtro de sede, solo incluir las notas internas de esa sede
+            if ($filteredSedeId !== null && $internalNote->workOrder->sede_id != $filteredSedeId) {
+              return; // Skip esta nota interna
+            }
             $rows->push($this->transformDocumentForReport($document, $internalNote->workOrder));
           }
         });
@@ -211,8 +226,12 @@ class InvoicingWorkOrderReportService
         // Usar las notas internas del documento ORIGINAL (la factura), no de la nota de crédito
         // porque la NC referencia a la factura completa
         if ($document->internalNotes && $document->internalNotes->count() > 0) {
-          $document->internalNotes->each(function ($internalNote) use ($creditNote, $document, $rows) {
+          $document->internalNotes->each(function ($internalNote) use ($creditNote, $document, $rows, $filteredSedeId) {
             if ($internalNote->workOrder) {
+              // Si hay filtro de sede, solo incluir las notas internas de esa sede
+              if ($filteredSedeId !== null && $internalNote->workOrder->sede_id != $filteredSedeId) {
+                return; // Skip esta nota interna
+              }
               // Pasar la nota de crédito como documento Y la factura original para usar su tipo de cambio
               $rows->push($this->transformDocumentForReport($creditNote, $internalNote->workOrder, $document));
             }
@@ -677,8 +696,13 @@ class InvoicingWorkOrderReportService
         case '=':
           // Filtros en la tabla workOrder
           if (in_array($column, ['sede_id'])) {
-            $query->whereHas('workOrder', function ($q) use ($column, $value) {
-              $q->where($column, $value);
+            $query->where(function ($q) use ($column, $value) {
+              // Sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
+              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, $value);
+              })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, $value);
+              });
             });
           }
           break;
@@ -762,11 +786,19 @@ class InvoicingWorkOrderReportService
     $serie = $noteParts[0] ?? 'IN';
     $numero = $noteParts[1] ?? '00000';
 
-    // Calcular montos (basados en la OT, sin IGV porque es nota interna)
-    $totalManoObra = $workOrder->total_labor_cost ?? 0;
-    $totalRepuestos = $workOrder->total_parts_cost ?? 0;
-    $descuentoMonto = $workOrder->discount_amount ?? 0;
-    $total = $workOrder->final_amount ?? 0;
+    // Determinar moneda original y tasa de cambio desde la OT
+    $currencyId = $workOrder->currency_id;
+    $isUSD = $currencyId === \App\Models\ap\maestroGeneral\TypeCurrency::USD_ID;
+    $exchangeRate = $isUSD ? ($workOrder->exchangeRate?->rate ?? $workOrder->exchange_rate ?? 1) : 1;
+
+    // Moneda original de la OT
+    $monedaOriginal = $isUSD ? 'USD' : 'PEN';
+
+    // Calcular montos (basados en la OT) y convertir a soles si es necesario
+    $totalManoObra = ($workOrder->total_labor_cost ?? 0) * $exchangeRate;
+    $totalRepuestos = ($workOrder->total_parts_cost ?? 0) * $exchangeRate;
+    $descuentoMonto = ($workOrder->discount_amount ?? 0) * $exchangeRate;
+    $total = ($workOrder->final_amount ?? 0) * $exchangeRate;
 
     // Calcular sin IGV (asumiendo 18% IGV)
     $montoSinIgv = $total / 1.18;
@@ -798,7 +830,7 @@ class InvoicingWorkOrderReportService
       'igv' => number_format($igv, 2, '.', ''),
       'total' => number_format($total, 2, '.', ''),
       'moneda' => 'PEN',
-      'moneda_original' => 'PEN',
+      'moneda_original' => $monedaOriginal,
       'work_order_id' => $workOrder->id,
       'document_id' => null, // No tiene documento electrónico
     ];
@@ -886,8 +918,11 @@ class InvoicingWorkOrderReportService
         case '=':
           // Filtros en la tabla workOrder
           if (in_array($column, ['sede_id'])) {
-            $query->whereHas('workOrder', function ($q) use ($column, $value) {
-              $q->where($column, $value);
+            $query->where(function ($q) use ($column, $value) {
+              // Sede desde workOrder (simple) - los anticipos solo aplican a facturación simple
+              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
+                $subQ->where($column, $value);
+              });
             });
           }
           break;

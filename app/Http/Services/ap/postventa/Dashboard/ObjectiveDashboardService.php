@@ -136,6 +136,11 @@ class ObjectiveDashboardService
       }
     }
 
+    // Add loose invoices progress (invoices without work_order_id or order_quotation_id)
+    // These are invoices that come directly by sede, not through taller or mesón
+    $looseInvoicesProgress = $this->calculateLooseInvoicesProgress($sedeId, $year, $month);
+    $totalProgress += $looseInvoicesProgress;
+
     $completionPercentage = $totalObjective > 0 ? round(($totalProgress / $totalObjective) * 100, 2) : 0;
 
     return [
@@ -146,7 +151,8 @@ class ObjectiveDashboardService
       'total_progress' => round($totalProgress, 2),
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage),
-      'concepts' => $concepts
+      'concepts' => $concepts,
+      'loose_invoices_progress' => round($looseInvoicesProgress, 2) // For debugging/transparency
     ];
   }
 
@@ -826,6 +832,56 @@ class ObjectiveDashboardService
 
     // Convert to PEN
     return ($totalAmount * $exchangeRate) * $multiplier;
+  }
+
+  /**
+   * Calculate loose invoices progress (invoices without work_order_id or order_quotation_id)
+   * These are invoices that come directly by sede, not through taller or mesón
+   *
+   * @param int $sedeId
+   * @param int $year
+   * @param int $month
+   * @return float Total amount in soles
+   */
+  private function calculateLooseInvoicesProgress(int $sedeId, int $year, int $month): float
+  {
+    $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+    $endDate = $startDate->copy()->endOfMonth();
+
+    // Get loose invoices: no work_order_id, no order_quotation_id, from postventa area
+    $documents = ElectronicDocument::query()
+      ->with(['exchangeRate', 'seriesModel.sede'])
+      ->whereNull('work_order_id')
+      ->whereNull('order_quotation_id')
+      ->where('area_id', ApMasters::AREA_POSVENTA)
+      ->where('aceptada_por_sunat', true)
+      ->where('anulado', false)
+      ->whereBetween('fecha_de_emision', [$startDate, $endDate])
+      ->whereHas('seriesModel.sede', function ($q) use ($sedeId) {
+        $q->where('id', $sedeId);
+      })
+      ->get();
+
+    $totalAmount = 0;
+
+    foreach ($documents as $document) {
+      // Determine if it's a credit note
+      $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
+      $multiplier = $isCreditNote ? -1 : 1;
+
+      // Get document total
+      $amount = (float)$document->total;
+
+      // Convert to soles if in USD
+      if ($document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD) {
+        $exchangeRate = $document->exchangeRate?->rate ?? 3.75; // Default rate if not found
+        $amount *= $exchangeRate;
+      }
+
+      $totalAmount += ($amount * $multiplier);
+    }
+
+    return $totalAmount;
   }
 
   /**
