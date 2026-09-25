@@ -98,8 +98,9 @@ class WorkOrderLabourService extends BaseService implements BaseServiceInterface
     $parts = explode(':', $time);
     $hours = intval($parts[0]);
     $minutes = isset($parts[1]) ? intval($parts[1]) : 0;
+    $seconds = isset($parts[2]) ? intval($parts[2]) : 0;
 
-    return $hours + ($minutes / 60);
+    return $hours + ($minutes / 60) + ($seconds / 3600);
   }
 
   /**
