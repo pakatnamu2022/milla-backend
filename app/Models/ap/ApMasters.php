@@ -78,6 +78,11 @@ class ApMasters extends BaseModel
   const int CREDIT_NOTE_ID = 801;
   const int DEBIT_NOTE_ID = 802;
 
+  // TIPO_DOCUMENTO
+  public const int TYPE_DOCUMENT_RUC_ID = 810; // RUC
+  public const int TYPE_DOCUMENT_DNI_ID = 809; // DNI
+  public const int TYPE_DOCUMENT_CE_ID = 811; // Carnet de Extranjería
+
   // MAPEO DE ID DE TIPO DE DOCUMENTO A NUMERO DE DIGITOS EXACTOS
   const array DOCUMENT_TYPE_DIGITS = [
     809 => self::NUM_DIGITS_DNI,

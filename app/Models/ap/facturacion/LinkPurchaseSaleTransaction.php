@@ -3,6 +3,7 @@
 namespace App\Models\ap\facturacion;
 
 use App\Models\ap\compras\PurchaseOrderItem;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -14,6 +15,7 @@ class LinkPurchaseSaleTransaction extends Model
   protected $table = 'link_purchase_sale_transactions';
 
   protected $fillable = [
+    'create_by',
     'billing_electronic_document_item_id',
     'purchase_order_item_id',
     'cantidad',
@@ -27,6 +29,11 @@ class LinkPurchaseSaleTransaction extends Model
   /**
    * Relaciones
    */
+  public function creator(): BelongsTo
+  {
+    return $this->belongsTo(User::class, 'create_by');
+  }
+
   public function electronicDocumentItem(): BelongsTo
   {
     return $this->belongsTo(ElectronicDocumentItem::class, 'billing_electronic_document_item_id');

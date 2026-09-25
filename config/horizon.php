@@ -658,6 +658,22 @@ return [
       'timeout'             => 300,
       'nice'                => 0,
     ],
+    'supervisor-traverse-migration'          => [
+      'connection'          => 'redis',
+      'queue'               => ['traverse_migration'],
+      'balance'             => 'auto',
+      'autoScalingStrategy' => 'time',
+      'minProcesses'        => 2,
+      'maxProcesses'        => 4,
+      'balanceMaxShift'     => 1,
+      'balanceCooldown'     => 3,
+      'maxTime'             => 0,
+      'maxJobs'             => 0,
+      'memory'              => 128,
+      'tries'               => 3,
+      'timeout'             => 300,
+      'nice'                => 0,
+    ],
   ],
 
   'environments' => [
@@ -693,6 +709,7 @@ return [
       'supervisor-product-cost-recalculation'  => ['minProcesses' => 1, 'maxProcesses' => 2],
       'supervisor-internal-notes'              => ['minProcesses' => 1, 'maxProcesses' => 2],
       'supervisor-assets'                      => ['minProcesses' => 1, 'maxProcesses' => 2],
+      'supervisor-traverse-migration'          => ['minProcesses' => 1, 'maxProcesses' => 2],
     ],
 
     'local' => [
@@ -726,6 +743,7 @@ return [
       'supervisor-models-vn-sync'              => ['minProcesses' => 1, 'maxProcesses' => 1],
       'supervisor-internal-notes'              => ['minProcesses' => 1, 'maxProcesses' => 2],
       'supervisor-assets'                      => ['minProcesses' => 1, 'maxProcesses' => 1],
+      'supervisor-traverse-migration'          => ['minProcesses' => 1, 'maxProcesses' => 2],
     ],
   ],
 

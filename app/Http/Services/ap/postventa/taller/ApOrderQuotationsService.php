@@ -7,10 +7,10 @@ use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsListResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsResource;
 use App\Http\Resources\ap\postventa\taller\ApOrderQuotationsSimpleResource;
 use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
+use App\Http\Services\ap\postventa\taller\OrderQuotationExportService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
 use App\Http\Services\common\EmailService;
-use App\Http\Services\common\ExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Constants;
 use App\Http\Utils\Helpers;
@@ -32,7 +32,6 @@ use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\maestroGeneral\ExchangeRate;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +43,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
   protected DigitalFileService $digitalFileService;
   protected EmailService $emailService;
   protected ApOrderQuotationDetailsService $quotationDetailsService;
-  protected ExportService $exportService;
+  protected OrderQuotationExportService $orderQuotationExportService;
 
   // Configuración de rutas para archivos
   private const FILE_PATHS = [
@@ -56,13 +55,13 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
     DigitalFileService             $digitalFileService,
     EmailService                   $emailService,
     ApOrderQuotationDetailsService $quotationDetailsService,
-    ExportService                  $exportService
+    OrderQuotationExportService    $orderQuotationExportService
   )
   {
     $this->digitalFileService = $digitalFileService;
     $this->emailService = $emailService;
     $this->quotationDetailsService = $quotationDetailsService;
-    $this->exportService = $exportService;
+    $this->orderQuotationExportService = $orderQuotationExportService;
   }
 
   public function list(Request $request)
@@ -2468,97 +2467,7 @@ class ApOrderQuotationsService extends BaseService implements BaseServiceInterfa
    */
   public function exportOrderQuotations(Request $request)
   {
-    $filters = [];
-
-    // Apply filters from request
-    if ($request->filled('area_id')) {
-      $filters[] = [
-        'column' => 'area_id',
-        'operator' => '=',
-        'value' => $request->area_id
-      ];
-    }
-
-    if ($request->filled('sede_id')) {
-      $filters[] = [
-        'column' => 'sede_id',
-        'operator' => '=',
-        'value' => $request->sede_id
-      ];
-    }
-
-    if ($request->filled('status_id')) {
-      $filters[] = [
-        'column' => 'status_id',
-        'operator' => 'in_or_equal',
-        'value' => $request->status_id
-      ];
-    }
-
-    if ($request->filled('quotation_date')) {
-      $filters[] = [
-        'column' => 'quotation_date',
-        'operator' => 'date_between',
-        'value' => $request->quotation_date
-      ];
-    }
-
-    if ($request->filled('estimated_delivery_date')) {
-      $filters[] = [
-        'column' => 'estimated_delivery_date',
-        'operator' => 'date_between',
-        'value' => $request->estimated_delivery_date
-      ];
-    }
-
-    if ($request->filled('actual_delivery_date')) {
-      $filters[] = [
-        'column' => 'actual_delivery_date',
-        'operator' => 'between',
-        'value' => $request->actual_delivery_date
-      ];
-    }
-
-    if ($request->filled('currency_id')) {
-      $filters[] = [
-        'column' => 'currency_id',
-        'operator' => '=',
-        'value' => $request->currency_id
-      ];
-    }
-
-    if ($request->filled('quotation_number')) {
-      $filters[] = [
-        'column' => 'quotation_number',
-        'operator' => 'like',
-        'value' => $request->quotation_number
-      ];
-    }
-
-    if ($request->filled('vehicle_plate')) {
-      $filters[] = [
-        'column' => 'vehicle_plate',
-        'operator' => 'like',
-        'value' => $request->vehicle_plate
-      ];
-    }
-
-    $title = $request->get('title', 'Reporte de Cotizaciones');
-
-    // Pasar los status_id en el contexto para filtrado condicional de columnas
-    $context = [];
-    if ($request->filled('status_id')) {
-      $context['status_id'] = $request->status_id;
-    }
-
-    $options = [
-      'title' => $title,
-      'filters' => $filters,
-      'format' => $request->get('format', 'excel'),
-      'context' => $context,
-    ];
-
-    return $this->exportService->exportToExcel(ApOrderQuotations::class, $options);
+    return $this->orderQuotationExportService->export($request);
   }
 
   /**

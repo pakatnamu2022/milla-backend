@@ -3,6 +3,7 @@
 namespace App\Http\Services\ap\postventa\Dashboard;
 
 use App\Http\Services\ap\postventa\Shared\BilledHoursCalculationService;
+use App\Models\ap\maestroGeneral\TechnicianHourlyCost;
 use App\Models\GeneralMaster;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Carbon\Carbon;
@@ -121,12 +122,15 @@ class ProductivityDashboardService
     // Calculate billed hours by technician
     $billedData = $this->billedHoursService->calculateBilledHoursByWorker($labours);
 
+    // Calculate reentry hours by technician (horas que deben restarse)
+    $reentryData = $this->billedHoursService->calculateReentryHoursByWorker($labours);
+
     if ($billedData->isEmpty()) {
       return [
         'period' => $period,
         'configurations' => [
           'working_hours_per_day' => $this->getWorkingHoursPerDay(),
-          'earnings_per_hour' => $this->getEarningsPerHour()
+          'earnings_per_hour' => $this->getEarningsPerHour($startDate)
         ],
         'technician_detail' => []
       ];
@@ -134,11 +138,12 @@ class ProductivityDashboardService
 
     // Get configurations from GeneralMaster
     $workingHoursPerDay = $this->getWorkingHoursPerDay();
-    $earningsPerHour = $this->getEarningsPerHour();
+    $earningsPerHour = $this->getEarningsPerHour($startDate);
 
     // Calculate technician details with productivity
     $technicianDetail = $this->calculateTechnicianDetail(
       $billedData,
+      $reentryData,
       $period,
       $workingHoursPerDay,
       $earningsPerHour
@@ -196,28 +201,38 @@ class ProductivityDashboardService
   }
 
   /**
-   * Get earnings per productivity hour (hardcoded for now)
-   * TODO: Move to GeneralMaster
+   * Get earnings per productivity hour for a specific period
+   * Uses histórico if available, falls back to general_masters (ID=61)
    */
-  private function getEarningsPerHour(): float
+  private function getEarningsPerHour(string $startDate): float
   {
-    // Hardcoded as 8 soles per hour
-    return 8.0;
+    // Extract year and month from start date
+    $date = Carbon::parse($startDate);
+    $year = $date->year;
+    $month = $date->month;
+
+    // Get cost for period from historic or fallback to general_masters
+    return TechnicianHourlyCost::getCostForPeriod($year, $month);
   }
 
 
   /**
    * Calculate technician detail with productivity
    * MÉTODO REFACTORIZADO: Ahora usa el servicio centralizado BilledHoursCalculationService
+   * Incluye horas de reingreso que deben restarse del total
    */
   private function calculateTechnicianDetail(
     \Illuminate\Support\Collection $billedData,
+    \Illuminate\Support\Collection $reentryData,
     array                          $period,
     float                          $workingHoursPerDay,
     float                          $earningsPerHour
   ): array
   {
     $technicianDetail = [];
+
+    // Indexar reentry data por worker_id para fácil acceso
+    $reentryByWorker = $reentryData->keyBy('worker_id');
 
     // Obtener todos los worker_ids para consultar en una sola query
     $workerIds = $billedData->pluck('worker_id')->unique()->toArray();
@@ -255,6 +270,8 @@ class ProductivityDashboardService
           'standard_hours' => 0,
           'real_hours' => 0,
           'billed_hours' => $technician['billed_hours'],
+          'reentry_hours' => $reentryByWorker->get($technician['worker_id'])['reentry_hours'] ?? 0,
+          'effective_billed_hours' => $technician['billed_hours'] - ($reentryByWorker->get($technician['worker_id'])['reentry_hours'] ?? 0),
           'productivity_hours' => 0,
           'productivity_percentage' => 0,
           'earnings' => 0,
@@ -272,8 +289,14 @@ class ProductivityDashboardService
       // Get billed hours
       $billedHours = $technician['billed_hours'];
 
+      // Get reentry hours (horas que deben restarse)
+      $reentryHours = $reentryByWorker->get($technician['worker_id'])['reentry_hours'] ?? 0;
+
+      // Calculate effective billed hours (facturadas - reingreso)
+      $effectiveBilledHours = $billedHours - $reentryHours;
+
       // Calculate productivity (can be negative)
-      $productivityHours = $billedHours - $standardHours;
+      $productivityHours = $effectiveBilledHours - $standardHours;
 
       // Calculate earnings
       // IMPORTANTE: Si standard_hours = 0, NO hay comisión (alerta para regularizar asistencias)
@@ -284,9 +307,9 @@ class ProductivityDashboardService
         $earnings = 0; // No hay asistencias registradas
       }
 
-      // Calculate productivity percentage
+      // Calculate productivity percentage (usando effective billed hours)
       $productivityPercentage = $standardHours > 0
-        ? round(($billedHours / $standardHours) * 100, 2)
+        ? round(($effectiveBilledHours / $standardHours) * 100, 2)
         : 0;
 
       // Determine status
@@ -334,6 +357,8 @@ class ProductivityDashboardService
         'standard_hours' => round($standardHours, 2),
         'real_hours' => round($realHours, 2),
         'billed_hours' => $billedHours,
+        'reentry_hours' => round($reentryHours, 2),
+        'effective_billed_hours' => round($effectiveBilledHours, 2),
         'productivity_hours' => round($productivityHours, 2),
         'productivity_percentage' => $productivityPercentage,
         'earnings' => round($earnings, 2),

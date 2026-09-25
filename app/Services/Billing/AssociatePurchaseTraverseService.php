@@ -2,6 +2,7 @@
 
 namespace App\Services\Billing;
 
+use App\Jobs\VerifyAndMigrateTraverseJob;
 use App\Models\ap\compras\PurchaseOrder;
 use App\Models\ap\compras\PurchaseOrderItem;
 use App\Models\ap\facturacion\ElectronicDocument;
@@ -25,6 +26,7 @@ class AssociatePurchaseTraverseService
     return DB::transaction(function () use ($electronicDocumentId, $purchaseOrderItemIds) {
       // 1. Validar que el documento tenga productos en travesía
       $electronicDocument = ElectronicDocument::findOrFail($electronicDocumentId);
+      $idUser = auth()->id() ?? 0;
 
       if ($electronicDocument->status !== ElectronicDocument::STATUS_ACCEPTED) {
         throw new Exception('El documento electrónico debe estar aceptado aceptado.');
@@ -75,7 +77,7 @@ class AssociatePurchaseTraverseService
 
       foreach ($traverseItems as $traverseItem) {
         try {
-          $association = $this->associateItem($traverseItem, $purchaseOrderItems);
+          $association = $this->associateItem($traverseItem, $purchaseOrderItems, $idUser);
           $associations[] = $association;
         } catch (Exception $e) {
           $errors[] = [
@@ -103,12 +105,18 @@ class AssociatePurchaseTraverseService
       $allAssociated = $this->checkAllTraverseItemsAssociated($electronicDocumentId);
 
       if ($allAssociated) {
-        $electronicDocument->update(['associate_purchase_traverse' => true]);
+        $electronicDocument->update([
+          'associate_purchase_traverse' => true,
+          'traverse_migration_status' => 'pending',
+        ]);
+
+        // Despachar job de migración automáticamente
+        VerifyAndMigrateTraverseJob::dispatch($electronicDocumentId);
       }
 
       return [
         'success' => true,
-        'message' => 'Asociación completada exitosamente.',
+        'message' => 'Asociación completada exitosamente.' . ($allAssociated ? ' Job de migración despachado.' : ''),
         'associations' => $associations,
         'all_associated' => $allAssociated,
       ];
@@ -174,12 +182,18 @@ class AssociatePurchaseTraverseService
         ];
       }
 
-      // Marcar el documento como no asociado
-      $electronicDocument->update(['associate_purchase_traverse' => false]);
+      // Marcar el documento como no asociado y resetear estado de migración
+      $electronicDocument->update([
+        'associate_purchase_traverse' => false,
+        'traverse_migration_status' => 'pending',
+      ]);
+
+      // Despachar job de reversión automáticamente
+      VerifyAndMigrateTraverseJob::dispatch($electronicDocumentId, isReversal: true);
 
       return [
         'success' => true,
-        'message' => 'Asociación revertida exitosamente.',
+        'message' => 'Asociación revertida exitosamente. Job de reversión despachado.',
         'reverted' => $reverted,
       ];
     });
@@ -227,7 +241,7 @@ class AssociatePurchaseTraverseService
    * @return array
    * @throws Exception
    */
-  private function associateItem(ElectronicDocumentItem $traverseItem, $purchaseOrderItems): array
+  private function associateItem(ElectronicDocumentItem $traverseItem, $purchaseOrderItems, int $idUser): array
   {
     // Filtrar solo los items de compra del mismo producto
     $matchingItems = $purchaseOrderItems->filter(function ($item) use ($traverseItem) {
@@ -304,6 +318,7 @@ class AssociatePurchaseTraverseService
         'purchase_order_item_id' => $purchaseItem->id,
         'cantidad' => $cantidadATomar,
         'status' => 'active',
+        'create_by' => $idUser,
       ]);
 
       // Actualizar quantity_available_traverse

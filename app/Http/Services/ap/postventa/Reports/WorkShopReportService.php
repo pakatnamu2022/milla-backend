@@ -6,15 +6,20 @@ use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
-use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use App\Models\gp\gestionsistema\UserSede;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class WorkShopReportService
 {
+  protected ClosedWorkOrdersService $closedWorkOrdersService;
+
+  public function __construct(ClosedWorkOrdersService $closedWorkOrdersService)
+  {
+    $this->closedWorkOrdersService = $closedWorkOrdersService;
+  }
+
   /**
    * Obtiene el reporte de Órdenes de Trabajo
    *
@@ -24,12 +29,31 @@ class WorkShopReportService
    */
   public function getWorkOrdersReport(array $filters = [], bool $amountsInSoles = false): Collection
   {
-    // Obtener sedes del usuario autenticado
-    $userSedeIds = $this->getUserSedeIds();
+    // Extraer parámetros de los filtros
+    $dateRange = null;
+    $sedeIdFilter = null;
 
-    // 1. Consultar WorkOrders que tienen documentos electrónicos (SIMPLE y MASSIVE)
-    $queryDocuments = ElectronicDocument::query()
-      ->with([
+    foreach ($filters as $filter) {
+      if (isset($filter['column']) && $filter['column'] === 'fecha_de_emision' && isset($filter['operator']) && $filter['operator'] === 'documentDateFilter') {
+        $dateRange = $filter['value'];
+      }
+      if (isset($filter['column']) && $filter['column'] === 'sede_id' && isset($filter['value'])) {
+        $sedeIdFilter = $filter['value'];
+      }
+    }
+
+    // Validar que haya rango de fechas
+    if (!$dateRange || count($dateRange) !== 2) {
+      throw new \InvalidArgumentException('Se requiere un rango de fechas válido');
+    }
+
+    // Obtener sedes del usuario autenticado
+    $userSedeIds = $this->closedWorkOrdersService->getUserSedeIds();
+
+    // 1. Obtener documentos electrónicos de OTs cerradas usando el servicio centralizado
+    $documents = $this->closedWorkOrdersService
+      ->getElectronicDocumentsOfClosedWorkOrders($dateRange, $sedeIdFilter, $userSedeIds)
+      ->load([
         'workOrder.invoiceTo.documentType',
         'workOrder.invoiceTo.typePerson',
         'workOrder.vehicle.customer.documentType',
@@ -79,35 +103,7 @@ class WorkShopReportService
         'creditNote.internalNotes.workOrder.typeCurrency',
         'creditNote.internalNotes.workOrder.exchangeRate',
         'creditNote.internalNotes.workOrder.internalNotes',
-      ])
-      ->where('anulado', false)
-      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-      ->where('is_advance_payment', false) // Solo facturas finales, no anticipos
-      ->where(function ($q) {
-        // Facturación SIMPLE: tiene work_order_id directo
-        $q->whereNotNull('work_order_id')
-          // Facturación MASIVA: tiene notas internas facturadas
-          ->orWhereHas('internalNotes', function ($subQ) {
-            $subQ->where('status', 'invoiced');
-          });
-      });
-
-    // Filtrar por sedes del usuario
-    if (!empty($userSedeIds)) {
-      $queryDocuments->where(function ($q) use ($userSedeIds) {
-        // Sede desde workOrder (simple) o desde internalNotes->workOrder (massive)
-        $q->whereHas('workOrder', function ($subQ) use ($userSedeIds) {
-          $subQ->whereIn('sede_id', $userSedeIds);
-        })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($userSedeIds) {
-          $subQ->whereIn('sede_id', $userSedeIds);
-        });
-      });
-    }
-
-    // Aplicar filtros de documentos
-    $this->applyDocumentFilters($queryDocuments, $filters);
-
-    $documents = $queryDocuments->get();
+      ]);
 
     // Extraer el filtro de sede_id si existe
     $sedeIdFilter = null;
@@ -179,60 +175,12 @@ class WorkShopReportService
       return $rows;
     })->values();
 
-    // 2. Consultar WorkOrders cerradas con nota interna SIN factura
-    $queryInternalNoteWorkOrders = ApWorkOrder::query()
-      ->with([
-        'invoiceTo.documentType',
-        'invoiceTo.typePerson',
-        'vehicle.customer.documentType',
-        'vehicle.customer.typePerson',
-        'vehicle.model.family.brand',
-        'vehicle.model.family',
-        'sede',
-        'advisor',
-        'items.typePlanning',
-        'plannings.worker',
-        'labours',
-        'parts.product',
-        'typeCurrency',
-        'exchangeRate',
-        'internalNotes'
-      ])
-      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-      ->whereHas('internalNotes', function ($q) {
-        $q->whereNotNull('number');
-      })
-      ->whereHas('items', function ($q) {
-        $q->whereHas('typePlanning', function ($subQ) {
-          $subQ->whereIn('type_document', [
-            TypePlanningWorkOrder::INTERNA_SC,
-            TypePlanningWorkOrder::INTERNA_CC,
-          ])
-            ->whereNotIn('id', [
-              TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-              TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
-            ]);
-        });
-      })
-      ->whereNotExists(function ($query) {
-        $query->select(DB::raw(1))
-          ->from('ap_billing_electronic_documents')
-          ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-          ->where('ap_billing_electronic_documents.anulado', false);
-      })
-      ->whereDoesntHave('internalNotes', function ($q) {
-        $q->whereHas('electronicDocuments');
-      });
-
-    // Filtrar por sedes del usuario
-    if (!empty($userSedeIds)) {
-      $queryInternalNoteWorkOrders->whereIn('sede_id', $userSedeIds);
-    }
-
-    // Aplicar filtros de notas internas
-    $this->applyInternalNoteFilters($queryInternalNoteWorkOrders, $filters);
-
-    $internalNoteWorkOrders = $queryInternalNoteWorkOrders->get();
+    // 2. Obtener WorkOrders cerradas con nota interna SIN factura usando el servicio centralizado
+    $internalNoteWorkOrders = $this->closedWorkOrdersService->getWorkOrdersWithInternalNoteOnly(
+      $dateRange,
+      $sedeIdFilter,
+      $userSedeIds
+    );
 
     // Transformar OTs con nota interna SIN factura
     $reportDataInternalNotes = $internalNoteWorkOrders->map(function ($workOrder) use ($amountsInSoles) {
@@ -311,8 +259,8 @@ class WorkShopReportService
       'nombre_tecnico' => $technicians,
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
       'hora_apertura_ot' => $workOrder->created_at ? $workOrder->created_at->format('H:i') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
-      'hora_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('H:i') : '',
+      'fecha_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('d/m/Y') : '',
+      'hora_cierre_ot' => $workOrder->official_closing_date ? $workOrder->official_closing_date->format('H:i') : '',
       'precio_mano_obra' => number_format($prices['mano_obra'], 2, '.', ''),
       'precio_repuesto' => number_format($prices['repuestos'], 2, '.', ''),
       'precio_lubricantes' => number_format($prices['lubricantes'], 2, '.', ''),
@@ -334,13 +282,13 @@ class WorkShopReportService
    */
   private function getCustomerType($invoiceTo): string
   {
-    if (!$invoiceTo || !$invoiceTo->type_person_id) {
+    if (!$invoiceTo || !$invoiceTo->document_type_id) {
       return '';
     }
 
-    if ($invoiceTo->type_person_id == ApMasters::TYPE_PERSON_NATURAL_ID) {
+    if ($invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_DNI_ID || $invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_CE_ID) {
       return 'NATURAL';
-    } elseif ($invoiceTo->type_person_id == ApMasters::TYPE_PERSON_JURIDICA_ID) {
+    } elseif ($invoiceTo->document_type_id == ApMasters::TYPE_DOCUMENT_RUC_ID) {
       return 'JURIDICA';
     }
 
@@ -509,98 +457,6 @@ class WorkShopReportService
   }
 
   /**
-   * Aplica filtros a la query de ElectronicDocument
-   *
-   * @param $query
-   * @param array $filters
-   * @return void
-   */
-  private function applyDocumentFilters($query, array $filters): void
-  {
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
-
-      if (!$column || $value === null) {
-        continue;
-      }
-
-      switch ($operator) {
-        case 'documentDateFilter':
-          // Filtro de fecha de emisión en documentos
-          if (is_array($value) && count($value) === 2) {
-            $query->whereBetween('fecha_de_emision', [$value[0], $value[1]]);
-          }
-          break;
-        case '=':
-          // Filtros en la tabla workOrder
-          if (in_array($column, ['sede_id', 'currency_id'])) {
-            $query->where(function ($q) use ($column, $value) {
-              // Filtrar por sede/moneda desde workOrder (simple) o desde internalNotes->workOrder (massive)
-              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
-                $subQ->where($column, $value);
-              })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
-                $subQ->where($column, $value);
-              });
-            });
-          }
-          break;
-        case 'like':
-          // Filtros like en la tabla workOrder
-          if (in_array($column, ['correlative'])) {
-            $query->where(function ($q) use ($column, $value) {
-              // Filtrar por correlativo desde workOrder (simple) o desde internalNotes->workOrder (massive)
-              $q->whereHas('workOrder', function ($subQ) use ($column, $value) {
-                $subQ->where($column, 'like', '%' . $value . '%');
-              })->orWhereHas('internalNotes.workOrder', function ($subQ) use ($column, $value) {
-                $subQ->where($column, 'like', '%' . $value . '%');
-              });
-            });
-          }
-          break;
-      }
-    }
-  }
-
-  /**
-   * Aplica filtros a la query de OTs con nota interna sin factura
-   *
-   * @param $query
-   * @param array $filters
-   * @return void
-   */
-  private function applyInternalNoteFilters($query, array $filters): void
-  {
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
-
-      if (!$column || $value === null) {
-        continue;
-      }
-
-      switch ($operator) {
-        case 'documentDateFilter':
-          // Filtro de fecha en created_date de la nota interna
-          if (is_array($value) && count($value) === 2) {
-            $query->whereHas('internalNotes', function ($q) use ($value) {
-              $q->whereBetween('created_date', [$value[0], $value[1]]);
-            });
-          }
-          break;
-        case '=':
-          $query->where($column, $value);
-          break;
-        case 'like':
-          $query->where($column, 'like', '%' . $value . '%');
-          break;
-      }
-    }
-  }
-
-  /**
    * Obtiene el reporte de Órdenes de Trabajo Cerradas por Vehículo (última OT por VIN)
    *
    * @param array $filters
@@ -608,45 +464,68 @@ class WorkShopReportService
    */
   public function getClosedWorkOrdersByVehicleReport(array $filters = []): Collection
   {
+    // Extraer el rango de fechas del filtro closingDateFilter
+    $dateRange = null;
+    $sedeIdFilter = null;
+    $advisorIdFilter = null;
+
+    foreach ($filters as $filter) {
+      if (($filter['operator'] ?? null) === 'closingDateFilter' && is_array($filter['value'] ?? null)) {
+        $dateRange = $filter['value'];
+      }
+      if (($filter['column'] ?? null) === 'sede_id') {
+        $sedeIdFilter = $filter['value'] ?? null;
+      }
+      if (($filter['column'] ?? null) === 'advisor_id') {
+        $advisorIdFilter = $filter['value'] ?? null;
+      }
+    }
+
+    // Validar que existe el rango de fechas
+    if (!$dateRange || count($dateRange) !== 2) {
+      return collect();
+    }
+
     // Obtener sedes del usuario autenticado
     $userSedeIds = $this->getUserSedeIds();
 
-    // Consultar OTs cerradas
-    $query = ApWorkOrder::query()
-      ->with([
-        'invoiceTo.documentType',
-        'invoiceTo.typePerson',
-        'vehicle.customer.documentType',
-        'vehicle.customer.typePerson',
-        'vehicle.model.family.brand',
-        'vehicle.model.family',
-        'vehicle.color',
-        'vehicle.typeOperation',
-        'sede',
-        'advisor',
-        'items.typePlanning',
-        'plannings.worker',
-      ])
-      ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-      ->whereNotNull('actual_delivery_date'); // Solo OTs con fecha de cierre
+    // Usar el servicio centralizado para obtener OTs cerradas
+    $workOrders = $this->closedWorkOrdersService->getClosedWorkOrders(
+      $dateRange,
+      $sedeIdFilter,
+      $userSedeIds
+    );
 
-    // Filtrar por sedes del usuario
-    if (!empty($userSedeIds)) {
-      $query->whereIn('sede_id', $userSedeIds);
+    // Cargar relaciones adicionales necesarias para el reporte
+    $workOrders->load([
+      'vehicle.color',
+      'vehicle.typeOperation',
+    ]);
+
+    // Filtrar por asesor si se especificó
+    if ($advisorIdFilter !== null) {
+      $workOrders = $workOrders->filter(function ($workOrder) use ($advisorIdFilter) {
+        return $workOrder->advisor_id == $advisorIdFilter;
+      });
     }
 
-    // Aplicar filtros
-    $this->applyClosedWorkOrderFilters($query, $filters);
+    // Calcular fecha de cierre real para cada OT y agregarla como atributo temporal
+    $workOrders = $workOrders->map(function ($workOrder) {
+      $workOrder->calculated_closing_date = $this->calculateClosingDate($workOrder);
+      return $workOrder;
+    });
 
-    // Obtener todas las OTs cerradas
-    $workOrders = $query->get();
+    // Filtrar OTs que tienen vehículo asociado
+    $workOrders = $workOrders->filter(function ($workOrder) {
+      return $workOrder->vehicle_id !== null && $workOrder->vehicle !== null;
+    });
 
     // Agrupar por VIN y obtener solo la última OT por vehículo
     $latestWorkOrdersByVin = $workOrders
       ->groupBy('vehicle.vin')
       ->map(function ($ordersGroup) {
-        // Ordenar por fecha de cierre descendente y tomar la primera (última OT)
-        return $ordersGroup->sortByDesc('actual_delivery_date')->first();
+        // Ordenar por fecha de cierre calculada descendente y tomar la primera (última OT)
+        return $ordersGroup->sortByDesc('calculated_closing_date')->first();
       })
       ->values();
 
@@ -672,9 +551,14 @@ class WorkShopReportService
     // Obtener técnicos únicos consolidados
     $technicians = $this->getConsolidatedTechnicians($workOrder);
 
+    // Usar la fecha de cierre calculada si existe, sino usar official_closing_date
+    $closingDate = isset($workOrder->calculated_closing_date) && $workOrder->calculated_closing_date
+      ? $workOrder->calculated_closing_date
+      : $workOrder->official_closing_date;
+
     return [
       'taller' => $workOrder->sede?->abreviatura ?? '',
-      'cliente_facturado' => $invoiceTo?->full_name ?? '',
+      'cliente_facturado' => $invoiceTo?->num_doc ?? '',
       'nombre_cliente' => $invoiceTo?->full_name ?? '',
       'email_cliente' => $invoiceTo?->email ?? '',
       'movil_cliente' => $invoiceTo?->phone ?? '',
@@ -694,43 +578,74 @@ class WorkShopReportService
       'asesor_servicio' => $workOrder->advisor?->nombre_completo ?? '',
       'nombre_tecnico' => $technicians,
       'fecha_apertura_ot' => $workOrder->opening_date ? $workOrder->opening_date->format('d/m/Y') : '',
-      'fecha_cierre_ot' => $workOrder->actual_delivery_date ? $workOrder->actual_delivery_date->format('d/m/Y') : '',
+      'fecha_cierre_ot' => $closingDate ? (is_string($closingDate) ? date('d/m/Y', strtotime($closingDate)) : $closingDate->format('d/m/Y')) : '',
     ];
   }
 
   /**
-   * Aplica filtros a la query de OTs cerradas
+   * Calcula la fecha de cierre real de una Orden de Trabajo
+   * basándose en los documentos electrónicos o notas internas
    *
-   * @param $query
-   * @param array $filters
-   * @return void
+   * @param ApWorkOrder $workOrder
+   * @return string|null Fecha en formato Y-m-d
    */
-  private function applyClosedWorkOrderFilters($query, array $filters): void
+  private function calculateClosingDate(ApWorkOrder $workOrder): ?string
   {
-    foreach ($filters as $filter) {
-      $column = $filter['column'] ?? null;
-      $operator = $filter['operator'] ?? '=';
-      $value = $filter['value'] ?? null;
+    // Prioridad 1: Documento electrónico directo
+    $electronicDocument = ElectronicDocument::query()
+      ->where('work_order_id', $workOrder->id)
+      ->where('anulado', false)
+      ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+      ->where('is_advance_payment', false)
+      ->orderBy('fecha_de_emision', 'desc')
+      ->first();
 
-      if (!$column || $value === null) {
-        continue;
-      }
+    if ($electronicDocument && $electronicDocument->fecha_de_emision) {
+      return is_string($electronicDocument->fecha_de_emision)
+        ? $electronicDocument->fecha_de_emision
+        : $electronicDocument->fecha_de_emision->format('Y-m-d');
+    }
 
-      switch ($operator) {
-        case 'closingDateFilter':
-          // Filtro de rango de fechas de cierre
-          if (is_array($value) && count($value) === 2) {
-            $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
-          }
-          break;
-        case '=':
-          $query->where($column, $value);
-          break;
-        case 'like':
-          $query->where($column, 'like', '%' . $value . '%');
-          break;
+    // Prioridad 2: Nota interna con documento electrónico (MASIVA)
+    $internalNoteWithDocument = $workOrder->internalNotes()
+      ->whereNotNull('number')
+      ->whereHas('electronicDocuments', function ($query) {
+        $query->where('anulado', false)
+          ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+          ->where('is_advance_payment', false);
+      })
+      ->with(['electronicDocuments' => function ($query) {
+        $query->where('anulado', false)
+          ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+          ->where('is_advance_payment', false)
+          ->orderBy('fecha_de_emision', 'desc');
+      }])
+      ->first();
+
+    if ($internalNoteWithDocument && $internalNoteWithDocument->electronicDocuments->isNotEmpty()) {
+      $document = $internalNoteWithDocument->electronicDocuments->first();
+      if ($document && $document->fecha_de_emision) {
+        return is_string($document->fecha_de_emision)
+          ? $document->fecha_de_emision
+          : $document->fecha_de_emision->format('Y-m-d');
       }
     }
+
+    // Prioridad 3: Nota interna SIN documento (INTERNA_SC, INTERNA_CC)
+    $internalNoteWithoutDocument = $workOrder->internalNotes()
+      ->whereNotNull('number')
+      ->whereDoesntHave('electronicDocuments')
+      ->orderBy('created_date', 'desc')
+      ->first();
+
+    if ($internalNoteWithoutDocument && $internalNoteWithoutDocument->created_date) {
+      return is_string($internalNoteWithoutDocument->created_date)
+        ? $internalNoteWithoutDocument->created_date
+        : $internalNoteWithoutDocument->created_date->format('Y-m-d');
+    }
+
+    // Si no hay ninguna fecha de cierre, retornar null
+    return null;
   }
 
   /**

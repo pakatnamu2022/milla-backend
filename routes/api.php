@@ -70,6 +70,7 @@ use App\Http\Controllers\ap\marketing\MktPurchaseOrderController;
 use App\Http\Controllers\ap\marketing\MktSupportController;
 use App\Http\Controllers\ap\postventa\Dashboard\ObjectiveDashboardController;
 use App\Http\Controllers\ap\postventa\Dashboard\ProductivityDashboardController;
+use App\Http\Controllers\ap\postventa\Dashboard\ProductivityHistoricalController;
 use App\Http\Controllers\ap\postventa\Dashboard\TechnicianProductivityDetailController;
 use App\Http\Controllers\ap\postventa\gestionProductos\InventoryMovementController;
 use App\Http\Controllers\ap\postventa\gestionProductos\ProductsController;
@@ -1792,7 +1793,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('productWarehouseStock/price-calculation-details', [ProductWarehouseStockController::class, 'getPriceCalculationDetails']);
       Route::post('productWarehouseStock/rebuild-cost-history', [ProductWarehouseStockController::class, 'rebuildCostHistory']);
       Route::get('productWarehouseStock/reserved-stock-report', [ProductWarehouseStockController::class, 'getReservedStockReport']);
-      Route::post('productWarehouseStock/re-reserve-after-credit-note', [ProductWarehouseStockController::class, 'reReserveStockAfterCreditNote']);
+      Route::post('productWarehouseStock/re-reserve-after-cancellation', [ProductWarehouseStockController::class, 'reReserveStockAfterCancellation']);
 
       // Product Shelves - Estantes de Productos
       Route::apiResource('productShelves', ProductShelfController::class)->only([
@@ -1909,6 +1910,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Internal Notes - Notas Internas
       Route::post('internalNotes/{id}/verify-internal-note-migration', [ApInternalNoteController::class, 'verifyInternalNoteMigration']);
       Route::post('internalNotes/{id}/update-internal-note-accounting-status', [ApInternalNoteController::class, 'updateInternalNoteAccountingStatus']);
+      Route::post('internalNotes/bulk-update-accounting-status', [ApInternalNoteController::class, 'bulkUpdateAccountingStatus']);
 
       Route::apiResource('internalNotes', ApInternalNoteController::class)->only([
         'index',
@@ -1940,6 +1942,13 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('dashboard/productivity', [ProductivityDashboardController::class, 'getDashboard']);
       Route::post('dashboard/productivity/refresh', [ProductivityDashboardController::class, 'refreshDashboard']);
       Route::get('dashboard/productivity/technician-detail', [ProductivityDashboardController::class, 'getTechnicianDetail']);
+
+      // Productivity Historical Dashboard - Dashboard Histórico de Productividad
+      Route::get('dashboard/productivity/historical/trends', [ProductivityHistoricalController::class, 'getAnnualTrends']);
+      Route::get('dashboard/productivity/historical/compare-years', [ProductivityHistoricalController::class, 'compareYears']);
+      Route::get('dashboard/productivity/historical/{year}/{month}', [ProductivityHistoricalController::class, 'getMonthSnapshot']);
+      Route::get('dashboard/productivity/historical/summary', [ProductivityHistoricalController::class, 'getMultiYearSummary']);
+      Route::post('dashboard/productivity/historical/regenerate', [ProductivityHistoricalController::class, 'regenerateSnapshot']);
 
       // Technician Productivity Detail - Detalle de Productividad por Técnico
       Route::get('dashboard/technician-productivity-detail', [TechnicianProductivityDetailController::class, 'getDetail']);
@@ -2087,6 +2096,7 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::get('supplierOrders/{id}/pdf', [ApSupplierOrderController::class, 'generatePDF']);
       Route::put('supplierOrders/{id}/update-status', [ApSupplierOrderController::class, 'updateStatus']);
       Route::put('supplierOrders/{id}/discard', [ApSupplierOrderController::class, 'discard']);
+      Route::put('supplierOrders/{id}/replace-product', [ApSupplierOrderController::class, 'replaceProduct']);
       Route::apiResource('supplierOrders', ApSupplierOrderController::class)->only([
         'index',
         'show',
@@ -2212,6 +2222,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       // Asociación de productos en travesía con compras
       Route::post('electronic-documents/{id}/associate-purchase-traverse', [ElectronicDocumentController::class, 'associatePurchaseTraverse']);
       Route::post('electronic-documents/{id}/revert-purchase-traverse', [ElectronicDocumentController::class, 'revertPurchaseTraverse']);
+      Route::get('electronic-documents/{id}/preview-traverse-dynamics', [ElectronicDocumentController::class, 'previewTraverseDynamicsPayload']);
+      Route::get('electronic-documents/{id}/traverse-history', [ElectronicDocumentController::class, 'traverseHistory']);
 
       // CRUD de Documentos Electrónicos
       Route::apiResource('electronic-documents', ElectronicDocumentController::class);

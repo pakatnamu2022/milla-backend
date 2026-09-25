@@ -42,4 +42,13 @@ class ApInternalNoteController extends Controller
       return $this->error($e->getMessage());
     }
   }
+
+  public function bulkUpdateAccountingStatus()
+  {
+    try {
+      return $this->service->bulkUpdateAccountingStatus();
+    } catch (\Throwable $e) {
+      return $this->error($e->getMessage());
+    }
+  }
 }

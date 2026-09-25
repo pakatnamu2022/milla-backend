@@ -63,12 +63,12 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
   private bool $dryRun;
 
   private array $results = [
-    'created'        => 0,
-    'skipped'        => 0,
-    'errors'         => [],
+    'created' => 0,
+    'skipped' => 0,
+    'errors' => [],
     'rows_processed' => 0,
-    'dry_run'        => true,
-    'rows'           => [],
+    'dry_run' => true,
+    'rows' => [],
   ];
 
   public function __construct(bool $dryRun = true)
@@ -81,7 +81,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
   {
     foreach ($rows as $index => $row) {
       $rowNumber = $index + 2; // fila 1 = encabezado
-      $vin = strtoupper(trim((string) ($row['vin'] ?? '')));
+      $vin = strtoupper(trim((string)($row['vin'] ?? '')));
 
       if ($vin === '') {
         continue; // fila vacía
@@ -105,8 +105,8 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       throw new Exception('No se encontró un vehículo con ese VIN');
     }
 
-    $serie = strtoupper(trim((string) ($row['serie'] ?? '')));
-    $numero = (int) preg_replace('/\D/', '', (string) ($row['numero'] ?? ''));
+    $serie = strtoupper(trim((string)($row['serie'] ?? '')));
+    $numero = (int)preg_replace('/\D/', '', (string)($row['numero'] ?? ''));
     $comprobante = $serie !== '' && $numero > 0 ? "{$serie}-{$numero}" : null;
 
     // ---- Idempotencia: ¿ya está registrado? ----
@@ -126,8 +126,8 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
 
     $prefix = substr($serie, 0, 1);
     $docTypeId = match ($prefix) {
-      'F'     => ElectronicDocument::TYPE_FACTURA,
-      'B'     => ElectronicDocument::TYPE_BOLETA,
+      'F' => ElectronicDocument::TYPE_FACTURA,
+      'B' => ElectronicDocument::TYPE_BOLETA,
       default => throw new Exception("La serie {$serie} debe empezar con F (factura) o B (boleta)"),
     };
 
@@ -168,11 +168,11 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       throw new Exception('La fecha de factura es obligatoria y debe ser una fecha válida (dd/mm/aaaa)');
     }
 
-    $worker = $this->resolveWorker((string) ($row['asesor'] ?? ''));
-    $client = $this->resolveClient((string) ($row['cliente_dni'] ?? ''), $row);
-    $sedeId = $this->resolveSedeId((string) ($row['sede'] ?? ''), $vehicle);
+    $worker = $this->resolveWorker((string)($row['asesor'] ?? ''));
+    $client = $this->resolveClient((string)($row['cliente_dni'] ?? ''), $row);
+    $sedeId = $this->resolveSedeId((string)($row['sede'] ?? ''), $vehicle);
 
-    $descripcion = trim((string) ($row['descripcion'] ?? ''));
+    $descripcion = trim((string)($row['descripcion'] ?? ''));
     if ($descripcion === '') {
       $marca = $vehicle->model?->family?->brand?->name ?? '';
       $modelo = $vehicle->model?->version ?? '';
@@ -196,23 +196,23 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     if (!$this->dryRun) {
       DB::transaction(function () use ($vin, $client, $worker, $docTypeId, $serie, $numero, $sedeId, $currency, $total, $salePrice, $marginAmount, $marginPct, $descripcion, $emissionDate) {
         app(ElectronicDocumentService::class)->createHistoricalFinalSaleFromBulkRow([
-          'vin'                            => $vin,
-          'client_id'                      => $client->id,
-          'worker_id'                      => $worker->id,
+          'vin' => $vin,
+          'client_id' => $client->id,
+          'worker_id' => $worker->id,
           'sunat_concept_document_type_id' => $docTypeId,
-          'serie'                          => $serie,
-          'numero'                         => $numero,
-          'area_id'                        => ApMasters::AREA_COMERCIAL,
-          'sede_id'                        => $sedeId,
-          'sunat_concept_currency_id'      => $currency['sunat'],
-          'doc_type_currency_id'           => $currency['type'],
-          'type_currency_id'               => $currency['type'],
-          'total'                          => $total,
-          'sale_price'                     => $salePrice,
-          'margin_amount'                  => $marginAmount,
-          'margin_pct'                     => $marginPct,
-          'descripcion'                    => $descripcion,
-          'emission_date'                  => $emissionDate,
+          'serie' => $serie,
+          'numero' => $numero,
+          'area_id' => ApMasters::AREA_COMERCIAL,
+          'sede_id' => $sedeId,
+          'sunat_concept_currency_id' => $currency['sunat'],
+          'doc_type_currency_id' => $currency['type'],
+          'type_currency_id' => $currency['type'],
+          'total' => $total,
+          'sale_price' => $salePrice,
+          'margin_amount' => $marginAmount,
+          'margin_pct' => $marginPct,
+          'descripcion' => $descripcion,
+          'emission_date' => $emissionDate,
         ]);
       });
     }
@@ -226,9 +226,9 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
    */
   private function alreadyRegisteredReason(Vehicles $vehicle, string $serie, string $numero): ?string
   {
-    if ($serie !== '' && (int) $numero > 0) {
+    if ($serie !== '' && (int)$numero > 0) {
       $exists = ElectronicDocument::whereNull('deleted_at')
-        ->where('serie', $serie)->where('numero', (int) $numero)->exists();
+        ->where('serie', $serie)->where('numero', (int)$numero)->exists();
       if ($exists) {
         return "Ya existe un comprobante {$serie}-{$numero} en el sistema";
       }
@@ -331,7 +331,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     $meta = $this->classifyDocument($doc);
     $lookup = $this->lookupPartnerData($doc, $meta['factiliza_type']);
 
-    $fullName = $lookup['full_name'] ?? trim((string) ($row['cliente_nombre'] ?? ''));
+    $fullName = $lookup['full_name'] ?? trim((string)($row['cliente_nombre'] ?? ''));
     if ($fullName === '') {
       throw new Exception(
         "No se encontró el cliente {$doc} y no se pudo obtener su nombre de RENIEC/SUNAT; "
@@ -340,22 +340,22 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     }
 
     $attributes = array_filter([
-      'first_name'       => $lookup['first_name'] ?? null,
-      'paternal_surname' => $lookup['paternal_surname'] ?? null,
-      'maternal_surname' => $lookup['maternal_surname'] ?? null,
-    ], fn ($v) => $v !== null && $v !== '') + [
-      'num_doc'          => $doc,
-      'full_name'        => $fullName,
-      'nationality'      => $meta['nationality'],
-      'direction'        => $lookup['direction'] ?? '-',
-      'document_type_id' => $meta['document_type_id'],
-      'type_person_id'   => $meta['type_person_id'],
-      'district_id'      => $lookup['district_id'] ?? self::DEFAULT_DISTRICT_ID,
-      'tax_class_type_id' => self::DEFAULT_TAX_CLASS_TYPE_ID,
-      'company_id'       => \App\Http\Utils\Constants::COMPANY_AP,
-      'type'             => BusinessPartners::CLIENT,
-      'status_ap'        => 1,
-    ];
+        'first_name' => $lookup['first_name'] ?? null,
+        'paternal_surname' => $lookup['paternal_surname'] ?? null,
+        'maternal_surname' => $lookup['maternal_surname'] ?? null,
+      ], fn($v) => $v !== null && $v !== '') + [
+        'num_doc' => $doc,
+        'full_name' => $fullName,
+        'nationality' => $meta['nationality'],
+        'direction' => $lookup['direction'] ?? '-',
+        'document_type_id' => $meta['document_type_id'],
+        'type_person_id' => $meta['type_person_id'],
+        'district_id' => $lookup['district_id'] ?? self::DEFAULT_DISTRICT_ID,
+        'tax_class_type_id' => self::DEFAULT_TAX_CLASS_TYPE_ID,
+        'company_id' => \App\Http\Utils\Constants::COMPANY_AP,
+        'type' => BusinessPartners::CLIENT,
+        'status_ap' => 1,
+      ];
 
     if ($this->dryRun) {
       return new BusinessPartners($attributes); // no se persiste en modo analizar
@@ -375,19 +375,19 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
 
     if ($len === 8 && ctype_digit($doc)) {
       return [
-        'document_type_id' => \App\Http\Utils\Constants::TYPE_DOCUMENT_DNI_ID,
-        'type_person_id'   => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
-        'nationality'      => 'NACIONAL',
-        'factiliza_type'   => 'dni',
+        'document_type_id' => ApMasters::TYPE_DOCUMENT_DNI_ID,
+        'type_person_id' => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
+        'nationality' => 'NACIONAL',
+        'factiliza_type' => 'dni',
       ];
     }
 
     if ($len === 9) {
       return [
         'document_type_id' => 811, // CARNET DE EXTRANJERÍA (ap_masters)
-        'type_person_id'   => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
-        'nationality'      => 'EXTRANJERO',
-        'factiliza_type'   => 'ce',
+        'type_person_id' => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
+        'nationality' => 'EXTRANJERO',
+        'factiliza_type' => 'ce',
       ];
     }
 
@@ -395,18 +395,18 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       $prefix = substr($doc, 0, 2);
       if ($prefix === '10') {
         return [
-          'document_type_id' => \App\Http\Utils\Constants::TYPE_DOCUMENT_RUC_ID,
-          'type_person_id'   => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
-          'nationality'      => 'NACIONAL',
-          'factiliza_type'   => 'ruc',
+          'document_type_id' => ApMasters::TYPE_DOCUMENT_RUC_ID,
+          'type_person_id' => \App\Http\Utils\Constants::TYPE_NATURAL_PERSON_ID,
+          'nationality' => 'NACIONAL',
+          'factiliza_type' => 'ruc',
         ];
       }
       if ($prefix === '20') {
         return [
-          'document_type_id' => \App\Http\Utils\Constants::TYPE_DOCUMENT_RUC_ID,
-          'type_person_id'   => \App\Http\Utils\Constants::TYPE_LEGAL_PERSON_ID,
-          'nationality'      => 'NACIONAL',
-          'factiliza_type'   => 'ruc',
+          'document_type_id' => ApMasters::TYPE_DOCUMENT_RUC_ID,
+          'type_person_id' => \App\Http\Utils\Constants::TYPE_LEGAL_PERSON_ID,
+          'nationality' => 'NACIONAL',
+          'factiliza_type' => 'ruc',
         ];
       }
       throw new Exception("El RUC {$doc} debe empezar con 10 (persona natural) o 20 (persona jurídica)");
@@ -437,12 +437,12 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     $data = $res['data'];
 
     if ($type === 'ruc') {
-      $name = trim((string) ($data['business_name'] ?? ''));
+      $name = trim((string)($data['business_name'] ?? ''));
       if ($name === '') {
         return [];
       }
       $out = ['full_name' => $name];
-      $dir = trim((string) ($data['full_address'] ?? $data['address'] ?? ''));
+      $dir = trim((string)($data['full_address'] ?? $data['address'] ?? ''));
       if ($dir !== '') {
         $out['direction'] = $dir;
       }
@@ -454,7 +454,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     }
 
     // dni / ce
-    $name = trim((string) ($data['names'] ?? ''));
+    $name = trim((string)($data['names'] ?? ''));
     if ($name === '') {
       $name = trim(
         ($data['paternal_surname'] ?? '') . ' '
@@ -467,12 +467,12 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     }
 
     $out = [
-      'full_name'        => $name,
-      'first_name'       => trim((string) ($data['first_name'] ?? '')) ?: null,
-      'paternal_surname' => trim((string) ($data['paternal_surname'] ?? '')) ?: null,
-      'maternal_surname' => trim((string) ($data['maternal_surname'] ?? '')) ?: null,
+      'full_name' => $name,
+      'first_name' => trim((string)($data['first_name'] ?? '')) ?: null,
+      'paternal_surname' => trim((string)($data['paternal_surname'] ?? '')) ?: null,
+      'maternal_surname' => trim((string)($data['maternal_surname'] ?? '')) ?: null,
     ];
-    $dir = trim((string) ($data['address'] ?? ''));
+    $dir = trim((string)($data['address'] ?? ''));
     if ($dir !== '') {
       $out['direction'] = $dir;
     }
@@ -488,7 +488,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     if (is_array($ubigeo)) {
       $ubigeo = end($ubigeo);
     }
-    $ubigeo = preg_replace('/\D/', '', (string) $ubigeo);
+    $ubigeo = preg_replace('/\D/', '', (string)$ubigeo);
     if (strlen($ubigeo) !== 6) {
       return null;
     }
@@ -504,7 +504,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
   {
     $value = trim($raw);
 
-    $base = fn () => \App\Models\gp\maestroGeneral\Sede::query()
+    $base = fn() => \App\Models\gp\maestroGeneral\Sede::query()
       ->where('empresa_id', \App\Http\Utils\Constants::COMPANY_AP)
       ->where('status_deleted', 1);
 
@@ -513,10 +513,10 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       if (!$sedeId) {
         throw new Exception('El vehículo no tiene sede en su almacén; especifica la sede (de Automotores) en el Excel');
       }
-      if (!(clone $base())->where('id', (int) $sedeId)->exists()) {
+      if (!(clone $base())->where('id', (int)$sedeId)->exists()) {
         throw new Exception("La sede {$sedeId} del almacén del vehículo no es una sede activa de Automotores; especifica la sede en el Excel");
       }
-      return (int) $sedeId;
+      return (int)$sedeId;
     }
 
     $normalized = mb_strtoupper($value);
@@ -525,7 +525,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       ->where(function ($q) use ($normalized, $value) {
         $q->whereRaw('UPPER(suc_abrev) = ?', [$normalized])
           ->orWhereRaw('UPPER(abreviatura) = ?', [$normalized])
-          ->orWhere('id', is_numeric($value) ? (int) $value : 0);
+          ->orWhere('id', is_numeric($value) ? (int)$value : 0);
       })
       ->get();
 
@@ -537,7 +537,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       throw new Exception("La sede '{$value}' es ambigua en Automotores ({$ids}); usa la abreviatura exacta o el id");
     }
 
-    return (int) $sede->first()->id;
+    return (int)$sede->first()->id;
   }
 
   /**
@@ -549,7 +549,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
     if ($value === null) {
       return null;
     }
-    $str = trim((string) $value);
+    $str = trim((string)$value);
     if ($str === '') {
       return null;
     }
@@ -567,7 +567,7 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
         : str_replace(',', '', $str);
     }
 
-    return is_numeric($str) ? (float) $str : null;
+    return is_numeric($str) ? (float)$str : null;
   }
 
   private function parseDate($value): ?string
@@ -580,11 +580,11 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
       if (is_numeric($value)) {
         return ExcelDate::excelToDateTimeObject($value)->format('Y-m-d');
       }
-      $str = trim((string) $value);
+      $str = trim((string)$value);
       // dd/mm/aaaa o dd-mm-aaaa
       if (preg_match('#^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$#', $str, $m)) {
         $year = strlen($m[3]) === 2 ? '20' . $m[3] : $m[3];
-        return Carbon::createFromDate((int) $year, (int) $m[2], (int) $m[1])->format('Y-m-d');
+        return Carbon::createFromDate((int)$year, (int)$m[2], (int)$m[1])->format('Y-m-d');
       }
       return Carbon::parse($str)->format('Y-m-d');
     } catch (Exception $e) {
@@ -595,16 +595,16 @@ class VehicleHistoricalFinalSaleBulkImport implements ToCollection, WithHeadingR
   private function rowDetail(int $row, string $vin, string $status, ?string $message): array
   {
     return [
-      'row'          => $row,
-      'vin'          => $vin,
-      'status'       => $status,
-      'message'      => $message,
-      'asesor'       => null,
-      'cliente'      => null,
-      'comprobante'  => null,
-      'fecha'        => null,
-      'beneficio'    => null,
-      'total'        => null,
+      'row' => $row,
+      'vin' => $vin,
+      'status' => $status,
+      'message' => $message,
+      'asesor' => null,
+      'cliente' => null,
+      'comprobante' => null,
+      'fecha' => null,
+      'beneficio' => null,
+      'total' => null,
       'quote_action' => null,
     ];
   }

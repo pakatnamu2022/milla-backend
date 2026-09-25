@@ -30,13 +30,18 @@ class PurchaseOrderReceiptsReportController extends Controller
       'fecha_emision' => 'required|array|size:2',
       'fecha_emision.*' => 'required|date',
       'sunat_concept_currency_id' => 'nullable|integer',
+      'all' => 'nullable|boolean',
     ]);
 
     // Construir filtros
     $filters = $this->buildFilters($validated);
 
     // Obtener datos del reporte
-    $data = $this->service->getElectronicDocumentsReport($filters);
+    $data = $this->service->getElectronicDocumentsReport(
+      $filters,
+      $validated['sunat_concept_currency_id'] ?? null,
+      $validated['all'] ?? false
+    );
 
     // Generar nombre del archivo
     $filename = 'reporte_documentos_electronicos_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
@@ -65,8 +70,9 @@ class PurchaseOrderReceiptsReportController extends Controller
       'value' => $validated['fecha_emision'],
     ];
 
-    // Filtro opcional: moneda
-    if (isset($validated['sunat_concept_currency_id'])) {
+    // Filtro opcional: moneda (solo si all = false)
+    $all = $validated['all'] ?? false;
+    if (isset($validated['sunat_concept_currency_id']) && !$all) {
       $filters[] = [
         'column' => 'sunat_concept_currency_id',
         'operator' => '=',

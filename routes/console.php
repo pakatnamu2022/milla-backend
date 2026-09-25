@@ -262,3 +262,20 @@ Schedule::command('queue:prune-failed --hours=336')
   ->withoutOverlapping()
   ->runInBackground();
 
+// Verificar y migrar documentos con travesía pendientes
+// Ejecuta cada 30 segundos; omite documentos con 3+ intentos fallidos
+Schedule::command('traverse:verify-migration --all')
+  ->everyThirtySeconds()
+  ->between('6:00', '23:59')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+
+// Regenerar snapshots de productividad de los últimos 2 meses
+// Ejecuta diariamente a las 6:00 AM hora Lima
+Schedule::command('productivity:snapshot --months=2')
+  ->dailyAt('06:00')
+  ->timezone('America/Lima')
+  ->withoutOverlapping()
+  ->runInBackground();
+

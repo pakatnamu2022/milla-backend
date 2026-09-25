@@ -1510,7 +1510,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
    * anulado/cancelled_at solo se marcan cuando SUNAT acepta la baja (aquí o luego en syncCancellationFromNubefact).
    * @throws Exception
    */
-  public function cancelInNubefact($id, string $reason): JsonResponse
+  public function cancelInNubefact($id, string $reason, bool $willReinvoice = false): JsonResponse
   {
     $document = $this->find($id);
 
@@ -1609,6 +1609,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
               'status_id' => ApMasters::STATUS_ORDER_QUOTE_FACTURAR,
               'is_fully_paid' => false,
               'output_generation_warehouse' => false,
+              'was_cancelled_for_reinvoice' => $willReinvoice, // Marcar si se va a re-facturar
             ]);
           }
         }
@@ -1621,6 +1622,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
               'status_id' => ApMasters::FINISHED_WORK_ORDER_ID,
               'is_invoiced' => false,
               'output_generation_warehouse' => false,
+              'was_cancelled_for_reinvoice' => $willReinvoice, // Marcar si se va a re-facturar
             ]);
           }
         }
@@ -4668,9 +4670,13 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
     $workOrder->update(['has_invoice_generated' => true]);
 
-    // Actualizar fecha de cierre oficial SIEMPRE que se cree una OTE
+    // Actualizar fecha de cierre oficial SOLO para facturas/boletas FINALES
+    // NO actualizar para: Notas de Crédito ni Anticipos
     // Se actualiza con la fecha de emisión del documento electrónico
-    $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    if ($document->sunat_concept_document_type_id != ElectronicDocument::TYPE_NOTA_CREDITO
+      && !$document->is_advance_payment) {
+      $workOrder->updateOfficialClosingDate($document->fecha_de_emision);
+    }
   }
 
   public function createConsolidatedInvoice(array $data): array
@@ -4965,7 +4971,7 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
           'total' => $itemTotal,
           'account_plan_id' => $item['account_plan_id'] ?? null,
           'product_id' => $item['product_id'] ?? null,
-          'is_traverse' => $item['is_traverse'] ?? null,
+          'is_traverse' => $item['is_traverse'] ?? false,
         ]);
       }
 

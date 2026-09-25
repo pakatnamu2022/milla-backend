@@ -83,6 +83,7 @@ class ApWorkOrder extends Model
     'output_generation_warehouse',
     'had_credit_note',
     'stock_re_reserved',
+    'was_cancelled_for_reinvoice',
     'internal_note_revert_count',
     'internal_note_total_reverts',
     'internal_note_revert_authorized_by',
@@ -115,6 +116,7 @@ class ApWorkOrder extends Model
     'output_generation_warehouse' => 'boolean',
     'had_credit_note' => 'boolean',
     'stock_re_reserved' => 'boolean',
+    'was_cancelled_for_reinvoice' => 'boolean',
     'internal_note_revert_count' => 'integer',
     'internal_note_total_reverts' => 'integer',
     'internal_note_revert_authorized_at' => 'datetime',
@@ -1045,126 +1047,6 @@ class ApWorkOrder extends Model
   }
 
   // Export Methods
-  public static function getReportData($filters = [])
-  {
-    $query = self::with([
-      'vehicle.model.family.brand',
-      'vehicle.model',
-      'advisor',
-      'sede',
-      'status',
-      'items.typePlanning',
-      'items.typeOperation',
-      'creator',
-      'typeCurrency',
-      'invoiceTo',
-      'advancesWorkOrder',
-      'internalNote.electronicDocuments'
-    ]);
-
-    // Apply filters
-    foreach ($filters as $filter) {
-      $column = $filter['column'];
-      $operator = $filter['operator'];
-      $value = $filter['value'];
-
-      if ($column === 'advisor_id' && $operator === '=') {
-        $query->where('advisor_id', $value);
-      } elseif ($column === 'sede_id' && $operator === '=') {
-        $query->where('sede_id', $value);
-      } elseif ($column === 'status_id' && $operator === 'in_or_equal') {
-        if (is_array($value)) {
-          $query->whereIn('status_id', $value);
-        } else {
-          $query->where('status_id', $value);
-        }
-      } elseif ($column === 'opening_date' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('opening_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'estimated_delivery_date' && $operator === 'date_between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('estimated_delivery_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'actual_delivery_date' && $operator === 'between') {
-        if (is_array($value) && count($value) === 2) {
-          $query->whereBetween('actual_delivery_date', [$value[0], $value[1]]);
-        }
-      } elseif ($column === 'is_invoiced' && $operator === '=') {
-        $query->where('is_invoiced', $value);
-      } elseif ($column === 'currency_id' && $operator === '=') {
-        $query->where('currency_id', $value);
-      }
-    }
-
-    $workOrders = $query->get();
-
-    return $workOrders->map(function ($workOrder) {
-      // Obtener el primer item no eliminado
-      $firstItem = $workOrder->items->first();
-
-      // Obtener los anticipos activos
-      $activeAdvances = $workOrder->getActiveAdvances();
-
-      // Formatear anticipos: "full_number (SI/NO) | full_number (SI/NO)"
-      $advancesFormatted = '-';
-      $totalAdvances = 0;
-      $tieneAnticipo = 'NO';
-
-      if ($activeAdvances && $activeAdvances->count() > 0) {
-        $tieneAnticipo = 'SI';
-        $advancesArray = [];
-        foreach ($activeAdvances as $advance) {
-          $sunatStatus = $advance->aceptada_por_sunat == 1 ? '(SI)' : '(NO)';
-          $advancesArray[] = $advance->full_number . ' ' . $sunatStatus;
-          $totalAdvances += $advance->total ?? 0;
-        }
-        $advancesFormatted = implode(' | ', $advancesArray);
-      }
-
-      // Determinar el documento electrónico a usar para las últimas 3 columnas
-      $electronicDocument = null;
-
-      // Si el tipo de documento es INTERNA_CC, obtener el documento desde la nota interna
-      if ($firstItem && $firstItem->typePlanning && $firstItem->typePlanning->type_document === TypePlanningWorkOrder::INTERNA_CC) {
-        $internalNote = $workOrder->internalNote;
-        if ($internalNote) {
-          $electronicDocument = $internalNote->electronicDocuments()->first();
-        }
-      }
-
-      // Si no se encontró documento desde nota interna, usar getFinalInvoice()
-      if (!$electronicDocument) {
-        $electronicDocument = $workOrder->getFinalInvoice();
-      }
-
-      return [
-        'sede' => $workOrder->sede ? $workOrder->sede->abreviatura : '',
-        'correlativo' => $workOrder->correlative,
-        'estado' => $workOrder->status ? $workOrder->status->description : '',
-        'fecha_apertura' => $workOrder->opening_date ? $workOrder->opening_date->format('Y-m-d') : '',
-        'fecha_entrega_estimada' => $workOrder->estimated_delivery_date ? $workOrder->estimated_delivery_date->format('Y-m-d H:i:s') : '',
-        'placa_vehiculo' => $workOrder->vehicle?->plate ?? '',
-        'vin_vehiculo' => $workOrder->vehicle?->vin ?? '',
-        'marca' => $workOrder->vehicle?->model?->family?->brand?->name ?? '',
-        'modelo' => $workOrder->vehicle?->model?->version ?? '',
-        'km' => $workOrder->mileage ?? '',
-        'asesor' => $workOrder->advisor ? $workOrder->advisor->nombre_completo : '',
-        'tipo_planificacion' => $firstItem && $firstItem->typePlanning ? $firstItem->typePlanning->description : '',
-        'operacion' => $firstItem && $firstItem->typeOperation ? $firstItem->typeOperation->description : '',
-        'descripcion_item' => $firstItem ? $firstItem->description : '',
-        'moneda' => $workOrder->typeCurrency ? $workOrder->typeCurrency->symbol : '',
-        'cliente_facturar' => $workOrder->invoiceTo ? $workOrder->invoiceTo->full_name : '',
-        'total' => number_format($workOrder->final_amount ?? 0, 2),
-        'tiene_anticipo' => $tieneAnticipo,
-        'anticipos' => $advancesFormatted,
-        'total_anticipos' => number_format($totalAdvances, 2),
-        'comprobante_final' => $electronicDocument?->full_number ?? '-',
-        'estado_sunat' => $electronicDocument ? ($electronicDocument->aceptada_por_sunat ? 'SI' : 'NO') : '-',
-        'contabilizada' => $electronicDocument ? ($electronicDocument->is_accounted ? 'SI' : 'NO') : '-',
-      ];
-    });
-  }
 
   /**
    * Obtiene el costo de hora hombre actual según el tipo de vehículo
@@ -1189,66 +1071,7 @@ class ApWorkOrder extends Model
     // Obtener y retornar el valor del GeneralMaster
     $generalMaster = GeneralMaster::find($generalMasterId);
 
-    return (float) ($generalMaster->value ?? 0);
+    return (float)($generalMaster->value ?? 0);
   }
 
-  public static function getReportableColumns()
-  {
-    return [
-      'sede' => 'Sede',
-      'correlativo' => 'Correlativo',
-      'estado' => 'Estado',
-      'fecha_apertura' => 'Fecha Apertura',
-      'fecha_entrega_estimada' => 'Fecha Entrega Estimada',
-      'placa_vehiculo' => 'Placa Vehículo',
-      'vin_vehiculo' => 'VIN Vehículo',
-      'marca' => 'Marca',
-      'modelo' => 'Modelo',
-      'km' => 'KM',
-      'asesor' => 'Asesor',
-      'tipo_planificacion' => 'Tipo de Planificación',
-      'operacion' => 'Operación',
-      'descripcion_item' => 'Descripción',
-      'moneda' => 'Moneda',
-      'cliente_facturar' => 'Cliente Facturar',
-      'total' => 'Total',
-      'tiene_anticipo' => 'Tiene Anticipo',
-      'anticipos' => 'Anticipos',
-      'total_anticipos' => 'Total Anticipos',
-      'comprobante_final' => 'Comprobante Final',
-      'estado_sunat' => 'Estado SUNAT',
-      'contabilizada' => 'Contabilizada',
-    ];
-  }
-
-  public static function getReportStyles()
-  {
-    return [
-      'headerBackgroundColor' => '4472C4',
-      'headerFontColor' => 'FFFFFF',
-      'headerFontSize' => 11,
-      'headerBold' => true,
-      'bodyFontSize' => 10,
-      'freezePane' => 'A2',
-      'autoFilter' => true,
-    ];
-  }
-
-  public static function getReportColorRules()
-  {
-    return [
-      'tiene_anticipo' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
-      ],
-      'estado_sunat' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'DC3545', 'text' => 'FFFFFF'],  // Rojo con texto blanco
-      ],
-      'contabilizada' => [
-        'SI' => ['bg' => '28A745', 'text' => 'FFFFFF'],  // Verde con texto blanco
-        'NO' => ['bg' => 'A9A9A9', 'text' => '000000'],  // Gris con texto negro
-      ],
-    ];
-  }
 }

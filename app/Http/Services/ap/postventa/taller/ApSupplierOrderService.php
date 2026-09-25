@@ -870,4 +870,114 @@ class ApSupplierOrderService extends BaseService implements BaseServiceInterface
       $supplierOrder->requestDetails()->detach();
     }
   }
+
+  /**
+   * Reemplaza un producto en un pedido a proveedor.
+   *
+   * Este método permite reemplazar un producto cuando el proveedor envía
+   * un repuesto equivalente con diferente código. Solo se actualiza el
+   * pedido a proveedor, manteniendo la solicitud de compra original para
+   * trazabilidad.
+   *
+   * @param int $supplierOrderId ID del pedido a proveedor
+   * @param int $originalProductId ID del producto original
+   * @param int $newProductId ID del nuevo producto
+   * @param string|null $replacementReason Motivo del reemplazo
+   * @return ApSupplierOrderResource
+   * @throws Exception
+   */
+  public function replaceProduct(int $supplierOrderId, int $originalProductId, int $newProductId, ?string $replacementReason = null)
+  {
+    return DB::transaction(function () use ($supplierOrderId, $originalProductId, $newProductId, $replacementReason) {
+      // Validar que el pedido a proveedor exista
+      $supplierOrder = $this->find($supplierOrderId);
+
+      // Validar que no esté descartado
+      if ($supplierOrder->discarded_by) {
+        throw new Exception('No se puede reemplazar productos en un pedido a proveedor que ha sido descartado.');
+      }
+
+      // Validar si el producto específico ha sido considerado en alguna recepción
+      // (recibido, observado, marcado para NC, etc.)
+      $productInReceptions = DB::table('purchase_reception_details as prd')
+        ->join('purchase_receptions as pr', 'prd.purchase_reception_id', '=', 'pr.id')
+        ->where('pr.ap_supplier_order_id', $supplierOrderId)
+        ->where('prd.product_id', $originalProductId)
+        ->whereNull('pr.deleted_at')
+        ->where('pr.status', '!=', 'ANNULLED')
+        ->whereNull('prd.deleted_at')
+        ->exists();
+
+      if ($productInReceptions) {
+        throw new Exception('No se puede reemplazar el producto porque ya ha sido considerado en una recepción (recibido total o parcialmente, con observaciones, o marcado para nota de crédito). El producto debe estar completamente libre sin ninguna recepción asociada para poder reemplazarlo.');
+      }
+
+      // Buscar el detalle con el producto original
+      $detail = ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrderId)
+        ->where('product_id', $originalProductId)
+        ->first();
+
+      if (!$detail) {
+        throw new Exception("El producto original (ID: {$originalProductId}) no existe en este pedido a proveedor.");
+      }
+
+      // Validar que el nuevo producto exista
+      $newProduct = Products::find($newProductId);
+      if (!$newProduct) {
+        throw new Exception("El nuevo producto (ID: {$newProductId}) no existe en el sistema.");
+      }
+
+      // Validar que el nuevo producto sea diferente al original
+      if ($originalProductId === $newProductId) {
+        throw new Exception('El nuevo producto debe ser diferente al producto original.');
+      }
+
+      // Validar que el nuevo producto no esté ya en el pedido (evitar duplicados)
+      $existingDetail = ApSupplierOrderDetails::where('ap_supplier_order_id', $supplierOrderId)
+        ->where('product_id', $newProductId)
+        ->where('id', '!=', $detail->id)
+        ->first();
+
+      if ($existingDetail) {
+        throw new Exception("El nuevo producto (código: {$newProduct->code}) ya existe en este pedido a proveedor. No se permiten productos duplicados.");
+      }
+
+      // Obtener información del producto original para la nota
+      $originalProduct = Products::find($originalProductId);
+      $originalProductCode = $originalProduct ? $originalProduct->code : $originalProductId;
+      $newProductCode = $newProduct->code;
+
+      // Construir la nota de reemplazo
+      $replacementNote = "REEMPLAZO: {$originalProductCode} → {$newProductCode}";
+      if ($replacementReason) {
+        $replacementNote .= " | Motivo: {$replacementReason}";
+      }
+
+      // Agregar la nota anterior si existía
+      if ($detail->note) {
+        $replacementNote = $detail->note . ' | ' . $replacementNote;
+      }
+
+      // Actualizar el detalle con el nuevo producto
+      $detail->update([
+        'product_id' => $newProductId,
+        'unit_measurement_id' => $newProduct->unit_measurement_id,
+        'note' => $replacementNote,
+      ]);
+
+      // Recargar el pedido con todas las relaciones
+      $supplierOrder->refresh();
+      $supplierOrder->load([
+        'supplier',
+        'sede',
+        'warehouse',
+        'typeCurrency',
+        'createdBy',
+        'details.product',
+        'details.unitMeasurement'
+      ]);
+
+      return new ApSupplierOrderResource($supplierOrder);
+    });
+  }
 }

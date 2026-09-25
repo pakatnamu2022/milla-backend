@@ -4,6 +4,8 @@ namespace App\Http\Services\ap\postventa\taller;
 
 use App\Http\Resources\ap\facturacion\ApInternalNoteResource;
 use App\Http\Services\BaseService;
+use App\Jobs\BulkUpdateInternalNotesAccountingStatusJob;
+use App\Jobs\UpdateInternalNoteAccountingStatusJob;
 use App\Jobs\VerifyAndMigrateInternalNoteJob;
 use App\Models\ap\comercial\VehiclePurchaseOrderMigrationLog;
 use App\Models\ap\facturacion\ApInternalNote;
@@ -124,84 +126,34 @@ class ApInternalNoteService extends BaseService
       ], 400);
     }
 
-    // Consultar ajustes de inventario en Dynamics
-    $dynamicsAdjustments = $this->consultAjustesInventario();
-
-    if (empty($dynamicsAdjustments)) {
-      return response()->json([
-        'success' => false,
-        'message' => 'No se obtuvieron registros de ajustes de inventario desde Dynamics',
-      ], 404);
-    }
-
-    // Crear un mapa para búsqueda rápida: [Numero][Tipo_Movimiento] = true
-    $adjustmentsMap = [];
-    foreach ($dynamicsAdjustments as $adjustment) {
-      $numero = $adjustment->Numero ?? null;
-      $tipoMovimiento = $adjustment->Tipo_Movimiento ?? null;
-
-      if ($numero && $tipoMovimiento) {
-        if (!isset($adjustmentsMap[$numero])) {
-          $adjustmentsMap[$numero] = [];
-        }
-        $adjustmentsMap[$numero][$tipoMovimiento] = true;
-      }
-    }
-
-    $updateData = [];
-
-    // Verificar SALIDA (dyn_series_out)
-    if ($internalNote->dyn_series_out && isset($adjustmentsMap[$internalNote->dyn_series_out]['SALIDA'])) {
-
-      if (!$internalNote->is_accounted_out) {
-        $updateData['is_accounted_out'] = true;
-      }
-    }
-
-    // Verificar INGRESO (dyn_series_in)
-    if ($internalNote->dyn_series_in && isset($adjustmentsMap[$internalNote->dyn_series_in]['INGRESO'])) {
-
-      if (!$internalNote->is_accounted_in) {
-        $updateData['is_accounted_in'] = true;
-      }
-    }
-
-    // Actualizar solo si hay cambios
-    $updated = false;
-    if (!empty($updateData)) {
-      $internalNote->update($updateData);
-      $updated = true;
-
-      // LOG 5: Refrescar y mostrar estado después de actualizar
-      $internalNote->refresh();
-    }
+    // Despachar job a la cola de manera asíncrona
+    UpdateInternalNoteAccountingStatusJob::dispatch($internalNote->id);
 
     return response()->json([
       'success' => true,
-      'message' => $updated ? 'Nota interna actualizada correctamente' : 'No se encontraron cambios para actualizar',
+      'message' => 'Job de actualización de estado contable lanzado correctamente',
       'data' => [
-        'updated' => $updated,
         'internal_note_id' => $internalNote->id,
         'internal_note_number' => $internalNote->number,
-        'is_accounted_in' => $internalNote->is_accounted_in,
-        'is_accounted_out' => $internalNote->is_accounted_out,
+        'status' => 'El proceso se ejecutará en segundo plano',
       ],
     ]);
   }
 
   /**
-   * Consulta los ajustes de inventario en Dynamics
+   * Actualiza masivamente el estado contable de las notas internas no verificadas
    */
-  protected function consultAjustesInventario(): array
+  public function bulkUpdateAccountingStatus()
   {
-    try {
-      return DB::connection(Company::CONNECTION_DYNAMICS_3)
-        ->select("EXEC neIvConsultarAjustesInventario");
-    } catch (\Exception $e) {
-      Log::error('Error ejecutando PA neIvConsultarAjustesInventario', [
-        'error' => $e->getMessage()
-      ]);
-      throw $e;
-    }
+    // Despachar job a la cola de manera asíncrona
+    BulkUpdateInternalNotesAccountingStatusJob::dispatch();
+
+    return response()->json([
+      'success' => true,
+      'message' => 'Job de actualización masiva de estado contable lanzado correctamente',
+      'data' => [
+        'status' => 'El proceso se ejecutará en segundo plano. Consulte los logs para ver el resultado.',
+      ],
+    ]);
   }
 }

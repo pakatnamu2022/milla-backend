@@ -12,9 +12,11 @@ class PurchaseOrderReceiptsReportService
    * Obtiene el reporte de documentos electrónicos
    *
    * @param array $filters
+   * @param int|null $targetCurrencyId ID de la moneda objetivo para conversión
+   * @param bool $convertAll Si true, convierte todos los documentos a la moneda objetivo
    * @return Collection
    */
-  public function getElectronicDocumentsReport(array $filters = []): Collection
+  public function getElectronicDocumentsReport(array $filters = [], ?int $targetCurrencyId = null, bool $convertAll = false): Collection
   {
     $query = ElectronicDocument::query()
       ->with([
@@ -22,6 +24,7 @@ class PurchaseOrderReceiptsReportService
         'documentType',
         'currency',
         'seriesModel.sede',
+        'exchangeRate',
       ])
       ->where('area_id', ApMasters::AREA_POSVENTA)
       ->where('aceptada_por_sunat', true)
@@ -33,8 +36,8 @@ class PurchaseOrderReceiptsReportService
     $documents = $query->orderBy('fecha_de_emision')->get();
 
     // Transformar documentos para el reporte
-    return $documents->map(function ($document) {
-      return $this->transformDocumentForReport($document);
+    return $documents->map(function ($document) use ($targetCurrencyId, $convertAll) {
+      return $this->transformDocumentForReport($document, $targetCurrencyId, $convertAll);
     });
   }
 
@@ -42,9 +45,11 @@ class PurchaseOrderReceiptsReportService
    * Transforma un documento electrónico en el formato del reporte
    *
    * @param ElectronicDocument $document
+   * @param int|null $targetCurrencyId ID de la moneda objetivo para conversión
+   * @param bool $convertAll Si true, convierte todos los documentos a la moneda objetivo
    * @return array
    */
-  private function transformDocumentForReport(ElectronicDocument $document): array
+  private function transformDocumentForReport(ElectronicDocument $document, ?int $targetCurrencyId = null, bool $convertAll = false): array
   {
     // Obtener tipo de comprobante
     $tipo = $this->getDocumentTypeName($document->sunat_concept_document_type_id);
@@ -55,8 +60,54 @@ class PurchaseOrderReceiptsReportService
       ->filter()
       ->implode(', ');
 
-    // Obtener moneda
-    $moneda = $document->currency?->description ?? '';
+    // Moneda original del documento
+    $monedaOriginal = $document->currency?->description ?? '';
+    $currencyId = $document->sunat_concept_currency_id;
+    $total_gravada = $document->total_gravada ?? 0;
+    $total = $document->total ?? 0;
+
+    // Si convertAll = true, convertir montos según la moneda objetivo
+    if ($convertAll && $targetCurrencyId) {
+      // Constantes de moneda (PEN = 86, USD = 87)
+      $CURRENCY_PEN = 86;
+      $CURRENCY_USD = 87;
+
+      // Obtener la tasa de cambio del documento
+      $exchangeRate = $document->exchangeRate?->rate ?? 1;
+
+      // Convertir según la moneda objetivo
+      if ($targetCurrencyId === $CURRENCY_PEN) {
+        // Convertir TODO a SOLES
+        if ($currencyId === $CURRENCY_USD) {
+          // USD -> PEN: multiplicar por tipo de cambio
+          $total = $total * $exchangeRate;
+          $total_gravada = $total_gravada * $exchangeRate;
+        }
+        // Si ya está en PEN, no hacer nada
+        $moneda = 'PEN';
+      } elseif ($targetCurrencyId === $CURRENCY_USD) {
+        // Convertir TODO a DÓLARES
+        if ($currencyId === $CURRENCY_PEN) {
+          // PEN -> USD: dividir por tipo de cambio del día
+          if ($exchangeRate > 0) {
+            $total_gravada = $total_gravada / $exchangeRate;
+            $total = $total / $exchangeRate;
+          }
+        }
+        // Si ya está en USD, no hacer nada
+        $moneda = 'USD';
+      } else {
+        // Moneda no reconocida, mantener original
+        $moneda = $monedaOriginal;
+      }
+    } else {
+      // Comportamiento original: mantener moneda del documento
+      $moneda = $monedaOriginal;
+    }
+    if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+      $total_gravada = -$total_gravada;
+      $total = -$total;
+    }
 
     return [
       'sede' => $document->seriesModel?->sede?->abreviatura ?? '',
@@ -66,7 +117,8 @@ class PurchaseOrderReceiptsReportService
       'descripcion' => $descripcion,
       'serie' => $document->serie ?? '',
       'numero' => $document->numero ?? '',
-      'total' => number_format($document->total ?? 0, 2, '.', ''),
+      'total_gravada' => number_format($total_gravada, 2, '.', ''),
+      'total' => number_format($total, 2, '.', ''),
       'moneda' => $moneda,
     ];
   }
@@ -82,6 +134,8 @@ class PurchaseOrderReceiptsReportService
     return match ($documentTypeId) {
       29 => 'FACTURA',
       30 => 'BOLETA',
+      31 => 'NOTA DE CRÉDITO',
+      32 => 'NOTA DE DÉBITO',
       default => '',
     };
   }

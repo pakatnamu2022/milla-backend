@@ -60,7 +60,7 @@ class SyncAccountingStatusJob implements ShouldQueue
 
     foreach ($documents as $document) {
       try {
-        
+
         $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
           ->table('SOP30200')
           ->where('SOPNUMBE', $document->full_number)
@@ -130,7 +130,7 @@ class SyncAccountingStatusJob implements ShouldQueue
       return;
     }
 
-    \App\Models\ap\comercial\VehicleMovement::where('id', $document->ap_vehicle_movement_id)
+    VehicleMovement::where('id', $document->ap_vehicle_movement_id)
       ->whereNull('confirmed_at')
       ->update(['confirmed_at' => now()]);
   }

@@ -9,7 +9,7 @@ use App\Http\Services\ap\postventa\gestionProductos\InventoryMovementService;
 use App\Http\Services\ap\postventa\taller\dynamics\InternalNoteMigrationLogService;
 use App\Http\Services\BaseService;
 use App\Http\Services\BaseServiceInterface;
-use App\Http\Services\common\ExportService;
+use App\Http\Services\ap\postventa\taller\WorkOrderExportService;
 use App\Http\Services\gp\gestionsistema\DigitalFileService;
 use App\Http\Utils\Helpers;
 use App\Http\Utils\PriceRounding;
@@ -52,7 +52,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
 {
   protected WorkOrderLabourService $labourService;
   protected DigitalFileService $digitalFileService;
-  protected ExportService $exportService;
+  protected WorkOrderExportService $workOrderExportService;
   protected InventoryMovementService $inventoryMovementService;
   protected InternalNoteMigrationLogService $internalNoteMigrationLogService;
 
@@ -63,14 +63,14 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
   public function __construct(
     WorkOrderLabourService          $labourService,
     DigitalFileService              $digitalFileService,
-    ExportService                   $exportService,
+    WorkOrderExportService          $workOrderExportService,
     InventoryMovementService        $inventoryMovementService,
     InternalNoteMigrationLogService $internalNoteMigrationLogService
   )
   {
     $this->labourService = $labourService;
     $this->digitalFileService = $digitalFileService;
-    $this->exportService = $exportService;
+    $this->workOrderExportService = $workOrderExportService;
     $this->inventoryMovementService = $inventoryMovementService;
     $this->internalNoteMigrationLogService = $internalNoteMigrationLogService;
   }
@@ -1220,7 +1220,11 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
       //Close work order with internal note
       $workOrder->update([
         'status_id' => ApMasters::CLOSED_WORK_ORDER_ID,
+        'actual_delivery_date' => now(),
       ]);
+
+      // Actualizar la fecha oficial de cierre
+      $workOrder->updateOfficialClosingDate();
 
       // Validar stock en sistema externo antes de generar el ajuste de salida
       $this->validateExternalStockForInternalNote($workOrder);
@@ -2239,82 +2243,7 @@ class WorkOrderService extends BaseService implements BaseServiceInterface
    */
   public function exportWorkOrders(Request $request)
   {
-    $filters = [];
-
-    // Apply filters from request
-    if ($request->filled('advisor_id')) {
-      $filters[] = [
-        'column' => 'advisor_id',
-        'operator' => '=',
-        'value' => $request->advisor_id
-      ];
-    }
-
-    if ($request->filled('sede_id')) {
-      $filters[] = [
-        'column' => 'sede_id',
-        'operator' => '=',
-        'value' => $request->sede_id
-      ];
-    }
-
-    if ($request->filled('status_id')) {
-      $filters[] = [
-        'column' => 'status_id',
-        'operator' => 'in_or_equal',
-        'value' => $request->status_id
-      ];
-    }
-
-    if ($request->filled('opening_date')) {
-      $filters[] = [
-        'column' => 'opening_date',
-        'operator' => 'date_between',
-        'value' => $request->opening_date
-      ];
-    }
-
-    if ($request->filled('estimated_delivery_date')) {
-      $filters[] = [
-        'column' => 'estimated_delivery_date',
-        'operator' => 'date_between',
-        'value' => $request->estimated_delivery_date
-      ];
-    }
-
-    if ($request->filled('actual_delivery_date')) {
-      $filters[] = [
-        'column' => 'actual_delivery_date',
-        'operator' => 'between',
-        'value' => $request->actual_delivery_date
-      ];
-    }
-
-    if ($request->filled('is_invoiced')) {
-      $filters[] = [
-        'column' => 'is_invoiced',
-        'operator' => '=',
-        'value' => $request->is_invoiced
-      ];
-    }
-
-    if ($request->filled('currency_id')) {
-      $filters[] = [
-        'column' => 'currency_id',
-        'operator' => '=',
-        'value' => $request->currency_id
-      ];
-    }
-
-    $title = $request->get('title', 'Reporte de Órdenes de Trabajo');
-
-    $options = [
-      'title' => $title,
-      'filters' => $filters,
-      'format' => $request->get('format', 'excel'),
-    ];
-
-    return $this->exportService->exportToExcel(ApWorkOrder::class, $options);
+    return $this->workOrderExportService->export($request);
   }
 
   /**

@@ -138,7 +138,9 @@ class ElectronicDocument extends BaseModel
     'consolidation_type',
     're_invoice',
     'has_product_traverse',
-    'associate_purchase_traverse'
+    'associate_purchase_traverse',
+    'traverse_migration_status',
+    'traverse_migrated_at'
   ];
 
   protected $casts = [
@@ -180,6 +182,7 @@ class ElectronicDocument extends BaseModel
     'cancelled_at' => 'datetime',
     'has_product_traverse' => 'boolean',
     'associate_purchase_traverse' => 'boolean',
+    'traverse_migrated_at' => 'datetime',
   ];
 
   const array filters = [
