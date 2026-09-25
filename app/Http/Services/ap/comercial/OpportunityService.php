@@ -172,8 +172,18 @@ class OpportunityService extends BaseService implements BaseServiceInterface
       array_merge($this->getAccessibleWorkerIds($workerIdToUse), [$workerId])
     );
 
+    // Precargar todo lo que usa OpportunityResource (y sus resources anidados) para evitar N+1
     $query = Opportunity::whereIn('worker_id', $accessibleWorkerIds)
-      ->with(['worker', 'client', 'family', 'opportunityType', 'clientStatus', 'opportunityStatus']);
+      ->with([
+        'worker.sede', 'worker.position.hierarchicalCategory', 'worker.offerLetterStatus', 'worker.emailOfferLetterStatus',
+        'client.origin', 'client.taxClassType', 'client.supplierTaxClassType', 'client.typePerson',
+        'client.district.province.department', 'client.documentType', 'client.personSegment',
+        'client.maritalStatus', 'client.gender', 'client.activityEconomic', 'client.company',
+        'family' => fn($q) => $q->withCount('models'), 'family.brand', 'opportunityType', 'clientStatus', 'opportunityStatus',
+        'actions.actionType', 'actions.actionContactType', 'actions.opportunity.client',
+        'lead.worker', 'lead.sede.district', 'lead.vehicleBrand', 'lead.documentType', 'lead.incomeSector',
+      ])
+      ->withExists('purchaseRequestsQuote');
 
     return $this->getFilteredResults(
       $query,

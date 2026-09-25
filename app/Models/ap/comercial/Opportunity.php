@@ -88,6 +88,10 @@ class Opportunity extends Model
 
   public function getHasPurchaseRequestQuoteAttribute(): bool
   {
+    // Usa el valor precargado con withExists('purchaseRequestsQuote') si está disponible
+    if (array_key_exists('purchase_requests_quote_exists', $this->attributes)) {
+      return (bool) $this->attributes['purchase_requests_quote_exists'];
+    }
     return $this->purchaseRequestsQuote()->exists();
   }
 

@@ -104,8 +104,11 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // Crear el movimiento de vehículo SOLO si hay un vehículo (no para transferencias de productos)
+      // Las guías con motivo OTROS se cierran inmediatamente (is_received/is_accounted=true)
+      // y no implican traslado físico real, por lo que no deben generar movimiento de vehículo.
+      $isOtrosEarly = ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_OTROS;
       $vehicleMovement = null;
-      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id']) {
+      if (isset($data['ap_vehicle_id']) && $data['ap_vehicle_id'] && !$isOtrosEarly) {
         $this->ensureNoPendingGuide((int) $data['ap_vehicle_id']);
         $vehicle = Vehicles::findOrFail($data['ap_vehicle_id']);
 
@@ -202,7 +205,7 @@ class ShippingGuidesService extends BaseService implements BaseServiceInterface
       }
 
       // 6. Crear la guía de remisión
-      $isOtros = ($data['transfer_reason_id'] ?? null) == SunatConcepts::TRANSFER_REASON_OTROS;
+      $isOtros = $isOtrosEarly;
 
       $documentData = [
         'document_type'          => $data['document_type'],
