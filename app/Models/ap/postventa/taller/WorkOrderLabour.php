@@ -96,9 +96,18 @@ class WorkOrderLabour extends Model
   public function setTimeSpentAttribute($value): void
   {
     if (is_numeric($value)) {
-      // Convertir decimal a HH:MM:SS
-      $hours = floor($value);
-      $minutes = round(($value - $hours) * 60);
+      // Convertir decimal a HH:MM:SS preservando segundos para mayor precisión
+      $totalSeconds = $value * 3600; // Convertir horas a segundos
+      $hours = floor($totalSeconds / 3600);
+      $remainingSeconds = $totalSeconds - ($hours * 3600);
+      $minutes = floor($remainingSeconds / 60);
+      $seconds = round($remainingSeconds - ($minutes * 60));
+
+      // Ajustar si los segundos son 60
+      if ($seconds >= 60) {
+        $minutes += 1;
+        $seconds = 0;
+      }
 
       // Ajustar si los minutos son 60
       if ($minutes >= 60) {
@@ -106,7 +115,7 @@ class WorkOrderLabour extends Model
         $minutes = 0;
       }
 
-      $this->attributes['time_spent'] = sprintf('%02d:%02d:00', $hours, $minutes);
+      $this->attributes['time_spent'] = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
     } else {
       // Si ya viene en formato HH:MM o HH:MM:SS, usarlo directamente
       $this->attributes['time_spent'] = $value;
@@ -125,8 +134,9 @@ class WorkOrderLabour extends Model
     $parts = explode(':', $this->time_spent);
     $hours = intval($parts[0]);
     $minutes = isset($parts[1]) ? intval($parts[1]) : 0;
+    $seconds = isset($parts[2]) ? intval($parts[2]) : 0;
 
-    return $hours + ($minutes / 60);
+    return $hours + ($minutes / 60) + ($seconds / 3600);
   }
 
   public function worker(): BelongsTo
