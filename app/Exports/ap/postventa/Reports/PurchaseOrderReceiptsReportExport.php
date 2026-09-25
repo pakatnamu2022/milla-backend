@@ -46,6 +46,7 @@ class PurchaseOrderReceiptsReportExport implements
       'DESCRIPCIÓN',
       'SERIE',
       'NÚMERO',
+      'IMPORTE SIN IGV',
       'IMPORTE TOTAL',
       'MONEDA',
     ];
@@ -61,6 +62,7 @@ class PurchaseOrderReceiptsReportExport implements
       $row['descripcion'],
       $row['serie'],
       $row['numero'],
+      $row['total_gravada'],
       $row['total'],
       $row['moneda'],
     ];
@@ -93,7 +95,7 @@ class PurchaseOrderReceiptsReportExport implements
     return [
       AfterSheet::class => function (AfterSheet $event) {
         $sheet = $event->sheet->getDelegate();
-        $sheet->setAutoFilter('A1:I1');
+        $sheet->setAutoFilter('A1:J1');
         $sheet->setSelectedCells('A1');
       },
     ];

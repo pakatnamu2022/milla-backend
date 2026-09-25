@@ -1091,8 +1091,8 @@ class ObjectiveDashboardService
       $isCreditNote = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA;
       $multiplier = $isCreditNote ? -1 : 1;
 
-      // Get document total
-      $amount = (float)$document->total;
+      // Get document total without IGV (total_gravada)
+      $amount = (float)$document->total_gravada;
 
       // Convert to soles if in USD
       if ($document->sunat_concept_currency_id === SunatConcepts::CURRENCY_USD) {
