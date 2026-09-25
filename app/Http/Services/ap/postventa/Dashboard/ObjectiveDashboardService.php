@@ -199,16 +199,95 @@ class ObjectiveDashboardService
 
     // Determine calculation method based on concept configuration
     if ($conceptObjective->is_vehicular_crossing) {
-      // PASO VEHICULAR: count work orders with vehicle inspection and valid type planning
-      $workOrders = ApWorkOrder::query()
-        ->where('sede_id', $sedeId)
-        ->whereHas('activeVehicleInspectionPivot')
-        ->whereBetween('opening_date', [$startDate, $endDate])
-        // Only consider work orders with items that have consider_vehicle_traffic = 1
-        ->whereHas('items.typePlanning', function ($q) {
-          $q->where('consider_vehicle_traffic', true);
+      // PASO VEHICULAR: count CLOSED work orders with vehicle inspection and valid type planning
+      // "Cerrada" = tiene comprobante final válido O nota interna sin factura en el periodo
+
+      $workOrderIds = collect();
+
+      // PARTE 1: OTs con documentos electrónicos finales (SIMPLE y MASIVA)
+      $documents = ElectronicDocument::query()
+        ->with(['workOrder.vehicle.model.family.brand', 'workOrder.items.typePlanning', 'internalNotes.workOrder.vehicle.model.family.brand', 'internalNotes.workOrder.items.typePlanning'])
+        ->where('anulado', false)
+        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
+        ->where('is_advance_payment', false)
+        ->whereBetween('fecha_de_emision', [$startDate, $endDate])
+        ->where(function ($q) use ($sedeId) {
+          // SIMPLE: work_order_id directo
+          $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
+            $subQ->where('sede_id', $sedeId)
+              ->whereHas('activeVehicleInspectionPivot')
+              ->whereHas('items.typePlanning', function ($itemQ) {
+                $itemQ->where('consider_vehicle_traffic', true);
+              });
+          })
+          // MASSIVE: notas internas facturadas
+          ->orWhereHas('internalNotes', function ($subQ) use ($sedeId) {
+            $subQ->where('status', 'invoiced')
+              ->whereHas('workOrder', function ($woQ) use ($sedeId) {
+                $woQ->where('sede_id', $sedeId)
+                  ->whereHas('activeVehicleInspectionPivot')
+                  ->whereHas('items.typePlanning', function ($itemQ) {
+                    $itemQ->where('consider_vehicle_traffic', true);
+                  });
+              });
+          });
         })
-        ->with('vehicle.model.family.brand')
+        ->get();
+
+      // Extraer work_order_ids de documentos
+      foreach ($documents as $document) {
+        // SIMPLE
+        if ($document->workOrder) {
+          $workOrderIds->push($document->workOrder->id);
+        }
+        // MASSIVE
+        if ($document->internalNotes && $document->internalNotes->count() > 0) {
+          foreach ($document->internalNotes as $internalNote) {
+            if ($internalNote->workOrder) {
+              $workOrderIds->push($internalNote->workOrder->id);
+            }
+          }
+        }
+      }
+
+      // PARTE 2: OTs con nota interna SIN factura (INTERNA_SC, INTERNA_CC)
+      $internalNoteWorkOrderIds = ApWorkOrder::query()
+        ->where('sede_id', $sedeId)
+        ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
+        ->whereHas('activeVehicleInspectionPivot')
+        ->whereHas('internalNotes', function ($q) use ($startDate, $endDate) {
+          $q->whereNotNull('number')
+            ->whereBetween('created_date', [$startDate, $endDate]);
+        })
+        ->whereHas('items', function ($q) {
+          $q->whereHas('typePlanning', function ($subQ) {
+            $subQ->where('consider_vehicle_traffic', true)
+              ->whereIn('type_document', [
+                TypePlanningWorkOrder::INTERNA_SC,
+                TypePlanningWorkOrder::INTERNA_CC,
+              ])
+              ->whereNotIn('id', [
+                TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+                TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+              ]);
+          });
+        })
+        ->whereNotExists(function ($query) {
+          $query->select(DB::raw(1))
+            ->from('ap_billing_electronic_documents')
+            ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
+            ->where('ap_billing_electronic_documents.anulado', false);
+        })
+        ->whereDoesntHave('internalNotes', function ($q) {
+          $q->whereHas('electronicDocuments');
+        })
+        ->pluck('id');
+
+      $workOrderIds = $workOrderIds->merge($internalNoteWorkOrderIds)->unique();
+
+      // Obtener las OTs cerradas únicas
+      $workOrders = ApWorkOrder::with('vehicle.model.family.brand')
+        ->whereIn('id', $workOrderIds)
         ->get();
 
       // Filter work orders to exclude brand_id = 9 and only include is_marketed = 1
