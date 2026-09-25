@@ -8,6 +8,7 @@ use App\Models\ap\maestroGeneral\TypeCurrency;
 use App\Models\ap\postventa\taller\ApWorkOrder;
 use App\Models\ap\postventa\taller\ObjectiveAdvisorsPeriodPv;
 use App\Models\ap\postventa\taller\ObjectiveSedePeriodPv;
+use App\Models\ap\postventa\taller\TypePlanningWorkOrder;
 use App\Models\gp\maestroGeneral\SunatConcepts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -125,6 +126,8 @@ class ObjectiveDashboardService
     // Calculate progress for each concept dynamically
     $concepts = [];
     $totalProgress = 0;
+    $tallerAreaProgress = 0;
+    $mesonAreaProgress = 0;
 
     foreach ($objective->conceptObjectives as $conceptObjective) {
       $conceptData = $this->calculateConceptProgress($conceptObjective, $sedeId, $year, $month);
@@ -133,6 +136,13 @@ class ObjectiveDashboardService
       // Sum progress only for non-vehicular crossing concepts (they're counted, not billed)
       if (!$conceptObjective->is_vehicular_crossing) {
         $totalProgress += $conceptData['progress'];
+
+        // Segregate by area for transparency
+        if ($conceptObjective->area_id == ApMasters::AREA_TALLER) {
+          $tallerAreaProgress += $conceptData['progress'];
+        } elseif ($conceptObjective->area_id == ApMasters::AREA_MESON) {
+          $mesonAreaProgress += $conceptData['progress'];
+        }
       }
     }
 
@@ -152,7 +162,9 @@ class ObjectiveDashboardService
       'completion_percentage' => $completionPercentage,
       'status' => $this->getStatus($completionPercentage),
       'concepts' => $concepts,
-      'loose_invoices_progress' => round($looseInvoicesProgress, 2) // For debugging/transparency
+      'loose_invoices_progress' => round($looseInvoicesProgress, 2),
+      'taller_area_progress' => round($tallerAreaProgress, 2),
+      'meson_area_progress' => round($mesonAreaProgress, 2)
     ];
   }
 
@@ -256,23 +268,29 @@ class ObjectiveDashboardService
         return $result;
       }
 
-      // Get electronic documents related to work orders (same query as WorkShop Report)
-      // NO filtrar por type_planning_id porque el usuario toma TODAS las type plannings
+      // Get electronic documents related to work orders
+      // Filtrar por type_planning_id para segmentación de conceptos
       $documents = ElectronicDocument::query()
         ->whereBetween('fecha_de_emision', [$startDate, $endDate])
         ->where('anulado', false)
         ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
         ->where('is_advance_payment', false)
-        ->where(function ($q) use ($sedeId) {
+        ->where(function ($q) use ($sedeId, $typePlanningIds) {
           // SIMPLE invoicing: work_order_id direct
-          $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
-            $subQ->where('sede_id', $sedeId);
+          $q->whereHas('workOrder', function ($subQ) use ($sedeId, $typePlanningIds) {
+            $subQ->where('sede_id', $sedeId)
+              ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
+                $itemQ->whereIn('type_planning_id', $typePlanningIds);
+              });
           })
-            // MASSIVE invoicing: internal notes con status='invoiced' (igual que WorkShop Report)
-            ->orWhereHas('internalNotes', function ($subQ) use ($sedeId) {
+            // MASSIVE invoicing: internal notes con status='invoiced'
+            ->orWhereHas('internalNotes', function ($subQ) use ($sedeId, $typePlanningIds) {
               $subQ->where('status', 'invoiced')
-                ->whereHas('workOrder', function ($woQ) use ($sedeId) {
-                  $woQ->where('sede_id', $sedeId);
+                ->whereHas('workOrder', function ($woQ) use ($sedeId, $typePlanningIds) {
+                  $woQ->where('sede_id', $sedeId)
+                    ->whereHas('items', function ($itemQ) use ($typePlanningIds) {
+                      $itemQ->whereIn('type_planning_id', $typePlanningIds);
+                    });
                 });
             });
         })
@@ -332,8 +350,11 @@ class ObjectiveDashboardService
             continue;
           }
 
-          // NO filtrar por type_planning_id - procesar TODAS las work orders
-          // (igual que WorkShop Report)
+          // Filter by type_planning_id: only process work orders with items matching the concept's type plannings
+          $hasValidTypePlanning = $workOrder->items->whereIn('type_planning_id', $typePlanningIds)->isNotEmpty();
+          if (!$hasValidTypePlanning) {
+            continue;
+          }
 
           // Calculate amount
           $multiplier = $document->sunat_concept_document_type_id === SunatConcepts::ID_NOTA_CREDITO_ELECTRONICA ? -1 : 1;
@@ -410,8 +431,11 @@ class ObjectiveDashboardService
               return;
             }
 
-            // NO filtrar por type_planning_id - procesar TODAS las work orders
-            // (igual que WorkShop Report)
+            // Filter by type_planning_id: only process work orders with items matching the concept's type plannings
+            $hasValidTypePlanning = $workOrder->items->whereIn('type_planning_id', $typePlanningIds)->isNotEmpty();
+            if (!$hasValidTypePlanning) {
+              return;
+            }
 
             // Calculate amount with NEGATIVE multiplier for credit note
             // Pasar creditNote como documento y document (factura) como originalDocument para tipo de cambio
@@ -461,24 +485,26 @@ class ObjectiveDashboardService
         }
       }
 
-      // OTs CERRADAS CON NOTA INTERNA SIN FACTURA (igual que InvoicingWorkOrderReportService líneas 150-199)
+      // OTs CERRADAS CON NOTA INTERNA SIN FACTURA
+      // Filtrar por type_planning_id para segmentación de conceptos
       $internalNoteWorkOrders = ApWorkOrder::query()
         ->where('sede_id', $sedeId)
         ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
         ->whereHas('internalNotes', function ($q) {
           $q->whereNotNull('number');
         })
-        ->whereHas('items', function ($q) {
-          $q->whereHas('typePlanning', function ($subQ) {
-            $subQ->whereIn('type_document', [
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::INTERNA_SC,
-              \App\Models\ap\postventa\taller\TypePlanningWorkOrder::INTERNA_CC,
-            ])
-              ->whereNotIn('id', [
-                \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-                \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
-              ]);
-          });
+        ->whereHas('items', function ($q) use ($typePlanningIds) {
+          $q->whereIn('type_planning_id', $typePlanningIds)
+            ->whereHas('typePlanning', function ($subQ) {
+              $subQ->whereIn('type_document', [
+                TypePlanningWorkOrder::INTERNA_SC,
+                TypePlanningWorkOrder::INTERNA_CC,
+              ])
+                ->whereNotIn('id', [
+                  TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+                  TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+                ]);
+            });
         })
         ->whereNotExists(function ($query) {
           $query->select(DB::raw(1))
@@ -927,6 +953,8 @@ class ObjectiveDashboardService
         'total_objective' => $hq['total_objective'],
         'total_progress' => $hq['total_progress'],
         'loose_invoices_progress' => $hq['loose_invoices_progress'] ?? 0,
+        'taller_area_progress' => $hq['taller_area_progress'] ?? 0,
+        'meson_area_progress' => $hq['meson_area_progress'] ?? 0,
         'completion_percentage' => $hq['completion_percentage'],
         'status' => $hq['status'],
         'rank' => $rank++,
@@ -1010,8 +1038,8 @@ class ObjectiveDashboardService
     // Verificar si la OT tiene tipo DERCO_WARRANTY u ODEBRECHT_MAINTENANCE
     $hasInternalNoteWithMassiveInvoice = $workOrder->items->contains(function ($item) {
       return in_array($item->type_planning_id, [
-        \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-        \App\Models\ap\postventa\taller\TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
+        TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
+        TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
       ]);
     });
 
