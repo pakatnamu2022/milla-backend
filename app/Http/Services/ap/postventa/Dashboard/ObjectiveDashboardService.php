@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\ap\postventa\Dashboard;
 
+use App\Http\Services\ap\postventa\Reports\ClosedWorkOrdersService;
 use App\Models\ap\ApMasters;
 use App\Models\ap\facturacion\ElectronicDocument;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -16,6 +17,12 @@ use Illuminate\Support\Facades\DB;
 
 class ObjectiveDashboardService
 {
+  protected ClosedWorkOrdersService $closedWorkOrdersService;
+
+  public function __construct(ClosedWorkOrdersService $closedWorkOrdersService)
+  {
+    $this->closedWorkOrdersService = $closedWorkOrdersService;
+  }
   /**
    * Get consolidated dashboard data for a specific period
    *
@@ -199,99 +206,19 @@ class ObjectiveDashboardService
 
     // Determine calculation method based on concept configuration
     if ($conceptObjective->is_vehicular_crossing) {
-      // PASO VEHICULAR: count CLOSED work orders with vehicle inspection and valid type planning
-      // "Cerrada" = tiene comprobante final válido O nota interna sin factura en el periodo
+      // PASO VEHICULAR: Dos modalidades de conteo usando el servicio centralizado de OTs cerradas
+      // Esto garantiza consistencia con el reporte de work-orders/export
 
-      $workOrderIds = collect();
+      $dateRange = [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')];
 
-      // PARTE 1: OTs con documentos electrónicos finales (SIMPLE y MASIVA)
-      $documents = ElectronicDocument::query()
-        ->with(['workOrder.vehicle.model.family.brand', 'workOrder.items.typePlanning', 'internalNotes.workOrder.vehicle.model.family.brand', 'internalNotes.workOrder.items.typePlanning'])
-        ->where('anulado', false)
-        ->whereIn('status', [ElectronicDocument::STATUS_SENT, ElectronicDocument::STATUS_ACCEPTED])
-        ->where('is_advance_payment', false)
-        ->whereBetween('fecha_de_emision', [$startDate, $endDate])
-        ->where(function ($q) use ($sedeId) {
-          // SIMPLE: work_order_id directo
-          $q->whereHas('workOrder', function ($subQ) use ($sedeId) {
-            $subQ->where('sede_id', $sedeId)
-              ->whereHas('activeVehicleInspectionPivot')
-              ->whereHas('items.typePlanning', function ($itemQ) {
-                $itemQ->where('consider_vehicle_traffic', true);
-              });
-          })
-          // MASSIVE: notas internas facturadas
-          ->orWhereHas('internalNotes', function ($subQ) use ($sedeId) {
-            $subQ->where('status', 'invoiced')
-              ->whereHas('workOrder', function ($woQ) use ($sedeId) {
-                $woQ->where('sede_id', $sedeId)
-                  ->whereHas('activeVehicleInspectionPivot')
-                  ->whereHas('items.typePlanning', function ($itemQ) {
-                    $itemQ->where('consider_vehicle_traffic', true);
-                  });
-              });
-          });
-        })
-        ->get();
+      // Obtener TODAS las OTs cerradas del período usando el servicio centralizado
+      $allClosedWorkOrders = $this->closedWorkOrdersService->getClosedWorkOrders($dateRange, $sedeId);
 
-      // Extraer work_order_ids de documentos
-      foreach ($documents as $document) {
-        // SIMPLE
-        if ($document->workOrder) {
-          $workOrderIds->push($document->workOrder->id);
-        }
-        // MASSIVE
-        if ($document->internalNotes && $document->internalNotes->count() > 0) {
-          foreach ($document->internalNotes as $internalNote) {
-            if ($internalNote->workOrder) {
-              $workOrderIds->push($internalNote->workOrder->id);
-            }
-          }
-        }
-      }
-
-      // PARTE 2: OTs con nota interna SIN factura (INTERNA_SC, INTERNA_CC)
-      $internalNoteWorkOrderIds = ApWorkOrder::query()
-        ->where('sede_id', $sedeId)
-        ->where('status_id', ApMasters::CLOSED_WORK_ORDER_ID)
-        ->whereHas('activeVehicleInspectionPivot')
-        ->whereHas('internalNotes', function ($q) use ($startDate, $endDate) {
-          $q->whereNotNull('number')
-            ->whereBetween('created_date', [$startDate, $endDate]);
-        })
-        ->whereHas('items', function ($q) {
-          $q->whereHas('typePlanning', function ($subQ) {
-            $subQ->where('consider_vehicle_traffic', true)
-              ->whereIn('type_document', [
-                TypePlanningWorkOrder::INTERNA_SC,
-                TypePlanningWorkOrder::INTERNA_CC,
-              ])
-              ->whereNotIn('id', [
-                TypePlanningWorkOrder::TYPE_PLANNING_DERCO_WARRANTY_ID,
-                TypePlanningWorkOrder::TYPE_PLANNING_ODEBRECHT_MAINTENANCE,
-              ]);
-          });
-        })
-        ->whereNotExists(function ($query) {
-          $query->select(DB::raw(1))
-            ->from('ap_billing_electronic_documents')
-            ->whereColumn('ap_billing_electronic_documents.work_order_id', 'ap_work_orders.id')
-            ->where('ap_billing_electronic_documents.anulado', false);
-        })
-        ->whereDoesntHave('internalNotes', function ($q) {
-          $q->whereHas('electronicDocuments');
-        })
-        ->pluck('id');
-
-      $workOrderIds = $workOrderIds->merge($internalNoteWorkOrderIds)->unique();
-
-      // Obtener las OTs cerradas únicas
-      $workOrders = ApWorkOrder::with('vehicle.model.family.brand')
-        ->whereIn('id', $workOrderIds)
-        ->get();
-
-      // Filter work orders to exclude brand_id = 9 and only include is_marketed = 1
-      $validWorkOrders = $workOrders->filter(function ($workOrder) {
+      // ============================================================================
+      // MODO 2: Todas las OTs (con duplicados) sin filtro consider_vehicle_traffic
+      // ============================================================================
+      // Aplicar filtros de marca primero (para ambos modos)
+      $validWorkOrdersM2 = $allClosedWorkOrders->filter(function ($workOrder) {
         $brand = $workOrder->vehicle?->model?->family?->brand;
 
         // Exclude if no brand
@@ -299,7 +226,7 @@ class ObjectiveDashboardService
           return false;
         }
 
-        // Exclude brand_id = 9 even if is_marketed = 1
+        // Exclude brand_id = 9 (JAC Camiones) even if is_marketed = 1
         if ($brand->id == 9) {
           return false;
         }
@@ -308,37 +235,89 @@ class ObjectiveDashboardService
         return $brand->is_marketed;
       });
 
-      // Count unique vehicles only (avoid counting same vehicle multiple times)
-      $uniqueVehicles = $validWorkOrders->unique('vehicle_id');
-      $totalCount = $uniqueVehicles->count();
-      $completionPercentage = $objective > 0 ? round(($totalCount / $objective) * 100, 2) : 0;
+      // MODO 2: Contar TODAS (con duplicados)
+      $totalCountM2 = $validWorkOrdersM2->count();
+      $completionPercentageM2 = $objective > 0 ? round(($totalCountM2 / $objective) * 100, 2) : 0;
 
-      // Group by brand (using unique vehicles)
-      $brandBreakdown = [];
-      foreach ($uniqueVehicles as $workOrder) {
-        $brand = $workOrder->vehicle?->model?->family?->brand;
-        $brandName = $brand->name ?? 'OTRAS MARCAS';
+      // Group by brand (contando todas las OTs, con duplicados)
+      $brandBreakdownM2 = [];
+      foreach ($validWorkOrdersM2 as $workOrder) {
+        $vehicleBrand = $workOrder->vehicle?->model?->family?->brand;
+        $brandName = $vehicleBrand?->name ?? 'OTRAS MARCAS';
 
-        if (!isset($brandBreakdown[$brandName])) {
-          $brandBreakdown[$brandName] = [
+        if (!isset($brandBreakdownM2[$brandName])) {
+          $brandBreakdownM2[$brandName] = [
             'brand_name' => $brandName,
             'count' => 0
           ];
         }
-        $brandBreakdown[$brandName]['count']++;
+        $brandBreakdownM2[$brandName]['count']++;
       }
 
-      // Calculate percentages
-      foreach ($brandBreakdown as &$brand) {
-        $brand['percentage_of_total'] = $totalCount > 0
-          ? round(($brand['count'] / $totalCount) * 100, 2)
+      // Calculate percentages for M2
+      foreach ($brandBreakdownM2 as $brandKey => $brandData) {
+        $brandBreakdownM2[$brandKey]['percentage_of_total'] = $totalCountM2 > 0
+          ? round(($brandData['count'] / $totalCountM2) * 100, 2)
           : 0;
       }
 
-      $result['progress'] = $totalCount;
-      $result['completion_percentage'] = $completionPercentage;
-      $result['status'] = $this->getStatus($completionPercentage);
-      $result['by_brand'] = array_values($brandBreakdown);
+      // ============================================================================
+      // MODO 1: Vehículos únicos con filtro consider_vehicle_traffic
+      // ============================================================================
+      // Filtrar por consider_vehicle_traffic = true
+      $validWorkOrdersM1 = $validWorkOrdersM2->filter(function ($workOrder) {
+        // Una OT se considera "paso vehicular" si tiene al menos un item
+        // con type_planning que tenga consider_vehicle_traffic = true
+        return $workOrder->items->contains(function ($item) {
+          return $item->typePlanning && $item->typePlanning->consider_vehicle_traffic == true;
+        });
+      });
+
+      // MODO 1: Contar vehículos ÚNICOS (sin duplicados)
+      $uniqueVehiclesM1 = $validWorkOrdersM1->unique('vehicle_id');
+      $totalCountM1 = $uniqueVehiclesM1->count();
+      $completionPercentageM1 = $objective > 0 ? round(($totalCountM1 / $objective) * 100, 2) : 0;
+
+      // Group by brand (using unique vehicles)
+      $brandBreakdownM1 = [];
+      foreach ($uniqueVehiclesM1 as $workOrder) {
+        $vehicleBrand = $workOrder->vehicle?->model?->family?->brand;
+        $brandName = $vehicleBrand?->name ?? 'OTRAS MARCAS';
+
+        if (!isset($brandBreakdownM1[$brandName])) {
+          $brandBreakdownM1[$brandName] = [
+            'brand_name' => $brandName,
+            'count' => 0
+          ];
+        }
+        $brandBreakdownM1[$brandName]['count']++;
+      }
+
+      // Calculate percentages for M1
+      foreach ($brandBreakdownM1 as $brandKey => $brandData) {
+        $brandBreakdownM1[$brandKey]['percentage_of_total'] = $totalCountM1 > 0
+          ? round(($brandData['count'] / $totalCountM1) * 100, 2)
+          : 0;
+      }
+
+      // ============================================================================
+      // Agregar ambos modos al resultado
+      // ============================================================================
+      $result['progress_m1'] = $totalCountM1;
+      $result['completion_percentage_m1'] = $completionPercentageM1;
+      $result['status_m1'] = $this->getStatus($completionPercentageM1);
+      $result['by_brand_m1'] = array_values($brandBreakdownM1);
+
+      $result['progress_m2'] = $totalCountM2;
+      $result['completion_percentage_m2'] = $completionPercentageM2;
+      $result['status_m2'] = $this->getStatus($completionPercentageM2);
+      $result['by_brand_m2'] = array_values($brandBreakdownM2);
+
+      // Mantener compatibilidad con versión anterior (usar MODO 1 como default)
+      $result['progress'] = $totalCountM1;
+      $result['completion_percentage'] = $completionPercentageM1;
+      $result['status'] = $this->getStatus($completionPercentageM1);
+      $result['by_brand'] = array_values($brandBreakdownM1);
     } elseif ($conceptObjective->area_id == ApMasters::AREA_TALLER) {
       // TALLER: calculate billing from work orders with specific type_planning_ids
       $typePlanningIds = $conceptObjective->typePlannings->pluck('id')->toArray();
