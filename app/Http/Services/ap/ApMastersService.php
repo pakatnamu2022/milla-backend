@@ -15,6 +15,23 @@ class ApMastersService extends BaseService implements BaseServiceInterface
 {
   public function list(Request $request)
   {
+    // Los listados completos (all=true) son catálogos que casi no cambian y se piden miles de
+    // veces por hora: se cachean y se invalidan al crear/editar/eliminar (ver ApMasters::booted)
+    if ($request->query('all') === 'true') {
+      $params = $request->query();
+      ksort($params);
+      $version = Cache::get(ApMasters::LIST_CACHE_VERSION_KEY, '0');
+      $key = 'ap_masters:list:' . $version . ':' . md5(json_encode($params));
+
+      $data = Cache::remember($key, now()->addHour(), fn() => $this->getFilteredList($request)->getData(true));
+      return response()->json($data);
+    }
+
+    return $this->getFilteredList($request);
+  }
+
+  private function getFilteredList(Request $request)
+  {
     return $this->getFilteredResults(
       ApMasters::class,
       $request,
@@ -37,9 +54,6 @@ class ApMastersService extends BaseService implements BaseServiceInterface
   {
     $ApCommercialMasters = ApMasters::create($data);
 
-    // Limpiar el cache de tipos cuando se crea un registro
-    Cache::forget('commercial_masters_types');
-
     return new ApMastersResource($ApCommercialMasters);
   }
 
@@ -54,9 +68,6 @@ class ApMastersService extends BaseService implements BaseServiceInterface
     
     $ApCommercialMasters->update($data);
 
-    // Limpiar el cache de tipos cuando se actualiza un registro
-    Cache::forget('commercial_masters_types');
-
     return new ApMastersResource($ApCommercialMasters);
   }
 
@@ -66,9 +77,6 @@ class ApMastersService extends BaseService implements BaseServiceInterface
     DB::transaction(function () use ($ApCommercialMasters) {
       $ApCommercialMasters->delete();
     });
-
-    // Limpiar el cache de tipos cuando se elimina un registro
-    Cache::forget('commercial_masters_types');
 
     return response()->json(['message' => 'Concepto de tabla maestra eliminado correctamente']);
   }

@@ -27,6 +27,7 @@ use App\Models\ap\facturacion\ApInternalNote;
 use App\Models\ap\configuracionComercial\vehiculo\ApVehicleStatus;
 use App\Models\ap\configuracionComercial\venta\ApAccountingAccountPlan;
 use App\Models\ap\facturacion\ElectronicDocument;
+use App\Models\ap\facturacion\ElectronicDocumentCancellation;
 use App\Models\ap\facturacion\ElectronicDocumentItem;
 use App\Models\ap\maestroGeneral\AssignSalesSeries;
 use App\Models\ap\maestroGeneral\TypeCurrency;
@@ -1469,8 +1470,12 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
       // Verificar si el documento fue anulado en Nubefact
       if (isset($nubefactData['anulado']) && $nubefactData['anulado'] === true) {
         // Si el documento no está marcado como cancelado en nuestra BD, actualizarlo
-        if ($document->status !== ElectronicDocument::STATUS_CANCELLED || !$document->anulado) {
+        // Si ya se anuló desde el sistema (status cancelled), la reversión ya se hizo: solo confirmar anulado.
+        if ($document->status !== ElectronicDocument::STATUS_CANCELLED) {
           $this->revertVehicleStatusOnCancellation($document);
+          $document->markAsLocalCancelled();
+        }
+        if (!$document->anulado) {
           $document->markAsCancelled();
         }
       }
@@ -1495,27 +1500,69 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
   /**
    * Cancel document in Nubefact (Comunicación de baja)
+   *
+   * Orden:
+   *  1. Valida en Dynamics (solo lectura) que esté anulado, ANTES de tocar Nubefact.
+   *  2. Consulta si ya existe una comunicación de baja en Nubefact (no se reenvía).
+   *  3. Si no existe, la genera y valida la respuesta: si Nubefact la rechaza, no se toca nada local.
+   *  4. Aplica los cambios locales (estado, reversiones de inventario/vehículo).
+   * Cada operación con Nubefact queda registrada en ap_billing_electronic_document_cancellations.
+   * anulado/cancelled_at solo se marcan cuando SUNAT acepta la baja (aquí o luego en syncCancellationFromNubefact).
    * @throws Exception
    */
   public function cancelInNubefact($id, string $reason, bool $willReinvoice = false): JsonResponse
   {
+    $document = $this->find($id);
+
+    if (!$document->aceptada_por_sunat) {
+      throw new Exception('Error al anular el documento: Solo se pueden anular documentos aceptados por SUNAT');
+    }
+
+    if ($document->anulado) {
+      throw new Exception('Error al anular el documento: El documento ya está anulado');
+    }
+
+    // 1. Estado en Dynamics (antes de enviar nada a Nubefact)
+    [$isAnnulledInDynamics, $isAccountedInDynamics] = $this->getDynamicsAnnulmentState($document);
+
+    if (!$isAnnulledInDynamics) {
+      Log::error('Intento de anulación de documento NO anulado en Dynamics', [
+        'document_id' => $document->id,
+        'full_number' => $document->full_number,
+        'is_accounted_dynamics' => $isAccountedInDynamics,
+      ]);
+
+      throw new Exception(
+        'Error al anular el documento: No se puede anular un documento que no está anulado en Dynamics. ' .
+        'Documento: ' . $document->full_number . '. ' .
+        'Verifique el estado en Dynamics antes de intentar la anulación.'
+      );
+    }
+
+    // 2. ¿Ya existe una comunicación de baja en Nubefact? Si existe, no se reenvía.
+    //    Una baja rechazada por SUNAT (código de respuesta distinto de 0 o error SOAP) no cuenta: se genera otra.
+    $response = $this->nubefactService->queryCancellation($document);
+    $existingCancellation = $response['success']
+      && empty($response['data']['sunat_soap_error'])
+      && in_array((string)($response['data']['sunat_responsecode'] ?? ''), ['', '0'], true);
+    $this->recordCancellation($document, ElectronicDocumentCancellation::OPERATION_QUERY, $response, $reason);
+
+    // 3. Generar la baja si no existe
+    if (!$existingCancellation) {
+      $response = $this->nubefactService->cancelDocument($document, $reason);
+      $this->recordCancellation($document, ElectronicDocumentCancellation::OPERATION_GENERATE, $response, $reason);
+
+      if (!$response['success']) {
+        throw new Exception('Error al anular el documento: Nubefact rechazó la comunicación de baja: ' . $response['error']);
+      }
+    }
+
+    $acceptedBySunat = ($response['data']['aceptada_por_sunat'] ?? false) === true;
+
+    // 4. Cambios locales
     DB::beginTransaction();
     try {
-      $document = $this->find($id);
-
-      // Validar que el documento esté aceptado
-      if (!$document->aceptada_por_sunat) {
-        throw new Exception('Solo se pueden anular documentos aceptados por SUNAT');
-      }
-
-      if ($document->anulado) {
-        throw new Exception('El documento ya está anulado');
-      }
-
-      // Enviar anulación a Nubefact
-      $response = $this->nubefactService->cancelDocument($document, $reason);
-
-      // Marcar como cancelado
+      // Marcar como cancelado (anulado=1 solo cuando SUNAT acepte la baja)
       $document->markAsLocalCancelled($reason);
 
       // Liberar OTs de facturas consolidadas masivas
@@ -1551,36 +1598,6 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
 
       // Revertir estado del vehículo si es documento de venta comercial
       $this->revertVehicleStatusOnCancellation($document);
-
-      // Consultar Dynamics para determinar si está anulado y contabilizado
-      $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
-        ->table('SOP30200')
-        ->where('SOPNUMBE', $document->full_number)
-        ->first();
-
-      $isAnnulledInDynamics = false;
-      $isAccountedInDynamics = false;
-
-      if ($sopRecord) {
-        $isAnnulledInDynamics = $sopRecord->VOIDSTTS == "1";
-
-        // Verificar si está contabilizado consultando RM20101
-        $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
-          ->table('RM20101')
-          ->where('DOCNUMBR', $document->full_number)
-          ->whereNot('RMDTYPAL', '9')
-          ->first();
-
-        if ($rmRecord) {
-          // Si existe en RM20101, está contabilizado
-          $isAccountedInDynamics = true;
-
-          // Si no estaba marcado como anulado en SOP30200, verificar en RM20101
-          if (!$isAnnulledInDynamics) {
-            $isAnnulledInDynamics = $rmRecord->VOIDSTTS == "1";
-          }
-        }
-      }
 
       // CASO 1: ANULADO + CONTABILIZADO → NO descuentas nada
       if ($isAnnulledInDynamics && $isAccountedInDynamics) {
@@ -1679,34 +1696,164 @@ class ElectronicDocumentService extends BaseService implements BaseServiceInterf
             }
           }
         }
-      } // CASO 3: NO ANULADO → Error de seguridad, no debería llegar aquí
-      else {
-        Log::error('Intento de anulación de documento NO anulado en Dynamics', [
-          'document_id' => $document->id,
-          'full_number' => $document->full_number,
-          'is_annulled_dynamics' => $isAnnulledInDynamics,
-          'is_accounted_dynamics' => $isAccountedInDynamics,
-        ]);
+      }
 
-        throw new Exception(
-          'No se puede anular un documento que no está anulado en Dynamics. ' .
-          'Documento: ' . $document->full_number . '. ' .
-          'Verifique el estado en Dynamics antes de intentar la anulación.'
-        );
+      if ($acceptedBySunat) {
+        $document->markAsCancelled();
       }
 
       DB::commit();
 
       return response()->json([
         'success' => true,
-        'message' => 'Documento anulado correctamente en SUNAT',
+        'message' => $acceptedBySunat
+          ? 'Documento anulado correctamente en SUNAT'
+          : 'Comunicación de baja enviada a Nubefact. Pendiente de aceptación por SUNAT (ticket ' . ($response['data']['sunat_ticket_numero'] ?? '-') . ')',
         'data' => new ElectronicDocumentResource($document->fresh()),
-        'sunat_response' => $response
+        'sunat_response' => $response['data'],
       ]);
     } catch (Exception $e) {
       DB::rollBack();
-      throw new Exception('Error al anular el documento: ' . $e->getMessage());
+      throw new Exception(
+        'Error al anular el documento: la comunicación de baja se registró en Nubefact pero falló la actualización local. ' .
+        'Reintente la anulación (no se reenviará la baja). Detalle: ' . $e->getMessage()
+      );
     }
+  }
+
+  /**
+   * Consulta la comunicación de baja en Nubefact (consultar_anulacion) y, si SUNAT la aceptó,
+   * marca el documento como anulado.
+   * @param bool $recordNotFound Registrar también la respuesta "no existe baja" (codigo 24).
+   *                             El job lo pasa en false para no llenar la tabla en cada ejecución.
+   * @throws Exception
+   */
+  public function syncCancellationFromNubefact($id, bool $recordNotFound = true): array
+  {
+    $document = $this->find($id);
+
+    $response = $this->nubefactService->queryCancellation($document);
+    $this->recordCancellation($document, ElectronicDocumentCancellation::OPERATION_QUERY, $response, null, $recordNotFound);
+
+    $acceptedBySunat = $response['success'] && ($response['data']['aceptada_por_sunat'] ?? false) === true;
+
+    if ($acceptedBySunat && !$document->anulado) {
+      $document->markAsCancelled();
+    }
+
+    return [
+      'exists' => $response['success'],
+      'aceptada_por_sunat' => $acceptedBySunat,
+      'error' => $response['error'],
+      'sunat_response' => $response['data'],
+    ];
+  }
+
+  /**
+   * Historial de comunicaciones de baja del documento.
+   */
+  public function getCancellations($id): array
+  {
+    $document = $this->find($id);
+
+    return ElectronicDocumentCancellation::with('user:id,name')
+      ->where('ap_billing_electronic_document_id', $document->id)
+      ->orderByDesc('updated_at')
+      ->orderByDesc('id')
+      ->get()
+      ->map(fn(ElectronicDocumentCancellation $c) => [
+        'id' => $c->id,
+        'operation' => $c->operation,
+        'motivo' => $c->motivo,
+        'codigo_unico' => $c->codigo_unico,
+        'success' => $c->success,
+        'http_status_code' => $c->http_status_code,
+        'error_code' => $c->error_code,
+        'error_message' => $c->error_message,
+        'numero' => $c->numero,
+        'enlace' => $c->enlace,
+        'sunat_ticket_numero' => $c->sunat_ticket_numero,
+        'aceptada_por_sunat' => $c->aceptada_por_sunat,
+        'sunat_description' => $c->sunat_description,
+        'sunat_note' => $c->sunat_note,
+        'sunat_responsecode' => $c->sunat_responsecode,
+        'sunat_soap_error' => $c->sunat_soap_error,
+        'enlace_del_pdf' => $c->enlace_del_pdf,
+        'enlace_del_xml' => $c->enlace_del_xml,
+        'enlace_del_cdr' => $c->enlace_del_cdr,
+        'user_name' => $c->user?->name,
+        'created_at' => $c->created_at?->toDateTimeString(),
+        'updated_at' => $c->updated_at?->toDateTimeString(),
+      ])
+      ->all();
+  }
+
+  /**
+   * Registra una operación de baja. Las consultas "no existe baja" (codigo 24) se registran
+   * solo si $recordNotFound es true.
+   */
+  private function recordCancellation(
+    ElectronicDocument $document,
+    string $operation,
+    array $response,
+    ?string $reason = null,
+    bool $recordNotFound = false
+  ): void {
+    $isNotFound = $operation === ElectronicDocumentCancellation::OPERATION_QUERY
+      && !$response['success']
+      && (int)($response['data']['codigo'] ?? 0) === ElectronicDocumentCancellation::ERROR_CODE_NOT_FOUND;
+
+    if ($isNotFound && !$recordNotFound) {
+      return;
+    }
+
+    try {
+      ElectronicDocumentCancellation::fromNubefactResult($document, $operation, $response, $reason);
+    } catch (Throwable $e) {
+      Log::error('Error al registrar comunicación de baja', [
+        'document_id' => $document->id,
+        'operation' => $operation,
+        'error' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
+   * Estado de anulación/contabilización del documento en Dynamics (SOP30200 + RM20101).
+   * @return array{0: bool, 1: bool} [isAnnulled, isAccounted]
+   */
+  private function getDynamicsAnnulmentState(ElectronicDocument $document): array
+  {
+    $sopRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
+      ->table('SOP30200')
+      ->where('SOPNUMBE', $document->full_number)
+      ->first();
+
+    $isAnnulledInDynamics = false;
+    $isAccountedInDynamics = false;
+
+    if ($sopRecord) {
+      $isAnnulledInDynamics = $sopRecord->VOIDSTTS == "1";
+
+      // Verificar si está contabilizado consultando RM20101
+      $rmRecord = DB::connection(Company::CONNECTION_DYNAMICS_3)
+        ->table('RM20101')
+        ->where('DOCNUMBR', $document->full_number)
+        ->whereNot('RMDTYPAL', '9')
+        ->first();
+
+      if ($rmRecord) {
+        // Si existe en RM20101, está contabilizado
+        $isAccountedInDynamics = true;
+
+        // Si no estaba marcado como anulado en SOP30200, verificar en RM20101
+        if (!$isAnnulledInDynamics) {
+          $isAnnulledInDynamics = $rmRecord->VOIDSTTS == "1";
+        }
+      }
+    }
+
+    return [$isAnnulledInDynamics, $isAccountedInDynamics];
   }
 
   /**

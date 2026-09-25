@@ -22,10 +22,11 @@ class UpdateScrumProjectRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'        => 'sometimes|string|max:100',
-            'description' => 'nullable|string|max:500',
-            'color'       => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'status'      => 'nullable|in:activo,archivado',
+            'name'         => 'sometimes|string|max:100',
+            'description'  => 'nullable|string|max:500',
+            'color'        => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'status'       => 'nullable|in:activo,archivado',
+            'hourly_cost'  => 'nullable|numeric|min:0|max:9999.99',
         ];
     }
 }

@@ -7,6 +7,7 @@ use App\Models\BaseModel;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class ApMasters extends BaseModel
@@ -38,6 +39,23 @@ class ApMasters extends BaseModel
     'status',
     'type',
   ];
+
+  // Versión del cache de listados; al cambiarla, todas las entradas anteriores quedan obsoletas
+  const string LIST_CACHE_VERSION_KEY = 'ap_masters:list_version';
+
+  protected static function booted(): void
+  {
+    // Invalidar en cualquier escritura vía Eloquent (servicios, tiendas, imports de colores, etc.)
+    static::saved(fn() => static::flushCache());
+    static::deleted(fn() => static::flushCache());
+    static::restored(fn() => static::flushCache());
+  }
+
+  public static function flushCache(): void
+  {
+    Cache::forget('commercial_masters_types');
+    Cache::forever(self::LIST_CACHE_VERSION_KEY, (string) Str::uuid());
+  }
   // CATEGORIA_PRODUCTO
   const int LUBRICANTE_ID = 902;
 

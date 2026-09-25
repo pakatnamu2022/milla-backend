@@ -218,6 +218,30 @@ class ElectronicDocumentController extends Controller
   }
 
   /**
+   * Consultar la comunicación de baja en Nubefact (consultar_anulacion)
+   */
+  public function queryCancellationInNubefact($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->syncCancellationFromNubefact($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Historial de comunicaciones de baja del documento
+   */
+  public function cancellations($id): JsonResponse
+  {
+    try {
+      return $this->success($this->service->getCancellations($id));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
    * Pre-cancel document in Nubefact (Comunicación de baja)
    * @param $id
    * @return JsonResponse

@@ -65,8 +65,14 @@ class CheckElectronicDocumentStatusJob implements ShouldQueue
         return;
       }
 
-      // Consultar estado en Nubefact (esto ya actualiza el documento automáticamente)
-      $service->queryFromNubefact($this->documentId);
+      if ($document->status == ElectronicDocument::STATUS_CANCELLED) {
+        // Anulación en proceso: consultar la comunicación de baja (consultar_anulacion).
+        // Solo se marca anulado cuando SUNAT la acepta. Las respuestas "no existe baja" no se registran.
+        $service->syncCancellationFromNubefact($this->documentId, false);
+      } else {
+        // Consultar estado en Nubefact (esto ya actualiza el documento automáticamente)
+        $service->queryFromNubefact($this->documentId);
+      }
 
       Log::info("CheckElectronicDocumentStatusJob: Document status checked successfully", [
         'document_id' => $this->documentId,
