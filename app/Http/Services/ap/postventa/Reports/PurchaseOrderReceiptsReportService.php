@@ -63,6 +63,7 @@ class PurchaseOrderReceiptsReportService
     // Moneda original del documento
     $monedaOriginal = $document->currency?->description ?? '';
     $currencyId = $document->sunat_concept_currency_id;
+    $total_gravada = $document->total_gravada ?? 0;
     $total = $document->total ?? 0;
 
     // Si convertAll = true, convertir montos según la moneda objetivo
@@ -80,6 +81,7 @@ class PurchaseOrderReceiptsReportService
         if ($currencyId === $CURRENCY_USD) {
           // USD -> PEN: multiplicar por tipo de cambio
           $total = $total * $exchangeRate;
+          $total_gravada = $total_gravada * $exchangeRate;
         }
         // Si ya está en PEN, no hacer nada
         $moneda = 'PEN';
@@ -88,6 +90,7 @@ class PurchaseOrderReceiptsReportService
         if ($currencyId === $CURRENCY_PEN) {
           // PEN -> USD: dividir por tipo de cambio del día
           if ($exchangeRate > 0) {
+            $total_gravada = $total_gravada / $exchangeRate;
             $total = $total / $exchangeRate;
           }
         }
@@ -101,6 +104,10 @@ class PurchaseOrderReceiptsReportService
       // Comportamiento original: mantener moneda del documento
       $moneda = $monedaOriginal;
     }
+    if ($document->sunat_concept_document_type_id === ElectronicDocument::TYPE_NOTA_CREDITO) {
+      $total_gravada = -$total_gravada;
+      $total = -$total;
+    }
 
     return [
       'sede' => $document->seriesModel?->sede?->abreviatura ?? '',
@@ -110,6 +117,7 @@ class PurchaseOrderReceiptsReportService
       'descripcion' => $descripcion,
       'serie' => $document->serie ?? '',
       'numero' => $document->numero ?? '',
+      'total_gravada' => number_format($total_gravada, 2, '.', ''),
       'total' => number_format($total, 2, '.', ''),
       'moneda' => $moneda,
     ];
@@ -126,6 +134,8 @@ class PurchaseOrderReceiptsReportService
     return match ($documentTypeId) {
       29 => 'FACTURA',
       30 => 'BOLETA',
+      31 => 'NOTA DE CRÉDITO',
+      32 => 'NOTA DE DÉBITO',
       default => '',
     };
   }
