@@ -31,11 +31,19 @@ use Illuminate\Support\Facades\DB;
 // arranca su propia fase de Pruebas (en paralelo con el desarrollo de la
 // siguiente historia, aunque ambas caigan en el mismo sprint).
 //
-// Esa dependencia queda registrada explícitamente con `predecessor_id`:
-// - La tarea "Pruebas" de una historia tiene como predecesora la tarea
-//   "Análisis y Desarrollo" de la MISMA historia.
-// - La tarea "Análisis y Desarrollo" de una historia tiene como predecesora
-//   la de la historia anterior en el mes (cadena de desarrollo).
+// Esa dependencia queda registrada explícitamente con `predecessor_id`, y
+// SIEMPRE entre items del mismo tipo Y del mismo dominio (el backend lo
+// valida en Store/UpdateScrumItemRequest):
+// - Entre tareas: solo se linkean tareas de la MISMA historia (mismo
+//   parent_id). Una tarea nunca es predecesora de una tarea de OTRA
+//   historia. Por eso la tarea "Pruebas" tiene como predecesora la tarea
+//   "Análisis y Desarrollo" de esa misma historia, y la tarea "Análisis y
+//   Desarrollo" no tiene predecesora (es la primera tarea de su historia).
+// - Entre historias: cada historia tiene como predecesora a la historia
+//   anterior en el orden de prioridad de gerencia (cadena historia-con-
+//   historia), para que el Gantt dibuje la flecha de dependencia también a
+//   nivel macro. El escalonamiento real de fechas entre historias (cada una
+//   empieza donde termina la anterior) es solo temporal, no de dependencia.
 // Con eso, si se edita la fecha fin de una tarea, ScrumItemService::update()
 // desplaza en cascada a sus sucesoras la misma cantidad de días (ver
 // cascadeDueDateShift). El Gantt además calcula el inicio visual de cada
@@ -141,6 +149,14 @@ class MejoraProcesosApSeeder extends Seeder
   // subirlo lo acorta.
   private const HOURS_PER_DAY = 6.5;
 
+  // Rango de fechas que NO cuentan como día hábil para este seed puntual
+  // (p.ej. cierre/feriado de la empresa), además del domingo. Es una
+  // excepción propia del cronograma sembrado, no una regla permanente: el
+  // frontend (workingHours.ts) sigue sin conocerla, así que si más adelante
+  // se edita a mano una tarea que cae en este rango, el cálculo de "Días" ya
+  // no la excluye.
+  private const EXCLUDED_DATES = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05'];
+
   // [mes|null, título, fecha límite original|null, prioridad, responsable original, etiqueta corta, categoría]
   // La etiqueta corta identifica la historia de un vistazo en listas planas
   // (Kanban/Lista) donde el EDT repite "Análisis y Desarrollo"/"Pruebas" 47
@@ -150,21 +166,21 @@ class MejoraProcesosApSeeder extends Seeder
   private const HISTORIAS = [
     ['2026-09', 'Implementar usuario para Agendamiento de Citas a Vigilante', '2026-09-30', 'alta', 'TICS', 'Agendamiento Vigilante', 'recepcion'],
     ['2026-09', 'Implementar reporte de facturación que incluya Anticipos y Rebates de Derco', '2026-09-30', 'alta', 'TICS + COMERCIAL', 'Reporte Facturación Derco', 'reportes'],
-    ['2026-10', 'Implementar IA para comprobación de teléfono e e-mail', '2026-10-31', 'alta', 'TICS', 'IA Verificación Contacto', 'recepcion'],
+    ['2027-03', 'Implementar IA para comprobación de teléfono e e-mail', '2026-10-31', 'alta', 'TICS', 'IA Verificación Contacto', 'recepcion'],
     ['2026-10', 'Dashboard de Performance por Técnico mecánico: Cerradas / En curso / En pausa', '2026-10-31', 'alta', 'TICS', 'Dashboard Técnico', 'taller'],
     ['2026-10', 'Dashboard de Performance del VAT (Vehículo de Asistencia Técnica)', '2026-10-31', 'alta', 'TICS', 'Dashboard VAT', 'taller'],
     ['2026-10', 'Incorporar en el dashboard los vehículos que regresan por el mismo error < 30 días', '2026-10-31', 'alta', 'TICS', 'Dashboard Reincidencias', 'taller'],
     ['2026-10', 'Implementar Reporte de Errores en email y teléfonos', '2026-10-31', 'alta', 'TICS', 'Reporte Errores Contacto', 'reportes'],
     ['2026-10', 'Implementar historial del cliente + vehículo', '2026-10-15', 'alta', 'TICS', 'Historial Cliente-Vehículo', 'recepcion'],
-    ['2026-11', 'Implementar Protocolo de SMS y/o WA al cliente (apertura de OT)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Apertura OT', 'recepcion'],
-    ['2026-11', 'Implementar Protocolo de SMS y/o WA al cliente (trabajo de OT)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Trabajo OT', 'taller'],
-    ['2026-11', 'Implementar Protocolo de SMS y/o WA al cliente (control de calidad)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Control Calidad', 'taller'],
-    ['2026-11', 'Implementar Protocolo de SMS y/o WA al asesor a fin de preparar la salida del vehículo', '2026-11-30', 'alta', 'TICS', 'SMS/WA Salida Vehículo', 'entrega'],
+    ['2027-03', 'Implementar Protocolo de SMS y/o WA al cliente (apertura de OT)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Apertura OT', 'recepcion'],
+    ['2027-03', 'Implementar Protocolo de SMS y/o WA al cliente (trabajo de OT)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Trabajo OT', 'taller'],
+    ['2027-03', 'Implementar Protocolo de SMS y/o WA al cliente (control de calidad)', '2026-11-30', 'alta', 'TICS', 'SMS/WA Control Calidad', 'taller'],
+    ['2027-03', 'Implementar Protocolo de SMS y/o WA al asesor a fin de preparar la salida del vehículo', '2026-11-30', 'alta', 'TICS', 'SMS/WA Salida Vehículo', 'entrega'],
     ['2026-11', 'Implementar modificación de campos errados según especificación de Inchcape', '2026-11-30', 'alta', 'TICS', 'Campos Inchcape', 'back_office'],
     ['2026-11', 'Implementar Reportes por Sede en archivos independientes', '2026-11-30', 'alta', 'TICS', 'Reportes por Sede', 'reportes'],
-    ['2026-11', 'Implementar reporte sell out con el número de clientes', '2026-11-30', 'alta', 'TICS', 'Reporte Sell Out', 'reportes'],
-    ['2026-11', 'Implementar Reporte de Anticipos abiertos con fechas de OT y fecha del anticipo', '2026-11-30', 'alta', 'TICS', 'Reporte Anticipos Abiertos', 'reportes'],
-    ['2026-11', 'Implementar reporte OT abiertas que no pagadas', '2026-11-30', 'alta', 'TICS', 'Reporte OT No Pagadas', 'reportes'],
+    ['2026-09', 'Implementar reporte sell out con el número de clientes', '2026-11-30', 'alta', 'TICS', 'Reporte Sell Out', 'reportes'],
+    ['2026-09', 'Implementar Reporte de Anticipos abiertos con fechas de OT y fecha del anticipo', '2026-11-30', 'alta', 'TICS', 'Reporte Anticipos Abiertos', 'reportes'],
+    ['2026-09', 'Implementar reporte OT abiertas que no pagadas', '2026-11-30', 'alta', 'TICS', 'Reporte OT No Pagadas', 'reportes'],
     ['2026-12', 'Implementar DASHBOARD de capacidad del Taller (todos los procesos)', '2026-12-31', 'media', 'TICS', 'Dashboard Capacidad Taller', 'taller'],
     ['2026-12', 'Implementar DASHBOARD de performance por Posición', '2026-12-31', 'media', 'TICS', 'Dashboard por Posición', 'taller'],
     ['2027-02', 'Implementar integración de facturas por pagar con IA', '2027-02-28', 'media', 'TICS', 'IA Facturas por Pagar', 'back_office'],
@@ -296,7 +312,7 @@ class MejoraProcesosApSeeder extends Seeder
     ],
     'Historial Cliente-Vehículo' => [
       'objetivo' => 'Que el asesor vea de un vistazo el historial completo de un cliente y de su vehículo (visitas, servicios, reclamos) al momento de atenderlo.',
-      'alcance' => 'Panel en la ficha de OT/cliente con línea de tiempo: OT anteriores, servicios realizados, reclamos y notas relevantes.',
+      'alcance' => 'Panel en la ficha de OT/cliente con línea de tiempo: OT anteriores, servicios realizados, reclamos y notas relevantes. Vista tipo mapa conceptual: cabecera del VIN con las sedes donde el vehículo ha tenido mantenimientos; al hacer clic en una sede se muestra lo que se realizó ahí con toda la información posible. Incluye un campo de descargos del técnico (ej. "el carro está para cambiar pastillas de freno y el cliente no desea en ese momento").',
       'consideraciones' => [
         'Definir el volumen de histórico a mostrar (todo o últimos N años).',
         'Cuidar la performance de la consulta para clientes con muchas visitas.',
@@ -309,7 +325,7 @@ class MejoraProcesosApSeeder extends Seeder
     ],
     'SMS/WA Apertura OT' => [
       'objetivo' => 'Confirmar automáticamente al cliente por SMS/WhatsApp que su OT fue abierta, con el detalle básico (N° OT, fecha estimada).',
-      'alcance' => 'Envío automático al crear la OT, usando el/los canal(es) disponibles (WhatsApp Business API y/o SMS), con plantilla de mensaje.',
+      'alcance' => 'Envío automático al crear la OT, usando el/los canal(es) disponibles (WhatsApp Business API y/o SMS), con plantilla de mensaje. El asesor es quien se comunica con el cliente (el mensaje automático no reemplaza ese contacto directo, lo complementa).',
       'consideraciones' => [
         'Confirmar el proveedor/API de WhatsApp Business ya contratado o a contratar.',
         'Definir la plantilla y si requiere aprobación de Meta.',
@@ -384,6 +400,7 @@ class MejoraProcesosApSeeder extends Seeder
       'alcance' => 'Reporte con total de sell out por periodo/sede y columna adicional de número de clientes únicos atendidos.',
       'consideraciones' => [
         'Definir con Comercial la fuente exacta de "sell out" (ventas de repuestos, servicios, o ambos).',
+        'Coordinar el formato del reporte con el área que lo va a consumir.',
       ],
       'pruebas' => [
         'Validar el conteo de clientes únicos contra una consulta manual de un periodo pequeño.',
@@ -720,7 +737,7 @@ class MejoraProcesosApSeeder extends Seeder
     ],
     'Registro Automático Salida' => [
       'objetivo' => 'Reemplazar el cuaderno físico donde hoy se anota la salida del vehículo del taller/patio por un registro automático vía QR/barcode.',
-      'alcance' => 'Escaneo del QR/barcode de la OT (ver [[QR/Barcode OT]]) al momento de la salida física, registrando automáticamente fecha/hora y responsable.',
+      'alcance' => 'Escaneo del QR/barcode de la OT (ver [[QR/Barcode OT]]) al momento de la salida física, registrando automáticamente fecha/hora y responsable. Debe registrar todos los movimientos de ingreso y salida (no solo la salida final), y también la confirmación de César Orbegoso.',
       'consideraciones' => [
         'Reutilizar el código QR generado en [[QR/Barcode OT]] en vez de crear uno nuevo, para mantener un solo código por OT en todo el flujo.',
       ],
@@ -823,7 +840,7 @@ class MejoraProcesosApSeeder extends Seeder
     // seeder, no en una fecha fija: al día de hoy nada del proyecto se ha
     // empezado, así que no tiene sentido "seedear" trabajo en el pasado.
     $cursor = $today->copy()->next(Carbon::MONDAY);
-    $previousTaskId = null;
+    $previousHistoriaId = null;
     $sprintsByMonth = [];
     $order = 0;
 
@@ -856,6 +873,7 @@ class MejoraProcesosApSeeder extends Seeder
       $historia = ScrumItem::create([
         'project_id' => $project->id,
         'sprint_id' => $devSprint->id,
+        'predecessor_id' => $previousHistoriaId, // cadena historia-con-historia, en el mismo orden de prioridad de gerencia
         'type' => 'historia',
         'title' => $title,
         'description' => $this->historiaDescription($shortLabel, $resp),
@@ -869,12 +887,12 @@ class MejoraProcesosApSeeder extends Seeder
         'closed_at' => $historiaStatus === 'hecho' ? now() : null,
       ]);
       $historia->tags()->attach($tagIds[$category]);
+      $previousHistoriaId = $historia->id;
 
       $devTask = ScrumItem::create([
         'project_id' => $project->id,
         'sprint_id' => $devSprint->id,
         'parent_id' => $historia->id,
-        'predecessor_id' => $previousTaskId, // cadena única y serial: nunca 2 tareas al mismo tiempo (1 solo dev)
         'type' => 'tarea',
         'title' => "[{$shortLabel}] Análisis y Desarrollo",
         'description' => $this->analisisDescription($shortLabel, $title),
@@ -909,8 +927,6 @@ class MejoraProcesosApSeeder extends Seeder
         'closed_at' => $historiaStatus === 'hecho' ? now() : null,
       ]);
       $testTask->tags()->attach($tagIds[$category]);
-
-      $previousTaskId = $testTask->id;
     }
 
     // Historias SIN_DEFINIR: historia + EDT (Análisis y Desarrollo, Pruebas)
@@ -1042,11 +1058,16 @@ class MejoraProcesosApSeeder extends Seeder
   }
 
   // Adelanta $date hasta el próximo día hábil (incluido el propio $date si
-  // ya lo es). Un dev no trabaja fines de semana.
+  // ya lo es). Solo el domingo no es laborable (sábado sí, a capacidad
+  // reducida) -- debe calzar exactamente con workingHours.ts del frontend,
+  // que es la fuente de verdad para duración/encadenado de fechas ahí. Antes
+  // esto usaba Carbon::isWeekend() (sábado Y domingo), lo que generaba un
+  // día de hueco de más en cada tarea/historia frente a lo que el Gantt
+  // calcula y muestra.
   private function nextWorkday(Carbon $date): Carbon
   {
     $d = $date->copy();
-    while ($d->isWeekend()) {
+    while ($d->isSunday() || $this->isExcludedDate($d)) {
       $d->addDay();
     }
 
@@ -1055,19 +1076,25 @@ class MejoraProcesosApSeeder extends Seeder
 
   // Devuelve la fecha que resulta de sumarle $workdaysToAdd días HÁBILES a
   // $start (que debe ser ya un día hábil). 0 devuelve $start tal cual (tarea
-  // de 1 sola jornada).
+  // de 1 sola jornada). Solo salta domingos y self::EXCLUDED_DATES, igual
+  // que nextWorkday().
   private function addWorkdays(Carbon $start, int $workdaysToAdd): Carbon
   {
     $d = $start->copy();
     $remaining = $workdaysToAdd;
     while ($remaining > 0) {
       $d->addDay();
-      if (!$d->isWeekend()) {
+      if (!$d->isSunday() && !$this->isExcludedDate($d)) {
         $remaining--;
       }
     }
 
     return $d;
+  }
+
+  private function isExcludedDate(Carbon $date): bool
+  {
+    return in_array($date->format('Y-m-d'), self::EXCLUDED_DATES, true);
   }
 
   // Sprint mensual "Desarrollo - {mes}" get-or-create, indexado por 'Y-m'.

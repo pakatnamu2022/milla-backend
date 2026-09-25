@@ -159,12 +159,16 @@ class NubefactApiService
   }
 
   /**
-   * Anula un comprobante electrónico
+   * Genera la comunicación de baja (anulación) de un comprobante en Nubefact.
+   *
+   * No lanza excepción por errores de Nubefact: devuelve
+   * ['success' => bool, 'data' => array, 'error' => ?string, 'http_status' => ?int, 'request' => array].
+   * success = HTTP 2xx y sin "errors" en la respuesta. aceptada_por_sunat puede venir en false
+   * mientras SUNAT procesa el ticket; eso se confirma luego con queryCancellation().
    *
    * @param object $document El documento a anular
    * @param string $reason Motivo de la anulación
-   * @return array La respuesta de Nubefact
-   * @throws Exception
+   * @throws Exception Solo ante fallas de conexión
    */
   public function cancelDocument($document, string $reason): array
   {
@@ -178,116 +182,59 @@ class NubefactApiService
       'codigo_unico'        => $document->codigo_unico ?? uniqid('ANULACION_'),
     ];
 
-    $logData = [
-      'ap_billing_electronic_document_id' => $document->id,
-      'operation'                         => 'generar_anulacion',
-      'request_payload'                   => json_encode($payload, JSON_UNESCAPED_UNICODE),
-    ];
-
-    try {
-      $response = Http::withHeaders([
-        'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type'  => 'application/json',
-      ])->post($this->apiUrl, $payload);
-
-      $responseData = $response->json();
-      $httpStatusCode = $response->status();
-
-      $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
-      $logData['http_status_code'] = $httpStatusCode;
-
-      if ($response->successful() && isset($responseData['aceptada_por_sunat'])) {
-        $logData['success'] = true;
-        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-        return [
-          'success' => true,
-          'data'    => $responseData,
-        ];
-      } else {
-        $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
-        $logData['success'] = false;
-        $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-        return [
-          'success' => false,
-          'error'   => $errorMessage,
-          'data'    => $responseData,
-        ];
-      }
-    } catch (Exception $e) {
-      $logData['success'] = false;
-      $logData['error_message'] = $e->getMessage();
-      $logData['http_status_code'] = 0;
-      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-      throw $e;
-    }
+    return $this->postCancellationOperation($payload);
   }
 
   /**
-   * Consulta el estado de una anulación
+   * Consulta la comunicación de baja de un comprobante en Nubefact (consultar_anulacion).
+   * Si no existe baja, Nubefact responde con errors y codigo 24.
    *
    * @param object $document El documento anulado
-   * @return array La respuesta de Nubefact
-   * @throws Exception
+   * @throws Exception Solo ante fallas de conexión
    */
   public function queryCancellation($document): array
   {
     $this->setApiCredentials($document->sede_id);
-    $queryParams = [
-      'tipo'   => $document->documentType->code_nubefact,
-      'serie'  => $document->serie,
-      'numero' => $document->numero,
+    $payload = [
+      'operacion'           => 'consultar_anulacion',
+      'tipo_de_comprobante' => $document->documentType->code_nubefact,
+      'serie'               => $document->serie,
+      'numero'              => $document->numero,
     ];
 
-    $logData = [
-      'ap_billing_electronic_document_id' => $document->id,
-      'operation'                         => 'consultar_anulacion',
-      'request_payload'                   => json_encode($queryParams, JSON_UNESCAPED_UNICODE),
-    ];
+    return $this->postCancellationOperation($payload);
+  }
 
-    try {
-      $response = Http::withHeaders([
-        'Authorization' => 'Token token="' . $this->token . '"',
-        'Content-Type'  => 'application/json',
-      ])->get($this->apiUrl, $queryParams);
+  /**
+   * POST común para generar_anulacion / consultar_anulacion.
+   */
+  private function postCancellationOperation(array $payload): array
+  {
+    $response = Http::withHeaders([
+      'Authorization' => 'Token token="' . $this->token . '"',
+      'Content-Type'  => 'application/json',
+      'Accept'        => 'application/json',
+    ])->post($this->apiUrl, $payload);
 
-      $responseData = $response->json();
-      $httpStatusCode = $response->status();
-
-      $logData['response_payload'] = json_encode($responseData, JSON_UNESCAPED_UNICODE);
-      $logData['http_status_code'] = $httpStatusCode;
-
-      if ($response->successful()) {
-        $logData['success'] = true;
-        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-        return [
-          'success' => true,
-          'data'    => $responseData,
-        ];
-      } else {
-        $errorMessage = $responseData['errors'] ?? $responseData['message'] ?? 'Error desconocido';
-        $logData['success'] = false;
-        $logData['error_message'] = is_array($errorMessage) ? json_encode($errorMessage) : $errorMessage;
-        // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-        return [
-          'success' => false,
-          'error'   => $errorMessage,
-          'data'    => $responseData,
-        ];
-      }
-    } catch (Exception $e) {
-      $logData['success'] = false;
-      $logData['error_message'] = $e->getMessage();
-      $logData['http_status_code'] = 0;
-      // $this->logRequest($logData); // Comentado: Log desactivado para evitar crecimiento de BD
-
-      throw $e;
+    $responseData = $response->json();
+    if (!is_array($responseData)) {
+      $responseData = ['errors' => 'Respuesta no válida de Nubefact: ' . mb_substr($response->body(), 0, 500)];
     }
+
+    $success = $response->successful() && !isset($responseData['errors']);
+    $error = null;
+    if (!$success) {
+      $error = $responseData['errors'] ?? $responseData['message'] ?? ('HTTP ' . $response->status());
+      $error = is_array($error) ? implode(', ', $error) : (string)$error;
+    }
+
+    return [
+      'success'     => $success,
+      'data'        => $responseData,
+      'error'       => $error,
+      'http_status' => $response->status(),
+      'request'     => $payload,
+    ];
   }
 
   /**

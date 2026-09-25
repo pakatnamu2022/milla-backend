@@ -22,10 +22,11 @@ class StoreScrumProjectRequest extends FormRequest
   public function rules(): array
   {
     return [
-      'name'        => 'required|string|max:100',
-      'description' => 'nullable|string|max:500',
-      'color'       => 'nullable|string',
-      'status'      => 'nullable|in:activo,archivado',
+      'name'         => 'required|string|max:100',
+      'description'  => 'nullable|string|max:500',
+      'color'        => 'nullable|string',
+      'status'       => 'nullable|in:activo,archivado',
+      'hourly_cost'  => 'nullable|numeric|min:0|max:9999.99',
     ];
   }
 }

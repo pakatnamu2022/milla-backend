@@ -2150,6 +2150,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
       Route::post('electronic-documents/{id}/query', [ElectronicDocumentController::class, 'queryFromNubefact']);
       Route::get('electronic-documents/{id}/pre-cancel', [ElectronicDocumentController::class, 'preCancelInNubefact']);
       Route::post('electronic-documents/{id}/cancel', [ElectronicDocumentController::class, 'cancelInNubefact']);
+      Route::get('electronic-documents/{id}/cancellations', [ElectronicDocumentController::class, 'cancellations']);
+      Route::post('electronic-documents/{id}/cancellations/query', [ElectronicDocumentController::class, 'queryCancellationInNubefact']);
       Route::post('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'createCreditNote']);
       Route::put('electronic-documents/{id}/credit-note', [ElectronicDocumentController::class, 'updateCreditNote']);
       Route::post('electronic-documents/{id}/debit-note', [ElectronicDocumentController::class, 'createDebitNote']);

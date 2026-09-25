@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\gp\tics\pm;
 
+use App\Models\gp\tics\pm\ScrumItem;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateScrumItemRequest extends FormRequest
@@ -40,5 +42,50 @@ class UpdateScrumItemRequest extends FormRequest
             'tag_ids'         => 'nullable|array',
             'tag_ids.*'       => 'integer|exists:scrum_tags,id',
         ];
+    }
+
+    /**
+     * La predecesora solo tiene sentido entre items del mismo tipo (tarea con
+     * tarea, historia con historia): mezclar niveles no encaja con cómo se
+     * calculan las cadenas de fechas ni con las flechas del Gantt. Además,
+     * entre tareas, deben ser del mismo dominio (misma historia padre): una
+     * tarea de otra historia no es una dependencia real de esta.
+     */
+    public function withValidator(ValidatorContract $validator): void
+    {
+        $validator->after(function (ValidatorContract $validator) {
+            $predecessorId = $this->input('predecessor_id');
+            if (!$predecessorId) {
+                return;
+            }
+
+            $itemId = (int) $this->route('id');
+            if ($predecessorId == $itemId) {
+                $validator->errors()->add('predecessor_id', 'Un item no puede ser su propia predecesora.');
+                return;
+            }
+
+            $item = ScrumItem::find($itemId);
+            $type = $this->input('type') ?? $item?->type;
+            $predecessor = ScrumItem::find($predecessorId);
+
+            if ($type && $predecessor && $type !== $predecessor->type) {
+                $validator->errors()->add(
+                    'predecessor_id',
+                    'La predecesora debe ser del mismo tipo de item (tarea con tarea, historia con historia).',
+                );
+                return;
+            }
+
+            if ($type === 'tarea' && $predecessor) {
+                $parentId = $this->input('parent_id') ?? $item?->parent_id;
+                if ($parentId != $predecessor->parent_id) {
+                    $validator->errors()->add(
+                        'predecessor_id',
+                        'La predecesora debe ser una tarea de la misma historia.',
+                    );
+                }
+            }
+        });
     }
 }
