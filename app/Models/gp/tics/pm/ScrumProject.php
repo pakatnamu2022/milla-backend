@@ -14,7 +14,12 @@ class ScrumProject extends BaseModel
     'description',
     'color',
     'status',
+    'hourly_cost',
     'created_by',
+  ];
+
+  protected $casts = [
+    'hourly_cost' => 'decimal:2',
   ];
 
   const filters = [
