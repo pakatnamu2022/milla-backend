@@ -153,8 +153,8 @@ class PayrollRegisterService extends BaseService
                     ->get();
 
                 // Mapear bonificaciones por tipo, resuelto por código contra el catálogo (ver
-                // $bonusTypeIds arriba). Por ahora solo existe el código BONO_PRODUCCION
-                // (Transportes Pakatnamú); el comercial queda en 0 hasta que se defina su código.
+                // $bonusTypeIds arriba, sembrado por PayrollBonusTypeSeeder): BONO_PRODUCCION
+                // (Transportes Pakatnamú) y BONO_COMERCIAL.
                 $commercialBonus = isset($bonusTypeIds['BONO_COMERCIAL'])
                     ? $bonuses->where('type_id', $bonusTypeIds['BONO_COMERCIAL'])->sum('amount')
                     : 0.00;

@@ -83,29 +83,39 @@ class PayrollBonusService extends BaseService implements BaseServiceInterface
   }
 
   /**
-   * Descarga la plantilla Excel (cabecera azul) para cargar bonificaciones. No viene
-   * pre-llenada con trabajadores: RRHH solo completa el DNI (columna A) y el monto (columna B)
-   * de quienes sí tienen el bono asignado ese mes. Mismo formato que espera importFromExcel().
+   * Descarga la plantilla Excel matriz (cabecera azul) para cargar bonificaciones: una columna
+   * por periodo elegido, sin filas precargadas. RRHH completa DNI, nombre del trabajador y el
+   * monto de cada mes que corresponda; permite cargar varios periodos en un mismo archivo.
+   * Mismo formato que espera importFromExcel().
+   *
+   * @param array<int, array{year:int,month:int}> $periods
    */
-  public function downloadTemplate(int $companyId)
+  public function downloadTemplate(int $companyId, array $periods)
   {
+    if (empty($periods)) {
+      throw new Exception('Debe indicar al menos un periodo (año y mes).');
+    }
+
     return Excel::download(
-      new PayrollBonusTemplateExport(),
+      new PayrollBonusTemplateExport($periods),
       'plantilla_bonificaciones.xlsx'
     );
   }
 
   /**
-   * Importa bonificaciones desde un archivo Excel para un periodo y tipo de bono fijos.
+   * Importa bonificaciones desde un archivo Excel matriz para una empresa y tipo de bono fijos.
+   * El periodo de cada columna se toma de la cabecera (MM/AAAA), así una sola subida cubre
+   * varios meses; el periodo se crea automáticamente si todavía no existe (mismo criterio que
+   * PayrollHistoricalBonusImport).
    *
    * Estructura del archivo:
    * - Fila 1: título general (ignorar)
-   * - Fila 2: cabeceras → columna A = DNI, columna B = MONTO
-   * - Fila 3 en adelante: registros de datos
+   * - Fila 2: cabeceras → columna A = DNI, B = TRABAJADOR, C en adelante = un periodo por columna
+   * - Fila 3 en adelante: un trabajador por fila
    */
-  public function importFromExcel(UploadedFile $file, int $periodId, int $typeId): array
+  public function importFromExcel(UploadedFile $file, int $companyId, int $typeId): array
   {
-    $import = new PayrollBonusImport($periodId, $typeId);
+    $import = new PayrollBonusImport($companyId, $typeId);
     Excel::import($import, $file);
     $results = $import->getResults();
 

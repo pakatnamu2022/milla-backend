@@ -15,7 +15,7 @@ class ImportPayrollBonusRequest extends FormRequest
     {
         return [
             'file' => 'required|file|mimes:xlsx,xls|max:10240',
-            'period_id' => 'required|integer|exists:gh_payroll_periods,id',
+            'company_id' => 'required|integer|exists:companies,id',
             'type_id' => 'required|integer|exists:gp_masters,id',
         ];
     }
@@ -26,8 +26,8 @@ class ImportPayrollBonusRequest extends FormRequest
             'file.required' => 'El archivo Excel es requerido',
             'file.mimes' => 'El archivo debe ser de tipo Excel (.xlsx o .xls)',
             'file.max' => 'El archivo no debe superar los 10MB',
-            'period_id.required' => 'El periodo es requerido',
-            'period_id.exists' => 'El periodo seleccionado no existe',
+            'company_id.required' => 'La empresa es requerida',
+            'company_id.exists' => 'La empresa seleccionada no existe',
             'type_id.required' => 'El tipo de bono es requerido',
             'type_id.exists' => 'El tipo de bono seleccionado no existe',
         ];

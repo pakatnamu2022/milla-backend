@@ -68,7 +68,8 @@ class PayrollBonusController extends Controller
     }
 
     /**
-     * Descarga la plantilla Excel para cargar bonificaciones. Query params: company_id.
+     * Descarga la plantilla Excel matriz para cargar bonificaciones (trabajadores x periodos).
+     * Query params: company_id, periods[] (cada uno "YYYY-MM", ej. periods[]=2025-06&periods[]=2025-07)
      */
     public function downloadTemplate(Request $request)
     {
@@ -78,19 +79,25 @@ class PayrollBonusController extends Controller
         }
 
         try {
-            return $this->service->downloadTemplate($companyId);
+            $periods = array_map(function ($code) {
+                [$year, $month] = explode('-', $code);
+                return ['year' => (int) $year, 'month' => (int) $month];
+            }, (array) $request->query('periods', []));
+
+            return $this->service->downloadTemplate($companyId, $periods);
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }
     }
 
     /**
-     * Importa bonificaciones desde un archivo Excel.
+     * Importa bonificaciones desde un archivo Excel matriz. Soporta varios periodos en un mismo
+     * archivo (una columna por periodo) para no repetir la descarga/subida por cada mes.
      *
      * Formato esperado:
      * - Fila 1: título (ignorar)
-     * - Fila 2: cabeceras (A = DNI, B = MONTO)
-     * - Fila 3+: datos
+     * - Fila 2: cabeceras (A = DNI, B = TRABAJADOR, C en adelante = un periodo "MM/AAAA" por columna)
+     * - Fila 3+: un trabajador por fila
      */
     public function import(ImportPayrollBonusRequest $request)
     {
@@ -101,7 +108,7 @@ class PayrollBonusController extends Controller
         try {
             $result = $this->service->importFromExcel(
                 $request->file('file'),
-                (int) $request->input('period_id'),
+                (int) $request->input('company_id'),
                 (int) $request->input('type_id'),
             );
 

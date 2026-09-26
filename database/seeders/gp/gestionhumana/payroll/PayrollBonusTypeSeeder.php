@@ -11,7 +11,9 @@ use Illuminate\Database\Seeder;
  * - PAYROLL_BONUS (histórico): usado solo por PayrollHistoricalBonusImport para el bono de
  *   conductores que entra en el promedio de gratificación/CTS.
  * - PAYROLL_BUNESES: el que consulta el módulo de Bonificaciones (BonusForm/PayrollBonusImport)
- *   para el selector de "Tipo" — aquí va el bono de producción de Transportes Pakatnamú.
+ *   para el selector de "Tipo" — aquí van el bono de producción de Transportes Pakatnamú y el
+ *   bono comercial (BONO_COMERCIAL, que PayrollRegisterService mapea a la columna
+ *   commercial_bonus de la planilla).
  *
  * php artisan db:seed --class="Database\Seeders\gp\gestionhumana\payroll\PayrollBonusTypeSeeder"
  */
@@ -35,10 +37,11 @@ class PayrollBonusTypeSeeder extends Seeder
 
         $bonusCodes = [
             'BONO_PRODUCCION' => 'Bono de Producción',
+            'BONO_COMERCIAL' => 'Bono Comercial',
         ];
 
         foreach ($bonusCodes as $code => $description) {
-            GpMasters::updateOrCreate(
+            GpMasters::firstOrCreate(
                 ['code' => $code, 'type' => self::TYPE_BONUS],
                 ['description' => $description, 'status' => 1],
             );
