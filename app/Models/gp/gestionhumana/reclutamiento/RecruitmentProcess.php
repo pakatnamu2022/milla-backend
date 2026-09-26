@@ -2,6 +2,7 @@
 
 namespace App\Models\gp\gestionhumana\reclutamiento;
 
+use App\Enums\RecruitmentPriority;
 use App\Http\Traits\Reportable;
 use App\Models\BaseModel;
 use App\Models\gp\gestionsistema\Area;
@@ -9,6 +10,7 @@ use App\Models\gp\gestionsistema\Position;
 use App\Models\gp\gestionsistema\Status;
 use App\Models\gp\gestionhumana\personal\Worker;
 use App\Models\gp\maestroGeneral\Sede;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -56,6 +58,7 @@ class RecruitmentProcess extends BaseModel
     'fecha_fin_cierre'   => 'date:Y-m-d',
     'fecha_inicio_pausa' => 'datetime',
     'pausado'            => 'boolean',
+    'prioridad'          => RecruitmentPriority::class,
   ];
 
   const filters = [
@@ -146,7 +149,7 @@ class RecruitmentProcess extends BaseModel
    */
   public function requester()
   {
-    return $this->belongsTo(\App\Models\User::class, 'solicitante_id');
+    return $this->belongsTo(User::class, 'solicitante_id');
   }
 
   /**
