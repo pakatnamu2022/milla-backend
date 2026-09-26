@@ -9,6 +9,7 @@ use App\Models\gp\gestionhumana\payroll\LifeInsurancePolicyWorker;
 use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\payroll\PayrollCalculation;
 use App\Models\gp\gestionhumana\payroll\PayrollExclusion;
+use App\Models\gp\gestionhumana\payroll\PayrollFoodCard;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
 use App\Models\gp\gestionhumana\payroll\PayrollLiquidationBbss;
 use App\Models\gp\gestionhumana\payroll\PayrollLoanExtraDiscount;
@@ -320,6 +321,14 @@ class PayrollRegisterService extends BaseService
                     ->where('period_id', $periodId)
                     ->sum('rate_with_tax'));
 
+                // Prestación alimentaria (tarjeta de alimentos): registrada en
+                // gh_payroll_food_card, uno a uno o importada, igual que seguros. Solo cuenta
+                // si "applies" está activo (permite dejar el registro sin pagarlo ese período).
+                $foodBenefit = (float)(PayrollFoodCard::where('worker_id', $worker->id)
+                    ->where('period_id', $periodId)
+                    ->where('applies', true)
+                    ->sum('amount'));
+
                 // Préstamos y adelantos (incluye colaboraciones): cuotas "PAGO DE CUOTA" cuya
                 // fecha cae dentro del período. Los pagos manuales del legacy ("PAGADO EN LBS",
                 // etc.) se pagaron por otra vía y no se descuentan de nuevo.
@@ -419,7 +428,7 @@ class PayrollRegisterService extends BaseService
                     'night_bonus' => $calculation->night_bonus ?? 0.00,
                     'commercial_bonus' => $commercialBonus,
                     'schooling_allowance' => 0.00,
-                    'food_benefit' => 0.00,
+                    'food_benefit' => $foodBenefit,
 
                     // Calcular total de ingresos
                     'total_income' => $totalIncome,
