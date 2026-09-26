@@ -92,6 +92,10 @@ class PayrollCalculation extends BaseModel
   const STATUS_APPROVED = 'APPROVED';
   const STATUS_PAID = 'PAID';
 
+  // Ventana fija del promedio de calcularPromedioUltimos6Meses(): siempre se divide entre 6,
+  // así falten meses con datos cargados (ver el propio nombre del método).
+  const AVERAGE_MONTHS_WINDOW = 6;
+
   const STATUSES = [
     self::STATUS_DRAFT,
     self::STATUS_CALCULATED,
@@ -396,13 +400,17 @@ class PayrollCalculation extends BaseModel
       ? array_sum(array_column($monthlyTotals, 'bonus'))
       : 0;
 
-    // Calcular promedios
-    $avgOvertime25 = $totalOvertime25 / $monthsCount;
-    $avgOvertime35 = $totalOvertime35 / $monthsCount;
-    $avgHoliday = $totalHoliday / $monthsCount;
-    $avgCompensatory = $totalCompensatory / $monthsCount;
-    $avgNightBonus = $totalNightBonus / $monthsCount;
-    $avgBonus = $totalBonus / $monthsCount;
+    // Promedio de los ÚLTIMOS 6 MESES: el divisor es siempre 6 (meses calendario de la ventana),
+    // no la cantidad de meses con datos cargados — un mes sin horas extra/bono cuenta como 0,
+    // no se excluye del promedio (a diferencia del filtro de "al menos 3 meses" de abajo, que sí
+    // usa $monthsWithX para decidir si el concepto entra o no).
+    $divisor = self::AVERAGE_MONTHS_WINDOW;
+    $avgOvertime25 = $totalOvertime25 / $divisor;
+    $avgOvertime35 = $totalOvertime35 / $divisor;
+    $avgHoliday = $totalHoliday / $divisor;
+    $avgCompensatory = $totalCompensatory / $divisor;
+    $avgNightBonus = $totalNightBonus / $divisor;
+    $avgBonus = $totalBonus / $divisor;
 
     // Sumar horas extras para mantener compatibilidad
     $avgOvertime = $avgOvertime25 + $avgOvertime35;
