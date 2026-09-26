@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\gp\gestionhumana\reclutamiento;
 
+use App\Enums\RecruitmentPriority;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateRecruitmentProcessRequest extends FormRequest
 {
@@ -21,7 +23,7 @@ class UpdateRecruitmentProcessRequest extends FormRequest
       'cargo_id'           => 'sometimes|required|integer|exists:rrhh_cargo,id',
       'fecha_inicio'       => 'sometimes|required|date_format:Y-m-d',
       'solicitante_id'     => 'nullable|integer|exists:usr_users,id',
-      'prioridad'          => 'nullable|integer|min:0|max:255',
+      'prioridad'          => ['nullable', Rule::enum(RecruitmentPriority::class)],
     ];
   }
 }
