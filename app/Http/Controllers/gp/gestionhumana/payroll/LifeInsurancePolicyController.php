@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\AddLifeInsurancePolicyWorkerRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\IndexLifeInsurancePolicyRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\StoreLifeInsurancePolicyRequest;
+use App\Http\Requests\gp\gestionhumana\payroll\UpdateLifeInsurancePolicyRequest;
 use App\Http\Services\gp\gestionhumana\payroll\LifeInsurancePolicyService;
 
 class LifeInsurancePolicyController extends Controller
@@ -44,10 +45,28 @@ class LifeInsurancePolicyController extends Controller
         }
     }
 
+    public function update(UpdateLifeInsurancePolicyRequest $request, int $id)
+    {
+        try {
+            return $this->success($this->service->update($id, $request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
     public function addWorker(AddLifeInsurancePolicyWorkerRequest $request, int $id)
     {
         try {
             return $this->success($this->service->addWorker($id, $request->validated()));
+        } catch (\Throwable $th) {
+            return $this->error($th->getMessage());
+        }
+    }
+
+    public function recalculate(int $id)
+    {
+        try {
+            return $this->success($this->service->recalculate($id));
         } catch (\Throwable $th) {
             return $this->error($th->getMessage());
         }

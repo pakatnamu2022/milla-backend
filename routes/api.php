@@ -2506,7 +2506,9 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::get('life-insurance-policies', [LifeInsurancePolicyController::class, 'index']);
     Route::get('life-insurance-policies/{id}', [LifeInsurancePolicyController::class, 'show']);
     Route::post('life-insurance-policies', [LifeInsurancePolicyController::class, 'store']);
+    Route::put('life-insurance-policies/{id}', [LifeInsurancePolicyController::class, 'update']);
     Route::post('life-insurance-policies/{id}/workers', [LifeInsurancePolicyController::class, 'addWorker']);
+    Route::post('life-insurance-policies/{id}/recalculate', [LifeInsurancePolicyController::class, 'recalculate']);
 
     // Register (Planilla)
     Route::get('register', [PayrollRegisterController::class, 'index']);

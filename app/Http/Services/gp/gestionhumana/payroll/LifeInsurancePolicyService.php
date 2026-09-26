@@ -137,6 +137,125 @@ class LifeInsurancePolicyService extends BaseService
     }
 
     /**
+     * Edita los datos de una póliza ya emitida (aseguradora, N° de póliza, vigencia, tasa, IGV,
+     * exclusión) y recalcula sueldos asegurados y totales con los datos nuevos, igual que
+     * recalculate(). La empresa (company_id) no se puede cambiar: cambiarla invalidaría la
+     * elegibilidad de los trabajadores ya asegurados.
+     */
+    public function update(int $policyId, array $data)
+    {
+        $policy = LifeInsurancePolicy::find($policyId);
+        if (!$policy) {
+            throw new Exception('La póliza no existe');
+        }
+
+        $start = Carbon::parse($data['start_date'] ?? $policy->start_date);
+        $end = Carbon::parse($data['end_date'] ?? $policy->end_date);
+
+        if (isset($data['start_date']) || isset($data['end_date'])) {
+            $overlaps = LifeInsurancePolicy::where('company_id', $policy->company_id)
+                ->where('id', '!=', $policy->id)
+                ->whereDate('start_date', '<=', $end)
+                ->whereDate('end_date', '>=', $start)
+                ->exists();
+            if ($overlaps) {
+                throw new Exception('Ya existe una póliza de esta empresa que se cruza con esas fechas de vigencia');
+            }
+        }
+
+        $policy->fill([
+            'insurer' => $data['insurer'] ?? $policy->insurer,
+            'policy_number' => $data['policy_number'] ?? $policy->policy_number,
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d'),
+            'days' => $data['days'] ?? ($start->diffInDays($end) + 1),
+            'monthly_rate' => $data['monthly_rate'] ?? $policy->monthly_rate,
+            'igv_rate' => $data['igv_rate'] ?? $policy->igv_rate,
+            'exclusion' => $data['exclusion'] ?? $policy->exclusion,
+        ]);
+        $policy->save();
+
+        return $this->recalculate($policy->id);
+    }
+
+    /**
+     * Recalcula los sueldos asegurados y los totales de una póliza ya emitida, por ejemplo cuando
+     * se registró un aumento con fecha anterior al inicio de la póliza después de haberla creado
+     * (el aumento no se reflejó porque aún no existía en el sistema al momento de emitir).
+     *
+     * Solo se refresca el sueldo de los trabajadores que ya estaban activos y elegibles al inicio
+     * de la póliza (mismo criterio que store()): se vuelve a leer su sueldo vigente a esa fecha.
+     * Los trabajadores incluidos después vía addWorker() (ingresos posteriores a la emisión) no se
+     * tocan, porque su sueldo asegurado se fija a la fecha en que se incorporaron, no a la del
+     * inicio de la póliza. Al final se recalculan total_insured_salary, net_premium y el monto
+     * mensual de todos (la prima efectiva de cada uno depende de esos totales).
+     */
+    public function recalculate(int $policyId)
+    {
+        $policy = LifeInsurancePolicy::find($policyId);
+        if (!$policy) {
+            throw new Exception('La póliza no existe');
+        }
+
+        $start = Carbon::parse($policy->start_date);
+        $familyAllowance = (float)GeneralMaster::valueAt('FAMILY_ALLOWANCE', $start, self::FAMILY_ALLOWANCE_FALLBACK);
+
+        // Mismo criterio de elegibilidad que store(): trabajadores ya activos al inicio de la póliza.
+        $eligibleWorkerIds = Worker::working()
+            ->whereHas('sede', fn ($q) => $q->where('empresa_id', $policy->company_id))
+            ->where(fn ($q) => $q->whereNull('fecha_inicio')->orWhereDate('fecha_inicio', '<=', $start))
+            ->pluck('id')
+            ->all();
+
+        $policyWorkers = LifeInsurancePolicyWorker::with('worker')
+            ->where('policy_id', $policy->id)
+            ->get();
+
+        DB::transaction(function () use ($policy, $start, $familyAllowance, $eligibleWorkerIds, $policyWorkers) {
+            $skipped = [];
+            foreach ($policyWorkers as $policyWorker) {
+                if (!in_array($policyWorker->worker_id, $eligibleWorkerIds, true)) {
+                    // Incorporado después de emitida la póliza (addWorker): no se toca su sueldo.
+                    continue;
+                }
+
+                $salary = (float)(WorkerContract::salaryForWorkerAtDate($policyWorker->worker_id, $start->format('Y-m-d')) ?? $policyWorker->worker?->sueldo ?? 0);
+                if ($salary <= 0) {
+                    $skipped[] = $policyWorker->worker_id;
+                    continue;
+                }
+
+                $insuredSalary = $salary + ($policyWorker->worker?->asignacion === 'SI' ? $familyAllowance : 0.0);
+                $policyWorker->insured_salary = $insuredSalary;
+                $policyWorker->save();
+            }
+
+            if (!empty($skipped)) {
+                LifeInsurancePolicyWorker::whereIn('id',
+                    $policyWorkers->whereIn('worker_id', $skipped)->pluck('id')
+                )->delete();
+            }
+
+            $remaining = LifeInsurancePolicyWorker::where('policy_id', $policy->id)->get();
+            $totalInsured = round((float)$remaining->sum('insured_salary') - (float)$policy->exclusion, 2);
+            if ($totalInsured <= 0) {
+                throw new Exception('El total de sueldos asegurados (menos la exclusión) debe ser mayor a cero');
+            }
+
+            $policy->total_insured_salary = $totalInsured;
+            $policy->net_premium = $totalInsured * (float)$policy->monthly_rate * 12 * ($policy->days / 365);
+            $policy->save();
+
+            foreach ($remaining as $policyWorker) {
+                $policyWorker->fill($policy->monthlyAmountFor((float)$policyWorker->insured_salary));
+                $policyWorker->save();
+            }
+        });
+
+        return $this->show($policy->id);
+    }
+
+    /**
      * Inclusión de un trabajador que ingresó después de emitida la póliza: mismo cálculo con la
      * prima efectiva de la póliza (prima neta / total asegurado), sin alterar los totales ni los
      * montos de los demás trabajadores.

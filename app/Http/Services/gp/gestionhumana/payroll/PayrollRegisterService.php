@@ -96,6 +96,10 @@ class PayrollRegisterService extends BaseService
             // Database\Seeders\gp\gestionhumana\payroll\PayrollLiquidationBbssTypeSeeder).
             $liquidationTypeIds = PayrollLiquidationBbss::typeIdsByCode();
 
+            // Tipos del catálogo GpMasters para bonificaciones (id por código, ver
+            // Database\Seeders\gp\gestionhumana\payroll\PayrollBonusTypeSeeder).
+            $bonusTypeIds = PayrollBonus::typeIdsByCode();
+
             // Regenerar: borra los registros ya existentes del período para que el bucle
             // los recree con los datos/cálculos actuales (sueldo histórico, vacaciones,
             // condiciones de trabajo, etc.), en vez de saltarlos como si nada cambió.
@@ -148,9 +152,15 @@ class PayrollRegisterService extends BaseService
                     ->with('type')
                     ->get();
 
-                // Mapear bonificaciones por tipo (aquí necesitarás los type_ids correctos)
-                $commercialBonus = $bonuses->where('type_id', 1)->sum('amount'); // TODO: ajustar type_id
-                $productionBonus = $bonuses->where('type_id', 2)->sum('amount'); // TODO: ajustar type_id
+                // Mapear bonificaciones por tipo, resuelto por código contra el catálogo (ver
+                // $bonusTypeIds arriba). Por ahora solo existe el código BONO_PRODUCCION
+                // (Transportes Pakatnamú); el comercial queda en 0 hasta que se defina su código.
+                $commercialBonus = isset($bonusTypeIds['BONO_COMERCIAL'])
+                    ? $bonuses->where('type_id', $bonusTypeIds['BONO_COMERCIAL'])->sum('amount')
+                    : 0.00;
+                $productionBonus = isset($bonusTypeIds['BONO_PRODUCCION'])
+                    ? $bonuses->where('type_id', $bonusTypeIds['BONO_PRODUCCION'])->sum('amount')
+                    : 0.00;
 
                 // Datos del trabajador (snapshot)
                 $workerName = $worker->nombre_completo ?? '';
@@ -252,19 +262,21 @@ class PayrollRegisterService extends BaseService
                 // 100% del monto vigente, sin prorrateo por días trabajados, vacaciones ni subsidio.
                 $familyAllowancePaid = round($familyAllowanceAmount, 2);
 
+                // Nota: condición de trabajo (work_conditions) no es un ingreso, sino un
+                // descuento (se suma a total_deductions más abajo); prestación alimentaria
+                // (food_benefit) es no remunerativa. Ninguna de las dos entra a la remuneración total.
                 $totalIncome = $this->calculateTotalIncome([
                     'basic_salary' => $basicSalary,
                     'family_allowance' => $familyAllowancePaid,
                     'overtime_25' => $calculation->overtime_25 ?? 0.00,
                     'overtime_35' => $calculation->overtime_35 ?? 0.00,
                     'subsidy_disability' => $subsidyAmount,
+                    'vacation_pay' => $vacationPay,
+                    'production_bonus' => $productionBonus,
                     'holiday_pay' => $calculation->holiday_pay ?? 0.00,
                     'worked_rest_days_pay' => $calculation->compensatory_pay ?? 0.00,
                     'night_bonus' => $calculation->night_bonus ?? 0.00,
-                    'production_bonus' => $productionBonus,
                     'commercial_bonus' => $commercialBonus,
-                    'work_conditions' => $workConditions,
-                    'vacation_pay' => $vacationPay,
                 ]);
 
                 // Aportes del empleador: SCTR (salud+pensión), EsSalud, Vida Ley
@@ -316,8 +328,11 @@ class PayrollRegisterService extends BaseService
                     ->whereHas('loan', fn($q) => $q->where('worker_id', $worker->id))
                     ->sum('amount');
 
-                // Fuentes de datos aún no identificadas: quedan en 0.00 (documentado en el plan).
-                $otherDeductions = 0.00;
+                // "Otros descuentos" agrupa conceptos que no tienen columna propia en el
+                // reporte; por ahora incluye la condición de trabajo (work_conditions), que
+                // es un descuento y no un ingreso. Otras fuentes aún no identificadas quedan
+                // en 0.00 (documentado en el plan).
+                $otherDeductions = round($workConditions, 2);
                 $judicialDeductions = 0.00;
                 $graceAmount = 0.00;
                 $bonusReferral = 0.00;
@@ -338,12 +353,17 @@ class PayrollRegisterService extends BaseService
                 $netPayPreliminary = round($totalIncome - $totalDeductions, 2);
                 // La gratificación (Fiestas Patrias o Navidad) y su bonificación extraordinaria
                 // no llevan descuentos (están inafectas), así que se suman completas al neto,
-                // igual que el aguinaldo.
+                // igual que el aguinaldo. La condición de trabajo se suma de vuelta porque, aunque
+                // se resta en "otros descuentos" para que aparezca en esa columna del reporte, sí
+                // se le paga al trabajador — debe netear en 0, no reducir el neto a pagar.
+                // TODO: revisar esto más adelante, es un acomodo temporal para que aparezca en
+                // ambos lados del reporte (ingreso real y columna de descuento) sin duplicar el efecto.
                 $netPayPlusAguinaldo = round(
                     $netPayPreliminary
                     + $gratification + $extraordinaryBonus
                     + $christmasGratification + $christmasExtraordinaryBonus
-                    + $aguinaldo,
+                    + $aguinaldo
+                    + $workConditions,
                     2
                 );
 
@@ -420,7 +440,7 @@ class PayrollRegisterService extends BaseService
                     'income_tax_5th' => $incomeTax5th,
                     'oncosalud_plan' => $oncosaludPlan, // TODO: sin fuente de datos identificada
                     'advances_loans' => $advancesLoans,
-                    'other_deductions' => $otherDeductions, // TODO: sin fuente de datos identificada
+                    'other_deductions' => $otherDeductions, // incluye condición de trabajo (work_conditions)
                     'judicial_deductions' => $judicialDeductions, // TODO: sin fuente de datos identificada
                     'grace_amount' => $graceAmount, // TODO: sin fuente de datos identificada
                     'total_deductions' => $totalDeductions,
@@ -572,12 +592,11 @@ class PayrollRegisterService extends BaseService
      * - EsSalud: 9% sobre el total de ingresos MENOS el subsidio (el subsidio lo paga EsSalud,
      *   no está afecto), con piso RMV cuando el total de ingresos no supera la RMV (igual que
      *   la columna ESSALUD de la planilla Excel).
-     * - SCTR (salud + pensión): (total de ingresos - subsidio) x tasa, con la tasa de la
-     *   empresa vigente a la fecha (gh_sctr_rates), solo si el trabajador está afiliado
-     *   (rrhh_persona.estado_sctr = 'SI'). La base es el total de
-     *   ingresos del periodo (antes de descuentos; incluye vacaciones, horas extra, bonos,
-     *   asignación familiar), sin el subsidio, igual que EsSalud. SCTR pensión tiene tope en la RMA (Remuneración
-     *   Máxima Asegurable).
+     * - SCTR (salud + pensión): (remuneración básica + asignación familiar) x tasa, con la tasa
+     *   de la empresa vigente a la fecha (gh_sctr_rates), solo si el trabajador está afiliado
+     *   (rrhh_persona.estado_sctr = 'SI'). A diferencia de EsSalud, la base NO es el total de
+     *   ingresos (no incluye bonos, horas extra, vacaciones ni subsidio). SCTR pensión tiene
+     *   tope en la RMA (Remuneración Máxima Asegurable).
      * - Vida Ley: NO se calcula aquí. El monto mensual se calculó una sola vez al emitir la
      *   póliza de la empresa (gh_life_insurance_policies) y aquí solo se lee el del
      *   trabajador en la póliza vigente a la fecha; si no está incluido, queda en 0.
@@ -613,12 +632,13 @@ class PayrollRegisterService extends BaseService
         $essaludBase = $totalIncome > $minimumWage ? ($totalIncome - $subsidyAmount) : $minimumWage;
         $essalud = round($essaludBase * $essaludRate, 2);
 
-        // SCTR: solo trabajadores afiliados (rrhh_persona.estado_sctr = 'SI').
+        // SCTR: solo trabajadores afiliados (rrhh_persona.estado_sctr = 'SI'). Base = básico +
+        // asignación familiar (no el total de ingresos: excluye bonos, horas extra, subsidio, etc.).
         $isSctrAffiliated = strtoupper($worker->estado_sctr ?? '') === 'SI';
         $sctrHealth = 0.0;
         $sctrPension = 0.0;
         if ($isSctrAffiliated) {
-            $sctrBase = $totalIncome - $subsidyAmount;
+            $sctrBase = $basicSalary + $familyAllowance;
             $sctrHealth = round($sctrBase * $sctrHealthRate, 2);
             $sctrPensionBase = min($sctrBase, $insurableMaxRemuneration);
             $sctrPension = round($sctrPensionBase * $sctrPensionRate, 2);

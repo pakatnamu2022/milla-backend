@@ -28,11 +28,11 @@ class PayrollBonus extends BaseModel
   ];
 
   const filters = [
-    'search' => [],
+    'search'    => ['worker.vat', 'worker.nombre_completo'],
     'worker_id' => '=',
     'period_id' => '=',
-    'type_id' => '=',
-    'status' => '=',
+    'type_id'   => '=',
+    'status'    => '=',
   ];
 
   const sorts = [
@@ -42,6 +42,18 @@ class PayrollBonus extends BaseModel
     'amount',
     'created_at',
   ];
+
+  /**
+   * IDs de gp_masters por código, para el catálogo de tipos de bono (ver
+   * Database\Seeders\gp\gestionhumana\payroll\PayrollBonusTypeSeeder). Mismo patrón que
+   * PayrollLiquidationBbss::typeIdsByCode() — evita hardcodear IDs que varían entre bases de datos.
+   */
+  public static function typeIdsByCode(): array
+  {
+    return GpMasters::where('type', 'PAYROLL_BUNESES')
+      ->pluck('id', 'code')
+      ->toArray();
+  }
 
   public function worker(): BelongsTo
   {
