@@ -141,13 +141,14 @@ class WorkerService extends BaseService
       ];
     }
 
-    // Misma regla que SalaryIncreaseService::store: solo si el último contrato es INDETERMINADO.
-    $latestContract = WorkerContract::latestContract($worker->id);
+    // Misma regla que SalaryIncreaseService::store: hace falta un contrato vigente hoy (de
+    // cualquier tipo) para poder registrar un aumento con fecha efectiva actual.
+    $currentContract = WorkerContract::resolveContractAtDate($worker->id, now()->format('Y-m-d'));
 
     return [
       'worker_id' => $worker->id,
       'current_salary' => $currentSalary,
-      'can_register_increase' => $latestContract !== null && WorkerContract::isIndeterminado($latestContract),
+      'can_register_increase' => $currentContract !== null,
       'contracts' => $contracts->map(fn(Contract $c) => [
         'id' => $c->id,
         'tipo_contrato' => $c->contractType?->descripcion,

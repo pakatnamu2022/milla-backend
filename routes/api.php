@@ -2452,6 +2452,8 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('liquidation-bbss', PayrollLiquidationBbssController::class);
 
     // Bonuses
+    Route::get('bonuses/template', [PayrollBonusController::class, 'downloadTemplate']);
+    Route::post('bonuses/import', [PayrollBonusController::class, 'import']);
     Route::apiResource('bonuses', PayrollBonusController::class);
 
     // Insurances
@@ -2460,8 +2462,10 @@ Route::middleware(['auth:sanctum'])->group(callback: function () {
     Route::apiResource('insurances', PayrollInsuranceController::class);
 
     // Working Conditions
+    Route::get('working-conditions/template', [PayrollWorkingConditionController::class, 'downloadTemplate']);
     Route::post('working-conditions/import', [PayrollWorkingConditionController::class, 'import']);
     Route::get('working-conditions', [PayrollWorkingConditionController::class, 'index']);
+    Route::put('working-conditions/{id}', [PayrollWorkingConditionController::class, 'update']);
 
     // Loans
     Route::post('loans/sync-legacy', [PayrollLoanController::class, 'syncLegacy']);

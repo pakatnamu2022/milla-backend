@@ -64,9 +64,11 @@ class WorkerContract extends BaseModel
      * tiene ningún contrato con sueldo registrado — el llamador debe hacer
      * fallback a rrhh_persona.sueldo.
      *
-     * Aumentos registrados (gh_salary_increases, solo indeterminados): si hay un aumento con
-     * fecha efectiva <= $date y posterior (o igual) al inicio del contrato resuelto, gana sobre
-     * el sueldo del contrato — es el sueldo real vigente aunque el contrato no se haya renovado.
+     * Aumentos registrados (gh_salary_increases, cualquier tipo de contrato): si hay un aumento
+     * con fecha efectiva <= $date y posterior (o igual) al inicio del contrato resuelto, gana
+     * sobre el sueldo del contrato — es el sueldo real vigente aunque el contrato no se haya
+     * renovado (aplica también a plazo fijo: una mejora de sueldo puede darse a mitad de
+     * contrato y quedar solo formalizada como monto nuevo en el contrato siguiente).
      *
      * Excepción (legado): si el contrato resuelto es el ÚLTIMO contrato del trabajador y es
      * INDETERMINADO, y el trabajador aún NO tiene aumentos registrados, se devuelve null para
@@ -104,7 +106,6 @@ class WorkerContract extends BaseModel
 
     /**
      * Último contrato vigente (por fecha de inicio) del trabajador, o null.
-     * Lo usa el registro de aumentos: solo procede si este contrato es INDETERMINADO.
      */
     public static function latestContract(int $workerId): ?self
     {

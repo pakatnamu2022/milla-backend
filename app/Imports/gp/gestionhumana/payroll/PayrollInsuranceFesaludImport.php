@@ -15,18 +15,21 @@ class PayrollInsuranceFesaludImport implements ToCollection
 {
     private int $periodId;
     private int $businessPartnerId;
+    private int $companyId;
     private array $results = [
         'created' => 0,
         'updated' => 0,
         'errors' => [],
         'rows_processed' => 0,
         'skipped' => 0,
+        'report' => [],
     ];
 
-    public function __construct(int $periodId, int $businessPartnerId)
+    public function __construct(int $periodId, int $businessPartnerId, int $companyId)
     {
         $this->periodId = $periodId;
         $this->businessPartnerId = $businessPartnerId;
+        $this->companyId = $companyId;
     }
 
     public function collection(Collection $rows): void
@@ -68,6 +71,21 @@ class PayrollInsuranceFesaludImport implements ToCollection
                 $this->results['rows_processed']++;
             } catch (Exception $e) {
                 $this->results['errors'][] = "Fila {$rowNumber}: " . $e->getMessage();
+                $this->results['report'][] = [
+                    'fila' => $rowNumber,
+                    'doc_afiliado' => null,
+                    'contratante' => isset($columnMapping['nombres'])
+                        ? trim(implode(' ', array_filter([
+                            $this->getCellValue($rowArray, $columnMapping['apellido_paterno'] ?? -1),
+                            $this->getCellValue($rowArray, $columnMapping['apellido_materno'] ?? -1),
+                            $this->getCellValue($rowArray, $columnMapping['nombres'] ?? -1),
+                        ])))
+                        : null,
+                    'doc_contratante' => $this->getCellValue($rowArray, $columnMapping['num_doc'] ?? -1),
+                    'tarifa' => $this->getCellValue($rowArray, $columnMapping['aporte_mensual'] ?? -1),
+                    'estado' => 'No importado',
+                    'motivo' => $e->getMessage(),
+                ];
             }
         }
     }
@@ -171,6 +189,13 @@ class PayrollInsuranceFesaludImport implements ToCollection
             throw new Exception("No se encontró trabajador con documento: {$numDoc}");
         }
 
+        // Validar que el trabajador pertenezca a la empresa seleccionada (un mismo DNI
+        // puede existir en más de una empresa del grupo, o el usuario pudo elegir el
+        // periodo de otra empresa por error).
+        if ((int)$worker->sede?->empresa_id !== $this->companyId) {
+            throw new Exception("El trabajador {$worker->nombre_completo} (doc. {$numDoc}) no pertenece a la empresa seleccionada");
+        }
+
         // Limpiar y validar aporte mensual
         $rateWithTaxValue = $this->parseDecimal($aporteMensual);
 
@@ -197,9 +222,11 @@ class PayrollInsuranceFesaludImport implements ToCollection
             if ($existingRecord) {
                 $existingRecord->update($data);
                 $this->results['updated']++;
+                $status = 'Actualizado';
             } else {
                 PayrollInsurance::create($data);
                 $this->results['created']++;
+                $status = 'Creado';
             }
 
             DB::commit();
@@ -207,6 +234,16 @@ class PayrollInsuranceFesaludImport implements ToCollection
             DB::rollBack();
             throw $e;
         }
+
+        $this->results['report'][] = [
+            'fila' => $rowNumber,
+            'doc_afiliado' => null,
+            'contratante' => $contractingName,
+            'doc_contratante' => trim($numDoc),
+            'tarifa' => $rateWithTaxValue,
+            'estado' => 'Importado',
+            'motivo' => $status,
+        ];
     }
 
     /**

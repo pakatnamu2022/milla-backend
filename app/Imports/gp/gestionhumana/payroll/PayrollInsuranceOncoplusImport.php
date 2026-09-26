@@ -14,18 +14,21 @@ class PayrollInsuranceOncoplusImport implements ToCollection, WithHeadingRow
 {
   private int $periodId;
   private int $businessPartnerId;
+  private int $companyId;
   private array $results = [
     'created' => 0,
     'updated' => 0,
     'errors' => [],
     'rows_processed' => 0,
     'skipped' => 0,
+    'report' => [],
   ];
 
-  public function __construct(int $periodId, int $businessPartnerId)
+  public function __construct(int $periodId, int $businessPartnerId, int $companyId)
   {
     $this->periodId = $periodId;
     $this->businessPartnerId = $businessPartnerId;
+    $this->companyId = $companyId;
   }
 
   public function collection(Collection $rows): void
@@ -53,6 +56,15 @@ class PayrollInsuranceOncoplusImport implements ToCollection, WithHeadingRow
         $this->results['rows_processed']++;
       } catch (Exception $e) {
         $this->results['errors'][] = "Fila {$rowNumber}: " . $e->getMessage();
+        $this->results['report'][] = [
+          'fila' => $rowNumber,
+          'doc_afiliado' => $this->extractValue($rowArray, ['num_doc_afiliado', 'núm_doc_afiliado']),
+          'contratante' => $this->extractValue($rowArray, ['contratante']),
+          'doc_contratante' => $this->extractValue($rowArray, ['num_doc_contratante', 'núm_doc_contratante']),
+          'tarifa' => $this->extractValue($rowArray, ['tarifa_con_igv']),
+          'estado' => 'No importado',
+          'motivo' => $e->getMessage(),
+        ];
       }
     }
   }
@@ -77,6 +89,13 @@ class PayrollInsuranceOncoplusImport implements ToCollection, WithHeadingRow
 
     if (!$worker) {
       throw new Exception("No se encontró trabajador con documento: {$numDocContracting}");
+    }
+
+    // Validar que el trabajador pertenezca a la empresa seleccionada (un mismo DNI
+    // puede existir en más de una empresa del grupo, o el usuario pudo elegir el
+    // periodo de otra empresa por error).
+    if ((int)$worker->sede?->empresa_id !== $this->companyId) {
+      throw new Exception("El trabajador {$worker->nombre_completo} (doc. {$numDocContracting}) no pertenece a la empresa seleccionada");
     }
 
     // Limpiar y validar tarifa
@@ -104,9 +123,11 @@ class PayrollInsuranceOncoplusImport implements ToCollection, WithHeadingRow
       if ($existingRecord) {
         $existingRecord->update($data);
         $this->results['updated']++;
+        $status = 'Actualizado';
       } else {
         PayrollInsurance::create($data);
         $this->results['created']++;
+        $status = 'Creado';
       }
 
       DB::commit();
@@ -114,6 +135,16 @@ class PayrollInsuranceOncoplusImport implements ToCollection, WithHeadingRow
       DB::rollBack();
       throw $e;
     }
+
+    $this->results['report'][] = [
+      'fila' => $rowNumber,
+      'doc_afiliado' => trim($docNumberAffiliate),
+      'contratante' => trim($contractingName),
+      'doc_contratante' => trim($numDocContracting),
+      'tarifa' => $rateWithTaxValue,
+      'estado' => 'Importado',
+      'motivo' => $status,
+    ];
   }
 
   /**

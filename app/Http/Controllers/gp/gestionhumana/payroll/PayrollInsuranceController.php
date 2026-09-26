@@ -89,6 +89,10 @@ class PayrollInsuranceController extends Controller
    * Determina el formato según el business_partner_id:
    * - 13297: FESALUD SA
    * - 13298: ONCOSALUD S.A.C.
+   *
+   * Devuelve un JSON con el resumen de la importación y el detalle fila por
+   * fila (qué se importó, qué no, y por qué — ej. DNI que pertenece a otra
+   * empresa), para que el frontend lo muestre en un panel (GeneralSheet).
    */
   public function import(ImportPayrollInsuranceRequest $request)
   {
@@ -120,11 +124,7 @@ class PayrollInsuranceController extends Controller
           return $this->error('El business_partner_id debe ser 13297 (FESALUD) o 13298 (ONCOSALUD).');
       }
 
-      if ($result['success']) {
-        return $this->success($result, $result['message'] ?? 'Importación completada');
-      }
-
-      return $this->success($result);
+      return response()->json($result);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

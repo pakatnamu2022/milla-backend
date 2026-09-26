@@ -10,6 +10,8 @@ use App\Imports\gp\gestionhumana\payroll\PayrollInsuranceFesaludImport;
 use App\Exports\gp\gestionhumana\payroll\PayrollInsuranceFesaludTemplateExport;
 use App\Exports\gp\gestionhumana\payroll\PayrollInsuranceOncoplusTemplateExport;
 use App\Models\gp\gestionhumana\payroll\PayrollInsurance;
+use App\Models\gp\gestionhumana\payroll\PayrollPeriod;
+use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -45,6 +47,8 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
 
   public function store(mixed $data)
   {
+    $this->assertWorkerBelongsToPeriodCompany($data['worker_id'], $data['period_id']);
+
     try {
       DB::beginTransaction();
       $record = PayrollInsurance::create($data);
@@ -58,6 +62,14 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
 
   public function update(mixed $data)
   {
+    if (isset($data['worker_id']) || isset($data['period_id'])) {
+      $existing = $this->find($data['id']);
+      $this->assertWorkerBelongsToPeriodCompany(
+        $data['worker_id'] ?? $existing->worker_id,
+        $data['period_id'] ?? $existing->period_id,
+      );
+    }
+
     try {
       DB::beginTransaction();
       $record = $this->find($data['id']);
@@ -67,6 +79,21 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
     } catch (Exception $e) {
       DB::rollBack();
       throw $e;
+    }
+  }
+
+  /**
+   * Evita registrar (manualmente) un seguro con un trabajador que no pertenece
+   * a la empresa del periodo seleccionado — el mismo desfase que puede ocurrir
+   * al importar desde Excel (ver PayrollInsuranceOncoplusImport/FesaludImport).
+   */
+  private function assertWorkerBelongsToPeriodCompany(int $workerId, int $periodId): void
+  {
+    $period = PayrollPeriod::findOrFail($periodId);
+    $worker = Worker::withoutGlobalScope('working')->findOrFail($workerId);
+
+    if ((int)$worker->sede?->empresa_id !== (int)$period->company_id) {
+      throw new Exception("El trabajador {$worker->nombre_completo} no pertenece a la empresa del periodo seleccionado");
     }
   }
 
@@ -116,20 +143,13 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
    */
   public function importFromExcelOncoplus(UploadedFile $file, int $periodId, int $businessPartnerId): array
   {
-    $import = new PayrollInsuranceOncoplusImport($periodId, $businessPartnerId);
+    $period = PayrollPeriod::with('company')->findOrFail($periodId);
+
+    $import = new PayrollInsuranceOncoplusImport($periodId, $businessPartnerId, (int)$period->company_id);
     Excel::import($import, $file);
     $results = $import->getResults();
 
-    return [
-      'success' => empty($results['errors']),
-      'message' => empty($results['errors'])
-        ? "Importación completada: {$results['created']} creados, {$results['updated']} actualizados."
-        : "Importación con errores: {$results['created']} creados, {$results['updated']} actualizados.",
-      'created' => $results['created'],
-      'updated' => $results['updated'],
-      'rows_processed' => $results['rows_processed'],
-      'errors' => $results['errors'],
-    ];
+    return $this->buildImportResult($results, $period, $businessPartnerId);
   }
 
   /**
@@ -151,19 +171,53 @@ class PayrollInsuranceService extends BaseService implements BaseServiceInterfac
    */
   public function importFromExcelFesalud(UploadedFile $file, int $periodId, int $businessPartnerId): array
   {
-    $import = new PayrollInsuranceFesaludImport($periodId, $businessPartnerId);
+    $period = PayrollPeriod::with('company')->findOrFail($periodId);
+
+    $import = new PayrollInsuranceFesaludImport($periodId, $businessPartnerId, (int)$period->company_id);
     Excel::import($import, $file);
     $results = $import->getResults();
+
+    return $this->buildImportResult($results, $period, $businessPartnerId);
+  }
+
+  /**
+   * Arma el resultado de una importación (para el JSON de la respuesta) junto con
+   * el resumen que alimenta el reporte Excel descargable (hoja "Resumen" +
+   * "Detalle" fila por fila, ver PayrollInsuranceImportReportExport).
+   */
+  private function buildImportResult(array $results, PayrollPeriod $period, int $businessPartnerId): array
+  {
+    $notImported = count($results['errors']);
+    $businessPartnerName = match ($businessPartnerId) {
+      13297 => 'FESALUD SA',
+      13298 => 'ONCOSALUD S.A.C.',
+      default => (string)$businessPartnerId,
+    };
 
     return [
       'success' => empty($results['errors']),
       'message' => empty($results['errors'])
         ? "Importación completada: {$results['created']} creados, {$results['updated']} actualizados."
-        : "Importación con errores: {$results['created']} creados, {$results['updated']} actualizados.",
+        : "Importación con errores: {$results['created']} creados, {$results['updated']} actualizados, {$notImported} no importados.",
       'created' => $results['created'],
       'updated' => $results['updated'],
       'rows_processed' => $results['rows_processed'],
       'errors' => $results['errors'],
+      'summary' => [
+        'company_name' => $period->company?->name,
+        'period_name' => $period->name,
+        'business_partner_name' => $businessPartnerName,
+        'imported_at' => now()->format('d/m/Y H:i'),
+        'rows_processed' => $results['rows_processed'],
+        'created' => $results['created'],
+        'updated' => $results['updated'],
+        'not_imported' => $notImported,
+        'global_errors' => array_values(array_filter(
+          $results['errors'],
+          fn(string $error) => !str_starts_with($error, 'Fila ')
+        )),
+      ],
+      'report' => $results['report'],
     ];
   }
 }

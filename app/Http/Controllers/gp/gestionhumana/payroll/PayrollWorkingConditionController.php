@@ -5,8 +5,10 @@ namespace App\Http\Controllers\gp\gestionhumana\payroll;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\gp\gestionhumana\payroll\ImportWorkingConditionRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\IndexPayrollWorkingConditionRequest;
+use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollWorkingConditionRequest;
 use App\Http\Services\gp\gestionhumana\payroll\WorkingConditionService;
 use Exception;
+use Illuminate\Http\Request;
 
 class PayrollWorkingConditionController extends Controller
 {
@@ -21,6 +23,35 @@ class PayrollWorkingConditionController extends Controller
   {
     try {
       return $this->service->list($request);
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  public function update(UpdatePayrollWorkingConditionRequest $request, int $id)
+  {
+    try {
+      $data = $request->validated();
+      $data['id'] = $id;
+      return $this->success($this->service->update($data));
+    } catch (Exception $e) {
+      return $this->error($e->getMessage());
+    }
+  }
+
+  /**
+   * Descarga la plantilla Excel para cargar condiciones de trabajo, pre-llenada con los
+   * trabajadores activos de la empresa. Query params: company_id.
+   */
+  public function downloadTemplate(Request $request)
+  {
+    $companyId = (int) $request->query('company_id');
+    if (!$companyId) {
+      return $this->error('company_id es requerido');
+    }
+
+    try {
+      return $this->service->downloadTemplate($companyId);
     } catch (Exception $e) {
       return $this->error($e->getMessage());
     }

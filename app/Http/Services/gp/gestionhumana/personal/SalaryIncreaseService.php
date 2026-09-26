@@ -31,9 +31,12 @@ class SalaryIncreaseService extends BaseService
     }
 
     /**
-     * Registra un aumento de sueldo y actualiza rrhh_persona.sueldo (única vía prevista para
-     * cambiar el sueldo de un trabajador con contrato INDETERMINADO). Los trabajadores con
-     * contrato a plazo fijo cambian de sueldo generando un contrato nuevo, no por aquí.
+     * Registra un aumento de sueldo y actualiza rrhh_persona.sueldo. Aplica a cualquier tipo de
+     * contrato: un trabajador a plazo fijo puede recibir una mejora de remuneración a mitad de
+     * contrato (por adenda o decisión del empleador) sin esperar a la renovación; el contrato
+     * siguiente normalmente ya sale con el sueldo mejorado, pero eso no impide registrar el
+     * aumento antes. La fecha efectiva se valida contra el contrato que estaba vigente en esa
+     * fecha (no necesariamente el último contrato del trabajador).
      */
     public function store(array $data)
     {
@@ -43,15 +46,23 @@ class SalaryIncreaseService extends BaseService
                 throw new Exception('El trabajador no existe o no está activo');
             }
 
-            $contract = WorkerContract::latestContract($worker->id);
-            if (!$contract || !WorkerContract::isIndeterminado($contract)) {
-                throw new Exception('Solo se registran aumentos a trabajadores con contrato INDETERMINADO; para contratos a plazo fijo el sueldo cambia con un contrato nuevo');
+            $effective = Carbon::parse($data['effective_date'])->startOfDay();
+
+            $contract = WorkerContract::resolveContractAtDate($worker->id, $effective->format('Y-m-d'));
+            if (!$contract) {
+                throw new Exception('El trabajador no tiene un contrato vigente en la fecha efectiva indicada');
             }
 
-            $effective = Carbon::parse($data['effective_date'])->startOfDay();
             $contractStart = Carbon::parse($contract->fecha_inicio_contrato)->startOfDay();
             if ($effective->lt($contractStart)) {
-                throw new Exception('La fecha efectiva no puede ser anterior al inicio del contrato indeterminado (' . $contractStart->format('d/m/Y') . ')');
+                throw new Exception('La fecha efectiva no puede ser anterior al inicio del contrato vigente en esa fecha (' . $contractStart->format('d/m/Y') . ')');
+            }
+
+            if ($contract->fecha_fin_contrato) {
+                $contractEnd = Carbon::parse($contract->fecha_fin_contrato)->startOfDay();
+                if ($effective->gt($contractEnd)) {
+                    throw new Exception('La fecha efectiva no puede ser posterior al fin del contrato vigente en esa fecha (' . $contractEnd->format('d/m/Y') . ')');
+                }
             }
 
             $last = SalaryIncrease::where('worker_id', $worker->id)
@@ -64,9 +75,6 @@ class SalaryIncreaseService extends BaseService
 
             $previous = (float)($data['previous_salary'] ?? ($last?->new_salary ?? $contract->sueldo));
             $new = (float)$data['new_salary'];
-            if (abs($new - $previous) < 0.005) {
-                throw new Exception('El sueldo nuevo es igual al sueldo anterior (' . number_format($previous, 2) . ')');
-            }
 
             $increase = SalaryIncrease::create([
                 'worker_id' => $worker->id,

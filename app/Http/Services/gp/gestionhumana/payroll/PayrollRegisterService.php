@@ -273,9 +273,10 @@ class PayrollRegisterService extends BaseService
                 // Descuentos ONP/AFP (según rrhh_persona.sis_pensiones_id -> rrhh_sist_pensiones)
                 $pensionDeductions = $this->calculatePensionDeductions($worker, $totalIncome, $subsidyAmount);
 
-                // Renta de 5ta categoría: proyección anual simplificada (ingreso mensual x 12,
-                // menos 7 UIT, tramos progresivos 8/14/17/20/30%, prorrateado a cuota mensual).
-                $incomeTax5th = $this->calculateIncomeTax5th($totalIncome, $period->end_date);
+                // Renta de 5ta categoría: proyección anual real (acumulado del año + mes actual
+                // x meses que faltan), menos 7 UIT, tramos progresivos 8/14/17/20/30%, restando
+                // lo ya retenido antes de prorratear entre los meses que faltan.
+                $incomeTax5th = $this->calculateIncomeTax5th($worker, $period, $totalIncome, $subsidyAmount);
 
                 // BB.SS. truncos: se cargan manualmente en el módulo "Liquidación BB.SS."
                 // (gh_payroll_liquidation_bbss) y aquí solo se suman por tipo, igual que
@@ -681,9 +682,10 @@ class PayrollRegisterService extends BaseService
             ];
         }
 
-        $afpMandatory = round($totalIncome * ((float)$pension->obl / 100), 2);
-        $afpInsurance = round($totalIncome * ((float)$pension->prima_seg / 100), 2);
-        $afpCommission = round($totalIncome * ((float)$pension->com_var / 100), 2);
+        $afpBase = $totalIncome - $subsidyAmount;
+        $afpMandatory = round($afpBase * ((float)$pension->obl / 100), 2);
+        $afpInsurance = round($afpBase * ((float)$pension->prima_seg / 100), 2);
+        $afpCommission = round($afpBase * ((float)$pension->com_var / 100), 2);
 
         return [
             'onp_deduction' => 0.00,
@@ -696,29 +698,52 @@ class PayrollRegisterService extends BaseService
     }
 
     /**
-     * Calcular la retención de Renta de 5ta categoría: proyección anual simplificada.
+     * Calcular la retención de Renta de 5ta categoría según el procedimiento legal
+     * (D.S. 122-94-EF, art. 40 Reglamento LIR): proyecta el ingreso anual sumando lo YA
+     * percibido en meses anteriores del año (real, leído de gh_payroll_register) más el
+     * ingreso del mes actual x meses que faltan (incluyéndolo), resta 7 UIT, aplica los
+     * tramos progresivos, y al impuesto anual resultante le resta lo ya retenido en meses
+     * previos antes de prorratear entre los meses que faltan — el divisor baja cada mes
+     * (12 en enero, 11 en febrero, ... 1 en diciembre), en vez de dividir siempre entre 12.
      *
-     * Proyecta el ingreso mensual x 12 (no incluye gratificaciones/bonos extraordinarios,
-     * que suelen estar exonerados o requieren datos que hoy no se registran por
-     * trabajador), resta 7 UIT y aplica los tramos progresivos vigentes (ley, no cambian
-     * por empresa/periodo), prorrateando el impuesto anual resultante a una cuota mensual.
-     * No cubre casos especiales (otro empleador, ingresos ya percibidos antes del alta
-     * en el sistema, etc.) — aproximación razonable para la mayoría de casos.
+     * El subsidio se excluye de la base (no es renta de 5ta afecta, igual que ya hace el
+     * descuento de ONP). Gratificación/CTS no se incluyen: son inafectas por ley (así las
+     * trata el resto del sistema, ver "inafectos" en net_pay_final) y no se proyectan.
      *
-     * @param float $totalIncome
-     * @param string|null $referenceDate Fecha (fin del periodo) para resolver la UIT vigente en
-     *        ese momento (cambia cada año) — ver GeneralMaster::valueAt().
+     * Si el trabajador ingresó a mitad de año, simplemente no hay registros de los meses
+     * previos a su alta, así que el acumulado de esos meses es 0 — no requiere lógica
+     * especial. No cubre ingresos de otro empleador antes de ingresar a la empresa, ni
+     * historial previo al alta en el sistema — misma limitación que la versión anterior.
+     *
+     * @param Worker $worker
+     * @param PayrollPeriod $period
+     * @param float $totalIncome Ingreso total del mes (incluye subsidio, se descuenta aquí).
+     * @param float $subsidyAmount Subsidio del periodo, no afecto a renta de 5ta.
      * @return float
      */
-    private function calculateIncomeTax5th(float $totalIncome, ?string $referenceDate = null): float
+    private function calculateIncomeTax5th(Worker $worker, PayrollPeriod $period, float $totalIncome, float $subsidyAmount = 0.0): float
     {
-        $referenceDate = $referenceDate ?? now()->format('Y-m-d');
+        $referenceDate = $period->end_date;
+        $taxableIncome = $totalIncome - $subsidyAmount;
+        $month = (int)$period->month;
+
+        $priorRegisters = PayrollRegister::where('worker_id', $worker->id)
+            ->whereHas('period', fn($q) => $q->where('company_id', $period->company_id)
+                ->where('year', $period->year)
+                ->where('month', '<', $month))
+            ->get(['total_income', 'subsidy_disability', 'income_tax_5th']);
+
+        $priorTaxableIncome = (float)$priorRegisters->sum(
+            fn($r) => (float)$r->total_income - (float)$r->subsidy_disability
+        );
+        $priorWithheld = (float)$priorRegisters->sum('income_tax_5th');
 
         $uit = (float)(GeneralMaster::valueAt('UIT', $referenceDate, 5150));
         $deductionUit = (float)(GeneralMaster::find(GeneralMaster::INCOME_TAX_DEDUCTION_UIT_ID)->value ?? 7);
 
-        $annualIncome = $totalIncome * 12;
-        $taxableBase = max(0, $annualIncome - ($uit * $deductionUit));
+        $monthsRemaining = 13 - $month;
+        $annualProjected = $priorTaxableIncome + ($taxableIncome * $monthsRemaining);
+        $taxableBase = max(0, $annualProjected - ($uit * $deductionUit));
 
         if ($taxableBase <= 0) {
             return 0.00;
@@ -744,7 +769,7 @@ class PayrollRegisterService extends BaseService
             $previousLimit = $bracket['limit'];
         }
 
-        return round($annualTax / 12, 2);
+        return round(max(0, $annualTax - $priorWithheld) / $monthsRemaining, 2);
     }
 
     /**

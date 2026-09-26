@@ -397,12 +397,14 @@
         <td class="lbl">Estado Civil</td>
         <td>{{ $quote['marital_status'] ?? '' }}</td>
       </tr>
+      @if(in_array(strtoupper((string) ($quote['marital_status'] ?? '')), ['CASADO(A)', 'COPROPIETARIO']))
       <tr>
         <td class="lbl">Cónyuge / Copropietario</td>
         <td colspan="3">{{ $quote['spouse_full_name'] ?? '' }}</td>
         <td class="lbl">DNI Cónyuge</td>
         <td>{{ $quote['spouse_num_doc'] ?? '' }}</td>
       </tr>
+      @endif
       <tr>
         <td class="lbl">Dirección</td>
         <td colspan="5">{{ $quote['address'] ?? '' }}</td>

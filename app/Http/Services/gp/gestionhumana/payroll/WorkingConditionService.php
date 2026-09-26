@@ -2,6 +2,7 @@
 
 namespace App\Http\Services\gp\gestionhumana\payroll;
 
+use App\Exports\gp\gestionhumana\payroll\PayrollWorkingConditionTemplateExport;
 use App\Http\Resources\gp\gestionhumana\payroll\PayrollWorkingConditionResource;
 use App\Http\Services\BaseService;
 use App\Imports\gp\gestionhumana\payroll\WorkingConditionImport;
@@ -9,6 +10,7 @@ use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class WorkingConditionService extends BaseService
@@ -30,17 +32,45 @@ class WorkingConditionService extends BaseService
     );
   }
 
+  public function update(mixed $data)
+  {
+    try {
+      DB::beginTransaction();
+      $record = PayrollWorkingCondition::findOrFail($data['id']);
+      $record->update($data);
+      DB::commit();
+      return new PayrollWorkingConditionResource($record->fresh());
+    } catch (Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
+  }
+
+  /**
+   * Descarga la plantilla Excel (cabecera azul) para cargar condiciones de trabajo. No viene
+   * pre-llenada con trabajadores (no todos tienen C.T. y por defecto sería 0): RRHH solo completa
+   * el DNI (columna A) y el monto (columna B) de quienes sí tienen una condición asignada. Mismo
+   * formato que espera importFromExcel().
+   */
+  public function downloadTemplate(int $companyId)
+  {
+    return Excel::download(
+      new PayrollWorkingConditionTemplateExport(),
+      'plantilla_condiciones_trabajo.xlsx'
+    );
+  }
+
   /**
    * Importa condiciones de trabajo desde un archivo Excel.
    *
    * Estructura del archivo:
    * - Fila 1: título general (ignorar)
-   * - Fila 2: cabeceras → columna B = DNI, columna C = C.T
+   * - Fila 2: cabeceras → columna A = DNI, columna B = C.T
    * - Fila 3 en adelante: registros de datos
    *
    * Reglas de mapeo:
-   * - DNI (columna B): tratado como string con relleno de ceros a 8 dígitos
-   * - C.T (columna C): monto decimal
+   * - DNI (columna A): tratado como string con relleno de ceros a 8 dígitos
+   * - C.T (columna B): monto decimal
    * - Se detiene cuando DNI y C.T están ambos vacíos
    * - Se omiten filas donde DNI esté vacío
    *

@@ -2,16 +2,22 @@
 
 namespace App\Imports\gp\gestionhumana\payroll;
 
-use App\Models\gp\gestionhumana\payroll\PayrollWorkingCondition;
+use App\Models\gp\gestionhumana\payroll\PayrollBonus;
 use App\Models\gp\gestionhumana\personal\Worker;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Illuminate\Support\Collection;
 
-class WorkingConditionImport implements ToCollection
+/**
+ * Importa bonificaciones (gh_payroll_bonuses) desde el Excel generado por
+ * PayrollBonusTemplateExport, para un periodo y tipo de bono fijos (elegidos en el modal antes de
+ * subir el archivo). Mismo patrón que WorkingConditionImport, cambiando el destino.
+ */
+class PayrollBonusImport implements ToCollection
 {
     private int $periodId;
+    private int $typeId;
     private array $results = [
         'created' => 0,
         'updated' => 0,
@@ -20,16 +26,17 @@ class WorkingConditionImport implements ToCollection
         'skipped' => 0,
     ];
 
-    public function __construct(int $periodId)
+    public function __construct(int $periodId, int $typeId)
     {
         $this->periodId = $periodId;
+        $this->typeId = $typeId;
     }
 
     public function collection(Collection $rows): void
     {
         // Procesar desde la fila 3 (índice 2)
         // Fila 0: título (ignorar)
-        // Fila 1: encabezados (ignorar) → columna A = DNI, columna B = C.T
+        // Fila 1: encabezados (ignorar) → columna A = DNI, columna B = MONTO
         // Fila 2 en adelante: datos
         $dataStartIndex = 2;
 
@@ -37,23 +44,21 @@ class WorkingConditionImport implements ToCollection
             $rowNumber = $i + 1; // +1 para numeración de Excel
             $rowArray = $rows[$i]->toArray();
 
-            // Obtener valores de columnas A (índice 0) y B (índice 1)
             $dni = isset($rowArray[0]) ? trim($rowArray[0]) : null;
-            $ct = isset($rowArray[1]) ? $rowArray[1] : null;
+            $amount = isset($rowArray[1]) ? $rowArray[1] : null;
 
             // Detener si ambos están vacíos (fin de datos)
-            if (empty($dni) && (empty($ct) || $ct === 0)) {
+            if (empty($dni) && (empty($amount) || $amount === 0)) {
                 break;
             }
 
-            // Omitir fila si DNI está vacío
             if (empty($dni)) {
                 $this->results['skipped']++;
                 continue;
             }
 
             try {
-                $this->processRow($dni, $ct, $rowNumber);
+                $this->processRow($dni, $amount, $rowNumber);
                 $this->results['rows_processed']++;
             } catch (Exception $e) {
                 $this->results['errors'][] = "Fila {$rowNumber}: " . $e->getMessage();
@@ -61,18 +66,13 @@ class WorkingConditionImport implements ToCollection
         }
     }
 
-    /**
-     * Procesa una fila de datos
-     */
-    private function processRow(string $dni, $ct, int $rowNumber): void
+    private function processRow(string $dni, $amount, int $rowNumber): void
     {
         // Normalizar DNI: siempre string con 8 dígitos (relleno con ceros a la izquierda)
         $dniNormalized = str_pad($dni, 8, '0', STR_PAD_LEFT);
 
-        // Normalizar monto CT: convertir a decimal
-        $ctValue = $this->parseDecimal($ct);
+        $amountValue = $this->parseDecimal($amount);
 
-        // Buscar worker_id por DNI (vat)
         $worker = Worker::withoutGlobalScope('working')
             ->where('vat', $dniNormalized)
             ->first();
@@ -83,15 +83,16 @@ class WorkingConditionImport implements ToCollection
 
         DB::beginTransaction();
         try {
-            // Buscar si ya existe un registro para este trabajador y periodo
-            $existingRecord = PayrollWorkingCondition::where('worker_id', $worker->id)
+            $existingRecord = PayrollBonus::where('worker_id', $worker->id)
                 ->where('period_id', $this->periodId)
+                ->where('type_id', $this->typeId)
                 ->first();
 
             $data = [
                 'worker_id' => $worker->id,
                 'period_id' => $this->periodId,
-                'amount' => $ctValue,
+                'type_id' => $this->typeId,
+                'amount' => $amountValue,
                 'status' => 1,
             ];
 
@@ -99,7 +100,7 @@ class WorkingConditionImport implements ToCollection
                 $existingRecord->update($data);
                 $this->results['updated']++;
             } else {
-                PayrollWorkingCondition::create($data);
+                PayrollBonus::create($data);
                 $this->results['created']++;
             }
 
@@ -110,16 +111,12 @@ class WorkingConditionImport implements ToCollection
         }
     }
 
-    /**
-     * Convierte un valor a decimal
-     */
     private function parseDecimal($value): float
     {
         if (empty($value)) {
             return 0.00;
         }
 
-        // Si es string, quitar prefijos de moneda (S/, $, etc.) y comas
         if (is_string($value)) {
             $value = preg_replace('/[^\d.,\-]/', '', trim($value));
             $value = str_replace(',', '', $value);

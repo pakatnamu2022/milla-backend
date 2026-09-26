@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\gp\gestionhumana\payroll;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\gp\gestionhumana\payroll\ImportPayrollBonusRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\IndexPayrollBonusRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollBonusRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollBonusRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollBonusService;
 use Exception;
+use Illuminate\Http\Request;
 
 class PayrollBonusController extends Controller
 {
@@ -60,6 +62,54 @@ class PayrollBonusController extends Controller
     {
         try {
             return $this->service->destroy($id);
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    /**
+     * Descarga la plantilla Excel para cargar bonificaciones. Query params: company_id.
+     */
+    public function downloadTemplate(Request $request)
+    {
+        $companyId = (int) $request->query('company_id');
+        if (!$companyId) {
+            return $this->error('company_id es requerido');
+        }
+
+        try {
+            return $this->service->downloadTemplate($companyId);
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    /**
+     * Importa bonificaciones desde un archivo Excel.
+     *
+     * Formato esperado:
+     * - Fila 1: título (ignorar)
+     * - Fila 2: cabeceras (A = DNI, B = MONTO)
+     * - Fila 3+: datos
+     */
+    public function import(ImportPayrollBonusRequest $request)
+    {
+        if (!$request->hasFile('file') || !$request->file('file')->isValid()) {
+            return $this->error('Archivo no válido. Asegúrate de enviar un archivo Excel con el campo "file".');
+        }
+
+        try {
+            $result = $this->service->importFromExcel(
+                $request->file('file'),
+                (int) $request->input('period_id'),
+                (int) $request->input('type_id'),
+            );
+
+            if ($result['success']) {
+                return $this->success($result, $result['message'] ?? 'Importación completada');
+            }
+
+            return $this->success($result);
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }

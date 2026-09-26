@@ -8,6 +8,7 @@ use App\Http\Requests\gp\gestionhumana\payroll\IndexPayrollLoanRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\StorePayrollLoanRequest;
 use App\Http\Requests\gp\gestionhumana\payroll\UpdatePayrollLoanRequest;
 use App\Http\Services\gp\gestionhumana\payroll\PayrollLoanService;
+use App\Jobs\SyncPayrollLoansFromLegacyJob;
 use App\Models\GeneralMaster;
 use Exception;
 
@@ -87,7 +88,8 @@ class PayrollLoanController extends Controller
     public function syncLegacy()
     {
         try {
-            return $this->success($this->service->syncFromLegacy());
+            SyncPayrollLoansFromLegacyJob::dispatch();
+            return $this->success(['message' => 'Sincronización de préstamos legacy encolada']);
         } catch (Exception $e) {
             return $this->error($e->getMessage());
         }
